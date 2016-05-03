@@ -1,0 +1,103 @@
+// Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
+//
+// The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
+// and the party accessing this file ("Licensee") apply to Licensee's use of
+// the Software until such time that the Software is made available under an
+// open source license such as the Apache 2.0 License.
+
+html {
+  overflow-y: scroll;
+}
+
+body {
+  color: $base-font-color;
+  font-family: $base-font-family;
+  font-size: $base-font-size;
+  line-height: $base-line-height;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: $hab-blue-dark;
+  font-family: $heading-font-family;
+  font-size: $base-font-size;
+  line-height: $heading-line-height;
+  margin: 0 0 $small-spacing;
+  font-weight: normal;
+}
+
+h1 {
+  font-size: 200%;
+}
+
+h2 {
+  font-size: 125%;
+
+  .page-title & {
+    margin-bottom: 0;
+  }
+}
+
+h3 {
+  font-size: 100%;
+
+  .hero & {
+    padding: 1.5em 0 1em;
+    text-align: center;
+  }
+}
+
+h4 {
+  color: $hab-blue;
+  text-transform: uppercase;
+  font-size: 75%;
+  letter-spacing: 0.4px;
+  line-height: 1.5em;
+
+  .page-title & {
+    margin-top: rem(20);
+  }
+}
+
+p {
+  margin-bottom: $base-spacing * 1.5;
+}
+
+a {
+  color: $action-color;
+  text-decoration: none;
+  transition: color $base-duration $base-timing;
+
+  &:active,
+  &:focus,
+  &:hover {
+    color: $hover-color;
+  }
+
+  &.active {
+    color: $base-font-color;
+    cursor: default;
+  }
+}
+
+hr {
+  border-bottom: $base-border;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  margin: $base-spacing 0;
+}
+
+img,
+picture {
+  margin: 0;
+  max-width: 100%;
+}
+
+label, .small {
+  font-size: rem(12);
+}

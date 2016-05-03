@@ -1,0 +1,17 @@
+#########################
+## Sass Lint File
+#########################
+# Linter Options
+# Rule Configuration
+rules:
+  clean-import-paths: 0
+  force-element-nesting: 0
+  leading-zero:
+    - 2
+    - include: true
+  nesting-depth: 3
+  no-qualifying-elements: 0
+  placeholder-in-extend: 0
+  quotes:
+    - 2
+    - style: double

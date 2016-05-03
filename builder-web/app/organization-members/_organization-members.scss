@@ -1,0 +1,96 @@
+// Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
+//
+// The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
+// and the party accessing this file ("Licensee") apply to Licensee's use of
+// the Software until such time that the Software is made available under an
+// open source license such as the Apache 2.0 License.
+
+.hab-org-members {
+  margin-bottom: $small-spacing;
+  position: relative;
+
+  .members>li {
+    @include outer-container;
+    padding: rem(12) 0;
+    border-bottom: 1px solid $light-gray;
+
+    .hab-gravatar {
+      @include span-columns(1);
+      height: 16px;
+      margin-left: rem(5);
+      margin-top: rem(5);
+      width: 16px;
+    }
+
+    .username {
+      @include span-columns(3);
+      font-weight: bold;
+      padding-left: $small-spacing;
+    }
+
+    .name {
+      @include span-columns(4);
+    }
+
+    .status {
+      @include span-columns(3);
+      color: $medium-gray;
+    }
+
+    .actions {
+      @extend .hab-drop-down;
+      @include span-columns(1);
+      @include omega;
+      float: right;
+
+    }
+  }
+
+  .results {
+    @include dropdown-panel;
+    left: 0;
+    position: absolute;
+    width: 100%;
+    top: 100;
+    z-index: 20;
+
+    &>li {
+      color: $light-gray;
+      position: relative;
+      padding: $small-spacing;
+
+      &.addable {
+        color: inherit;
+
+        &:hover {
+          background-color: $hab-blue-light;
+          cursor: pointer;
+        }
+      }
+
+
+      .grav {
+        float: left;
+        padding-right: $small-spacing;
+        padding-top: rem(3);
+      }
+
+      .username {
+        font-weight: bold;
+      }
+
+      .info {
+        margin: 0;
+      }
+
+      .indicator {
+        position: absolute;
+        right: rem(10);
+        top: rem(8);
+        img {
+          vertical-align: middle;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,119 @@
+// Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
+//
+// The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
+// and the party accessing this file ("Licensee") apply to Licensee's use of
+// the Software until such time that the Software is made available under an
+// open source license such as the Apache 2.0 License.
+
+fieldset {
+  background-color: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  font-weight: 600;
+  margin-bottom: $small-spacing / 2;
+  padding: 0;
+}
+
+label {
+  color: $medium-gray;
+  display: block;
+  margin-bottom: $small-spacing / 2;
+  text-transform: uppercase;
+}
+
+form {
+  small {
+    color: $medium-gray;
+    display: block;
+    margin-bottom: $small-spacing / 2;
+    margin-top: -($small-spacing / 2);
+  }
+
+  button {
+    margin-top: rem(20);
+  }
+}
+
+input,
+select {
+  display: block;
+  font-family: $base-font-family;
+  font-size: $base-font-size;
+}
+
+#{$all-text-inputs},
+select,
+select[multiple] {
+  background-color: $base-background-color;
+  border: $base-border;
+  border-radius: $base-border-radius;
+  box-shadow: $form-box-shadow;
+  box-sizing: border-box;
+  font-family: $base-font-family;
+  font-size: $base-font-size;
+  margin-bottom: $small-spacing;
+  padding: $base-spacing / 3;
+  transition: border-color $base-duration $base-timing;
+  width: 100%;
+
+  &:hover {
+    border-color: shade($base-border-color, 20%);
+  }
+
+  &:focus {
+    border-color: $action-color;
+    box-shadow: $form-box-shadow-focus;
+    outline: none;
+  }
+
+  &:disabled {
+    background-color: shade($base-background-color, 5%);
+    cursor: not-allowed;
+
+    &:hover {
+      border: $base-border;
+    }
+  }
+
+  &.ng-invalid:focus {
+    border-color: $failure-color;
+    box-shadow: $form-box-shadow-focus-failure;
+  }
+
+  &.ng-valid:focus {
+    border-color: $success-color;
+    border-color: $form-box-shadow-focus-success;
+  }
+}
+
+textarea {
+  resize: vertical;
+}
+
+[type="search"] {
+  appearance: none;
+}
+
+[type="checkbox"],
+[type="radio"] {
+  display: inline;
+  margin-right: $small-spacing / 2;
+}
+
+[type="file"] {
+  margin-bottom: $small-spacing;
+  width: 100%;
+}
+
+select {
+  background: $base-background-color url("/node_modules/octicons/svg/chevron-down.svg") no-repeat right 15px center;
+  margin-bottom: $base-spacing;
+  max-width: 100%;
+  -webkit-appearance: none;
+  width: auto;
+}
+

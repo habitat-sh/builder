@@ -1,0 +1,37 @@
+// Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
+//
+// The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
+// and the party accessing this file ("Licensee") apply to Licensee's use of
+// the Software until such time that the Software is made available under an
+// open source license such as the Apache 2.0 License.
+
+.hab-header {
+  @include outer-container;
+  max-width: rem(1200);
+
+  h1.logo {
+    @include hide-text;
+    @include span-columns(4);
+    background-image: url("/assets/images/habitat-logo.svg");
+    background-repeat: no-repeat;
+    color: $white;
+    display: inline;
+    height: 44px;
+    margin: .5em 0 0;
+  }
+
+  &-links {
+    padding: 0.3em;
+    @include span-columns(0);
+    display: inline-block;
+
+    ul {
+      display: inline;
+
+      li {
+        display: inline;
+        margin-right: $base-spacing;
+      }
+    }
+  }
+}

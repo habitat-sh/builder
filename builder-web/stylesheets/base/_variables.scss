@@ -1,0 +1,97 @@
+// Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
+//
+// The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
+// and the party accessing this file ("Licensee") apply to Licensee's use of
+// the Software until such time that the Software is made available under an
+// open source license such as the Apache 2.0 License.
+
+// Typography
+$base-font-family: "Titillium Web", $helvetica;
+$heading-font-family: "Montserrat", $verdana;
+$monospace-font-family: "Source Code Pro", Menlo, Consolas, monospace;
+$octicons-font-path: "/node_modules/octicons/octicons";
+
+// Font Sizes
+$base-font-size: 1em;
+$monospace-font-size: rem(12);
+
+// Line height
+$base-line-height: 1.5;
+$heading-line-height: 1.2;
+
+// Other Sizes
+$base-border-radius: 2px;
+$global-radius: $base-border-radius;
+$base-spacing: rem(20);
+$small-spacing: $base-spacing / 2;
+$base-z-index: 0;
+
+// Colors
+$white: #FFF;
+$off-white: #F8F9F9;
+$black: #323330;
+$blue: #1565c0;
+$dark-gray: #484846;
+$medium-gray: #999;
+$light-gray: #D8D8D8;
+$white-slightly-transparent: rgba(255, 255, 255, 0.95);
+
+// Habitat Brand Colors
+$hab-white: #ffffff;
+$hab-blue-light: #e9f1f7;
+$hab-blue: #7fadcb;
+$hab-gray-light: #e9eaeb;
+$hab-orange-dark: #f58151;
+$hab-off-white: #f8f9f9;
+$hab-gray: #b6babe;
+$hab-gray-dark: $dark-gray;
+$hab-orange: #f59b51;
+$hab-blue-dark: #394b5a;
+$hab-green: #75af81;
+$hab-green-dark: #699171;
+$hab-blue-medium: #dce6ed;
+$hab-cta: $hab-green;
+$hab-red: #D8574B;
+$hab-yellow: #EBE269;
+
+// Transparent colors
+$hab-gray-dark-15: rgba(125, 134, 140, .15);
+$medium-gray-20: rgba($medium-gray, .2);
+$medium-gray-40: rgba($medium-gray, .4);
+
+// Notification colors
+$notification-danger-color: $hab-red;
+$notification-info-color: $hab-blue;
+$notification-success-color: $hab-green;
+$notification-warning-color: $hab-yellow;
+$success-color: $hab-green;
+$failure-color: $hab-red;
+$queued-color: $hab-blue;
+
+// Font Colors
+$base-font-color: $dark-gray;
+$action-color: $hab-green;
+$hover-color: $hab-green-dark;
+
+// Border
+$base-border-color: $light-gray;
+$base-border: 1px solid $base-border-color;
+
+// Background Colors
+$base-background-color: $off-white;
+$secondary-background-color: tint($base-border-color, 75%);
+
+// Forms
+$form-box-shadow: inset 0 1px 3px rgba(#000, 0.06);
+$form-box-shadow-focus: $form-box-shadow, 0 0 5px adjust-color($action-color, $lightness: -5%, $alpha: -0.3);
+$form-box-shadow-focus-failure: $form-box-shadow, 0 0 5px adjust-color($failure-color, $lightness: -5%, $alpha: -0.3);
+$form-box-shadow-focus-loading: $form-box-shadow, 0 0 5px adjust-color($light-gray, $lightness: -5%, $alpha: -0.3);
+$form-box-shadow-focus-success: $form-box-shadow, 0 0 5px adjust-color($success-color, $lightness: -5%, $alpha: -0.3);
+
+// Animations
+$base-duration: 150ms;
+$base-timing: ease;
+
+@function hab-icon($n) {
+  @return url("/node_modules/octicons/svg/" + $n + ".svg");
+}

@@ -1,0 +1,14 @@
+[
+    {
+        "origin": "smith",
+        "name": "mongodb"
+    },
+    {
+        "origin": "smith",
+        "name": "openssl"
+    },
+    {
+        "origin": "smith",
+        "name": "nethack"
+    }
+]

@@ -1,0 +1,29 @@
+// Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
+//
+// The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
+// and the party accessing this file ("Licensee") apply to Licensee's use of
+// the Software until such time that the Software is made available under an
+// open source license such as the Apache 2.0 License.
+
+ul,
+ol {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+dl {
+  margin-bottom: $small-spacing;
+
+  dt {
+    min-width: 0.100px;
+    font-weight: bold;
+    clear: left;
+    float: left;
+    margin: 0 $small-spacing 0 0;
+  }
+
+  dd {
+    margin: 0;
+  }
+}

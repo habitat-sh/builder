@@ -1,0 +1,99 @@
+// Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
+//
+// The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
+// and the party accessing this file ("Licensee") apply to Licensee's use of
+// the Software until such time that the Software is made available under an
+// open source license such as the Apache 2.0 License.
+
+// For lists of things like packages or projects
+.hab-item-list {
+  @include row;
+  @include transition(all 0.6s);
+  background-blend-mode: overlay;
+  background-color: $white;
+  border: 1px solid $light-gray;
+  border-color: $hab-blue-light;
+  border-radius: $global-radius;
+  color: inherit;
+  display: block;
+  margin-bottom: 0.5em;
+  padding: 1em 1.5em;
+  position: relative;
+
+  .count {
+    float: right;
+    font-size: 75%;
+    margin: auto $base-spacing * 2 0 auto;
+  }
+
+  .hab-gravatar {
+    float: left;
+    margin-right: 1em;
+  }
+
+  &--title,
+  .item-title {
+    @include span-columns(6);
+
+    h3 {
+      line-height: 1em;
+      max-width: rem(300);
+      overflow-x: hidden;
+      text-overflow: ellipsis;
+    }
+
+    h4 {
+      color: $hab-blue;
+      font-size: 75%;
+      margin-bottom: 0;
+    }
+  }
+
+  &--controls {
+    text-align: right;
+  }
+
+  &--info,
+  .item-info {
+    @include span-columns(6);
+    padding-top: 0.5em;
+    position: relative;
+
+    img {
+      @include transition(opacity 0.6s);
+      height: 1.5em;
+      opacity: 0.1;
+      position: absolute;
+      right: 0;
+    }
+  }
+
+  &:hover,
+  &.active {
+    @include transform(scale(1.01));
+    @include transition(all 0.2s ease-in-out);
+    //border-color: $hab-blue;
+    box-shadow: 0 1px 14px 0 $hab-blue-light;
+  }
+
+  li {
+    &:last-child & {
+      margin-bottom: 0;
+    }
+  }
+
+  &.hab-no-select {
+    &:hover {
+      @include transform(none);
+      @include transition(none);
+      box-shadow: inherit;
+      color: inherit;
+      cursor: default;
+
+      &.active {
+        @include transform(scale(1.01));
+        box-shadow: 0 1px 14px 0 $hab-blue-light;
+      }
+    }
+  }
+}

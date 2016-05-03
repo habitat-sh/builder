@@ -1,0 +1,92 @@
+// Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
+//
+// The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
+// and the party accessing this file ("Licensee") apply to Licensee's use of
+// the Software until such time that the Software is made available under an
+// open source license such as the Apache 2.0 License.
+
+#{$all-buttons}, a.button {
+  @include primary-button;
+  appearance: none;
+  border: 0;
+  border-radius: $global-radius;
+  cursor: pointer;
+  display: inline-block;
+  font-family: $base-font-family;
+  font-size: rem(16);
+  -webkit-font-smoothing: antialiased;
+  padding: $small-spacing $base-spacing;
+  text-decoration: none;
+  transition: background-color $base-duration $base-timing;
+  user-select: none;
+  vertical-align: middle;
+  white-space: nowrap;
+
+  &:hover,
+  &:focus {
+    background-color: shade($action-color, 20%);
+    color: #fff;
+  }
+
+  &:disabled,
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+
+    &:hover {
+      background-color: $action-color;
+    }
+  }
+
+  &.danger {
+    background-color: $hab-orange-dark;
+
+    &:disabled,
+    &.disabled {
+      &:hover {
+        background-color: $hab-orange-dark;
+      }
+    }
+  }
+
+  &.cta {
+    @include primary-button($hab-orange, $hab-orange-dark);
+  }
+
+  &.secondary {
+    @include secondary-button;
+
+    &:focus,
+    &:hover {
+      background-color: shade($medium-gray, 20%);
+    }
+  }
+
+  &.danger,
+  &.danger:disabled:hover {
+    background-color: white;
+    background-image: none;
+    color: $hab-red;
+  }
+
+  &.confirm,
+  &.confirm:disabled:hover {
+    background-color: white;
+    background-image: none;
+    color: $hab-green;
+  }
+
+  &.small {
+    font-size: 50%;
+  }
+
+  .hab-item-list & {
+    box-shadow: none;
+    font-size: rem(14);
+    padding: rem(6) rem(12);
+
+    &:hover {
+      background-color: $hab-off-white;
+    }
+  }
+}

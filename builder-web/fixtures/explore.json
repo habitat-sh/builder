@@ -1,0 +1,22 @@
+[
+    {
+        "name": "glibc",
+        "originCount": 4,
+        "starCount": 2345
+    },
+    {
+        "name": "mongodb",
+        "originCount": 3,
+        "starCount": 2340
+    },
+    {
+        "name": "redis",
+        "originCount": 16,
+        "starCount": 234
+    },
+    {
+        "name": "couchdb",
+        "originCount": 1,
+        "starCount": 23
+    }
+]

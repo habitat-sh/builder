@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Habitat</title>
+    <link id="hab-css" rel="stylesheet" href="/app.css">
+    <base href="/">
+  </head>
+  <body>
+    <hab>
+    <script>
+        window.Habitat = { config: {} };
+        function habitatConfig(options) {
+            window.Habitat.config = options || {};
+        };
+    </script>
+    <script src="/habitat.conf.js"></script>
+    <script id="hab-js" src="/app.js"></script>
+  </body>
+</html>
