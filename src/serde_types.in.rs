@@ -12,27 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate habitat_core as hab_core;
-extern crate protobuf;
-extern crate redis;
-extern crate serde;
-extern crate time;
+// JW TODO: After updating to Rust 1.15, move the types contained in this module back into
+// `sharding.rs`
 
-pub mod depotsrv;
-pub mod error;
-pub mod jobsrv;
-pub mod net;
-pub mod routesrv;
-pub mod search;
-pub mod sessionsrv;
-pub mod sharding;
-pub mod vault;
-mod message;
-
-pub use self::error::{ProtocolError, ProtocolResult};
-pub use self::message::{Message, Persistable, Routable, RouteKey};
-pub use self::sharding::InstaId;
-
-mod types {
-    include!(concat!(env!("OUT_DIR"), "/serde_types.rs"));
+pub mod sharding {
+    #[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+    pub struct InstaId(pub u64);
 }
