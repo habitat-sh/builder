@@ -12,9 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
+extern crate base64;
+extern crate hyper;
+extern crate hyper_openssl;
+#[macro_use]
+extern crate log;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+extern crate time;
 
-pub use super::GatewayCfg;
-pub use core::config::ConfigFile;
-pub use github_api_client::config::{GitHubCfg, GitHubOAuth};
-pub use hab_net::app::config::RouterAddr;
+pub mod client;
+pub mod config;
+pub mod error;
+
+pub use client::GitHubClient;
+pub use error::{HubError, HubResult};
