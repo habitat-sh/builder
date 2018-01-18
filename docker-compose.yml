@@ -1,0 +1,39 @@
+version: '2'
+
+services:
+  shell:
+    image: habitat/devshell
+    build: ./
+    privileged: true
+    volumes:
+      - .:/src
+      - /var/run/docker.sock:/var/run/docker.sock
+    volumes_from:
+      - cache_artifacts
+      - cache_keys
+      - cargo
+      - etc
+
+  cache_artifacts:
+    image: tianon/true
+    command: /true
+    volumes:
+      - /hab/cache/artifacts
+
+  cache_keys:
+    image: tianon/true
+    command: /true
+    volumes:
+      - /hab/cache/keys
+
+  cargo:
+    image: tianon/true
+    command: /true
+    volumes:
+      - /cargo-cache
+
+  etc:
+    image: tianon/true
+    command: /true
+    volumes:
+      - /hab/etc

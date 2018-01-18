@@ -1,0 +1,14 @@
+/tmp/builder-scheduler.log
+/tmp/builder-worker.log
+{
+        rotate 7
+        weekly
+        size 10M
+        missingok
+        notifempty
+        delaycompress
+        compress
+        postrotate
+                /bin/systemctl restart hab-sup 2>/dev/null || true
+        endscript
+}
