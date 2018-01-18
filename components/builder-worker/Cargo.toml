@@ -40,13 +40,13 @@ git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
 
 [dependencies.habitat_core]
-path = "../core"
+git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
 
 [dependencies.habitat_net]
-path = "../net"
+git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.habitat_depot_client]
 path = "../builder-depot-client"

@@ -26,7 +26,7 @@ threadpool = "*"
 url = "*"
 
 [dependencies.habitat_core]
-path = "../core"
+git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.habitat_net]
-path = "../net"
+git = "https://github.com/habitat-sh/habitat.git"
