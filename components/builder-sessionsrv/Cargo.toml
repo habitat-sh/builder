@@ -36,13 +36,13 @@ version = "*"
 features = [ "suggestions", "color", "unstable" ]
 
 [dependencies.habitat_core]
-path = "../core"
+git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.habitat_builder_db]
 path = "../builder-db"
 
 [dependencies.habitat_net]
-path = "../net"
+git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.zmq]
 git = "https://github.com/erickt/rust-zmq"
