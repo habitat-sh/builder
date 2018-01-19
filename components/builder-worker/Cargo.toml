@@ -46,7 +46,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 path = "../builder-core"
 
 [dependencies.habitat_net]
-git = "https://github.com/habitat-sh/habitat.git"
+path = "../net"
 
 [dependencies.habitat_depot_client]
 path = "../builder-depot-client"

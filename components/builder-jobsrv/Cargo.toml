@@ -17,7 +17,7 @@ clippy = {version = "*", optional = true}
 aws-sdk-rust = "*"
 env_logger = "*"
 habitat_core = { git = "https://github.com/habitat-sh/habitat.git" }
-habitat_net = { git = "https://github.com/habitat-sh/habitat.git" }
+habitat_net = { path = "../net" }
 habitat_builder_db = { path = "../builder-db" }
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"

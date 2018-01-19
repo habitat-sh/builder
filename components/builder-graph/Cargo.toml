@@ -38,7 +38,7 @@ path = "../builder-core"
 path = "../builder-db"
 
 [dependencies.habitat_net]
-git = "https://github.com/habitat-sh/habitat.git"
+path = "../net"
 
 [build-dependencies]
 pkg-config = "0.3"

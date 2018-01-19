@@ -29,4 +29,4 @@ url = "*"
 git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.habitat_net]
-git = "https://github.com/habitat-sh/habitat.git"
+path = "../net"

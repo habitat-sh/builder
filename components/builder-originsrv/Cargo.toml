@@ -40,7 +40,7 @@ path = "../builder-core"
 path = "../builder-db"
 
 [dependencies.habitat_net]
-git = "https://github.com/habitat-sh/habitat.git"
+path = "../net"
 
 [dependencies.zmq]
 git = "https://github.com/erickt/rust-zmq"

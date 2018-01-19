@@ -13,7 +13,7 @@ github-api-client = { path = "../github-api-client" }
 habitat-builder-protocol = { path = "../builder-protocol" }
 habitat_core = { git = "https://github.com/habitat-sh/habitat.git" }
 builder_core = { path = "../builder-core" }
-habitat_net = { git = "https://github.com/habitat-sh/habitat.git" }
+habitat_net = { path = "../net" }
 hyper = "0.10"
 iron = "*"
 log = "*"

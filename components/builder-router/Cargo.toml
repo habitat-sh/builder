@@ -16,7 +16,7 @@ clippy = {version = "*", optional = true}
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 habitat_core = { git = "https://github.com/habitat-sh/habitat.git" }
-habitat_net = { git = "https://github.com/habitat-sh/habitat.git" }
+habitat_net = { path = "../net" }
 log = "*"
 protobuf = "*"
 rand = "*"
