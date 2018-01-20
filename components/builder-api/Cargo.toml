@@ -58,8 +58,7 @@ path = "../builder-core"
 path = "../builder-depot"
 
 [dependencies.habitat_http_client]
-git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
+path = "../http-client"
 
 [dependencies.habitat_net]
 path = "../net"

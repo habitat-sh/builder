@@ -19,6 +19,7 @@ members = [
   "components/builder-router",
   "components/builder-sessionsrv",
   "components/builder-worker",
+  "components/http-client",
   "components/github-api-client",
   "components/net",
   "components/op",
