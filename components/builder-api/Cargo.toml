@@ -49,6 +49,7 @@ branch = "release/v0.8"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
 
 [dependencies.builder_core]
 path = "../builder-core"
@@ -58,6 +59,7 @@ path = "../builder-depot"
 
 [dependencies.habitat_http_client]
 git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
 
 [dependencies.habitat_net]
 path = "../net"

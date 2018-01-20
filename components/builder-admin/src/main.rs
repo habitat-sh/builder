@@ -34,7 +34,7 @@ const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"))
 const CFG_DEFAULT_PATH: &'static str = "/hab/svc/builder-admin/config.toml";
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
     let matches = app().get_matches();
     debug!("CLI matches: {:?}", matches);
     let config = match config_from_args(&matches) {

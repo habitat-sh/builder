@@ -35,7 +35,7 @@ use clap::{App, ArgMatches};
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
     if let Err(e) = _main() {
         eprintln!("FATAL: {}", e);
         process::exit(1);

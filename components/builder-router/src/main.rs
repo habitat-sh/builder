@@ -31,7 +31,7 @@ use router::{server, Config, Error, Result};
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
     let matches = app().get_matches();
     trace!("CLI matches: {:?}", matches);
     let config = match config_from_args(&matches) {
