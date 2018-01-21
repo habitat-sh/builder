@@ -28,7 +28,7 @@ use r2d2;
 pub enum Error {
     BadPort(String),
     Db(db::error::Error),
-    DbPoolTimeout(r2d2::GetTimeout),
+    DbPoolTimeout(r2d2::Error),
     DbTransaction(postgres::error::Error),
     HabitatCore(hab_core::Error),
     IO(io::Error),
@@ -76,12 +76,6 @@ impl error::Error for Error {
             Error::Protobuf(ref err) => err.description(),
             Error::UnknownJobGraphPackage => "Unknown Package",
         }
-    }
-}
-
-impl From<r2d2::GetTimeout> for Error {
-    fn from(err: r2d2::GetTimeout) -> Error {
-        Error::DbPoolTimeout(err)
     }
 }
 

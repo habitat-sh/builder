@@ -54,7 +54,7 @@ use copperline::Copperline;
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let matches = App::new("bldr-graph")
         .version(VERSION)
@@ -389,7 +389,7 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
 
 fn check_package(
     datastore: &DataStore,
-    mut deps_map: &mut HashMap<String, String>,
+    deps_map: &mut HashMap<String, String>,
     ident: &str,
     filter: &str,
 ) {
