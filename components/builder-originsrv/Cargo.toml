@@ -32,6 +32,7 @@ features = [ "suggestions", "color", "unstable" ]
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
 
 [dependencies.builder_core]
 path = "../builder-core"

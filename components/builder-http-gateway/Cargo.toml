@@ -11,7 +11,6 @@ bodyparser = "*"
 env_logger = "*"
 github-api-client = { path = "../github-api-client" }
 habitat-builder-protocol = { path = "../builder-protocol" }
-habitat_core = { git = "https://github.com/habitat-sh/habitat.git" }
 builder_core = { path = "../builder-core" }
 habitat_net = { path = "../net" }
 hyper = "0.10"
@@ -38,3 +37,7 @@ urlencoded = { version = "*", git = "https://github.com/iron/urlencoded" }
 [dependencies.zmq]
 git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
+
+[dependencies.habitat_core]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"

@@ -162,7 +162,7 @@ dependencies = [
  "env_logger 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "github-api-client 0.0.0",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "iron 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -193,7 +193,7 @@ dependencies = [
  "clippy 0.0.180 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "iron 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libarchive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -689,7 +689,7 @@ version = "0.0.0"
 dependencies = [
  "clippy 0.0.180 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pkg-config 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "protobuf 1.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -704,7 +704,7 @@ name = "habitat_api_client"
 version = "0.0.0"
 dependencies = [
  "clippy 0.0.180 (registry+https://github.com/rust-lang/crates.io-index)",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_http_client 0.0.0",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper-openssl 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -727,7 +727,7 @@ dependencies = [
  "env_logger 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "github-api-client 0.0.0",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "iron 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -794,7 +794,7 @@ dependencies = [
  "fallible-iterator 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -822,7 +822,7 @@ dependencies = [
  "env_logger 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
  "habitat_builder_db 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "libarchive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -851,7 +851,7 @@ dependencies = [
  "env_logger 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
  "habitat_builder_db 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -882,7 +882,7 @@ dependencies = [
  "env_logger 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
  "habitat_builder_db 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -903,7 +903,7 @@ dependencies = [
  "clippy 0.0.180 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "protobuf 1.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -928,7 +928,7 @@ dependencies = [
  "github-api-client 0.0.0",
  "habitat-builder-protocol 0.0.0",
  "habitat_builder_db 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -957,7 +957,7 @@ dependencies = [
  "git2 0.6.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "github-api-client 0.0.0",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_depot_client 0.0.0",
  "habitat_net 0.0.0",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -976,7 +976,7 @@ dependencies = [
 [[package]]
 name = "habitat_core"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder#59ce905b16c91a60a2e36e6b889b1d35228886a5"
+source = "git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder#1cda17b163ad8fb09cfe9b984bd461d28e65091d"
 dependencies = [
  "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -985,41 +985,6 @@ dependencies = [
  "errno 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat_win_users 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
- "hex 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libarchive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "libsodium-sys 0.0.16 (git+https://github.com/dnaq/sodiumoxide)",
- "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "sodiumoxide 0.0.16 (git+https://github.com/dnaq/sodiumoxide)",
- "time 0.1.39 (registry+https://github.com/rust-lang/crates.io-index)",
- "toml 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "typemap 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "userenv-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "users 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "widestring 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "habitat_core"
-version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#dd1e18c5189b4b3cb13f06e190f2cbc4171407a2"
-dependencies = [
- "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "crypt32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ctrlc 3.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "errno 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
- "habitat_win_users 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
  "hex 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1056,7 +1021,7 @@ dependencies = [
  "env_logger 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "github-api-client 0.0.0",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_net 0.0.0",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "iron 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1093,7 +1058,7 @@ dependencies = [
  "chrono 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.180 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "habitat_http_client 0.0.0",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper-openssl 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1114,7 +1079,7 @@ version = "0.0.0"
 dependencies = [
  "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.180 (registry+https://github.com/rust-lang/crates.io-index)",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "httparse 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper-openssl 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1132,7 +1097,7 @@ dependencies = [
  "bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.180 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1148,18 +1113,7 @@ dependencies = [
 [[package]]
 name = "habitat_win_users"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder#59ce905b16c91a60a2e36e6b889b1d35228886a5"
-dependencies = [
- "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
- "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "widestring 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "habitat_win_users"
-version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#dd1e18c5189b4b3cb13f06e190f2cbc4171407a2"
+source = "git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder#1cda17b163ad8fb09cfe9b984bd461d28e65091d"
 dependencies = [
  "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1735,7 +1689,7 @@ dependencies = [
  "fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
  "habitat_builder_sessionsrv 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2876,9 +2830,7 @@ dependencies = [
 "checksum getopts 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)" = "65922871abd2f101a2eb0eaebadc66668e54a87ad9c3dd82520b5f86ede5eff9"
 "checksum git2 0.6.11 (registry+https://github.com/rust-lang/crates.io-index)" = "ee5b4bb7cd2a44e6e5ee3a26ba6a9ca10d4ce2771cdc3839bbc54b47b7d1be84"
 "checksum glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "8be18de09a56b60ed0edf84bc9df007e30040691af7acd1c41874faac5895bfb"
-"checksum habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)" = "<none>"
 "checksum habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)" = "<none>"
-"checksum habitat_win_users 0.0.0 (git+https://github.com/habitat-sh/habitat.git)" = "<none>"
 "checksum habitat_win_users 0.0.0 (git+https://github.com/habitat-sh/habitat.git?branch=jb/remove-builder)" = "<none>"
 "checksum hex 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d6a22814455d41612f41161581c2883c0c6a1c41852729b17d5ed88f01e153aa"
 "checksum hex 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "459d3cf58137bb02ad4adeef5036377ff59f066dbb82517b7192e3a5462a2abc"

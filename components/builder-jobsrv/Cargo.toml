@@ -16,7 +16,6 @@ builder_core = { path = "../builder-core" }
 clippy = {version = "*", optional = true}
 aws-sdk-rust = "*"
 env_logger = "*"
-habitat_core = { git = "https://github.com/habitat-sh/habitat.git" }
 habitat_net = { path = "../net" }
 habitat_builder_db = { path = "../builder-db" }
 habitat-builder-protocol = { path = "../builder-protocol" }
@@ -46,3 +45,7 @@ features = [ "suggestions", "color", "unstable" ]
 [dependencies.zmq]
 git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
+
+[dependencies.habitat_core]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"

@@ -11,11 +11,14 @@ fnv = "*"
 log = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 habitat_builder_sessionsrv = { path = "../builder-sessionsrv" }
-habitat_core = { git = "https://github.com/habitat-sh/habitat.git" }
 
 [dependencies.clap]
 version = "*"
 features = [ "suggestions", "color", "unstable" ]
+
+[dependencies.habitat_core]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
 
 [features]
 default = []

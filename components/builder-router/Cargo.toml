@@ -15,7 +15,6 @@ doc = false
 clippy = {version = "*", optional = true}
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
-habitat_core = { git = "https://github.com/habitat-sh/habitat.git" }
 habitat_net = { path = "../net" }
 log = "*"
 protobuf = "*"
@@ -31,3 +30,7 @@ features = [ "suggestions", "color", "unstable" ]
 [dependencies.zmq]
 git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
+
+[dependencies.habitat_core]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"

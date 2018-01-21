@@ -8,7 +8,6 @@ workspace = "../../"
 clippy = { version = "*", optional = true }
 bitflags = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
-habitat_core = { git = "https://github.com/habitat-sh/habitat.git" }
 lazy_static = "*"
 log = "*"
 num_cpus = "*"
@@ -19,3 +18,7 @@ time = "*"
 toml = "*"
 uuid = { version = "*", features = ["v4"] }
 zmq = { git = "https://github.com/erickt/rust-zmq", branch = "release/v0.8" }
+
+[dependencies.habitat_core]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"

@@ -47,6 +47,7 @@ path = "../builder-core"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
 
 [dependencies.habitat_net]
 path = "../net"
