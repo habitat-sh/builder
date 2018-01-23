@@ -12,8 +12,6 @@ bodyparser = "*"
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 builder-http-gateway = { path = "../builder-http-gateway" }
-github-api-client = { path = "../github-api-client" }
-segment-api-client = { path = "../segment-api-client" }
 hyper = "0.10"
 iron = "*"
 iron-test = "*"
@@ -44,6 +42,14 @@ features = [ "suggestions", "color", "unstable" ]
 
 [dependencies.builder_core]
 path = "../builder-core"
+
+[dependencies.github-api-client]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
+
+[dependencies.segment-api-client]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

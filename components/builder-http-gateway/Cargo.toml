@@ -9,7 +9,6 @@ workspace = "../../"
 base64 = "*"
 bodyparser = "*"
 env_logger = "*"
-github-api-client = { path = "../github-api-client" }
 habitat-builder-protocol = { path = "../builder-protocol" }
 builder_core = { path = "../builder-core" }
 habitat_net = { path = "../net" }
@@ -22,7 +21,6 @@ params = "*"
 persistent = "*"
 protobuf = "*"
 router = "*"
-segment-api-client = { path = "../segment-api-client" }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -37,6 +35,14 @@ urlencoded = { version = "*", git = "https://github.com/iron/urlencoded" }
 [dependencies.zmq]
 git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
+
+[dependencies.github-api-client]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
+
+[dependencies.segment-api-client]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

@@ -18,7 +18,6 @@ chrono = { version = "*", features = ["serde"] }
 env_logger = "*"
 features = "*"
 git2 = "*"
-github-api-client = { path = "../github-api-client" }
 habitat-builder-protocol = { path = "../builder-protocol" }
 hyper = "0.10"
 lazy_static = "*"
@@ -39,6 +38,10 @@ features = [ "suggestions", "color", "unstable" ]
 git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
 
+[dependencies.github-api-client]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
+
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
 branch = "jb/remove-builder"
@@ -50,4 +53,5 @@ path = "../builder-core"
 path = "../net"
 
 [dependencies.habitat_depot_client]
-path = "../builder-depot-client"
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
