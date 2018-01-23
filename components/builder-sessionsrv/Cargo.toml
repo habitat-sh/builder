@@ -16,7 +16,6 @@ base64 = "*"
 clippy = {version = "*", optional = true}
 bitflags = "*"
 env_logger = "*"
-github-api-client = { path = "../github-api-client" }
 habitat-builder-protocol = { path = "../builder-protocol" }
 hyper = "0.10"
 lazy_static = "*"
@@ -34,6 +33,10 @@ diesel_migrations = "*"
 [dependencies.clap]
 version = "*"
 features = [ "suggestions", "color", "unstable" ]
+
+[dependencies.github-api-client]
+git = "https://github.com/habitat-sh/habitat.git"
+branch = "jb/remove-builder"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
