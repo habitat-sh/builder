@@ -17,7 +17,7 @@ regex = "*"
 lazy_static = "*"
 
 [dependencies.habitat_core]
-path = "../core"
+git = "https://github.com/habitat-sh/core.git"
 
 [build-dependencies]
 pkg-config = "0.3"
