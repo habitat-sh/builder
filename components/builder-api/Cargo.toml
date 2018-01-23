@@ -47,11 +47,9 @@ branch = "release/v0.8"
 
 [dependencies.github-api-client]
 git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
 
 [dependencies.segment-api-client]
 git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"
@@ -64,7 +62,6 @@ path = "../builder-depot"
 
 [dependencies.habitat_http_client]
 git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
 
 [dependencies.habitat_net]
 path = "../net"
