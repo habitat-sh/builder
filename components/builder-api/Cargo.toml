@@ -18,7 +18,7 @@ base64 = "*"
 bodyparser = "*"
 builder-http-gateway = { path = "../builder-http-gateway" }
 env_logger = "*"
-habitat-builder-protocol = { path = "../builder-protocol" }
+habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
 hex = "*"
 hyper = "0.10"
 iron = "*"
@@ -54,8 +54,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 branch = "jb/remove-builder"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
+git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.builder_core]
 path = "../builder-core"

@@ -9,7 +9,7 @@ workspace = "../../"
 clippy = {version = "*", optional = true}
 fnv = "*"
 log = "*"
-habitat-builder-protocol = { path = "../builder-protocol" }
+habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
 habitat_builder_sessionsrv = { path = "../builder-sessionsrv" }
 
 [dependencies.clap]
@@ -17,8 +17,7 @@ version = "*"
 features = [ "suggestions", "color", "unstable" ]
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
+git = "https://github.com/habitat-sh/core.git"
 
 [features]
 default = []

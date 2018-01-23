@@ -13,7 +13,7 @@ doc = false
 
 [dependencies]
 clippy = {version = "*", optional = true}
-habitat-builder-protocol = { path = "../builder-protocol" }
+habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
 log = "*"
 env_logger = "*"
 petgraph = "*"
@@ -29,8 +29,7 @@ serde_derive = "*"
 copperline = "*"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
+git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.builder_core]
 path = "../builder-core"

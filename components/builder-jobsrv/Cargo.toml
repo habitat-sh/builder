@@ -18,7 +18,7 @@ aws-sdk-rust = "*"
 env_logger = "*"
 habitat_net = { path = "../net" }
 habitat_builder_db = { path = "../builder-db" }
-habitat-builder-protocol = { path = "../builder-protocol" }
+habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
 lazy_static = "*"
 linked-hash-map = "*"
 log = "*"
@@ -47,5 +47,4 @@ git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
+git = "https://github.com/habitat-sh/core.git"

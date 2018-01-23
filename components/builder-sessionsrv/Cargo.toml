@@ -16,7 +16,7 @@ base64 = "*"
 clippy = {version = "*", optional = true}
 bitflags = "*"
 env_logger = "*"
-habitat-builder-protocol = { path = "../builder-protocol" }
+habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
 hyper = "0.10"
 lazy_static = "*"
 log = "*"
@@ -39,8 +39,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 branch = "jb/remove-builder"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
+git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.habitat_builder_db]
 path = "../builder-db"

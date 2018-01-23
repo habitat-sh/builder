@@ -9,7 +9,7 @@ base64 = "*"
 chrono = { version = "*", features = ["serde"] }
 clippy = { version = "*", optional = true }
 glob = "*"
-habitat-builder-protocol = { path = "../builder-protocol" }
+habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
 iron = "*"
 libarchive = "*"
 log = "*"
@@ -25,8 +25,7 @@ toml = { version = "*", default-features = false }
 walkdir = "*"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
+git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.habitat_net]
 path = "../net"

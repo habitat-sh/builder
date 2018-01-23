@@ -18,7 +18,7 @@ chrono = { version = "*", features = ["serde"] }
 env_logger = "*"
 features = "*"
 git2 = "*"
-habitat-builder-protocol = { path = "../builder-protocol" }
+habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
 hyper = "0.10"
 lazy_static = "*"
 log = "*"
@@ -43,8 +43,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 branch = "jb/remove-builder"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
+git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
