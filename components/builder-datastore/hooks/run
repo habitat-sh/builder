@@ -4,5 +4,8 @@
 export PGDATA={{pkg.svc_data_path}}
 
 exec 2>&1
+
+chmod 0700 {{pkg.svc_data_path}}
+
 exec {{pkgPathFor "core/postgresql"}}/bin/postmaster \
   -c config_file={{pkg.svc_config_path}}/postgresql.conf
