@@ -3,7 +3,6 @@
 *.sig.key
 *.sym.key
 .DS_Store
-.envrc
 .secrets
 .tags*
 .vagrant/
