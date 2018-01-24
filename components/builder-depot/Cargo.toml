@@ -45,11 +45,9 @@ path = "../builder-core"
 
 [dependencies.github-api-client]
 git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
 
 [dependencies.segment-api-client]
 git = "https://github.com/habitat-sh/habitat.git"
-branch = "jb/remove-builder"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"
