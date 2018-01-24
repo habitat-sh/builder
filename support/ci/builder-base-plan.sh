@@ -1,7 +1,9 @@
 builder_build_type="--release"
 
 pkg_version() {
-  git rev-list master --count
+  # TED: After migrating the builder repo we needed to add to
+  # the rev-count to keep version sorting working
+  echo "$(($(git rev-list master --count) + 5000))"
 }
 
 do_before() {
