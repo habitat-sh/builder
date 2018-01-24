@@ -27,18 +27,6 @@ sup-run() {
   echo ""
 }
 
-sup-term() {
-  local pid_file="/hab/sup/default/LOCK "
-  if [ -f $pid_file ]; then
-    echo "--> Killing Habitat Supervisor running in the background..."
-    kill $(cat $pid_file) \
-      && (echo "    Supervisor killed." && rm -f $pid_file) \
-      || echo "--> Error killing Supervisor."
-  else
-    echo "--> No Launcher pid file found, Supervisor may not be running."
-  fi
-}
-
 sup-log() {
   mkdir -p /hab/sup/default
   touch /hab/sup/default/sup.log
