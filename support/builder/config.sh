@@ -18,16 +18,6 @@ web_url = "$GITHUB_WEB_URL"
 client_id = "$GITHUB_CLIENT_ID"
 client_secret = "$GITHUB_CLIENT_SECRET"
 app_id = $GITHUB_APP_ID
-
-[web]
-app_url          = "http://$APP_HOSTNAME"
-community_url    = "https://www.habitat.sh/community"
-docs_url         = "https://www.habitat.sh/docs"
-environment      = "production"
-friends_only     = false
-source_code_url  = "https://github.com/habitat-sh/habitat"
-tutorials_url    = "https://www.habitat.sh/tutorials"
-www_url          = "http://$APP_HOSTNAME/#/sign-in"
 EOT
 
 mkdir -p /hab/svc/builder-api-proxy
@@ -42,7 +32,7 @@ web_url = "$GITHUB_WEB_URL"
 client_id = "$GITHUB_CLIENT_ID"
 client_secret = "$GITHUB_CLIENT_SECRET"
 app_id = $GITHUB_APP_ID
-app_url = "${GITHUB_WEB_URL}/apps/$(echo ${GITHUB_APP_NAME} | tr "[:upper:]" "[:lower:]" | tr " " "-")"
+app_url = "${GITHUB_APP_NAME}"
 EOT
 
 mkdir -p /hab/svc/builder-jobsrv
