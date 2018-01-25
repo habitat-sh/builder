@@ -4,7 +4,7 @@
 *.sym.key
 .DS_Store
 .secrets/*
-!.secrets/.gitkeep
+!.secrets/habitat-env.sample
 .tags*
 .vagrant/
 .vscode

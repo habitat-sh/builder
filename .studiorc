@@ -1,5 +1,6 @@
 #!/bin/bash
-
+RED='\033[0;31m'
+NO_COLOR='\033[0m'
 set -u
 
 source /src/support/bldr.env
@@ -136,6 +137,7 @@ upload_github_keys() {
     done
   else
     echo "Please follow instruction #6 here: https://github.com/habitat-sh/habitat/blob/master/BUILDER_DEV.md#pre-reqs"
+    sleep 10
   fi
 }
 
@@ -154,8 +156,8 @@ start-builder() {
   start-sessionsrv
   start-worker
   sleep 2
-  upload_github_keys
   generate_bldr_keys
+  upload_github_keys
   echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
 }
 
@@ -377,25 +379,14 @@ DOCS
 
 install-packages
 
-# NOTE: these are dev secrets (not for the actual Builder services);
-# it's OK
-
 ENV_CONFIG="/src/.secrets/habitat-env"
 
 if [[ -f "${ENV_CONFIG}" ]]; then
   source "${ENV_CONFIG}"
 else
-  APP_HOSTNAME=localhost
-  GITHUB_API_URL=https://api.github.com
-  GITHUB_WEB_URL=https://github.com
-  GITHUB_CLIENT_ID=Iv1.04b78696442708f6
-  GITHUB_CLIENT_SECRET=b4acf029896e9c7fb6613390124e8ae3c35889aa
-  GITHUB_APP_ID=8053
-  GITHUB_APP_NAME=habitat-builder-dev-studio
+  echo -e "${RED}.secrets/habitat-env is required. Please see DEVELOPING.md for getting started instructions.${NO_COLOR}"
+  exit 1
 fi
-
-
-SSL_CERT_FILE=$(hab pkg path core/cacerts)/ssl/cert.pem
 
 touch /etc/subuid
 touch /etc/subgid
