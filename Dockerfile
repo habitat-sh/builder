@@ -1,31 +1,74 @@
-# 17.10 (artful) will be EOL July 2018; update FROM directive before then
-FROM ubuntu:17.10
+FROM alpine:3.6
 MAINTAINER The Habitat Maintainers <humans@habitat.sh>
 
-ENV CARGO_HOME /cargo-cache
-ENV PATH $PATH:$CARGO_HOME/bin:/root/.cargo/bin
+ARG APP_HOSTNAME=localhost
+ARG GITHUB_ADDR=github.com
+ARG GITHUB_API_URL=https://api.github.com
+ARG GITHUB_WEB_URL=https://github.com
+ARG GITHUB_CLIENT_ID=UNDEFINED
+ARG GITHUB_CLIENT_SECRET=UNDEFINED
+ARG GITHUB_ADMIN_TEAM=0
+ARG GITHUB_APP_ID=UNDEFINED
 
-ARG HAB_BLDR_URL
-ENV HAB_BLDR_URL ${HAB_BLDR_URL:-}
+ENV HAB_BLDR_CHANNEL unstable
+ENV RUST_LOG info
 
-COPY components/hab/install.sh \
-  support/linux/install_dev_0_ubuntu_latest.sh \
-  support/linux/install_dev_9_linux.sh \
-  /tmp/
-COPY support/devshell_profile.sh /root/.bash_profile
+COPY support/builder/config.sh /tmp/config.sh
+COPY support/builder/datastore.toml /hab/svc/builder-datastore/user.toml
+COPY support/builder/hab-entrypoint.sh /usr/local/bin/hab-entrypoint.sh
+COPY support/builder/init-datastore.sh /tmp/init-datastore.sh
+COPY terraform/scripts/install_base_packages.sh /tmp/install_base_packages.sh
+COPY terraform/scripts/foundation.sh /tmp/foundation.sh
+COPY .secrets/builder-dev-app.pem /hab/svc/builder-sessionsrv/files/builder-github-app.pem
+COPY .secrets/builder-dev-app.pem /hab/svc/builder-api/files/builder-github-app.pem
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends sudo \
-  && sh /tmp/install_dev_0_ubuntu_latest.sh \
-  && sh /tmp/install_dev_9_linux.sh \
-  && useradd -m -s /bin/bash -G sudo jdoe && echo jdoe:1234 | chpasswd \
-  && rm -rf \
-    /tmp/install.sh \
-    /tmp/install_dev_0_ubuntu_latest.sh \
-    /tmp/install_dev_9_linux.sh \
-    /hab/cache \
-    /root/.cargo/registry \
-    /var/lib/apt/lists/*
+RUN adduser -g tty -h /home/krangschnak -D krangschnak \
+  && addgroup -S hab && adduser -S -G hab hab \
+  && apk add --no-cache \
+  bash \
+  curl \
+  perl-utils \
+  && /tmp/install_base_packages.sh \
+  && rm -Rf hab_builder_bootstrap* hab_bootstrap* LATEST 0 \
+  && hab pkg install core/hab -c unstable -b \
+  && hab pkg install core/hab-sup \
+  core/hab-launcher \
+  core/builder-datastore \
+  core/builder-api \
+  core/builder-api-proxy \
+  core/builder-admin \
+  core/builder-admin-proxy \
+  core/builder-jobsrv \
+  core/builder-originsrv \
+  core/builder-router \
+  core/builder-sessionsrv
 
-WORKDIR /src
-CMD ["bash", "-l"]
+RUN /tmp/init-datastore.sh \
+  && APP_HOSTNAME=$APP_HOSTNAME \
+  GITHUB_ADDR=$GITHUB_ADDR \
+  GITHUB_API_URL=$GITHUB_API_URL \
+  GITHUB_WEB_URL=$GITHUB_WEB_URL \
+  GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID \
+  GITHUB_CLIENT_SECRET=$GITHUB_CLIENT_SECRET \
+  GITHUB_ADMIN_TEAM=$GITHUB_ADMIN_TEAM \
+  GITHUB_APP_ID=$GITHUB_APP_ID \
+  /tmp/config.sh
+
+RUN hab pkg exec core/openssl openssl s_client -showcerts -connect $GITHUB_ADDR:443 \
+  </dev/null 2>/dev/null|hab pkg exec core/openssl openssl x509 -outform PEM >> \
+  /usr/local/share/ca-certificates/github.crt && update-ca-certificates
+
+RUN hab svc load core/builder-datastore \
+  && hab svc load core/builder-router \
+  && hab svc load core/builder-api-proxy --bind http:builder-api.default \
+  && hab svc load core/builder-api --bind router:builder-router.default \
+  && hab svc load core/builder-admin --bind router:builder-router.default \
+  && hab svc load core/builder-admin-proxy --bind http:builder-admin.default \
+  && hab svc load core/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
+  && hab svc load core/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
+  && hab svc load core/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default
+
+VOLUME ["/hab/svc", "/hab/cache/keys", "/hab/sup"]
+EXPOSE 80 443 9631 9636 9638
+ENTRYPOINT ["/usr/local/bin/hab-entrypoint.sh"]
+CMD ["run"]

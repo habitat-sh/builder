@@ -1,5 +1,3 @@
-builder_build_type="--release"
-
 pkg_version() {
   # TED: After migrating the builder repo we needed to add to
   # the rev-count to keep version sorting working
@@ -42,6 +40,7 @@ do_builder_install() {
 }
 
 do_builder_prepare() {
+  export builder_build_type="${builder_build_type:---release}"
   # Can be either `--release` or `--debug` to determine cargo build strategy
   build_line "Building artifacts with \`${builder_build_type#--}' mode"
 

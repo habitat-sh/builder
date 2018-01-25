@@ -3,7 +3,8 @@
 *.sig.key
 *.sym.key
 .DS_Store
-.secrets
+.secrets/*
+!.secrets/.gitkeep
 .tags*
 .vagrant/
 .vscode
@@ -18,3 +19,4 @@ test/builder-api/node_modules
 test/builder-api/services.log
 tmp/
 pkgs/
+**/cleanup
