@@ -1,6 +1,7 @@
 *.box.key
 *.rustfmt
 *.sig.key
+!neurosis-20171211220037.sig.key
 *.sym.key
 .DS_Store
 .secrets/*
