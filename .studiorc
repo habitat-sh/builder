@@ -12,7 +12,7 @@ export GITHUB_CLIENT_ID
 export GITHUB_CLIENT_SECRET
 export SSL_CERT_FILE
 export GITHUB_APP_ID
-export GITHUB_APP_NAME
+export GITHUB_APP_URL
 
 no_install_deps() {
   local file="/src/components/${1}/cleanup"
@@ -335,12 +335,8 @@ dev_docs() {
   cat <<DOCS
 Welcome to the development environment for Habitat & Builder.
 The following commands are available:
-1. Building Habitat
-  * build-habitat - build all Habitat components
-  * build-hab - build the Habitat CLI
-  * build-sup - build the Habitat Supervisor
-  * build-launcher - build the Habitat Launcher
-2. Building Habitat Web
+
+1. Building Habitat Web
   * Ensure you have a unzipped download of packages from http://nunciato-shared-files.s3.amazonaws.com/pkgs.zip in the habitat directory
   * In the studio (after builder has started)
   * * origin <name> - create an origin and keys specified by the first argument. Default: core
@@ -349,7 +345,7 @@ The following commands are available:
   * * cd components/builder-web
   * * npm i - install the node packages
   * * npm load - run the web dev env
-3. Building Builder
+2. Building Builder
   * build-builder - build all Builder components
   * build-admin - build the Admin Gateway
   * build-admin-proxy - build the Admin Gateway Proxy
@@ -361,7 +357,7 @@ The following commands are available:
   * build-router - build the RouteSrv
   * build-sessionsrv - build the SessionSrv
   * build-worker - build the Worker
-4. Running Builder
+3. Running Builder
   * install-packages - Install all dependent packages
   * start-builder - run all Builder services
   * stop-builder - unload all Builder services
@@ -369,10 +365,10 @@ The following commands are available:
     above list of build targets for available services
   * stop-{svc} - unload a specific Builder service
   * ui-dev-mode - helper to switch the github app to localhost:3000
-5. Helpers
+4. Helpers
   * psql - wrapper around psql to enable passwordless auth
   * upload_github_keys - internal function to upload github secret keys to the ring
-6. Docs
+5. Docs
   * dev_docs
 DOCS
 }
