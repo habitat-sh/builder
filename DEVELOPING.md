@@ -38,17 +38,8 @@ If you are on a Mac, you will need brew, direnv, habitat, and Docker for Mac
 
 ### Create app env file
 
-1. Create `${HABITAT_SRC_ROOT}/.secrets/habitat-env`
-1. Add
-```
-  APP_HOSTNAME=localhost
-  GITHUB_API_URL=https://api.github.com
-  GITHUB_WEB_URL=https://github.com
-  GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-  GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-  GITHUB_APP_ID=${GITHUP_APP_ID}
-  GITHUB_APP_NAME="${GITHUB_PUBLIC_LINK}"
-```
+1. `cp ${HABITAT_SRC_ROOT}/.secrets/habitat-env.sample ${HABITAT_SRC_ROOT}/.secrets/habitat-env`
+1. Edit `${HABITAT_SRC_ROOT}/.secrets/habitat-env` with the variables from above
 1. Save and close
 
 ### Studio requirements
