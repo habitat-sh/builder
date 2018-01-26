@@ -42,81 +42,42 @@ install-packages() {
   -b -c stable
 }
 
+build-builder-component() {
+  local component="builder-$1"
+  local status=0
+
+  hab stop "core/$component"
+
+  if NO_INSTALL_DEPS=$(no_install_deps "$component") \
+  build "/src/components/$component/habitat-dev"; then
+    echo "$component build succeeded"
+  else
+    status=$?
+    echo "$component build failed with $status"
+  fi
+
+  hab start "core/$component"
+  return $status
+}
+
+alias bb=build-builder
 build-builder() {
   if [[ $(hab sup status) == "No services loaded." ]]; then
     start-builder
   fi
-  build-admin
-  build-api
-  build-jobsrv
-  build-originsrv
-  build-router
-  build-sessionsrv
-  build-worker
-}
 
-build-admin() {
-  hab stop core/builder-admin
-  NO_INSTALL_DEPS=$(no_install_deps "builder-admin") \
-  build "/src/components/builder-admin/habitat-dev"
-  hab start core/builder-admin
-}
+  if [[ "$#" -eq 0 ]]; then
+    build-builder admin api jobsrv originsrv router sessionsrv worker
+    return $?
+  fi
 
-build-admin-proxy() {
-  NO_INSTALL_DEPS=$(no_install_deps "builder-admin-proxy") \
-  build "/src/components/builder-admin-proxy"
-}
-
-build-api() {
-  hab stop core/builder-api
-  NO_INSTALL_DEPS=$(no_install_deps "builder-api") \
-  build "/src/components/builder-api/habitat-dev"
-  hab start core/builder-api
-}
-
-build-api-proxy() {
-  NO_INSTALL_DEPS=$(no_install_deps "builder-api-proxy") \
-  build "/src/components/builder-api-proxy"
-}
-
-build-datastore() {
-  NO_INSTALL_DEPS=$(no_install_deps "builder-datastore") \
-  build "/src/components/builder-datastore"
-}
-
-build-jobsrv() {
-  hab stop core/builder-jobsrv
-  NO_INSTALL_DEPS=$(no_install_deps "builder-jobsrv") \
-  build "/src/components/builder-jobsrv/habitat-dev"
-  hab start core/builder-jobsrv
-}
-
-build-originsrv() {
-  hab stop core/builder-originsrv
-  NO_INSTALL_DEPS=$(no_install_deps "builder-originsrv") \
-  build "/src/components/builder-originsrv/habitat-dev"
-  hab start core/builder-originsrv
-}
-
-build-router() {
-  hab stop core/builder-router
-  NO_INSTALL_DEPS=$(no_install_deps "builder-router") \
-  build "/src/components/builder-router/habitat-dev"
-  hab start core/builder-router
-}
-
-build-sessionsrv() {
-  hab stop core/builder-sessionsrv
-  NO_INSTALL_DEPS=$(no_install_deps "builder-sessionsrv") \
-  build "/src/components/builder-sessionsrv/habitat-dev"
-  hab start core/builder-sessionsrv
-}
-
-build-worker() {
-  hab stop core/builder-worker
-  NO_INSTALL_DEPS=$(no_install_deps "builder-worker") \
-  build "/src/components/builder-worker/habitat-dev"
-  hab start core/builder-worker
+  for component in "$@"; do
+    if build-builder-component "$component"; then
+      :
+    else
+      return $?
+    fi
+  done
 }
 
 ui-dev-mode() {
@@ -346,17 +307,14 @@ The following commands are available:
   * * npm i - install the node packages
   * * npm load - run the web dev env
 2. Building Builder
-  * build-builder - build all Builder components
-  * build-admin - build the Admin Gateway
-  * build-admin-proxy - build the Admin Gateway Proxy
-  * build-api - build the API Gateway
-  * build-api-proxy - build the API Gateway Proxy
-  * build-datastore - build Builder's Datastore
-  * build-jobsrv - build the JobSrv
-  * build-originsrv - build the OriginSrv
-  * build-router - build the RouteSrv
-  * build-sessionsrv - build the SessionSrv
-  * build-worker - build the Worker
+  * build-builder (alias: bb) - build all Builder components
+  * build-builder admin - build the Admin Gateway
+  * build-builder api - build the API Gateway
+  * build-builder jobsrv - build the JobSrv
+  * build-builder originsrv - build the OriginSrv
+  * build-builder router - build the RouteSrv
+  * build-builder sessionsrv - build the SessionSrv
+  * build-builder worker - build the Worker
 3. Running Builder
   * install-packages - Install all dependent packages
   * start-builder - run all Builder services
