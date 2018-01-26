@@ -33,26 +33,7 @@ Lieutenant and may have many maintainers.
 
 ### Core Habitat
 
-#### Lieutenant
-
-* [Jamie Winsor](https://github.com/reset)
-
-#### Maintainers
-
-* [Adam Jacob](https://github.com/adamhjk)
-* [Fletcher Nichol](https://github.com/fnichol)
-* [Nathan L Smith](https://github.com/smith)
-* [Joshua Timberman](https://github.com/jtimberman)
-* [Brian Scott](https://github.com/bscott)
-* [Josh Black](https://github.com/raskchanky)
-* [Steven Murawski](https://github.com/smurawski)
-* [Ian Henry](https://github.com/eeyun)
-* [Justin Carter](https://github.com/bodymindarts)
-* [Matt Wrock](https://github.com/mwrock)
-* [Salim Alam](https://github.com/chefsalim)
-* [Nell Shamrell-Harrington](https://github.com/nellshamrell)
-* [George Marshall](https://github.com/georgemarshall)
-* [Tasha Drew](https://github.com/tashimi)
+See https://github.com/habitat-sh/habitat/blob/master/MAINTAINERS.md
 
 ### Habitat Builder Web Application
 
