@@ -7,7 +7,7 @@ workspace = "../../"
 [dependencies]
 clippy = { version = "*", optional = true }
 bitflags = "*"
-habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
+habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 log = "*"
 num_cpus = "*"

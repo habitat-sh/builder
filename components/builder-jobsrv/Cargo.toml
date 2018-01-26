@@ -18,7 +18,7 @@ aws-sdk-rust = "*"
 env_logger = "*"
 habitat_net = { path = "../net" }
 habitat_builder_db = { path = "../builder-db" }
-habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
+habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 linked-hash-map = "*"
 log = "*"

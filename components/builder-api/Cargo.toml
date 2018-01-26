@@ -18,7 +18,7 @@ base64 = "*"
 bodyparser = "*"
 builder-http-gateway = { path = "../builder-http-gateway" }
 env_logger = "*"
-habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
+habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
 hyper = "0.10"
 iron = "*"

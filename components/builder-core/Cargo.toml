@@ -9,7 +9,7 @@ base64 = "*"
 chrono = { version = "*", features = ["serde"] }
 clippy = { version = "*", optional = true }
 glob = "*"
-habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
+habitat-builder-protocol = { path = "../builder-protocol" }
 iron = "*"
 libarchive = "*"
 log = "*"
