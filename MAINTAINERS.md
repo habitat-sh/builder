@@ -69,6 +69,7 @@ The web application for the Habitat builder and depot.
 * [Matt Wrock](https://github.com/mwrock)
 * [Salim Alam](https://github.com/chefsalim)
 * [Nell Shamrell-Harrington](https://github.com/nellshamrell)
+* [Jon Bauman](https://github.com/baumanj)
 
 ### Documentation
 
