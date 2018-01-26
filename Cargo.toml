@@ -18,5 +18,5 @@ members = [
   "components/builder-sessionsrv",
   "components/builder-worker",
   "components/net",
-  "components/op",
+  "components/op"
 ]
