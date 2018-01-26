@@ -18,23 +18,13 @@ web_url = "$GITHUB_WEB_URL"
 client_id = "$GITHUB_CLIENT_ID"
 client_secret = "$GITHUB_CLIENT_SECRET"
 app_id = $GITHUB_APP_ID
-
-[web]
-app_url          = "http://$APP_HOSTNAME"
-community_url    = "https://www.habitat.sh/community"
-docs_url         = "https://www.habitat.sh/docs"
-environment      = "production"
-friends_only     = false
-source_code_url  = "https://github.com/habitat-sh/habitat"
-tutorials_url    = "https://www.habitat.sh/tutorials"
-www_url          = "http://$APP_HOSTNAME/#/sign-in"
 EOT
 
 mkdir -p /hab/svc/builder-api-proxy
 cat <<EOT > /hab/svc/builder-api-proxy/user.toml
 log_level = "debug"
 
-app_url = "http://localhost:9636"
+app_url = "http://${APP_HOSTNAME}:9636"
 
 [github]
 url = "$GITHUB_API_URL"
@@ -42,7 +32,7 @@ web_url = "$GITHUB_WEB_URL"
 client_id = "$GITHUB_CLIENT_ID"
 client_secret = "$GITHUB_CLIENT_SECRET"
 app_id = $GITHUB_APP_ID
-app_url = "${GITHUB_WEB_URL}/apps/$(echo ${GITHUB_APP_NAME} | tr "[:upper:]" "[:lower:]" | tr " " "-")"
+app_url = "${GITHUB_APP_URL}"
 EOT
 
 mkdir -p /hab/svc/builder-jobsrv
@@ -346,7 +336,7 @@ EOT
 
 mkdir -p /hab/svc/builder-worker
 cat <<EOT > /hab/svc/builder-worker/user.toml
-log_level = "debug"
+log_level = "error"
 
 key_dir = "/hab/svc/builder-worker/files"
 auto_publish = true

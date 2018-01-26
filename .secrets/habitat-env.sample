@@ -1,9 +1,9 @@
 #!/bin/sh
 
-APP_HOSTNAME=localhost
-GITHUB_API_URL=https://api.github.com
-GITHUB_WEB_URL=https://github.com
-GITHUB_CLIENT_ID=Iv1.04b78696442708f6
-GITHUB_CLIENT_SECRET=b4acf029896e9c7fb6613390124e8ae3c35889aa
+APP_HOSTNAME="localhost"
+GITHUB_API_URL="https://api.github.com"
+GITHUB_WEB_URL="https://github.com"
+GITHUB_CLIENT_ID="Iv1.04b78696442708f6"
+GITHUB_CLIENT_SECRET="b4acf029896e9c7fb6613390124e8ae3c35889aa"
 GITHUB_APP_ID=8053
-GITHUB_APP_NAME=habitat-builder-dev-studio
+GITHUB_APP_URL="https://github.com/apps/habitat-builder-dev-studio"
