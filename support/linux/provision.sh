@@ -6,6 +6,7 @@ sudo hab install core/busybox-static core/hab-studio
 sudo hab install \
   core/direnv \
   core/wget \
+  core/docker \
   core/curl -b
 # shellcheck disable=SC2016
 echo 'eval "$(direnv hook bash)"' >> ~/.bashrc

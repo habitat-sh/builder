@@ -62,6 +62,8 @@ const NONINTERACTIVE_ENVVAR: &'static str = "HAB_NONINTERACTIVE";
 
 /// Environment variable to enable or disable debug output in runner's studio
 const RUNNER_DEBUG_ENVVAR: &'static str = "BUILDER_RUNNER_DEBUG";
+/// Environment variable to enable or disable dev mode.
+const DEV_MODE: &'static str = "DEV_MODE";
 /// In-memory zmq address of Job RunnerMgr
 const INPROC_ADDR: &'static str = "inproc://runner";
 /// Protocol message to indicate the Job Runner has received a work request

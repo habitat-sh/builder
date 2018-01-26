@@ -11,6 +11,7 @@ export GITHUB_CLIENT_SECRET
 export SSL_CERT_FILE
 export GITHUB_APP_ID
 export GITHUB_APP_URL
+export DEV_MODE
 
 no_install_deps() {
   local file="/src/components/${1}/cleanup"
@@ -310,6 +311,9 @@ DOCS
 }
 
 install-packages
+
+# Forces the worker to use a bound docker socket
+DEV_MODE=true
 
 ENV_CONFIG="/src/.secrets/habitat-env"
 

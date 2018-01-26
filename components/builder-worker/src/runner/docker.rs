@@ -23,7 +23,7 @@ use hab_core::os::process::{self, Pid, Signal};
 
 use error::{Error, Result};
 use runner::log_pipe::LogPipe;
-use runner::{NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
+use runner::{DEV_MODE, NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 use runner::workspace::Workspace;
 
 lazy_static! {
@@ -145,7 +145,13 @@ impl<'a> DockerExporter<'a> {
         );
         cmd.env(DOCKER_HOST_ENVVAR, sock); // Use the job-specific `dockerd`
         cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
+        //TED: workaround to not pipe error socket in dev mode which causes the worker to die
+        match env::var_os(DEV_MODE) {
+            Some(_) => debug!("Not exporting in dev mode"),
+            None => {
+                cmd.stderr(Stdio::piped());
+            }
+        };
 
         debug!("spawning docker export command");
         let mut child = cmd.spawn().map_err(Error::Exporter)?;
@@ -233,9 +239,14 @@ impl<'a> DockerExporter<'a> {
     }
 
     fn dockerd_sock(&self) -> String {
-        format!(
-            "unix://{}",
-            self.dockerd_path().join("var/run/docker.sock").display()
-        )
+        match env::var_os(DEV_MODE) {
+            Some(_) => "unix:///var/run/docker.sock".to_string(),
+            None => {
+                format!(
+                    "unix://{}",
+                    self.dockerd_path().join("var/run/docker.sock").display()
+                )
+            }
+        }
     }
 }
