@@ -3,8 +3,6 @@ RED='\033[0;31m'
 NO_COLOR='\033[0m'
 set -u
 
-source /src/support/bldr.env
-
 export APP_HOSTNAME
 export GITHUB_API_URL
 export GITHUB_WEB_URL
