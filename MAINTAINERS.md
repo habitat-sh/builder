@@ -79,7 +79,7 @@ tutorials and reference materials.
 
 #### Lieutenant
 
-* [David Wrede](https://github.com/davidwrede)
+* [Nick Brewer](https://github.com/brewn)
 
 #### Maintainers
 
