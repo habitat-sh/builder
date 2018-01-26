@@ -16,7 +16,7 @@ clippy = {version = "*", optional = true}
 bodyparser = "*"
 builder-http-gateway = { path = "../builder-http-gateway" }
 env_logger = "*"
-habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
+habitat-builder-protocol = { path = "../builder-protocol" }
 habitat_net = { path = "../net" }
 hyper = "0.10"
 iron = "*"

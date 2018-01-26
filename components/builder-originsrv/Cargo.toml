@@ -14,7 +14,7 @@ doc = false
 [dependencies]
 clippy = {version = "*", optional = true}
 env_logger = "*"
-habitat-builder-protocol = { git = "https://github.com/habitat-sh/protocols.git" }
+habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 log = "*"
 protobuf = "*"

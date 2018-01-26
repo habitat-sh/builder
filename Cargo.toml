@@ -13,9 +13,10 @@ members = [
   "components/builder-http-gateway",
   "components/builder-jobsrv",
   "components/builder-originsrv",
+  "components/builder-protocol",
   "components/builder-router",
   "components/builder-sessionsrv",
   "components/builder-worker",
   "components/net",
-  "components/op",
+  "components/op"
 ]
