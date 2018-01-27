@@ -30,6 +30,11 @@ export {
 } from './builds';
 
 export {
+  LOAD_FEATURES,
+  loadFeatures
+} from './features';
+
+export {
   authenticate,
   CLEAR_GITHUB_INSTALLATIONS,
   fetchGitHubInstallations,

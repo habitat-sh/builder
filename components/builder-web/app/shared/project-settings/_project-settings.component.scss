@@ -22,6 +22,8 @@
     }
 
     .cta {
+      margin-right: $default-margin;
+
       .button {
         @include cta;
       }

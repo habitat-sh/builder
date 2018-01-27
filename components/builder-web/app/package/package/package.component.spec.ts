@@ -25,28 +25,13 @@ import { AppStore } from '../../app.store';
 import { PackageComponent } from './package.component';
 
 class MockAppStore {
-  dispatch() { }
+  static state;
 
   getState() {
-    return {
-      builds: {
-        visible: []
-      },
-      origins: {
-        mine: []
-      },
-      projects: {
-        ui: {
-          current: {
-            exists: true
-          }
-        }
-      },
-      session: {
-        token: 'some-token'
-      }
-    };
+    return MockAppStore.state;
   }
+
+  dispatch() { }
 }
 
 class MockRoute {
@@ -62,6 +47,30 @@ describe('PackageComponent', () => {
   let fixture: ComponentFixture<PackageComponent>;
   let component: PackageComponent;
   let element: DebugElement;
+
+  beforeEach(() => {
+    MockAppStore.state = {
+      builds: {
+        visible: []
+      },
+      features: {
+        builder: false
+      },
+      origins: {
+        mine: []
+      },
+      projects: {
+        ui: {
+          current: {
+            exists: true
+          }
+        }
+      },
+      session: {
+        token: 'some-token'
+      }
+    };
+  });
 
   beforeEach(() => {
 
@@ -92,9 +101,44 @@ describe('PackageComponent', () => {
     it('renders breadcrumbs and sidebar', () => {
       component.showSidebar = true;
       fixture.detectChanges();
-    
+
       expect(element.query(By.css('hab-package-breadcrumbs'))).not.toBeNull();
       expect(element.query(By.css('hab-package-sidebar'))).not.toBeNull();
+    });
+
+    describe('when Builder is disabled', () => {
+
+      beforeEach(() => {
+        MockAppStore.state.features.builder = false;
+      });
+
+      it ('suppresses the Build Jobs and Settings tabs', () => {
+        fixture.detectChanges();
+
+        expect(element.query(By.css('[routerlink="builds"]'))).toBeNull();
+        expect(element.query(By.css('[routerlink="settings"]'))).toBeNull();
+      });
+    });
+
+    describe('when Builder is enabled', () => {
+
+      beforeEach(() => {
+        MockAppStore.state.features.builder = true;
+      });
+
+      describe('and the user is an origin member', () => {
+
+        beforeEach(() => {
+          MockAppStore.state.origins.mine = [ { name: 'core' } ];
+        });
+
+        it('exposes the Build Jobs and Settings tabs', () => {
+          fixture.detectChanges();
+
+          expect(element.query(By.css('[routerlink="builds"]'))).not.toBeNull();
+          expect(element.query(By.css('[routerlink="settings"]'))).not.toBeNull();
+        });
+      });
     });
   });
 });

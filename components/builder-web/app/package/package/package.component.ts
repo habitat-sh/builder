@@ -75,8 +75,12 @@ export class PackageComponent implements OnInit, OnDestroy {
     });
   }
 
+  get builderEnabled() {
+    return this.store.getState().features.builder;
+  }
+
   get buildable(): boolean {
-    let hasProject = this.store.getState().projects.ui.current.exists;
+    const hasProject = this.store.getState().projects.ui.current.exists;
 
     if (this.isOriginMember && hasProject) {
       return true;
