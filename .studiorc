@@ -119,35 +119,35 @@ start-builder() {
 }
 
 start-api() {
-  hab svc load core/builder-api --bind router:builder-router.default -s at-once
+  hab svc load habitat/builder-api --bind router:builder-router.default -s at-once
 }
 
 start-api-proxy() {
-  hab svc load core/builder-api-proxy --bind http:builder-api.default
+  hab svc load habitat/builder-api-proxy --bind http:builder-api.default
 }
 
 start-datastore() {
-  hab svc load core/builder-datastore
+  hab svc load habitat/builder-datastore
 }
 
 start-jobsrv() {
-  hab svc load core/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
+  hab svc load habitat/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
 }
 
 start-originsrv() {
-  hab svc load core/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
+  hab svc load habitat/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
 }
 
 start-router() {
-  hab svc load core/builder-router -s at-once
+  hab svc load habitat/builder-router -s at-once
 }
 
 start-sessionsrv() {
-  hab svc load core/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
+  hab svc load habitat/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
 }
 
 start-worker() {
-  hab svc load core/builder-worker --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default -s at-once
+  hab svc load habitat/builder-worker --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default -s at-once
 }
 
 start-cache() {
@@ -171,35 +171,35 @@ stop-cache() {
 }
 
 stop-api() {
-  hab svc unload core/builder-api
+  hab svc unload habitat/builder-api
 }
 
 stop-api-proxy() {
-  hab svc unload core/builder-api-proxy
+  hab svc unload habitat/builder-api-proxy
 }
 
 stop-datastore() {
-  hab svc unload core/builder-datastore
+  hab svc unload habitat/builder-datastore
 }
 
 stop-jobsrv() {
-  hab svc unload core/builder-jobsrv
+  hab svc unload habitat/builder-jobsrv
 }
 
 stop-originsrv() {
-  hab svc unload core/builder-originsrv
+  hab svc unload habitat/builder-originsrv
 }
 
 stop-router() {
-  hab svc unload core/builder-router
+  hab svc unload habitat/builder-router
 }
 
 stop-sessionsrv() {
-  hab svc unload core/builder-sessionsrv
+  hab svc unload habitat/builder-sessionsrv
 }
 
 stop-worker() {
-  hab svc unload core/builder-worker
+  hab svc unload habitat/builder-worker
 }
 
 generate_bldr_keys() {

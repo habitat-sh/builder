@@ -1,5 +1,5 @@
 pkg_name=airlock
-pkg_origin=core
+pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=('Apache-2.0')
 # The result is a portable, static binary in a zero-dependency package.
