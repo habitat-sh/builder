@@ -61,6 +61,9 @@ export default Record({
       stream: false
     })()
   })(),
+  features: Record({
+    builder: false
+  })(),
   notifications: Record({
     all: List(),
   })(),

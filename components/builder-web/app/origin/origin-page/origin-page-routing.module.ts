@@ -20,6 +20,7 @@ import { OriginMembersTabComponent } from './origin-members-tab/origin-members-t
 import { OriginPackagesTabComponent } from './origin-packages-tab/origin-packages-tab.component';
 import { OriginSettingsTabComponent } from './origin-settings-tab/origin-settings-tab.component';
 import { OriginIntegrationsTabComponent } from './origin-integrations-tab/origin-integrations-tab.component';
+import { BuilderEnabledGuard } from '../../shared/guards/builder-enabled.guard';
 import { OriginMemberGuard } from '../../shared/guards/origin-member.guard';
 import { SignedInGuard } from '../../shared/guards/signed-in.guard';
 
@@ -49,12 +50,12 @@ const routes: Routes = [
       {
         path: 'settings',
         component: OriginSettingsTabComponent,
-        canActivate: [SignedInGuard, OriginMemberGuard],
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard],
       },
       {
         path: 'integrations',
         component: OriginIntegrationsTabComponent,
-        canActivate: [SignedInGuard, OriginMemberGuard]
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
       },
       {
         path: '**',

@@ -17,7 +17,8 @@ import { AppStore } from './app.store';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { URLSearchParams } from '@angular/http';
 import { Router } from '@angular/router';
-import { identifyUser, removeNotification, exchangeGitHubAuthCode, routeChange, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
+import { identifyUser, loadFeatures, removeNotification, exchangeGitHubAuthCode,
+  routeChange, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
 
 @Component({
   selector: 'hab-app',
@@ -33,6 +34,8 @@ export class AppComponent implements OnInit, OnDestroy {
   private sub: Subscription;
 
   constructor(private router: Router, private store: AppStore) {
+    store.dispatch(loadFeatures());
+
     // Whenever the Angular route has an event, dispatch an event with the new
     // route data.
     this.sub = this.router.events.subscribe(event => {

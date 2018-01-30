@@ -47,6 +47,10 @@ export class OriginPageComponent implements OnInit, OnDestroy {
     this.sub.unsubscribe();
   }
 
+  get builderEnabled() {
+    return this.store.getState().features.builder;
+  }
+
   get origin() {
     const current = this.store.getState().origins.current;
 

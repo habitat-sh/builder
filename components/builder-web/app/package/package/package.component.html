@@ -5,16 +5,38 @@
   <h2>package</h2>
 </header>
 <nav class="tabs" mat-tab-nav-bar>
-  <a mat-tab-link routerLink="latest" routerLinkActive #latest="routerLinkActive" [active]="latest.isActive">
+  <a
+    mat-tab-link
+    routerLink="latest"
+    routerLinkActive
+    #latest="routerLinkActive"
+    [active]="latest.isActive">
     Latest
   </a>
-  <a mat-tab-link routerLink="./" [routerLinkActiveOptions]="{exact: true}" routerLinkActive #versions="routerLinkActive" [active]="versions.isActive">
+  <a mat-tab-link
+    routerLink="./"
+    [routerLinkActiveOptions]="{exact: true}"
+    routerLinkActive
+    #versions="routerLinkActive"
+    [active]="versions.isActive">
     Versions
   </a>
-  <a mat-tab-link *ngIf="isOriginMember" routerLink="builds" routerLinkActive #jobs="routerLinkActive" [active]="jobs.isActive">
+  <a
+    mat-tab-link
+    *ngIf="builderEnabled && isOriginMember"
+    routerLink="builds"
+    routerLinkActive
+    #jobs="routerLinkActive"
+    [active]="jobs.isActive">
     Build Jobs
   </a>
-  <a mat-tab-link *ngIf="isOriginMember" routerLink="settings" routerLinkActive #settings="routerLinkActive" [active]="settings.isActive">
+  <a
+    mat-tab-link
+    *ngIf="builderEnabled && isOriginMember"
+    routerLink="settings"
+    routerLinkActive
+    #settings="routerLinkActive"
+    [active]="settings.isActive">
     Settings
   </a>
 </nav>

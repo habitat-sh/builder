@@ -25,13 +25,13 @@
       routerLinkActive
       #settings="routerLinkActive"
       [active]="settings.isActive"
-      *ngIf="memberOfOrigin">Settings</a>
+      *ngIf="builderEnabled && memberOfOrigin">Settings</a>
     <a mat-tab-link
       routerLink="integrations"
       routerLinkActive
       #integrations="routerLinkActive"
       [active]="integrations.isActive"
-      *ngIf="memberOfOrigin">Integrations</a>
+      *ngIf="builderEnabled && memberOfOrigin">Integrations</a>
   </nav>
   <router-outlet></router-outlet>
 </div>
