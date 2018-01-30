@@ -731,10 +731,19 @@ resource "null_resource" "worker_studio_network" {
   provisioner "remote-exec" {
     // This sleep appears to be required. This provisioner runs and the network interface still
     // hasn't been attached.
+    //
+    // TODO fn: This resouce will get deleted once the additional network interface is connected
+    // at instance boot time. Until then (and this is a kludge), we'll stop the Supervisor with all
+    // of its services (including `core/builder-worker`), ensure that any attempted airlock
+    // networking is not in place (via the `hab pkg exec` command), and finally restart the
+    // Supervisor once the host networking has completed.
     inline = [
       "sudo mv /tmp/51-studio-init.cfg /etc/network/interfaces.d/51-studio-init.cfg",
+      "sudo systemctl stop hab-sup",
+      "sudo hab pkg exec core/airlock airlock netns destroy --ns-dir /hab/svc/builder-worker/data/network/airlock-ns",
       "sleep 60",
       "sudo systemctl restart networking.service",
+      "sudo systemctl start hab-sup",
     ]
   }
 }
