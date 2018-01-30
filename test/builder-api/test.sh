@@ -2,7 +2,11 @@
 
 # This script exists to run our integration tests.
 
+set -x
 set -euo pipefail
+
+# make mocha happy by running from the directory it expects
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 clean_test_artifacts() {
   origins=( neurosis xmen )
