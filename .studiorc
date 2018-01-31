@@ -41,20 +41,20 @@ install-packages() {
 }
 
 build-builder-component() {
-  local component="builder-$1"
+  local component="$1"
   local status=0
 
-  hab stop "core/$component"
+  stop-"$component"
 
-  if NO_INSTALL_DEPS=$(no_install_deps "$component") \
-  build "/src/components/$component/habitat-dev"; then
-    echo "$component build succeeded"
+  if NO_INSTALL_DEPS=$(no_install_deps "builder-$component") \
+  build "/src/components/builder-$component/habitat-dev"; then
+    echo "builder-$component build succeeded"
   else
     status=$?
-    echo "$component build failed with $status"
+    echo "builder-$component build failed with $status"
   fi
 
-  hab start "core/$component"
+  start-"$component"
   return $status
 }
 
