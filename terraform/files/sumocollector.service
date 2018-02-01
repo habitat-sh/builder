@@ -1,0 +1,10 @@
+[Unit]
+Description=Send Habitat service logs to Sumologic syslog collector
+
+[Service]
+TimeoutStartSec=0
+ExecStart=/bin/sh -c '/bin/journalctl -fu hab-sup | /bin/ncat --udp localhost 1514'
+Restart=always
+RestartSec=5s
+[Install]
+WantedBy=multi-user.target

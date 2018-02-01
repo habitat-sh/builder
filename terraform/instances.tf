@@ -81,6 +81,19 @@ resource "null_resource" "api_provision" {
   }
 
   provisioner "file" {
+    source = "${path.module}/files/sumocollector.service"
+    destination = "/tmp/sumocollector.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
+      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
+      "sudo systemctl start sumocollector.service"
+    ]
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.sup_service.rendered}"
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -96,6 +109,7 @@ resource "null_resource" "api_provision" {
       "sudo systemctl enable hab-sup",
       "sudo hab svc load core/builder-api --group ${var.env} --bind router:builder-router.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 }
@@ -149,6 +163,19 @@ resource "aws_instance" "admin" {
   }
 
   provisioner "file" {
+    source = "${path.module}/files/sumocollector.service"
+    destination = "/tmp/sumocollector.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
+      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
+      "sudo systemctl start sumocollector.service"
+    ]
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.sup_service.rendered}"
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -164,6 +191,7 @@ resource "aws_instance" "admin" {
       "sudo systemctl enable hab-sup",
       "sudo hab svc load core/builder-admin --group ${var.env} --bind router:builder-router.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/builder-admin-proxy --group ${var.env} --bind http:builder-admin.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 
@@ -241,6 +269,19 @@ resource "null_resource" "datastore_provision" {
   }
 
   provisioner "file" {
+    source = "${path.module}/files/sumocollector.service"
+    destination = "/tmp/sumocollector.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
+      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
+      "sudo systemctl start sumocollector.service"
+    ]
+  }
+
+  provisioner "file" {
     source = "${path.module}/files/postgres.yaml"
     destination = "/tmp/postgres.yaml"
   }
@@ -259,6 +300,11 @@ resource "null_resource" "datastore_provision" {
   }
 
   provisioner "file" {
+    content     = "${data.template_file.sumo_sources_syslog.rendered}"
+    destination = "/home/ubuntu/sumo_sources_syslog.json"
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.sup_service.rendered}"
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -272,7 +318,8 @@ resource "null_resource" "datastore_provision" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-datastore --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}"
+      "sudo hab svc load core/builder-datastore --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 }
@@ -342,6 +389,19 @@ resource "aws_instance" "jobsrv" {
   }
 
   provisioner "file" {
+    source = "${path.module}/files/sumocollector.service"
+    destination = "/tmp/sumocollector.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
+      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
+      "sudo systemctl start sumocollector.service"
+    ]
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.sup_service.rendered}"
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -355,7 +415,8 @@ resource "aws_instance" "jobsrv" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-jobsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}"
+      "sudo hab svc load core/builder-jobsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 
@@ -419,6 +480,19 @@ resource "aws_instance" "originsrv" {
   }
 
   provisioner "file" {
+    source = "${path.module}/files/sumocollector.service"
+    destination = "/tmp/sumocollector.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
+      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
+      "sudo systemctl start sumocollector.service"
+    ]
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.sup_service.rendered}"
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -432,7 +506,8 @@ resource "aws_instance" "originsrv" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-originsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}"
+      "sudo hab svc load core/builder-originsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 
@@ -495,6 +570,19 @@ resource "aws_instance" "router" {
   }
 
   provisioner "file" {
+    source = "${path.module}/files/sumocollector.service"
+    destination = "/tmp/sumocollector.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
+      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
+      "sudo systemctl start sumocollector.service"
+    ]
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.sup_service.rendered}"
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -508,7 +596,8 @@ resource "aws_instance" "router" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-router --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}"
+      "sudo hab svc load core/builder-router --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 
@@ -572,6 +661,19 @@ resource "aws_instance" "sessionsrv" {
   }
 
   provisioner "file" {
+    source = "${path.module}/files/sumocollector.service"
+    destination = "/tmp/sumocollector.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
+      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
+      "sudo systemctl start sumocollector.service"
+    ]
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.sup_service.rendered}"
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -585,7 +687,8 @@ resource "aws_instance" "sessionsrv" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-sessionsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}"
+      "sudo hab svc load core/builder-sessionsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 
@@ -652,6 +755,19 @@ resource "aws_instance" "worker" {
       "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
       "sudo /etc/init.d/datadog-agent stop"
+    ]
+  }
+
+  provisioner "file" {
+    source = "${path.module}/files/sumocollector.service"
+    destination = "/tmp/sumocollector.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
+      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
+      "sudo systemctl start sumocollector.service"
     ]
   }
 
@@ -775,6 +891,15 @@ data "template_file" "sumo_sources_worker" {
     name = "${var.env}"
     category = "${var.env}/worker"
     path = "/tmp/builder-worker.log"
+  }
+}
+
+data "template_file" "sumo_sources_syslog" {
+  template = "${file("${path.module}/templates/sumo_sources_syslog.json")}"
+
+  vars {
+    name = "${var.env}-Syslog"
+    category = "${var.env}/syslog"
   }
 }
 
