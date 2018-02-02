@@ -66,75 +66,127 @@ impl HttpGateway for ApiSrv {
 
     fn router(config: Arc<Self::Config>) -> Router {
         let basic = Authenticated::new(config.github.clone(), config.depot.key_dir.clone());
+        let mut r = Router::new();
 
-        router!(
-            status: get "/status" => status,
-            authenticate: get "/authenticate/:code" => github_authenticate,
-            notify: post "/notify" => notify,
-            update_profile: patch "/profile" => XHandler::new(update_profile).before(basic.clone()),
-            get_profile: get "/profile" => XHandler::new(get_profile).before(basic.clone()),
+        if config.jobsrv_enabled {
+            r.post(
+                "/jobs/group/:id/promote/:channel",
+                XHandler::new(job_group_promote).before(basic.clone()),
+                "job_group_promote",
+            );
+            r.post(
+                "/jobs/group/:id/demote/:channel",
+                XHandler::new(job_group_demote).before(basic.clone()),
+                "job_group_demote",
+            );
+            r.post(
+                "/jobs/group/:id/cancel",
+                XHandler::new(job_group_cancel).before(basic.clone()),
+                "job_group_cancel",
+            );
+            r.get("/rdeps/:origin/:name", rdeps_show, "rdeps");
+            r.get(
+                "/jobs/:id",
+                XHandler::new(job_show).before(basic.clone()),
+                "job",
+            );
+            r.get(
+                "/jobs/:id/log",
+                XHandler::new(job_log).before(basic.clone()),
+                "job_log",
+            );
+            r.post(
+                "/projects",
+                XHandler::new(project_create).before(basic.clone()),
+                "projects",
+            );
+            r.get(
+                "/projects/:origin/:name",
+                XHandler::new(project_show).before(basic.clone()),
+                "project",
+            );
+            r.get(
+                "/projects/:origin",
+                XHandler::new(project_list).before(basic.clone()),
+                "project_list",
+            );
+            r.get(
+                "/projects/:origin/:name/jobs",
+                XHandler::new(project_jobs).before(basic.clone()),
+                "project_jobs",
+            );
+            r.put(
+                "/projects/:origin/:name",
+                XHandler::new(project_update).before(basic.clone()),
+                "edit_project",
+            );
+            r.delete(
+                "/projects/:origin/:name",
+                XHandler::new(project_delete).before(basic.clone()),
+                "delete_project",
+            );
+            r.patch(
+                "/projects/:origin/:name/:visibility",
+                XHandler::new(project_privacy_toggle).before(basic.clone()),
+                "project_privacy_toggle",
+            );
+            r.get(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(get_project_integration).before(basic.clone()),
+                "project_integration_get",
+            );
+            r.put(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(create_project_integration).before(basic.clone()),
+                "project_integration_put",
+            );
+            r.delete(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(delete_project_integration).before(basic.clone()),
+                "project_integration_delete",
+            );
+            r.get(
+                "/ext/installations/:install_id/search/code",
+                XHandler::new(github::search_code).before(basic.clone()),
+                "ext_search_code",
+            );
+            r.get(
+                "/ext/installations/:install_id/repos/:repo/contents/:path",
+                XHandler::new(github::repo_file_content).before(basic.clone()),
+                "ext_repo_content",
+            );
+        }
 
-            job: get "/jobs/:id" => XHandler::new(job_show).before(basic.clone()),
-            job_log: get "/jobs/:id/log" => XHandler::new(job_log).before(basic.clone()),
-            job_group_promote: post "/jobs/group/:id/promote/:channel" => {
-                XHandler::new(job_group_promote).before(basic.clone())
-            },
-            job_group_demote: post "/jobs/group/:id/demote/:channel" => {
-                XHandler::new(job_group_demote).before(basic.clone())
-            },
-            job_group_cancel: post "/jobs/group/:id/cancel" => {
-                XHandler::new(job_group_cancel).before(basic.clone())
-            },
-            rdeps: get "/rdeps/:origin/:name" => rdeps_show,
+        r.get("/status", status, "status");
+        r.get("/authenticate/:code", github_authenticate, "authenticate");
+        r.post("/notify", notify, "notify");
+        r.patch(
+            "/profile",
+            XHandler::new(update_profile).before(basic.clone()),
+            "update_profile",
+        );
+        r.get(
+            "/profile",
+            XHandler::new(get_profile).before(basic.clone()),
+            "get_profile",
+        );
+        r.get(
+            "/user/invitations",
+            XHandler::new(list_account_invitations).before(basic.clone()),
+            "user_invitations",
+        );
+        r.get(
+            "/user/origins",
+            XHandler::new(list_user_origins).before(basic.clone()),
+            "user_origins",
+        );
+        r.post(
+            "/ext/integrations/:registry_type/credentials/validate",
+            XHandler::new(validate_registry_credentials).before(basic.clone()),
+            "ext_credentials_registry",
+        );
 
-            user_invitations: get "/user/invitations" => {
-                XHandler::new(list_account_invitations).before(basic.clone())
-            },
-            user_origins: get "/user/origins" => {
-                XHandler::new(list_user_origins).before(basic.clone())
-            },
-
-            projects: post "/projects" => XHandler::new(project_create).before(basic.clone()),
-            project: get "/projects/:origin/:name" => {
-                XHandler::new(project_show).before(basic.clone())
-            },
-            project_list: get "/projects/:origin" => {
-                XHandler::new(project_list).before(basic.clone())
-            },
-            project_jobs: get "/projects/:origin/:name/jobs" => {
-                XHandler::new(project_jobs).before(basic.clone())
-            },
-            edit_project: put "/projects/:origin/:name" => {
-                XHandler::new(project_update).before(basic.clone())
-            },
-            delete_project: delete "/projects/:origin/:name" => {
-                XHandler::new(project_delete).before(basic.clone())
-            },
-            project_privacy_toggle: patch "/projects/:origin/:name/:visibility" => {
-                XHandler::new(project_privacy_toggle).before(basic.clone())
-            },
-            project_integration_get: get
-                "/projects/:origin/:name/integrations/:integration/default" => {
-                XHandler::new(get_project_integration).before(basic.clone())
-            },
-            project_integration_put: put
-                "/projects/:origin/:name/integrations/:integration/default" => {
-                XHandler::new(create_project_integration).before(basic.clone())
-            },
-            project_integration_delete: delete
-                "/projects/:origin/:name/integrations/:integration/default" => {
-                XHandler::new(delete_project_integration).before(basic.clone())
-            },
-            ext_search_code: get "/ext/installations/:install_id/search/code" => {
-                XHandler::new(github::search_code).before(basic.clone())
-            },
-            ext_repo_content: get "/ext/installations/:install_id/repos/:repo/contents/:path" => {
-                XHandler::new(github::repo_file_content).before(basic.clone())
-            },
-            ext_credentials_registry: post "/ext/integrations/:registry_type/credentials/validate" => {
-                XHandler::new(validate_registry_credentials).before(basic.clone())
-            },
-        )
+        r
     }
 }
 
