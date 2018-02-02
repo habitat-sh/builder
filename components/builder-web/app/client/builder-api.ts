@@ -233,6 +233,59 @@ export class BuilderApiClient {
     });
   }
 
+  public getAccessTokens() {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/profile/access-tokens`, {
+        headers: this.headers
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(true);
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public generateAccessToken() {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/profile/access-tokens`, {
+        method: 'POST',
+        headers: this.headers,
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public deleteAccessToken(id: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/profile/access-tokens/${id}`, {
+        headers: this.headers,
+        method: 'DELETE',
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(true);
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public getBuild(id: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/jobs/${id}`, {

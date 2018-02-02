@@ -1,0 +1,88 @@
+.profile-component {
+  $input-width: 60%;
+
+  .controls {
+
+    @include tablet-up {
+      display: flex;
+      align-items: center;
+    }
+
+    input, hab-copyable {
+      margin-bottom: $default-margin;
+      color: $hab-text;
+      background-color: #f0f5f8;
+      font-weight: 600;
+
+      @include tablet-up {
+        margin-bottom: 0;
+        margin-right: $default-margin;
+      }
+    }
+
+    button {
+      margin-right: 0;
+    }
+
+    .loading {
+      position: relative;
+      color: $hab-orange;
+      margin-right: auto;
+
+      input, hab-copyable {
+        margin-bottom: 0;
+      }
+
+      hab-icon {
+        position: absolute;
+        @include vertically-centered;
+        @include icon-size(16);
+        right: $default-margin / 2;
+      }
+
+      @include tablet-up {
+        margin-right: $default-margin;
+        width: $input-width;
+      }
+
+      input {
+        width: 100%;
+      }
+    }
+
+    .actions {
+      display: flex;
+      margin-top: $default-margin;
+      white-space: nowrap;
+
+      @include tablet-up {
+        margin-top: 0;
+      }
+
+      a {
+        display: inline-block;
+        margin-right: $default-margin;
+        margin-left: 0;
+
+        &.delete {
+          color: $hab-red;
+        }
+
+        .processing & {
+          cursor: default;
+          color: $disabled;
+        }
+      }
+    }
+  }
+
+  .notice {
+    color: $hab-blue;
+  }
+
+  @include tablet-up {
+    input, hab-copyable {
+      width: $input-width;
+    }
+  }
+}

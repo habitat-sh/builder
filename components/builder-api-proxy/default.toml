@@ -16,6 +16,7 @@ youtube_url          = "https://www.youtube.com/playlist?list=PL11cZfNdwNyOxlvI1
 demo_app_url         = "https://www.habitat.sh/demo"
 learn_url            = "https://www.habitat.sh/learn"
 enable_builder       = true
+enable_access_tokens = false
 
 [github]
 url          = "https://api.github.com"

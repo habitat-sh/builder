@@ -2,30 +2,94 @@
   <h1>Profile</h1>
   <h2>{{ profile.name }}</h2>
 </header>
-<div class="body">
-  <div class="content">
-    <section>
-      <h3>GitHub Username</h3>
-      <p>The GitHub account under which you are currently signed in.</p>
-      <p>
-        <hab-icon symbol="github"></hab-icon>
-        {{ profile.name }}
-      </p>
-    </section>
-    <hr>
-    <form #f="ngForm" (submit)="save(f.value)">
+<div class="profile-component">
+  <div class="body">
+    <div class="content">
       <section>
-        <h3>Email Address</h3>
-        <p>Receive periodic updates about new Habitat features, tips and tutorials.</p>
-        <input type="email" name="email" autocomplete="off" [ngModel]="profile.email" email autocomplete="off">
+        <h3>GitHub Username</h3>
+        <p>The GitHub account under which you are currently signed in.</p>
+        <p>
+          <hab-icon symbol="github"></hab-icon>
+          {{ profile.name }}
+        </p>
       </section>
       <hr>
-      <section>
-        <button mat-raised-button color="primary" [disabled]="!f.valid">
-          <span>Save</span>
-        </button>
-      </section>
-    </form>
+      <form #f="ngForm" (submit)="save(f.value)">
+        <section>
+          <h3>Email Address</h3>
+          <p>Receive periodic updates about new Habitat features, tips and tutorials.</p>
+          <input type="email" name="email" autocomplete="off" [ngModel]="profile.email" email autocomplete="off">
+        </section>
+        <hr>
+        <section>
+          <button mat-raised-button color="primary" [disabled]="!f.valid">
+            <span>Save</span>
+          </button>
+        </section>
+      </form>
+      <ng-container *ngIf="accessTokensEnabled">
+        <hr>
+        <section>
+          <h3>Personal Access Token</h3>
+          <p>
+            Personal access tokens are used for secure communication between the Habitat CLI
+            and the Builder service. If you've forgotten your token, you'll need to generate
+            a new one.
+          </p>
+          <ng-container *ngIf="generatingAccessToken || deletingAccessToken">
+            <div class="controls processing">
+              <div class="loading">
+                <input type="text" value="{{ processingLabel }}..." disabled="disabled">
+                <hab-icon symbol="loading" class="spinning"></hab-icon>
+              </div>
+            </div>
+          </ng-container>
+          <ng-container *ngIf="!generatingAccessToken && !deletingAccessToken">
+            <ng-container *ngIf="!accessToken && !newAccessToken">
+              <ng-container *ngIf="!loadingAccessTokens">
+                <div class="controls">
+                  <input type="text" value="No token found" disabled="disabled">
+                  <div class="actions">
+                    <a class="generate" (click)="generateToken(false)" *ngIf="!generatingAccessToken">{{ buttonLabel }}</a>
+                  </div>
+                </div>
+              </ng-container>
+              <ng-container *ngIf="loadingAccessTokens">
+                <div class="controls processing">
+                  <hab-icon symbol="loading" class="spinning"></hab-icon>
+                </div>
+              </ng-container>
+            </ng-container>
+            <ng-container *ngIf="newAccessToken">
+              <div class="controls">
+                <hab-copyable style="input" [text]="newAccessToken.token"></hab-copyable>
+                <div class="actions">
+                  <a class="generate" (click)="generateToken(true)">{{ buttonLabel }}</a>
+                  <a class="delete" (click)="deleteToken(newAccessToken.id)" *ngIf="!deletingAccessToken">Delete</a>
+                </div>
+              </div>
+              <p class="footnote">
+                Set your token in the CLI by running <strong>export HAB_AUTH_TOKEN=&lt;your-token&gt;</strong>.
+                <a href="{{config['docs_url']}}/habitat-cli/">See the Habitat docs</a> for more information.
+              </p>
+              <p class="notice">
+                <hab-icon symbol="warning"></hab-icon>
+                Make sure to copy your personal access token now. You won't be able to see it again!
+              </p>
+            </ng-container>
+            <ng-container *ngIf="accessToken && !newAccessToken">
+              <div class="controls">
+                <input type="password" value="*********************************" disabled="disabled">
+                <div class="actions">
+                  <a class="generate" (click)="generateToken(true)">{{ buttonLabel }}</a>
+                  <a class="delete" (click)="deleteToken(accessToken.id)" *ngIf="!deletingAccessToken">Delete</a>
+                </div>
+              </div>
+            </ng-container>
+          </ng-container>
+        </section>
+        <hr>
+      </ng-container>
+    </div>
   </div>
-  <aside></aside>
 </div>

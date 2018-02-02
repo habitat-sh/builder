@@ -19,11 +19,32 @@ import initialState from '../initial-state';
 export default function users(state = initialState['users'], action) {
   switch (action.type) {
 
+    case actionTypes.CLEAR_ACCESS_TOKENS:
+      return state.setIn(['current', 'accessTokens'], []);
+
+    case actionTypes.CLEAR_NEW_ACCESS_TOKEN:
+      return state.setIn(['current', 'newAccessToken'], undefined);
+
+    case actionTypes.POPULATE_ACCESS_TOKENS:
+      return state.setIn(['current', 'accessTokens'], action.payload);
+
+    case actionTypes.POPULATE_NEW_ACCESS_TOKEN:
+      return state.setIn(['current', 'newAccessToken'], action.payload);
+
     case actionTypes.POPULATE_PROFILE:
       return state.setIn(['current', 'profile'], action.payload);
 
     case actionTypes.POPULATE_GITHUB_USER_DATA:
       return state.setIn(['current', 'gitHub'], fromJS(action.payload));
+
+    case actionTypes.SET_DELETING_ACCESS_TOKEN:
+      return state.setIn(['current', 'ui', 'accessTokens', 'deleting'], action.payload);
+
+    case actionTypes.SET_GENERATING_ACCESS_TOKEN:
+      return state.setIn(['current', 'ui', 'accessTokens', 'generating'], action.payload);
+
+    case actionTypes.SET_LOADING_ACCESS_TOKENS:
+      return state.setIn(['current', 'ui', 'accessTokens', 'loading'], action.payload);
 
     case actionTypes.SET_PRIVILEGES:
       return state.setIn(['current', 'flags'], action.payload);

@@ -23,5 +23,6 @@ habitatConfig({
     youtube_url: "{{cfg.youtube_url}}",
     demo_app_url: "{{cfg.demo_app_url}}",
     learn_url: "{{cfg.learn_url}}",
-    enable_builder: {{cfg.enable_builder}}
+    enable_builder: {{cfg.enable_builder}},
+    enable_access_tokens: {{cfg.enable_access_tokens}}
 });

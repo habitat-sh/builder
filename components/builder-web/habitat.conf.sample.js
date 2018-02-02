@@ -1,5 +1,8 @@
 habitatConfig({
 
+    // Enable personal access tokens (this feature is under development)
+    enable_access_tokens: false,
+
     // Enable Builder-specific features
     enable_builder: true,
 

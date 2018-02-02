@@ -62,6 +62,7 @@ export default Record({
     })()
   })(),
   features: Record({
+    accessTokens: false,
     builder: false
   })(),
   notifications: Record({
@@ -186,6 +187,8 @@ export default Record({
   })(),
   users: Record({
     current: Record({
+      accessTokens: [],
+      newAccessToken: undefined,
       email: undefined,
       failedSignIn: false,
       isSigningIn: false,
@@ -197,7 +200,14 @@ export default Record({
         id: undefined,
         name: undefined,
         email: undefined
+      })(),
+      ui: Record({
+        accessTokens: Record({
+          deleting: false,
+          generating: false,
+          loading: false
+        })()
       })()
-    })(),
-  })(),
+    })()
+  })()
 })();
