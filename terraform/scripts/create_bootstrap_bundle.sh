@@ -102,7 +102,8 @@ builder_packages=(core/builder-api
 
 # Helper packages. Not all need to to be installed on the same machine,
 # but all need to be present in our bundle.
-helper_packages=(core/sumologic)
+helper_packages=(core/sumologic
+                 core/nmap)
 
 # This is where we ultimately put all the things in S3.
 s3_bucket="habitat-builder-bootstrap"

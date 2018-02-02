@@ -1,0 +1,15 @@
+{
+  "api.version":"v1",
+  "source":{
+    "name":"${name}",
+    "category":"${category}",
+    "automaticDateParsing":true,
+    "forceTimeZone":false,
+    "timeZone":"Etc/UTC",
+    "filters":[],
+    "cutoffTimestamp":1507273200000,
+    "sourceType":"Syslog",
+    "protocol":"UDP",
+    "port":1514
+  }
+}

@@ -60,6 +60,9 @@ sup_packages=(hab-launcher
               hab-sup
               hab-butterfly)
 
+# Helper for syslog logging
+helper_packages=(nmap)
+
 ########################################################################
 # Download bootstrap archive from S3
 
@@ -120,7 +123,7 @@ log "Populating artifact cache"
 mkdir -p /hab/cache/artifacts
 cp ${tmpdir}/artifacts/* /hab/cache/artifacts
 
-for pkg in "${sup_packages[@]}" ${services_to_install[@]:-}
+for pkg in "${sup_packages[@]}" "${helper_packages[@]}" ${services_to_install[@]:-}
 do
     pkg_name=${pkg##core/} # strip "core/" if it's there
     # Using a fake depot URL keeps us honest; this will fail loudly if
@@ -139,3 +142,5 @@ done
 # lnger are worrying about Habitat versions 0.33.2 and older. (2017-09-29)
 ${hab_bootstrap_bin} pkg binlink core/hab hab --force \
   || ${hab_bootstrap_bin} pkg binlink core/hab hab
+${hab_bootstrap_bin} pkg binlink core/nmap ncat --force \
+  || ${hab_bootstrap_bin} pkg binlink core/nmap ncat
