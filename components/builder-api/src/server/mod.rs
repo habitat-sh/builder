@@ -14,11 +14,14 @@
 
 mod handlers;
 
+use std::path::PathBuf;
+
 use depot;
 use github_api_client::GitHubClient;
 use hab_core::event::EventLogger;
 use http_gateway;
 use http_gateway::app::prelude::*;
+use hab_net::privilege::FeatureFlags;
 use iron;
 use mount::Mount;
 use persistent::{self, Read};
@@ -66,6 +69,8 @@ impl HttpGateway for ApiSrv {
 
     fn router(config: Arc<Self::Config>) -> Router {
         let basic = Authenticated::new(config.github.clone(), config.depot.key_dir.clone());
+        let admin = Authenticated::new(config.github.clone(), PathBuf::new())
+            .require(FeatureFlags::ADMIN);
         let mut r = Router::new();
 
         if config.jobsrv_enabled {
@@ -184,6 +189,17 @@ impl HttpGateway for ApiSrv {
             "/ext/integrations/:registry_type/credentials/validate",
             XHandler::new(validate_registry_credentials).before(basic.clone()),
             "ext_credentials_registry",
+        );
+
+        r.post(
+            "/admin/search",
+            XHandler::new(search).before(admin.clone()),
+            "admin_search",
+        );
+        r.get(
+            "/admin/accounts/:id",
+            XHandler::new(account_show).before(admin.clone()),
+            "admin_account",
         );
 
         r

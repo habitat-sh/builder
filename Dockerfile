@@ -36,8 +36,6 @@ RUN adduser -g tty -h /home/krangschnak -D krangschnak \
   core/builder-datastore \
   core/builder-api \
   core/builder-api-proxy \
-  core/builder-admin \
-  core/builder-admin-proxy \
   core/builder-jobsrv \
   core/builder-originsrv \
   core/builder-router \
@@ -62,8 +60,6 @@ RUN hab svc load core/builder-datastore \
   && hab svc load core/builder-router \
   && hab svc load core/builder-api-proxy --bind http:builder-api.default \
   && hab svc load core/builder-api --bind router:builder-router.default \
-  && hab svc load core/builder-admin --bind router:builder-router.default \
-  && hab svc load core/builder-admin-proxy --bind http:builder-admin.default \
   && hab svc load core/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
   && hab svc load core/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
   && hab svc load core/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default

@@ -90,8 +90,6 @@ fi
 # our bundle.
 builder_packages=(core/builder-api
                   core/builder-api-proxy
-                  core/builder-admin
-                  core/builder-admin-proxy
                   core/builder-datastore
                   core/builder-jobsrv
                   core/builder-originsrv
