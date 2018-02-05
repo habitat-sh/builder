@@ -126,6 +126,7 @@ pub fn origin_create(req: &mut Request) -> IronResult<Response> {
         }
         _ => return Ok(Response::with(status::UnprocessableEntity)),
     }
+
     if !ident::is_valid_origin_name(request.get_name()) {
         return Ok(Response::with(status::UnprocessableEntity));
     }
@@ -785,38 +786,40 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with((status::UnprocessableEntity, "ds:up:3")));
     }
 
-    // Check with scheduler to ensure we don't have circular deps
-    let mut pcr_req = JobGraphPackagePreCreate::new();
-    pcr_req.set_ident(format!("{}", ident));
-    pcr_req.set_target(target_from_artifact.to_string());
+    // Check with scheduler to ensure we don't have circular deps, if configured
+    if depot.config.jobsrv_enabled {
+        let mut pcr_req = JobGraphPackagePreCreate::new();
+        pcr_req.set_ident(format!("{}", ident));
+        pcr_req.set_target(target_from_artifact.to_string());
 
-    let mut pcr_deps = protobuf::RepeatedField::new();
-    let deps_from_artifact = match archive.deps() {
-        Ok(deps) => deps,
-        Err(e) => {
-            info!("Could not get deps from {:#?}: {:#?}", archive, e);
-            return Ok(Response::with((status::UnprocessableEntity, "ds:up:4")));
-        }
-    };
-
-    for ident in deps_from_artifact {
-        let dep_str = format!("{}", ident);
-        pcr_deps.push(dep_str);
-    }
-    pcr_req.set_deps(pcr_deps);
-
-    match route_message::<JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
-        Ok(_) => (),
-        Err(err) => {
-            if err.get_code() == ErrCode::ENTITY_CONFLICT {
-                warn!(
-                    "Failed package circular dependency check: {:?}, err: {:?}",
-                    ident,
-                    err
-                );
-                return Ok(Response::with(status::FailedDependency));
+        let mut pcr_deps = protobuf::RepeatedField::new();
+        let deps_from_artifact = match archive.deps() {
+            Ok(deps) => deps,
+            Err(e) => {
+                info!("Could not get deps from {:#?}: {:#?}", archive, e);
+                return Ok(Response::with((status::UnprocessableEntity, "ds:up:4")));
             }
-            return Ok(render_net_error(&err));
+        };
+
+        for ident in deps_from_artifact {
+            let dep_str = format!("{}", ident);
+            pcr_deps.push(dep_str);
+        }
+        pcr_req.set_deps(pcr_deps);
+
+        match route_message::<JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
+            Ok(_) => (),
+            Err(err) => {
+                if err.get_code() == ErrCode::ENTITY_CONFLICT {
+                    warn!(
+                        "Failed package circular dependency check: {:?}, err: {:?}",
+                        ident,
+                        err
+                    );
+                    return Ok(Response::with(status::FailedDependency));
+                }
+                return Ok(render_net_error(&err));
+            }
         }
     }
 
@@ -908,24 +911,26 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
                     None => false,
                 }
             {
-                let mut request = JobGroupSpec::new();
-                request.set_origin(ident.get_origin().to_string());
-                request.set_package(ident.get_name().to_string());
-                request.set_target(target_from_artifact.to_string());
-                request.set_deps_only(true);
-                request.set_origin_only(!depot.config.non_core_builds_enabled);
-                request.set_package_only(false);
+                if depot.config.jobsrv_enabled {
+                    let mut request = JobGroupSpec::new();
+                    request.set_origin(ident.get_origin().to_string());
+                    request.set_package(ident.get_name().to_string());
+                    request.set_target(target_from_artifact.to_string());
+                    request.set_deps_only(true);
+                    request.set_origin_only(!depot.config.non_core_builds_enabled);
+                    request.set_package_only(false);
 
-                match route_message::<JobGroupSpec, JobGroup>(req, &request) {
-                    Ok(group) => {
-                        debug!(
-                            "Scheduled reverse dependecy build for {}, group id: {}, origin_only: {}",
-                            ident,
-                            group.get_id(),
-                            !depot.config.non_core_builds_enabled
-                        )
+                    match route_message::<JobGroupSpec, JobGroup>(req, &request) {
+                        Ok(group) => {
+                            debug!(
+                                "Scheduled reverse dependecy build for {}, group id: {}, origin_only: {}",
+                                ident,
+                                group.get_id(),
+                                !depot.config.non_core_builds_enabled
+                            )
+                        }
+                        Err(err) => warn!("Unable to schedule build, err: {:?}", err),
                     }
-                    Err(err) => warn!("Unable to schedule build, err: {:?}", err),
                 }
             }
         }
@@ -950,6 +955,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is unreachable when jobsrv_enabled is false
 fn package_stats(req: &mut Request) -> IronResult<Response> {
     let mut request = JobGraphPackageStatsGet::new();
     match get_param(req, "origin") {
@@ -967,6 +973,7 @@ fn package_stats(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is unreachable when jobsrv_enabled is false
 fn schedule(req: &mut Request) -> IronResult<Response> {
     let session = req.extensions.get::<Authenticated>().unwrap().clone();
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
@@ -1060,6 +1067,7 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is unreachable when jobsrv_enabled is false
 fn get_origin_schedule_status(req: &mut Request) -> IronResult<Response> {
     let mut request = JobGroupOriginGet::new();
 
@@ -1074,6 +1082,7 @@ fn get_origin_schedule_status(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is unreachable when jobsrv_enabled is false
 fn get_schedule(req: &mut Request) -> IronResult<Response> {
     let group_id = {
         let group_id_str = match get_param(req, "groupid") {
@@ -1101,6 +1110,7 @@ fn get_schedule(req: &mut Request) -> IronResult<Response> {
 }
 
 // TODO (SA) This is an experiemental dev-only function for now
+// This route is unreachable when jobsrv_enabled is false
 fn abort_schedule(req: &mut Request) -> IronResult<Response> {
     let group_id = {
         let params = req.extensions.get::<Router>().unwrap();
@@ -2100,171 +2110,269 @@ fn do_cache_response(response: &mut Response) {
     ));
 }
 
-pub fn routes<M>(basic: Authenticated, worker: M) -> Router
+pub fn routes<M>(basic: Authenticated, worker: M, depot: &DepotUtil) -> Router
 where
     M: BeforeMiddleware + Clone,
 {
     let opt = basic.clone().optional();
+    let mut r = Router::new();
 
-    router!(
-        channels: get "/channels/:origin" => list_channels,
-        channel_packages: get "/channels/:origin/:channel/pkgs" => {
-            XHandler::new(list_packages).before(opt.clone())
-        },
-        channel_packages_pkg: get "/channels/:origin/:channel/pkgs/:pkg" => {
-            XHandler::new(list_packages).before(opt.clone())
-        },
-        channel_package_latest: get "/channels/:origin/:channel/pkgs/:pkg/latest" => {
-            XHandler::new(show_package).before(opt.clone())
-        },
-        channel_packages_version: get
-        "/channels/:origin/:channel/pkgs/:pkg/:version" => {
-            XHandler::new(list_packages).before(opt.clone())
-        },
-        channel_packages_version_latest: get
-        "/channels/:origin/:channel/pkgs/:pkg/:version/latest" => {
-            XHandler::new(show_package).before(opt.clone())
-        },
-        channel_package_release: get
-        "/channels/:origin/:channel/pkgs/:pkg/:version/:release" => {
-            XHandler::new(show_package).before(opt.clone())
-        },
-        channel_package_promote: put
-            "/channels/:origin/:channel/pkgs/:pkg/:version/:release/promote" => {
-            XHandler::new(promote_package).before(basic.clone())
-        },
-        channel_package_demote: put
-            "/channels/:origin/:channel/pkgs/:pkg/:version/:release/demote" => {
-            XHandler::new(demote_package).before(basic.clone())
-        },
-        channel_create: post "/channels/:origin/:channel" => {
-            XHandler::new(create_channel).before(basic.clone())
-        },
-        channel_delete: delete "/channels/:origin/:channel" => {
-            XHandler::new(delete_channel).before(basic.clone())
-        },
-        package_search: get "/pkgs/search/:query" => {
-            XHandler::new(search_packages).before(opt.clone())
-        },
-        packages: get "/pkgs/:origin" => {
-            XHandler::new(list_packages).before(opt.clone())
-        },
-        packages_unique: get "/:origin/pkgs" => {
-            XHandler::new(list_unique_packages).before(opt.clone())
-        },
-        packages_pkg: get "/pkgs/:origin/:pkg" => {
-            XHandler::new(list_packages).before(opt.clone())
-        },
-        package_pkg_versions: get "/pkgs/:origin/:pkg/versions" => {
-            XHandler::new(list_package_versions).before(opt.clone())
-        },
-        package_pkg_latest: get "/pkgs/:origin/:pkg/latest" => {
-            XHandler::new(show_package).before(opt.clone())
-        },
-        packages_version: get "/pkgs/:origin/:pkg/:version" => {
-            XHandler::new(list_packages).before(opt.clone())
-        },
-        package_version_latest: get "/pkgs/:origin/:pkg/:version/latest" => {
-            XHandler::new(show_package).before(opt.clone())
-        },
-        package: get "/pkgs/:origin/:pkg/:version/:release" => {
-            XHandler::new(show_package).before(opt.clone())
-        },
-        package_channels: get "/pkgs/:origin/:pkg/:version/:release/channels" => {
-            XHandler::new(package_channels).before(opt.clone())
-        },
-        package_download: get "/pkgs/:origin/:pkg/:version/:release/download" => {
-            XHandler::new(download_package).before(opt.clone())
-        },
-        package_upload: post "/pkgs/:origin/:pkg/:version/:release" => {
-            XHandler::new(upload_package).before(basic.clone())
-        },
-        package_privacy_toggle: patch "/pkgs/:origin/:pkg/:version/:release/:visibility" => {
-            XHandler::new(package_privacy_toggle).before(basic.clone())
-        },
-        packages_stats: get "/pkgs/origins/:origin/stats" => package_stats,
-        schedule: post "/pkgs/schedule/:origin/:pkg" => {
-            XHandler::new(schedule).before(basic.clone())
-        },
-        schedule_get: get "/pkgs/schedule/:groupid" => get_schedule,
-        schedule_get_global: get "/pkgs/schedule/:origin/status" => get_origin_schedule_status,
-        schedule_abort: delete "/pkgs/schedule/:groupid" => {
-            XHandler::new(abort_schedule).before(worker.clone())
-        },
-        origin_create: post "/origins" => {
-            XHandler::new(origin_create).before(basic.clone())
-        },
-        origin_update: put "/origins/:name" => {
-            XHandler::new(origin_update).before(basic.clone())
-        },
-        origin: get "/origins/:origin" => origin_show,
+    if depot.config.jobsrv_enabled {
+        r.get(
+            "/pkgs/origins/:origin/stats",
+            package_stats,
+            "package_stats",
+        );
+        r.post(
+            "/pkgs/schedule/:origin/:pkg",
+            XHandler::new(schedule).before(basic.clone()),
+            "schedule",
+        );
+        r.get("/pkgs/schedule/:groupid", get_schedule, "schedule_get");
+        r.get(
+            "/pkgs/schedule/:origin/status",
+            get_origin_schedule_status,
+            "schedule_get_global",
+        );
+        r.delete(
+            "/pkgs/schedule/:groupid",
+            XHandler::new(abort_schedule).before(worker.clone()),
+            "schedule_abort",
+        );
+    }
 
-        origin_keys: get "/origins/:origin/keys" => list_origin_keys,
-        origin_key_latest: get "/origins/:origin/keys/latest" => download_latest_origin_key,
-        origin_key: get "/origins/:origin/keys/:revision" => download_origin_key,
-        origin_key_generate: post "/origins/:origin/keys" => {
-            XHandler::new(generate_origin_keys).before(basic.clone())
-        },
-        origin_key_create: post "/origins/:origin/keys/:revision" => {
-            XHandler::new(upload_origin_key).before(basic.clone())
-        },
-        origin_secret_key_create: post "/origins/:origin/secret_keys/:revision" => {
-            XHandler::new(upload_origin_secret_key).before(basic.clone())
-        },
-        origin_secret_key_latest: get "/origins/:origin/secret_keys/latest" => {
-            XHandler::new(download_latest_origin_secret_key).before(basic.clone())
-        },
+    r.get("/channels/:origin", list_channels, "channels");
+    r.get(
+        "/channels/:origin/:channel/pkgs",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages_pkg",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_package_latest",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages_version",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_packages_version_latest",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_package_release",
+    );
+    r.put(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release/promote",
+        XHandler::new(promote_package).before(basic.clone()),
+        "channel_package_promote",
+    );
+    r.put(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release/demote",
+        XHandler::new(demote_package).before(basic.clone()),
+        "channel_package_demote",
+    );
+    r.post(
+        "/channels/:origin/:channel",
+        XHandler::new(create_channel).before(basic.clone()),
+        "channel_create",
+    );
+    r.delete(
+        "/channels/:origin/:channel",
+        XHandler::new(delete_channel).before(basic.clone()),
+        "channel_delete",
+    );
+    r.get(
+        "/pkgs/search/:query",
+        XHandler::new(search_packages).before(opt.clone()),
+        "package_search",
+    );
+    r.get(
+        "/pkgs/:origin",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages",
+    );
+    r.get(
+        "/:origin/pkgs",
+        XHandler::new(list_unique_packages).before(opt.clone()),
+        "packages_unique",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages_pkg",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/versions",
+        XHandler::new(list_package_versions).before(opt.clone()),
+        "package_pkg_versions",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "package_pkg_latest",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages_version",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "package_version_latest",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release",
+        XHandler::new(show_package).before(opt.clone()),
+        "package",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release/channels",
+        XHandler::new(package_channels).before(opt.clone()),
+        "package_channels",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release/download",
+        XHandler::new(download_package).before(opt.clone()),
+        "package_download",
+    );
+    r.post(
+        "/pkgs/:origin/:pkg/:version/:release",
+        XHandler::new(upload_package).before(basic.clone()),
+        "package_upload",
+    );
+    r.patch(
+        "/pkgs/:origin/:pkg/:version/:release/:visibility",
+        XHandler::new(package_privacy_toggle).before(basic.clone()),
+        "package_privacy_toggle",
+    );
+    r.post(
+        "/origins",
+        XHandler::new(origin_create).before(basic.clone()),
+        "origin_create",
+    );
+    r.put(
+        "/origins/:name",
+        XHandler::new(origin_update).before(basic.clone()),
+        "origin_update",
+    );
+    r.get("/origins/:origin", origin_show, "origin");
+    r.get("/origins/:origin/keys", list_origin_keys, "origin_keys");
+    r.get(
+        "/origins/:origin/keys/latest",
+        download_latest_origin_key,
+        "origin_key_latest",
+    );
+    r.get(
+        "/origins/:origin/keys/:revision",
+        download_origin_key,
+        "origin_key",
+    );
+    r.post(
+        "/origins/:origin/keys",
+        XHandler::new(generate_origin_keys).before(basic.clone()),
+        "origin_key_generate",
+    );
+    r.post(
+        "/origins/:origin/keys/:revision",
+        XHandler::new(upload_origin_key).before(basic.clone()),
+        "origin_key_create",
+    );
+    r.post(
+        "/origins/:origin/secret_keys/:revision",
+        XHandler::new(upload_origin_secret_key).before(basic.clone()),
+        "origin_secret_key_create",
+    );
+    r.get(
+        "/origins/:origin/secret_keys/latest",
+        XHandler::new(download_latest_origin_secret_key).before(basic.clone()),
+        "origin_secret_key_latest",
+    );
+    r.get(
+        "/builder/keys/latest",
+        download_latest_builder_key,
+        "builder_key_latest",
+    );
+    r.get(
+        "/origins/:origin/integrations/:integration/names",
+        XHandler::new(handlers::integrations::fetch_origin_integration_names).before(basic.clone()),
+        "origin_integration_get_names",
+    );
+    r.put(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::create_origin_integration).before(basic.clone()),
+        "origin_integration_put",
+    );
+    r.delete(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::delete_origin_integration).before(basic.clone()),
+        "origin_integration_delete",
+    );
+    r.get(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::get_origin_integration).before(basic.clone()),
+        "origin_integration_get",
+    );
+    r.get(
+        "/origins/:origin/integrations",
+        XHandler::new(handlers::integrations::fetch_origin_integrations).before(basic.clone()),
+        "origin_integrations",
+    );
+    r.post(
+        "/origins/:origin/users/:username/invitations",
+        XHandler::new(invite_to_origin).before(basic.clone()),
+        "origin_invitation_create",
+    );
+    r.put(
+        "/origins/:origin/invitations/:invitation_id",
+        XHandler::new(accept_invitation).before(basic.clone()),
+        "origin_invitation_accept",
+    );
+    r.put(
+        "/origins/:origin/invitations/:invitation_id/ignore",
+        XHandler::new(ignore_invitation).before(basic.clone()),
+        "origin_invitation_ignore",
+    );
+    r.delete(
+        "/origins/:origin/invitations/:invitation_id",
+        XHandler::new(rescind_invitation).before(basic.clone()),
+        "origin_invitation_rescind",
+    );
+    r.get(
+        "/origins/:origin/invitations",
+        XHandler::new(list_origin_invitations).before(basic.clone()),
+        "origin_invitations",
+    );
+    r.get(
+        "/origins/:origin/users",
+        XHandler::new(list_origin_members).before(basic.clone()),
+        "origin_users",
+    );
+    r.delete(
+        "/origins/:origin/users/:username",
+        XHandler::new(origin_member_delete).before(basic.clone()),
+        "origin_member_delete",
+    );
 
-        builder_key_latest: get "/builder/keys/latest" => download_latest_builder_key,
-
-        origin_integration_get_names: get "/origins/:origin/integrations/:integration/names" => {
-            XHandler::new(
-                handlers::integrations::fetch_origin_integration_names).before(basic.clone()
-            )
-        },
-        origin_integration_put: put "/origins/:origin/integrations/:integration/:name" => {
-            XHandler::new(handlers::integrations::create_origin_integration).before(basic.clone())
-        },
-        origin_integration_delete: delete "/origins/:origin/integrations/:integration/:name" => {
-            XHandler::new(handlers::integrations::delete_origin_integration).before(basic.clone())
-        },
-        origin_integration_get: get "/origins/:origin/integrations/:integration/:name" => {
-            XHandler::new(handlers::integrations::get_origin_integration).before(basic.clone())
-        },
-        origin_integrations: get "/origins/:origin/integrations" => {
-            XHandler::new(
-                handlers::integrations::fetch_origin_integrations).before(basic.clone()
-            )
-        },
-        origin_invitation_create: post "/origins/:origin/users/:username/invitations" => {
-            XHandler::new(invite_to_origin).before(basic.clone())
-        },
-        origin_invitation_accept: put "/origins/:origin/invitations/:invitation_id" => {
-            XHandler::new(accept_invitation).before(basic.clone())
-        },
-        origin_invitation_ignore: put "/origins/:origin/invitations/:invitation_id/ignore" => {
-            XHandler::new(ignore_invitation).before(basic.clone())
-        },
-        origin_invitation_rescind: delete "/origins/:origin/invitations/:invitation_id" => {
-            XHandler::new(rescind_invitation).before(basic.clone())
-        },
-        origin_invitations: get "/origins/:origin/invitations" => {
-            XHandler::new(list_origin_invitations).before(basic.clone())
-        },
-        origin_users: get "/origins/:origin/users" => {
-            XHandler::new(list_origin_members).before(basic.clone())
-        },
-        origin_member_delete: delete "/origins/:origin/users/:username" => {
-            XHandler::new(origin_member_delete).before(basic.clone())
-        },
-    )
+    r
 }
 
 pub fn router(depot: DepotUtil) -> Result<Chain> {
     let basic = Authenticated::new(depot.config.github.clone(), depot.config.key_dir.clone());
     let worker = Authenticated::new(depot.config.github.clone(), depot.config.key_dir.clone())
         .require(FeatureFlags::BUILD_WORKER);
-    let router = routes(basic, worker);
+    let router = routes(basic, worker, &depot);
     let mut chain = Chain::new(router);
     chain.link(persistent::Read::<EventLog>::both(EventLogger::new(
         &depot.config.log_dir,

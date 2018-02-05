@@ -38,7 +38,6 @@ extern crate openssl;
 extern crate params;
 extern crate persistent;
 extern crate protobuf;
-#[macro_use]
 extern crate router;
 extern crate segment_api_client;
 #[macro_use]

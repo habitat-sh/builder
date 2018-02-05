@@ -43,6 +43,8 @@ pub struct Config {
     pub non_core_builds_enabled: bool,
     /// Where to record log events for funnel metrics
     pub log_dir: String,
+    /// Whether jobsrv is present or not
+    pub jobsrv_enabled: bool,
 }
 
 impl Default for Config {
@@ -57,6 +59,7 @@ impl Default for Config {
             events_enabled: false,
             non_core_builds_enabled: true,
             log_dir: env::temp_dir().to_string_lossy().into_owned(),
+            jobsrv_enabled: true,
         }
     }
 }
@@ -133,6 +136,7 @@ mod tests {
         let content = r#"
         events_enabled = true
         non_core_builds_enabled = true
+        jobsrv_enabled = false
 
         [http]
         listen = "0:0:0:0:0:0:0:1"
@@ -167,6 +171,7 @@ mod tests {
 
         let config = Config::from_raw(&content).unwrap();
         assert_eq!(config.events_enabled, true);
+        assert_eq!(config.jobsrv_enabled, false);
         assert_eq!(config.non_core_builds_enabled, true);
         assert_eq!(&format!("{}", config.http.listen), "::1");
         assert_eq!(config.http.port, 9636);

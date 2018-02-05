@@ -156,15 +156,18 @@ pub fn get_profile(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn job_group_promote(req: &mut Request) -> IronResult<Response> {
     job_group_promote_or_demote(req, true)
 
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn job_group_demote(req: &mut Request) -> IronResult<Response> {
     job_group_promote_or_demote(req, false)
 }
 
+// This route is only available if jobsrv_enabled is true
 fn job_group_promote_or_demote(req: &mut Request, promote: bool) -> IronResult<Response> {
     let group_id = match get_param(req, "id") {
         Some(id) => {
@@ -210,6 +213,7 @@ fn job_group_promote_or_demote(req: &mut Request, promote: bool) -> IronResult<R
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn job_group_cancel(req: &mut Request) -> IronResult<Response> {
     let group_id = match get_param(req, "id") {
         Some(id) => {
@@ -316,6 +320,7 @@ pub fn validate_registry_credentials(req: &mut Request) -> IronResult<Response> 
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn project_privacy_toggle(req: &mut Request) -> IronResult<Response> {
     let origin = match get_param(req, "origin") {
         Some(o) => o,
@@ -363,6 +368,7 @@ pub fn project_privacy_toggle(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn rdeps_show(req: &mut Request) -> IronResult<Response> {
     let mut rdeps_get = JobGraphPackageReverseDependenciesGet::new();
     match get_param(req, "origin") {
@@ -387,6 +393,7 @@ pub fn rdeps_show(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn job_show(req: &mut Request) -> IronResult<Response> {
     let mut request = JobGet::new();
     match get_param(req, "id") {
@@ -431,6 +438,7 @@ pub fn job_show(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn job_log(req: &mut Request) -> IronResult<Response> {
     let start = req.get_ref::<Params>()
         .unwrap()
@@ -532,6 +540,7 @@ pub fn list_user_origins(req: &mut Request) -> IronResult<Response> {
 
 /// Create a new project as the authenticated user and associated to
 /// the given origin.
+// This route is only available if jobsrv_enabled is true
 pub fn project_create(req: &mut Request) -> IronResult<Response> {
     let mut request = OriginProjectCreate::new();
     let mut project = OriginProject::new();
@@ -638,6 +647,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
 }
 
 /// Delete the given project
+// This route is only available if jobsrv_enabled is true
 pub fn project_delete(req: &mut Request) -> IronResult<Response> {
     let mut project_del = OriginProjectDelete::new();
 
@@ -670,6 +680,7 @@ pub fn project_delete(req: &mut Request) -> IronResult<Response> {
 }
 
 /// Update the given project
+// This route is only available if jobsrv_enabled is true
 pub fn project_update(req: &mut Request) -> IronResult<Response> {
     let origin = match get_param(req, "origin") {
         Some(o) => o,
@@ -772,6 +783,7 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
 }
 
 /// Display the the given project's details
+// This route is only available if jobsrv_enabled is true
 pub fn project_show(req: &mut Request) -> IronResult<Response> {
     let mut project_get = OriginProjectGet::new();
 
@@ -805,6 +817,7 @@ pub fn project_show(req: &mut Request) -> IronResult<Response> {
 }
 
 /// Return names of all the projects in the given origin
+// This route is only available if jobsrv_enabled is true
 pub fn project_list(req: &mut Request) -> IronResult<Response> {
     let mut projects_get = OriginProjectListGet::new();
 
@@ -826,6 +839,7 @@ pub fn project_list(req: &mut Request) -> IronResult<Response> {
 }
 
 /// Retrieve the most recent 50 jobs for a project.
+// This route is only available if jobsrv_enabled is true
 pub fn project_jobs(req: &mut Request) -> IronResult<Response> {
     let mut jobs_get = ProjectJobsGet::new();
 
@@ -887,6 +901,7 @@ pub fn project_jobs(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn create_project_integration(req: &mut Request) -> IronResult<Response> {
     let params = match validate_params(req, &["origin", "name", "integration"]) {
         Ok(p) => p,
@@ -937,6 +952,7 @@ pub fn create_project_integration(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn delete_project_integration(req: &mut Request) -> IronResult<Response> {
     let params = match validate_params(req, &["origin", "name", "integration"]) {
         Ok(p) => p,
@@ -961,6 +977,7 @@ pub fn delete_project_integration(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// This route is only available if jobsrv_enabled is true
 pub fn get_project_integration(req: &mut Request) -> IronResult<Response> {
     let params = match validate_params(req, &["origin", "name", "integration"]) {
         Ok(p) => p,

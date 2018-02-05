@@ -34,7 +34,6 @@ extern crate persistent;
 extern crate protobuf;
 extern crate regex;
 extern crate r2d2;
-#[macro_use]
 extern crate router;
 extern crate segment_api_client;
 extern crate serde;

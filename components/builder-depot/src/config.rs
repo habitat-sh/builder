@@ -48,6 +48,8 @@ pub struct Config {
     pub key_dir: PathBuf,
     /// A list of package platform and architecture combinations which can be uploaded and hosted
     pub targets: Vec<PackageTarget>,
+    /// Whether jobsrv is present or not
+    pub jobsrv_enabled: bool,
 }
 
 impl ConfigFile for Config {
@@ -71,6 +73,7 @@ impl Default for Config {
                 PackageTarget::new(Platform::Linux, Architecture::X86_64),
                 PackageTarget::new(Platform::Windows, Architecture::X86_64),
             ],
+            jobsrv_enabled: true,
         }
     }
 }
@@ -129,6 +132,7 @@ mod tests {
         events_enabled = true
         log_dir = "/hab/svc/hab-depot/var/log"
         key_dir = "/hab/svc/hab-depot/files"
+        jobsrv_enabled = false
 
         [[targets]]
         platform = "linux"
@@ -159,6 +163,7 @@ mod tests {
         assert_eq!(config.events_enabled, true);
         assert_eq!(config.log_dir, PathBuf::from("/hab/svc/hab-depot/var/log"));
         assert_eq!(config.key_dir, PathBuf::from("/hab/svc/hab-depot/files"));
+        assert_eq!(config.jobsrv_enabled, false);
         assert_eq!(&format!("{}", config.http.listen), "127.0.0.1");
         assert_eq!(config.http.port, 9000);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9001");
