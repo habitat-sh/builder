@@ -33,9 +33,10 @@ use protocol::jobsrv::{Job, JobGet, JobLogGet, JobLog, JobState, ProjectJobsGet,
                        ProjectJobsGetResponse, JobGroupCancel, JobGroupGet, JobGroup};
 use protocol::jobsrv::{JobGraphPackageReverseDependenciesGet, JobGraphPackageReverseDependencies};
 use protocol::originsrv::*;
-use protocol::sessionsrv::{Account, AccountGetId, AccountInvitationListRequest,
+use protocol::sessionsrv::{Account, AccountGet, AccountGetId, AccountInvitationListRequest,
                            AccountInvitationListResponse, AccountOriginListRequest,
                            AccountOriginListResponse, AccountUpdate};
+use router::Router;
 use serde_json;
 use typemap;
 
@@ -52,7 +53,73 @@ const DEFAULT_PROJECT_INTEGRATION: &'static str = "default";
 const PRODUCT: &'static str = "builder-api";
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
+#[derive(Clone, Serialize, Deserialize)]
+struct SearchTerm {
+    attr: String,
+    entity: String,
+    value: String,
+}
+
 define_event_log!();
+
+pub fn account_show(req: &mut Request) -> IronResult<Response> {
+    let mut account_get_id = AccountGetId::new();
+    {
+        let params = req.extensions.get::<Router>().unwrap();
+        let stringy_id = params.find("id").unwrap();
+        match stringy_id.parse::<u64>() {
+            Ok(id) => account_get_id.set_id(id),
+            Err(_) => return Ok(Response::with(status::BadRequest)),
+        }
+    }
+    match route_message::<AccountGetId, Account>(req, &account_get_id) {
+        Ok(account) => Ok(render_json(status::Ok, &account)),
+        Err(err) => Ok(render_net_error(&err)),
+    }
+}
+
+pub fn search(req: &mut Request) -> IronResult<Response> {
+    match req.get::<bodyparser::Struct<SearchTerm>>() {
+        Ok(Some(body)) => {
+            match &*body.entity.to_lowercase() {
+                "account" => search_account(req, body.attr, body.value),
+                entity => {
+                    Ok(Response::with((
+                        status::UnprocessableEntity,
+                        format!("Unknown search entity: {}", entity),
+                    )))
+                }
+            }
+        }
+        _ => Ok(Response::with(status::UnprocessableEntity)),
+    }
+}
+
+fn search_account(req: &mut Request, key: String, value: String) -> IronResult<Response> {
+    match key.as_str() {
+        "id" => {
+            let mut account_get_id = AccountGetId::new();
+            let id = match value.parse::<u64>() {
+                Ok(id) => id,
+                Err(_) => return Ok(Response::with(status::BadRequest)),
+            };
+            account_get_id.set_id(id);
+            match route_message::<AccountGetId, Account>(req, &account_get_id) {
+                Ok(account) => Ok(render_json(status::Ok, &account)),
+                Err(err) => Ok(render_net_error(&err)),
+            }
+        }
+        "name" => {
+            let mut account_get = AccountGet::new();
+            account_get.set_name(value);
+            match route_message::<AccountGet, Account>(req, &account_get) {
+                Ok(account) => Ok(render_json(status::Ok, &account)),
+                Err(err) => Ok(render_net_error(&err)),
+            }
+        }
+        _ => Ok(Response::with(status::UnprocessableEntity)),
+    }
+}
 
 pub fn github_authenticate(req: &mut Request) -> IronResult<Response> {
     let code = match get_param(req, "code") {

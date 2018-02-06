@@ -1,7 +1,7 @@
 UNAME_S := $(shell uname -s)
 BIN = airlock
 LIB = builder-db builder-core net
-SRV = builder-api builder-admin builder-depot builder-router builder-jobsrv builder-sessionsrv builder-originsrv builder-worker
+SRV = builder-api builder-depot builder-router builder-jobsrv builder-sessionsrv builder-originsrv builder-worker
 ALL = $(BIN) $(LIB) $(SRV)
 VERSION := $(shell cat VERSION)
 

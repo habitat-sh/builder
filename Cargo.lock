@@ -717,36 +717,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "habitat_builder_admin"
-version = "0.0.0"
-dependencies = [
- "bodyparser 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "builder-http-gateway 0.0.0",
- "clap 2.29.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.182 (registry+https://github.com/rust-lang/crates.io-index)",
- "env_logger 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "github-api-client 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
- "habitat-builder-protocol 0.0.0",
- "habitat_core 0.0.0 (git+https://github.com/habitat-sh/core.git)",
- "habitat_net 0.0.0",
- "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "iron 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "mount 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "persistent 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "protobuf 1.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "router 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "staticfile 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "toml 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "unicase 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "urlencoded 0.6.0 (git+https://github.com/iron/urlencoded)",
- "zmq 0.8.2 (git+https://github.com/erickt/rust-zmq?branch=release/v0.8)",
-]
-
-[[package]]
 name = "habitat_builder_api"
 version = "0.0.0"
 dependencies = [

@@ -65,7 +65,7 @@ build-builder() {
   fi
 
   if [[ "$#" -eq 0 ]]; then
-    build-builder admin api jobsrv originsrv router sessionsrv worker
+    build-builder api jobsrv originsrv router sessionsrv worker
     return $?
   fi
 
@@ -106,8 +106,6 @@ start-builder() {
   configure
   start-cache
   start-router
-  start-admin
-  start-admin-proxy
   start-api
   start-api-proxy
   start-jobsrv
@@ -118,14 +116,6 @@ start-builder() {
   generate_bldr_keys
   upload_github_keys
   echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
-}
-
-start-admin() {
-  hab svc load core/builder-admin --bind router:builder-router.default -s at-once
-}
-
-start-admin-proxy() {
-  hab svc load core/builder-admin-proxy --bind http:builder-admin.default
 }
 
 start-api() {
@@ -166,8 +156,6 @@ start-cache() {
 
 stop-builder() {
   stop-cache
-  stop-admin
-  stop-admin-proxy
   stop-api
   stop-api-proxy
   stop-datastore
@@ -180,14 +168,6 @@ stop-builder() {
 
 stop-cache() {
   hab svc unload core/sccache
-}
-
-stop-admin() {
-  hab svc unload core/builder-admin
-}
-
-stop-admin-proxy() {
-  hab svc unload core/builder-admin-proxy
 }
 
 stop-api() {
@@ -283,13 +263,14 @@ job() {
 
 # Cleanup any development touch files we laid down when checking to see if we could run NO_INSTALL_DEPS
 local_cleanup() {
-  for svc in admin admin-proxy api api-proxy datastore jobsrv originsrv router sessionsrv worker; do
+  for svc in api api-proxy datastore jobsrv originsrv router sessionsrv worker; do
     if [ -f "/src/components/builder-${svc}/cleanup" ]; then
       rm "/src/components/builder-${svc}/cleanup"
     fi
   done
 }
 
+alias help=dev_docs
 dev_docs() {
   cat <<DOCS
 Welcome to the development environment for Habitat & Builder.
@@ -306,7 +287,6 @@ The following commands are available:
   * * npm load - run the web dev env
 2. Building Builder
   * build-builder (alias: bb) - build all Builder components
-  * build-builder admin - build the Admin Gateway
   * build-builder api - build the API Gateway
   * build-builder jobsrv - build the JobSrv
   * build-builder originsrv - build the OriginSrv
@@ -325,7 +305,7 @@ The following commands are available:
   * psql - wrapper around psql to enable passwordless auth
   * upload_github_keys - internal function to upload github secret keys to the ring
 5. Docs
-  * dev_docs
+  * dev_docs (alias: help)
 DOCS
 }
 
