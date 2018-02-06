@@ -172,6 +172,7 @@ impl error::Error for NetError {
             ErrCode::SECRET_KEY_IMPORT => "Worker runner unable to import secret key for origin.",
             ErrCode::VCS_CLONE => "Worker runner unable to retrieve project source to build.",
             ErrCode::BUILD => "Worker runner failed to build project.",
+            ErrCode::EXPORT => "Worker runner failed to export project to Docker.",
             ErrCode::POST_PROCESSOR => "One or more post processing step failed in Worker runner.",
             ErrCode::INVALID_INTEGRATIONS => {
                 "Worker runner found invalid project or origin integrations."
