@@ -101,7 +101,6 @@ upload_github_keys() {
 }
 
 start-builder() {
-  init-datastore
   start-datastore
   configure
   start-cache
@@ -127,6 +126,7 @@ start-api-proxy() {
 }
 
 start-datastore() {
+  init-datastore
   hab svc load core/builder-datastore
 }
 
