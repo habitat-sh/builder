@@ -30,9 +30,13 @@ export default Record({
     authState: undefined,
     authToken: undefined,
     installations: List(),
+    repositories: List(),
     username: undefined,
     ui: Record({
       installations: Record({
+        loading: false
+      })(),
+    repositories: Record({
         loading: false
       })()
     })()

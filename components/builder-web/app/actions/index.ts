@@ -37,10 +37,13 @@ export {
 export {
   authenticate,
   CLEAR_GITHUB_INSTALLATIONS,
+  CLEAR_GITHUB_REPOSITORIES,
   fetchGitHubInstallations,
+  fetchGitHubRepositories,
   LOAD_GITHUB_SESSION_STATE,
   loadGitHubSessionState,
   POPULATE_GITHUB_INSTALLATIONS,
+  POPULATE_GITHUB_REPOSITORIES,
   POPULATE_GITHUB_USER_DATA,
   removeSession,
   exchangeGitHubAuthCode,

@@ -16,25 +16,17 @@ import 'whatwg-fetch';
 import * as async from 'async';
 import config from '../config';
 
-export interface File {
-  name: string;
-  path: string;
-  sha: string;
-  url: string;
-  git_url: string;
-  html: string;
-  repository: object;
-  score: number;
-}
-
-export interface FileResponse {
-  total_count: number;
-  incomplete_results: boolean;
-  items?: Array<File>;
-}
-
 export class GitHubApiClient {
-  constructor(private token: string) { }
+  private headers;
+
+  constructor(private token: string) {
+    this.headers = {
+      Accept: [
+        'application/vnd.github.v3+json',
+        'application/vnd.github.machine-man-preview+json'
+      ]
+    };
+  }
 
   public getUser(username: string) {
     return new Promise((resolve, reject) => {
@@ -54,111 +46,26 @@ export class GitHubApiClient {
     });
   }
 
-  public getUserInstallations() {
+  public getUserInstallations(username: string) {
     return new Promise((resolve, reject) => {
       fetch(`${config['github_api_url']}/user/installations?access_token=${this.token}`, {
         method: 'GET',
-        headers: {
-          'Accept': [
-            'application/vnd.github.v3+json',
-            'application/vnd.github.machine-man-preview+json'
-          ]
-        }
+        headers: this.headers
       })
         .then(response => {
           if (response.ok) {
             response.json().then((data) => {
-              let repos = [];
 
-              // Fetch all installations for the signed-in user, then all repositories
-              // for each installation, including subsequent pages if there are any.
-
-              data.installations.forEach((install) => {
-                repos.push((done) => {
-                  this.getUserInstallationRepositories(install.id, 1)
-                    .then((firstPage: any) => {
-                      const totalCount = firstPage.total_count;
-                      const thisPage = firstPage.repositories;
-
-                      if (totalCount > thisPage.length) {
-                        const pageCount = Math.ceil(totalCount / thisPage.length);
-                        let pages = [];
-
-                        for (let page = 2; page <= pageCount; page++) {
-                          pages.push((done) => {
-                            this.getUserInstallationRepositories(install.id, page)
-                              .then((pageResults: any) => {
-                                done(null, pageResults.repositories);
-                              })
-                              .catch((err) => {
-                                done(null, []);
-                              });
-                          });
-                        }
-
-                        async.parallel(pages, (err, additionalPages) => {
-                          if (err) {
-                            done(null, {
-                              id: install.id,
-                              app_id: install.app_id,
-                              repos: []
-                            });
-                          }
-                          else {
-                            additionalPages.forEach((p) => {
-                              firstPage.repositories = firstPage.repositories.concat(p);
-                            });
-
-                            done(null, {
-                              id: install.id,
-                              app_id: install.app_id,
-                              repos: firstPage.repositories
-                            });
-                          }
-                        });
-                      }
-                      else {
-                        done(null, {
-                          id: install.id,
-                          app_id: install.app_id,
-                          repos: firstPage.repositories
-                        });
-                      }
-                    })
-                    .catch((err) => {
-                      done(null, {
-                        id: install.id,
-                        app_id: install.app_id,
-                        repos: []
-                      });
-                    });
-                });
-              });
-
-              async.parallel(repos, (err, installations) => {
-                if (err) {
-                  reject(err);
-                }
-                else {
-                  let results = [];
-
-                  installations.map((install) => {
-                    install.repos.forEach((repo) => {
-                      results.push({
-                        repo_id: repo.id,
-                        app_id: install.app_id,
-                        installation_id: install.id,
-                        full_name: repo.full_name,
-                        org: repo.owner.login,
-                        name: repo.name,
-                        url: repo.url
-                      });
-                    });
-                  });
-
-                  resolve(Promise.resolve(results));
-                }
-              });
+              resolve(
+                data.installations
+                  .filter(install => {
+                    return install.app_id.toString() === config.github_app_id;
+                  })
+                  .filter(install => {
+                    return install.target_type === 'Organization' ||
+                      (install.target_type === 'User' && install.account.login === username);
+                  })
+                );
             });
           } else {
             reject(new Error(response.statusText));
@@ -167,30 +74,74 @@ export class GitHubApiClient {
         .catch(error => {
           reject(error);
         });
-    });
-  }
+      });
+    }
 
-  private getUserInstallationRepositories(installationId: string, page: number) {
-    return new Promise((resolve, reject) => {
-      fetch(`${config['github_api_url']}/user/installations/${installationId}/repositories?access_token=${this.token}&page=${page}&per_page=100`, {
-        method: 'GET',
-        headers: {
-          'Accept': [
-            'application/vnd.github.v3+json',
-            'application/vnd.github.machine-man-preview+json'
-          ]
-        }
-      })
-        .then(response => {
-          if (response.ok) {
-            resolve(response.json());
-          } else {
-            reject(new Error(response.statusText));
-          }
+    public getAllUserInstallationRepositories(installID) {
+      return new Promise((resolve, reject) => {
+        this.getUserInstallationRepositories(installID, 1)
+          .then((firstPage: any) => {
+            const totalCount = firstPage.total_count;
+            const thisPage = firstPage.repositories;
+
+            if (totalCount > thisPage.length) {
+              const pageCount = Math.ceil(totalCount / thisPage.length);
+              let pages = [];
+
+              for (let page = 2; page <= pageCount; page++) {
+                pages.push((done) => {
+                  this.getUserInstallationRepositories(installID, page)
+                    .then((pageResults: any) => {
+                      done(null, pageResults.repositories);
+                    })
+                    .catch((err) => {
+                      console.error(err);
+                      done(null, []);
+                    });
+                });
+              }
+
+              async.parallel(pages, (err, additionalPages) => {
+                if (err) {
+                  console.error(err);
+                  resolve([]);
+                }
+                else {
+                  additionalPages.forEach((p) => {
+                    firstPage.repositories = firstPage.repositories.concat(p);
+                  });
+
+                  resolve(firstPage.repositories);
+                }
+              });
+            }
+            else {
+              resolve(firstPage.repositories);
+            }
+          })
+          .catch((err) => {
+            console.error(err);
+            resolve([]);
+          });
+      });
+    }
+
+    private getUserInstallationRepositories(installationId: string, page: number) {
+      return new Promise((resolve, reject) => {
+        fetch(`${config['github_api_url']}/user/installations/${installationId}/repositories?access_token=${this.token}&page=${page}&per_page=100`, {
+          method: 'GET',
+          headers: this.headers
         })
-        .catch(error => {
-          reject(error);
-        });
-    });
+          .then(response => {
+            if (response.ok) {
+              resolve(response.json());
+            } else {
+              reject(new Error(response.statusText));
+            }
+          })
+          .catch(error => {
+            reject(error);
+          });
+      });
+    }
   }
-}

@@ -15,7 +15,6 @@
 import { fromJS, List } from 'immutable';
 import initialState from '../initial-state';
 import * as actionTypes from '../actions/index';
-import config from '../config';
 
 export default function gitHub(state = initialState['gitHub'], action) {
   switch (action.type) {
@@ -24,17 +23,21 @@ export default function gitHub(state = initialState['gitHub'], action) {
       return state.set('installations', List()).
         setIn(['ui', 'installations', 'loading'], true);
 
+    case actionTypes.CLEAR_GITHUB_REPOSITORIES:
+        return state.set('repositories', List()).
+          setIn(['ui', 'repositories', 'loading'], true);
+
     case actionTypes.LOAD_GITHUB_SESSION_STATE:
       return state.set('authState', action.payload.gitHubAuthState).
         set('authToken', action.payload.gitHubAuthToken);
 
     case actionTypes.POPULATE_GITHUB_INSTALLATIONS:
-      const filtered = action.payload.filter((i) => {
-        return i.app_id.toString() === config['github_app_id'];
-      });
-
-      return state.set('installations', fromJS(filtered)).
+      return state.set('installations', fromJS(action.payload)).
         setIn(['ui', 'installations', 'loading'], false);
+
+    case actionTypes.POPULATE_GITHUB_REPOSITORIES:
+      return state.set('repositories', fromJS(action.payload)).
+        setIn(['ui', 'repositories', 'loading'], false);
 
     case actionTypes.SET_GITHUB_AUTH_STATE:
       return state.set('authState', action.payload);

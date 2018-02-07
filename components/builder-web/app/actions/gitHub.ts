@@ -34,8 +34,10 @@ const uuid = require('uuid').v4;
 const gitHubTokenAuthUrl = `${config['habitat_api_url']}/v1/authenticate`;
 
 export const CLEAR_GITHUB_INSTALLATIONS = 'CLEAR_GITHUB_INSTALLATIONS';
+export const CLEAR_GITHUB_REPOSITORIES = 'CLEAR_GITHUB_REPOSITORIES';
 export const LOAD_GITHUB_SESSION_STATE = 'LOAD_GITHUB_SESSION_STATE';
 export const POPULATE_GITHUB_INSTALLATIONS = 'POPULATE_GITHUB_INSTALLATIONS';
+export const POPULATE_GITHUB_REPOSITORIES = 'POPULATE_GITHUB_REPOSITORIES';
 export const POPULATE_GITHUB_USER_DATA = 'POPULATE_GITHUB_USER_DATA';
 export const SET_GITHUB_AUTH_STATE = 'SET_GITHUB_AUTH_STATE';
 export const SET_GITHUB_AUTH_TOKEN = 'SET_GITHUB_AUTH_TOKEN';
@@ -85,16 +87,33 @@ export function authenticate(gitHubToken: string, bldrToken: string) {
   };
 }
 
-export function fetchGitHubInstallations() {
+export function fetchGitHubInstallations(username: string) {
   const token = Browser.getCookie('gitHubAuthToken');
 
   return dispatch => {
     const client = new GitHubApiClient(token);
     dispatch(clearGitHubInstallations());
 
-    client.getUserInstallations()
+    client.getUserInstallations(username)
       .then((results) => {
         dispatch(populateGitHubInstallations(results));
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  };
+}
+
+export function fetchGitHubRepositories(installationID: number) {
+  const token = Browser.getCookie('gitHubAuthToken');
+
+  return dispatch => {
+    const client = new GitHubApiClient(token);
+    dispatch(clearGitHubRepositories());
+
+    client.getAllUserInstallationRepositories(installationID)
+      .then((results) => {
+        dispatch(populateGitHubRepositories(results));
       })
       .catch((error) => {
         console.error(error);
@@ -121,6 +140,20 @@ function clearGitHubInstallations() {
 function populateGitHubInstallations(payload) {
   return {
     type: POPULATE_GITHUB_INSTALLATIONS,
+    payload,
+  };
+}
+
+
+function clearGitHubRepositories() {
+  return {
+    type: CLEAR_GITHUB_REPOSITORIES
+  };
+}
+
+function populateGitHubRepositories(payload) {
+  return {
+    type: POPULATE_GITHUB_REPOSITORIES,
     payload,
   };
 }
