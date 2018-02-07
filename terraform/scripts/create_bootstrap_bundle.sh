@@ -88,15 +88,15 @@ fi
 # All packages that compose the Builder service. Not all need
 # to be installed on the same machine, but all need to be present in
 # our bundle.
-builder_packages=(core/builder-api
-                  core/builder-api-proxy
-                  core/builder-datastore
-                  core/builder-jobsrv
-                  core/builder-originsrv
-                  core/builder-router
-                  core/builder-scheduler
-                  core/builder-sessionsrv
-                  core/builder-worker)
+builder_packages=(habitat/builder-api
+                  habitat/builder-api-proxy
+                  habitat/builder-datastore
+                  habitat/builder-jobsrv
+                  habitat/builder-originsrv
+                  habitat/builder-router
+                  habitat/builder-scheduler
+                  habitat/builder-sessionsrv
+                  habitat/builder-worker)
 
 # Helper packages. Not all need to to be installed on the same machine,
 # but all need to be present in our bundle.

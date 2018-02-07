@@ -101,14 +101,12 @@ resource "null_resource" "api_provision" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh core/builder-api core/builder-api-proxy",
-
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-api --group ${var.env} --bind router:builder-router.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
-      "sudo hab svc load core/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-api --group ${var.env} --bind router:builder-router.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
@@ -222,13 +220,13 @@ resource "null_resource" "datastore_provision" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh core/builder-datastore",
+      "sudo /tmp/install_base_packages.sh habitat/builder-datastore",
 
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-datastore --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-datastore --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
@@ -319,13 +317,13 @@ resource "aws_instance" "jobsrv" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh core/builder-jobsrv",
+      "sudo /tmp/install_base_packages.sh habitat/builder-jobsrv",
 
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-jobsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-jobsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
@@ -410,13 +408,13 @@ resource "aws_instance" "originsrv" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh core/builder-originsrv",
+      "sudo /tmp/install_base_packages.sh habitat/builder-originsrv",
 
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-originsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-originsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
@@ -500,13 +498,13 @@ resource "aws_instance" "router" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh core/builder-router",
+      "sudo /tmp/install_base_packages.sh habitat/builder-router",
 
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-router --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-router --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
@@ -591,13 +589,13 @@ resource "aws_instance" "sessionsrv" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh core/builder-sessionsrv",
+      "sudo /tmp/install_base_packages.sh habitat/builder-sessionsrv",
 
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-sessionsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-sessionsrv --group ${var.env} --bind router:builder-router.${var.env} --bind datastore:builder-datastore.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
@@ -701,13 +699,13 @@ resource "aws_instance" "worker" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh core/builder-worker",
+      "sudo /tmp/install_base_packages.sh habitat/builder-worker",
 
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load core/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
