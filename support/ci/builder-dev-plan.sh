@@ -23,9 +23,9 @@ do_clean() {
 }
 
 do_builder_install() {
-  rm "$(hab pkg path core/$pkg_name)/bin/$bin"
+  rm "$(hab pkg path habitat/$pkg_name)/bin/$bin"
   ln -sf "$CARGO_TARGET_DIR/$rustc_target/${builder_build_type#--}/$bin" \
-    "$(hab pkg path core/$pkg_name)/bin/$bin"
+    "$(hab pkg path habitat/$pkg_name)/bin/$bin"
 }
 
 do_install_wrapper() {
