@@ -33,13 +33,13 @@ RUN adduser -g tty -h /home/krangschnak -D krangschnak \
   && hab pkg install core/hab -c unstable -b \
   && hab pkg install core/hab-sup \
   core/hab-launcher \
-  core/builder-datastore \
-  core/builder-api \
-  core/builder-api-proxy \
-  core/builder-jobsrv \
-  core/builder-originsrv \
-  core/builder-router \
-  core/builder-sessionsrv
+  habitat/builder-datastore \
+  habitat/builder-api \
+  habitat/builder-api-proxy \
+  habitat/builder-jobsrv \
+  habitat/builder-originsrv \
+  habitat/builder-router \
+  habitat/builder-sessionsrv
 
 RUN /tmp/init-datastore.sh \
   && APP_HOSTNAME=$APP_HOSTNAME \
@@ -56,13 +56,13 @@ RUN hab pkg exec core/openssl openssl s_client -showcerts -connect $GITHUB_ADDR:
   </dev/null 2>/dev/null|hab pkg exec core/openssl openssl x509 -outform PEM >> \
   /usr/local/share/ca-certificates/github.crt && update-ca-certificates
 
-RUN hab svc load core/builder-datastore \
-  && hab svc load core/builder-router \
-  && hab svc load core/builder-api-proxy --bind http:builder-api.default \
-  && hab svc load core/builder-api --bind router:builder-router.default \
-  && hab svc load core/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
-  && hab svc load core/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
-  && hab svc load core/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default
+RUN hab svc load habitat/builder-datastore \
+  && hab svc load habitat/builder-router \
+  && hab svc load habitat/builder-api-proxy --bind http:builder-api.default \
+  && hab svc load habitat/builder-api --bind router:builder-router.default \
+  && hab svc load habitat/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
+  && hab svc load habitat/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
+  && hab svc load habitat/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default
 
 VOLUME ["/hab/svc", "/hab/cache/keys", "/hab/sup"]
 EXPOSE 80 443 9631 9636 9638

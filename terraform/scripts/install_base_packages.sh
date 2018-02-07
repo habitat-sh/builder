@@ -17,7 +17,7 @@ set -euo pipefail
 # play, additional packages should also be installed.
 #
 # To set up a machine as a worker, for example, you would call the
-# script with the argument "core/builder-worker" (You could even just
+# script with the argument "habitat/builder-worker" (You could even just
 # pass "builder-worker"; both are recognized.)
 #
 # Multiple packages can be specified.

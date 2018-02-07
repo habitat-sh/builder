@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-hab start core/builder-datastore &
+hab start habitat/builder-datastore &
 
 running=0;
 
@@ -21,7 +21,7 @@ while [ $running -eq 0 ]; do
   sleep 2
 done
 
-hab stop core/builder-datastore
+hab stop habitat/builder-datastore
 
 # JW: This hack needs to stay until stop actually waits until the service has stopped
 while [ -f /hab/sup/default/specs/builder-datastore.spec ]; do

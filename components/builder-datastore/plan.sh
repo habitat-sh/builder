@@ -1,7 +1,7 @@
-pkg_origin=core
+pkg_origin=habitat
 pkg_name=builder-datastore
 pkg_description="Datastore service for a Habitat Builder service"
-pkg_maintainer="The Habitat Maintainers <humans@habitat.sh"
+pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=("Apache-2.0")
 pkg_deps=(core/postgresql)
 pkg_build_deps=(core/git)
