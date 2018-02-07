@@ -127,7 +127,6 @@ export function createOrigin(body: object, token: string, isFirstOrigin = false,
 
     new BuilderApiClient(token).createOrigin(body).then(origin => {
       dispatch(setCurrentOriginCreatingFlag(false));
-      dispatch(fetchMyOrigins(token));
 
       if (isFirstOrigin || origin['default']) {
         dispatch(setCurrentOrigin(origin));
@@ -141,6 +140,14 @@ export function createOrigin(body: object, token: string, isFirstOrigin = false,
 
       dispatch(generateOriginKeys(origin['name'], token));
       callback(origin);
+
+      // We delay this call briefly to allow for data to propagate.
+      // Once this is resolved: https://github.com/habitat-sh/builder/issues/142
+      // we should be able to remove the setTimeout and just make the
+      // call immediately on successful create.
+      setTimeout(() => {
+        dispatch(fetchMyOrigins(token));
+      }, 1000);
     }).catch(error => {
       dispatch(setCurrentOriginCreatingFlag(false));
       dispatch(addNotification({
