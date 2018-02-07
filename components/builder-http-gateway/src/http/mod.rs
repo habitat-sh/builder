@@ -48,6 +48,7 @@ pub fn net_err_to_http(err: ErrCode) -> Status {
         ErrCode::BUG |
         ErrCode::POST_PROCESSOR |
         ErrCode::BUILD |
+        ErrCode::EXPORT |
         ErrCode::SYS |
         ErrCode::DATA_STORE |
         ErrCode::WORKSPACE_SETUP |

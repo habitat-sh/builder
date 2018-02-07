@@ -46,6 +46,7 @@ pub enum Error {
     ChownWait(io::Error),
     CreateDirectory(PathBuf, io::Error),
     Exporter(io::Error),
+    ExportFailure(i32),
     Git(git2::Error),
     GithubAppAuthErr(github_api_client::HubError),
     HabitatCore(hab_core::Error),
@@ -108,6 +109,9 @@ impl fmt::Display for Error {
             }
             Error::Exporter(ref e) => {
                 format!("Unable to spawn or pipe data from exporter proc, {}", e)
+            }
+            Error::ExportFailure(ref e) => {
+                format!("Docker export exited with non-zero exit code, {}", e)
             }
             Error::Git(ref e) => format!("{}", e),
             Error::GithubAppAuthErr(ref e) => format!("{}", e),
@@ -172,6 +176,7 @@ impl error::Error for Error {
             Error::ChownWait(_) => "Unable to complete chown process",
             Error::CreateDirectory(_, _) => "Unable to create directory",
             Error::Exporter(_) => "IO Error while spawning or piping data from exporter proc",
+            Error::ExportFailure(_) => "Docker export exited with a non-zero exit code",
             Error::Git(ref err) => err.description(),
             Error::GithubAppAuthErr(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),

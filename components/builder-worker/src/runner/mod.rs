@@ -141,7 +141,7 @@ impl Runner {
             debug!("{}", msg);
             self.logger.log(&msg);
 
-            self.fail(net::err(ErrCode::INVALID_INTEGRATIONS, "wk:run:7"));
+            self.fail(net::err(ErrCode::INVALID_INTEGRATIONS, "wk:run:validate"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         };
@@ -163,7 +163,7 @@ impl Runner {
                 warn!("{}", msg);
                 self.logger.log(&msg);
 
-                self.fail(net::err(ErrCode::WORKSPACE_SETUP, "wk:run:1"));
+                self.fail(net::err(ErrCode::WORKSPACE_SETUP, "wk:run:workspace"));
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
                 return Err(err);
             }
@@ -184,7 +184,7 @@ impl Runner {
             );
             debug!("{}", msg);
             self.logger.log(&msg);
-            self.fail(net::err(ErrCode::SECRET_KEY_FETCH, "wk:run:3"));
+            self.fail(net::err(ErrCode::SECRET_KEY_FETCH, "wk:run:key"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         }
@@ -204,7 +204,7 @@ impl Runner {
             );
             debug!("{}", msg);
             self.logger.log(&msg);
-            self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:4"));
+            self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:1"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         }
@@ -221,7 +221,7 @@ impl Runner {
             );
             debug!("{}", msg);
             self.logger.log(&msg);
-            self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:8"));
+            self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:2"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         }
@@ -264,7 +264,7 @@ impl Runner {
                 );
                 debug!("{}", msg);
                 self.logger.log(&msg);
-                self.fail(net::err(ErrCode::BUILD, "wk:run:5"));
+                self.fail(net::err(ErrCode::BUILD, "wk:run:build"));
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
                 return Err(err);
             }
@@ -275,6 +275,21 @@ impl Runner {
         self.workspace.job.set_package_ident(ident);
 
         Ok(archive)
+    }
+
+    fn do_export(&mut self, tx: &mpsc::Sender<Job>, mut log_pipe: &mut LogPipe) -> Result<()> {
+        self.check_cancel(tx)?;
+
+        match self.export(&mut log_pipe) {
+            Ok(_) => (),
+            Err(err) => {
+                self.fail(net::err(ErrCode::EXPORT, "wk:run:export"));
+                tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+                return Err(err);
+            }
+        }
+
+        Ok(())
     }
 
     fn do_postprocess(
@@ -296,7 +311,7 @@ impl Runner {
             Ok(_) => (),
             Err(err) => {
                 log_pipe.pipe_buffer(b"\n--- FAILED: Postprocessing ---\n")?;
-                self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:6"));
+                self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:postprocess"));
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
                 return Err(err);
             }
@@ -325,6 +340,7 @@ impl Runner {
         self.do_clone(&tx)?;
 
         let archive = self.do_build(&tx, &mut log_pipe)?;
+        self.do_export(&tx, &mut log_pipe)?;
         self.do_postprocess(&tx, archive, &mut log_pipe)?;
 
         self.cleanup();
@@ -385,7 +401,7 @@ impl Runner {
             (None, Some(_)) => return Err(Error::NoNetworkInterfaceError),
             (Some(_), None) => return Err(Error::NoNetworkGatewayError),
         };
-        let mut status = Studio::new(
+        let status = Studio::new(
             &self.workspace,
             &self.config.bldr_url,
             &self.bldr_token,
@@ -404,30 +420,35 @@ impl Runner {
             self.workspace.job.set_package_ident(op_ident);
             return Err(Error::BuildFailure(status.code().unwrap_or(-1)));
         }
+
+        self.workspace.last_built()
+    }
+
+    fn export(&mut self, log_pipe: &mut LogPipe) -> Result<()> {
         if self.has_docker_integration() {
             // TODO fn: This check should be updated in PackageArchive is check for run hooks.
             if self.workspace.last_built()?.is_a_service() {
                 debug!("Found runnable package, running docker export");
                 log_pipe.pipe_buffer(b"\n--- BEGIN: Docker export ---\n")?;
 
-                status = DockerExporter::new(
+                let status = DockerExporter::new(
                     util::docker_exporter_spec(&self.workspace),
                     &self.workspace,
                     &self.config.bldr_url,
                 ).export(log_pipe)?;
 
-                log_pipe.pipe_buffer(b"\n--- END: Docker export ---\n")?;
+                if status.success() {
+                    log_pipe.pipe_buffer(b"\n--- END: Docker export ---\n")?;
+                } else {
+                    log_pipe.pipe_buffer(b"\n--- FAILED: Docker export ---\n")?;
+                    return Err(Error::ExportFailure(status.code().unwrap_or(-1)));
+                }
             } else {
                 debug!("Package not runnable, skipping docker export");
             }
         }
 
-        if status.success() {
-            self.workspace.last_built()
-        } else {
-            // TED: leaving this as a build failure until we move the export process out of build
-            Err(Error::BuildFailure(status.code().unwrap_or(-1)))
-        }
+        Ok(())
     }
 
     fn cancel(&mut self) {
