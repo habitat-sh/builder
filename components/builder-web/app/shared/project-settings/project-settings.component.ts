@@ -73,7 +73,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       return this.api.findFileInRepo(
         this.selectedInstallation.get('installation_id'),
         this.selectedInstallation.get('org'),
-        this.selectedInstallation.get('name'),
+        this.activeRepo.get('id'),
         this.planField.value
       );
     };
@@ -147,7 +147,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       'origin': this.origin,
       'plan_path': this.planField.value,
       'installation_id': this.selectedInstallation.get('installation_id'),
-      'repo_id': this.selectedInstallation.get('repo_id')
+      'repo_id': this.activeRepo.get('id')
     };
   }
 
