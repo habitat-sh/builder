@@ -268,8 +268,16 @@ securitySchemes:
                                 "id": "73089155726360582",
                                 "flags": 0
                             }
-/installations/{install_id}:
+/ext/installations/{install_id}:
     /search/code:
+        get:
+            responses:
+                200:
+                    body:
+                        application/json:
+                400:
+                    description: Bad search query parameter provided
+    /repos/{repo_id}/contents/{path}:
         get:
             responses:
                 200:

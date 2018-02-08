@@ -103,7 +103,6 @@ pub fn handle_event(req: &mut Request) -> IronResult<Response> {
 
 pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
     let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
-    let session = req.extensions.get::<Authenticated>().unwrap();
     let params = req.extensions.get::<Router>().unwrap();
     let path = match params.find("path") {
         Some(path) => path,
@@ -126,21 +125,16 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
             }
         }
     };
-    let repo = {
-        let repo = match params.find("repo") {
-            Some(repo) => repo,
-            None => return Ok(Response::with(status::BadRequest)),
-        };
-        let repos = match github.repositories(session.get_oauth_token(), install_id) {
-            Ok(repos) => repos,
-            Err(err) => return Ok(Response::with((status::BadGateway, err.to_string()))),
-        };
-        match repos.into_iter().find(|r| r.name == repo) {
-            Some(repo) => repo,
-            None => return Ok(Response::with(status::NotFound)),
+    let repo_id = match params.find("repo_id") {
+        Some(repo_id) => {
+            match repo_id.parse::<u32>() {
+                Ok(repo_id) => repo_id,
+                Err(_) => return Ok(Response::with(status::BadRequest)),
+            }
         }
+        None => return Ok(Response::with(status::BadRequest)),
     };
-    match github.contents(&token, repo.id, path) {
+    match github.contents(&token, repo_id, path) {
         Ok(None) => Ok(Response::with(status::NotFound)),
         Ok(search) => Ok(render_json(status::Ok, &search)),
         Err(err) => Ok(Response::with((status::BadGateway, err.to_string()))),
