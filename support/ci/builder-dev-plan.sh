@@ -23,9 +23,17 @@ do_clean() {
 }
 
 do_builder_install() {
-  rm "$(hab pkg path habitat/$pkg_name)/bin/$bin"
-  ln -sf "$CARGO_TARGET_DIR/$rustc_target/${builder_build_type#--}/$bin" \
-    "$(hab pkg path habitat/$pkg_name)/bin/$bin"
+  local pkg_path
+  pkg_path=$(hab pkg path habitat/"$pkg_name")
+
+  build_line "Linking new binary into package"
+  ln -sfv "$CARGO_TARGET_DIR/$rustc_target/${builder_build_type#--}/$bin" \
+    "$pkg_path/bin/$bin"
+
+  build_line "Copying run hooks into package"
+  for hook in "$PLAN_CONTEXT"/hooks/*; do
+    cp -v "$hook" "$pkg_path/hooks/$(basename "$hook")"
+  done
 }
 
 do_install_wrapper() {
