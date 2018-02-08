@@ -129,8 +129,9 @@ impl Runner {
         Ok(())
     }
 
-    fn do_validate(&mut self, tx: &mpsc::Sender<Job>) -> Result<()> {
+    fn do_validate(&mut self, tx: &mpsc::Sender<Job>, log_pipe: &mut LogPipe) -> Result<()> {
         self.check_cancel(tx)?;
+        log_pipe.pipe_buffer(b"\n--- BEGIN: Validation ---\n")?;
 
         if let Some(err) = util::validate_integrations(&self.workspace).err() {
             let msg = format!(
@@ -141,11 +142,14 @@ impl Runner {
             debug!("{}", msg);
             self.logger.log(&msg);
 
+            log_pipe.pipe_buffer(msg.as_bytes())?;
+            log_pipe.pipe_buffer(b"\n--- FAILED: Validation ---\n")?;
             self.fail(net::err(ErrCode::INVALID_INTEGRATIONS, "wk:run:validate"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         };
 
+        log_pipe.pipe_buffer(b"\n--- END: Validation ---\n")?;
         Ok(())
     }
 
@@ -173,8 +177,9 @@ impl Runner {
         Ok(lp)
     }
 
-    fn do_install_key(&mut self, tx: &mpsc::Sender<Job>) -> Result<()> {
+    fn do_install_key(&mut self, tx: &mpsc::Sender<Job>, log_pipe: &mut LogPipe) -> Result<()> {
         self.check_cancel(tx)?;
+        log_pipe.pipe_buffer(b"\n--- BEGIN: Key Installation ---\n")?;
 
         if let Some(err) = self.install_origin_secret_key().err() {
             let msg = format!(
@@ -184,16 +189,25 @@ impl Runner {
             );
             debug!("{}", msg);
             self.logger.log(&msg);
+
+            log_pipe.pipe_buffer(msg.as_bytes())?;
+            log_pipe.pipe_buffer(
+                b"\n--- FAILED: Key Installation ---\n",
+            )?;
             self.fail(net::err(ErrCode::SECRET_KEY_FETCH, "wk:run:key"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         }
 
+        log_pipe.pipe_buffer(b"\n--- END: Key Installation ---\n")?;
         Ok(())
     }
 
-    fn do_clone(&mut self, tx: &mpsc::Sender<Job>) -> Result<()> {
+    fn do_clone(&mut self, tx: &mpsc::Sender<Job>, log_pipe: &mut LogPipe) -> Result<()> {
         self.check_cancel(tx)?;
+        log_pipe.pipe_buffer(
+            b"\n--- BEGIN: Cloning repository ---\n",
+        )?;
 
         let vcs = VCS::from_job(&self.job(), self.config.github.clone());
         if let Some(err) = vcs.clone(&self.workspace.src()).err() {
@@ -204,6 +218,11 @@ impl Runner {
             );
             debug!("{}", msg);
             self.logger.log(&msg);
+
+            log_pipe.pipe_buffer(msg.as_bytes())?;
+            log_pipe.pipe_buffer(
+                b"\n--- FAILED: Cloning repository ---\n",
+            )?;
             self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:1"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
@@ -221,11 +240,17 @@ impl Runner {
             );
             debug!("{}", msg);
             self.logger.log(&msg);
+
+            log_pipe.pipe_buffer(msg.as_bytes())?;
+            log_pipe.pipe_buffer(
+                b"\n--- FAILED: Cloning repository ---\n",
+            )?;
             self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:2"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         }
 
+        log_pipe.pipe_buffer(b"\n--- END: Cloning repository ---\n")?;
         Ok(())
     }
 
@@ -235,6 +260,7 @@ impl Runner {
         log_pipe: &mut LogPipe,
     ) -> Result<PackageArchive> {
         self.check_cancel(tx)?;
+        log_pipe.pipe_buffer(b"\n--- BEGIN: Studio build ---\n")?;
 
         self.workspace.job.set_build_started_at(
             Utc::now().to_rfc3339(),
@@ -264,6 +290,8 @@ impl Runner {
                 );
                 debug!("{}", msg);
                 self.logger.log(&msg);
+                log_pipe.pipe_buffer(msg.as_bytes())?;
+
                 self.fail(net::err(ErrCode::BUILD, "wk:run:build"));
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
                 return Err(err);
@@ -274,6 +302,7 @@ impl Runner {
         let ident = OriginPackageIdent::from(archive.ident().unwrap());
         self.workspace.job.set_package_ident(ident);
 
+        log_pipe.pipe_buffer(b"\n--- END: Studio build ---\n")?;
         Ok(archive)
     }
 
@@ -310,6 +339,12 @@ impl Runner {
         ) {
             Ok(_) => (),
             Err(err) => {
+                let msg = format!(
+                    "Failed post processing for {}, err={:?}",
+                    self.workspace.job.get_project().get_name(),
+                    err
+                );
+                log_pipe.pipe_buffer(msg.as_bytes())?;
                 log_pipe.pipe_buffer(b"\n--- FAILED: Postprocessing ---\n")?;
                 self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:postprocess"));
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
@@ -334,10 +369,14 @@ impl Runner {
     }
 
     pub fn run(mut self, tx: mpsc::Sender<Job>) -> Result<()> {
-        self.do_validate(&tx)?;
+        // TBD (SA) - Spin up log_pipe first thing indpendendly of setup.
+        // Currently we need to do it as part of setup because the log file to be
+        // streamed lives inside of the workspace, which is created by setup.
         let mut log_pipe = self.do_setup(&tx)?;
-        self.do_install_key(&tx)?;
-        self.do_clone(&tx)?;
+
+        self.do_validate(&tx, &mut log_pipe)?;
+        self.do_install_key(&tx, &mut log_pipe)?;
+        self.do_clone(&tx, &mut log_pipe)?;
 
         let archive = self.do_build(&tx, &mut log_pipe)?;
         self.do_export(&tx, &mut log_pipe)?;
@@ -390,8 +429,6 @@ impl Runner {
     }
 
     fn build(&mut self, log_pipe: &mut LogPipe) -> Result<PackageArchive> {
-        log_pipe.pipe_buffer(b"\n--- BEGIN: Studio build ---\n")?;
-
         let network_namespace = match (
             self.config.network_interface.as_ref(),
             self.config.network_gateway.as_ref(),
@@ -408,7 +445,6 @@ impl Runner {
             self.config.airlock_enabled,
             network_namespace,
         ).build(log_pipe)?;
-        log_pipe.pipe_buffer(b"\n--- END: Studio build ---\n")?;
 
         if fs::rename(self.workspace.src().join("results"), self.workspace.out()).is_err() {
             return Err(Error::BuildFailure(status.code().unwrap_or(-2)));
