@@ -134,6 +134,18 @@
   }
 }
 
+.select-list {
+  @extend .toggle-list;
+
+  .item {
+
+    &.active {
+      background-color: $light-blue;
+      color: $dark-gray;
+    }
+  }
+}
+
 .action-list {
   @extend .list;
 

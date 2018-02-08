@@ -1,5 +1,27 @@
 .project-settings-component {
 
+  .select-list {
+    max-height: 198px;
+    overflow: auto;
+  }
+
+  .installation-selector {
+    h3 {
+      margin-top: 0;
+    }
+  }
+
+  @include tablet-up {
+    .installation-selector {
+      display: flex;
+
+      > div {
+        flex: 1;
+        margin-right: $default-margin;
+      }
+    }
+  }
+
   .note {
     margin-bottom: $default-margin;
     padding: $default-padding;
@@ -131,7 +153,7 @@
       border-radius: $default-radius;
       color: $white;
       padding: 4px 14px;
-      margin-bottom: 28px;
+      margin-bottom: $default-margin;
 
       li {
         display: inline-block;
@@ -174,7 +196,7 @@
     }
 
     .controls {
-      margin: 24px 0;
+      margin: $default-margin 0;
 
       a {
         cursor: pointer;

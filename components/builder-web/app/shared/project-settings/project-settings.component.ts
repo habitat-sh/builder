@@ -12,16 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core';
+import {
+    AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, Output,
+    SimpleChanges, ViewChild
+} from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material';
+import { Record } from 'immutable';
 import { DisconnectConfirmDialog } from './dialog/disconnect-confirm/disconnect-confirm.dialog';
 import { DockerExportSettingsComponent } from '../../shared/docker-export-settings/docker-export-settings.component';
 import { BuilderApiClient } from '../../client/builder-api';
 import { AppStore } from '../../app.store';
 import {
   addProject, updateProject, setProjectIntegrationSettings, deleteProject,
-  fetchGitHubInstallations, fetchProject, setProjectVisibility, deleteProjectIntegration
+  fetchGitHubInstallations, fetchGitHubRepositories, fetchProject, setProjectVisibility,
+  deleteProjectIntegration
 } from '../../actions/index';
 import config from '../../config';
 
@@ -29,11 +34,12 @@ import config from '../../config';
   selector: 'hab-project-settings',
   template: require('./project-settings.component.html')
 })
-export class ProjectSettingsComponent implements OnChanges {
+export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   connecting: boolean = false;
   doesFileExist: Function;
-  doesRepoExist: Function;
   form: FormGroup;
+  activeInstallation: any;
+  activeRepo: any;
   selectedInstallation: any;
   selectedRepo: string;
   selectedPath: string;
@@ -52,25 +58,16 @@ export class ProjectSettingsComponent implements OnChanges {
   private api: BuilderApiClient;
   private defaultPath = 'habitat/plan.sh';
   private _visibility: string;
+  private _doAfterViewChecked: Function[] = [];
 
-  constructor(private formBuilder: FormBuilder, private store: AppStore, private disconnectDialog: MatDialog) {
+  constructor(
+    private formBuilder: FormBuilder,
+    private store: AppStore,
+    private disconnectDialog: MatDialog,
+    private elementRef: ElementRef
+  ) {
     this.api = new BuilderApiClient(this.token);
     this.selectedPath = this.defaultPath;
-
-    this.doesRepoExist = (repo) => {
-      return new Promise((resolve, reject) => {
-        const matched = this.installations.filter((i) => {
-          return i.get('full_name') === repo.trim();
-        });
-
-        if (matched.size > 0) {
-          resolve(matched.get(0).get('full_name'));
-        }
-        else {
-          reject();
-        }
-      });
-    };
 
     this.doesFileExist = (path) => {
       return this.api.findFileInRepo(
@@ -80,6 +77,14 @@ export class ProjectSettingsComponent implements OnChanges {
         this.planField.value
       );
     };
+  }
+
+  ngAfterViewChecked() {
+    const f = this._doAfterViewChecked.shift();
+
+    if (f) {
+      f();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -121,8 +126,12 @@ export class ProjectSettingsComponent implements OnChanges {
     return this.store.getState().gitHub.installations;
   }
 
-  get loading() {
+  get loadingInstallations() {
     return this.store.getState().gitHub.ui.installations.loading;
+  }
+
+  get loadingRepositories() {
+    return this.store.getState().gitHub.ui.repositories.loading;
   }
 
   get orgs() {
@@ -146,8 +155,8 @@ export class ProjectSettingsComponent implements OnChanges {
     return this.form.controls['repo_path'];
   }
 
-  get repos() {
-    return this.store.getState().gitHub.installationRepositories;
+  get repositories() {
+    return this.store.getState().gitHub.repositories;
   }
 
   get repoUrl() {
@@ -164,8 +173,8 @@ export class ProjectSettingsComponent implements OnChanges {
     return this.store.getState().users.current.gitHub.get('login');
   }
 
-  get validRepo() {
-    return this.repoField ? this.repoField.valid : false;
+  get repoSelected() {
+    return this.activeInstallation && this.activeRepo;
   }
 
   get validProject() {
@@ -184,7 +193,7 @@ export class ProjectSettingsComponent implements OnChanges {
 
   connect() {
     this.deselect();
-    this.store.dispatch(fetchGitHubInstallations());
+    this.store.dispatch(fetchGitHubInstallations(this.username));
     this.connecting = true;
     this.toggled.emit(this.connecting);
   }
@@ -219,6 +228,8 @@ export class ProjectSettingsComponent implements OnChanges {
   deselect() {
     this.form = this.formBuilder.group({});
     this.selectedRepo = null;
+    this.activeInstallation = null;
+    this.activeRepo = null;
     this.selectedInstallation = null;
     this.selectedPath = this.defaultPath;
   }
@@ -226,13 +237,65 @@ export class ProjectSettingsComponent implements OnChanges {
   editConnection() {
     this.clearConnection();
     this.connect();
-    this.selectedRepo = this.parseGitHubUrl(this.project.vcs_data);
+
     this.selectedPath = this.project.plan_path;
-    setTimeout(() => {
-      if (this.repoField) {
-        this.repoField.markAsDirty();
+    this.selectedRepo = this.parseGitHubUrl(this.project.vcs_data);
+    const [ org, name ] = this.selectedRepo.split('/');
+
+    // This looks a bit weird, but it allows us to scroll the selected
+    // org and repo into view. What we're doing is asking to be notified
+    // when orgs and repos have been loaded, and delaying execution of the
+    // functions that do that scrolling until Angular's gone through a
+    // rendering cycle for each of those lists individually.
+    const unsubInstalls = this.store.subscribe(state => {
+      const installs = state.gitHub.installations;
+
+      if (installs.size > 0) {
+        unsubInstalls();
+
+        installs.forEach(i => {
+          if (i.get('account').get('login') === org) {
+            this.pickInstallation(i);
+
+            this.doAfterViewChecked(() => {
+              this.elementRef.nativeElement.querySelector('.installations .active').scrollIntoView();
+            });
+          }
+        });
       }
-    }, 1000);
+    });
+
+    const unsubRepos = this.store.subscribe(state => {
+      const repos = state.gitHub.repositories;
+
+      if (repos.size > 0) {
+        unsubRepos();
+
+        repos.forEach(repo => {
+          if (repo.get('name') === name) {
+            this.pickRepo(repo);
+
+            this.doAfterViewChecked(() => {
+              this.elementRef.nativeElement.querySelector('.repositories .active').scrollIntoView();
+            });
+          }
+        });
+      }
+    });
+  }
+
+  next() {
+    this.selectRepository(this.activeRepo);
+  }
+
+  pickInstallation(install) {
+    this.activeInstallation = install;
+    this.activeRepo = null;
+    this.store.dispatch(fetchGitHubRepositories(install.get('id')));
+  }
+
+  pickRepo(repo) {
+    this.activeRepo = repo;
   }
 
   saveConnection() {
@@ -248,21 +311,30 @@ export class ProjectSettingsComponent implements OnChanges {
     }
   }
 
-  selectRepo() {
-    this.selectedInstallation = this.installations.find(i => i.get('full_name') === this.repoField.value.trim());
+  selectRepository(repo) {
     setTimeout(() => {
       if (this.planField) {
         this.planField.markAsDirty();
       }
     }, 1000);
+
+    this.selectedInstallation = Record({
+      repo_id: repo.get('id'),
+      app_id: this.config.github_app_id,
+      installation_id: this.activeInstallation.get('id'),
+      full_name: repo.get('full_name'),
+      org: repo.get('owner').get('login'),
+      name: repo.get('name'),
+      url: repo.get('url')
+    })();
   }
 
   settingChanged(setting) {
     this.visibility = setting;
   }
 
-  private parseGitHubUrl(url) {
-    return (url.match(/github.com\/(.+)\.git$/) || [''])[1] || '';
+  private doAfterViewChecked(f) {
+    this._doAfterViewChecked.push(f);
   }
 
   private handleSaved(successful, origin, name) {
@@ -273,6 +345,10 @@ export class ProjectSettingsComponent implements OnChanges {
       this.saved.emit({ origin: origin, name: name });
       this.clearConnection();
     }
+  }
+
+  private parseGitHubUrl(url) {
+    return (url.match(/github.com\/(.+)\.git$/) || [''])[1] || '';
   }
 
   private saveIntegration(origin, name) {
