@@ -123,13 +123,22 @@ log "Populating artifact cache"
 mkdir -p /hab/cache/artifacts
 cp ${tmpdir}/artifacts/* /hab/cache/artifacts
 
-for pkg in "${sup_packages[@]}" "${helper_packages[@]}" ${services_to_install[@]:-}
+for pkg in "${sup_packages[@]}" "${helper_packages[@]}"
 do
     pkg_name=${pkg##core/} # strip "core/" if it's there
     # Using a fake depot URL keeps us honest; this will fail loudly if
     # we need to go off the box to get *anything*
     HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
                  ${hab_bootstrap_bin} pkg install ${tmpdir}/artifacts/core-${pkg_name}-*.hart
+done
+
+for pkg in ${services_to_install[@]:-}
+do
+    pkg_name=${pkg##habitat/} # strip "core/" if it's there
+    # Using a fake depot URL keeps us honest; this will fail loudly if
+    # we need to go off the box to get *anything*
+    HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
+                 ${hab_bootstrap_bin} pkg install ${tmpdir}/artifacts/habitat-${pkg_name}-*.hart
 done
 
 # Now we ensure that the hab binary being used on the system is the
