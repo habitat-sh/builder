@@ -413,6 +413,53 @@ message OriginProjectList {
   repeated string names = 1;
 }
 
+message  OriginPublicEncryptionKey {
+  optional uint64 id = 1;
+  optional uint64 origin_id = 2;
+  optional string name = 3;
+  optional string revision = 4;
+  optional bytes body = 5;
+  optional uint64 owner_id = 6;
+}
+
+message  OriginPublicEncryptionKeyCreate {
+  optional OriginPublicEncryptionKey public_encryption_key = 1;
+}
+
+message  OriginPublicEncryptionKeyGet {
+  optional uint64 owner_id = 1;
+  optional string origin = 2;
+  optional string revision = 3;
+}
+
+message  OriginPublicEncryptionKeyLatestGet {
+  optional uint64 owner_id = 1;
+  optional string origin = 2;
+}
+
+message OriginPublicEncryptionKeyListRequest {
+  optional uint64 owner_id = 1;
+  optional uint64 origin_id = 2;
+}
+
+message OriginPublicEncryptionKeyListResponse {
+  optional uint64 origin_id = 1;
+  repeated OriginPublicEncryptionKey keys = 2;
+}
+
+message OriginPrivateEncryptionKey {
+  optional uint64 id = 1;
+  optional uint64 origin_id = 2;
+  optional string name = 3;
+  optional string revision = 4;
+  optional bytes body = 5;
+  optional uint64 owner_id = 6;
+}
+
+message OriginPrivateEncryptionKeyCreate {
+  optional OriginPrivateEncryptionKey private_encryption_key = 1;
+}
+
 message OriginPublicKey {
   optional uint64 id = 1;
   optional uint64 origin_id = 2;
