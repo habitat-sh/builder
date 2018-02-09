@@ -94,7 +94,6 @@ builder_packages=(habitat/builder-api
                   habitat/builder-jobsrv
                   habitat/builder-originsrv
                   habitat/builder-router
-                  habitat/builder-scheduler
                   habitat/builder-sessionsrv
                   habitat/builder-worker)
 
