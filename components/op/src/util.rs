@@ -45,9 +45,7 @@ pub fn session(encoded_token: &str) -> Result<()> {
 pub fn shard(config: Config) -> u64 {
     let shard = config.shard.unwrap();
     match shard.parse::<u64>() {
-        Ok(id) => {
-            id & SHARD_MASK
-        }
+        Ok(id) => id & SHARD_MASK,
         Err(_) => {
             let mut hasher = FnvHasher::default();
             hasher.write(shard.as_bytes());

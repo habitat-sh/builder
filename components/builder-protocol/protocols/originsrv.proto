@@ -426,6 +426,11 @@ message  OriginPublicEncryptionKeyCreate {
   optional OriginPublicEncryptionKey public_encryption_key = 1;
 }
 
+message OriginPrivateEncryptionKeyGet {
+  optional uint64 owner_id = 1;
+  optional string origin = 2;
+}
+
 message  OriginPublicEncryptionKeyGet {
   optional uint64 owner_id = 1;
   optional string origin = 2;
