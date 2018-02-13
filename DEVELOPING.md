@@ -34,7 +34,7 @@ If you are on a Mac, you will need brew, direnv, habitat, and Docker for Mac
 1. Set Repository metadata, Repository administration, Repository content and Organization members to read only (this is only used for your org so it's safe)
 1. Save and download the private key. It will result in a file like `app-name.date.private-key.pem`
 1. Copy the private key to `${HABITAT_SRC_ROOT}/.secrets/builder-github-app.pem`
-1. Record the the client-id, client-secret, app_id and public page link (in the left sidebar). These will be used for the `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUP_APP_ID` and `GITHUB_PUBLIC_LINK` build variables (seen below).
+1. Record the the client-id, client-secret, app_id and public page link (in the left sidebar). These will be used for the `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_APP_ID` and `GITHUB_APP_URL` build variables (seen below).
 
 ### Create app env file
 
