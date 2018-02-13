@@ -351,7 +351,7 @@ fn assign_permissions(name: &str, flags: &mut FeatureFlags, state: &ServerState)
                     }
                 }
                 Ok(None) => (),
-                Err(err) => warn!("Failed to check team membership, {}", err),
+                Err(err) => warn!("Failed to check github team membership, {}", err),
             }
             for team in state.permissions.early_access_teams.iter() {
                 match state.github.check_team_membership(&token, *team, name) {
@@ -363,7 +363,7 @@ fn assign_permissions(name: &str, flags: &mut FeatureFlags, state: &ServerState)
                         }
                     }
                     Ok(None) => (),
-                    Err(err) => warn!("Failed to check team membership, {}", err),
+                    Err(err) => warn!("Failed to check github team membership, {}", err),
                 }
             }
             for team in state.permissions.build_worker_teams.iter() {
@@ -376,7 +376,7 @@ fn assign_permissions(name: &str, flags: &mut FeatureFlags, state: &ServerState)
                         }
                     }
                     Ok(None) => (),
-                    Err(err) => warn!("Failed to check team membership, {}", err),
+                    Err(err) => warn!("Failed to check github team membership, {}", err),
                 }
             }
         }

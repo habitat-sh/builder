@@ -216,7 +216,7 @@ impl Runner {
                 self.workspace.job.get_project().get_name(),
                 err
             );
-            debug!("{}", msg);
+            warn!("{}", msg);
             self.logger.log(&msg);
 
             log_pipe.pipe_buffer(msg.as_bytes())?;

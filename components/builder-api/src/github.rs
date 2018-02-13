@@ -121,6 +121,7 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
         match github.app_installation_token(install_id) {
             Ok(token) => token,
             Err(err) => {
+                warn!("unable to generate github app token, {}", err);
                 return Ok(Response::with((status::BadGateway, err.to_string())));
             }
         }
@@ -137,7 +138,10 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
     match github.contents(&token, repo_id, path) {
         Ok(None) => Ok(Response::with(status::NotFound)),
         Ok(search) => Ok(render_json(status::Ok, &search)),
-        Err(err) => Ok(Response::with((status::BadGateway, err.to_string()))),
+        Err(err) => {
+            warn!("unable to fetch github contents, {}", err);
+            Ok(Response::with((status::BadGateway, err.to_string())))
+        }
     }
 }
 
@@ -161,13 +165,17 @@ pub fn search_code(req: &mut Request) -> IronResult<Response> {
         match github.app_installation_token(install_id) {
             Ok(token) => token,
             Err(err) => {
+                warn!("unable to generate github app token, {}", err);
                 return Ok(Response::with((status::BadGateway, err.to_string())));
             }
         }
     };
     match github.search_code(&token, query) {
         Ok(search) => Ok(render_json(status::Ok, &search)),
-        Err(err) => Ok(Response::with((status::BadGateway, err.to_string()))),
+        Err(err) => {
+            warn!("unable to search github code, {}", err);
+            Ok(Response::with((status::BadGateway, err.to_string())))
+        }
     }
 }
 
@@ -189,6 +197,7 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
     let token = match github.app_installation_token(hook.installation.id) {
         Ok(token) => token,
         Err(err) => {
+            warn!("unable to generate github app token, {}", err);
             return Ok(Response::with((status::BadGateway, err.to_string())));
         }
     };
