@@ -81,7 +81,7 @@ The code for the Habitat Builder web application is in the components/builder-we
 
 ### Docs
 
-Habitat's website and documentation source is located in the `www` directory of the Habitat source code. See [its README](www/README.md) for more information.
+Habitat's website and documentation source is located in the `www` directory of the Habitat source code. See [its README](https://github.com/habitat-sh/habitat/blob/master/www/README.md) for more information.
 
 ## Roadmap
 
@@ -97,10 +97,7 @@ The Habitat core team's project tracker is also public and on [Github.](https://
 
 ## Builder Dev Env
 
-See [BUILDER_DEV.md](BUILDER_DEV.md) for information on setting up a Builder Dev Environment
-
-## Building
-See [BUILDING.md](BUILDING.md) for platform specific info on building Habitat from source.
+See [DEVELOPING.md](DEVELOPING.md) for information on setting up a Builder Dev Environment
 
 ## Further reference material
 
