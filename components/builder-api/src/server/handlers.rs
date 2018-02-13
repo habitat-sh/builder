@@ -637,7 +637,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
             let token = match github.app_installation_token(body.installation_id) {
                 Ok(token) => token,
                 Err(err) => {
-                    debug!("Error authenticating github app installation, {}", err);
+                    warn!("Error authenticating github app installation, {}", err);
                     return Ok(Response::with(status::Forbidden));
                 }
             };
@@ -651,7 +651,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
                 Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
                 Ok(None) => return Ok(Response::with((status::NotFound, "rg:pc:2"))),
                 Err(e) => {
-                    debug!("Error finding github repo. e = {:?}", e);
+                    warn!("Error finding github repo. e = {:?}", e);
                     return Ok(Response::with((status::UnprocessableEntity, "rg:pc:1")));
                 }
             }
@@ -689,7 +689,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
         }
         Ok(None) => return Ok(Response::with((status::NotFound, "rg:pc:5"))),
         Err(e) => {
-            debug!("Error fetching contents from GH. e = {:?}", e);
+            warn!("Error fetching contents from GH. e = {:?}", e);
             return Ok(Response::with((status::UnprocessableEntity, "rg:pc:2")));
         }
     }
@@ -790,7 +790,7 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
             let token = match github.app_installation_token(body.installation_id) {
                 Ok(token) => token,
                 Err(err) => {
-                    debug!("Error authenticating github app installation, {}", err);
+                    warn!("Error authenticating github app installation, {}", err);
                     return Ok(Response::with(status::Forbidden));
                 }
             };
@@ -801,7 +801,7 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
                 Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
                 Ok(None) => return Ok(Response::with((status::NotFound, "rg:pu:2"))),
                 Err(e) => {
-                    debug!("Error finding GH repo. e = {:?}", e);
+                    warn!("Error finding GH repo. e = {:?}", e);
                     return Ok(Response::with((status::UnprocessableEntity, "rg:pu:1")));
                 }
             }
@@ -836,7 +836,7 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
         }
         Ok(None) => return Ok(Response::with((status::NotFound, "rg:pu:6"))),
         Err(e) => {
-            debug!("Erroring fetching contents from GH. e = {:?}", e);
+            warn!("Erroring fetching contents from GH. e = {:?}", e);
             return Ok(Response::with((status::UnprocessableEntity, "rg:pu:5")));
         }
     }
