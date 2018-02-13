@@ -16,7 +16,7 @@ use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
 use hab_core::channel::{BLDR_CHANNEL_ENVVAR, STABLE_CHANNEL};
 use hab_core::env;
@@ -27,7 +27,7 @@ use hab_core::AUTH_TOKEN_ENVVAR;
 use error::{Error, Result};
 use network::NetworkNamespace;
 use runner::log_pipe::LogPipe;
-use runner::{NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
+use runner::{DEV_MODE, NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 use runner::workspace::Workspace;
 
 pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
@@ -104,7 +104,13 @@ impl<'a> Studio<'a> {
             }
         }
         cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
+        //TED: workaround to not pipe error socket in dev mode which causes the worker to die
+        match env::var_os(DEV_MODE) {
+            Some(_) => debug!("Studio not displaying stderr"),
+            None => {
+                cmd.stderr(Stdio::piped());
+            }
+        };
         cmd.arg("-k"); // Origin key
         cmd.arg(self.workspace.job.origin());
         cmd.arg("build");
