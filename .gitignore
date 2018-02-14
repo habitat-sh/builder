@@ -11,6 +11,7 @@
 /target
 dump.rdb
 log/
+components/**/cleanup
 results/
 tags
 terraform.tfstate*
@@ -19,4 +20,3 @@ test/builder-api/node_modules
 test/builder-api/services.log
 tmp/
 pkgs/
-**/cleanup

@@ -245,7 +245,10 @@ origin() {
 }
 
 function psql() {
-  PGPASSWORD=$(cat /hab/svc/builder-datastore/config/pwfile) hab pkg exec core/postgresql psql -U hab -h 127.0.0.1 "$@"
+  local config_dir port
+  config_dir="/hab/svc/builder-datastore/config"
+  port=$(grep port $config_dir/postgresql.conf | grep -oE '[[:digit:]]+')
+  PGPASSWORD=$(cat $config_dir/pwfile) hab pkg exec core/postgresql psql -U hab -h 127.0.0.1 -p "$port" "$@"
 }
 
 export -f psql
