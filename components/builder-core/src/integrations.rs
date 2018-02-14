@@ -23,7 +23,9 @@ use hab_core::crypto::BoxKeyPair;
 use error::{Error, Result};
 use keys;
 
-pub fn encrypt<A>(key_dir: A, content: &str) -> Result<String>
+// TBD - these functions should take keys directly instead of key directory.
+
+pub fn encrypt<A>(key_dir: A, bytes: &[u8]) -> Result<String>
 where
     A: AsRef<Path>,
 {
@@ -38,7 +40,7 @@ where
         }
     };
 
-    let ciphertext = match kp.encrypt(content.as_bytes(), None) {
+    let ciphertext = match kp.encrypt(bytes, None) {
         Ok(s) => s,
         Err(err) => {
             let e = format!("Unable to encrypt with bldr key pair, err={:?}", &err);
@@ -50,13 +52,13 @@ where
     Ok(base64::encode(&ciphertext))
 }
 
-pub fn decrypt<A>(key_dir: A, b64text: &str) -> Result<String>
+pub fn decrypt<A>(key_dir: A, b64text: &str) -> Result<Vec<u8>>
 where
     A: AsRef<Path>,
 {
     let ciphertext = base64::decode(b64text).map_err(Error::Base64Error)?;
     let plaintext = match BoxKeyPair::decrypt(&ciphertext, &key_dir.as_ref()) {
-        Ok(bytes) => String::from_utf8(bytes).map_err(Error::FromUtf8Error)?,
+        Ok(bytes) => bytes,
         Err(err) => {
             let e = format!("Unable to decrypt with bldr key pair, err={:?}", &err);
             error!("Unable to decrypt with bldr key pair, err={:?}", err);

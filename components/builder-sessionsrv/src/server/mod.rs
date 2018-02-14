@@ -40,6 +40,12 @@ lazy_static! {
         map.register(proto::AccountUpdate::descriptor_static(None), handlers::account_update);
         map.register(proto::AccountFindOrCreate::descriptor_static(None),
             handlers::account_find_or_create);
+        map.register(proto::AccountTokenCreate::descriptor_static(None),
+            handlers::account_token_create);
+        map.register(proto::AccountTokenRevoke::descriptor_static(None),
+            handlers::account_token_revoke);
+        map.register(proto::AccountTokensGet::descriptor_static(None),
+            handlers::account_tokens_get);
         map.register(proto::SessionCreate::descriptor_static(None), handlers::session_create);
         map.register(proto::SessionGet::descriptor_static(None), handlers::session_get);
         map.register(proto::AccountInvitationListRequest::descriptor_static(None),

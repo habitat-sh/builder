@@ -19,6 +19,7 @@ embed_migrations!("src/migrations");
 use std::io;
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use diesel::Connection;
 use diesel::result::Error;
 use db::config::{DataStoreCfg, ShardId};
@@ -146,6 +147,56 @@ impl DataStore {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn create_account_token(
+        &self,
+        account_token_create: &sessionsrv::AccountTokenCreate,
+    ) -> SrvResult<sessionsrv::AccountToken> {
+        let conn = self.pool.get(account_token_create)?;
+        let rows = conn.query(
+            "SELECT * FROM insert_account_token_v1($1, $2)",
+            &[
+                &(account_token_create.get_account_id() as i64),
+                &account_token_create.get_token(),
+            ],
+        ).map_err(SrvError::AccountTokenCreate)?;
+        let row = rows.get(0);
+        let account = self.row_to_account_token(row);
+        Ok(account)
+    }
+
+    pub fn get_account_tokens(
+        &self,
+        account_tokens_get: &sessionsrv::AccountTokensGet,
+    ) -> SrvResult<sessionsrv::AccountTokens> {
+        let conn = self.pool.get(account_tokens_get)?;
+        let rows = &conn.query(
+            "SELECT * FROM get_account_tokens_v1($1)",
+            &[&(account_tokens_get.get_account_id() as i64)],
+        ).map_err(SrvError::AccountTokensGet)?;
+
+        let mut account_tokens = sessionsrv::AccountTokens::new();
+        let mut tokens = protobuf::RepeatedField::new();
+        for row in rows {
+            let account_token = self.row_to_account_token(row);
+            tokens.push(account_token);
+        }
+        account_tokens.set_tokens(tokens);
+        Ok(account_tokens)
+    }
+
+    pub fn revoke_account_token(
+        &self,
+        account_token_revoke: &sessionsrv::AccountTokenRevoke,
+    ) -> SrvResult<()> {
+        let conn = self.pool.get(account_token_revoke)?;
+        conn.execute(
+            "SELECT * FROM revoke_account_token_v1($1)",
+            &[&(account_token_revoke.get_id() as i64)],
+        ).map_err(SrvError::AccountTokenRevoke)?;
+
+        Ok(())
     }
 
     pub fn get_origins_by_account(
@@ -303,5 +354,17 @@ impl DataStore {
         account.set_email(row.get("email"));
         account.set_name(row.get("name"));
         account
+    }
+
+    fn row_to_account_token(&self, row: postgres::rows::Row) -> sessionsrv::AccountToken {
+        let mut account_token = sessionsrv::AccountToken::new();
+        let id: i64 = row.get("id");
+        account_token.set_id(id as u64);
+        account_token.set_token(row.get("token"));
+
+        let created_at = row.get::<&str, DateTime<Utc>>("created_at");
+        account_token.set_created_at(created_at.to_rfc3339());
+
+        account_token
     }
 }

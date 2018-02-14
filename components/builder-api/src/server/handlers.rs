@@ -17,6 +17,7 @@
 use std::env;
 
 use bodyparser;
+use bldr_core;
 use bldr_core::helpers::transition_visibility;
 use github_api_client::HubError;
 use hab_core::package::{Identifiable, Plan};
@@ -35,7 +36,8 @@ use protocol::jobsrv::{JobGraphPackageReverseDependenciesGet, JobGraphPackageRev
 use protocol::originsrv::*;
 use protocol::sessionsrv::{Account, AccountGet, AccountGetId, AccountInvitationListRequest,
                            AccountInvitationListResponse, AccountOriginListRequest,
-                           AccountOriginListResponse, AccountUpdate};
+                           AccountOriginListResponse, AccountUpdate, AccountToken,
+                           AccountTokenCreate, AccountTokensGet, AccountTokens, AccountTokenRevoke};
 use router::Router;
 use serde_json;
 use typemap;
@@ -140,7 +142,7 @@ pub fn github_authenticate(req: &mut Request) -> IronResult<Response> {
     match github.authenticate(&code) {
         Ok(token) => {
             let session = {
-                session_create_github(req, token)?
+                session_create_github(req, &token)?
             };
             log_event!(
                 req,
@@ -219,6 +221,73 @@ pub fn get_profile(req: &mut Request) -> IronResult<Response> {
 
     match route_message::<AccountGetId, Account>(req, &request) {
         Ok(account) => Ok(render_json(status::Ok, &account)),
+        Err(err) => return Ok(render_net_error(&err)),
+    }
+}
+
+pub fn get_access_tokens(req: &mut Request) -> IronResult<Response> {
+    let session_id = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        session.get_id()
+    };
+
+    let mut request = AccountTokensGet::new();
+    request.set_account_id(session_id);
+
+    match route_message::<AccountTokensGet, AccountTokens>(req, &request) {
+        Ok(account_tokens) => Ok(render_json(status::Ok, &account_tokens)),
+        Err(err) => return Ok(render_net_error(&err)),
+    }
+}
+
+pub fn generate_access_token(req: &mut Request) -> IronResult<Response> {
+    let (session_id, flags) = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        (session.get_id(), session.get_flags())
+    };
+
+    let mut request = AccountGetId::new();
+    request.set_id(session_id);
+
+    let account = match route_message::<AccountGetId, Account>(req, &request) {
+        Ok(account) => account,
+        Err(err) => return Ok(render_net_error(&err)),
+    };
+
+    let mut request = AccountTokenCreate::new();
+    let cfg = req.get::<persistent::Read<Config>>().unwrap();
+    let token =
+        bldr_core::access_token::generate_user_token(&cfg.depot.key_dir, account.get_id(), flags)
+            .unwrap();
+
+    request.set_account_id(account.get_id());
+    request.set_token(token);
+
+    match route_message::<AccountTokenCreate, AccountToken>(req, &request) {
+        Ok(account_token) => Ok(render_json(status::Ok, &account_token)),
+        Err(err) => return Ok(render_net_error(&err)),
+    }
+}
+
+pub fn revoke_access_token(req: &mut Request) -> IronResult<Response> {
+    let token_id = match get_param(req, "id") {
+        Some(id) => {
+            match id.parse::<u64>() {
+                Ok(n) => n,
+                Err(e) => {
+                    debug!("Bad id param. e = {:?}", e);
+                    return Ok(Response::with(status::BadRequest));
+                }
+            }
+        }
+        None => return Ok(Response::with(status::BadRequest)),
+    };
+
+    let mut request = AccountTokenRevoke::new();
+    request.set_id(token_id);
+
+    match route_message::<AccountTokenRevoke, NetOk>(req, &request) {
+        Ok(_) => Ok(Response::with(status::Ok)),
         Err(err) => return Ok(render_net_error(&err)),
     }
 }
