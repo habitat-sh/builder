@@ -23,6 +23,10 @@ export const CLEAR_BUILDS = 'CLEAR_BUILDS';
 export const POPULATE_BUILD = 'POPULATE_BUILD';
 export const POPULATE_BUILDS = 'POPULATE_BUILDS';
 export const POPULATE_BUILD_LOG = 'POPULATE_BUILD_LOG';
+export const SET_BUILD_LOADING = 'SET_BUILD_LOADING';
+export const SET_BUILDS_LOADING = 'SET_BUILDS_LOADING';
+export const SET_BUILD_LOG_LOADING = 'SET_BUILD_LOG_LOADING';
+export const SET_BUILD_LOG_NOT_FOUND = 'SET_BUILD_LOG_NOT_FOUND';
 export const STREAM_BUILD_LOG = 'STREAM_BUILD_LOG';
 
 export function clearBuild() {
@@ -67,27 +71,42 @@ export function submitJob(origin: string, name: string, token: string) {
 export function fetchBuilds(origin: string, name: string, token: string) {
   return dispatch => {
     dispatch(clearBuilds);
+    dispatch(setBuildsLoading(true));
 
     new BuilderApiClient(token)
       .getBuilds(origin, name)
-      .then((data) => dispatch(populateBuilds(data)))
-      .catch((error) => dispatch(populateBuilds(null, error)));
+      .then(data => {
+        dispatch(populateBuilds(data));
+        dispatch(setBuildsLoading(false));
+      })
+      .catch(error => {
+        dispatch(populateBuilds(null, error));
+        dispatch(setBuildsLoading(false));
+      });
   };
 }
 
 export function fetchBuild(id: string, token: string) {
   return dispatch => {
     dispatch(clearBuild());
+    dispatch(setBuildLoading(true));
 
     new BuilderApiClient(token)
       .getBuild(id)
-      .then((data) => dispatch(populateBuild(data)))
-      .catch((error) => dispatch(populateBuild(null, error)));
+      .then(data => {
+        dispatch(populateBuild(data));
+        dispatch(setBuildLoading(false));
+      })
+      .catch(error => {
+        dispatch(populateBuild(null, error));
+        dispatch(setBuildLoading(false));
+      });
   };
 }
 
 export function fetchBuildLog(id: string, token: string, start = 0) {
   return (dispatch, getState) => {
+    dispatch(setBuildLogLoading(true));
 
     if (start === 0) {
       dispatch(clearBuildLog());
@@ -95,19 +114,34 @@ export function fetchBuildLog(id: string, token: string, start = 0) {
 
     new BuilderApiClient(token)
       .getBuildLog(id, start)
-      .then((data) => {
+      .then(data => {
+        dispatch(setBuildLogLoading(false));
+        dispatch(setBuildLogNotFound(false));
         dispatch(populateBuildLog(data));
 
         let complete = data['is_complete'];
 
         if (complete && data['start'] !== 0) {
-          setTimeout(() => { dispatch(fetchBuild(id, token)); }, 5000);
+          doAfter(5000, fetchBuild(id, token));
         }
         else if (!complete && getState().builds.selected.stream) {
-          setTimeout(() => { dispatch(fetchBuildLog(id, token, data['stop'])); }, 2000);
+          doAfter(2000, fetchBuildLog(id, token, data['stop']));
         }
       })
-      .catch((error) => dispatch(populateBuildLog(null, error)));
+      .catch(error => {
+        dispatch(setBuildLogLoading(false));
+        dispatch(setBuildLogNotFound(true));
+        dispatch(populateBuildLog(null, error));
+
+        if (error.message === 'Not Found' && getState().builds.selected.stream) {
+          doAfter(5000, fetchBuild(id, token));
+          doAfter(5000, fetchBuildLog(id, token));
+        }
+      });
+
+    function doAfter(delay: number, f: Function) {
+      setTimeout(() => dispatch(f), delay);
+    }
   };
 }
 
@@ -132,6 +166,34 @@ function populateBuildLog(data, error = undefined) {
     type: POPULATE_BUILD_LOG,
     payload: data,
     error: error
+  };
+}
+
+function setBuildLoading(loading: boolean) {
+  return {
+    type: SET_BUILD_LOADING,
+    payload: loading
+  };
+}
+
+function setBuildsLoading(loading: boolean) {
+  return {
+    type: SET_BUILDS_LOADING,
+    payload: loading
+  };
+}
+
+function setBuildLogLoading(loading: boolean) {
+  return {
+    type: SET_BUILD_LOG_LOADING,
+    payload: loading
+  };
+}
+
+function setBuildLogNotFound(notFound: boolean) {
+  return {
+    type: SET_BUILD_LOG_NOT_FOUND,
+    payload: notFound
   };
 }
 

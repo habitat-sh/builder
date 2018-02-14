@@ -30,8 +30,11 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
 
   followLog: boolean = false;
 
+  private buildSub: Function;
   private fetched: boolean = false;
+  private lastBuildState: string;
   private logSub: Subscription;
+  private logHasContent: boolean = false;
 
   constructor(
     private store: AppStore,
@@ -51,6 +54,10 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
       this.logSub.unsubscribe();
     }
 
+    if (this.buildSub) {
+      this.buildSub();
+    }
+
     this.store.dispatch(streamBuildLog(false));
   }
 
@@ -64,7 +71,7 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
   }
 
   get controlsStyles() {
-    let output = rectFor('.output');
+    let output = rectFor('.output.log');
     let controls = rectFor('.controls');
     let offsetY = window.innerHeight - output.top;
     let margin = 8;
@@ -93,7 +100,7 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
   }
 
   get buildState() {
-    return this.info ? this.info.state : '';
+    return this.lastBuildState;
   }
 
   get statusIcon() {
@@ -157,6 +164,15 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
     return this.store.getState().session.token;
   }
 
+  get showLog() {
+    return this.fetched && this.logHasContent;
+  }
+
+  get showPending() {
+    const log = this.store.getState().builds.ui.selected.log;
+    return !this.showLog && !log.loading && log.notFound;
+  }
+
   public scrollToTop() {
     this.followLog = false;
     this.scrollTo(0);
@@ -188,16 +204,32 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
     if (!this.fetched) {
       this.store.dispatch(streamBuildLog(this.stream));
       this.store.dispatch(fetchBuildLog(id, this.token, 0));
+      this.watchStatus();
+      this.watchLogs();
       this.fetched = true;
-      this.watchForLogs();
     }
   }
 
-  private watchForLogs() {
+  private watchStatus() {
+    this.buildSub = this.store.subscribe(state => {
+      let s = state.builds.selected.info.state;
+
+      if (s && s !== this.lastBuildState) {
+        this.lastBuildState = s;
+      }
+    });
+  }
+
+  private watchLogs() {
     let pre = this.elementRef.nativeElement.querySelector('pre');
     let content = this.store.getState().builds.selected.log.content;
 
     this.logSub = content.subscribe((lines) => {
+
+      if (lines.length > 0) {
+        this.logHasContent = true;
+      }
+
       let fragment = document.createDocumentFragment();
 
       lines.forEach((line) => {

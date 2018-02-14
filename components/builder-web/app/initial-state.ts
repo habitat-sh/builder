@@ -62,7 +62,19 @@ export default Record({
         is_complete: undefined,
         stream: undefined
       })(),
-      stream: false
+      stream: false,
+    })(),
+    ui: Record({
+      loading: false,
+      selected: Record({
+        info: Record({
+          loading: false
+        })(),
+        log: Record({
+          loading: false,
+          notFound: false
+        })()
+      })()
     })()
   })(),
   features: Record({

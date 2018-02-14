@@ -5,9 +5,9 @@
       <span>Back to build jobs</span>
     </a>
   </section>
-  <div class="summary" *ngIf="buildState">
+  <div class="summary">
     <div class="status {{ statusClass }}">
-      <div>
+      <div *ngIf="buildState">
         <hab-icon [symbol]="statusIcon" [class]="statusClass" [title]="buildState | titlecase"></hab-icon>
         Build {{ buildState }}
       </div>
@@ -23,7 +23,7 @@
       </div>
     </div>
   </div>
-  <div class="controls" [ngStyle]="controlsStyles">
+  <div class="controls" [ngStyle]="controlsStyles" [hidden]="!showLog">
     <button type="button" class="jump-to-top" (click)="scrollToTop()">
       <hab-icon symbol="chevron-up"></hab-icon>
       <span>Jump to top</span>
@@ -34,6 +34,7 @@
     </button>
   </div>
   <div class="output-container {{ statusClass }}">
-    <pre class="output"></pre>
+    <pre class="output log" [hidden]="!showLog"></pre>
+    <pre class="output" [hidden]="!showPending">This job will begin in a moment.</pre>
   </div>
 </div>
