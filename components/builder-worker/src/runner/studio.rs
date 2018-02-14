@@ -26,8 +26,8 @@ use hab_core::AUTH_TOKEN_ENVVAR;
 
 use error::{Error, Result};
 use network::NetworkNamespace;
-use runner::log_pipe::LogPipe;
-use runner::{DEV_MODE, NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
+use runner::job_streamer::JobStreamer;
+use runner::{NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 use runner::workspace::Workspace;
 
 pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
@@ -82,7 +82,7 @@ impl<'a> Studio<'a> {
     /// * If the child process can't be spawned
     /// * If the calling thread can't wait on the child process
     /// * If the `LogPipe` fails to pipe output
-    pub fn build(&self, log_pipe: &mut LogPipe) -> Result<ExitStatus> {
+    pub fn build(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
         let channel = if self.workspace.job.has_channel() {
             self.workspace.job.get_channel()
         } else {
@@ -104,13 +104,7 @@ impl<'a> Studio<'a> {
             }
         }
         cmd.stdout(Stdio::piped());
-        //TED: workaround to not pipe error socket in dev mode which causes the worker to die
-        match env::var_os(DEV_MODE) {
-            Some(_) => debug!("Studio not displaying stderr"),
-            None => {
-                cmd.stderr(Stdio::piped());
-            }
-        };
+        cmd.stderr(Stdio::piped());
         cmd.arg("-k"); // Origin key
         cmd.arg(self.workspace.job.origin());
         cmd.arg("build");
@@ -134,20 +128,13 @@ impl<'a> Studio<'a> {
         let mut child = cmd.spawn().map_err(|e| {
             Error::StudioBuild(self.workspace.studio().to_path_buf(), e)
         })?;
-
-        log_pipe.pipe_process(&mut child)?;
-
-        let output = child.wait_with_output().map_err(|e| {
+        streamer.consume_child(&mut child)?;
+        let exit_status = child.wait().map_err(|e| {
             Error::StudioBuild(self.workspace.studio().to_path_buf(), e)
         })?;
+        debug!("completed studio build command, status={:?}", exit_status);
 
-        if !output.status.success() {
-            log_pipe.pipe_buffer(&output.stderr)?;
-        }
-
-        debug!("completed studio build command, status={:?}", output.status);
-
-        Ok(output.status)
+        Ok(exit_status)
     }
 
     fn studio_command(&self) -> Result<Command> {

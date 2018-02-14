@@ -59,6 +59,8 @@ pub enum Error {
     Protobuf(protobuf::ProtobufError),
     Protocol(protocol::ProtocolError),
     Retry(retry::RetryError),
+    StreamLine(io::Error),
+    StreamTargetSend(zmq::Error),
     StudioBuild(PathBuf, io::Error),
     StudioTeardown(PathBuf, io::Error),
     UrlParseError(url::ParseError),
@@ -134,6 +136,15 @@ impl fmt::Display for Error {
             Error::Protobuf(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::Retry(ref e) => format!("{}", e),
+            Error::StreamLine(ref e) => {
+                format!(
+                    "Error while reading a line while consuming an output stream, err={}",
+                    e
+                )
+            }
+            Error::StreamTargetSend(ref e) => {
+                format!("Error while writing a message to the job stream, err={}", e)
+            }
             Error::StudioBuild(ref p, ref e) => {
                 format!(
                     "Error while running studio build at {}, err={}",
@@ -189,6 +200,8 @@ impl error::Error for Error {
             Error::Protobuf(ref err) => err.description(),
             Error::Protocol(ref err) => err.description(),
             Error::Retry(ref err) => err.description(),
+            Error::StreamTargetSend(_) => "Error while writing message to a job stream",
+            Error::StreamLine(_) => "Error while reading a line while consuming an output stream",
             Error::StudioBuild(_, _) => "IO Error while running studio build",
             Error::StudioTeardown(_, _) => "IO Error while tearing down studio",
             Error::WorkspaceSetup(_, _) => "IO Error while creating workspace on disk",

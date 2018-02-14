@@ -22,7 +22,7 @@ use hab_core::fs as hfs;
 use hab_core::os::process::{self, Pid, Signal};
 
 use error::{Error, Result};
-use runner::log_pipe::LogPipe;
+use runner::job_streamer::JobStreamer;
 use runner::{DEV_MODE, NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 use runner::workspace::Workspace;
 
@@ -70,24 +70,24 @@ impl<'a> DockerExporter<'a> {
         }
     }
 
-    /// Spawns a Docker export command, pipes output streams to the given `LogPipe` and returns the
-    /// process' `ExitStatus`.
+    /// Spawns a Docker export command, sends output streams to the given `LogStreamer` and returns
+    /// the process' `ExitStatus`.
     ///
     /// # Errors
     ///
     /// * If the child process can't be spawned
     /// * If the calling thread can't wait on the child process
-    /// * If the `LogPipe` fails to pipe output
-    pub fn export(&self, log_pipe: &mut LogPipe) -> Result<ExitStatus> {
+    /// * If the `LogStreamer` fails to stream outputs
+    pub fn export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
         let dockerd = self.spawn_dockerd().map_err(Error::Exporter)?;
-        let exit_status = self.run_export(log_pipe);
+        let exit_status = self.run_export(streamer);
         self.teardown_dockerd(dockerd).err().map(|e| {
             error!("failed to teardown dockerd instance, err={:?}", e)
         });
         exit_status
     }
 
-    fn run_export(&self, log_pipe: &mut LogPipe) -> Result<ExitStatus> {
+    fn run_export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
         let sock = self.dockerd_sock();
 
         let mut cmd = Command::new(&*DOCKER_EXPORTER_PROGRAM);
@@ -145,19 +145,14 @@ impl<'a> DockerExporter<'a> {
         );
         cmd.env(DOCKER_HOST_ENVVAR, sock); // Use the job-specific `dockerd`
         cmd.stdout(Stdio::piped());
-        //TED: workaround to not pipe error socket in dev mode which causes the worker to die
-        match env::var_os(DEV_MODE) {
-            Some(_) => debug!("Not exporting in dev mode"),
-            None => {
-                cmd.stderr(Stdio::piped());
-            }
-        };
+        cmd.stderr(Stdio::piped());
 
         debug!("spawning docker export command");
         let mut child = cmd.spawn().map_err(Error::Exporter)?;
-        log_pipe.pipe_process(&mut child)?;
+        streamer.consume_child(&mut child)?;
         let exit_status = child.wait().map_err(Error::Exporter)?;
         debug!("completed docker export command, status={:?}", exit_status);
+
         Ok(exit_status)
     }
 
