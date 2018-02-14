@@ -16,6 +16,7 @@
 #![cfg_attr(feature="clippy", plugin(clippy))]
 
 extern crate base64;
+extern crate chrono;
 extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;

@@ -26,7 +26,7 @@ export default function users(state = initialState['users'], action) {
       return state.setIn(['current', 'newAccessToken'], undefined);
 
     case actionTypes.POPULATE_ACCESS_TOKENS:
-      return state.setIn(['current', 'accessTokens'], action.payload);
+      return state.setIn(['current', 'accessTokens'], action.payload.tokens);
 
     case actionTypes.POPULATE_NEW_ACCESS_TOKEN:
       return state.setIn(['current', 'newAccessToken'], action.payload);

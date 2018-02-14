@@ -243,7 +243,7 @@ export class BuilderApiClient {
         .then(response => this.handleUnauthorized(response, reject))
         .then(response => {
           if (response.ok) {
-            resolve(true);
+            resolve(response.json());
           } else {
             reject(new Error(response.statusText));
           }

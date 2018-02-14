@@ -17,6 +17,7 @@ use std::fmt;
 use std::result;
 use std::string;
 
+use protocol;
 use base64;
 use chrono;
 use hab_core;
@@ -29,6 +30,8 @@ pub enum Error {
     EncryptError(String),
     FromUtf8Error(string::FromUtf8Error),
     HabitatCore(hab_core::Error),
+    Protocol(protocol::ProtocolError),
+    TokenInvalid,
     TokenExpired,
 }
 
@@ -43,6 +46,8 @@ impl fmt::Display for Error {
             Error::EncryptError(ref e) => format!("{}", e),
             Error::FromUtf8Error(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
+            Error::Protocol(ref e) => format!("{}", e),
+            Error::TokenInvalid => format!("Token is invalid"),
             Error::TokenExpired => format!("Token is expired"),
         };
         write!(f, "{}", msg)
@@ -58,6 +63,8 @@ impl error::Error for Error {
             Error::EncryptError(_) => "Error encrypting integration",
             Error::FromUtf8Error(ref e) => e.description(),
             Error::HabitatCore(ref err) => err.description(),
+            Error::Protocol(ref err) => err.description(),
+            Error::TokenInvalid => "Token is invalid",
             Error::TokenExpired => "Token is expired",
         }
     }

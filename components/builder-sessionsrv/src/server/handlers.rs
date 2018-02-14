@@ -116,6 +116,57 @@ pub fn account_find_or_create(
     Ok(())
 }
 
+pub fn account_token_create(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::AccountTokenCreate>()?;
+    match state.datastore.create_account_token(&msg) {
+        Ok(account_token) => conn.route_reply(req, &account_token)?,
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account-token-create:0");
+            error!("{}, {}", e, err);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn account_token_revoke(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::AccountTokenRevoke>()?;
+    match state.datastore.revoke_account_token(&msg) {
+        Ok(_) => conn.route_reply(req, &net::NetOk::new())?,
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account-token-revoke:0");
+            error!("{}, {}", e, err);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn account_tokens_get(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::AccountTokensGet>()?;
+    match state.datastore.get_account_tokens(&msg) {
+        Ok(account_tokens) => conn.route_reply(req, &account_tokens)?,
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account-tokens-get:0");
+            error!("{}, {}", e, err);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn session_create(
     req: &mut Message,
     conn: &mut RouteConn,
