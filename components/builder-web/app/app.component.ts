@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Browser } from './browser';
+import config from './config';
 import { Subscription } from 'rxjs/Subscription';
 import { AppStore } from './app.store';
 import { Component, OnInit, OnDestroy } from '@angular/core';
@@ -19,7 +21,6 @@ import { URLSearchParams } from '@angular/http';
 import { Router } from '@angular/router';
 import { identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
   routeChange, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
-import config from './config';
 
 const md5 = require('blueimp-md5');
 
@@ -136,7 +137,13 @@ export class AppComponent implements OnInit, OnDestroy {
   private handleSignIn() {
     const params = new URLSearchParams(window.location.search.slice(1));
     const code = params.get('code');
-    const state = params.get('state');
+    let state;
+
+    if (config.oauth_uses_state) {
+      state = params.get('state');
+    } else {
+      state = Browser.getCookie('oauthState');
+    }
 
     if (code && state) {
       this.store.dispatch(exchangeOAuthCode(code, state));

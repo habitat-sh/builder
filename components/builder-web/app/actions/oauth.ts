@@ -22,10 +22,9 @@ import {
   fetchProfile,
   setPrivileges,
   signingIn,
-  signInFailed,
-  signOut
+  signInFailed
 } from './index';
-import { DANGER, WARNING } from './notifications';
+import { DANGER } from './notifications';
 import { setBldrSessionToken } from './sessions';
 import { Browser } from '../browser';
 
@@ -45,33 +44,32 @@ export function authenticate(oauthToken: string, bldrToken: string) {
     if (oauthToken) {
       dispatch(setOAuthToken(oauthToken));
 
-      if (config.oauth_provider === 'github') {
-        fetch(`${config.github_api_url}/user?access_token=${oauthToken}`).then(response => {
-          if (response.ok) {
-            return response.json();
-          } else {
-            return response.json().then(error => { throw error; });
-          }
-        })
-          .then(data => {
-            dispatch(populateGitHubUserData(data));
-            dispatch(setCurrentUsername(data.login));
-          })
-          .catch(error => {
-            // We can assume an error from the response is a 401; anything
-            // else is probably a transient failure on GitHub's end, which
-            // we can expect to clear when we try to sign in again.
-            //
-            // When we get an unauthorized response, our token is no
-            // longer valid, so sign out.
-            dispatch(signOut(true, getState().router.route.url));
-            dispatch(addNotification({
-              title: 'Authorization Failed',
-              body: 'Please sign in again.',
-              type: WARNING,
-            }));
-          });
-      }
+      // if (config.oauth_provider === 'github') {
+      //  fetch(`${config.github_api_url}/user?access_token=${oauthToken}`).then(response => {
+      //    if (response.ok) {
+      //      return response.json();
+      //    } else {
+      //      return response.json().then(error => { throw error; });
+      //    }
+      //  })
+      //    .then(data => {
+      //      dispatch(setCurrentUsername(data.name));
+      //    })
+      //    .catch(error => {
+      //      // We can assume an error from the response is a 401; anything
+      //      // else is probably a transient failure on GitHub's end, which
+      //      // we can expect to clear when we try to sign in again.
+      //      //
+      //      // When we get an unauthorized response, our token is no
+      //      // longer valid, so sign out.
+      //      dispatch(signOut(true, getState().router.route.url));
+      //      dispatch(addNotification({
+      //        title: 'Authorization Failed',
+      //        body: 'Please sign in again.',
+      //        type: WARNING,
+      //      }));
+      //    });
+      // }
     }
 
     if (bldrToken) {
@@ -99,6 +97,7 @@ export function exchangeOAuthCode(code: string, state: string) {
 
           if (data.oauth_token && data.token) {
             dispatch(authenticate(data.oauth_token, data.token));
+            dispatch(setCurrentUsername(data.login));
             dispatch(setPrivileges(data.flags));
           } else {
             dispatch(signInFailed());
@@ -135,12 +134,12 @@ export function loadOAuthState() {
   };
 }
 
-function populateGitHubUserData(payload) {
-  return {
-    type: POPULATE_GITHUB_USER_DATA,
-    payload,
-  };
-}
+// function populateGitHubUserData(payload) {
+//   return {
+//     type: POPULATE_GITHUB_USER_DATA,
+//     payload,
+//   };
+// }
 
 export function removeSession() {
   return dispatch => {

@@ -19,9 +19,9 @@ use std::env;
 use bodyparser;
 use bldr_core;
 use bldr_core::helpers::transition_visibility;
-use github_api_client::HubError;
 use hab_core::package::{Identifiable, Plan};
 use http_client::ApiClient;
+use oauth_common::OAuthError;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, check_origin_access, get_param, validate_params};
 use hyper::header::{Accept, ContentType};
@@ -119,7 +119,7 @@ fn search_account(req: &mut Request, key: String, value: String) -> IronResult<R
     }
 }
 
-pub fn github_authenticate(req: &mut Request) -> IronResult<Response> {
+pub fn authenticate(req: &mut Request) -> IronResult<Response> {
     let code = match get_param(req, "code") {
         Some(c) => c,
         None => return Ok(Response::with(status::BadRequest)),
@@ -132,14 +132,12 @@ pub fn github_authenticate(req: &mut Request) -> IronResult<Response> {
         return Ok(render_json(status::Ok, &session));
     }
 
-    let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
+    let oauth = req.get::<persistent::Read<OAuthCli>>().unwrap();
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
 
-    match github.authenticate(&code) {
+    match oauth.authenticate(&code) {
         Ok(token) => {
-            let session = {
-                session_create_github(req, &token)?
-            };
+            let session = session_create_oauth(req, &token)?;
 
             // We don't really want to abort anything just because a call to segment failed. Let's
             // just log it and move on.
@@ -152,17 +150,18 @@ pub fn github_authenticate(req: &mut Request) -> IronResult<Response> {
 
             Ok(render_json(status::Ok, &session))
         }
-        Err(HubError::Auth(e)) => {
-            let err = NetError::new(ErrCode::ACCESS_DENIED, e.error);
+        Err(OAuthError::HttpResponse(code, response)) => {
+            let msg = format!("{}-{}", code, response);
+            let err = NetError::new(ErrCode::ACCESS_DENIED, msg);
             Ok(render_net_error(&err))
         }
-        Err(HubError::Serialization(e)) => {
-            warn!("bad reply from GitHub, {}", e);
+        Err(OAuthError::Serialization(e)) => {
+            warn!("bad reply from our oauth provider, {}", e);
             let err = NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1");
             Ok(render_net_error(&err))
         }
         Err(e) => {
-            warn!("unhandled github authentication error, {:?}", e);
+            warn!("unhandled authentication error, {:?}", e);
             let err = NetError::new(ErrCode::BUG, "rg:auth:2");
             Ok(render_net_error(&err))
         }

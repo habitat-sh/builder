@@ -17,7 +17,7 @@ import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from
 import { AppStore } from '../../app.store';
 import { Browser } from '../../browser';
 import { signOut } from '../../actions/index';
-import config from '../../config';
+// import config from '../../config';
 
 @Injectable()
 export class SignedInGuard implements CanActivate {
@@ -79,7 +79,7 @@ export class SignedInGuard implements CanActivate {
   }
 
   private sendHome() {
-    Browser.redirect(config.www_url);
+    // Browser.redirect(config.www_url);
   }
 
   private redirectToSignIn(url?: string) {

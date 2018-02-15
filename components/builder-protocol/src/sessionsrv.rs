@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::error;
+use std::fmt;
 use std::result;
+use std::str::FromStr;
 
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
@@ -22,19 +25,54 @@ use message::{Persistable, Routable};
 use sharding::InstaId;
 pub use message::sessionsrv::*;
 
+#[derive(Debug)]
+pub enum Error {
+    BadOAuthProvider,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let msg = match *self {
+            Error::BadOAuthProvider => "Bad OAuth Provider",
+        };
+        write!(f, "{}", msg)
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::BadOAuthProvider => "OAuth Provider cannot be parsed",
+        }
+    }
+}
+impl FromStr for OAuthProvider {
+    type Err = Error;
+
+    fn from_str(value: &str) -> result::Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            "github" => Ok(OAuthProvider::GitHub),
+            "bitbucket" => Ok(OAuthProvider::Bitbucket),
+            "none" => Ok(OAuthProvider::None),
+            "" => Ok(OAuthProvider::None),
+            _ => Err(Error::BadOAuthProvider),
+        }
+    }
+}
+
 impl Routable for SessionCreate {
-    type H = u32;
+    type H = String;
 
     fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_extern_id())
+        Some(self.get_extern_id().to_string())
     }
 }
 
 impl Routable for SessionGet {
-    type H = u32;
+    type H = String;
 
     fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_token().get_extern_id())
+        Some(self.get_token().get_extern_id().to_string())
     }
 }
 

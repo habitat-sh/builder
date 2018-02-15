@@ -93,7 +93,7 @@ impl Session {
         let mut session = proto::Session::new();
         let mut token = proto::SessionToken::new();
         token.set_account_id(account.get_id());
-        token.set_extern_id(msg.get_extern_id());
+        token.set_extern_id(msg.get_extern_id().to_string());
         token.set_provider(msg.get_provider());
         token.set_token(msg.get_token().to_string().into_bytes());
 
@@ -235,7 +235,7 @@ mod test {
         let t = "CL3Ag7z4tvaAChCUpgMYACIoZDFmODI3NDc3YTk4ODUyM2E0ZGUyY2JmZjgwNWEyN2ZmOTZkNmIzNQ==";
         let token = decode_token(t).unwrap();
         assert_eq!(token.get_account_id(), 721096797631602749);
-        assert_eq!(token.get_extern_id(), 54036);
+        assert_eq!(token.get_extern_id(), "54036".to_string());
         assert_eq!(token.get_provider(), proto::OAuthProvider::GitHub);
         assert_eq!(
             String::from_utf8_lossy(token.get_token()),
@@ -247,7 +247,7 @@ mod test {
     fn encode_session_token() {
         let mut token = proto::SessionToken::new();
         token.set_account_id(721096797631602749);
-        token.set_extern_id(54036);
+        token.set_extern_id("54036".to_string());
         token.set_provider(proto::OAuthProvider::GitHub);
         token.set_token(
             "d1f827477a988523a4de2cbff805a27ff96d6b35"

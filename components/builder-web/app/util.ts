@@ -35,14 +35,17 @@ export function createGitHubLoginUrl(state) {
 export function createLoginUrl() {
   const store = new AppStore();
   let params: any = {};
-  let uri;
+
+  let uri = config.oauth_authorize_url;
+  params.client_id = config.oauth_client_id;
 
   switch (config.oauth_provider) {
     case 'github':
-      uri = config.oauth_authorize_url;
-      params.client_id = config.oauth_client_id;
-      params.redirect_uri = `${config.oauth_redirect_url || (window.location.protocol + '//' + window.location.host + '/')}`;
       params.state = store.getState().oauth.state;
+      params.redirect_uri = `${config.oauth_redirect_url || (window.location.protocol + '//' + window.location.host + '/')}`;
+      break;
+    case 'bitbucket':
+      params.response_type = 'code';
       break;
   }
 

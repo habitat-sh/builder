@@ -25,6 +25,8 @@ use hyper::status::StatusCode;
 use hyper::header::{Authorization, Accept, Bearer, UserAgent, qitem};
 use hyper::mime::{Mime, TopLevel, SubLevel};
 use jwt;
+use oauth_common::{OAuthError, OAuthResult};
+use oauth_common::types::*;
 use serde_json;
 
 use config::GitHubCfg;
@@ -151,33 +153,6 @@ impl GitHubClient {
         }
     }
 
-    pub fn authenticate(&self, code: &str) -> HubResult<String> {
-        let url = Url::parse(&format!(
-            "{}/login/oauth/access_token?client_id={}&client_secret={}&code={}",
-            self.web_url,
-            self.client_id,
-            self.client_secret,
-            code
-        )).map_err(HubError::HttpClientParse)?;
-
-        Counter::Authenticate.increment();
-        let mut rep = http_post(url, None::<String>)?;
-        if rep.status.is_success() {
-            let mut body = String::new();
-            rep.read_to_string(&mut body)?;
-            debug!("GitHub response body, {}", body);
-            match serde_json::from_str::<AuthOk>(&body) {
-                Ok(msg) => Ok(msg.access_token),
-                Err(_) => {
-                    let err = serde_json::from_str::<AuthErr>(&body)?;
-                    Err(HubError::Auth(err))
-                }
-            }
-        } else {
-            Err(HubError::HttpResponse(rep.status))
-        }
-    }
-
     pub fn check_team_membership(
         &self,
         token: &AppToken,
@@ -254,21 +229,6 @@ impl GitHubClient {
         Ok(Some(value))
     }
 
-    pub fn user(&self, token: &UserToken) -> HubResult<User> {
-        let url = Url::parse(&format!("{}/user", self.url)).unwrap();
-        Counter::UserApi("user").increment();
-        let mut rep = http_get(url, Some(token))?;
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
-        debug!("GitHub response body, {}", body);
-        if rep.status != StatusCode::Ok {
-            let err: HashMap<String, String> = serde_json::from_str(&body)?;
-            return Err(HubError::ApiError(rep.status, err));
-        }
-        let user = serde_json::from_str(&body)?;
-        Ok(user)
-    }
-
     // The main purpose of this is just to verify HTTP communication with GH.
     // There's nothing special about this endpoint, only that it doesn't require
     // auth and the response body seemed small. We don't even care what the
@@ -286,6 +246,70 @@ impl GitHubClient {
         }
 
         Ok(())
+    }
+}
+
+impl OAuthClient for GitHubClient {
+    fn authenticate(&self, code: &str) -> OAuthResult<String> {
+        let url = Url::parse(&format!(
+            "{}/login/oauth/access_token?client_id={}&client_secret={}&code={}",
+            self.web_url,
+            self.client_id,
+            self.client_secret,
+            code
+        )).map_err(OAuthError::HttpClientParse)?;
+
+        Counter::Authenticate.increment();
+        let mut rep = match http_post(url, None::<String>) {
+            Ok(r) => r,
+            Err(e) => return Err(OAuthError::Hub(e.to_string())),
+        };
+        let mut body = String::new();
+        rep.read_to_string(&mut body)?;
+
+        if rep.status.is_success() {
+            debug!("GitHub response body, {}", body);
+            match serde_json::from_str::<AuthOk>(&body) {
+                Ok(msg) => Ok(msg.access_token),
+                Err(e) => Err(OAuthError::Serialization(e)),
+            }
+        } else {
+            Err(OAuthError::HttpResponse(rep.status, body))
+        }
+    }
+
+    fn user(&self, token: &str) -> OAuthResult<OAuthUser> {
+        let url = Url::parse(&format!("{}/user", self.url)).unwrap();
+        Counter::UserApi("user").increment();
+        let mut rep = match http_get(url, Some(token)) {
+            Ok(r) => r,
+            Err(e) => return Err(OAuthError::Hub(e.to_string())),
+        };
+        let mut body = String::new();
+        rep.read_to_string(&mut body)?;
+        debug!("GitHub response body, {}", body);
+
+        if rep.status != StatusCode::Ok {
+            return Err(OAuthError::HttpResponse(rep.status, body));
+        }
+
+        let user: User = serde_json::from_str(&body).map_err(
+            OAuthError::Serialization,
+        )?;
+
+        Ok(OAuthUser {
+            id: user.id.to_string(),
+            username: user.login,
+            email: user.email,
+        })
+    }
+
+    fn box_clone(&self) -> Box<OAuthClient> {
+        Box::new((*self).clone())
+    }
+
+    fn provider(&self) -> String {
+        String::from("github")
     }
 }
 
