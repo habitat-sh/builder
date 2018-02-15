@@ -8,11 +8,20 @@ There are several ways of creating a Builder dev environment - but supporting al
 
 ## Pre-Requisites
 
+Note that while these instructions should technically work with any linux environment that habitat supports, we recommend either a VMWare-based VM or bare metal. Other providers (e.g., Docker, VirtualBox) have posed difficulty. For instance, VirtualBox doesn't support forwarding privileged ports, which makes using the web app outside the linux environment challenging.
+
+VMWare with Vagrant (and [the supplied Vagrantfile](https://github.com/habitat-sh/builder/blob/master/Vagrantfile)) works well, but Vagrant is not required if you're comfortable with setting up your own VM and port forwarding. For VMWare Fusion 10, adding the following lines to `/Library/Preferences/VMware Fusion/networking` seems to suffice (where 172.16.174.130 is the IP of the VM):
+```
+add_nat_portfwd 8 tcp 80 172.16.174.130 80 
+add_nat_portfwd 8 tcp 3000 172.16.174.130 3000 
+add_nat_portfwd 8 tcp 9636 172.16.174.130 9636 
+```
+
 ### Ports required
 1. 9636 - Intra-supervisor communication
 1. 80 - Web app
 1. 9631 - supervisor api port
-1. 5432 - posgres port
+1. 5433 - (nonstandard) posgres port (configurable in [datastore.toml](https://github.com/habitat-sh/builder/blob/master/support/builder/datastore.toml#L3))
 
 ### Checkout
 * If you are developing on Linux
