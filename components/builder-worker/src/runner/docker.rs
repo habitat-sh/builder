@@ -98,9 +98,16 @@ impl<'a> DockerExporter<'a> {
         cmd.arg(&self.bldr_url);
         cmd.arg("--url");
         cmd.arg(&self.bldr_url);
-        if self.spec.latest_tag {
-            cmd.arg("--tag-latest");
-        }
+        // TODO fn: Due to the flag regrssion in 0.53.0, this flag does not exist and triggers an
+        // export failure. For the moment we will remove this flag which may result in some
+        // `:latest` tags not being pushed to remote repositories.
+        //
+        // As soon as the next stable release has shipped, the commenting out in this commit should
+        // be reverted.
+        //
+        // if self.spec.latest_tag {
+        //     cmd.arg("--tag-latest");
+        // }
         if self.spec.version_tag {
             cmd.arg("--tag-version");
         }
