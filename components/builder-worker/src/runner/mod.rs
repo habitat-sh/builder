@@ -14,7 +14,7 @@
 
 pub mod studio;
 mod docker;
-mod log_pipe;
+mod job_streamer;
 mod postprocessor;
 mod publisher;
 mod toml_builder;
@@ -43,7 +43,7 @@ use protocol::net::{self, ErrCode};
 use zmq;
 
 use {PRODUCT, VERSION};
-use self::log_pipe::LogPipe;
+use self::job_streamer::{JobStreamer, Section};
 use self::postprocessor::post_process;
 use self::studio::{key_path, Studio, STUDIO_GROUP, STUDIO_USER};
 use self::docker::DockerExporter;
@@ -131,9 +131,10 @@ impl Runner {
         Ok(())
     }
 
-    fn do_validate(&mut self, tx: &mpsc::Sender<Job>, log_pipe: &mut LogPipe) -> Result<()> {
+    fn do_validate(&mut self, tx: &mpsc::Sender<Job>, streamer: &mut JobStreamer) -> Result<()> {
         self.check_cancel(tx)?;
-        log_pipe.pipe_buffer(b"\n--- BEGIN: Validation ---\n")?;
+
+        let mut section = streamer.start_section(Section::ValidateIntegrations)?;
 
         if let Some(err) = util::validate_integrations(&self.workspace).err() {
             let msg = format!(
@@ -144,22 +145,21 @@ impl Runner {
             debug!("{}", msg);
             self.logger.log(&msg);
 
-            log_pipe.pipe_buffer(msg.as_bytes())?;
-            log_pipe.pipe_buffer(b"\n--- FAILED: Validation ---\n")?;
+            streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::INVALID_INTEGRATIONS, "wk:run:validate"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         };
 
-        log_pipe.pipe_buffer(b"\n--- END: Validation ---\n")?;
+        section.end()?;
         Ok(())
     }
 
-    fn do_setup(&mut self, tx: &mpsc::Sender<Job>) -> Result<LogPipe> {
+    fn do_setup(&mut self, tx: &mpsc::Sender<Job>) -> Result<JobStreamer> {
         self.check_cancel(tx)?;
 
-        let lp = match self.setup() {
-            Ok(lp) => lp,
+        let streamer = match self.setup() {
+            Ok(streamer) => streamer,
             Err(err) => {
                 let msg = format!(
                     "Failed to setup workspace for {}, err={:?}",
@@ -176,12 +176,13 @@ impl Runner {
 
         };
 
-        Ok(lp)
+        Ok(streamer)
     }
 
-    fn do_install_key(&mut self, tx: &mpsc::Sender<Job>, log_pipe: &mut LogPipe) -> Result<()> {
+    fn do_install_key(&mut self, tx: &mpsc::Sender<Job>, streamer: &mut JobStreamer) -> Result<()> {
         self.check_cancel(tx)?;
-        log_pipe.pipe_buffer(b"\n--- BEGIN: Key Installation ---\n")?;
+
+        let mut section = streamer.start_section(Section::FetchOriginKey)?;
 
         if let Some(err) = self.install_origin_secret_key().err() {
             let msg = format!(
@@ -192,24 +193,19 @@ impl Runner {
             debug!("{}", msg);
             self.logger.log(&msg);
 
-            log_pipe.pipe_buffer(msg.as_bytes())?;
-            log_pipe.pipe_buffer(
-                b"\n--- FAILED: Key Installation ---\n",
-            )?;
+            streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::SECRET_KEY_FETCH, "wk:run:key"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         }
 
-        log_pipe.pipe_buffer(b"\n--- END: Key Installation ---\n")?;
+        section.end()?;
         Ok(())
     }
 
-    fn do_clone(&mut self, tx: &mpsc::Sender<Job>, log_pipe: &mut LogPipe) -> Result<()> {
+    fn do_clone(&mut self, tx: &mpsc::Sender<Job>, streamer: &mut JobStreamer) -> Result<()> {
         self.check_cancel(tx)?;
-        log_pipe.pipe_buffer(
-            b"\n--- BEGIN: Cloning repository ---\n",
-        )?;
+        let mut section = streamer.start_section(Section::CloneRepository)?;
 
         let vcs = VCS::from_job(&self.job(), self.config.github.clone());
         if let Some(err) = vcs.clone(&self.workspace.src()).err() {
@@ -221,10 +217,7 @@ impl Runner {
             warn!("{}", msg);
             self.logger.log(&msg);
 
-            log_pipe.pipe_buffer(msg.as_bytes())?;
-            log_pipe.pipe_buffer(
-                b"\n--- FAILED: Cloning repository ---\n",
-            )?;
+            streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:1"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
@@ -243,30 +236,28 @@ impl Runner {
             debug!("{}", msg);
             self.logger.log(&msg);
 
-            log_pipe.pipe_buffer(msg.as_bytes())?;
-            log_pipe.pipe_buffer(
-                b"\n--- FAILED: Cloning repository ---\n",
-            )?;
+            streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:2"));
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         }
 
-        log_pipe.pipe_buffer(b"\n--- END: Cloning repository ---\n")?;
+        section.end()?;
         Ok(())
     }
 
     fn do_build(
         &mut self,
         tx: &mpsc::Sender<Job>,
-        log_pipe: &mut LogPipe,
+        streamer: &mut JobStreamer,
     ) -> Result<PackageArchive> {
         self.check_cancel(tx)?;
-        log_pipe.pipe_buffer(b"\n--- BEGIN: Studio build ---\n")?;
 
         self.workspace.job.set_build_started_at(
             Utc::now().to_rfc3339(),
         );
+
+        let mut section = streamer.start_section(Section::BuildPackage)?;
 
         // TODO: We don't actually update the state of the job to
         // "Processing" (that should happen here), so an outside
@@ -274,7 +265,7 @@ impl Runner {
         // to "Complete" (or "Failed", etc.). As a result, we won't
         // get the `build_started_at` time set until the job is actually
         // finished.
-        let mut archive = match self.build(log_pipe) {
+        let mut archive = match self.build(streamer) {
             Ok(archive) => {
                 self.workspace.job.set_build_finished_at(
                     Utc::now().to_rfc3339(),
@@ -292,7 +283,7 @@ impl Runner {
                 );
                 debug!("{}", msg);
                 self.logger.log(&msg);
-                log_pipe.pipe_buffer(msg.as_bytes())?;
+                streamer.println_stderr(msg)?;
 
                 self.fail(net::err(ErrCode::BUILD, "wk:run:build"));
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
@@ -304,14 +295,14 @@ impl Runner {
         let ident = OriginPackageIdent::from(archive.ident().unwrap());
         self.workspace.job.set_package_ident(ident);
 
-        log_pipe.pipe_buffer(b"\n--- END: Studio build ---\n")?;
+        section.end()?;
         Ok(archive)
     }
 
-    fn do_export(&mut self, tx: &mpsc::Sender<Job>, mut log_pipe: &mut LogPipe) -> Result<()> {
+    fn do_export(&mut self, tx: &mpsc::Sender<Job>, mut streamer: &mut JobStreamer) -> Result<()> {
         self.check_cancel(tx)?;
 
-        match self.export(&mut log_pipe) {
+        match self.export(&mut streamer) {
             Ok(_) => (),
             Err(err) => {
                 self.fail(net::err(ErrCode::EXPORT, "wk:run:export"));
@@ -327,10 +318,10 @@ impl Runner {
         &mut self,
         tx: &mpsc::Sender<Job>,
         mut archive: PackageArchive,
-        log_pipe: &mut LogPipe,
+        streamer: &mut JobStreamer,
     ) -> Result<()> {
         self.check_cancel(tx)?;
-        log_pipe.pipe_buffer(b"\n--- BEGIN: Postprocessing ---\n")?;
+        let mut section = streamer.start_section(Section::PublishPackage)?;
 
         match post_process(
             &mut archive,
@@ -346,16 +337,14 @@ impl Runner {
                     self.workspace.job.get_project().get_name(),
                     err
                 );
-                log_pipe.pipe_buffer(msg.as_bytes())?;
-                log_pipe.pipe_buffer(b"\n--- FAILED: Postprocessing ---\n")?;
+                streamer.println_stderr(msg)?;
                 self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:postprocess"));
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
                 return Err(err);
             }
         }
 
-        log_pipe.pipe_buffer(b"\n--- END: Postprocessing ---\n")?;
-
+        section.end()?;
         Ok(())
     }
 
@@ -371,22 +360,24 @@ impl Runner {
     }
 
     pub fn run(mut self, tx: mpsc::Sender<Job>) -> Result<()> {
-        // TBD (SA) - Spin up log_pipe first thing indpendendly of setup.
+        // TBD (SA) - Spin up a LogStreamer first thing indpendendly of setup.
         // Currently we need to do it as part of setup because the log file to be
         // streamed lives inside of the workspace, which is created by setup.
-        let mut log_pipe = self.do_setup(&tx)?;
+        let mut streamer = self.do_setup(&tx)?;
 
-        self.do_validate(&tx, &mut log_pipe)?;
-        self.do_install_key(&tx, &mut log_pipe)?;
-        self.do_clone(&tx, &mut log_pipe)?;
+        self.do_validate(&tx, &mut streamer)?;
+        self.do_install_key(&tx, &mut streamer)?;
+        self.do_clone(&tx, &mut streamer)?;
 
-        let archive = self.do_build(&tx, &mut log_pipe)?;
-        self.do_export(&tx, &mut log_pipe)?;
-        self.do_postprocess(&tx, archive, &mut log_pipe)?;
+        let archive = self.do_build(&tx, &mut streamer)?;
+        self.do_export(&tx, &mut streamer)?;
+        self.do_postprocess(&tx, archive, &mut streamer)?;
 
         self.cleanup();
         self.complete();
         tx.send(self.workspace.job).map_err(Error::Mpsc)?;
+
+        streamer.finish()?;
 
         Ok(())
     }
@@ -430,7 +421,7 @@ impl Runner {
         }
     }
 
-    fn build(&mut self, log_pipe: &mut LogPipe) -> Result<PackageArchive> {
+    fn build(&mut self, streamer: &mut JobStreamer) -> Result<PackageArchive> {
         let network_namespace = match (
             self.config.network_interface.as_ref(),
             self.config.network_gateway.as_ref(),
@@ -446,7 +437,7 @@ impl Runner {
             &self.bldr_token,
             self.config.airlock_enabled,
             network_namespace,
-        ).build(log_pipe)?;
+        ).build(streamer)?;
 
         if fs::rename(self.workspace.src().join("results"), self.workspace.out()).is_err() {
             return Err(Error::BuildFailure(status.code().unwrap_or(-2)));
@@ -462,25 +453,24 @@ impl Runner {
         self.workspace.last_built()
     }
 
-    fn export(&mut self, log_pipe: &mut LogPipe) -> Result<()> {
+    fn export(&mut self, streamer: &mut JobStreamer) -> Result<()> {
         if self.has_docker_integration() {
             // TODO fn: This check should be updated in PackageArchive is check for run hooks.
             if self.workspace.last_built()?.is_a_service() {
                 debug!("Found runnable package, running docker export");
-                log_pipe.pipe_buffer(b"\n--- BEGIN: Docker export ---\n")?;
+                let mut section = streamer.start_section(Section::ExportDocker)?;
 
                 let status = DockerExporter::new(
                     util::docker_exporter_spec(&self.workspace),
                     &self.workspace,
                     &self.config.bldr_url,
-                ).export(log_pipe)?;
+                ).export(streamer)?;
 
-                if status.success() {
-                    log_pipe.pipe_buffer(b"\n--- END: Docker export ---\n")?;
-                } else {
-                    log_pipe.pipe_buffer(b"\n--- FAILED: Docker export ---\n")?;
+                if !status.success() {
                     return Err(Error::ExportFailure(status.code().unwrap_or(-1)));
                 }
+
+                section.end()?;
             } else {
                 debug!("Package not runnable, skipping docker export");
             }
@@ -506,7 +496,7 @@ impl Runner {
         self.logger.log_worker_job(&self.workspace.job);
     }
 
-    fn setup(&mut self) -> Result<LogPipe> {
+    fn setup(&mut self) -> Result<JobStreamer> {
         self.logger.log_worker_job(&self.workspace.job);
 
         // Ensure that data path group ownership is set to the build user and directory perms are
@@ -555,7 +545,7 @@ impl Runner {
             studio::studio_gid(),
         )?;
 
-        Ok(LogPipe::new(&self.workspace))
+        JobStreamer::new(&self.workspace)
     }
 
     fn teardown(&mut self) {
