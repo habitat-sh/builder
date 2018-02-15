@@ -21,55 +21,75 @@ export default function builds(state = initialState['builds'], action) {
 
     case actionTypes.CLEAR_BUILD:
       return state
-        .setIn(['selected', 'info'], Record({})());
+        .setIn(['selected', 'info'], Record({})())
+        .setIn(['ui', 'selected', 'info', 'loading'], false);
 
     case actionTypes.CLEAR_BUILD_LOG:
       state.get('selected').log.content.next([]);
 
-      return state.setIn(['selected', 'log'], {
-        start: undefined,
-        stop: undefined,
-        content: state.get('selected').log.content,
-        is_complete: undefined
-      });
+      return state
+        .setIn(['selected', 'log'], {
+          start: undefined,
+          stop: undefined,
+          content: state.get('selected').log.content,
+          is_complete: undefined
+        })
+        .setIn(['ui', 'selected', 'log', 'loading'], false);
 
     case actionTypes.CLEAR_BUILDS:
       return state
-        .setIn(['visible'], List());
+        .setIn(['visible'], List())
+        .setIn(['ui', 'loading'], false);
 
     case actionTypes.POPULATE_BUILD:
       return state.setIn(['selected', 'info'], action.payload);
 
     case actionTypes.POPULATE_BUILD_LOG:
-      let payload = action.payload;
-      let content = state.get('selected').log.content;
 
-      // It'll be common to get log requests for builds that haven't
-      // started yet (which will surface as errors), so in that case,
-      // we'll just hand back the current state.
       if (action.error) {
-        return state;
+        return state.setIn(['selected', 'log'], {
+          start: undefined,
+          stop: undefined,
+          content: state.get('selected').log.content,
+          is_complete: undefined
+        });
       }
+      else {
+        let payload = action.payload;
+        let content = state.get('selected').log.content;
 
-      if (payload.start === 0 && !payload.is_complete) {
-        content.next(payload.content || []);
-      }
-      else if (payload.content.length) {
-        content.next(payload.content);
-      }
+        if (payload.start === 0 && !payload.is_complete) {
+          content.next(payload.content || []);
+        }
+        else if (payload.content.length) {
+          content.next(payload.content);
+        }
 
-      return state.setIn(['selected', 'log'], {
-        start: payload.start,
-        stop: payload.stop,
-        content: content,
-        is_complete: payload.is_complete
-      });
+        return state.setIn(['selected', 'log'], {
+          start: payload.start,
+          stop: payload.stop,
+          content: content,
+          is_complete: payload.is_complete
+        });
+      }
 
     case actionTypes.POPULATE_BUILDS:
       return state.setIn(['visible'], List(action.payload));
 
     case actionTypes.STREAM_BUILD_LOG:
       return state.setIn(['selected', 'stream'], action.payload);
+
+    case actionTypes.SET_BUILD_LOADING:
+      return state.setIn(['ui', 'selected', 'info', 'loading'], action.payload);
+
+    case actionTypes.SET_BUILDS_LOADING:
+      return state.setIn(['ui', 'loading'], action.payload);
+
+    case actionTypes.SET_BUILD_LOG_LOADING:
+      return state.setIn(['ui', 'selected', 'log', 'loading'], action.payload);
+
+    case actionTypes.SET_BUILD_LOG_NOT_FOUND:
+      return state.setIn(['ui', 'selected', 'log', 'notFound'], action.payload);
 
     default:
       return state;

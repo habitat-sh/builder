@@ -44,6 +44,7 @@ class MockAppStore {
       }
     };
   }
+  subscribe() { }
   dispatch() { }
 }
 

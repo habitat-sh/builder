@@ -25,6 +25,10 @@ export {
   POPULATE_BUILD,
   POPULATE_BUILDS,
   STREAM_BUILD_LOG,
+  SET_BUILD_LOADING,
+  SET_BUILDS_LOADING,
+  SET_BUILD_LOG_LOADING,
+  SET_BUILD_LOG_NOT_FOUND,
   streamBuildLog,
   submitJob
 } from './builds';

@@ -31,7 +31,7 @@ export class IconComponent {
   get tooltip() {
     let tip;
 
-    if (this.title.trim() !== '') {
+    if (this.title && this.title.trim() !== '') {
       tip = this.title;
     }
 
