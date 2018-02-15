@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import * as depotApi from '../client/depot-api';
-import { BuilderApiClient } from '../client/builder-api';
+import { BuilderApiClient, ErrorCode } from '../client/builder-api';
 import { addNotification } from './notifications';
 import { DANGER, SUCCESS } from './notifications';
 
@@ -133,7 +133,7 @@ export function fetchBuildLog(id: string, token: string, start = 0) {
         dispatch(setBuildLogNotFound(true));
         dispatch(populateBuildLog(null, error));
 
-        if (error.message === 'Not Found' && getState().builds.selected.stream) {
+        if (error.code === ErrorCode.NotFound  && getState().builds.selected.stream) {
           doAfter(5000, fetchBuild(id, token));
           doAfter(5000, fetchBuildLog(id, token));
         }

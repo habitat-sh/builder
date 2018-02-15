@@ -20,6 +20,10 @@ import { AppStore } from '../app.store';
 import { addNotification, signOut } from '../actions/index';
 import { WARNING } from '../actions/notifications';
 
+
+export enum ErrorCode {
+  NotFound = 4
+}
 export class BuilderApiClient {
   private headers;
   private urlPrefix: string = `${config['habitat_api_url']}/v1`;
@@ -315,7 +319,7 @@ export class BuilderApiClient {
           if (response.ok) {
             resolve(response.json());
           } else {
-            reject(new Error(response.statusText));
+            response.json().then(reject);
           }
         })
         .catch(error => this.handleError(error, reject));
