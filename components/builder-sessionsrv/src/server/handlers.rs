@@ -124,10 +124,10 @@ pub fn session_create(
     let mut msg = req.parse::<proto::SessionCreate>()?;
     debug!("session-create, {:?}", msg);
     let mut flags = FeatureFlags::default();
-    if env::var_os("HAB_FUNC_TEST").is_some() ||
-        msg.get_session_type() == proto::SessionType::Builder
-    {
+    if env::var_os("HAB_FUNC_TEST").is_some() {
         flags = FeatureFlags::empty();
+    } else if msg.get_session_type() == proto::SessionType::Builder {
+        flags = FeatureFlags::all();
     } else if msg.get_provider() == proto::OAuthProvider::GitHub {
         assign_permissions(msg.get_name(), &mut flags, state)
     }
