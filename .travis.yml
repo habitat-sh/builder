@@ -14,9 +14,9 @@ env:
     # Habitat Rust program components
     - _RUST_HAB_BIN_COMPONENTS="components/airlock"
     # Builder Rust program components
-    - _RUST_BLDR_BIN_COMPONENTS="components/builder-api|components/builder-jobsrv|components/builder-originsrv|components/builder-router|components/builder-sessionsrv|components/builder-worker"
+    - _RUST_BLDR_BIN_COMPONENTS="components/builder-api components/builder-jobsrv components/builder-originsrv components/builder-router components/builder-sessionsrv components/builder-worker"
     # Builder Rust crate components
-    - _RUST_BLDR_LIB_COMPONENTS="components/builder-core|components/builder-db|components/builder-depot|components/builder-http-gateway|components/net"
+    - _RUST_BLDR_LIB_COMPONENTS="components/builder-core components/builder-db components/builder-depot components/builder-http-gateway components/net"
 
 matrix:
   include:
@@ -30,7 +30,8 @@ matrix:
     - language: rust
       env:
         - COMPONENTS=bin
-        - AFFECTED_DIRS="Cargo\.lock|$_RUST_HAB_BIN_COMPONENTS"
+        - AFFECTED_FILES="Cargo.lock"
+        - AFFECTED_DIRS="$_RUST_HAB_BIN_COMPONENTS"
       rust: stable
       sudo: false
       services:
@@ -71,7 +72,8 @@ matrix:
     - language: rust
       env:
         - COMPONENTS=lib
-        - AFFECTED_DIRS="Cargo\.lock|$_RUST_BLDR_LIB_COMPONENTS"
+        - AFFECTED_FILES="Cargo.lock"
+        - AFFECTED_DIRS="$_RUST_BLDR_LIB_COMPONENTS"
       rust: stable
       sudo: required
       addons:
@@ -109,7 +111,8 @@ matrix:
     - language: rust
       env:
         - COMPONENTS=srv
-        - AFFECTED_DIRS="Cargo\.lock|$_RUST_BLDR_BIN_COMPONENTS|$_RUST_BLDR_LIB_COMPONENTS"
+        - AFFECTED_FILES="Cargo.lock .travis.yml .envrc .studiorc"
+        - AFFECTED_DIRS=".secrets support $_RUST_BLDR_BIN_COMPONENTS $_RUST_BLDR_LIB_COMPONENTS"
       rust: stable
       sudo: required
       addons:
@@ -153,6 +156,7 @@ matrix:
       sudo: false
       env:
         - CXX=g++-4.8
+        - AFFECTED_FILES=""
         - AFFECTED_DIRS="components/builder-web"
       addons:
         apt:
