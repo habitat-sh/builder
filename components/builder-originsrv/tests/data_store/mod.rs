@@ -90,7 +90,7 @@ fn create_origin_secret_key() {
         .expect("Origin does not exist");
 
     // Create a new origin secret key
-    let mut oskc = originsrv::OriginSecretKeyCreate::new();
+    let mut oskc = originsrv::OriginPrivateSigningKeyCreate::new();
     oskc.set_name(String::from("neurosis"));
     oskc.set_revision(String::from("20160612031944"));
     oskc.set_origin_id(neurosis.get_id());
@@ -131,7 +131,7 @@ fn create_origin_secret_key_handles_unique_constraint_violations_correctly() {
         .expect("Origin does not exist");
 
     // Create a new origin secret key
-    let mut oskc = originsrv::OriginSecretKeyCreate::new();
+    let mut oskc = originsrv::OriginPrivateSigningKeyCreate::new();
     oskc.set_name(String::from("neurosis"));
     oskc.set_revision(String::from("20160612031944"));
     oskc.set_origin_id(neurosis.get_id());
@@ -142,7 +142,7 @@ fn create_origin_secret_key_handles_unique_constraint_violations_correctly() {
     );
 
     // Create a duplicate origin secret key, which should fail
-    let mut oskc2 = originsrv::OriginSecretKeyCreate::new();
+    let mut oskc2 = originsrv::OriginPrivateSigningKeyCreate::new();
     oskc2.set_name(String::from("neurosis"));
     oskc2.set_revision(String::from("20160612031944"));
     oskc2.set_origin_id(neurosis.get_id());
@@ -167,7 +167,7 @@ fn get_origin_secret_key() {
         .expect("Origin does not exist");
 
     // Create a new origin secret key
-    let mut oskc = originsrv::OriginSecretKeyCreate::new();
+    let mut oskc = originsrv::OriginPrivateSigningKeyCreate::new();
     oskc.set_name(String::from("neurosis"));
     oskc.set_revision(String::from("20160612031944"));
     oskc.set_origin_id(neurosis.get_id());
@@ -181,7 +181,7 @@ fn get_origin_secret_key() {
         "Failed to create origin secret key",
     );
 
-    let mut osk_get = originsrv::OriginSecretKeyGet::new();
+    let mut osk_get = originsrv::OriginPrivateSigningKeyGet::new();
     osk_get.set_origin(String::from("neurosis"));
     osk_get.set_owner_id(1);
     let neurosis_key = ds.get_origin_secret_key(&osk_get)
@@ -208,7 +208,7 @@ fn create_origin_public_key() {
         .expect("Origin does not exist");
 
     // Create a new origin public key
-    let mut oskc = originsrv::OriginPublicKeyCreate::new();
+    let mut oskc = originsrv::OriginPublicSigningKeyCreate::new();
     oskc.set_name(String::from("neurosis"));
     oskc.set_revision(String::from("20160612031944"));
     oskc.set_origin_id(neurosis.get_id());
@@ -217,7 +217,7 @@ fn create_origin_public_key() {
     ds.create_origin_public_key(&oskc).expect(
         "Failed to create origin public key",
     );
-    let mut oskc2 = originsrv::OriginPublicKeyCreate::new();
+    let mut oskc2 = originsrv::OriginPublicSigningKeyCreate::new();
     oskc2.set_name(String::from("neurosis"));
     oskc2.set_origin_id(neurosis.get_id());
     oskc2.set_owner_id(1);
@@ -227,7 +227,7 @@ fn create_origin_public_key() {
         "Failed to create origin public key",
     );
 
-    let mut oskg = originsrv::OriginPublicKeyGet::new();
+    let mut oskg = originsrv::OriginPublicSigningKeyGet::new();
     oskg.set_owner_id(1);
     oskg.set_origin(oskc.get_name().to_string());
     oskg.set_revision(String::from("20160612031944"));
@@ -251,7 +251,7 @@ fn create_origin_public_key_handles_unique_constraint_violations_correctly() {
         .expect("Origin does not exist");
 
     // Create a new origin public key
-    let mut oskc = originsrv::OriginPublicKeyCreate::new();
+    let mut oskc = originsrv::OriginPublicSigningKeyCreate::new();
     oskc.set_name(String::from("neurosis"));
     oskc.set_revision(String::from("20160612031944"));
     oskc.set_origin_id(neurosis.get_id());
@@ -260,7 +260,7 @@ fn create_origin_public_key_handles_unique_constraint_violations_correctly() {
     ds.create_origin_public_key(&oskc).expect(
         "Failed to create origin public key",
     );
-    let mut oskc2 = originsrv::OriginPublicKeyCreate::new();
+    let mut oskc2 = originsrv::OriginPublicSigningKeyCreate::new();
     oskc2.set_name(String::from("neurosis"));
     oskc2.set_origin_id(neurosis.get_id());
     oskc2.set_owner_id(1);
@@ -271,7 +271,7 @@ fn create_origin_public_key_handles_unique_constraint_violations_correctly() {
     );
 
     // Create a duplicate origin public key, which should fail
-    let mut opkc = originsrv::OriginPublicKeyCreate::new();
+    let mut opkc = originsrv::OriginPublicSigningKeyCreate::new();
     opkc.set_name(String::from("neurosis"));
     opkc.set_revision(String::from("20160612031944"));
     opkc.set_origin_id(neurosis.get_id());
@@ -296,7 +296,7 @@ fn get_origin_public_key_latest() {
         .expect("Origin does not exist");
 
     // Create a new origin public key
-    let mut oskc = originsrv::OriginPublicKeyCreate::new();
+    let mut oskc = originsrv::OriginPublicSigningKeyCreate::new();
     let body = String::from("very_public").into_bytes();
     oskc.set_name(String::from("neurosis"));
     oskc.set_revision(String::from("20160612031944"));
@@ -312,7 +312,7 @@ fn get_origin_public_key_latest() {
         "Failed to create origin public key",
     );
 
-    let mut osk_get = originsrv::OriginPublicKeyLatestGet::new();
+    let mut osk_get = originsrv::OriginPublicSigningKeyLatestGet::new();
     osk_get.set_origin(String::from("neurosis"));
     osk_get.set_owner_id(1);
     let neurosis_key = ds.get_origin_public_key_latest(&osk_get)
@@ -339,7 +339,7 @@ fn list_origin_public_key() {
         .expect("Origin does not exist");
 
     // Create a new origin public key
-    let mut oskc = originsrv::OriginPublicKeyCreate::new();
+    let mut oskc = originsrv::OriginPublicSigningKeyCreate::new();
     oskc.set_name(String::from("neurosis"));
     oskc.set_revision(String::from("20160612031944"));
     oskc.set_origin_id(neurosis.get_id());
@@ -348,7 +348,7 @@ fn list_origin_public_key() {
     ds.create_origin_public_key(&oskc).expect(
         "Failed to create origin public key",
     );
-    let mut oskc2 = originsrv::OriginPublicKeyCreate::new();
+    let mut oskc2 = originsrv::OriginPublicSigningKeyCreate::new();
     oskc2.set_name(String::from("neurosis"));
     oskc2.set_origin_id(neurosis.get_id());
     oskc2.set_owner_id(1);
@@ -358,7 +358,7 @@ fn list_origin_public_key() {
         "Failed to create origin public key",
     );
 
-    let mut oskl = originsrv::OriginPublicKeyListRequest::new();
+    let mut oskl = originsrv::OriginPublicSigningKeyListRequest::new();
     oskl.set_origin_id(neurosis.get_id());
     let keys = ds.list_origin_public_keys_for_origin(&oskl).expect(
         "Could not get the keys from the database",

@@ -636,8 +636,8 @@ impl DataStore {
 
     pub fn create_origin_secret_key(
         &self,
-        osk: &originsrv::OriginSecretKeyCreate,
-    ) -> SrvResult<originsrv::OriginSecretKey> {
+        osk: &originsrv::OriginPrivateSigningKeyCreate,
+    ) -> SrvResult<originsrv::OriginPrivateSigningKey> {
         let conn = self.pool.get(osk)?;
         let rows = conn.query(
             "SELECT * FROM insert_origin_secret_key_v1($1, $2, $3, $4, $5, $6)",
@@ -649,15 +649,15 @@ impl DataStore {
                 &format!("{}-{}", osk.get_name(), osk.get_revision()),
                 &osk.get_body(),
             ],
-        ).map_err(SrvError::OriginSecretKeyCreate)?;
+        ).map_err(SrvError::OriginPrivateSigningKeyCreate)?;
         let row = rows.iter().nth(0).expect(
             "Insert returns row, but no row present",
         );
         Ok(self.row_to_origin_secret_key(row))
     }
 
-    fn row_to_origin_secret_key(&self, row: postgres::rows::Row) -> originsrv::OriginSecretKey {
-        let mut osk = originsrv::OriginSecretKey::new();
+    fn row_to_origin_secret_key(&self, row: postgres::rows::Row) -> originsrv::OriginPrivateSigningKey {
+        let mut osk = originsrv::OriginPrivateSigningKey::new();
         let osk_id: i64 = row.get("id");
         osk.set_id(osk_id as u64);
         let osk_origin_id: i64 = row.get("origin_id");
@@ -672,13 +672,13 @@ impl DataStore {
 
     pub fn get_origin_secret_key(
         &self,
-        osk_get: &originsrv::OriginSecretKeyGet,
-    ) -> SrvResult<Option<originsrv::OriginSecretKey>> {
+        osk_get: &originsrv::OriginPrivateSigningKeyGet,
+    ) -> SrvResult<Option<originsrv::OriginPrivateSigningKey>> {
         let conn = self.pool.get(osk_get)?;
         let rows = &conn.query(
             "SELECT * FROM get_origin_secret_key_v1($1)",
             &[&osk_get.get_origin()],
-        ).map_err(SrvError::OriginSecretKeyGet)?;
+        ).map_err(SrvError::OriginPrivateSigningKeyGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -690,8 +690,8 @@ impl DataStore {
 
     pub fn create_origin_public_key(
         &self,
-        opk: &originsrv::OriginPublicKeyCreate,
-    ) -> SrvResult<originsrv::OriginPublicKey> {
+        opk: &originsrv::OriginPublicSigningKeyCreate,
+    ) -> SrvResult<originsrv::OriginPublicSigningKey> {
         let conn = self.pool.get(opk)?;
         let rows = conn.query(
             "SELECT * FROM insert_origin_public_key_v1($1, $2, $3, $4, $5, $6)",
@@ -703,15 +703,15 @@ impl DataStore {
                 &format!("{}-{}", opk.get_name(), opk.get_revision()),
                 &opk.get_body(),
             ],
-        ).map_err(SrvError::OriginPublicKeyCreate)?;
+        ).map_err(SrvError::OriginPublicSigningKeyCreate)?;
         let row = rows.iter().nth(0).expect(
             "Insert returns row, but no row present",
         );
         Ok(self.row_to_origin_public_key(row))
     }
 
-    fn row_to_origin_public_key(&self, row: postgres::rows::Row) -> originsrv::OriginPublicKey {
-        let mut opk = originsrv::OriginPublicKey::new();
+    fn row_to_origin_public_key(&self, row: postgres::rows::Row) -> originsrv::OriginPublicSigningKey {
+        let mut opk = originsrv::OriginPublicSigningKey::new();
         let opk_id: i64 = row.get("id");
         opk.set_id(opk_id as u64);
         let opk_origin_id: i64 = row.get("origin_id");
@@ -726,13 +726,13 @@ impl DataStore {
 
     pub fn get_origin_public_key(
         &self,
-        opk_get: &originsrv::OriginPublicKeyGet,
-    ) -> SrvResult<Option<originsrv::OriginPublicKey>> {
+        opk_get: &originsrv::OriginPublicSigningKeyGet,
+    ) -> SrvResult<Option<originsrv::OriginPublicSigningKey>> {
         let conn = self.pool.get(opk_get)?;
         let rows = &conn.query(
             "SELECT * FROM get_origin_public_key_v1($1, $2)",
             &[&opk_get.get_origin(), &opk_get.get_revision()],
-        ).map_err(SrvError::OriginPublicKeyGet)?;
+        ).map_err(SrvError::OriginPublicSigningKeyGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -744,13 +744,13 @@ impl DataStore {
 
     pub fn get_origin_public_key_latest(
         &self,
-        opk_get: &originsrv::OriginPublicKeyLatestGet,
-    ) -> SrvResult<Option<originsrv::OriginPublicKey>> {
+        opk_get: &originsrv::OriginPublicSigningKeyLatestGet,
+    ) -> SrvResult<Option<originsrv::OriginPublicSigningKey>> {
         let conn = self.pool.get(opk_get)?;
         let rows = &conn.query(
             "SELECT * FROM get_origin_public_key_latest_v1($1)",
             &[&opk_get.get_origin()],
-        ).map_err(SrvError::OriginPublicKeyLatestGet)?;
+        ).map_err(SrvError::OriginPublicSigningKeyLatestGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -762,15 +762,15 @@ impl DataStore {
 
     pub fn list_origin_public_keys_for_origin(
         &self,
-        opklr: &originsrv::OriginPublicKeyListRequest,
-    ) -> SrvResult<originsrv::OriginPublicKeyListResponse> {
+        opklr: &originsrv::OriginPublicSigningKeyListRequest,
+    ) -> SrvResult<originsrv::OriginPublicSigningKeyListResponse> {
         let conn = self.pool.get(opklr)?;
         let rows = &conn.query(
             "SELECT * FROM get_origin_public_keys_for_origin_v1($1)",
             &[&(opklr.get_origin_id() as i64)],
-        ).map_err(SrvError::OriginPublicKeyListForOrigin)?;
+        ).map_err(SrvError::OriginPublicSigningKeyListForOrigin)?;
 
-        let mut response = originsrv::OriginPublicKeyListResponse::new();
+        let mut response = originsrv::OriginPublicSigningKeyListResponse::new();
         response.set_origin_id(opklr.get_origin_id());
         let mut keys = protobuf::RepeatedField::new();
         for row in rows {
