@@ -55,17 +55,17 @@ lazy_static! {
             handlers::origin_member_list);
         map.register(OriginPackageUpdate::descriptor_static(None),
             handlers::origin_package_update);
-        map.register(OriginSecretKeyCreate::descriptor_static(None),
+        map.register(OriginPrivateSigningKeyCreate::descriptor_static(None),
             handlers::origin_secret_key_create);
-        map.register(OriginSecretKeyGet::descriptor_static(None),
+        map.register(OriginPrivateSigningKeyGet::descriptor_static(None),
             handlers::origin_secret_key_get);
-        map.register(OriginPublicKeyCreate::descriptor_static(None),
+        map.register(OriginPublicSigningKeyCreate::descriptor_static(None),
             handlers::origin_public_key_create);
-        map.register(OriginPublicKeyGet::descriptor_static(None),
+        map.register(OriginPublicSigningKeyGet::descriptor_static(None),
             handlers::origin_public_key_get);
-        map.register(OriginPublicKeyLatestGet::descriptor_static(None),
+        map.register(OriginPublicSigningKeyLatestGet::descriptor_static(None),
             handlers::origin_public_key_latest_get);
-        map.register(OriginPublicKeyListRequest::descriptor_static(None),
+        map.register(OriginPublicSigningKeyListRequest::descriptor_static(None),
             handlers::origin_public_key_list);
         map.register(OriginProjectCreate::descriptor_static(None), handlers::project_create);
         map.register(OriginProjectDelete::descriptor_static(None), handlers::project_delete);

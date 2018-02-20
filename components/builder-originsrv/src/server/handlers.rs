@@ -378,10 +378,10 @@ pub fn origin_secret_key_create(
     conn: &mut RouteConn,
     state: &mut ServerState,
 ) -> SrvResult<()> {
-    let msg = req.parse::<proto::OriginSecretKeyCreate>()?;
+    let msg = req.parse::<proto::OriginPrivateSigningKeyCreate>()?;
     match state.datastore.create_origin_secret_key(&msg) {
         Ok(ref osk) => conn.route_reply(req, osk)?,
-        Err(SrvError::OriginSecretKeyCreate(ref db))
+        Err(SrvError::OriginPrivateSigningKeyCreate(ref db))
             if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-secret-key-create:1");
             conn.route_reply(req, &*err)?;
@@ -400,7 +400,7 @@ pub fn origin_secret_key_get(
     conn: &mut RouteConn,
     state: &mut ServerState,
 ) -> SrvResult<()> {
-    let msg = req.parse::<proto::OriginSecretKeyGet>()?;
+    let msg = req.parse::<proto::OriginPrivateSigningKeyGet>()?;
     match state.datastore.get_origin_secret_key(&msg) {
         Ok(Some(ref key)) => conn.route_reply(req, key)?,
         Ok(None) => {
@@ -421,10 +421,10 @@ pub fn origin_public_key_create(
     conn: &mut RouteConn,
     state: &mut ServerState,
 ) -> SrvResult<()> {
-    let msg = req.parse::<proto::OriginPublicKeyCreate>()?;
+    let msg = req.parse::<proto::OriginPublicSigningKeyCreate>()?;
     match state.datastore.create_origin_public_key(&msg) {
         Ok(ref osk) => conn.route_reply(req, osk)?,
-        Err(SrvError::OriginPublicKeyCreate(ref db))
+        Err(SrvError::OriginPublicSigningKeyCreate(ref db))
             if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-public-key-create:1");
             conn.route_reply(req, &*err)?;
@@ -443,7 +443,7 @@ pub fn origin_public_key_get(
     conn: &mut RouteConn,
     state: &mut ServerState,
 ) -> SrvResult<()> {
-    let msg = req.parse::<proto::OriginPublicKeyGet>()?;
+    let msg = req.parse::<proto::OriginPublicSigningKeyGet>()?;
     match state.datastore.get_origin_public_key(&msg) {
         Ok(Some(ref key)) => conn.route_reply(req, key)?,
         Ok(None) => {
@@ -464,7 +464,7 @@ pub fn origin_public_key_latest_get(
     conn: &mut RouteConn,
     state: &mut ServerState,
 ) -> SrvResult<()> {
-    let msg = req.parse::<proto::OriginPublicKeyLatestGet>()?;
+    let msg = req.parse::<proto::OriginPublicSigningKeyLatestGet>()?;
     match state.datastore.get_origin_public_key_latest(&msg) {
         Ok(Some(ref key)) => conn.route_reply(req, key)?,
         Ok(None) => {
@@ -488,7 +488,7 @@ pub fn origin_public_key_list(
     conn: &mut RouteConn,
     state: &mut ServerState,
 ) -> SrvResult<()> {
-    let msg = req.parse::<proto::OriginPublicKeyListRequest>()?;
+    let msg = req.parse::<proto::OriginPublicSigningKeyListRequest>()?;
     match state.datastore.list_origin_public_keys_for_origin(&msg) {
         Ok(ref opklr) => conn.route_reply(req, opklr)?,
         Err(e) => {

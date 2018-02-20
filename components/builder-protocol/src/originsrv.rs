@@ -374,7 +374,10 @@ impl Serialize for OriginIntegration {
     {
         let mut strukt = serializer.serialize_struct("origin_integration", 4)?;
         strukt.serialize_field("origin", self.get_origin())?;
-        strukt.serialize_field("integration", self.get_integration())?;
+        strukt.serialize_field(
+            "integration",
+            self.get_integration(),
+        )?;
         strukt.serialize_field("name", self.get_name())?;
         strukt.serialize_field("body", self.get_body())?;
         strukt.end()
@@ -1155,7 +1158,7 @@ impl Serialize for OriginProjectList {
     }
 }
 
-impl Serialize for OriginPublicKey {
+impl Serialize for OriginPublicSigningKey {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -1177,7 +1180,7 @@ impl Serialize for OriginPublicKey {
     }
 }
 
-impl Routable for OriginPublicKeyCreate {
+impl Routable for OriginPublicSigningKeyCreate {
     type H = InstaId;
 
     fn route_key(&self) -> Option<Self::H> {
@@ -1185,7 +1188,7 @@ impl Routable for OriginPublicKeyCreate {
     }
 }
 
-impl Routable for OriginPublicKeyGet {
+impl Routable for OriginPublicSigningKeyGet {
     type H = String;
 
     fn route_key(&self) -> Option<Self::H> {
@@ -1193,7 +1196,7 @@ impl Routable for OriginPublicKeyGet {
     }
 }
 
-impl Routable for OriginPublicKeyLatestGet {
+impl Routable for OriginPublicSigningKeyLatestGet {
     type H = String;
 
     fn route_key(&self) -> Option<Self::H> {
@@ -1201,7 +1204,7 @@ impl Routable for OriginPublicKeyLatestGet {
     }
 }
 
-impl Routable for OriginPublicKeyListRequest {
+impl Routable for OriginPublicSigningKeyListRequest {
     type H = InstaId;
 
     fn route_key(&self) -> Option<Self::H> {
@@ -1209,7 +1212,7 @@ impl Routable for OriginPublicKeyListRequest {
     }
 }
 
-impl Routable for OriginPublicKeyListResponse {
+impl Routable for OriginPublicSigningKeyListResponse {
     type H = InstaId;
 
     fn route_key(&self) -> Option<Self::H> {
@@ -1217,7 +1220,7 @@ impl Routable for OriginPublicKeyListResponse {
     }
 }
 
-impl Serialize for OriginPublicKeyListResponse {
+impl Serialize for OriginPublicSigningKeyListResponse {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -1235,7 +1238,7 @@ impl Serialize for OriginPublicKeyListResponse {
     }
 }
 
-impl Serialize for OriginSecretKey {
+impl Serialize for OriginPrivateSigningKey {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -1257,7 +1260,7 @@ impl Serialize for OriginSecretKey {
     }
 }
 
-impl Routable for OriginSecretKeyCreate {
+impl Routable for OriginPrivateSigningKeyCreate {
     type H = InstaId;
 
     fn route_key(&self) -> Option<Self::H> {
@@ -1265,7 +1268,7 @@ impl Routable for OriginSecretKeyCreate {
     }
 }
 
-impl Routable for OriginSecretKeyGet {
+impl Routable for OriginPrivateSigningKeyGet {
     type H = String;
 
     fn route_key(&self) -> Option<Self::H> {

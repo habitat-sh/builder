@@ -484,7 +484,7 @@ fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
     debug!("Upload Origin Public Key {:?}", req);
     // TODO: SA - Eliminate need to clone the session
     let session = req.extensions.get::<Authenticated>().unwrap().clone();
-    let mut request = OriginPublicKeyCreate::new();
+    let mut request = OriginPublicSigningKeyCreate::new();
     request.set_owner_id(session.get_id());
 
     let origin = match get_param(req, "origin") {
@@ -540,7 +540,7 @@ fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
 
     request.set_body(key_content);
     request.set_owner_id(0);
-    match route_message::<OriginPublicKeyCreate, OriginPublicKey>(req, &request) {
+    match route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(req, &request) {
         Ok(_) => {
             log_event!(
                 req,
@@ -579,7 +579,7 @@ fn download_latest_origin_secret_key(req: &mut Request) -> IronResult<Response> 
         return Ok(Response::with(status::Forbidden));
     }
 
-    let mut request = OriginSecretKeyGet::new();
+    let mut request = OriginPrivateSigningKeyGet::new();
     match helpers::get_origin(req, origin) {
         Ok(mut origin) => {
             request.set_owner_id(origin.get_owner_id());
@@ -587,7 +587,7 @@ fn download_latest_origin_secret_key(req: &mut Request) -> IronResult<Response> 
         }
         Err(err) => return Ok(render_net_error(&err)),
     }
-    let key = match route_message::<OriginSecretKeyGet, OriginSecretKey>(req, &request) {
+    let key = match route_message::<OriginPrivateSigningKeyGet, OriginPrivateSigningKey>(req, &request) {
         Ok(key) => key,
         Err(err) => return Ok(render_net_error(&err)),
     };
@@ -600,7 +600,7 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
     debug!("Upload Origin Secret Key {:?}", req);
     // TODO: SA - Eliminate need to clone the session
     let session = req.extensions.get::<Authenticated>().unwrap().clone();
-    let mut request = OriginSecretKeyCreate::new();
+    let mut request = OriginPrivateSigningKeyCreate::new();
     request.set_owner_id(session.get_id());
 
     let origin = match get_param(req, "origin") {
@@ -656,11 +656,11 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
 
     request.set_body(key_content);
     request.set_owner_id(0);
-    match route_message::<OriginSecretKeyCreate, OriginSecretKey>(req, &request) {
+    match route_message::<OriginPrivateSigningKeyCreate, OriginPrivateSigningKey>(req, &request) {
         Ok(_) => {
             log_event!(
                 req,
-                Event::OriginSecretKeyUpload {
+                Event::OriginSigningKeyUpload {
                     origin: origin.to_string(),
                     version: request.take_revision(),
                     account: session.get_id().to_string(),
@@ -1014,7 +1014,7 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with(status::BadRequest));
     }
 
-    let mut secret_key_request = OriginSecretKeyGet::new();
+    let mut secret_key_request = OriginPrivateSigningKeyGet::new();
     let origin = match helpers::get_origin(req, &origin_name) {
         Ok(origin) => {
             secret_key_request.set_owner_id(origin.get_owner_id());
@@ -1025,12 +1025,12 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
     };
     let account_name = session.get_name().to_string();
     let need_keys =
-        match route_message::<OriginSecretKeyGet, OriginSecretKey>(req, &secret_key_request) {
+        match route_message::<OriginPrivateSigningKeyGet, OriginPrivateSigningKey>(req, &secret_key_request) {
             Ok(key) => {
-                let mut pub_key_request = OriginPublicKeyGet::new();
+                let mut pub_key_request = OriginPublicSigningKeyGet::new();
                 pub_key_request.set_origin(origin_name.clone());
                 pub_key_request.set_revision(key.get_revision().to_string());
-                route_message::<OriginPublicKeyGet, OriginPublicKey>(req, &pub_key_request).is_err()
+                route_message::<OriginPublicSigningKeyGet, OriginPublicSigningKey>(req, &pub_key_request).is_err()
             }
             Err(_) => true,
         };
@@ -1136,7 +1136,7 @@ fn abort_schedule(req: &mut Request) -> IronResult<Response> {
 
 // This function should not require authentication (session/auth token)
 fn download_origin_key(req: &mut Request) -> IronResult<Response> {
-    let mut request = OriginPublicKeyGet::new();
+    let mut request = OriginPublicSigningKeyGet::new();
     match get_param(req, "origin") {
         Some(origin) => request.set_origin(origin),
         None => return Ok(Response::with(status::BadRequest)),
@@ -1145,7 +1145,7 @@ fn download_origin_key(req: &mut Request) -> IronResult<Response> {
         Some(revision) => request.set_revision(revision),
         None => return Ok(Response::with(status::BadRequest)),
     }
-    let key = match route_message::<OriginPublicKeyGet, OriginPublicKey>(req, &request) {
+    let key = match route_message::<OriginPublicSigningKeyGet, OriginPublicSigningKey>(req, &request) {
         Ok(key) => key,
         Err(err) => return Ok(render_net_error(&err)),
     };
@@ -1161,12 +1161,12 @@ fn download_origin_key(req: &mut Request) -> IronResult<Response> {
 
 // This function should not require authentication (session/auth token)
 fn download_latest_origin_key(req: &mut Request) -> IronResult<Response> {
-    let mut request = OriginPublicKeyLatestGet::new();
+    let mut request = OriginPublicSigningKeyLatestGet::new();
     match get_param(req, "origin") {
         Some(origin) => request.set_origin(origin),
         None => return Ok(Response::with(status::BadRequest)),
     }
-    let key = match route_message::<OriginPublicKeyLatestGet, OriginPublicKey>(req, &request) {
+    let key = match route_message::<OriginPublicSigningKeyLatestGet, OriginPublicSigningKey>(req, &request) {
         Ok(key) => key,
         Err(err) => return Ok(render_net_error(&err)),
     };
@@ -1270,12 +1270,12 @@ fn list_origin_keys(req: &mut Request) -> IronResult<Response> {
         None => return Ok(Response::with(status::BadRequest)),
     };
 
-    let mut request = OriginPublicKeyListRequest::new();
+    let mut request = OriginPublicSigningKeyListRequest::new();
     match helpers::get_origin(req, &origin_name) {
         Ok(origin) => request.set_origin_id(origin.get_id()),
         Err(err) => return Ok(render_net_error(&err)),
     }
-    match route_message::<OriginPublicKeyListRequest, OriginPublicKeyListResponse>(req, &request) {
+    match route_message::<OriginPublicSigningKeyListRequest, OriginPublicSigningKeyListResponse>(req, &request) {
         Ok(list) => {
             let list: Vec<OriginKeyIdent> = list.get_keys()
                 .iter()

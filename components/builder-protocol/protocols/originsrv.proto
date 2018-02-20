@@ -460,7 +460,7 @@ message OriginPrivateEncryptionKeyCreate {
   optional OriginPrivateEncryptionKey private_encryption_key = 1;
 }
 
-message OriginPublicKey {
+message OriginPublicSigningKey {
   optional uint64 id = 1;
   optional uint64 origin_id = 2;
   optional string name = 3;
@@ -469,7 +469,7 @@ message OriginPublicKey {
   optional uint64 owner_id = 6;
 }
 
-message OriginPublicKeyCreate {
+message OriginPublicSigningKeyCreate {
   optional uint64 origin_id = 1;
   optional string name = 2;
   optional string revision = 3;
@@ -477,28 +477,28 @@ message OriginPublicKeyCreate {
   optional uint64 owner_id = 5;
 }
 
-message OriginPublicKeyGet {
+message OriginPublicSigningKeyGet {
   optional uint64 owner_id = 1;
   optional string origin = 2;
   optional string revision = 3;
 }
 
-message OriginPublicKeyLatestGet {
+message OriginPublicSigningKeyLatestGet {
   optional uint64 owner_id = 1;
   optional string origin = 2;
 }
 
-message OriginPublicKeyListRequest {
+message OriginPublicSigningKeyListRequest {
   optional uint64 owner_id = 1;
   optional uint64 origin_id = 2;
 }
 
-message OriginPublicKeyListResponse {
+message OriginPublicSigningKeyListResponse {
   optional uint64 origin_id = 1;
-  repeated OriginPublicKey keys = 2;
+  repeated OriginPublicSigningKey keys = 2;
 }
 
-message OriginSecretKey {
+message OriginPrivateSigningKey {
   optional uint64 id = 1;
   optional uint64 origin_id = 2;
   optional string name = 3;
@@ -507,7 +507,7 @@ message OriginSecretKey {
   optional uint64 owner_id = 6;
 }
 
-message OriginSecretKeyCreate {
+message OriginPrivateSigningKeyCreate {
   optional uint64 origin_id = 1;
   optional string name = 2;
   optional string revision = 3;
@@ -515,7 +515,7 @@ message OriginSecretKeyCreate {
   optional uint64 owner_id = 5;
 }
 
-message OriginSecretKeyGet {
+message OriginPrivateSigningKeyGet {
   optional uint64 owner_id = 1;
   optional string origin = 2;
 }

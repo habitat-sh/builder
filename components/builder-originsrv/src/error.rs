@@ -88,12 +88,12 @@ pub enum SrvError {
     OriginProjectIntegrationDelete(postgres::error::Error),
     OriginProjectIntegrationGet(postgres::error::Error),
     OriginProjectIntegrationRequest(postgres::error::Error),
-    OriginSecretKeyCreate(postgres::error::Error),
-    OriginSecretKeyGet(postgres::error::Error),
-    OriginPublicKeyCreate(postgres::error::Error),
-    OriginPublicKeyGet(postgres::error::Error),
-    OriginPublicKeyLatestGet(postgres::error::Error),
-    OriginPublicKeyListForOrigin(postgres::error::Error),
+    OriginPrivateSigningKeyCreate(postgres::error::Error),
+    OriginPrivateSigningKeyGet(postgres::error::Error),
+    OriginPublicSigningKeyCreate(postgres::error::Error),
+    OriginPublicSigningKeyGet(postgres::error::Error),
+    OriginPublicSigningKeyLatestGet(postgres::error::Error),
+    OriginPublicSigningKeyListForOrigin(postgres::error::Error),
     OriginUpdate(postgres::error::Error),
     OriginAccountList(postgres::error::Error),
     OriginAccountInOrigin(postgres::error::Error),
@@ -288,25 +288,25 @@ impl fmt::Display for SrvError {
                     e
                 )
             }
-            SrvError::OriginSecretKeyCreate(ref e) => {
+            SrvError::OriginPrivateSigningKeyCreate(ref e) => {
                 format!("Error creating origin secret key in database, {}", e)
             }
-            SrvError::OriginSecretKeyGet(ref e) => {
+            SrvError::OriginPrivateSigningKeyGet(ref e) => {
                 format!("Error getting origin secret key from database, {}", e)
             }
-            SrvError::OriginPublicKeyCreate(ref e) => {
+            SrvError::OriginPublicSigningKeyCreate(ref e) => {
                 format!("Error creating origin public key in database, {}", e)
             }
-            SrvError::OriginPublicKeyGet(ref e) => {
+            SrvError::OriginPublicSigningKeyGet(ref e) => {
                 format!("Error getting origin public key from database, {}", e)
             }
-            SrvError::OriginPublicKeyLatestGet(ref e) => {
+            SrvError::OriginPublicSigningKeyLatestGet(ref e) => {
                 format!(
                     "Error getting latest origin public key from database, {}",
                     e
                 )
             }
-            SrvError::OriginPublicKeyListForOrigin(ref e) => {
+            SrvError::OriginPublicSigningKeyListForOrigin(ref e) => {
                 format!(
                     "Error listing origin public keys for an origin from database, {}",
                     e
@@ -398,12 +398,12 @@ impl error::Error for SrvError {
             SrvError::OriginProjectIntegrationDelete(ref err) => err.description(),
             SrvError::OriginProjectIntegrationGet(ref err) => err.description(),
             SrvError::OriginProjectIntegrationRequest(ref err) => err.description(),
-            SrvError::OriginSecretKeyCreate(ref err) => err.description(),
-            SrvError::OriginSecretKeyGet(ref err) => err.description(),
-            SrvError::OriginPublicKeyCreate(ref err) => err.description(),
-            SrvError::OriginPublicKeyGet(ref err) => err.description(),
-            SrvError::OriginPublicKeyLatestGet(ref err) => err.description(),
-            SrvError::OriginPublicKeyListForOrigin(ref err) => err.description(),
+            SrvError::OriginPrivateSigningKeyCreate(ref err) => err.description(),
+            SrvError::OriginPrivateSigningKeyGet(ref err) => err.description(),
+            SrvError::OriginPublicSigningKeyCreate(ref err) => err.description(),
+            SrvError::OriginPublicSigningKeyGet(ref err) => err.description(),
+            SrvError::OriginPublicSigningKeyLatestGet(ref err) => err.description(),
+            SrvError::OriginPublicSigningKeyListForOrigin(ref err) => err.description(),
             SrvError::OriginAccountList(ref err) => err.description(),
             SrvError::OriginAccountInOrigin(ref err) => err.description(),
             SrvError::OriginUpdate(ref err) => err.description(),

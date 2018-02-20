@@ -31,8 +31,9 @@ use protocol::originsrv::{CheckOriginOwnerRequest, CheckOriginOwnerResponse,
                           OriginPackageChannelListResponse, OriginPackageGet,
                           OriginPackageGroupPromote, OriginPackageGroupDemote, OriginPackageIdent,
                           OriginPackagePlatformListRequest, OriginPackagePlatformListResponse,
-                          OriginPackagePromote, OriginPackageVisibility, OriginPublicKeyCreate,
-                          OriginPublicKey, OriginSecretKey, OriginSecretKeyCreate};
+                          OriginPackagePromote, OriginPackageVisibility,
+                          OriginPublicSigningKeyCreate, OriginPublicSigningKey,
+                          OriginPrivateSigningKey, OriginPrivateSigningKeyCreate};
 use protocol::jobsrv::{JobGroup, JobGroupGet, JobGroupProject, JobGroupProjectState};
 use protocol::sessionsrv::Session;
 use serde::Serialize;
@@ -429,8 +430,8 @@ pub fn get_optional_session_id(req: &mut Request) -> Option<u64> {
 }
 
 pub fn generate_origin_keys(req: &mut Request, session: Session, origin: Origin) -> NetResult<()> {
-    let mut public_request = OriginPublicKeyCreate::new();
-    let mut secret_request = OriginSecretKeyCreate::new();
+    let mut public_request = OriginPublicSigningKeyCreate::new();
+    let mut secret_request = OriginPrivateSigningKeyCreate::new();
     public_request.set_owner_id(session.get_id());
     secret_request.set_owner_id(session.get_id());
     public_request.set_name(origin.get_name().to_string());
@@ -453,8 +454,8 @@ pub fn generate_origin_keys(req: &mut Request, session: Session, origin: Origin)
             .into_bytes(),
     );
 
-    route_message::<OriginPublicKeyCreate, OriginPublicKey>(req, &public_request)?;
-    route_message::<OriginSecretKeyCreate, OriginSecretKey>(req, &secret_request)?;
+    route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(req, &public_request)?;
+    route_message::<OriginPrivateSigningKeyCreate, OriginPrivateSigningKey>(req, &secret_request)?;
 
     Ok(())
 }
