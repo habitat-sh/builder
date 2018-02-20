@@ -1,13 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-while [ ! -f /hab/svc/builder-datastore/config/pwfile ]
+pwfile=/hab/svc/builder-datastore/config/pwfile
+while [ ! -f $pwfile ] \
+&&    hab sup status habitat/builder-datastore > /dev/null
 do
   sleep 2
 done
 
-export PGPASSWORD
-PGPASSWORD=$(cat /hab/svc/builder-datastore/config/pwfile)
+if [ -f $pwfile ]; then
+  export PGPASSWORD
+  PGPASSWORD=$(cat $pwfile)
+else
+  echo "ERROR: $0: $pwfile does not exist and habitat/builder-datastore is not running"
+  exit 1
+fi
 
 mkdir -p /hab/svc/builder-api
 cat <<EOT > /hab/svc/builder-api/user.toml

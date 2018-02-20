@@ -1,7 +1,7 @@
 #!/bin/bash
 RED='\033[0;31m'
 NO_COLOR='\033[0m'
-set -u
+set -uo pipefail
 
 export APP_HOSTNAME
 export GITHUB_API_URL
@@ -13,21 +13,47 @@ export GITHUB_APP_ID
 export GITHUB_APP_URL
 export DEV_MODE
 
+# Wrap a function with this one to ensure that it stops executing if any of its
+# commands return nonzero. If so, a highly-visible message is printed which
+# should make the error condition more apparent.
+stop-on-failure() {
+  (set -e; "$@");
+  rv=$?
+  if [ $rv -ne 0 ]; then
+    echo -e "${RED}ERROR: $* aborted due to error${NO_COLOR}"
+    return 1
+  fi
+}
+
 no_install_deps() {
   local file="/src/components/${1}/cleanup"
-  if [ ! -f $file ]; then
-    touch $file
+  if [ ! -f "$file" ]; then
+    touch "$file"
   else
     echo "1"
   fi
 }
 
-init-datastore() {
+_init-datastore() {
   mkdir -p /hab/svc/builder-datastore
   cp -f /src/support/builder/datastore.toml /hab/svc/builder-datastore/user.toml
 }
+init-datastore() { stop-on-failure _init-datastore; }
+
+load_env_config() {
+  local env_config
+  env_config="/src/.secrets/habitat-env"
+
+  if [[ -f "${env_config}" ]]; then
+    source "${env_config}"
+  else
+    echo -e "${RED}.secrets/habitat-env is required. Please see DEVELOPING.md for getting started instructions.${NO_COLOR}"
+    exit 1
+  fi
+}
 
 configure() {
+  load_env_config
   /src/support/builder/config.sh
 }
 
@@ -41,26 +67,21 @@ install-packages() {
   -b -c stable
 }
 
-build-builder-component() {
+_build-builder-component() {
   local component="$1"
-  local status=0
 
-  stop-"$component"
+  stop-builder "$component"
 
-  if NO_INSTALL_DEPS=$(no_install_deps "builder-$component") \
-  build "/src/components/builder-$component/habitat-dev"; then
-    echo "builder-$component build succeeded"
-  else
-    status=$?
-    echo "builder-$component build failed with $status"
-  fi
+  NO_INSTALL_DEPS=$(no_install_deps "builder-$component") \
+    build "/src/components/builder-$component/habitat-dev"
+  echo "builder-$component build succeeded"
 
-  start-"$component"
-  return $status
+  start-builder "$component"
 }
+build-builder-component() { stop-on-failure _build-builder-component "$@"; }
 
 alias bb=build-builder
-build-builder() {
+_build-builder() {
   if [[ $(hab sup status) == "No services loaded." ]]; then
     start-builder
   fi
@@ -71,13 +92,10 @@ build-builder() {
   fi
 
   for component in "$@"; do
-    if build-builder-component "$component"; then
-      :
-    else
-      return $?
-    fi
+    build-builder-component "$component"
   done
 }
+build-builder() { stop-on-failure _build-builder "$@"; }
 
 ui-dev-mode() {
   for svc in sessionsrv worker api originsrv; do
@@ -101,107 +119,92 @@ upload_github_keys() {
   fi
 }
 
-start-builder() {
-  start-datastore
-  configure
-  start-cache
-  start-router
-  start-api
-  start-api-proxy
-  start-jobsrv
-  start-originsrv
-  start-sessionsrv
-  start-worker
-  sleep 2
-  generate_bldr_keys
-  upload_github_keys
-  echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
+command-exists() {
+  command -V "$1" > /dev/null 2>&1
 }
 
-start-api() {
-  hab svc load habitat/builder-api --bind router:builder-router.default -s at-once
-}
+_start-builder() {
+  if [[ "$#" -eq 0 ]]; then
+    start-builder datastore
+    configure
+    start-builder cache
+    start-builder router
+    start-builder api
+    start-builder api-proxy
+    start-builder jobsrv
+    start-builder originsrv
+    start-builder sessionsrv
+    start-builder worker
+    sleep 2
+    generate_bldr_keys
+    upload_github_keys
+    echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
+    return $?
+  fi
 
-start-api-proxy() {
-  hab svc load habitat/builder-api-proxy --bind http:builder-api.default
+  for component in "$@"; do
+    if [ -v "svc_params[$component]" ]; then
+      # shellcheck disable=SC2086
+      load-if-not-loaded habitat/builder-$component ${svc_params[$component]}
+    elif command-exists "start-$component"; then
+      "start-$component"
+    else
+      echo -e "${RED}ERROR: Unknown builder service: $component${NO_COLOR}"
+      return 1
+    fi
+  done
 }
+start-builder() { stop-on-failure _start-builder "$@"; }
+
+_load-if-not-loaded() {
+  local pkg_ident
+  pkg_ident=$1
+  if hab sup status "$pkg_ident" > /dev/null; then
+    echo "$pkg_ident is already loaded"
+  else
+    hab svc load "$@"
+  fi
+}
+load-if-not-loaded() { stop-on-failure _load-if-not-loaded "$@"; }
 
 start-datastore() {
-  init-datastore
-  hab svc load habitat/builder-datastore
-}
-
-start-jobsrv() {
-  hab svc load habitat/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
-}
-
-start-originsrv() {
-  hab svc load habitat/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
-}
-
-start-router() {
-  hab svc load habitat/builder-router -s at-once
-}
-
-start-sessionsrv() {
-  hab svc load habitat/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default -s at-once
-}
-
-start-worker() {
-  hab svc load habitat/builder-worker --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default -s at-once
+  if hab sup status habitat/builder-datastore > /dev/null; then
+    echo "habitat/builder-datastore is already loaded"
+  else
+    init-datastore
+    hab svc load habitat/builder-datastore
+  fi
 }
 
 start-cache() {
-  hab svc load core/sccache
+  load-if-not-loaded core/sccache
 }
 
-stop-builder() {
-  stop-cache
-  stop-api
-  stop-api-proxy
-  stop-datastore
-  stop-jobsrv
-  stop-originsrv
-  stop-router
-  stop-sessionsrv
-  stop-worker
-}
+declare -A svc_params=(
+  [api]="        -s at-once --bind router:builder-router.default"
+  [api-proxy]="             --bind http:builder-api.default"
+  [jobsrv]="     -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
+  [originsrv]="  -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
+  [router]="     -s at-once"
+  [sessionsrv]=" -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
+  [worker]="     -s at-once --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default"
+)
 
-stop-cache() {
-  hab svc unload core/sccache
-}
+_stop-builder() {
+  if [[ "$#" -eq 0 ]]; then
+    stop-builder cache api api-proxy datastore jobsrv originsrv router sessionsrv worker
+    return $?
+  fi
 
-stop-api() {
-  hab svc unload habitat/builder-api
+  for component in "$@"; do
+    if [ $component == cache ]; then
+      hab svc unload core/sccache
+    else
+      hab svc unload habitat/builder-$component
+    fi
+  done
 }
-
-stop-api-proxy() {
-  hab svc unload habitat/builder-api-proxy
-}
-
-stop-datastore() {
-  hab svc unload habitat/builder-datastore
-}
-
-stop-jobsrv() {
-  hab svc unload habitat/builder-jobsrv
-}
-
-stop-originsrv() {
-  hab svc unload habitat/builder-originsrv
-}
-
-stop-router() {
-  hab svc unload habitat/builder-router
-}
-
-stop-sessionsrv() {
-  hab svc unload habitat/builder-sessionsrv
-}
-
-stop-worker() {
-  hab svc unload habitat/builder-worker
-}
+stop-builder() { stop-on-failure _stop-builder "$@"; }
 
 generate_bldr_keys() {
   KEY_NAME=$(hab user key generate bldr | grep -Po "bldr-\d+")
@@ -238,7 +241,7 @@ origin() {
     -H "Authorization:Bearer:${HAB_AUTH_TOKEN}";
   then
     hab origin key generate "${origin}"
-    hab origin key upload --url http://localhost:9636 -z ${HAB_AUTH_TOKEN} -s "${origin}"
+    hab origin key upload --url http://localhost:9636 -z "${HAB_AUTH_TOKEN}" -s "${origin}"
   else
     echo "Failed to create origin ${origin}"
   fi
@@ -290,20 +293,17 @@ The following commands are available:
   * * npm i - install the node packages
   * * npm load - run the web dev env
 2. Building Builder
-  * build-builder (alias: bb) - build all Builder components
-  * build-builder api - build the API Gateway
-  * build-builder jobsrv - build the JobSrv
-  * build-builder originsrv - build the OriginSrv
-  * build-builder router - build the RouteSrv
-  * build-builder sessionsrv - build the SessionSrv
-  * build-builder worker - build the Worker
+  * build-builder (alias: bb) - build Builder components
+    USAGE: build-builder [COMPONENT]...
+    With no args, build all builder components
+    Valid components: api jobsrv originsrv router sessionsrv worker
 3. Running Builder
   * install-packages - Install all dependent packages
-  * start-builder - run all Builder services
-  * stop-builder - unload all Builder services
-  * start-{svc} - load a specfic Builder service. See the
-    above list of build targets for available services
-  * stop-{svc} - unload a specific Builder service
+  * start-builder/stop-builder - load/unload Builder services
+    USAGE: start-builder [SERVICE]...
+            stop-builder [SERVICE]...
+    With no args, load/unload all builder services
+    Valid services: api api-proxy cache datastore jobsrv originsrv router sessionsrv worker
   * ui-dev-mode - helper to switch the github app to localhost:3000
 4. Helpers
   * psql - wrapper around psql to enable passwordless auth
@@ -318,19 +318,14 @@ install-packages
 # Forces the worker to use a bound docker socket
 DEV_MODE=true
 
-ENV_CONFIG="/src/.secrets/habitat-env"
-
-if [[ -f "${ENV_CONFIG}" ]]; then
-  source "${ENV_CONFIG}"
-else
-  echo -e "${RED}.secrets/habitat-env is required. Please see DEVELOPING.md for getting started instructions.${NO_COLOR}"
-  exit 1
-fi
+load_env_config
 
 touch /etc/subuid
 touch /etc/subgid
 hab pkg exec core/shadow groupadd --force krangschnak
-hab pkg exec core/shadow useradd --groups=tty --create-home -g krangschnak krangschnak || echo "User 'krangschnak' already exists"
+if ! hab pkg exec core/coreutils id -u krangschnak > /dev/null; then
+  hab pkg exec core/shadow useradd --groups=tty --create-home -g krangschnak krangschnak
+fi
 
 trap local_cleanup EXIT
 
