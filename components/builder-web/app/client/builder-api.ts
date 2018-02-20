@@ -15,11 +15,9 @@
 import 'whatwg-fetch';
 import config from '../config';
 import { parseKey } from '../util';
-import { GitHubApiClient } from './github-api';
 import { AppStore } from '../app.store';
 import { addNotification, signOut } from '../actions/index';
 import { WARNING } from '../actions/notifications';
-
 
 export enum ErrorCode {
   NotFound = 4
@@ -533,12 +531,9 @@ export class BuilderApiClient {
           if (response.ok) {
             resolve(true);
           } else if (response.status === 404) {
-            new GitHubApiClient(this.token).getUser(username).then(ghResponse => {
-              let msg = 'This is a valid GitHub user but they have not signed into Builder yet. Once they sign in, you can invite them to your origin.';
-              reject(new Error(msg));
-            }).catch(error => reject(error));
+            reject(new Error(`We were unable to locate a Builder user named ${username}. Please ensure the user has signed into Builder at least once before, then send the invitation again.`));
           } else if (response.status === 409) {
-            reject(new Error(`An invitation already exists for '${username}'`));
+            reject(new Error(`An invitation already exists for ${username}.`));
           } else {
             reject(new Error(response.statusText));
           }
