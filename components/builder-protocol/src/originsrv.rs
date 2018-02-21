@@ -1158,6 +1158,71 @@ impl Serialize for OriginProjectList {
     }
 }
 
+impl Serialize for OriginPublicEncryptionKey {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut strukt = serializer.serialize_struct(
+            "origin_public_encryption_key",
+            6,
+        )?;
+        strukt.serialize_field("id", &self.get_id().to_string())?;
+        strukt.serialize_field(
+            "origin_id",
+            &self.get_origin_id().to_string(),
+        )?;
+        strukt.serialize_field("name", self.get_name())?;
+        strukt.serialize_field("revision", self.get_revision())?;
+        strukt.serialize_field("body", self.get_body())?;
+        strukt.serialize_field(
+            "owner_id",
+            &self.get_owner_id().to_string(),
+        )?;
+        strukt.end()
+    }
+}
+
+impl Routable for OriginPublicEncryptionKeyCreate {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_public_encryption_key().get_origin_id()))
+    }
+}
+
+impl Routable for OriginPublicEncryptionKeyGet {
+    type H = String;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(self.get_origin().to_string())
+    }
+}
+
+impl Routable for OriginPublicEncryptionKeyLatestGet {
+    type H = String;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(self.get_origin().to_string())
+    }
+}
+
+impl Routable for OriginPublicEncryptionKeyListRequest {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_origin_id()))
+    }
+}
+
+impl Routable for OriginPublicEncryptionKeyListResponse {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_origin_id()))
+    }
+}
+
 impl Serialize for OriginPublicSigningKey {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where
@@ -1235,6 +1300,47 @@ impl Serialize for OriginPublicSigningKeyListResponse {
         )?;
         strukt.serialize_field("keys", self.get_keys())?;
         strukt.end()
+    }
+}
+
+impl Serialize for OriginPrivateEncryptionKey {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut strukt = serializer.serialize_struct(
+            "origin_private_encryption_key",
+            6,
+        )?;
+        strukt.serialize_field("id", &self.get_id().to_string())?;
+        strukt.serialize_field(
+            "origin_id",
+            &self.get_origin_id().to_string(),
+        )?;
+        strukt.serialize_field("name", self.get_name())?;
+        strukt.serialize_field("revision", self.get_revision())?;
+        strukt.serialize_field("body", self.get_body())?;
+        strukt.serialize_field(
+            "owner_id",
+            &self.get_owner_id().to_string(),
+        )?;
+        strukt.end()
+    }
+}
+
+impl Routable for OriginPrivateEncryptionKeyCreate {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_private_encryption_key().get_origin_id()))
+    }
+}
+
+impl Routable for OriginPrivateEncryptionKeyGet {
+    type H = String;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(String::from(self.get_origin()))
     }
 }
 

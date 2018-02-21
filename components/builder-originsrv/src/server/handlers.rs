@@ -373,6 +373,137 @@ pub fn origin_member_list(
     Ok(())
 }
 
+pub fn origin_private_encryption_key_create(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::OriginPrivateEncryptionKeyCreate>()?;
+    match state.datastore.create_origin_private_encryption_key(&msg) {
+        Ok(ref osk) => conn.route_reply(req, osk)?,
+        Err(SrvError::OriginPrivateEncryptionKeyCreate(ref db))
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            let err = NetError::new(
+                ErrCode::ENTITY_CONFLICT,
+                "vt:origin-private-encryption-key-create:1",
+            );
+            conn.route_reply(req, &*err)?;
+        }
+        Err(e) => {
+            let err = NetError::new(
+                ErrCode::DATA_STORE,
+                "vt:origin-private-encryption-key-create:2",
+            );
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn origin_public_encryption_key_create(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::OriginPublicEncryptionKeyCreate>()?;
+    match state.datastore.create_origin_public_encryption_key(&msg) {
+        Ok(ref osk) => conn.route_reply(req, osk)?,
+        Err(SrvError::OriginPublicEncryptionKeyCreate(ref db))
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            let err = NetError::new(
+                ErrCode::ENTITY_CONFLICT,
+                "vt:origin-public-encryption-key-create:1",
+            );
+            conn.route_reply(req, &*err)?;
+        }
+        Err(e) => {
+            let err = NetError::new(
+                ErrCode::DATA_STORE,
+                "vt:origin-public-encryption-key-create:2",
+            );
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn origin_public_encryption_key_get(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::OriginPublicEncryptionKeyGet>()?;
+    match state.datastore.get_origin_public_encryption_key(&msg) {
+        Ok(Some(ref key)) => conn.route_reply(req, key)?,
+        Ok(None) => {
+            let err = NetError::new(
+                ErrCode::ENTITY_NOT_FOUND,
+                "vt:origin-public-encryption-key-get:0",
+            );
+            conn.route_reply(req, &*err)?;
+        }
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-public-encryption-key-get:1");
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn origin_public_encryption_key_latest_get(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::OriginPublicEncryptionKeyLatestGet>()?;
+    match state.datastore.get_origin_public_encryption_key_latest(
+        &msg,
+    ) {
+        Ok(Some(ref key)) => conn.route_reply(req, key)?,
+        Ok(None) => {
+            let err = NetError::new(
+                ErrCode::ENTITY_NOT_FOUND,
+                "vt:origin-public-encryption-key-latest-get:0",
+            );
+            conn.route_reply(req, &*err)?;
+        }
+        Err(e) => {
+            let err = NetError::new(
+                ErrCode::DATA_STORE,
+                "vt:origin-public-encryption-key-latest-get:1",
+            );
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn origin_public_encryption_key_list(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::OriginPublicEncryptionKeyListRequest>()?;
+    match state
+        .datastore
+        .list_origin_public_encryption_keys_for_origin(&msg) {
+        Ok(ref opklr) => conn.route_reply(req, opklr)?,
+        Err(e) => {
+            let err = NetError::new(
+                ErrCode::DATA_STORE,
+                "vt:origin-public-encryption-key-list:1",
+            );
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn origin_secret_key_create(
     req: &mut Message,
     conn: &mut RouteConn,

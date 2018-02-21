@@ -40,6 +40,7 @@ pub enum SrvError {
     HabitatCore(hab_core::Error),
     MyOrigins(postgres::error::Error),
     NetError(hab_net::NetError),
+    NoRowsReturnedAfterInsert(),
     OriginCreate(postgres::error::Error),
     OriginChannelCreate(postgres::error::Error),
     OriginChannelGet(postgres::error::Error),
@@ -94,6 +95,12 @@ pub enum SrvError {
     OriginPublicSigningKeyGet(postgres::error::Error),
     OriginPublicSigningKeyLatestGet(postgres::error::Error),
     OriginPublicSigningKeyListForOrigin(postgres::error::Error),
+    OriginPrivateEncryptionKeyCreate(postgres::error::Error),
+    OriginPrivateEncryptionKeyGet(postgres::error::Error),
+    OriginPublicEncryptionKeyCreate(postgres::error::Error),
+    OriginPublicEncryptionKeyGet(postgres::error::Error),
+    OriginPublicEncryptionKeyLatestGet(postgres::error::Error),
+    OriginPublicEncryptionKeyListForOrigin(postgres::error::Error),
     OriginUpdate(postgres::error::Error),
     OriginAccountList(postgres::error::Error),
     OriginAccountInOrigin(postgres::error::Error),
@@ -127,6 +134,9 @@ impl fmt::Display for SrvError {
             SrvError::HabitatCore(ref e) => format!("{}", e),
             SrvError::MyOrigins(ref e) => format!("Error looking up my origins, {}", e),
             SrvError::NetError(ref e) => format!("{}", e),
+            SrvError::NoRowsReturnedAfterInsert() => {
+                format!("Insert returns row, but no row present")
+            }
             SrvError::OriginCreate(ref e) => format!("Error creating origin in database, {}", e),
             SrvError::OriginChannelCreate(ref e) => {
                 format!("Error creating channel in database, {}", e)
@@ -288,6 +298,42 @@ impl fmt::Display for SrvError {
                     e
                 )
             }
+            SrvError::OriginPrivateEncryptionKeyCreate(ref e) => {
+                format!(
+                    "Error creating origin private encryption key in database, {}",
+                    e
+                )
+            }
+            SrvError::OriginPrivateEncryptionKeyGet(ref e) => {
+                format!(
+                    "Error getting origin private encryption key from database, {}",
+                    e
+                )
+            }
+            SrvError::OriginPublicEncryptionKeyCreate(ref e) => {
+                format!(
+                    "Error creating origin public encryption key in database, {}",
+                    e
+                )
+            }
+            SrvError::OriginPublicEncryptionKeyGet(ref e) => {
+                format!(
+                    "Error getting origin public encryption key from database, {}",
+                    e
+                )
+            }
+            SrvError::OriginPublicEncryptionKeyLatestGet(ref e) => {
+                format!(
+                    "Error getting latest origin public encryption key from database, {}",
+                    e
+                )
+            }
+            SrvError::OriginPublicEncryptionKeyListForOrigin(ref e) => {
+                format!(
+                    "Error listing origin public encryption keys for an origin from database, {}",
+                    e
+                )
+            }
             SrvError::OriginPrivateSigningKeyCreate(ref e) => {
                 format!("Error creating origin secret key in database, {}", e)
             }
@@ -350,6 +396,7 @@ impl error::Error for SrvError {
             SrvError::HabitatCore(ref err) => err.description(),
             SrvError::MyOrigins(ref err) => err.description(),
             SrvError::NetError(ref err) => err.description(),
+            SrvError::NoRowsReturnedAfterInsert() => "Insert returns row, but no row present",
             SrvError::OriginCreate(ref err) => err.description(),
             SrvError::OriginChannelCreate(ref err) => err.description(),
             SrvError::OriginChannelGet(ref err) => err.description(),
@@ -398,6 +445,12 @@ impl error::Error for SrvError {
             SrvError::OriginProjectIntegrationDelete(ref err) => err.description(),
             SrvError::OriginProjectIntegrationGet(ref err) => err.description(),
             SrvError::OriginProjectIntegrationRequest(ref err) => err.description(),
+            SrvError::OriginPrivateEncryptionKeyCreate(ref err) => err.description(),
+            SrvError::OriginPrivateEncryptionKeyGet(ref err) => err.description(),
+            SrvError::OriginPublicEncryptionKeyCreate(ref err) => err.description(),
+            SrvError::OriginPublicEncryptionKeyGet(ref err) => err.description(),
+            SrvError::OriginPublicEncryptionKeyLatestGet(ref err) => err.description(),
+            SrvError::OriginPublicEncryptionKeyListForOrigin(ref err) => err.description(),
             SrvError::OriginPrivateSigningKeyCreate(ref err) => err.description(),
             SrvError::OriginPrivateSigningKeyGet(ref err) => err.description(),
             SrvError::OriginPublicSigningKeyCreate(ref err) => err.description(),

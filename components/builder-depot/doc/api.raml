@@ -285,6 +285,12 @@ securitySchemes:
                                         }
                         409:
                             description: Secret key already exists in origin
+        /encryption_keys:
+            post:
+                description: Create encryption key pair for origin
+                responses:
+                    201:
+                        body:
         /users:
             get:
                 description: List all members of an origin

@@ -634,6 +634,156 @@ impl DataStore {
         }
     }
 
+    pub fn create_origin_private_encryption_key(
+        &self,
+        opekc: &originsrv::OriginPrivateEncryptionKeyCreate,
+    ) -> SrvResult<originsrv::OriginPrivateEncryptionKey> {
+        let conn = self.pool.get(opekc)?;
+        let opek = opekc.get_private_encryption_key();
+        let rows = conn.query(
+            "SELECT * FROM insert_origin_private_encryption_key_v1($1, $2, $3, $4, $5, $6)",
+            &[
+                &(opek.get_origin_id() as i64),
+                &(opek.get_owner_id() as i64),
+                &opek.get_name(),
+                &opek.get_revision(),
+                &format!("{}-{}", opek.get_name(), opek.get_revision()),
+                &opek.get_body(),
+            ],
+        ).map_err(SrvError::OriginPrivateEncryptionKeyCreate)?;
+        match rows.iter().nth(0) {
+            Some(row) => Ok(self.row_to_origin_private_encryption_key(row)),
+            None => Err(SrvError::NoRowsReturnedAfterInsert()),
+        }
+    }
+
+    fn row_to_origin_private_encryption_key(&self, row: postgres::rows::Row) -> originsrv::OriginPrivateEncryptionKey {
+        let mut opek = originsrv::OriginPrivateEncryptionKey::new();
+        let opek_id: i64 = row.get("id");
+        opek.set_id(opek_id as u64);
+        let opek_origin_id: i64 = row.get("origin_id");
+        opek.set_origin_id(opek_origin_id as u64);
+        opek.set_name(row.get("name"));
+        opek.set_revision(row.get("revision"));
+        opek.set_body(row.get("body"));
+        let opek_owner_id: i64 = row.get("owner_id");
+        opek.set_owner_id(opek_owner_id as u64);
+        opek
+    }
+
+    // This function should *never* be exposed over an API endpoint
+    // It is intended to provide jobsrv with the secret key for an origin to decrypt secrets
+    pub fn get_origin_private_encryption_key(
+        &self,
+        opek_get: &originsrv::OriginPrivateEncryptionKeyGet,
+    ) -> SrvResult<Option<originsrv::OriginPrivateEncryptionKey>> {
+        let conn = self.pool.get(opek_get)?;
+        let rows = &conn.query(
+            "SELECT * FROM get_origin_private_encryption_key_v1($1)",
+            &[&opek_get.get_origin()],
+        ).map_err(SrvError::OriginPrivateEncryptionKeyGet)?;
+        if rows.len() != 0 {
+            // We just checked - we know there is a value here
+            let row = rows.iter().nth(0).unwrap();
+            Ok(Some(self.row_to_origin_private_encryption_key(row)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn create_origin_public_encryption_key(
+        &self,
+        opekc: &originsrv::OriginPublicEncryptionKeyCreate,
+    ) -> SrvResult<originsrv::OriginPublicEncryptionKey> {
+        let conn = self.pool.get(opekc)?;
+        let opek = opekc.get_public_encryption_key();
+        let rows = conn.query(
+            "SELECT * FROM insert_origin_public_encryption_key_v1($1, $2, $3, $4, $5, $6)",
+            &[
+                &(opek.get_origin_id() as i64),
+                &(opek.get_owner_id() as i64),
+                &opek.get_name(),
+                &opek.get_revision(),
+                &format!("{}-{}", opek.get_name(), opek.get_revision()),
+                &opek.get_body(),
+            ],
+        ).map_err(SrvError::OriginPublicEncryptionKeyCreate)?;
+        match rows.iter().nth(0) {
+            Some(row) => Ok(self.row_to_origin_public_encryption_key(row)),
+            None => Err(SrvError::NoRowsReturnedAfterInsert()),
+        }
+    }
+
+    fn row_to_origin_public_encryption_key(&self, row: postgres::rows::Row) -> originsrv::OriginPublicEncryptionKey {
+        let mut opek = originsrv::OriginPublicEncryptionKey::new();
+        let opek_id: i64 = row.get("id");
+        opek.set_id(opek_id as u64);
+        let opek_origin_id: i64 = row.get("origin_id");
+        opek.set_origin_id(opek_origin_id as u64);
+        opek.set_name(row.get("name"));
+        opek.set_revision(row.get("revision"));
+        opek.set_body(row.get("body"));
+        let opek_owner_id: i64 = row.get("owner_id");
+        opek.set_owner_id(opek_owner_id as u64);
+        opek
+    }
+
+    pub fn get_origin_public_encryption_key(
+        &self,
+        opek_get: &originsrv::OriginPublicEncryptionKeyGet,
+    ) -> SrvResult<Option<originsrv::OriginPublicEncryptionKey>> {
+        let conn = self.pool.get(opek_get)?;
+        let rows = &conn.query(
+            "SELECT * FROM get_origin_public_encryption_key_v1($1, $2)",
+            &[&opek_get.get_origin(), &opek_get.get_revision()],
+        ).map_err(SrvError::OriginPublicEncryptionKeyGet)?;
+        if rows.len() != 0 {
+            // We just checked - we know there is a value here
+            let row = rows.iter().nth(0).unwrap();
+            Ok(Some(self.row_to_origin_public_encryption_key(row)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_origin_public_encryption_key_latest(
+        &self,
+        opek_get: &originsrv::OriginPublicEncryptionKeyLatestGet,
+    ) -> SrvResult<Option<originsrv::OriginPublicEncryptionKey>> {
+        let conn = self.pool.get(opek_get)?;
+        let rows = &conn.query(
+            "SELECT * FROM get_origin_public_encryption_key_latest_v1($1)",
+            &[&opek_get.get_origin()],
+        ).map_err(SrvError::OriginPublicEncryptionKeyLatestGet)?;
+        if rows.len() != 0 {
+            // We just checked - we know there is a value here
+            let row = rows.iter().nth(0).unwrap();
+            Ok(Some(self.row_to_origin_public_encryption_key(row)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn list_origin_public_encryption_keys_for_origin(
+        &self,
+        opeklr: &originsrv::OriginPublicEncryptionKeyListRequest,
+    ) -> SrvResult<originsrv::OriginPublicEncryptionKeyListResponse> {
+        let conn = self.pool.get(opeklr)?;
+        let rows = &conn.query(
+            "SELECT * FROM get_origin_public_encryption_keys_for_origin_v1($1)",
+            &[&(opeklr.get_origin_id() as i64)],
+        ).map_err(SrvError::OriginPublicEncryptionKeyListForOrigin)?;
+
+        let mut response = originsrv::OriginPublicEncryptionKeyListResponse::new();
+        response.set_origin_id(opeklr.get_origin_id());
+        let mut keys = protobuf::RepeatedField::new();
+        for row in rows {
+            keys.push(self.row_to_origin_public_encryption_key(row));
+        }
+        response.set_keys(keys);
+        Ok(response)
+    }
+
     pub fn create_origin_secret_key(
         &self,
         osk: &originsrv::OriginPrivateSigningKeyCreate,
@@ -650,10 +800,10 @@ impl DataStore {
                 &osk.get_body(),
             ],
         ).map_err(SrvError::OriginPrivateSigningKeyCreate)?;
-        let row = rows.iter().nth(0).expect(
-            "Insert returns row, but no row present",
-        );
-        Ok(self.row_to_origin_secret_key(row))
+        match rows.iter().nth(0) {
+            Some(row) => Ok(self.row_to_origin_secret_key(row)),
+            None => Err(SrvError::NoRowsReturnedAfterInsert()),
+        }
     }
 
     fn row_to_origin_secret_key(&self, row: postgres::rows::Row) -> originsrv::OriginPrivateSigningKey {
@@ -704,10 +854,10 @@ impl DataStore {
                 &opk.get_body(),
             ],
         ).map_err(SrvError::OriginPublicSigningKeyCreate)?;
-        let row = rows.iter().nth(0).expect(
-            "Insert returns row, but no row present",
-        );
-        Ok(self.row_to_origin_public_key(row))
+        match rows.iter().nth(0) {
+            Some(row) => Ok(self.row_to_origin_public_key(row)),
+            None => Err(SrvError::NoRowsReturnedAfterInsert()),
+        }
     }
 
     fn row_to_origin_public_key(&self, row: postgres::rows::Row) -> originsrv::OriginPublicSigningKey {
