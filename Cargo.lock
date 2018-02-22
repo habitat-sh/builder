@@ -638,7 +638,7 @@ dependencies = [
 [[package]]
 name = "github-api-client"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#af55d09cb46930910861121004eba51a3b79494d"
+source = "git+https://github.com/habitat-sh/habitat.git#49d6f13549731340692c576e38ff660a089b84b7"
 dependencies = [
  "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "frank_jwt 2.5.1 (git+https://github.com/habitat-sh/frank_jwt?branch=habitat)",
@@ -998,7 +998,7 @@ dependencies = [
 [[package]]
 name = "habitat_depot_client"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#af55d09cb46930910861121004eba51a3b79494d"
+source = "git+https://github.com/habitat-sh/habitat.git#49d6f13549731340692c576e38ff660a089b84b7"
 dependencies = [
  "broadcast 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1021,7 +1021,7 @@ dependencies = [
 [[package]]
 name = "habitat_http_client"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#af55d09cb46930910861121004eba51a3b79494d"
+source = "git+https://github.com/habitat-sh/habitat.git#49d6f13549731340692c576e38ff660a089b84b7"
 dependencies = [
  "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat_core 0.0.0 (git+https://github.com/habitat-sh/core.git)",
@@ -2089,7 +2089,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "segment-api-client"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#af55d09cb46930910861121004eba51a3b79494d"
+source = "git+https://github.com/habitat-sh/habitat.git#49d6f13549731340692c576e38ff660a089b84b7"
 dependencies = [
  "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
