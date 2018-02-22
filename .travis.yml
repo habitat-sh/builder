@@ -55,6 +55,7 @@ matrix:
         apt: true
         cargo: true
         directories:
+          - "/tmp/cargo_cache"
           - "$HOME/pkgs"
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
@@ -94,6 +95,7 @@ matrix:
         apt: true
         cargo: true
         directories:
+          - "/tmp/cargo_cache"
           - "$HOME/pkgs"
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
@@ -133,6 +135,7 @@ matrix:
         apt: true
         cargo: true
         directories:
+          - "/tmp/cargo_cache"
           - "$HOME/pkgs"
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
