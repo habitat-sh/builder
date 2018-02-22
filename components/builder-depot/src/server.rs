@@ -88,8 +88,7 @@ pub fn origin_update(req: &mut Request) -> IronResult<Response> {
     match req.get::<bodyparser::Struct<OriginUpdateReq>>() {
         Ok(Some(body)) => {
             let dpv = match body.default_package_visibility
-                .parse::<OriginPackageVisibility>()
-            {
+                .parse::<OriginPackageVisibility>() {
                 Ok(x) => x,
                 Err(_) => return Ok(Response::with(status::UnprocessableEntity)),
             };
@@ -274,7 +273,8 @@ pub fn invite_to_origin(req: &mut Request) -> IronResult<Response> {
 
     debug!(
         "Creating invitation for user {} origin {}",
-        &user_to_invite, &origin
+        &user_to_invite,
+        &origin
     );
 
     if !check_origin_access(req, &origin).unwrap_or(false) {
@@ -343,8 +343,10 @@ pub fn list_origin_invitations(req: &mut Request) -> IronResult<Response> {
         Err(err) => return Ok(render_net_error(&err)),
     }
 
-    match route_message::<OriginInvitationListRequest, OriginInvitationListResponse>(req, &request)
-    {
+    match route_message::<OriginInvitationListRequest, OriginInvitationListResponse>(
+        req,
+        &request,
+    ) {
         Ok(list) => {
             let mut response = render_json(status::Ok, &list);
             dont_cache_response(&mut response);
@@ -455,6 +457,36 @@ fn write_archive(filename: &PathBuf, body: &mut Body) -> Result<PackageArchive> 
     Ok(PackageArchive::new(filename))
 }
 
+fn download_latest_origin_encryption_key(req: &mut Request) -> IronResult<Response> {
+    let origin = match get_param(req, "origin") {
+        Some(origin) => origin,
+        None => return Ok(Response::with(status::BadRequest)),
+    };
+
+    if !check_origin_access(req, &origin).unwrap_or(false) {
+        return Ok(Response::with(status::Forbidden));
+    }
+
+    let mut request = OriginPublicEncryptionKeyLatestGet::new();
+    match helpers::get_origin(req, origin) {
+        Ok(mut origin) => {
+            request.set_owner_id(origin.get_owner_id());
+            request.set_origin(origin.take_name());
+        }
+        Err(err) => return Ok(render_net_error(&err)),
+    }
+    let key = match route_message::<
+        OriginPublicEncryptionKeyLatestGet,
+        OriginPublicEncryptionKey,
+    >(req, &request) {
+        Ok(key) => key,
+        Err(err) => return Ok(render_net_error(&err)),
+    };
+
+    let xfilename = format!("{}-{}.pub", key.get_name(), key.get_revision());
+    download_content_as_file(key.get_body(), xfilename)
+}
+
 fn generate_origin_encryption_keys(req: &mut Request) -> IronResult<Response> {
     debug!("Generate Origin Encryption Keys {:?}", req);
     match get_param(req, "origin") {
@@ -464,10 +496,12 @@ fn generate_origin_encryption_keys(req: &mut Request) -> IronResult<Response> {
             }
 
             match helpers::get_origin(req, origin) {
-                Ok(origin) => match helpers::generate_origin_encryption_keys(req, origin) {
-                    Ok(_) => Ok(Response::with(status::Created)),
-                    Err(err) => Ok(render_net_error(&err)),
-                },
+                Ok(origin) => {
+                    match helpers::generate_origin_encryption_keys(req, origin) {
+                        Ok(_) => Ok(Response::with(status::Created)),
+                        Err(err) => Ok(render_net_error(&err)),
+                    }
+                }
                 Err(err) => Ok(render_net_error(&err)),
             }
         }
@@ -485,10 +519,12 @@ fn generate_origin_keys(req: &mut Request) -> IronResult<Response> {
             }
 
             match helpers::get_origin(req, origin) {
-                Ok(origin) => match helpers::generate_origin_keys(req, session, origin) {
-                    Ok(_) => Ok(Response::with(status::Created)),
-                    Err(err) => Ok(render_net_error(&err)),
-                },
+                Ok(origin) => {
+                    match helpers::generate_origin_keys(req, session, origin) {
+                        Ok(_) => Ok(Response::with(status::Created)),
+                        Err(err) => Ok(render_net_error(&err)),
+                    }
+                }
                 Err(err) => Ok(render_net_error(&err)),
             }
         }
@@ -533,19 +569,21 @@ fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
     }
 
     match String::from_utf8(key_content.clone()) {
-        Ok(content) => match SigKeyPair::parse_key_str(&content) {
-            Ok((PairType::Public, _, _)) => {
-                debug!("Received a valid public key");
+        Ok(content) => {
+            match SigKeyPair::parse_key_str(&content) {
+                Ok((PairType::Public, _, _)) => {
+                    debug!("Received a valid public key");
+                }
+                Ok(_) => {
+                    debug!("Received a secret key instead of a public key");
+                    return Ok(Response::with(status::BadRequest));
+                }
+                Err(e) => {
+                    debug!("Invalid public key content: {}", e);
+                    return Ok(Response::with(status::BadRequest));
+                }
             }
-            Ok(_) => {
-                debug!("Received a secret key instead of a public key");
-                return Ok(Response::with(status::BadRequest));
-            }
-            Err(e) => {
-                debug!("Invalid public key content: {}", e);
-                return Ok(Response::with(status::BadRequest));
-            }
-        },
+        }
         Err(e) => {
             debug!("Can't parse public key upload content: {}", e);
             return Ok(Response::with(status::BadRequest));
@@ -566,13 +604,17 @@ fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
             );
             let mut response = Response::with((
                 status::Created,
-                format!("/origins/{}/keys/{}", &origin, &request.get_revision()),
+                format!(
+                    "/origins/{}/keys/{}",
+                    &origin,
+                    &request.get_revision()
+                ),
             ));
             let mut base_url: url::Url = req.url.clone().into();
             base_url.set_path(&format!("key/{}-{}", &origin, &request.get_revision()));
-            response
-                .headers
-                .set(headers::Location(format!("{}", base_url)));
+            response.headers.set(
+                headers::Location(format!("{}", base_url)),
+            );
             Ok(response)
         }
         Err(err) => Ok(render_net_error(&err)),
@@ -644,19 +686,21 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
     }
 
     match String::from_utf8(key_content.clone()) {
-        Ok(content) => match SigKeyPair::parse_key_str(&content) {
-            Ok((PairType::Secret, _, _)) => {
-                debug!("Received a valid secret key");
+        Ok(content) => {
+            match SigKeyPair::parse_key_str(&content) {
+                Ok((PairType::Secret, _, _)) => {
+                    debug!("Received a valid secret key");
+                }
+                Ok(_) => {
+                    debug!("Received a public key instead of a secret key");
+                    return Ok(Response::with(status::BadRequest));
+                }
+                Err(e) => {
+                    debug!("Invalid secret key content: {}", e);
+                    return Ok(Response::with(status::BadRequest));
+                }
             }
-            Ok(_) => {
-                debug!("Received a public key instead of a secret key");
-                return Ok(Response::with(status::BadRequest));
-            }
-            Err(e) => {
-                debug!("Invalid secret key content: {}", e);
-                return Ok(Response::with(status::BadRequest));
-            }
-        },
+        }
         Err(e) => {
             debug!("Can't parse secret key upload content: {}", e);
             return Ok(Response::with(status::BadRequest));
@@ -699,8 +743,9 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with(status::Forbidden));
     }
 
-    let lock = req.get::<persistent::State<DepotUtil>>()
-        .expect("depot not found");
+    let lock = req.get::<persistent::State<DepotUtil>>().expect(
+        "depot not found",
+    );
 
     let depot = lock.read().expect("depot read lock is poisoned");
     let checksum_from_param = match helpers::extract_query_value("checksum", req) {
@@ -710,7 +755,8 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 
     debug!(
         "UPLOADING checksum={}, ident={}",
-        checksum_from_param, ident
+        checksum_from_param,
+        ident
     );
 
     // Find the path to folder where archive should be created, and
@@ -787,7 +833,8 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     if checksum_from_param != checksum_from_artifact {
         info!(
             "Checksums did not match: from_param={:?}, from_artifact={:?}",
-            checksum_from_param, checksum_from_artifact
+            checksum_from_param,
+            checksum_from_artifact
         );
         return Ok(Response::with((status::UnprocessableEntity, "ds:up:3")));
     }
@@ -819,7 +866,8 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
                 if err.get_code() == ErrCode::ENTITY_CONFLICT {
                     warn!(
                         "Failed package circular dependency check: {:?}, err: {:?}",
-                        ident, err
+                        ident,
+                        err
                     );
                     return Ok(Response::with(status::FailedDependency));
                 }
@@ -835,7 +883,9 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         Err(e) => {
             error!(
                 "Unable to rename temp archive {:?} to {:?}, err={:?}",
-                temp_path, filename, e
+                temp_path,
+                filename,
+                e
             );
             return Ok(Response::with(status::InternalServerError));
         }
@@ -907,12 +957,13 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 
             // Schedule re-build of dependent packages (if requested)
             // Don't schedule builds if the upload is being done by the builder
-            if depot.config.builds_enabled
-                && (ident.get_origin() == "core" || depot.config.non_core_builds_enabled)
-                && !match helpers::extract_query_value("builder", req) {
+            if depot.config.builds_enabled &&
+                (ident.get_origin() == "core" || depot.config.non_core_builds_enabled) &&
+                !match helpers::extract_query_value("builder", req) {
                     Some(_) => true,
                     None => false,
-                } {
+                }
+            {
                 if depot.config.jobsrv_enabled {
                     let mut request = JobGroupSpec::new();
                     request.set_origin(ident.get_origin().to_string());
@@ -943,9 +994,9 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         ));
         let mut base_url: url::Url = req.url.clone().into();
         base_url.set_path(&format!("pkgs/{}/download", package.get_ident()));
-        response
-            .headers
-            .set(headers::Location(format!("{}", base_url)));
+        response.headers.set(
+            headers::Location(format!("{}", base_url)),
+        );
         Ok(response)
     } else {
         info!(
@@ -992,8 +1043,8 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
     {
         let lock = req.get::<persistent::State<DepotUtil>>().unwrap();
         let depot = lock.read().unwrap();
-        if !depot.config.builds_enabled
-            || (origin_name != "core" && !depot.config.non_core_builds_enabled)
+        if !depot.config.builds_enabled ||
+            (origin_name != "core" && !depot.config.non_core_builds_enabled)
         {
             return Ok(Response::with(status::Forbidden));
         }
@@ -1158,14 +1209,7 @@ fn download_origin_key(req: &mut Request) -> IronResult<Response> {
             Err(err) => return Ok(render_net_error(&err)),
         };
     let xfilename = format!("{}-{}.pub", key.get_name(), key.get_revision());
-    let mut response = Response::with((status::Ok, key.get_body()));
-    response.headers.set(ContentDisposition(format!(
-        "attachment; filename=\"{}\"",
-        xfilename
-    )));
-    response.headers.set(XFileName(xfilename));
-    do_cache_response(&mut response);
-    Ok(response)
+    download_content_as_file(key.get_body(), xfilename)
 }
 
 // This function should not require authentication (session/auth token)
@@ -1223,8 +1267,9 @@ fn package_channels(req: &mut Request) -> IronResult<Response> {
 }
 
 fn download_package(req: &mut Request) -> IronResult<Response> {
-    let lock = req.get::<persistent::State<DepotUtil>>()
-        .expect("depot not found");
+    let lock = req.get::<persistent::State<DepotUtil>>().expect(
+        "depot not found",
+    );
     let depot = lock.read().expect("depot read lock is poisoned");
     let session_id = helpers::get_optional_session_id(req);
     let mut ident_req = OriginPackageGet::new();
@@ -1255,7 +1300,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
                                 DispositionParam::Filename(
                                     Charset::Iso_8859_1,
                                     None,
-                                    archive.file_name().as_bytes().to_vec(),
+                                    archive.file_name().as_bytes().to_vec()
                                 ),
                             ],
                         };
@@ -1351,12 +1396,12 @@ fn list_unique_packages(req: &mut Request) -> IronResult<Response> {
                 packages.get_stop() as isize,
             );
 
-            let mut response = if packages.get_count() as isize > (packages.get_stop() as isize + 1)
-            {
-                Response::with((status::PartialContent, body))
-            } else {
-                Response::with((status::Ok, body))
-            };
+            let mut response =
+                if packages.get_count() as isize > (packages.get_stop() as isize + 1) {
+                    Response::with((status::PartialContent, body))
+                } else {
+                    Response::with((status::Ok, body))
+                };
 
             response.headers.set(ContentType(Mime(
                 TopLevel::Application,
@@ -1500,9 +1545,9 @@ fn list_packages(req: &mut Request) -> IronResult<Response> {
             request.set_stop(stop as u64);
             request.set_visibilities(visibility_for_optional_session(req, session_id, &origin));
 
-            request.set_ident(
-                OriginPackageIdent::from_str(ident.as_str()).expect("invalid package identifier"),
-            );
+            request.set_ident(OriginPackageIdent::from_str(ident.as_str()).expect(
+                "invalid package identifier",
+            ));
             packages =
                 route_message::<OriginChannelPackageListRequest, OriginPackageListResponse>(
                     req,
@@ -1521,9 +1566,9 @@ fn list_packages(req: &mut Request) -> IronResult<Response> {
                 request.set_distinct(true);
             }
 
-            request.set_ident(
-                OriginPackageIdent::from_str(ident.as_str()).expect("invalid package identifier"),
-            );
+            request.set_ident(OriginPackageIdent::from_str(ident.as_str()).expect(
+                "invalid package identifier",
+            ));
             packages =
                 route_message::<OriginPackageListRequest, OriginPackageListResponse>(req, &request);
         }
@@ -1574,12 +1619,12 @@ fn list_packages(req: &mut Request) -> IronResult<Response> {
                 packages.get_stop() as isize,
             );
 
-            let mut response = if packages.get_count() as isize > (packages.get_stop() as isize + 1)
-            {
-                Response::with((status::PartialContent, body))
-            } else {
-                Response::with((status::Ok, body))
-            };
+            let mut response =
+                if packages.get_count() as isize > (packages.get_stop() as isize + 1) {
+                    Response::with((status::PartialContent, body))
+                } else {
+                    Response::with((status::Ok, body))
+                };
 
             response.headers.set(ContentType(Mime(
                 TopLevel::Application,
@@ -1709,8 +1754,10 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
             ));
             request.set_ident(ident);
 
-            match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(req, &request)
-            {
+            match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(
+                req,
+                &request,
+            ) {
                 Ok(id) => ident = id.into(),
                 Err(err) => return Ok(render_net_error(&err)),
             }
@@ -1759,8 +1806,9 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
 
         match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
             Ok(pkg) => {
-                let lock = req.get::<persistent::State<DepotUtil>>()
-                    .expect("depot not found");
+                let lock = req.get::<persistent::State<DepotUtil>>().expect(
+                    "depot not found",
+                );
 
                 let depot = lock.read().expect("depot read lock is poisoned");
 
@@ -1799,9 +1847,11 @@ fn search_packages(req: &mut Request) -> IronResult<Response> {
         my_origins.set_account_id(session_id.unwrap());
 
         match route_message::<MyOriginsRequest, MyOriginsResponse>(req, &my_origins) {
-            Ok(response) => request.set_my_origins(protobuf::RepeatedField::from_vec(
-                response.get_origins().to_vec(),
-            )),
+            Ok(response) => {
+                request.set_my_origins(protobuf::RepeatedField::from_vec(
+                    response.get_origins().to_vec(),
+                ))
+            }
             Err(e) => {
                 debug!(
                     "Error fetching origins for account id {}, {}",
@@ -1823,8 +1873,8 @@ fn search_packages(req: &mut Request) -> IronResult<Response> {
         None => return Ok(Response::with(status::BadRequest)),
     };
 
-    let decoded_query = match url::percent_encoding::percent_decode(query.as_bytes()).decode_utf8()
-    {
+    let decoded_query = match url::percent_encoding::percent_decode(query.as_bytes())
+        .decode_utf8() {
         Ok(q) => q.to_string(),
         Err(_) => return Ok(Response::with(status::BadRequest)),
     };
@@ -1866,12 +1916,12 @@ fn search_packages(req: &mut Request) -> IronResult<Response> {
                 packages.get_stop() as isize,
             );
 
-            let mut response = if packages.get_count() as isize > (packages.get_stop() as isize + 1)
-            {
-                Response::with((status::PartialContent, body))
-            } else {
-                Response::with((status::Ok, body))
-            };
+            let mut response =
+                if packages.get_count() as isize > (packages.get_stop() as isize + 1) {
+                    Response::with((status::PartialContent, body))
+                } else {
+                    Response::with((status::Ok, body))
+                };
 
             response.headers.set(ContentType(Mime(
                 TopLevel::Application,
@@ -2001,8 +2051,9 @@ fn demote_package(req: &mut Request) -> IronResult<Response> {
 }
 
 pub fn download_latest_builder_key(req: &mut Request) -> IronResult<Response> {
-    let lock = req.get::<persistent::State<DepotUtil>>()
-        .expect("depot not found");
+    let lock = req.get::<persistent::State<DepotUtil>>().expect(
+        "depot not found",
+    );
     let depot = lock.read().expect("depot read lock is poisoned");
 
     // The builder key pair is expected to be found at the key_dir config.
@@ -2032,10 +2083,9 @@ pub fn download_latest_builder_key(req: &mut Request) -> IronResult<Response> {
     );
 
     let mut response = Response::with((status::Ok, output));
-    response.headers.set(ContentDisposition(format!(
-        "attachment; filename=\"{}\"",
-        xfilename
-    )));
+    response.headers.set(ContentDisposition(
+        format!("attachment; filename=\"{}\"", xfilename),
+    ));
     response.headers.set(XFileName(xfilename));
     dont_cache_response(&mut response);
     Ok(response)
@@ -2061,10 +2111,9 @@ fn ident_from_params(params: &Params) -> OriginPackageIdent {
 
 fn download_content_as_file(content: &[u8], filename: String) -> IronResult<Response> {
     let mut response = Response::with((status::Ok, content));
-    response.headers.set(ContentDisposition(format!(
-        "attachment; filename=\"{}\"",
-        filename
-    )));
+    response.headers.set(ContentDisposition(
+        format!("attachment; filename=\"{}\"", filename),
+    ));
     response.headers.set(XFileName(filename));
     dont_cache_response(&mut response);
     Ok(response)
@@ -2074,11 +2123,12 @@ fn target_from_headers(user_agent_header: &UserAgent) -> result::Result<PackageT
     let user_agent = user_agent_header.as_str();
     debug!("Headers = {}", &user_agent);
 
-    let user_agent_regex =
-        Regex::new(r"(?P<client>[^\s]+)\s?(\((?P<target>\w+-\w+); (?P<kernel>.*)\))?").unwrap();
-    let user_agent_capture = user_agent_regex
-        .captures(user_agent)
-        .expect("Invalid user agent supplied.");
+    let user_agent_regex = Regex::new(
+        r"(?P<client>[^\s]+)\s?(\((?P<target>\w+-\w+); (?P<kernel>.*)\))?",
+    ).unwrap();
+    let user_agent_capture = user_agent_regex.captures(user_agent).expect(
+        "Invalid user agent supplied.",
+    );
 
     // All of our tooling that depends on this function to return a target will have a user
     // agent that includes the platform. Therefore, if we can't find a target, it's safe to
@@ -2101,8 +2151,9 @@ fn is_a_service<T>(req: &mut Request, ident: &T) -> bool
 where
     T: Identifiable,
 {
-    let lock = req.get::<persistent::State<DepotUtil>>()
-        .expect("depot not found");
+    let lock = req.get::<persistent::State<DepotUtil>>().expect(
+        "depot not found",
+    );
     let depot = lock.read().expect("depot read lock is poisoned");
     let agent_target = target_from_headers(&req.headers.get::<UserAgent>().unwrap()).unwrap();
 
@@ -2113,10 +2164,9 @@ where
 }
 
 fn do_cache_response(response: &mut Response) {
-    response.headers.set(CacheControl(format!(
-        "public, max-age={}",
-        ONE_YEAR_IN_SECS
-    )));
+    response.headers.set(CacheControl(
+        format!("public, max-age={}", ONE_YEAR_IN_SECS),
+    ));
 }
 
 pub fn routes<M>(basic: Authenticated, worker: M, depot: &DepotUtil) -> Router
@@ -2293,6 +2343,11 @@ where
         XHandler::new(generate_origin_encryption_keys).before(basic.clone()),
         "origin_encryption_key_generate",
     );
+    r.get(
+        "/origins/:origin/encryption_keys/latest",
+        XHandler::new(download_latest_origin_encryption_key).before(basic.clone()),
+        "origin_encryption_key_download",
+    );
     r.post(
         "/origins/:origin/keys",
         XHandler::new(generate_origin_keys).before(basic.clone()),
@@ -2392,12 +2447,12 @@ pub fn router(depot: DepotUtil) -> Result<Chain> {
         &depot.config.log_dir,
         depot.config.events_enabled,
     )));
-    chain.link(persistent::Read::<GitHubCli>::both(GitHubClient::new(
-        depot.config.github.clone(),
-    )));
-    chain.link(persistent::Read::<SegmentCli>::both(SegmentClient::new(
-        depot.config.segment.clone(),
-    )));
+    chain.link(persistent::Read::<GitHubCli>::both(
+        GitHubClient::new(depot.config.github.clone()),
+    ));
+    chain.link(persistent::Read::<SegmentCli>::both(
+        SegmentClient::new(depot.config.segment.clone()),
+    ));
     chain.link(persistent::State::<DepotUtil>::both(depot));
     chain.link_before(XRouteClient);
     chain.link_after(Cors);
