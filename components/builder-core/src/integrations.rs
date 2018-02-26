@@ -57,7 +57,7 @@ where
     A: AsRef<Path>,
 {
     let ciphertext = base64::decode(b64text).map_err(Error::Base64Error)?;
-    let plaintext = match BoxKeyPair::decrypt(&ciphertext, &key_dir.as_ref()) {
+    let plaintext = match BoxKeyPair::decrypt_with_path(&ciphertext, &key_dir.as_ref()) {
         Ok(bytes) => bytes,
         Err(err) => {
             let e = format!("Unable to decrypt with bldr key pair, err={:?}", &err);
