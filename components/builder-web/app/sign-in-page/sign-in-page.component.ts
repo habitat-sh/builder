@@ -16,7 +16,7 @@ import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { AppStore } from '../app.store';
 import { setLayout, signOut } from '../actions/index';
-import { createGitHubLoginUrl } from '../util';
+import { createLoginUrl } from '../util';
 import config from '../config';
 
 @Component({
@@ -30,16 +30,16 @@ export class SignInPageComponent implements OnDestroy {
     this.store.dispatch(setLayout('sign-in'));
   }
 
-  get wwwUrl() {
-    return config['www_url'];
+  get loginUrl() {
+    return createLoginUrl();
   }
 
-  get gitHubJoinUrl() {
+  get signupUrl() {
     return `${config['github_web_url']}/join`;
   }
 
-  get gitHubLoginUrl() {
-    return createGitHubLoginUrl(this.store.getState().gitHub.authState);
+  get wwwUrl() {
+    return config['www_url'];
   }
 
   ngOnDestroy() {

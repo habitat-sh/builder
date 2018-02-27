@@ -39,21 +39,13 @@ export {
 } from './features';
 
 export {
-  authenticate,
   CLEAR_GITHUB_INSTALLATIONS,
   CLEAR_GITHUB_REPOSITORIES,
   fetchGitHubInstallations,
   fetchGitHubRepositories,
-  LOAD_GITHUB_SESSION_STATE,
-  loadGitHubSessionState,
   POPULATE_GITHUB_INSTALLATIONS,
   POPULATE_GITHUB_REPOSITORIES,
   POPULATE_GITHUB_USER_DATA,
-  removeSession,
-  exchangeGitHubAuthCode,
-  SET_GITHUB_AUTH_STATE,
-  SET_GITHUB_AUTH_TOKEN,
-  setGitHubAuthState
 } from './gitHub';
 
 export {
@@ -62,6 +54,17 @@ export {
   REMOVE_NOTIFICATION,
   removeNotification
 } from './notifications';
+
+export {
+  authenticate,
+  exchangeOAuthCode,
+  LOAD_OAUTH_STATE,
+  loadOAuthState,
+  removeSession,
+  SET_OAUTH_STATE,
+  SET_OAUTH_TOKEN,
+  setOAuthState
+} from './oauth';
 
 export {
   acceptOriginInvitation,

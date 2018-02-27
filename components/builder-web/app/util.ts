@@ -32,6 +32,32 @@ export function createGitHubLoginUrl(state) {
   return `${urlPrefix}?${queryString}`;
 }
 
+export function createLoginUrl() {
+  const store = new AppStore();
+  let params: any = {};
+  let uri;
+
+  switch (config.oauth_provider) {
+    case 'github':
+      uri = config.oauth_authorize_url;
+      params.client_id = config.oauth_client_id;
+      params.redirect_uri = `${config.oauth_redirect_url || (window.location.protocol + '//' + window.location.host + '/')}`;
+      params.state = store.getState().oauth.state;
+      break;
+  }
+
+  if (!uri) {
+    console.error('Please configure an OAuth provider.');
+    return;
+  }
+
+  const qs = Object.keys(params)
+    .map(k => `${k}=${encodeURIComponent(params[k])}`)
+    .join('&');
+
+  return `${uri}?${qs}`;
+}
+
 // Pretty print a time
 // Print a number of seconds as minutes and seconds
 export function duration(s) {

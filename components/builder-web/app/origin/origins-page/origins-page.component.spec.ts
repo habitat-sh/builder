@@ -32,8 +32,8 @@ class MockAppStore {
       session: {
         token: 'token'
       },
-      gitHub: {
-        authToken: 'token'
+      oauth: {
+        token: 'token'
       },
       origins: {
         mine: List([Origin({ name: 'test' })]),

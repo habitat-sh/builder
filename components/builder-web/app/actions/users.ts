@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { authenticate, removeSession, loadGitHubSessionState, loadBldrSessionState, requestRoute, resetAppState, setGitHubAuthState } from './index';
+import { authenticate, removeSession, loadOAuthState, loadBldrSessionState, requestRoute, resetAppState, setOAuthState } from './index';
 import { addNotification, SUCCESS, DANGER } from './notifications';
 import { BuilderApiClient } from '../client/builder-api';
 import { Browser } from '../browser';
@@ -99,14 +99,14 @@ export function deleteAccessToken(id: string, token: string) {
 
 export function identifyUser() {
   return (dispatch, getState) => {
-    dispatch(loadGitHubSessionState());
+    dispatch(loadOAuthState());
     dispatch(loadBldrSessionState());
 
-    const gitHubToken = getState().gitHub.authToken;
+    const oauthToken = getState().oauth.token;
     const bldrToken = getState().session.token;
 
-    if (gitHubToken && bldrToken) {
-      dispatch(authenticate(gitHubToken, bldrToken));
+    if (oauthToken && bldrToken) {
+      dispatch(authenticate(oauthToken, bldrToken));
     }
   };
 }
@@ -242,7 +242,7 @@ export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string) {
       }
     }
 
-    dispatch(setGitHubAuthState());
+    dispatch(setOAuthState());
 
     if (redirectToSignIn) {
       dispatch(requestRoute(['/sign-in']));

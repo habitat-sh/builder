@@ -45,7 +45,7 @@ describe('actions', () => {
     });
   });
 
-  describe('gitHub', () => {
+  describe('Browser', () => {
 
     describe('setCookie', () => {
 
@@ -59,17 +59,17 @@ describe('actions', () => {
           '1.2.3.4'
         );
 
-        Browser.setCookie('gitHubAuthToken', 'some-token');
-        Browser.setCookie('gitHubAuthToken', 'some-token');
-        Browser.setCookie('gitHubAuthToken', 'some-token');
-        Browser.setCookie('gitHubAuthToken', 'some-token');
+        Browser.setCookie('oauthToken', 'some-token');
+        Browser.setCookie('oauthToken', 'some-token');
+        Browser.setCookie('oauthToken', 'some-token');
+        Browser.setCookie('oauthToken', 'some-token');
 
         expect(cookies.set.calls.allArgs()).toEqual(
           [
-            ['gitHubAuthToken', 'some-token', { domain: 'localhost', secure: false }],
-            ['gitHubAuthToken', 'some-token', { domain: 'habitat.sh', secure: false }],
-            ['gitHubAuthToken', 'some-token', { domain: 'acceptance.habitat.foo', secure: false }],
-            ['gitHubAuthToken', 'some-token', { domain: '1.2.3.4', secure: false }]
+            ['oauthToken', 'some-token', { domain: 'localhost', secure: false }],
+            ['oauthToken', 'some-token', { domain: 'habitat.sh', secure: false }],
+            ['oauthToken', 'some-token', { domain: 'acceptance.habitat.foo', secure: false }],
+            ['oauthToken', 'some-token', { domain: '1.2.3.4', secure: false }]
           ]
         );
       });

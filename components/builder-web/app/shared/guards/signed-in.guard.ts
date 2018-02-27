@@ -59,7 +59,7 @@ export class SignedInGuard implements CanActivate {
   private handleSigningIn(resolve, reject) {
     const unsub = this.store.subscribe(state => {
 
-      if (state.gitHub.authToken && state.session.token) {
+      if (state.oauth.token && state.session.token) {
         const name = 'redirectPath';
         const path = Browser.getCookie(name);
         Browser.removeCookie(name);

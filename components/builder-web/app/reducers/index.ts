@@ -18,6 +18,7 @@ import gitHub from './gitHub';
 import builds from './builds';
 import features from './features';
 import notifications from './notifications';
+import oauth from './oauth';
 import origins from './origins';
 import packages from './packages';
 import projects from './projects';
@@ -32,6 +33,7 @@ export default combineReducers({
   builds,
   features,
   notifications,
+  oauth,
   origins,
   packages,
   projects,
