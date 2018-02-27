@@ -43,20 +43,19 @@ habitatConfig({
     // The Habitat Builder GitHub app
     github_app_url: "https://github.com/apps/habitat-builder-dev",
 
-    // GitHub Client ID for GitHubApp
-    github_client_id: "Iv1.732260b62f84db15",
-
-    // The GitHub redirect URI. Must exactly match the value of the User Authorization Callback
-    // URL in the GitHub app.
-    github_redirect_uri: "http://localhost:3000/",
-
     // The Web URL for GitHub
     github_web_url: "https://github.com",
 
     // The URL for the Learn Habitat
     learn_url: "https://www.habitat.sh/learn",
-    // The URL for Slack
 
+    // OAuth properties
+    oauth_provider: "github",
+    oauth_client_id: "Iv1.732260b62f84db15",
+    oauth_authorize_url: "https://github.com/login/oauth/authorize",
+    oauth_redirect_url: "http://localhost:3000/",
+
+    // The URL for Slack
     slack_url: "http://slack.habitat.sh/",
 
     // The URL for the Habitat source code

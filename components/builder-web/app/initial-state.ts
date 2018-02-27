@@ -27,8 +27,6 @@ export default Record({
     token: undefined
   })(),
   gitHub: Record({
-    authState: undefined,
-    authToken: undefined,
     installations: List(),
     repositories: List(),
     username: undefined,
@@ -83,6 +81,10 @@ export default Record({
   })(),
   notifications: Record({
     all: List(),
+  })(),
+  oauth: Record({
+    state: undefined,
+    token: undefined
   })(),
   origins: Record({
     current: Origin(),

@@ -39,8 +39,8 @@ class MockAppStore {
       session: {
         token: 'some-token',
       },
-      gitHub: {
-        authToken: 'some-token'
+      oauth: {
+        token: 'some-token'
       }
     };
   }

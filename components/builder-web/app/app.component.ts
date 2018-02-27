@@ -17,7 +17,7 @@ import { AppStore } from './app.store';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { URLSearchParams } from '@angular/http';
 import { Router } from '@angular/router';
-import { identifyUser, loadFeatures, removeNotification, exchangeGitHubAuthCode,
+import { identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
   routeChange, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
 
 @Component({
@@ -102,7 +102,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   get username() {
-    return this.state.users.current.username;
+    return this.state.users.current.profile.name;
   }
 
   ngOnDestroy() {
@@ -127,7 +127,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const state = params.get('state');
 
     if (code && state) {
-      this.store.dispatch(exchangeGitHubAuthCode(code, state));
+      this.store.dispatch(exchangeOAuthCode(code, state));
     }
 
     this.store.dispatch(identifyUser());

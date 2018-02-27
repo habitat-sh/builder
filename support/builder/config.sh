@@ -36,10 +36,14 @@ app_url = "http://${APP_HOSTNAME}:9636"
 [github]
 url = "$GITHUB_API_URL"
 web_url = "$GITHUB_WEB_URL"
-client_id = "$GITHUB_CLIENT_ID"
 client_secret = "$GITHUB_CLIENT_SECRET"
 app_id = $GITHUB_APP_ID
 app_url = "${GITHUB_APP_URL}"
+
+[oauth]
+provider       = "github"
+client_id      = "$GITHUB_CLIENT_ID"
+authorize_url  = "https://github.com/login/oauth/authorize"
 EOT
 
 mkdir -p /hab/svc/builder-jobsrv

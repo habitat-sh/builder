@@ -27,10 +27,6 @@ export default function gitHub(state = initialState['gitHub'], action) {
         return state.set('repositories', List()).
           setIn(['ui', 'repositories', 'loading'], true);
 
-    case actionTypes.LOAD_GITHUB_SESSION_STATE:
-      return state.set('authState', action.payload.gitHubAuthState).
-        set('authToken', action.payload.gitHubAuthToken);
-
     case actionTypes.POPULATE_GITHUB_INSTALLATIONS:
       return state.set('installations', fromJS(action.payload)).
         setIn(['ui', 'installations', 'loading'], false);
@@ -38,12 +34,6 @@ export default function gitHub(state = initialState['gitHub'], action) {
     case actionTypes.POPULATE_GITHUB_REPOSITORIES:
       return state.set('repositories', fromJS(action.payload)).
         setIn(['ui', 'repositories', 'loading'], false);
-
-    case actionTypes.SET_GITHUB_AUTH_STATE:
-      return state.set('authState', action.payload);
-
-    case actionTypes.SET_GITHUB_AUTH_TOKEN:
-      return state.set('authToken', action.payload);
 
     default:
       return state;
