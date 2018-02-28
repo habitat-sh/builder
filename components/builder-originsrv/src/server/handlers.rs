@@ -482,6 +482,33 @@ pub fn origin_public_encryption_key_latest_get(
     Ok(())
 }
 
+pub fn origin_private_encryption_key_get(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::OriginPrivateEncryptionKeyGet>()?;
+    match state.datastore.get_origin_private_encryption_key(&msg) {
+        Ok(Some(ref key)) => conn.route_reply(req, key)?,
+        Ok(None) => {
+            let err = NetError::new(
+                ErrCode::ENTITY_NOT_FOUND,
+                "vt:origin-private-encryption-key-get:0",
+            );
+            conn.route_reply(req, &*err)?;
+        }
+        Err(e) => {
+            let err = NetError::new(
+                ErrCode::DATA_STORE,
+                "vt:origin-private-encryption-key-get:1",
+            );
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn origin_public_encryption_key_list(
     req: &mut Message,
     conn: &mut RouteConn,
@@ -1206,6 +1233,62 @@ pub fn origin_member_delete(
         Ok(()) => conn.route_reply(req, &NetOk::new())?,
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-member-delete:1");
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn origin_secret_create(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let mut msg = req.parse::<proto::OriginSecretCreate>()?;
+    match state.datastore.create_origin_secret(&mut msg) {
+        Ok(ref os) => conn.route_reply(req, os)?,
+        Err(SrvError::OriginSecretCreate(ref db))
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-create:1");
+            conn.route_reply(req, &*err)?;
+        }
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-create:2");
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn origin_secret_list(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let mut msg = req.parse::<proto::OriginSecretListGet>()?;
+    match state.datastore.list_origin_secrets(&mut msg) {
+        Ok(ref os) => conn.route_reply(req, os)?,
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-list:1");
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn origin_secret_delete(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let mut msg = req.parse::<proto::OriginSecretDelete>()?;
+    match state.datastore.delete_origin_secret(&mut msg) {
+        Ok(()) => conn.route_reply(req, &NetOk::new())?,
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-delete:1");
             error!("{}, {}", err, e);
             conn.route_reply(req, &*err)?;
         }
