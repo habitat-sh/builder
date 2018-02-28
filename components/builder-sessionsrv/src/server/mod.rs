@@ -15,7 +15,7 @@
 mod handlers;
 
 use std::borrow::Borrow;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use std::sync::RwLock;
@@ -46,6 +46,8 @@ lazy_static! {
             handlers::account_token_revoke);
         map.register(proto::AccountTokensGet::descriptor_static(None),
             handlers::account_tokens_get);
+        map.register(proto::AccountTokenValidate::descriptor_static(None),
+            handlers::account_token_validate);
         map.register(proto::SessionCreate::descriptor_static(None), handlers::session_create);
         map.register(proto::SessionGet::descriptor_static(None), handlers::session_get);
         map.register(proto::AccountInvitationListRequest::descriptor_static(None),
@@ -157,6 +159,7 @@ pub struct ServerState {
     github: Arc<Box<GitHubClient>>,
     permissions: Arc<PermissionsCfg>,
     sessions: Arc<Box<RwLock<HashSet<Session>>>>,
+    tokens: Arc<Box<RwLock<HashMap<u64, Option<String>>>>>,
 }
 
 impl ServerState {
@@ -166,6 +169,7 @@ impl ServerState {
             github: Arc::new(Box::new(GitHubClient::new(cfg.github))),
             permissions: Arc::new(cfg.permissions),
             sessions: Arc::new(Box::new(RwLock::new(HashSet::default()))),
+            tokens: Arc::new(Box::new(RwLock::new(HashMap::new()))), // TBD: Handle multiple tokens / account
         })
     }
 }

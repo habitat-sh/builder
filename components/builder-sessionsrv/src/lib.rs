@@ -25,6 +25,7 @@ extern crate habitat_builder_db as db;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
 extern crate habitat_net as hab_net;
+extern crate builder_core as bldr_core;
 extern crate hyper;
 #[macro_use]
 extern crate lazy_static;
