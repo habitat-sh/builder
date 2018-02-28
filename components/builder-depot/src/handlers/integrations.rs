@@ -35,7 +35,7 @@ pub fn encrypt(req: &mut Request, content: &str) -> Result<String, Status> {
     );
     let depot = lock.read().expect("depot read lock is poisoned");
 
-    bldr_core::integrations::encrypt(&depot.config.key_dir, content)
+    bldr_core::integrations::encrypt(&depot.config.key_dir, content.as_bytes())
         .map_err(|_| status::InternalServerError)
 }
 
@@ -45,8 +45,11 @@ pub fn decrypt(req: &mut Request, content: &str) -> Result<String, Status> {
     );
     let depot = lock.read().expect("depot read lock is poisoned");
 
-    bldr_core::integrations::decrypt(&depot.config.key_dir, content)
-        .map_err(|_| status::InternalServerError)
+    let bytes = bldr_core::integrations::decrypt(&depot.config.key_dir, content)
+        .map_err(|_| status::InternalServerError)?;
+    Ok(String::from_utf8(bytes).map_err(
+        |_| status::InternalServerError,
+    )?)
 }
 
 pub fn validate_params(

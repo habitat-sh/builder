@@ -95,7 +95,7 @@ impl Runner {
         let log_path = config.log_path.clone();
         let mut logger = Logger::init(PathBuf::from(log_path), "builder-worker.log");
         logger.log_ident(net_ident);
-        let bldr_token = bldr_core::keys::generate_bldr_token(&config.key_dir).unwrap();
+        let bldr_token = bldr_core::access_token::generate_bldr_token(&config.key_dir).unwrap();
 
         Runner {
             workspace: Workspace::new(&config.data_path, job),

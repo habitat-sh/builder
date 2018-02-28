@@ -113,6 +113,66 @@ impl Routable for AccountUpdate {
     }
 }
 
+impl Into<Session> for AccessToken {
+    fn into(self) -> Session {
+        let mut session = Session::new();
+        session.set_id(self.get_account_id());
+        session.set_flags(self.get_flags());
+        session
+    }
+}
+
+impl Serialize for AccountToken {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut strukt = serializer.serialize_struct("account_token", 5)?;
+        strukt.serialize_field("id", &self.get_id().to_string())?;
+        strukt.serialize_field(
+            "account_id",
+            &self.get_account_id().to_string(),
+        )?;
+        strukt.serialize_field("token", self.get_token())?;
+        strukt.serialize_field("created_at", &self.get_created_at())?;
+        strukt.end()
+    }
+}
+
+impl Serialize for AccountTokens {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut strukt = serializer.serialize_struct("account_tokens", 1)?;
+        strukt.serialize_field("tokens", self.get_tokens())?;
+        strukt.end()
+    }
+}
+
+impl Routable for AccountTokenCreate {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_account_id()))
+    }
+}
+
+impl Routable for AccountTokensGet {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_account_id()))
+    }
+}
+
+impl Routable for AccountTokenRevoke {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_id()))
+    }
+}
 
 impl Routable for AccountOriginInvitationCreate {
     type H = InstaId;

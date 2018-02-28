@@ -447,7 +447,13 @@ impl WorkerMgr {
                         &self.key_dir,
                         i.get_body(),
                     ) {
-                        Ok(p) => p,
+                        Ok(b) => match String::from_utf8(b) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                debug!("Error converting to string. e = {:?}", e);
+                                continue;
+                            }
+                        },
                         Err(e) => {
                             debug!("Error decrypting integration. e = {:?}", e);
                             continue;

@@ -175,6 +175,23 @@ impl HttpGateway for ApiSrv {
             XHandler::new(get_profile).before(basic.clone()),
             "get_profile",
         );
+
+        r.get(
+            "/profile/access-tokens",
+            XHandler::new(get_access_tokens).before(basic.clone()),
+            "get_access_tokens",
+        );
+        r.post(
+            "/profile/access-tokens",
+            XHandler::new(generate_access_token).before(basic.clone()),
+            "generate_access_token",
+        );
+        r.delete(
+            "/profile/access-tokens/:id",
+            XHandler::new(revoke_access_token).before(basic.clone()),
+            "revoke_access_token",
+        );
+
         r.get(
             "/user/invitations",
             XHandler::new(list_account_invitations).before(basic.clone()),
