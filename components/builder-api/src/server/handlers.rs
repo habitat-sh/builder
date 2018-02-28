@@ -15,6 +15,7 @@
 //! A collection of handlers for the HTTP server's router
 
 use std::env;
+use std::io::{self, Write};
 
 use bodyparser;
 use bldr_core;
@@ -235,7 +236,14 @@ pub fn get_access_tokens(req: &mut Request) -> IronResult<Response> {
     request.set_account_id(session_id);
 
     match route_message::<AccountTokensGet, AccountTokens>(req, &request) {
-        Ok(account_tokens) => Ok(render_json(status::Ok, &account_tokens)),
+        Ok(account_tokens) => {
+            let json = render_json(status::Ok, &account_tokens);
+            let json_to_print = render_json(status::Ok, &account_tokens);
+            println!("*** START JSON BODY:");
+            json_to_print.body.unwrap().write_body(&mut io::stdout());
+            println!("\n*** END JSON BODY");
+            return Ok(json);
+        }
         Err(err) => return Ok(render_net_error(&err)),
     }
 }
@@ -264,7 +272,14 @@ pub fn generate_access_token(req: &mut Request) -> IronResult<Response> {
     request.set_token(token);
 
     match route_message::<AccountTokenCreate, AccountToken>(req, &request) {
-        Ok(account_token) => Ok(render_json(status::Ok, &account_token)),
+        Ok(account_token) => {
+            let json = render_json(status::Ok, &account_token);
+            let json_to_print = render_json(status::Ok, &account_token);
+            println!("*** START JSON BODY:");
+            json_to_print.body.unwrap().write_body(&mut io::stdout());
+            println!("\n*** END JSON BODY");
+            return Ok(json);
+        }
         Err(err) => return Ok(render_net_error(&err)),
     }
 }

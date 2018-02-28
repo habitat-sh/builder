@@ -108,6 +108,7 @@ describe('Profile API', function() {
         .set('Content-Length', 0)
         .expect(200)
         .end(function(err, res) {
+          console.log(res.text);
           expect(res.body.id).not.to.be.empty
           global.accessTokenId = res.body.id;
           expect(res.body.account_id).not.to.be.empty
@@ -124,6 +125,7 @@ describe('Profile API', function() {
         .accept('application/json')
         .expect(200)
         .end(function(err, res) {
+          console.log(res.text);
           expect(res.body.tokens).to.not.be.empty;
           expect(res.body.tokens.length).to.equal(1);
           expect(res.body.tokens[0].id).not.to.be.empty;
