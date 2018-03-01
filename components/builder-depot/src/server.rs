@@ -25,7 +25,7 @@ use bodyparser;
 use github_api_client::GitHubClient;
 use hab_core::package::{ident, FromArchive, Identifiable, PackageArchive, PackageIdent,
                         PackageTarget};
-use hab_core::crypto::keys::PairType;
+use hab_core::crypto::keys::{PairType, parse_key_str};
 use hab_core::crypto::{BoxKeyPair, SigKeyPair};
 use hab_core::crypto::PUBLIC_BOX_KEY_VERSION;
 use hab_core::event::*;
@@ -570,7 +570,7 @@ fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
 
     match String::from_utf8(key_content.clone()) {
         Ok(content) => {
-            match SigKeyPair::parse_key_str(&content) {
+            match parse_key_str(&content) {
                 Ok((PairType::Public, _, _)) => {
                     debug!("Received a valid public key");
                 }
@@ -687,7 +687,7 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
 
     match String::from_utf8(key_content.clone()) {
         Ok(content) => {
-            match SigKeyPair::parse_key_str(&content) {
+            match parse_key_str(&content) {
                 Ok((PairType::Secret, _, _)) => {
                     debug!("Received a valid secret key");
                 }
