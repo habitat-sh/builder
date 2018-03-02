@@ -482,6 +482,8 @@ pub fn account_invitation_list(
 }
 
 fn assign_permissions(name: &str, flags: &mut FeatureFlags, state: &ServerState) {
+    debug!("GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Getting app_installation_token; installation_id={}",
+           state.permissions.app_install_id);
     match state.github.app_installation_token(
         state.permissions.app_install_id,
     ) {

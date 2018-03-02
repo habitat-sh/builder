@@ -117,15 +117,6 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
         }
         None => return Ok(Response::with(status::BadRequest)),
     };
-    let token = {
-        match github.app_installation_token(install_id) {
-            Ok(token) => token,
-            Err(err) => {
-                warn!("unable to generate github app token, {}", err);
-                return Ok(Response::with((status::BadGateway, err.to_string())));
-            }
-        }
-    };
     let repo_id = match params.find("repo_id") {
         Some(repo_id) => {
             match repo_id.parse::<u32>() {
@@ -134,6 +125,18 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
             }
         }
         None => return Ok(Response::with(status::BadRequest)),
+    };
+
+    let token = {
+        debug!("GITHUB-CALL builder_api::github::repo_file_content: Getting app_installation_token; repo_id={} installation_id={} path={}",
+               repo_id, install_id, path);
+        match github.app_installation_token(install_id) {
+            Ok(token) => token,
+            Err(err) => {
+                warn!("unable to generate github app token, {}", err);
+                return Ok(Response::with((status::BadGateway, err.to_string())));
+            }
+        }
     };
     match github.contents(&token, repo_id, path) {
         Ok(None) => Ok(Response::with(status::NotFound)),
@@ -166,6 +169,9 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
     }
 
     let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
+
+    debug!("GITHUB-CALL builder_api::github::handle_push: Getting app_installation_token; installation_id={}",
+           hook.installation.id);
     let token = match github.app_installation_token(hook.installation.id) {
         Ok(token) => token,
         Err(err) => {
