@@ -50,9 +50,14 @@ habitatConfig({
     learn_url: "https://www.habitat.sh/learn",
 
     // OAuth properties
-    oauth_provider: "github",
-    oauth_client_id: "Iv1.732260b62f84db15",
-    oauth_authorize_url: "https://github.com/login/oauth/authorize",
+    // oauth_provider: "github",
+    // oauth_client_id: "Iv1.732260b62f84db15",
+    // oauth_authorize_url: "https://github.com/login/oauth/authorize",
+    // oauth_redirect_url: "http://localhost:3000/",
+
+    oauth_provider: "chef-automate",
+    oauth_client_id: "habitat-builder",
+    oauth_authorize_url: "https://localhost/dex/auth",
     oauth_redirect_url: "http://localhost:3000/",
 
     // The URL for Slack

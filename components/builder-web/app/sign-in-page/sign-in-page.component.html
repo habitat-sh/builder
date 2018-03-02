@@ -6,12 +6,12 @@
     <div class="content">
       <section class="upper">
         <a mat-raised-button color="primary" class="button" href="{{ loginUrl }}">
-          <hab-icon symbol="github"></hab-icon>
-          <span>Sign In with GitHub</span>
+          <hab-icon symbol="github" *ngIf="oauthProvider === 'GitHub'"></hab-icon>
+        <span>Sign In with {{ oauthProvider }}</span>
         </a>
       </section>
       <section class="lower">
-        <p>
+        <p *ngIf="oauthProvider === 'GitHub'">
           Don't have a GitHub account?
           <a href="{{ signupUrl }}" target="_blank">Sign up, it's free</a>.
         </p>

@@ -72,6 +72,9 @@ export function authenticate(oauthToken: string, bldrToken: string) {
             }));
           });
       }
+      else if (config.oauth_provider === 'chef-automate') {
+        debugger;
+      }
     }
 
     if (bldrToken) {

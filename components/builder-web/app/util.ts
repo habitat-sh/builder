@@ -44,6 +44,14 @@ export function createLoginUrl() {
       params.redirect_uri = `${config.oauth_redirect_url || (window.location.protocol + '//' + window.location.host + '/')}`;
       params.state = store.getState().oauth.state;
       break;
+    case 'chef-automate':
+      uri = config.oauth_authorize_url;
+      params.client_id = config.oauth_client_id;
+      params.redirect_uri = `${config.oauth_redirect_url || (window.location.protocol + '//' + window.location.host + '/')}`;
+      params.state = store.getState().oauth.state;
+      params.response_type = 'code';
+      params.scope = 'openid profile email offline_access';
+      break;
   }
 
   if (!uri) {

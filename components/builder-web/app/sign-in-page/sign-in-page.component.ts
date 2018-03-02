@@ -34,6 +34,10 @@ export class SignInPageComponent implements OnDestroy {
     return createLoginUrl();
   }
 
+  get oauthProvider() {
+    return config.oauth_provider === 'chef-automate' ? 'Chef Automate' : 'GitHub';
+  }
+
   get signupUrl() {
     return `${config['github_web_url']}/join`;
   }
