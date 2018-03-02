@@ -376,6 +376,8 @@ impl DataStore {
         let mut account_token = sessionsrv::AccountToken::new();
         let id: i64 = row.get("id");
         account_token.set_id(id as u64);
+        let account_id: i64 = row.get("account_id");
+        account_token.set_account_id(account_id as u64);
         account_token.set_token(row.get("token"));
 
         let created_at = row.get::<&str, DateTime<Utc>>("created_at");
