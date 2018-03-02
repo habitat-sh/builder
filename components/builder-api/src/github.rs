@@ -145,40 +145,6 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn search_code(req: &mut Request) -> IronResult<Response> {
-    let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
-    let params = req.extensions.get::<Router>().unwrap();
-    let query = match req.url.query() {
-        Some(query) => query,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-    let install_id = match params.find("install_id") {
-        Some(install_id) => {
-            match install_id.parse::<u32>() {
-                Ok(install_id) => install_id,
-                Err(_) => return Ok(Response::with(status::BadRequest)),
-            }
-        }
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-    let token = {
-        match github.app_installation_token(install_id) {
-            Ok(token) => token,
-            Err(err) => {
-                warn!("unable to generate github app token, {}", err);
-                return Ok(Response::with((status::BadGateway, err.to_string())));
-            }
-        }
-    };
-    match github.search_code(&token, query) {
-        Ok(search) => Ok(render_json(status::Ok, &search)),
-        Err(err) => {
-            warn!("unable to search github code, {}", err);
-            Ok(Response::with((status::BadGateway, err.to_string())))
-        }
-    }
-}
-
 fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
     let hook = match serde_json::from_str::<GitHubWebhookPush>(&body) {
         Ok(hook) => hook,

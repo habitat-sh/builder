@@ -151,11 +151,6 @@ impl HttpGateway for ApiSrv {
                 "project_integration_delete",
             );
             r.get(
-                "/ext/installations/:install_id/search/code",
-                XHandler::new(github::search_code).before(basic.clone()),
-                "ext_search_code",
-            );
-            r.get(
                 "/ext/installations/:install_id/repos/:repo_id/contents/:path",
                 XHandler::new(github::repo_file_content).before(basic.clone()),
                 "ext_repo_content",
