@@ -70,12 +70,15 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this.selectedPath = this.defaultPath;
 
     this.doesFileExist = (path) => {
-      return this.api.findFileInRepo(
-        this.selectedInstallation.get('installation_id'),
-        this.selectedInstallation.get('org'),
-        this.activeRepo.get('id'),
-        this.planField.value
-      );
+      if (!!this.planField.value) {
+        return this.api.findFileInRepo(
+          this.selectedInstallation.get('installation_id'),
+          this.selectedInstallation.get('org'),
+          this.activeRepo.get('id'),
+          this.planField.value
+        );
+      }
+      return Promise.reject(null);
     };
   }
 
@@ -177,6 +180,10 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     return this.activeInstallation && this.activeRepo;
   }
 
+  get validatePlanPath() {
+    return !!config.enable_plan_path_validation;
+  }
+
   get validProject() {
     const planPathValid = this.planField ? this.planField.valid : false;
     const dockerValid = (this.docker && this.docker.settings.enabled) ? this.docker.settings.valid : true;
@@ -226,7 +233,14 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   }
 
   deselect() {
-    this.form = this.formBuilder.group({});
+    if (this.validatePlanPath) {
+      this.form = this.formBuilder.group({});
+    }
+    else {
+      this.form = this.formBuilder.group({
+        plan_path: this.defaultPath
+      });
+    }
     this.selectedRepo = null;
     this.activeInstallation = null;
     this.activeRepo = null;

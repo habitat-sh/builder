@@ -118,14 +118,16 @@
         </a>
         <h3>Path to Plan File</h3>
         <p>
-          Enter the path to your plan file from the root of your repo. By default, we check for
+          Enter the path to your plan file, relative to the root of your repo. The typical location is
           <code>habitat/plan.sh</code>.
         </p>
         <div class="files">
-          <hab-checking-input id="plan_path" name="plan_path" availableMessage="found." notAvailableMessage="does not exist in the repository."
-            unmatchedMessage="must be named either plan.sh or plan.ps1." displayName="Plan file" [form]="form" [pattern]="false"
-            [maxLength]="false" [isAvailable]="doesFileExist" [value]="selectedPath">
+          <hab-checking-input *ngIf="validatePlanPath" id="plan_path" name="plan_path"
+            availableMessage="found." notAvailableMessage="does not exist in the repository."
+            displayName="Plan file" [form]="form" [pattern]="false" [maxLength]="false"
+            [isAvailable]="doesFileExist" [value]="selectedPath">
           </hab-checking-input>
+          <input *ngIf="!validatePlanPath" type="text" formControlName="plan_path" required>
         </div>
         <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)">
         </hab-visibility-selector>
