@@ -154,8 +154,14 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
             ));
         }
     };
+    debug!("GITHUB-WEBHOOK builder_api::github::handle_push: received hook; repository={} repository_id={} ref={} installation_id={}",
+           hook.repository.full_name,
+           hook.repository.id,
+           hook.git_ref,
+           hook.installation.id);
 
     if hook.commits.is_empty() {
+        debug!("GITHUB-WEBHOOK builder_api::github::handle_push: hook commits is empty!");
         return Ok(Response::with(status::Ok));
     }
 
