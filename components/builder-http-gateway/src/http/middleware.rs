@@ -29,6 +29,7 @@ use iron::status::Status;
 use iron::typemap::Key;
 use persistent;
 use protocol::message;
+use protocol::net::NetOk;
 use protocol::sessionsrv::*;
 use segment_api_client::SegmentClient;
 use serde_json;
@@ -151,7 +152,14 @@ impl Authenticated {
         // Check for a valid personal access token
         if bldr_core::access_token::is_access_token(token) {
             match bldr_core::access_token::validate_access_token(&self.key_dir, token) {
-                Ok(session) => return Ok(session),
+                Ok(session) => {
+                    if !revocation_check(req, session.get_id(), token) {
+                        let err = NetError::new(ErrCode::BAD_TOKEN, "net:auth:revoked-token");
+                        return Err(IronError::new(err, Status::Forbidden));
+                    } else {
+                        return Ok(session);
+                    }
+                }
                 Err(bldr_core::Error::TokenExpired) => {
                     let err = NetError::new(ErrCode::BAD_TOKEN, "net:auth:expired-token");
                     return Err(IronError::new(err, Status::Forbidden));
@@ -224,6 +232,20 @@ impl AfterMiddleware for Cors {
             vec![UniCase("content-disposition".to_string())],
         ));
         Ok(res)
+    }
+}
+
+pub fn revocation_check(req: &mut Request, account_id: u64, token: &str) -> bool {
+    let mut request = AccountTokenValidate::new();
+    request.set_account_id(account_id);
+    request.set_token(token.to_owned());
+    let conn = req.extensions.get_mut::<XRouteClient>().unwrap();
+    match conn.route::<AccountTokenValidate, NetOk>(&request) {
+        Ok(_) => true,
+        Err(e) => {
+            warn!("Unable to validate token (possibly revoked): {:?}", e);
+            false
+        }
     }
 }
 

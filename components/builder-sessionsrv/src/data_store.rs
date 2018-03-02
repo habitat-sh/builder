@@ -186,6 +186,22 @@ impl DataStore {
         Ok(account_tokens)
     }
 
+    pub fn get_account_token(
+        &self,
+        account_token_get: &sessionsrv::AccountTokenGet,
+    ) -> SrvResult<sessionsrv::AccountToken> {
+        let conn = self.pool.get(account_token_get)?;
+        let rows = &conn.query(
+            "SELECT * FROM get_account_token_with_id_v1($1)",
+            &[&(account_token_get.get_id() as i64)],
+        ).map_err(SrvError::AccountTokensGet)?;
+
+        assert!(rows.len() == 1);
+        let row = rows.get(0);
+        let account = self.row_to_account_token(row);
+        Ok(account)
+    }
+
     pub fn revoke_account_token(
         &self,
         account_token_revoke: &sessionsrv::AccountTokenRevoke,

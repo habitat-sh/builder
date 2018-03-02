@@ -53,6 +53,10 @@ message AccountTokensGet {
   optional uint64 account_id = 1;
 }
 
+message AccountTokenGet {
+  optional uint64 id = 1;
+}
+
 message AccountTokens {
   repeated AccountToken tokens = 1;
 }
@@ -64,6 +68,11 @@ message AccountTokenCreate {
 
 message AccountTokenRevoke {
   optional uint64 id = 1;
+}
+
+message AccountTokenValidate {
+  optional uint64 account_id = 1;
+  optional string token = 2;
 }
 
 message AccountOriginInvitation {

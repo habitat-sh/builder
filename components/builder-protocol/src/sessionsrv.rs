@@ -166,11 +166,27 @@ impl Routable for AccountTokensGet {
     }
 }
 
+impl Routable for AccountTokenGet {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_id()))
+    }
+}
+
 impl Routable for AccountTokenRevoke {
     type H = InstaId;
 
     fn route_key(&self) -> Option<Self::H> {
         Some(InstaId(self.get_id()))
+    }
+}
+
+impl Routable for AccountTokenValidate {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_account_id()))
     }
 }
 
