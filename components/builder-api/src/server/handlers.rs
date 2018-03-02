@@ -721,6 +721,9 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
                 return Ok(Response::with(status::Forbidden));
             }
 
+            debug!("GITHUB-CALL builder_api::server::handlers::project_create: Getting app_installation_token; repo_id={} installation_id={}",
+                   body.repo_id,
+                   body.installation_id);
             let token = match github.app_installation_token(body.installation_id) {
                 Ok(token) => token,
                 Err(err) => {
@@ -873,7 +876,9 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
                     "Missing value for field: `plan_path`",
                 )));
             }
-
+            debug!("GITHUB-CALL builder_api::server::handlers::project_update: Getting app_installation_token; repo_id={} installation_id={}",
+                   body.repo_id,
+                   body.installation_id);
             let token = match github.app_installation_token(body.installation_id) {
                 Ok(token) => token,
                 Err(err) => {

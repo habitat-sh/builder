@@ -68,8 +68,13 @@ impl VCS {
         match self.vcs_type.as_ref() {
             "git" => {
                 let token = match self.installation_id {
-                    None => None,
+                    None => {
+                        debug!("GITHUB-CALL builder_worker::vcs::clone: no installation_id present, no token generated");
+                        None
+                    }
                     Some(id) => {
+                        debug!("GITHUB-CALL builder_worker::vcs::clone: Getting app_installation_token; installation_id={}",
+                               id);
                         Some(self.github_client.app_installation_token(id).map_err(|e| {
                             Error::GithubAppAuthErr(e)
                         })?)
