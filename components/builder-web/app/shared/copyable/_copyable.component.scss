@@ -9,6 +9,7 @@ hab-copyable {
   $button-height: 36px;
 
   &.input {
+    overflow-x: hidden;
 
     span {
       display: block;
@@ -16,7 +17,7 @@ hab-copyable {
       padding: 6px 8px;
       border: $default-border;
       border-radius: $default-radius 0 0 $default-radius;
-      overflow-x: auto;
+      overflow-x: scroll;
       margin-right: $button-width;
       white-space: nowrap;
       height: $button-height;
