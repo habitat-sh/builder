@@ -17,11 +17,10 @@
 use std::env;
 
 use bodyparser;
-use bldr_core;
+use bldr_core::{self, metrics};
 use bldr_core::helpers::transition_visibility;
 use github_api_client::HubError;
 use hab_core::package::{Identifiable, Plan};
-use hab_core::event::*;
 use http_client::ApiClient;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, check_origin_access, get_param, validate_params};
@@ -40,7 +39,6 @@ use protocol::sessionsrv::{Account, AccountGet, AccountGetId, AccountInvitationL
                            AccountTokenCreate, AccountTokensGet, AccountTokens, AccountTokenRevoke};
 use router::Router;
 use serde_json;
-use typemap;
 
 use config::Config;
 use github;
@@ -61,8 +59,6 @@ struct SearchTerm {
     entity: String,
     value: String,
 }
-
-define_event_log!();
 
 pub fn account_show(req: &mut Request) -> IronResult<Response> {
     let mut account_get_id = AccountGetId::new();
@@ -139,18 +135,12 @@ pub fn github_authenticate(req: &mut Request) -> IronResult<Response> {
     let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
 
+    metrics::Counter::GithubAuthenticate.increment();
     match github.authenticate(&code) {
         Ok(token) => {
             let session = {
                 session_create_github(req, &token)?
             };
-            log_event!(
-                req,
-                Event::GithubAuthenticate {
-                    user: session.get_name().to_string(),
-                    account: session.get_id().to_string(),
-                }
-            );
 
             // We don't really want to abort anything just because a call to segment failed. Let's
             // just log it and move on.
@@ -721,9 +711,12 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
                 return Ok(Response::with(status::Forbidden));
             }
 
-            debug!("GITHUB-CALL builder_api::server::handlers::project_create: Getting app_installation_token; repo_id={} installation_id={}",
-                   body.repo_id,
-                   body.installation_id);
+            debug!(
+                "GITHUB-CALL builder_api::server::handlers::project_create: Getting app_installation_token; repo_id={} installation_id={}",
+                body.repo_id,
+                body.installation_id
+            );
+            metrics::Counter::GithubInstallationToken.increment();
             let token = match github.app_installation_token(body.installation_id) {
                 Ok(token) => token,
                 Err(err) => {
@@ -737,6 +730,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
             project.set_vcs_type(String::from("git"));
             project.set_vcs_installation_id(body.installation_id);
 
+            metrics::Counter::GithubApi.increment();
             match github.repo(&token, body.repo_id) {
                 Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
                 Ok(None) => return Ok(Response::with((status::NotFound, "rg:pc:2"))),
@@ -755,6 +749,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
         Err(err) => return Ok(render_net_error(&err)),
     };
 
+    metrics::Counter::GithubApi.increment();
     match github.contents(&token, repo_id, &project.get_plan_path()) {
         Ok(Some(contents)) => {
             match contents.decode() {
@@ -788,17 +783,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
     project.set_visibility(origin.get_default_package_visibility());
     request.set_project(project);
     match route_message::<OriginProjectCreate, OriginProject>(req, &request) {
-        Ok(response) => {
-            log_event!(
-                req,
-                Event::ProjectCreate {
-                    origin: origin.get_name().to_string(),
-                    package: request.get_project().get_id().to_string(),
-                    account: session.get_id().to_string(),
-                }
-            );
-            Ok(render_json(status::Created, &response))
-        }
+        Ok(response) => Ok(render_json(status::Created, &response)),
         Err(err) => Ok(render_net_error(&err)),
     }
 }
@@ -876,9 +861,12 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
                     "Missing value for field: `plan_path`",
                 )));
             }
-            debug!("GITHUB-CALL builder_api::server::handlers::project_update: Getting app_installation_token; repo_id={} installation_id={}",
-                   body.repo_id,
-                   body.installation_id);
+            debug!(
+                "GITHUB-CALL builder_api::server::handlers::project_update: Getting app_installation_token; repo_id={} installation_id={}",
+                body.repo_id,
+                body.installation_id
+            );
+            metrics::Counter::GithubInstallationToken.increment();
             let token = match github.app_installation_token(body.installation_id) {
                 Ok(token) => token,
                 Err(err) => {
@@ -889,6 +877,7 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
 
             project.set_plan_path(body.plan_path);
             project.set_vcs_installation_id(body.installation_id);
+            metrics::Counter::GithubApi.increment();
             match github.repo(&token, body.repo_id) {
                 Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
                 Ok(None) => return Ok(Response::with((status::NotFound, "rg:pu:2"))),
@@ -902,6 +891,7 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
         _ => return Ok(Response::with(status::UnprocessableEntity)),
     };
 
+    metrics::Counter::GithubApi.increment();
     match github.contents(&token, repo_id, &project.get_plan_path()) {
         Ok(Some(contents)) => {
             match contents.decode() {

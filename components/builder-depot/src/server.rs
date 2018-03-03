@@ -19,16 +19,15 @@ use std::result;
 use std::str::FromStr;
 
 use base64;
-use bldr_core;
+use bldr_core::{self, metrics};
 use bldr_core::helpers::transition_visibility;
 use bodyparser;
 use github_api_client::GitHubClient;
 use hab_core::package::{ident, FromArchive, Identifiable, PackageArchive, PackageIdent,
                         PackageTarget};
 use hab_core::crypto::keys::{PairType, parse_key_str};
-use hab_core::crypto::{BoxKeyPair, SigKeyPair};
+use hab_core::crypto::BoxKeyPair;
 use hab_core::crypto::PUBLIC_BOX_KEY_VERSION;
-use hab_core::event::*;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, all_visibilities, check_origin_access, check_origin_owner,
                                   dont_cache_response, get_param, visibility_for_optional_session};
@@ -51,15 +50,12 @@ use regex::Regex;
 use router::{Params, Router};
 use segment_api_client::SegmentClient;
 use serde_json;
-use typemap;
 use url;
 use uuid::Uuid;
 
 use super::DepotUtil;
 use error::{Error, Result};
 use handlers;
-
-define_event_log!();
 
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginCreateReq {
@@ -244,23 +240,17 @@ pub fn accept_invitation(req: &mut Request) -> IronResult<Response> {
     );
 
     match route_message::<OriginInvitationAcceptRequest, NetOk>(req, &request) {
-        Ok(_) => {
-            log_event!(
-                req,
-                Event::OriginInvitationAccept {
-                    id: request.get_invite_id().to_string(),
-                    account: request.get_account_id().to_string(),
-                }
-            );
-            Ok(Response::with(status::NoContent))
-        }
+        Ok(_) => Ok(Response::with(status::NoContent)),
         Err(err) => Ok(render_net_error(&err)),
     }
 }
 
 pub fn invite_to_origin(req: &mut Request) -> IronResult<Response> {
-    // TODO: SA - Eliminate need to clone the session
-    let session = req.extensions.get::<Authenticated>().unwrap().clone();
+    let account_id = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        session.get_id()
+    };
+
     let origin = match get_param(req, "origin") {
         Some(origin) => origin,
         None => return Ok(Response::with(status::BadRequest)),
@@ -301,22 +291,11 @@ pub fn invite_to_origin(req: &mut Request) -> IronResult<Response> {
         Err(err) => return Ok(render_net_error(&err)),
     }
 
-    invite_request.set_owner_id(session.get_id());
+    invite_request.set_owner_id(account_id);
 
     // store invitations in the originsrv
     match route_message::<OriginInvitationCreate, OriginInvitation>(req, &invite_request) {
-        Ok(invitation) => {
-            log_event!(
-                req,
-                Event::OriginInvitationSend {
-                    origin: origin.to_string(),
-                    user: user_to_invite.to_string(),
-                    id: invitation.get_id().to_string(),
-                    account: session.get_id().to_string(),
-                }
-            );
-            Ok(render_json(status::Created, &invitation))
-        }
+        Ok(invitation) => Ok(render_json(status::Created, &invitation)),
         Err(err) => {
             if err.get_code() == ErrCode::ENTITY_CONFLICT {
                 Ok(Response::with(status::NoContent))
@@ -534,10 +513,14 @@ fn generate_origin_keys(req: &mut Request) -> IronResult<Response> {
 
 fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
     debug!("Upload Origin Public Key {:?}", req);
-    // TODO: SA - Eliminate need to clone the session
-    let session = req.extensions.get::<Authenticated>().unwrap().clone();
+
+    let account_id = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        session.get_id()
+    };
+
     let mut request = OriginPublicSigningKeyCreate::new();
-    request.set_owner_id(session.get_id());
+    request.set_owner_id(account_id);
 
     let origin = match get_param(req, "origin") {
         Some(origin) => {
@@ -594,14 +577,6 @@ fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
     request.set_owner_id(0);
     match route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(req, &request) {
         Ok(_) => {
-            log_event!(
-                req,
-                Event::OriginKeyUpload {
-                    origin: origin.to_string(),
-                    version: request.get_revision().to_string(),
-                    account: session.get_id().to_string(),
-                }
-            );
             let mut response = Response::with((
                 status::Created,
                 format!(
@@ -651,12 +626,16 @@ fn download_latest_origin_secret_key(req: &mut Request) -> IronResult<Response> 
 
 fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
     debug!("Upload Origin Secret Key {:?}", req);
-    // TODO: SA - Eliminate need to clone the session
-    let session = req.extensions.get::<Authenticated>().unwrap().clone();
-    let mut request = OriginPrivateSigningKeyCreate::new();
-    request.set_owner_id(session.get_id());
 
-    let origin = match get_param(req, "origin") {
+    let account_id = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        session.get_id()
+    };
+
+    let mut request = OriginPrivateSigningKeyCreate::new();
+    request.set_owner_id(account_id);
+
+    match get_param(req, "origin") {
         Some(origin) => {
             if !check_origin_access(req, &origin).unwrap_or(false) {
                 return Ok(Response::with(status::Forbidden));
@@ -710,17 +689,7 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
     request.set_body(key_content);
     request.set_owner_id(0);
     match route_message::<OriginPrivateSigningKeyCreate, OriginPrivateSigningKey>(req, &request) {
-        Ok(_) => {
-            log_event!(
-                req,
-                Event::OriginSigningKeyUpload {
-                    origin: origin.to_string(),
-                    version: request.take_revision(),
-                    account: session.get_id().to_string(),
-                }
-            );
-            Ok(Response::with(status::Created))
-        }
+        Ok(_) => Ok(Response::with(status::Created)),
         Err(err) => Ok(render_net_error(&err)),
     }
 }
@@ -1833,6 +1802,8 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
 }
 
 fn search_packages(req: &mut Request) -> IronResult<Response> {
+    metrics::Counter::SearchPackages.increment();
+
     let session_id = helpers::get_optional_session_id(req);
     let mut request = OriginPackageSearchRequest::new();
     let (start, stop) = match helpers::extract_pagination(req) {
@@ -2443,10 +2414,6 @@ pub fn router(depot: DepotUtil) -> Result<Chain> {
         .require(FeatureFlags::BUILD_WORKER);
     let router = routes(basic, worker, &depot);
     let mut chain = Chain::new(router);
-    chain.link(persistent::Read::<EventLog>::both(EventLogger::new(
-        &depot.config.log_dir,
-        depot.config.events_enabled,
-    )));
     chain.link(persistent::Read::<GitHubCli>::both(
         GitHubClient::new(depot.config.github.clone()),
     ));
