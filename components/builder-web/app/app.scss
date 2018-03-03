@@ -140,6 +140,7 @@ main {
   bottom: 0;
   left: 0;
   background-color: $white;
+  overflow-y: scroll;
 
   .full &, .sign-in & {
     background: transparent;
