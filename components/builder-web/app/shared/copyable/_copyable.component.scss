@@ -17,7 +17,8 @@ hab-copyable {
       padding: 6px 8px;
       border: $default-border;
       border-radius: $default-radius 0 0 $default-radius;
-      overflow-x: scroll;
+      overflow-x: auto;
+      overflow-y: hidden;
       margin-right: $button-width;
       white-space: nowrap;
       height: $button-height;
