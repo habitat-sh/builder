@@ -203,6 +203,7 @@ pub fn account_token_validate(
 
     // Builder tokens are never in the DB and are not revocable
     if account_id == bldr_core::access_token::BUILDER_ACCOUNT_ID {
+        conn.route_reply(req, &NetOk::new())?;
         return Ok(());
     }
 
