@@ -17,7 +17,7 @@
 use std::env;
 
 use bodyparser;
-use bldr_core::{self, metrics};
+use bldr_core;
 use bldr_core::helpers::transition_visibility;
 use github_api_client::HubError;
 use hab_core::package::{Identifiable, Plan};
@@ -135,7 +135,6 @@ pub fn github_authenticate(req: &mut Request) -> IronResult<Response> {
     let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
 
-    metrics::Counter::GithubAuthenticate.increment();
     match github.authenticate(&code) {
         Ok(token) => {
             let session = {
@@ -716,7 +715,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
                 body.repo_id,
                 body.installation_id
             );
-            metrics::Counter::GithubInstallationToken.increment();
+
             let token = match github.app_installation_token(body.installation_id) {
                 Ok(token) => token,
                 Err(err) => {
@@ -730,7 +729,6 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
             project.set_vcs_type(String::from("git"));
             project.set_vcs_installation_id(body.installation_id);
 
-            metrics::Counter::GithubApi.increment();
             match github.repo(&token, body.repo_id) {
                 Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
                 Ok(None) => return Ok(Response::with((status::NotFound, "rg:pc:2"))),
@@ -749,7 +747,6 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
         Err(err) => return Ok(render_net_error(&err)),
     };
 
-    metrics::Counter::GithubApi.increment();
     match github.contents(&token, repo_id, &project.get_plan_path()) {
         Ok(Some(contents)) => {
             match contents.decode() {
@@ -861,12 +858,13 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
                     "Missing value for field: `plan_path`",
                 )));
             }
+
             debug!(
                 "GITHUB-CALL builder_api::server::handlers::project_update: Getting app_installation_token; repo_id={} installation_id={}",
                 body.repo_id,
                 body.installation_id
             );
-            metrics::Counter::GithubInstallationToken.increment();
+
             let token = match github.app_installation_token(body.installation_id) {
                 Ok(token) => token,
                 Err(err) => {
@@ -877,7 +875,6 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
 
             project.set_plan_path(body.plan_path);
             project.set_vcs_installation_id(body.installation_id);
-            metrics::Counter::GithubApi.increment();
             match github.repo(&token, body.repo_id) {
                 Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
                 Ok(None) => return Ok(Response::with((status::NotFound, "rg:pu:2"))),
@@ -891,7 +888,6 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
         _ => return Ok(Response::with(status::UnprocessableEntity)),
     };
 
-    metrics::Counter::GithubApi.increment();
     match github.contents(&token, repo_id, &project.get_plan_path()) {
         Ok(Some(contents)) => {
             match contents.decode() {

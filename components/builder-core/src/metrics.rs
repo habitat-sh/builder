@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
 use std::sync::{Once, ONCE_INIT};
 use std::sync::mpsc::{channel, sync_channel, Sender, Receiver, SyncSender};
 use std::thread;
@@ -24,43 +25,56 @@ pub const APP_NAME: &'static str = "bldr";
 // Statsd Listener Address
 pub const STATS_ENV: &'static str = "HAB_STATS_ADDR";
 
-// Supported metrics
-#[derive(Debug, Clone)]
-pub enum Counter {
-    GithubApi,
-    GithubAuthenticate,
-    GithubEvent,
-    GithubInstallationToken,
-    SearchPackages,
+pub type ApiEndpoint = &'static str;
+pub type InstallationId = u32;
+
+// Public Interface
+////////////////////////////////////////////////////////////////////////
+
+/// Metric identifiers will usually be static `str`s, but some may
+/// need to be dynamically-generated `String`s. With a `Cow`, we can
+/// accept either.
+pub type MetricId = Cow<'static, str>;
+
+/// All metrics must implement the Metric trait, as well as one of the
+/// type marker traits (e.g., `CounterMetric`).
+pub trait Metric {
+    /// Generate the metric name to be used
+    fn id(&self) -> MetricId;
 }
 
-// Supported metrics
-#[derive(Debug, Clone)]
-pub enum Gauge {
-    PackageCount,
+/// Marker trait for counter metrics (don't want to accidentally
+/// increment a gauge metric!)
+pub trait CounterMetric {}
+
+/// Increment the given metric by one
+pub fn incr<C>(counter: C)
+    where C: Metric + CounterMetric {
+    match sender().send((MetricType::Counter,
+                         MetricOperation::Increment,
+                         counter.id(),
+                         None)) {
+        Ok(_) => (),
+        Err(e) => error!("Failed to increment counter, error: {:?}", e)
+    }
 }
+
+// Implementation Details
+////////////////////////////////////////////////////////////////////////////////
 
 // Helper types
 #[derive(Debug, Clone, Copy)]
 enum MetricType {
     Counter,
-    Gauge,
 }
 
 #[derive(Debug, Clone, Copy)]
 enum MetricOperation {
     Increment,
-    Decrement,
-    SetValue,
 }
 
-type MetricId = &'static str;
 type MetricValue = f64;
 type MetricTuple = (MetricType, MetricOperation, MetricId, Option<MetricValue>);
-
-trait Metric {
-    fn id(&self) -> &'static str;
-}
 
 // One-time initialization
 static mut SENDER: *const Sender<MetricTuple> = 0 as *const Sender<MetricTuple>;
@@ -98,22 +112,14 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
 
     loop {
         let (mtyp, mop, mid, mval): MetricTuple = rx.recv().unwrap();
-        debug!("Received metrics tuple: {:?}", (mtyp, mop, mid, mval));
+        debug!("Received metrics tuple: {:?}", (mtyp, mop, &mid, mval));
 
         match client {
             Some(ref mut cli) => {
                 match mtyp {
                     MetricType::Counter => {
                         match mop {
-                            MetricOperation::Increment => cli.incr(mid),
-                            MetricOperation::Decrement => cli.decr(mid),
-                            _ => error!("Unexpected metric operation: {:?}", mop),
-                        }
-                    }
-                    MetricType::Gauge => {
-                        match mop {
-                            MetricOperation::SetValue => cli.gauge(mid, mval.unwrap()),
-                            _ => error!("Unexpected metric operation: {:?}", mop),
+                            MetricOperation::Increment => cli.incr(&mid),
                         }
                     }
                 }
@@ -136,119 +142,5 @@ fn statsd_client() -> Option<Client> {
             }
         }
         Err(_) => None,
-    }
-}
-
-impl Counter {
-    pub fn increment(&self) {
-        match sender().send((
-            MetricType::Counter,
-            MetricOperation::Increment,
-            &self.id(),
-            None,
-        )) {
-            Ok(_) => (),
-            Err(e) => error!("Failed to increment counter, error: {:?}", e),
-        }
-    }
-
-    pub fn decrement(&self) {
-        match sender().send((
-            MetricType::Counter,
-            MetricOperation::Decrement,
-            &self.id(),
-            None,
-        )) {
-            Ok(_) => (),
-            Err(e) => error!("Failed to decrement counter, error: {:?}", e),
-        }
-    }
-}
-
-impl Gauge {
-    pub fn set(&self, val: f64) {
-        match sender().send((
-            MetricType::Gauge,
-            MetricOperation::SetValue,
-            &self.id(),
-            Some(val),
-        )) {
-            Ok(_) => (),
-            Err(e) => error!("Failed to set gauge, error: {:?}", e),
-        }
-    }
-}
-
-impl Metric for Counter {
-    fn id(&self) -> &'static str {
-        match *self {
-            Counter::GithubApi => "github.api",
-            Counter::GithubAuthenticate => "github.authenticate",
-            Counter::GithubEvent => "github.event",
-            Counter::GithubInstallationToken => "github.installation-token",
-            Counter::SearchPackages => "search-packages",
-        }
-    }
-}
-
-impl Metric for Gauge {
-    fn id(&self) -> &'static str {
-        match *self {
-            Gauge::PackageCount => "package-count",
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::{Counter, Gauge};
-    use metrics::Metric;
-    use std::time::Duration;
-    use std::thread;
-
-    #[test]
-    fn counter_id() {
-        let expected = r#"search-packages"#;
-        let disp = Counter::SearchPackages.id();
-        assert!(disp == expected);
-    }
-
-    #[test]
-    fn guage_id() {
-        let expected = r#"package-count"#;
-        let disp = Gauge::PackageCount.id();
-        assert!(disp == expected);
-    }
-
-    #[test]
-    #[ignore]
-    fn increment_counter() {
-        Counter::SearchPackages.increment();
-    }
-
-    #[test]
-    #[ignore]
-    fn decrement_counter() {
-        Counter::SearchPackages.decrement();
-    }
-
-    #[test]
-    #[ignore]
-    fn set_gauge() {
-        Gauge::PackageCount.set(10.0);
-    }
-
-    #[test]
-    #[ignore]
-    fn calls_from_multiple_threads() {
-        for n in 0..10 {
-            thread::spawn(move || {
-                Counter::SearchPackages.increment();
-                Gauge::PackageCount.set(n as f64);
-                Counter::SearchPackages.decrement();
-            });
-        }
-
-        thread::sleep(Duration::from_millis(500))
     }
 }

@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::time::{UNIX_EPOCH, Duration, SystemTime};
 
+use builder_core::metrics;
 use hab_http::ApiClient;
 use hyper::{self, Url};
 use hyper::client::IntoUrl;
@@ -27,9 +28,48 @@ use serde_json;
 
 use config::GitHubCfg;
 use error::{HubError, HubResult};
+use metrics::Counter;
 use types::*;
 
 const USER_AGENT: &'static str = "Habitat-Builder";
+
+pub type TokenString = String;
+pub type InstallationId = u32;
+
+/// Bundle up a Github token with the Github App installation ID used
+/// to create it.
+///
+/// Consumers will treat this as an opaque type; its main utility is
+/// in carrying the installation ID around so we can generate metrics
+/// on a per-installation basis.
+pub struct AppToken {
+    inner_token: TokenString,
+
+    // Leave this here in anticipation of using it for tagged metrics
+    #[allow(dead_code)]
+    installation_id: InstallationId
+}
+
+impl AppToken {
+    // Not public, because you should only get these from
+    // `GitHubClient::app_installation_token`
+    fn new(inner_token: TokenString, installation_id: InstallationId) -> Self {
+        AppToken{inner_token, installation_id}
+    }
+
+    // Only providing this for builder-worker's benefit... it
+    // currently needs a token for cloning via libgit2; once that's
+    // gone, just delete this function.
+    /// Retrieve the actual token content for use in HTTP calls.
+    pub fn inner_token(&self) -> &str {
+        self.inner_token.as_ref()
+    }
+}
+
+// Temporary type... will go away soon once we transition away from
+// personal Github tokens. Useful for expressing expectations through
+// explicitly typing, though.
+pub type UserToken = TokenString;
 
 #[derive(Clone)]
 pub struct GitHubClient {
@@ -72,19 +112,21 @@ impl GitHubClient {
         Ok(contents)
     }
 
-    pub fn app_installation_token(&self, install_id: u32) -> HubResult<String> {
+    pub fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id);
         let url = Url::parse(&format!(
             "{}/installations/{}/access_tokens",
             self.url,
             install_id
         )).map_err(HubError::HttpClientParse)?;
+
+        metrics::incr(Counter::InstallationToken);
         let mut rep = http_post(url, Some(app_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
         match serde_json::from_str::<AppInstallationToken>(&body) {
-            Ok(msg) => Ok(msg.token),
+            Ok(msg) => Ok(AppToken::new(msg.token, install_id)),
             Err(_) => {
                 let err = serde_json::from_str::<AppAuthErr>(&body)?;
                 Err(HubError::AppAuth(err))
@@ -100,6 +142,8 @@ impl GitHubClient {
             self.client_secret,
             code
         )).map_err(HubError::HttpClientParse)?;
+
+        metrics::incr(Counter::Authenticate);
         let mut rep = http_post(url, None::<String>)?;
         if rep.status.is_success() {
             let mut body = String::new();
@@ -119,13 +163,15 @@ impl GitHubClient {
 
     pub fn check_team_membership(
         &self,
-        token: &str,
+        token: &AppToken,
         team: u32,
         user: &str,
     ) -> HubResult<Option<TeamMembership>> {
         let url = Url::parse(&format!("{}/teams/{}/memberships/{}", self.url, team, user))
             .map_err(HubError::HttpClientParse)?;
-        let mut rep = http_get(url, Some(token))?;
+
+        metrics::incr(Counter::Api("check_team_membership"));
+        let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
@@ -142,14 +188,16 @@ impl GitHubClient {
     }
 
     /// Returns the contents of a file or directory in a repository.
-    pub fn contents(&self, token: &str, repo: u32, path: &str) -> HubResult<Option<Contents>> {
+    pub fn contents(&self, token: &AppToken, repo: u32, path: &str) -> HubResult<Option<Contents>> {
         let url = Url::parse(&format!(
             "{}/repositories/{}/contents/{}",
             self.url,
             repo,
             path
         )).map_err(HubError::HttpClientParse)?;
-        let mut rep = http_get(url, Some(token))?;
+
+        metrics::incr(Counter::Api("contents"));
+        let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
@@ -170,9 +218,10 @@ impl GitHubClient {
         Ok(Some(contents))
     }
 
-    pub fn repo(&self, token: &str, repo: u32) -> HubResult<Option<Repository>> {
+    pub fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
         let url = Url::parse(&format!("{}/repositories/{}", self.url, repo)).unwrap();
-        let mut rep = http_get(url, Some(token))?;
+        metrics::incr(Counter::Api("repo"));
+        let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
@@ -188,8 +237,9 @@ impl GitHubClient {
         Ok(Some(value))
     }
 
-    pub fn user(&self, token: &str) -> HubResult<User> {
+    pub fn user(&self, token: &UserToken) -> HubResult<User> {
         let url = Url::parse(&format!("{}/user", self.url)).unwrap();
+        metrics::incr(Counter::UserApi("user"));
         let mut rep = http_get(url, Some(token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;

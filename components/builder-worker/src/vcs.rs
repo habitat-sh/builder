@@ -16,6 +16,7 @@ use std::path::Path;
 
 use bldr_core::job::Job;
 use bldr_core::metrics;
+use metrics::Counter;
 use git2;
 use github_api_client::{GitHubClient, GitHubCfg};
 use url::Url;
@@ -80,11 +81,17 @@ impl VCS {
                             "GITHUB-CALL builder_worker::vcs::clone: Getting app_installation_token; installation_id={}",
                             id
                         );
-                        metrics::Counter::GithubInstallationToken.increment();
-                        metrics::Counter::GithubApi.increment(); // TBD: Split into authenticated and non-authenticated
-                        Some(self.github_client.app_installation_token(id).map_err(|e| {
+
+                        // TODO (CM): grabbing just the token matter
+                        // because the subsequent git2 clone call
+                        // doesn't use our Github client... maybe we
+                        // should pull it in?
+                        let t = self.github_client.app_installation_token(id).map_err(|e| {
                             Error::GithubAppAuthErr(e)
-                        })?)
+                        })?;
+                        // TBD: Split metrics into authenticated and non-authenticated
+                        metrics::incr(Counter::GitClone(id));
+                        Some(t.inner_token().to_string())
                     }
                 };
                 debug!(

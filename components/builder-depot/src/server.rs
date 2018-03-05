@@ -55,6 +55,7 @@ use uuid::Uuid;
 
 use super::DepotUtil;
 use error::{Error, Result};
+use metrics::Counter;
 use handlers;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1802,7 +1803,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
 }
 
 fn search_packages(req: &mut Request) -> IronResult<Response> {
-    metrics::Counter::SearchPackages.increment();
+    metrics::incr(Counter::SearchPackages);
 
     let session_id = helpers::get_optional_session_id(req);
     let mut request = OriginPackageSearchRequest::new();
