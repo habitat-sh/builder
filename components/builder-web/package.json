@@ -56,7 +56,7 @@
     "js-cookie": "^2.1.4",
     "lodash": "^4.17.4",
     "marked": "^0.3.9",
-    "moment": "^2.18.1",
+    "moment": "^2.21.0",
     "parse-link-header": "^0.4.1",
     "redux": "^3.6.0",
     "redux-reset": "^0.3.0",
