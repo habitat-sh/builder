@@ -22,7 +22,6 @@ extern crate builder_http_gateway as http_gateway;
 extern crate constant_time_eq;
 extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
-#[macro_use]
 extern crate habitat_core as hab_core;
 extern crate habitat_depot as depot;
 extern crate habitat_http_client as http_client;

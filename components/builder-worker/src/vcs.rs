@@ -15,6 +15,7 @@
 use std::path::Path;
 
 use bldr_core::job::Job;
+use bldr_core::metrics;
 use git2;
 use github_api_client::{GitHubClient, GitHubCfg};
 use url::Url;
@@ -69,19 +70,25 @@ impl VCS {
             "git" => {
                 let token = match self.installation_id {
                     None => {
-                        debug!("GITHUB-CALL builder_worker::vcs::clone: no installation_id present, no token generated");
+                        debug!(
+                            "GITHUB-CALL builder_worker::vcs::clone: no installation_id present, no token generated"
+                        );
                         None
                     }
                     Some(id) => {
-                        debug!("GITHUB-CALL builder_worker::vcs::clone: Getting app_installation_token; installation_id={}",
-                               id);
+                        debug!(
+                            "GITHUB-CALL builder_worker::vcs::clone: Getting app_installation_token; installation_id={}",
+                            id
+                        );
+                        metrics::Counter::GithubInstallationToken.increment();
+                        metrics::Counter::GithubApi.increment(); // TBD: Split into authenticated and non-authenticated
                         Some(self.github_client.app_installation_token(id).map_err(|e| {
                             Error::GithubAppAuthErr(e)
                         })?)
                     }
                 };
                 debug!(
-                    "cloning git repository, url={}, path={:?}",
+                    "GITHUB-CALL builder_worker::vcs::clone: cloning git repository, url={}, path={:?}",
                     self.url(token.clone())?,
                     path
                 );

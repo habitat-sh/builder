@@ -27,6 +27,10 @@ pub const STATS_ENV: &'static str = "HAB_STATS_ADDR";
 // Supported metrics
 #[derive(Debug, Clone)]
 pub enum Counter {
+    GithubApi,
+    GithubAuthenticate,
+    GithubEvent,
+    GithubInstallationToken,
     SearchPackages,
 }
 
@@ -122,10 +126,11 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
 fn statsd_client() -> Option<Client> {
     match env::var(STATS_ENV) {
         Ok(addr) => {
+            info!("Creating statsd client with addr: {}", addr);
             match Client::new(&addr, APP_NAME) {
                 Ok(c) => Some(c),
                 Err(e) => {
-                    debug!("Error creating statsd client: {:?}", e);
+                    error!("Error creating statsd client: {:?}", e);
                     None
                 }
             }
@@ -177,6 +182,10 @@ impl Gauge {
 impl Metric for Counter {
     fn id(&self) -> &'static str {
         match *self {
+            Counter::GithubApi => "github.api",
+            Counter::GithubAuthenticate => "github.authenticate",
+            Counter::GithubEvent => "github.event",
+            Counter::GithubInstallationToken => "github.installation-token",
             Counter::SearchPackages => "search-packages",
         }
     }

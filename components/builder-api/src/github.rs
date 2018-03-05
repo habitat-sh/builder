@@ -16,6 +16,7 @@ use std::io::Read;
 use std::str::FromStr;
 
 use bldr_core::build_config::{BLDR_CFG, BuildCfg};
+use bldr_core::metrics;
 use constant_time_eq::constant_time_eq;
 use github_api_client::GitHubClient;
 use hab_core::package::Plan;
@@ -53,6 +54,8 @@ impl FromStr for GitHubEvent {
 }
 
 pub fn handle_event(req: &mut Request) -> IronResult<Response> {
+    metrics::Counter::GithubEvent.increment();
+
     let event = match req.headers.get::<XGitHubEvent>() {
         Some(&XGitHubEvent(ref event)) => {
             match GitHubEvent::from_str(event) {
@@ -128,8 +131,13 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
     };
 
     let token = {
-        debug!("GITHUB-CALL builder_api::github::repo_file_content: Getting app_installation_token; repo_id={} installation_id={} path={}",
-               repo_id, install_id, path);
+        debug!(
+            "GITHUB-CALL builder_api::github::repo_file_content: Getting app_installation_token; repo_id={} installation_id={} path={}",
+            repo_id,
+            install_id,
+            path
+        );
+        metrics::Counter::GithubInstallationToken.increment();
         match github.app_installation_token(install_id) {
             Ok(token) => token,
             Err(err) => {
@@ -138,6 +146,8 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
             }
         }
     };
+
+    metrics::Counter::GithubApi.increment();
     match github.contents(&token, repo_id, path) {
         Ok(None) => Ok(Response::with(status::NotFound)),
         Ok(search) => Ok(render_json(status::Ok, &search)),
@@ -157,11 +167,13 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
             ));
         }
     };
-    debug!("GITHUB-WEBHOOK builder_api::github::handle_push: received hook; repository={} repository_id={} ref={} installation_id={}",
-           hook.repository.full_name,
-           hook.repository.id,
-           hook.git_ref,
-           hook.installation.id);
+    debug!(
+        "GITHUB-WEBHOOK builder_api::github::handle_push: received hook; repository={} repository_id={} ref={} installation_id={}",
+        hook.repository.full_name,
+        hook.repository.id,
+        hook.git_ref,
+        hook.installation.id
+    );
 
     if hook.commits.is_empty() {
         debug!("GITHUB-WEBHOOK builder_api::github::handle_push: hook commits is empty!");
@@ -170,8 +182,11 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
 
     let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
 
-    debug!("GITHUB-CALL builder_api::github::handle_push: Getting app_installation_token; installation_id={}",
-           hook.installation.id);
+    debug!(
+        "GITHUB-CALL builder_api::github::handle_push: Getting app_installation_token; installation_id={}",
+        hook.installation.id
+    );
+    metrics::Counter::GithubInstallationToken.increment();
     let token = match github.app_installation_token(hook.installation.id) {
         Ok(token) => token,
         Err(err) => {
@@ -227,6 +242,7 @@ fn build_plans(req: &mut Request, repo_url: &str, plans: Vec<Plan>) -> IronResul
 }
 
 fn read_bldr_config(github: &GitHubClient, token: &str, hook: &GitHubWebhookPush) -> BuildCfg {
+    metrics::Counter::GithubApi.increment();
     match github.contents(token, hook.repository.id, BLDR_CFG) {
         Ok(Some(contents)) => {
             match contents.decode() {
@@ -274,6 +290,7 @@ fn read_plan(
     hook: &GitHubWebhookPush,
     path: &str,
 ) -> Option<Plan> {
+    metrics::Counter::GithubApi.increment();
     match github.contents(token, hook.repository.id, path) {
         Ok(Some(contents)) => {
             match contents.decode() {

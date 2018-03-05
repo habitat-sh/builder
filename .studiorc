@@ -12,6 +12,7 @@ export SSL_CERT_FILE
 export GITHUB_APP_ID
 export GITHUB_APP_URL
 export DEV_MODE
+export HAB_STATS_ADDR
 
 # Wrap a function with this one to ensure that it stops executing if any of its
 # commands return nonzero. If so, a highly-visible message is printed which

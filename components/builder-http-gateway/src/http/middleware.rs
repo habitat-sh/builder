@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use base64;
-use bldr_core;
+use bldr_core::{self, metrics};
 use core::env;
 use github_api_client::{GitHubCfg, GitHubClient, HubError};
 use hab_net::{ErrCode, NetError};
@@ -279,6 +279,10 @@ pub fn session_create_github(req: &mut Request, token: &str) -> IronResult<Sessi
     let conn = req.extensions.get_mut::<XRouteClient>().expect(
         "no XRouteClient extension in request",
     );
+    debug!(
+        "GITHUB-CALL builder_http-gateway::middleware::session_create_github: Checking user with access token",
+    );
+    metrics::Counter::GithubApi.increment();
     match github.user(&token) {
         Ok(user) => {
             let mut request = SessionCreate::new();

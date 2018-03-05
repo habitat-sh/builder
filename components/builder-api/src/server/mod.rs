@@ -18,13 +18,12 @@ use std::path::PathBuf;
 
 use depot;
 use github_api_client::GitHubClient;
-use hab_core::event::EventLogger;
 use http_gateway;
 use http_gateway::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
 use iron;
 use mount::Mount;
-use persistent::{self, Read};
+use persistent;
 use segment_api_client::SegmentClient;
 use staticfile::Static;
 
@@ -45,9 +44,6 @@ impl HttpGateway for ApiSrv {
         ));
         chain.link(persistent::Read::<SegmentCli>::both(
             SegmentClient::new(config.segment.clone()),
-        ));
-        chain.link(Read::<EventLog>::both(
-            EventLogger::new(&config.log_dir, config.events_enabled),
         ));
         chain.link_after(Cors);
     }

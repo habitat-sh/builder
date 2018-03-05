@@ -16,7 +16,7 @@ use std::env;
 
 use hab_net::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
-use bldr_core;
+use bldr_core::{self, metrics};
 
 use protocol::net;
 use protocol::sessionsrv as proto;
@@ -482,12 +482,20 @@ pub fn account_invitation_list(
 }
 
 fn assign_permissions(name: &str, flags: &mut FeatureFlags, state: &ServerState) {
-    debug!("GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Getting app_installation_token; installation_id={}",
-           state.permissions.app_install_id);
+    debug!(
+        "GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Getting app_installation_token; installation_id={}",
+        state.permissions.app_install_id
+    );
+    metrics::Counter::GithubInstallationToken.increment();
     match state.github.app_installation_token(
         state.permissions.app_install_id,
     ) {
         Ok(token) => {
+            metrics::Counter::GithubApi.increment();
+            debug!(
+                "GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Checking team membership for {}",
+                name
+            );
             match state.github.check_team_membership(
                 &token,
                 state.permissions.admin_team,
@@ -503,6 +511,11 @@ fn assign_permissions(name: &str, flags: &mut FeatureFlags, state: &ServerState)
                 Err(err) => warn!("Failed to check github team membership, {}", err),
             }
             for team in state.permissions.early_access_teams.iter() {
+                metrics::Counter::GithubApi.increment();
+                debug!(
+                    "GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Checking team membership for {}",
+                    name
+                );
                 match state.github.check_team_membership(&token, *team, name) {
                     Ok(Some(membership)) => {
                         if membership.active() {
@@ -516,6 +529,11 @@ fn assign_permissions(name: &str, flags: &mut FeatureFlags, state: &ServerState)
                 }
             }
             for team in state.permissions.build_worker_teams.iter() {
+                metrics::Counter::GithubApi.increment();
+                debug!(
+                    "GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Checking team membership for {}",
+                    name
+                );
                 match state.github.check_team_membership(&token, *team, name) {
                     Ok(Some(membership)) => {
                         if membership.active() {
