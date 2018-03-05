@@ -25,6 +25,7 @@ import { BannerComponent } from './banner/banner.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { FooterComponent } from './footer/footer.component';
 import { GravatarComponent } from './gravatar/gravatar.component';
+import { StatuspageIndicatorComponent } from './statuspage/statuspage-indicator.component';
 import { NotificationsComponent } from './notifications/notifications.component';
 import { SideNavComponent } from './side-nav/side-nav.component';
 import { SignInPageComponent } from './sign-in-page/sign-in-page.component';
@@ -59,6 +60,7 @@ import { SharedModule } from './shared/shared.module';
     BannerComponent,
     FooterComponent,
     GravatarComponent,
+    StatuspageIndicatorComponent,
     NotificationsComponent,
     SideNavComponent,
     SignInPageComponent,

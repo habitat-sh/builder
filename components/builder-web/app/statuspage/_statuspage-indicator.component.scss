@@ -1,0 +1,18 @@
+.statuspage-component {
+  > .color-dot {
+    border-radius: 50%;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: $default-margin / 2;
+
+    &.critical { background-color: $hab-red; }
+    &.major    { background-color: $hab-orange; }
+    &.minor    { background-color: $hab-yellow; }
+    &.none     { background-color: $hab-green; }
+  }
+
+  > .color-description {
+    font-size: $small-font-size;
+  }
+}
