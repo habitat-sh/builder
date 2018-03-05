@@ -26,7 +26,11 @@
       <div>
         <dt>&nbsp;</dt>
         <dd>
-          <hab-channels [channels]="channels"></hab-channels>
+          <hab-channels
+            [channels]="channels"
+            (onDemote)="handleDemote($event)"
+            [canDemote]="memberOfOrigin">
+          </hab-channels>
           <hab-package-promote
             [origin]="package.ident.origin"
             [name]="package.ident.name"

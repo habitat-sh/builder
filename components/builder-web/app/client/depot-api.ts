@@ -60,6 +60,28 @@ function handleUnauthorized(response, reject) {
   return response;
 }
 
+export function demotePackage(origin: string, name: string, version: string, release: string, channel: string, token: string) {
+  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/demote`;
+
+  return new Promise((resolve, reject) => {
+    fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      method: 'PUT',
+    })
+      .then(response => handleUnauthorized(response, reject))
+      .then(response => {
+        if (response.ok) {
+          resolve(true);
+        } else {
+          reject(new Error(response.statusText));
+        }
+      })
+      .catch(error => handleError(error, reject));
+  });
+}
+
 export function getUnique(origin: string, nextRange: number = 0, token: string = '') {
   const url = `${urlPrefix}/depot/${origin}/pkgs?range=${nextRange}`;
 

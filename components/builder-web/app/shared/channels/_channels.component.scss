@@ -2,6 +2,7 @@
   display: inline-block;
 
   ul {
+    cursor: default;
     display: inline-block;
     margin-top: $small-margin;
     line-height: 16.5px;
@@ -24,6 +25,12 @@
 
       &:not(:last-child) {
         margin-right: $default-margin / 4;
+      }
+
+      hab-icon[symbol="cancel"] {
+        cursor: pointer;
+        margin: 0 -4px 0 4px;
+        @include icon-size(16);
       }
     }
   }

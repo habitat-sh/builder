@@ -43,7 +43,11 @@
               <hab-icon symbol="chevron-right"></hab-icon>
             </a>
             <div class="channels">
-              <hab-channels [channels]="pkg.channels"></hab-channels>
+              <hab-channels
+                [channels]="pkg.channels"
+                (onDemote)="handleDemote(pkg, $event)"
+                [canDemote]="memberOfOrigin">
+              </hab-channels>
               <hab-package-promote
                 [origin]="pkg.origin"
                 [name]="pkg.name"
