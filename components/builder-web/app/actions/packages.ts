@@ -72,6 +72,30 @@ function clearPackageVersions() {
   };
 }
 
+export function demotePackage(origin: string, name: string, version: string, release: string, channel: string, token: string) {
+  return dispatch => {
+    depotApi.demotePackage(origin, name, version, release, channel, token)
+      .then(response => {
+        dispatch(addNotification({
+          title: 'Package demoted',
+          body: `${origin}/${name}/${version}/${release} has been removed from the ${channel} channel.`,
+          type: SUCCESS
+        }));
+        dispatch(fetchLatestInChannel(origin, name, 'stable'));
+        dispatch(fetchPackageChannels(origin, name, version, release));
+        dispatch(fetchPackageVersions(origin, name));
+      })
+      .catch(error => {
+        dispatch(addNotification({
+          title: 'Failed to demote package',
+          body: `There was an error removing ${origin}/${name}/${version}/${release}
+            from the ${channel} channel. The message was ${error.message}.`,
+          type: DANGER
+        }));
+      });
+  };
+}
+
 export function fetchPackage(pkg) {
   return dispatch => {
     depotApi.get(pkg.ident).then(response => {

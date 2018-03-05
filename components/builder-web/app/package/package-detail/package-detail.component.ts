@@ -15,6 +15,7 @@
 import { Component, Input } from '@angular/core';
 import { AppStore } from '../../app.store';
 import { releaseToDate } from '../../util';
+import { demotePackage } from '../../actions/index';
 
 @Component({
   selector: 'hab-package-detail',
@@ -46,6 +47,12 @@ export class PackageDetailComponent {
     return !!this.store.getState().origins.mine.find(
       origin => origin['name'] === this.package.ident.origin
     );
+  }
+
+  handleDemote(channel) {
+    let p = this.package.ident;
+    let token = this.store.getState().session.token;
+    this.store.dispatch(demotePackage(p.origin, p.name, p.version, p.release, channel, token));
   }
 
   promotable(pkg) {

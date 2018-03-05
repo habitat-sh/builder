@@ -18,7 +18,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs/Subscription';
 import { AppStore } from '../../app.store';
 import { packageString, releaseToDate } from '../../util';
-import { fetchPackageVersions, filterPackagesBy } from '../../actions/index';
+import { demotePackage, fetchPackageVersions, filterPackagesBy } from '../../actions/index';
 
 @Component({
   template: require('./package-versions.component.html')
@@ -86,6 +86,11 @@ export class PackageVersionsComponent implements OnDestroy {
 
   fetchPackages(params) {
     this.store.dispatch(filterPackagesBy(params, null, false));
+  }
+
+  handleDemote(pkg, channel) {
+    let token = this.store.getState().session.token;
+    this.store.dispatch(demotePackage(pkg.origin, pkg.name, pkg.version, pkg.release, channel, token));
   }
 
   promotable(pkg) {

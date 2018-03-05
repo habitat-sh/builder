@@ -53,7 +53,7 @@ describe('PackageDetailComponent', () => {
       declarations: [
         PackageDetailComponent,
         MockComponent({ selector: 'hab-platform-icon', inputs: ['platform'] }),
-        MockComponent({ selector: 'hab-channels', inputs: ['channels'] }),
+        MockComponent({ selector: 'hab-channels', inputs: ['channels', 'canDemote'], outputs: ['demote']}),
         MockComponent({ selector: 'hab-package-list', inputs: ['currentPackage', 'packages'] }),
         MockComponent({ selector: 'hab-package-promote', inputs: [ 'origin', 'name', 'version', 'release', 'channel' ] }),
         MockComponent({ selector: 'hab-copyable', inputs: ['text', 'style'] })

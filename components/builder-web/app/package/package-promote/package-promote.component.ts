@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { MatDialog } from '@angular/material';
 import { AppStore } from '../../app.store';
-import { promotePackage } from '../../actions/packages';
+import { promotePackage } from '../../actions/index';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
 
 @Component({
