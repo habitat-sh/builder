@@ -67,6 +67,9 @@ habitatConfig({
     // The URL for tutorials
     tutorials_url: "https://www.habitat.sh/tutorials",
 
+    // Use Gravatar for users whose profiles have email addresses
+    use_gravatar: true,
+
     // The version of the software we're running. In production, this should
     // be automatically populated by Habitat
     version: "",

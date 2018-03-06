@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="40px" height="40px" viewBox="0 0 40 40" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 49 (51002) - http://www.bohemiancoding.com/sketch -->
+    <title>icon-profile-placeholder</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <circle id="path-1" cx="75" cy="62" r="20"></circle>
+    </defs>
+    <g id="Habitat-Web-App-2.0/Notifications" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Artboard" transform="translate(-55.000000, -42.000000)">
+            <mask id="mask-2" fill="white">
+                <use xlink:href="#path-1"></use>
+            </mask>
+            <g id="Mask">
+                <use fill="#FFFFFF" fill-rule="evenodd" xlink:href="#path-1"></use>
+                <circle stroke="#D9E1E7" stroke-width="2" cx="75" cy="62" r="19"></circle>
+            </g>
+            <path d="M75,66.001 C79.42,66.001 83,62.421 83,58 C83,53.58 79.42,50 75,50 C70.579,50 67,53.58 67,58 C67,62.421 70.579,66.001 75,66.001 L75,66.001 Z M75,70 C69.66,70 59,72.681 59,78.001 L59,82 L91,82 L91,78.001 C91,72.681 80.339,70 75,70 L75,70 Z" id="Fill-103" fill="#D9E1E7" mask="url(#mask-2)"></path>
+        </g>
+    </g>
+</svg>
