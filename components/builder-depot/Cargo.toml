@@ -44,7 +44,7 @@ features = [ "suggestions", "color", "unstable" ]
 path = "../builder-core"
 
 [dependencies.github-api-client]
-git = "https://github.com/habitat-sh/habitat.git"
+path = "../github-api-client"
 
 [dependencies.segment-api-client]
 git = "https://github.com/habitat-sh/habitat.git"
