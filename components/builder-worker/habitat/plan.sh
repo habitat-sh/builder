@@ -5,7 +5,8 @@ pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=('Apache-2.0')
 pkg_bin_dirs=(bin)
 pkg_deps=(habitat/airlock core/glibc core/openssl core/gcc-libs core/zeromq core/libsodium
-  core/libarchive core/zlib core/hab-studio core/hab-pkg-export-docker core/docker core/curl)
+  core/libarchive core/zlib core/hab-studio core/hab-pkg-export-docker/0.54.0/20180221020412
+  core/docker/17.09.0/20171001205930 core/curl)
 pkg_build_deps=(core/make core/cmake core/protobuf core/protobuf-rust core/coreutils core/cacerts
   core/rust core/gcc core/git core/pkg-config)
 pkg_binds=(
