@@ -30,7 +30,8 @@ describe('SideNavComponent', () => {
       ],
       declarations: [
         SideNavComponent,
-        MockComponent({ selector: 'hab-icon', inputs: [ 'symbol' ] })
+        MockComponent({ selector: 'hab-icon', inputs: [ 'symbol' ] }),
+        MockComponent({ selector: 'hab-statuspage' })
       ]
     });
 
