@@ -36,7 +36,7 @@ version = "*"
 features = [ "suggestions", "color", "unstable" ]
 
 [dependencies.github-api-client]
-git = "https://github.com/habitat-sh/habitat.git"
+path = "../github-api-client"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"

@@ -17,4 +17,4 @@ serde_json = "*"
 time = "*"
 
 [dependencies.habitat_http_client]
-path = "../http-client"
+git = "https://github.com/habitat-sh/habitat.git"

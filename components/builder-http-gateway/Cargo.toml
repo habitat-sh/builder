@@ -37,7 +37,7 @@ git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
 
 [dependencies.github-api-client]
-git = "https://github.com/habitat-sh/habitat.git"
+path = "../github-api-client"
 
 [dependencies.segment-api-client]
 git = "https://github.com/habitat-sh/habitat.git"
