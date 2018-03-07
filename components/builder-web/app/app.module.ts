@@ -24,11 +24,10 @@ import { AppComponent } from './app.component';
 import { BannerComponent } from './banner/banner.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { FooterComponent } from './footer/footer.component';
-import { GravatarComponent } from './gravatar/gravatar.component';
-import { StatuspageIndicatorComponent } from './statuspage/statuspage-indicator.component';
 import { NotificationsComponent } from './notifications/notifications.component';
 import { SideNavComponent } from './side-nav/side-nav.component';
 import { SignInPageComponent } from './sign-in-page/sign-in-page.component';
+import { StatuspageIndicatorComponent } from './statuspage/statuspage-indicator.component';
 import { UserNavComponent } from './user-nav/user-nav.component';
 
 import { OriginModule } from './origin/origin.module';
@@ -59,11 +58,10 @@ import { SharedModule } from './shared/shared.module';
     AppComponent,
     BannerComponent,
     FooterComponent,
-    GravatarComponent,
-    StatuspageIndicatorComponent,
     NotificationsComponent,
     SideNavComponent,
     SignInPageComponent,
+    StatuspageIndicatorComponent,
     UserNavComponent
   ],
   providers: [

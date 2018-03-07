@@ -27,5 +27,6 @@ habitatConfig({
     demo_app_url: "{{cfg.demo_app_url}}",
     learn_url: "{{cfg.learn_url}}",
     enable_builder: {{cfg.enable_builder}},
-    enable_access_tokens: {{cfg.enable_access_tokens}}
+    enable_access_tokens: {{cfg.enable_access_tokens}},
+    use_gravatar: {{cfg.use_gravatar}}
 });

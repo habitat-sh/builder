@@ -17,6 +17,7 @@ demo_app_url         = "https://www.habitat.sh/demo"
 learn_url            = "https://www.habitat.sh/learn"
 enable_builder       = true
 enable_access_tokens = true
+use_gravatar         = true
 
 [github]
 url          = "https://api.github.com"

@@ -19,6 +19,9 @@ import { URLSearchParams } from '@angular/http';
 import { Router } from '@angular/router';
 import { identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
   routeChange, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
+import config from './config';
+
+const md5 = require('blueimp-md5');
 
 @Component({
   selector: 'hab-app',
@@ -28,7 +31,6 @@ export class AppComponent implements OnInit, OnDestroy {
   removeNotification: Function;
   signOut: Function;
   toggleUserNavMenu: Function;
-
   menuOpen: boolean = false;
 
   private sub: Subscription;
@@ -86,7 +88,17 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   get avatarUrl() {
-    return this.state.users.current.gitHub.get('avatar_url');
+    const user = this.state.users.current;
+    let url = '/assets/images/avatar.svg';
+
+    if (config.oauth_provider === 'github') {
+      url = user.gitHub.get('avatar_url');
+    }
+    else if (config.use_gravatar && user.profile.email) {
+      url = `https://secure.gravatar.com/avatar/${md5(user.profile.email.toLowerCase().trim())}?d=retro&s=40`;
+    }
+
+    return url;
   }
 
   get isSignedIn() {
