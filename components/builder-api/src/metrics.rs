@@ -19,7 +19,7 @@ use std::borrow::Cow;
 use bldr_core::metrics;
 
 pub enum Counter {
-    GithubEvent
+    GitHubEvent
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -27,7 +27,7 @@ impl metrics::CounterMetric for Counter {}
 impl metrics::Metric for Counter {
     fn id(&self) -> Cow<'static, str> {
         match *self {
-            Counter::GithubEvent => "github.event".into(),
+            Counter::GitHubEvent => "github.event".into(),
         }
     }
 }

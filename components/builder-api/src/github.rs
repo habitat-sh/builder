@@ -55,7 +55,7 @@ impl FromStr for GitHubEvent {
 }
 
 pub fn handle_event(req: &mut Request) -> IronResult<Response> {
-    metrics::incr(Counter::GithubEvent);
+    metrics::incr(Counter::GitHubEvent);
 
     let event = match req.headers.get::<XGitHubEvent>() {
         Some(&XGitHubEvent(ref event)) => {
