@@ -43,15 +43,17 @@ pub trait Metric {
     fn id(&self) -> MetricId;
 }
 
-pub trait CounterMetric : Metric {
+pub trait CounterMetric: Metric {
     /// Increment the metric by one
     fn increment(&self) {
-        match sender().send((MetricType::Counter,
-                             MetricOperation::Increment,
-                             self.id(),
-                             None)) {
+        match sender().send((
+            MetricType::Counter,
+            MetricOperation::Increment,
+            self.id(),
+            None,
+        )) {
             Ok(_) => (),
-            Err(e) => error!("Failed to increment counter, error: {:?}", e)
+            Err(e) => error!("Failed to increment counter, error: {:?}", e),
         }
     }
 }

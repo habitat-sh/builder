@@ -36,12 +36,8 @@ impl metrics::Metric for Counter {
         match *self {
             Counter::Authenticate => "github.authenticate".into(),
             Counter::InstallationToken => "github.installation-token".into(),
-            Counter::Api(ref endpoint) => {
-                format!("github.api.{}", endpoint).into()
-            }
-            Counter::UserApi(ref endpoint) => {
-                format!("github.user-api.{}", endpoint).into()
-            }
+            Counter::Api(ref endpoint) => format!("github.api.{}", endpoint).into(),
+            Counter::UserApi(ref endpoint) => format!("github.user-api.{}", endpoint).into(),
         }
     }
 }

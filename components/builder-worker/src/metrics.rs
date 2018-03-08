@@ -21,7 +21,7 @@ use bldr_core::metrics;
 pub type InstallationId = u32;
 
 pub enum Counter {
-    GitClone(InstallationId)
+    GitClone(InstallationId),
 }
 
 impl metrics::CounterMetric for Counter {}

@@ -19,7 +19,7 @@ use std::borrow::Cow;
 use bldr_core::metrics;
 
 pub enum Counter {
-    GitHubEvent
+    GitHubEvent,
 }
 
 impl metrics::CounterMetric for Counter {}

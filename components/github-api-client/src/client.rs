@@ -47,14 +47,17 @@ pub struct AppToken {
 
     // Leave this here in anticipation of using it for tagged metrics
     #[allow(dead_code)]
-    installation_id: InstallationId
+    installation_id: InstallationId,
 }
 
 impl AppToken {
     // Not public, because you should only get these from
     // `GitHubClient::app_installation_token`
     fn new(inner_token: TokenString, installation_id: InstallationId) -> Self {
-        AppToken{inner_token, installation_id}
+        AppToken {
+            inner_token,
+            installation_id,
+        }
     }
 
     // Only providing this for builder-worker's benefit... it

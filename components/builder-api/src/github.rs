@@ -274,7 +274,13 @@ fn read_plans(
 ) -> Vec<Plan> {
     let mut plans = Vec::with_capacity(config.projects().len());
     for project in config.triggered_by(hook.branch(), hook.changed().as_slice()) {
-        if let Some(plan) = read_plan(github, &token, hook, &project.plan_file().to_string_lossy()) {
+        if let Some(plan) = read_plan(
+            github,
+            &token,
+            hook,
+            &project.plan_file().to_string_lossy(),
+        )
+        {
             plans.push(plan)
         }
     }
