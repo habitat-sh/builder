@@ -15,7 +15,7 @@
 use std::path::Path;
 
 use bldr_core::job::Job;
-use bldr_core::metrics;
+use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 use git2;
 use github_api_client::{GitHubClient, GitHubCfg};
@@ -90,7 +90,7 @@ impl VCS {
                             Error::GithubAppAuthErr(e)
                         })?;
                         // TBD: Split metrics into authenticated and non-authenticated
-                        metrics::incr(Counter::GitClone(id));
+                        Counter::GitClone(id).incr();
                         Some(t.inner_token().to_string())
                     }
                 };

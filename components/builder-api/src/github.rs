@@ -16,7 +16,7 @@ use std::io::Read;
 use std::str::FromStr;
 
 use bldr_core::build_config::{BLDR_CFG, BuildCfg};
-use bldr_core::metrics;
+use bldr_core::metrics::CounterMetric;
 use constant_time_eq::constant_time_eq;
 use github_api_client::{GitHubClient, AppToken};
 use hab_core::package::Plan;
@@ -55,7 +55,7 @@ impl FromStr for GitHubEvent {
 }
 
 pub fn handle_event(req: &mut Request) -> IronResult<Response> {
-    metrics::incr(Counter::GitHubEvent);
+    Counter::GitHubEvent.incr();
 
     let event = match req.headers.get::<XGitHubEvent>() {
         Some(&XGitHubEvent(ref event)) => {

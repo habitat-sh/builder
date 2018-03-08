@@ -43,19 +43,16 @@ pub trait Metric {
     fn id(&self) -> MetricId;
 }
 
-/// Marker trait for counter metrics (don't want to accidentally
-/// increment a gauge metric!)
-pub trait CounterMetric : Metric {}
-
-/// Increment the given metric by one
-pub fn incr<C>(counter: C)
-    where C: CounterMetric {
-    match sender().send((MetricType::Counter,
-                         MetricOperation::Increment,
-                         counter.id(),
-                         None)) {
-        Ok(_) => (),
-        Err(e) => error!("Failed to increment counter, error: {:?}", e)
+pub trait CounterMetric : Metric {
+    /// Increment the metric by one
+    fn incr(&self) {
+        match sender().send((MetricType::Counter,
+                             MetricOperation::Increment,
+                             self.id(),
+                             None)) {
+            Ok(_) => (),
+            Err(e) => error!("Failed to increment counter, error: {:?}", e)
+        }
     }
 }
 

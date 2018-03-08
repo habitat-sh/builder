@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::time::{UNIX_EPOCH, Duration, SystemTime};
 
-use builder_core::metrics;
+use builder_core::metrics::CounterMetric;
 use hab_http::ApiClient;
 use hyper::{self, Url};
 use hyper::client::IntoUrl;
@@ -120,7 +120,7 @@ impl GitHubClient {
             install_id
         )).map_err(HubError::HttpClientParse)?;
 
-        metrics::incr(Counter::InstallationToken);
+        Counter::InstallationToken.incr();
         let mut rep = http_post(url, Some(app_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -143,7 +143,7 @@ impl GitHubClient {
             code
         )).map_err(HubError::HttpClientParse)?;
 
-        metrics::incr(Counter::Authenticate);
+        Counter::Authenticate.incr();
         let mut rep = http_post(url, None::<String>)?;
         if rep.status.is_success() {
             let mut body = String::new();
@@ -170,7 +170,7 @@ impl GitHubClient {
         let url = Url::parse(&format!("{}/teams/{}/memberships/{}", self.url, team, user))
             .map_err(HubError::HttpClientParse)?;
 
-        metrics::incr(Counter::Api("check_team_membership"));
+        Counter::Api("check_team_membership").incr();
         let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -196,7 +196,7 @@ impl GitHubClient {
             path
         )).map_err(HubError::HttpClientParse)?;
 
-        metrics::incr(Counter::Api("contents"));
+        Counter::Api("contents").incr();
         let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -220,7 +220,7 @@ impl GitHubClient {
 
     pub fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
         let url = Url::parse(&format!("{}/repositories/{}", self.url, repo)).unwrap();
-        metrics::incr(Counter::Api("repo"));
+        Counter::Api("repo").incr();
         let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -239,7 +239,7 @@ impl GitHubClient {
 
     pub fn user(&self, token: &UserToken) -> HubResult<User> {
         let url = Url::parse(&format!("{}/user", self.url)).unwrap();
-        metrics::incr(Counter::UserApi("user"));
+        Counter::UserApi("user").incr();
         let mut rep = http_get(url, Some(token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;

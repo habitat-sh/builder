@@ -19,7 +19,8 @@ use std::result;
 use std::str::FromStr;
 
 use base64;
-use bldr_core::{self, metrics};
+use bldr_core;
+use bldr_core::metrics::CounterMetric;
 use bldr_core::helpers::transition_visibility;
 use bodyparser;
 use github_api_client::GitHubClient;
@@ -1803,7 +1804,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
 }
 
 fn search_packages(req: &mut Request) -> IronResult<Response> {
-    metrics::incr(Counter::SearchPackages);
+    Counter::SearchPackages.incr();
 
     let session_id = helpers::get_optional_session_id(req);
     let mut request = OriginPackageSearchRequest::new();
