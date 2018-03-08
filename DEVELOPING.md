@@ -12,9 +12,9 @@ Note that while these instructions should technically work with any linux enviro
 
 VMWare with Vagrant (and [the supplied Vagrantfile](https://github.com/habitat-sh/builder/blob/master/Vagrantfile)) works well, but Vagrant is not required if you're comfortable with setting up your own VM and port forwarding. For VMWare Fusion 10, adding the following lines to `/Library/Preferences/VMware Fusion/networking` seems to suffice (where 172.16.174.130 is the IP of the VM):
 ```
-add_nat_portfwd 8 tcp 80 172.16.174.130 80 
-add_nat_portfwd 8 tcp 3000 172.16.174.130 3000 
-add_nat_portfwd 8 tcp 9636 172.16.174.130 9636 
+add_nat_portfwd 8 tcp 80 172.16.174.130 80
+add_nat_portfwd 8 tcp 3000 172.16.174.130 3000
+add_nat_portfwd 8 tcp 9636 172.16.174.130 9636
 ```
 
 ### Ports required
@@ -85,6 +85,15 @@ If you are developing the UI:
 * `build-builder` - Build all the builder components
 * `build-<component>` - Ex: `build-router` will build the router component for development and load it
 * `dev_docs` - Print the full set of command docs
+
+### Generate a Personal Access Token using the web UI
+
+1. Go to the web UI that you used in the last step
+2. Go the Profile page (click on the user icon in the upper right corner to get to it)
+3. Click on the 'Generate Token' button
+4. Save the token somewhere safe (eg, eg, your .bashrc or Hab cli.toml)
+
+Note: If you need to perform commands where you auth with both the prod site, as well as the local site, you will have to switch the auth tokens appropriately.
 
 ### Create a project using the web UI
 
