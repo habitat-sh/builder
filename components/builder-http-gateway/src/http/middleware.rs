@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use base64;
-use bldr_core::{self, metrics};
+use bldr_core;
 use core::env;
 use github_api_client::{GitHubCfg, GitHubClient, HubError};
 use hab_net::{ErrCode, NetError};
@@ -35,6 +35,8 @@ use segment_api_client::SegmentClient;
 use serde_json;
 use std::path::PathBuf;
 use unicase::UniCase;
+
+use github_api_client::UserToken;
 
 use super::net_err_to_http;
 use conn::RouteBroker;
@@ -282,8 +284,7 @@ pub fn session_create_github(req: &mut Request, token: &str) -> IronResult<Sessi
     debug!(
         "GITHUB-CALL builder_http-gateway::middleware::session_create_github: Checking user with access token",
     );
-    metrics::Counter::GithubApi.increment();
-    match github.user(&token) {
+    match github.user(&(token.to_string() as UserToken)) {
         Ok(user) => {
             let mut request = SessionCreate::new();
             request.set_session_type(SessionType::User);

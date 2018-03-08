@@ -16,5 +16,9 @@ serde_derive = "*"
 serde_json = "*"
 time = "*"
 
+# For metrics library
+[dependencies.builder_core]
+path = "../builder-core"
+
 [dependencies.habitat_http_client]
 git = "https://github.com/habitat-sh/habitat.git"

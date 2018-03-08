@@ -19,7 +19,8 @@ use std::result;
 use std::str::FromStr;
 
 use base64;
-use bldr_core::{self, metrics};
+use bldr_core;
+use bldr_core::metrics::CounterMetric;
 use bldr_core::helpers::transition_visibility;
 use bodyparser;
 use github_api_client::GitHubClient;
@@ -55,6 +56,7 @@ use uuid::Uuid;
 
 use super::DepotUtil;
 use error::{Error, Result};
+use metrics::Counter;
 use handlers;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1802,7 +1804,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
 }
 
 fn search_packages(req: &mut Request) -> IronResult<Response> {
-    metrics::Counter::SearchPackages.increment();
+    Counter::SearchPackages.increment();
 
     let session_id = helpers::get_optional_session_id(req);
     let mut request = OriginPackageSearchRequest::new();

@@ -54,6 +54,7 @@ extern crate github_api_client;
 pub mod config;
 pub mod error;
 pub mod doctor;
+pub mod metrics;
 pub mod server;
 pub mod handlers;
 

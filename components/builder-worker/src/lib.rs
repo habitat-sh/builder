@@ -47,6 +47,7 @@ pub mod config;
 pub mod error;
 pub mod heartbeat;
 pub mod log_forwarder;
+pub mod metrics;
 mod network;
 pub mod runner;
 pub mod server;

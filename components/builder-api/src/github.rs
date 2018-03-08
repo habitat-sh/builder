@@ -16,9 +16,9 @@ use std::io::Read;
 use std::str::FromStr;
 
 use bldr_core::build_config::{BLDR_CFG, BuildCfg};
-use bldr_core::metrics;
+use bldr_core::metrics::CounterMetric;
 use constant_time_eq::constant_time_eq;
-use github_api_client::GitHubClient;
+use github_api_client::{GitHubClient, AppToken};
 use hab_core::package::Plan;
 use hex;
 use http_gateway::http::controller::*;
@@ -34,6 +34,7 @@ use serde_json;
 
 use error::Error;
 use headers::*;
+use metrics::Counter;
 use types::*;
 
 pub enum GitHubEvent {
@@ -54,7 +55,7 @@ impl FromStr for GitHubEvent {
 }
 
 pub fn handle_event(req: &mut Request) -> IronResult<Response> {
-    metrics::Counter::GithubEvent.increment();
+    Counter::GitHubEvent.increment();
 
     let event = match req.headers.get::<XGitHubEvent>() {
         Some(&XGitHubEvent(ref event)) => {
@@ -137,7 +138,6 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
             install_id,
             path
         );
-        metrics::Counter::GithubInstallationToken.increment();
         match github.app_installation_token(install_id) {
             Ok(token) => token,
             Err(err) => {
@@ -147,7 +147,6 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
         }
     };
 
-    metrics::Counter::GithubApi.increment();
     match github.contents(&token, repo_id, path) {
         Ok(None) => Ok(Response::with(status::NotFound)),
         Ok(search) => Ok(render_json(status::Ok, &search)),
@@ -186,7 +185,6 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
         "GITHUB-CALL builder_api::github::handle_push: Getting app_installation_token; installation_id={}",
         hook.installation.id
     );
-    metrics::Counter::GithubInstallationToken.increment();
     let token = match github.app_installation_token(hook.installation.id) {
         Ok(token) => token,
         Err(err) => {
@@ -241,9 +239,8 @@ fn build_plans(req: &mut Request, repo_url: &str, plans: Vec<Plan>) -> IronResul
     Ok(render_json(status::Ok, &plans))
 }
 
-fn read_bldr_config(github: &GitHubClient, token: &str, hook: &GitHubWebhookPush) -> BuildCfg {
-    metrics::Counter::GithubApi.increment();
-    match github.contents(token, hook.repository.id, BLDR_CFG) {
+fn read_bldr_config(github: &GitHubClient, token: &AppToken, hook: &GitHubWebhookPush) -> BuildCfg {
+    match github.contents(&token, hook.repository.id, BLDR_CFG) {
         Ok(Some(contents)) => {
             match contents.decode() {
                 Ok(ref bytes) => {
@@ -271,13 +268,19 @@ fn read_bldr_config(github: &GitHubClient, token: &str, hook: &GitHubWebhookPush
 
 fn read_plans(
     github: &GitHubClient,
-    token: &str,
+    token: &AppToken,
     hook: &GitHubWebhookPush,
     config: &BuildCfg,
 ) -> Vec<Plan> {
     let mut plans = Vec::with_capacity(config.projects().len());
     for project in config.triggered_by(hook.branch(), hook.changed().as_slice()) {
-        if let Some(plan) = read_plan(github, token, hook, &project.plan_file().to_string_lossy()) {
+        if let Some(plan) = read_plan(
+            github,
+            &token,
+            hook,
+            &project.plan_file().to_string_lossy(),
+        )
+        {
             plans.push(plan)
         }
     }
@@ -286,12 +289,11 @@ fn read_plans(
 
 fn read_plan(
     github: &GitHubClient,
-    token: &str,
+    token: &AppToken,
     hook: &GitHubWebhookPush,
     path: &str,
 ) -> Option<Plan> {
-    metrics::Counter::GithubApi.increment();
-    match github.contents(token, hook.repository.id, path) {
+    match github.contents(&token, hook.repository.id, path) {
         Ok(Some(contents)) => {
             match contents.decode() {
                 Ok(bytes) => {

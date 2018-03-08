@@ -13,6 +13,7 @@
 // limitations under the License.
 
 extern crate base64;
+extern crate builder_core;
 extern crate frank_jwt as jwt;
 extern crate habitat_http_client as hab_http;
 extern crate hyper;
@@ -29,8 +30,10 @@ extern crate time;
 pub mod client;
 pub mod config;
 pub mod error;
+pub mod metrics;
 pub mod types;
 
 pub use client::GitHubClient;
 pub use config::GitHubCfg;
 pub use error::{HubError, HubResult};
+pub use client::{AppToken, UserToken};
