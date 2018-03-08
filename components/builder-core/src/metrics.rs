@@ -45,11 +45,11 @@ pub trait Metric {
 
 /// Marker trait for counter metrics (don't want to accidentally
 /// increment a gauge metric!)
-pub trait CounterMetric {}
+pub trait CounterMetric : Metric {}
 
 /// Increment the given metric by one
 pub fn incr<C>(counter: C)
-    where C: Metric + CounterMetric {
+    where C: CounterMetric {
     match sender().send((MetricType::Counter,
                          MetricOperation::Increment,
                          counter.id(),
