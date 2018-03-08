@@ -18,5 +18,6 @@ members = [
   "components/builder-worker",
   "components/github-api-client",
   "components/net",
-  "components/op"
+  "components/op",
+  "components/segment-api-client"
 ]
