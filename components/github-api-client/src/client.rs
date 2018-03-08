@@ -120,7 +120,7 @@ impl GitHubClient {
             install_id
         )).map_err(HubError::HttpClientParse)?;
 
-        Counter::InstallationToken.incr();
+        Counter::InstallationToken.increment();
         let mut rep = http_post(url, Some(app_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -143,7 +143,7 @@ impl GitHubClient {
             code
         )).map_err(HubError::HttpClientParse)?;
 
-        Counter::Authenticate.incr();
+        Counter::Authenticate.increment();
         let mut rep = http_post(url, None::<String>)?;
         if rep.status.is_success() {
             let mut body = String::new();
@@ -170,7 +170,7 @@ impl GitHubClient {
         let url = Url::parse(&format!("{}/teams/{}/memberships/{}", self.url, team, user))
             .map_err(HubError::HttpClientParse)?;
 
-        Counter::Api("check_team_membership").incr();
+        Counter::Api("check_team_membership").increment();
         let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -196,7 +196,7 @@ impl GitHubClient {
             path
         )).map_err(HubError::HttpClientParse)?;
 
-        Counter::Api("contents").incr();
+        Counter::Api("contents").increment();
         let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -220,7 +220,7 @@ impl GitHubClient {
 
     pub fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
         let url = Url::parse(&format!("{}/repositories/{}", self.url, repo)).unwrap();
-        Counter::Api("repo").incr();
+        Counter::Api("repo").increment();
         let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -239,7 +239,7 @@ impl GitHubClient {
 
     pub fn user(&self, token: &UserToken) -> HubResult<User> {
         let url = Url::parse(&format!("{}/user", self.url)).unwrap();
-        Counter::UserApi("user").incr();
+        Counter::UserApi("user").increment();
         let mut rep = http_get(url, Some(token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;

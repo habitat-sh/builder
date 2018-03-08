@@ -1804,7 +1804,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
 }
 
 fn search_packages(req: &mut Request) -> IronResult<Response> {
-    Counter::SearchPackages.incr();
+    Counter::SearchPackages.increment();
 
     let session_id = helpers::get_optional_session_id(req);
     let mut request = OriginPackageSearchRequest::new();

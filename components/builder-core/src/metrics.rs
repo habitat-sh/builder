@@ -45,7 +45,7 @@ pub trait Metric {
 
 pub trait CounterMetric : Metric {
     /// Increment the metric by one
-    fn incr(&self) {
+    fn increment(&self) {
         match sender().send((MetricType::Counter,
                              MetricOperation::Increment,
                              self.id(),

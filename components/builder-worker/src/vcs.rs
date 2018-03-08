@@ -90,7 +90,7 @@ impl VCS {
                             Error::GithubAppAuthErr(e)
                         })?;
                         // TBD: Split metrics into authenticated and non-authenticated
-                        Counter::GitClone(id).incr();
+                        Counter::GitClone(id).increment();
                         Some(t.inner_token().to_string())
                     }
                 };
