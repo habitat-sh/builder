@@ -210,7 +210,9 @@ pub fn account_token_validate(
     cache_tokens_for_account(state, account_id)?; // Pre-emptively populate cache if needed
 
     let is_valid = match state.tokens.read().unwrap().get(&account_id) {
-        Some(&Some(ref token)) => token == msg.get_token(),
+        Some(&Some(ref token)) => {
+            token.trim_right_matches('=') == msg.get_token().trim_right_matches('=')
+        }
         Some(&None) => false,
         None => panic!("Not reachable!"),
     };
