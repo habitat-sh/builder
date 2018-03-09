@@ -21,4 +21,4 @@ time = "*"
 path = "../builder-core"
 
 [dependencies.habitat_http_client]
-git = "https://github.com/habitat-sh/habitat.git"
+git = "https://github.com/habitat-sh/core.git"
