@@ -21,7 +21,8 @@ use bldr_core::metrics;
 pub type InstallationId = u32;
 
 pub enum Counter {
-    GitClone(InstallationId),
+    GitClone,
+    GitAuthenticatedClone,
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -29,8 +30,11 @@ impl metrics::CounterMetric for Counter {}
 impl metrics::Metric for Counter {
     fn id(&self) -> Cow<'static, str> {
         match *self {
-            Counter::GitClone(ref installation_id) => {
-                format!("github.clone.{}", installation_id).into()
+            Counter::GitAuthenticatedClone => {
+                format!("github.authenticated_clone").into()
+            },
+            Counter::GitClone => {
+                format!("github.clone").into()
             }
         }
     }
