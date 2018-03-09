@@ -8,6 +8,7 @@ workspace = "../../"
 base64 = "*"
 chrono = { version = "*", features = ["serde"] }
 clippy = { version = "*", optional = true }
+dogstatsd = "*"
 glob = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 iron = "*"
@@ -19,7 +20,6 @@ rand = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-statsd = "*"
 time = "*"
 toml = { version = "*", default-features = false }
 walkdir = "*"
