@@ -284,7 +284,7 @@ pub fn session_create_github(req: &mut Request, token: &str) -> IronResult<Sessi
     debug!(
         "GITHUB-CALL builder_http-gateway::middleware::session_create_github: Checking user with access token",
     );
-    match github.user(&(token.to_string() as UserToken)) {
+    match github.user(&UserToken::new(token.to_string())) {
         Ok(user) => {
             let mut request = SessionCreate::new();
             request.set_session_type(SessionType::User);
