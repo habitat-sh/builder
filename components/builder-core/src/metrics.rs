@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
+use dogstatsd::{Client, Options};
+use std::borrow::{Borrow, Cow};
 use std::sync::{Once, ONCE_INIT};
 use std::sync::mpsc::{channel, sync_channel, Sender, Receiver, SyncSender};
 use std::thread;
-use statsd::Client;
 use hab_core::env;
 
 // Statsd Application name
@@ -51,6 +51,7 @@ pub trait CounterMetric: Metric {
             MetricOperation::Increment,
             self.id(),
             None,
+            vec![],
         )) {
             Ok(_) => (),
             Err(e) => error!("Failed to increment counter, error: {:?}", e),
@@ -73,7 +74,7 @@ enum MetricOperation {
 }
 
 type MetricValue = f64;
-type MetricTuple = (MetricType, MetricOperation, MetricId, Option<MetricValue>);
+type MetricTuple = (MetricType, MetricOperation, MetricId, Option<MetricValue>, Vec<String>);
 
 // One-time initialization
 static mut SENDER: *const Sender<MetricTuple> = 0 as *const Sender<MetricTuple>;
@@ -110,16 +111,26 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
     rz.send(()).unwrap(); // Blocks until the matching receive is called
 
     loop {
-        let (mtyp, mop, mid, mval): MetricTuple = rx.recv().unwrap();
-        debug!("Received metrics tuple: {:?}", (mtyp, mop, &mid, mval));
+        let (mtyp, mop, mid, mval, mtags): MetricTuple = rx.recv().unwrap();
+        debug!("Received metrics tuple: {:?}", (
+            mtyp,
+            mop,
+            &mid,
+            mval,
+            &mtags,
+        ));
 
         match client {
             Some(ref mut cli) => {
                 match mtyp {
                     MetricType::Counter => {
                         match mop {
-                            MetricOperation::Increment => cli.incr(&mid),
-                        }
+                            MetricOperation::Increment => {
+                                cli.incr(mid.borrow(), &mtags).unwrap_or_else(|e| {
+                                    warn!("Could not increment metric; {:?}", e)
+                                })
+                            }
+                        };
                     }
                 }
             }
@@ -131,8 +142,13 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
 fn statsd_client() -> Option<Client> {
     match env::var(STATS_ENV) {
         Ok(addr) => {
-            info!("Creating statsd client with addr: {}", addr);
-            match Client::new(&addr, APP_NAME) {
+            info!("Creating DogStatsD client sending to: {}", addr);
+
+            // Bind to an arbitrary UDP port for sending; this is what
+            // the old statsd client we were using does, but the
+            // DogStatsD client exposes this as a parameter.
+            let options = Options::new("0.0.0.0:0", &addr, APP_NAME);
+            match Client::new(options) {
                 Ok(c) => Some(c),
                 Err(e) => {
                     error!("Error creating statsd client: {:?}", e);

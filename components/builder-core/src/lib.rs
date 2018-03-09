@@ -15,6 +15,7 @@
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
 
+extern crate dogstatsd;
 extern crate glob;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
@@ -22,7 +23,6 @@ extern crate habitat_net as hab_net;
 extern crate iron;
 #[macro_use]
 extern crate log;
-extern crate statsd;
 extern crate time;
 extern crate petgraph;
 extern crate walkdir;
