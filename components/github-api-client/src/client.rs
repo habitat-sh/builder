@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::fmt;
 use std::io::Read;
 use std::time::{UNIX_EPOCH, Duration, SystemTime};
 
@@ -72,7 +73,20 @@ impl AppToken {
 // Temporary type... will go away soon once we transition away from
 // personal Github tokens. Useful for expressing expectations through
 // explicitly typing, though.
-pub type UserToken = TokenString;
+#[derive(Clone, Debug)]
+pub struct UserToken(TokenString);
+
+impl UserToken {
+    pub fn new(token: TokenString) -> Self {
+        UserToken(token)
+    }
+}
+
+impl fmt::Display for UserToken {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Clone)]
 pub struct GitHubClient {
