@@ -74,6 +74,7 @@ impl VCS {
                         debug!(
                             "GITHUB-CALL builder_worker::vcs::clone: no installation_id present, no token generated"
                         );
+                        Counter::GitClone.increment();
                         None
                     }
                     Some(id) => {
@@ -89,8 +90,7 @@ impl VCS {
                         let t = self.github_client.app_installation_token(id).map_err(|e| {
                             Error::GithubAppAuthErr(e)
                         })?;
-                        // TBD: Split metrics into authenticated and non-authenticated
-                        Counter::GitClone(id).increment();
+                        Counter::GitAuthenticatedClone.increment();
                         Some(t.inner_token().to_string())
                     }
                 };
