@@ -15,11 +15,6 @@
 export const ROUTE_CHANGE = 'ROUTE_CHANGE';
 export const ROUTE_REQUESTED = 'ROUTE_REQUESTED';
 
-export function goHome() {
-  return dispatch => {
-    dispatch(requestRoute(['/pkgs', 'core']));
-  };
-}
 export function routeChange(newRoute) {
   return {
     type: ROUTE_CHANGE,

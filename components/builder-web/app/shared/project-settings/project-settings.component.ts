@@ -170,7 +170,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   }
 
   get username() {
-    return this.store.getState().users.current.gitHub.get('login');
+    return this.store.getState().users.current.profile.name;
   }
 
   get repoSelected() {

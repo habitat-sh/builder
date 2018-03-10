@@ -30,6 +30,7 @@ provider       = "github"
 client_id      = ""
 authorize_url  = "https://github.com/login/oauth/authorize"
 redirect_url   = ""
+signup_url     = ""
 
 [nginx]
 worker_rlimit_nofile = 8192

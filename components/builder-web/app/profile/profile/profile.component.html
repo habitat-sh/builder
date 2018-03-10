@@ -6,10 +6,10 @@
   <div class="body">
     <div class="content">
       <section>
-        <h3>GitHub Username</h3>
-        <p>The GitHub account under which you are currently signed in.</p>
+        <h3>{{ providerName }} Username</h3>
+        <p>The {{ providerName }} account under which you are currently signed in.</p>
         <p>
-          <hab-icon symbol="github"></hab-icon>
+          <hab-icon [symbol]="providerType"></hab-icon>
           {{ profile.name }}
         </p>
       </section>

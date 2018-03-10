@@ -134,6 +134,14 @@ export class ProfileComponent implements OnInit, OnDestroy {
     return this.store.getState().users.current.profile;
   }
 
+  get providerType() {
+    return this.store.getState().oauth.provider.type;
+  }
+
+  get providerName() {
+    return this.store.getState().oauth.provider.name;
+  }
+
   get token() {
     return this.store.getState().session.token;
   }

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Browser } from './browser';
 import config from './config';
 import { Subscription } from 'rxjs/Subscription';
 import { AppStore } from './app.store';
@@ -20,7 +19,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { URLSearchParams } from '@angular/http';
 import { Router } from '@angular/router';
 import { identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
-  routeChange, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
+  routeChange, loadOAuthProvider, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
 
 const md5 = require('blueimp-md5');
 
@@ -38,6 +37,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(private router: Router, private store: AppStore) {
     store.dispatch(loadFeatures());
+    store.dispatch(loadOAuthProvider());
 
     // Whenever the Angular route has an event, dispatch an event with the new
     // route data.
@@ -92,10 +92,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const user = this.state.users.current;
     let url = '/assets/images/avatar.svg';
 
-    if (config.oauth_provider === 'github') {
-      url = user.gitHub.get('avatar_url');
-    }
-    else if (config.use_gravatar && user.profile.email) {
+    if (config.use_gravatar && user.profile.email) {
       url = `https://secure.gravatar.com/avatar/${md5(user.profile.email.toLowerCase().trim())}?d=retro&s=40`;
     }
 
@@ -137,15 +134,9 @@ export class AppComponent implements OnInit, OnDestroy {
   private handleSignIn() {
     const params = new URLSearchParams(window.location.search.slice(1));
     const code = params.get('code');
-    let state;
+    const state = params.get('state');
 
-    if (config.oauth_uses_state) {
-      state = params.get('state');
-    } else {
-      state = Browser.getCookie('oauthState');
-    }
-
-    if (code && state) {
+    if (code) {
       this.store.dispatch(exchangeOAuthCode(code, state));
     }
 

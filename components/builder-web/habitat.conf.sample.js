@@ -54,6 +54,13 @@ habitatConfig({
     oauth_client_id: "Iv1.732260b62f84db15",
     oauth_authorize_url: "https://github.com/login/oauth/authorize",
     oauth_redirect_url: "http://localhost:3000/",
+    oauth_signup_url: "https://github.com/join",
+
+    // oauth_provider: "bitbucket",
+    // oauth_client_id: "5U6LKcQf4DvHMRFBeS",
+    // oauth_authorize_url: "https://bitbucket.org/site/oauth2/authorize",
+    // oauth_redirect_url: "http://localhost:3000/",
+    // oauth_signup_url: "https://bitbucket.org/account/signup/",
 
     // The URL for Slack
     slack_url: "http://slack.habitat.sh/",

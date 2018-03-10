@@ -46,4 +46,8 @@ export class UserNavComponent {
   get config() {
     return config;
   }
+
+  get provider() {
+    return config.oauth_provider;
+  }
 }

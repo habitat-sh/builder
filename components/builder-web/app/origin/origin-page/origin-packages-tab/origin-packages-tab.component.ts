@@ -18,6 +18,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs/Subscription';
 import { AppStore } from '../../../app.store';
 import { getUniquePackages } from '../../../actions/index';
+import config from '../../../config';
 
 @Component({
   selector: 'hab-origin-packages-tab',
@@ -45,6 +46,10 @@ export class OriginPackagesTabComponent implements OnInit, OnDestroy {
     if (this.sub) {
       this.sub.unsubscribe();
     }
+  }
+
+  get builderEnabled() {
+    return config.enable_builder;
   }
 
   get integrations() {

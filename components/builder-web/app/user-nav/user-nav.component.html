@@ -5,7 +5,7 @@
     </span>
     <ul class="dropdown" *ngIf="isOpen">
       <li class="username">
-        <hab-icon symbol="github"></hab-icon>
+        <hab-icon [symbol]="provider"></hab-icon>
         {{ username }}
       </li>
       <li>

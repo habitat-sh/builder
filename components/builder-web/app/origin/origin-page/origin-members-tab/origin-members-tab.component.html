@@ -4,9 +4,9 @@
       <h3>Invite Member</h3>
       <form #formValues="ngForm" [formGroup]="form" (ngSubmit)="submit(formValues.value.username)">
         <p>
-          Add existing Habitat users by GitHub username.
+          Add existing Habitat users by {{ providerName }} username.
         </p>
-        <input type="search" name="username" [formControl]="form.controls['username']" placeholder="GitHub username" autocomplete="off">
+        <input type="search" name="username" [formControl]="form.controls['username']" placeholder="{{ providerName }} username" autocomplete="off">
         <p class="error" *ngIf="errorMessage">
           {{ errorMessage }}
         </p>

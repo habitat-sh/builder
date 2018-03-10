@@ -44,8 +44,7 @@ export {
   fetchGitHubInstallations,
   fetchGitHubRepositories,
   POPULATE_GITHUB_INSTALLATIONS,
-  POPULATE_GITHUB_REPOSITORIES,
-  POPULATE_GITHUB_USER_DATA,
+  POPULATE_GITHUB_REPOSITORIES
 } from './gitHub';
 
 export {
@@ -61,6 +60,8 @@ export {
   LOAD_OAUTH_STATE,
   loadOAuthState,
   removeSession,
+  SET_OAUTH_PROVIDER,
+  loadOAuthProvider,
   SET_OAUTH_STATE,
   SET_OAUTH_TOKEN,
   setOAuthState
@@ -165,7 +166,6 @@ export {
 } from './projects';
 
 export {
-  goHome,
   requestRoute,
   ROUTE_CHANGE,
   ROUTE_REQUESTED,

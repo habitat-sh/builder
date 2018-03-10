@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { authenticate, removeSession, loadOAuthState, loadBldrSessionState, requestRoute, resetAppState, setOAuthState } from './index';
+import { authenticate, removeSession, loadOAuthProvider, loadBldrSessionState, requestRoute, resetAppState } from './index';
 import { addNotification, SUCCESS, DANGER } from './notifications';
 import { BuilderApiClient } from '../client/builder-api';
 import { Browser } from '../browser';
@@ -99,7 +99,6 @@ export function deleteAccessToken(id: string, token: string) {
 
 export function identifyUser() {
   return (dispatch, getState) => {
-    dispatch(loadOAuthState());
     dispatch(loadBldrSessionState());
 
     const oauthToken = getState().oauth.token;
@@ -242,7 +241,7 @@ export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string) {
       }
     }
 
-    dispatch(setOAuthState());
+    dispatch(loadOAuthProvider());
 
     if (redirectToSignIn) {
       dispatch(requestRoute(['/sign-in']));
