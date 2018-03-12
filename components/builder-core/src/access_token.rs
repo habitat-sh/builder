@@ -17,7 +17,7 @@ use chrono::{self, Utc, TimeZone, Duration};
 use chrono::LocalResult::Single;
 use hab_net::privilege::FeatureFlags;
 use error::{Error, Result};
-use integrations::{encrypt, decrypt};
+use integrations::{encrypt, decrypt, validate};
 use protocol::{message, sessionsrv};
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
@@ -87,6 +87,10 @@ pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<sessionsr
             return Err(Error::TokenInvalid);
         }
     };
+
+    if payload.get_account_id() == BUILDER_ACCOUNT_ID {
+        validate(key_dir, encoded)?
+    }
 
     match Utc.timestamp_opt(payload.get_expires(), 0 /* nanoseconds */) {
         Single(expires) => {
