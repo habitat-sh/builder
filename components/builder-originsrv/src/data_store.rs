@@ -657,7 +657,10 @@ impl DataStore {
         }
     }
 
-    fn row_to_origin_private_encryption_key(&self, row: postgres::rows::Row) -> originsrv::OriginPrivateEncryptionKey {
+    fn row_to_origin_private_encryption_key(
+        &self,
+        row: postgres::rows::Row,
+    ) -> originsrv::OriginPrivateEncryptionKey {
         let mut opek = originsrv::OriginPrivateEncryptionKey::new();
         let opek_id: i64 = row.get("id");
         opek.set_id(opek_id as u64);
@@ -714,7 +717,10 @@ impl DataStore {
         }
     }
 
-    fn row_to_origin_public_encryption_key(&self, row: postgres::rows::Row) -> originsrv::OriginPublicEncryptionKey {
+    fn row_to_origin_public_encryption_key(
+        &self,
+        row: postgres::rows::Row,
+    ) -> originsrv::OriginPublicEncryptionKey {
         let mut opek = originsrv::OriginPublicEncryptionKey::new();
         let opek_id: i64 = row.get("id");
         opek.set_id(opek_id as u64);
@@ -806,7 +812,10 @@ impl DataStore {
         }
     }
 
-    fn row_to_origin_secret_key(&self, row: postgres::rows::Row) -> originsrv::OriginPrivateSigningKey {
+    fn row_to_origin_secret_key(
+        &self,
+        row: postgres::rows::Row,
+    ) -> originsrv::OriginPrivateSigningKey {
         let mut osk = originsrv::OriginPrivateSigningKey::new();
         let osk_id: i64 = row.get("id");
         osk.set_id(osk_id as u64);
@@ -860,7 +869,10 @@ impl DataStore {
         }
     }
 
-    fn row_to_origin_public_key(&self, row: postgres::rows::Row) -> originsrv::OriginPublicSigningKey {
+    fn row_to_origin_public_key(
+        &self,
+        row: postgres::rows::Row,
+    ) -> originsrv::OriginPublicSigningKey {
         let mut opk = originsrv::OriginPublicSigningKey::new();
         let opk_id: i64 = row.get("id");
         opk.set_id(opk_id as u64);
@@ -1812,6 +1824,83 @@ impl DataStore {
 
         oin.set_names(names);
         oin
+    }
+    pub fn create_origin_secret(
+        &self,
+        os: &originsrv::OriginSecretCreate,
+    ) -> SrvResult<originsrv::OriginSecret> {
+        let conn = self.pool.get(os)?;
+        let rows = conn.query(
+            "SELECT * FROM insert_origin_secret_v1($1, $2, $3)",
+            &[
+                &(os.get_secret().get_origin_id() as i64),
+                &os.get_secret().get_name(),
+                &os.get_secret().get_value(),
+            ],
+        ).map_err(SrvError::OriginSecretCreate)?;
+        match rows.iter().nth(0) {
+            Some(row) => Ok(self.row_to_origin_secret(row)),
+            None => Err(SrvError::NoRowsReturnedAfterInsert()),
+        }
+    }
+
+    fn row_to_origin_secret(&self, row: postgres::rows::Row) -> originsrv::OriginSecret {
+        let mut os = originsrv::OriginSecret::new();
+        let os_id: i64 = row.get("id");
+        os.set_id(os_id as u64);
+        let os_origin_id: i64 = row.get("origin_id");
+        os.set_origin_id(os_origin_id as u64);
+        os.set_name(row.get("name"));
+        os.set_value(row.get("value"));
+        os
+    }
+
+    pub fn get_origin_secret(
+        &self,
+        os_get: &originsrv::OriginSecretGet,
+    ) -> SrvResult<Option<originsrv::OriginSecret>> {
+        let conn = self.pool.get(os_get)?;
+        let rows = &conn.query(
+            "SELECT * FROM get_origin_secret_v1($1, $2)",
+            &[&(os_get.get_origin_id() as i64), &os_get.get_name()],
+        ).map_err(SrvError::OriginSecretGet)?;
+        if rows.len() != 0 {
+            // We just checked - we know there is a value here
+            let row = rows.iter().nth(0).unwrap();
+            Ok(Some(self.row_to_origin_secret(row)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn delete_origin_secret(&self, osd: &originsrv::OriginSecretDelete) -> SrvResult<()> {
+        let conn = self.pool.get(osd)?;
+
+        conn.query(
+            "SELECT * FROM delete_origin_secret_v1($1, $2)",
+            &[&(osd.get_origin_id() as i64), &osd.get_name()],
+        ).map_err(SrvError::OriginSecretDelete)?;
+        Ok(())
+    }
+
+    pub fn list_origin_secrets(
+        &self,
+        os: &originsrv::OriginSecretListGet,
+    ) -> SrvResult<originsrv::OriginSecretList> {
+        let conn = self.pool.get(os)?;
+        debug!("ORIGIN_ID: {:?}", os.get_origin_id());
+        let rows = &conn.query(
+            "SELECT * FROM get_origin_secrets_for_origin_v1($1)",
+            &[&(os.get_origin_id() as i64)],
+        ).map_err(SrvError::OriginSecretList)?;
+
+        let mut response = originsrv::OriginSecretList::new();
+        let mut secrets = protobuf::RepeatedField::new();
+        for row in rows {
+            secrets.push(self.row_to_origin_secret(row));
+        }
+        response.set_secrets(secrets);
+        Ok(response)
     }
 }
 

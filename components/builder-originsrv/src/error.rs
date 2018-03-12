@@ -101,6 +101,10 @@ pub enum SrvError {
     OriginPublicEncryptionKeyGet(postgres::error::Error),
     OriginPublicEncryptionKeyLatestGet(postgres::error::Error),
     OriginPublicEncryptionKeyListForOrigin(postgres::error::Error),
+    OriginSecretCreate(postgres::error::Error),
+    OriginSecretDelete(postgres::error::Error),
+    OriginSecretGet(postgres::error::Error),
+    OriginSecretList(postgres::error::Error),
     OriginUpdate(postgres::error::Error),
     OriginAccountList(postgres::error::Error),
     OriginAccountInOrigin(postgres::error::Error),
@@ -352,6 +356,18 @@ impl fmt::Display for SrvError {
                     e
                 )
             }
+            SrvError::OriginSecretCreate(ref e) => {
+                format!("Error creating origin secret in the database, {}", e)
+            }
+            SrvError::OriginSecretDelete(ref e) => {
+                format!("Error deleting origin secret in the database, {}", e)
+            }
+            SrvError::OriginSecretGet(ref e) => {
+                format!("Error getting origin secret from the database, {}", e)
+            }
+            SrvError::OriginSecretList(ref e) => {
+                format!("Error getting origin secret list from the database, {}", e)
+            }
             SrvError::OriginPublicSigningKeyListForOrigin(ref e) => {
                 format!(
                     "Error listing origin public keys for an origin from database, {}",
@@ -457,7 +473,11 @@ impl error::Error for SrvError {
             SrvError::OriginPublicSigningKeyGet(ref err) => err.description(),
             SrvError::OriginPublicSigningKeyLatestGet(ref err) => err.description(),
             SrvError::OriginPublicSigningKeyListForOrigin(ref err) => err.description(),
+            SrvError::OriginSecretCreate(ref err) => err.description(),
+            SrvError::OriginSecretDelete(ref err) => err.description(),
+            SrvError::OriginSecretGet(ref err) => err.description(),
             SrvError::OriginAccountList(ref err) => err.description(),
+            SrvError::OriginSecretList(ref err) => err.description(),
             SrvError::OriginAccountInOrigin(ref err) => err.description(),
             SrvError::OriginUpdate(ref err) => err.description(),
             SrvError::Protocol(ref err) => err.description(),

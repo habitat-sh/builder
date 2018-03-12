@@ -57,6 +57,8 @@ lazy_static! {
             handlers::origin_package_update);
         map.register(OriginPrivateEncryptionKeyCreate::descriptor_static(None),
             handlers::origin_private_encryption_key_create);
+        map.register(OriginPrivateEncryptionKeyGet::descriptor_static(None),
+            handlers::origin_private_encryption_key_get);
         map.register(OriginPublicEncryptionKeyCreate::descriptor_static(None),
             handlers::origin_public_encryption_key_create);
         map.register(OriginPublicEncryptionKeyGet::descriptor_static(None),
@@ -113,6 +115,12 @@ lazy_static! {
             handlers::origin_package_unique_list);
         map.register(OriginPackageSearchRequest::descriptor_static(None),
             handlers::origin_package_search);
+        map.register(OriginSecretCreate::descriptor_static(None),
+            handlers::origin_secret_create);
+        map.register(OriginSecretListGet::descriptor_static(None),
+            handlers::origin_secret_list);
+        map.register(OriginSecretDelete::descriptor_static(None),
+            handlers::origin_secret_delete);
         map.register(OriginChannelCreate::descriptor_static(None), handlers::origin_channel_create);
         map.register(OriginChannelDelete::descriptor_static(None), handlers::origin_channel_delete);
         map.register(OriginChannelGet::descriptor_static(None), handlers::origin_channel_get);

@@ -285,12 +285,56 @@ securitySchemes:
                                         }
                         409:
                             description: Secret key already exists in origin
-        /encryption_keys:
+        /encryption_key:
+            get:
+                description: Download public encryption key for origin
+                    responses:
+                        200:
+                            body:
+                                {}
+                                text/plain:
+                                    example: |
+                                        BOX-PUB-1
+                                        core-20160423193745
+
+                                        Jpmj1gD9oTFCgz3wSLltt/QB6RTmNRWoUTe+xhDTIHc=
+        /secret:
             post:
-                description: Create encryption key pair for origin
+                description: upload a secret payload
+                    body:
+                        application/json:
+                            example: |
+                                {
+                                    name: "key_name",
+                                    value: "encrypted payload"
+                                }
+                    responses:
+                        200:
+                            description: Secret was saved successfully
+                        409:
+                            description: Conflicting key name was found
+                        422:
+                            description: Payload could not be validated
+            get:
+                description: Get a list of all secrets for your origin
                 responses:
-                    201:
+                    200:
                         body:
+                            application/json:
+                                example: |
+                                    [
+                                        {"key1": "value"},
+                                        {"key2": "value"}
+                                    ]
+            /{secret}:
+                delete:
+                    description: Delete a secret for an origin given a secret name
+                    responses:
+                        200:
+                            description: Key deleted
+                        404:
+                            description: Key not found
+                                                          
         /users:
             get:
                 description: List all members of an origin

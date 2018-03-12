@@ -1158,6 +1158,66 @@ impl Serialize for OriginProjectList {
     }
 }
 
+impl Serialize for OriginSecret {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("secret", 4)?;
+        state.serialize_field("id", &self.get_id().to_string())?;
+        state.serialize_field(
+            "origin_id",
+            &self.get_origin_id().to_string(),
+        )?;
+        state.serialize_field("name", self.get_name())?;
+        state.serialize_field("value", self.get_value())?;
+        state.end()
+    }
+}
+
+impl Routable for OriginSecretCreate {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_secret().get_origin_id()))
+    }
+}
+
+impl Routable for OriginSecretDelete {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_origin_id()))
+    }
+}
+
+impl Routable for OriginSecretGet {
+    type H = String;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(self.get_name().to_string())
+    }
+}
+
+impl Routable for OriginSecretListGet {
+    type H = InstaId;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(InstaId(self.get_origin_id()))
+    }
+}
+
+impl Serialize for OriginSecretList {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("secret_list", 1)?;
+        state.serialize_field("secrets", self.get_secrets())?;
+        state.end()
+    }
+}
+
 impl Serialize for OriginPublicEncryptionKey {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where

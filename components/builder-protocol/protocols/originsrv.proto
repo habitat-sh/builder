@@ -413,6 +413,36 @@ message OriginProjectList {
   repeated string names = 1;
 }
 
+// Origin Secret
+message OriginSecret {
+  optional uint64 id = 1;
+  optional uint64 origin_id = 2;
+  optional string name = 3;
+  optional string value = 4;
+}
+
+message OriginSecretCreate {
+  optional OriginSecret secret = 1;
+}
+
+message OriginSecretDelete {
+  optional string name = 1;
+  optional uint64 origin_id = 2;
+}
+
+message OriginSecretGet {
+  optional uint64 origin_id = 1;
+  optional string name = 2;
+}
+
+message OriginSecretListGet {
+  optional uint64 origin_id = 1;
+}
+
+message OriginSecretList {
+  repeated OriginSecret secrets = 1;
+}
+
 message  OriginPublicEncryptionKey {
   optional uint64 id = 1;
   optional uint64 origin_id = 2;

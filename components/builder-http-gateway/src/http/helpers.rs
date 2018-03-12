@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
-use core::crypto::{BoxKeyPair, SigKeyPair};
+use core::crypto::SigKeyPair;
 use hab_net::{ErrCode, NetError, NetOk, NetResult};
 use hab_net::privilege::FeatureFlags;
 use http::controller::*;
@@ -31,11 +31,9 @@ use protocol::originsrv::{CheckOriginAccessRequest, CheckOriginAccessResponse,
                           OriginPackageChannelListResponse, OriginPackageGet,
                           OriginPackageGroupDemote, OriginPackageGroupPromote, OriginPackageIdent,
                           OriginPackagePlatformListRequest, OriginPackagePlatformListResponse,
-                          OriginPackagePromote, OriginPackageVisibility,
-                          OriginPrivateEncryptionKey, OriginPrivateEncryptionKeyCreate,
-                          OriginPrivateSigningKey, OriginPrivateSigningKeyCreate,
-                          OriginPublicEncryptionKey, OriginPublicEncryptionKeyCreate,
-                          OriginPublicSigningKey, OriginPublicSigningKeyCreate};
+                          OriginPackagePromote, OriginPackageVisibility, OriginPrivateSigningKey,
+                          OriginPrivateSigningKeyCreate, OriginPublicSigningKey,
+                          OriginPublicSigningKeyCreate};
 use protocol::jobsrv::{JobGroup, JobGroupGet, JobGroupProject, JobGroupProjectState};
 use protocol::sessionsrv::Session;
 use serde::Serialize;
@@ -429,51 +427,6 @@ pub fn get_optional_session_id(req: &mut Request) -> Option<u64> {
         Some(session) => Some(session.get_id()),
         None => None,
     }
-}
-
-pub fn generate_origin_encryption_keys(req: &mut Request, origin: Origin) -> NetResult<()> {
-    let mut public_request = OriginPublicEncryptionKeyCreate::new();
-    let mut private_request = OriginPrivateEncryptionKeyCreate::new();
-    let mut public_key = OriginPublicEncryptionKey::new();
-    let mut private_key = OriginPrivateEncryptionKey::new();
-    {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        public_key.set_owner_id(session.get_id());
-        private_key.set_owner_id(session.get_id());
-    }
-    public_key.set_name(origin.get_name().to_string());
-    public_key.set_origin_id(origin.get_id());
-    private_key.set_name(origin.get_name().to_string());
-    private_key.set_origin_id(origin.get_id());
-
-    let pair = BoxKeyPair::generate_pair_for_origin(origin.get_name())
-        .expect("failed to generate origin encryption key pair");
-    public_key.set_revision(pair.rev.clone());
-    public_key.set_body(
-        pair.to_public_string()
-            .expect("no public key in generated encryption key pair")
-            .into_bytes(),
-    );
-    private_key.set_revision(pair.rev.clone());
-    private_key.set_body(
-        pair.to_secret_string()
-            .expect("no secret key in generated encryption key pair")
-            .into_bytes(),
-    );
-
-    public_request.set_public_encryption_key(public_key);
-    private_request.set_private_encryption_key(private_key);
-
-    route_message::<OriginPublicEncryptionKeyCreate, OriginPublicEncryptionKey>(
-        req,
-        &public_request,
-    )?;
-    route_message::<OriginPrivateEncryptionKeyCreate, OriginPrivateEncryptionKey>(
-        req,
-        &private_request,
-    )?;
-
-    Ok(())
 }
 
 pub fn generate_origin_keys(req: &mut Request, session: Session, origin: Origin) -> NetResult<()> {
