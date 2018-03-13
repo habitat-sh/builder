@@ -455,7 +455,7 @@ fn download_latest_origin_encryption_key(req: &mut Request) -> IronResult<Respon
     let origin = match helpers::get_origin(req, &params["origin"]) {
         Ok(mut origin) => {
             request.set_owner_id(origin.get_owner_id());
-            request.set_origin(origin.take_name());
+            request.set_origin(origin.get_name().to_string());
             origin
         }
         Err(err) => return Ok(render_net_error(&err)),

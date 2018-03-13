@@ -64,6 +64,7 @@ message Job {
   optional string channel = 13;
   repeated originsrv.OriginProjectIntegration project_integrations = 14;
   optional string worker = 15;
+  repeated originsrv.OriginSecretDecrypted secrets = 16;
 }
 
 message JobGet {

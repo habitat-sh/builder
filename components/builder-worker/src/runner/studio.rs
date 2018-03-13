@@ -97,6 +97,16 @@ impl<'a> Studio<'a> {
         cmd.env("PATH", env::var("PATH").unwrap_or(String::from(""))); // Sets `$PATH`
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
+        for secret in self.workspace.job.get_secrets() {
+            cmd.env(
+                format!(
+                    "HAB_STUDIO_SECRET_{}",
+                    secret.get_decrypted_secret().get_name()
+                ),
+                secret.get_decrypted_secret().get_value(),
+            );
+        }
+
         // propagate debugging environment variables into Airlock and Studio
         for var in DEBUG_ENVVARS {
             if let Ok(val) = env::var(var) {

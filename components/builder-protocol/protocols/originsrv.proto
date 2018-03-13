@@ -421,6 +421,10 @@ message OriginSecret {
   optional string value = 4;
 }
 
+message OriginSecretDecrypted {
+  optional OriginSecret decrypted_secret = 1;
+}
+
 message OriginSecretCreate {
   optional OriginSecret secret = 1;
 }

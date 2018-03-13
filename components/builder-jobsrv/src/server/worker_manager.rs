@@ -13,24 +13,31 @@
 // limitations under the License.
 
 use std::path::PathBuf;
+use std::str::from_utf8;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use std::thread::{self, JoinHandle};
 
 use bldr_core;
+use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
+use hab_core::crypto::BoxKeyPair;
 use bldr_core::job::Job;
 use hab_net::conn::RouteClient;
 use hab_net::socket::DEFAULT_CONTEXT;
 use linked_hash_map::LinkedHashMap;
 use protobuf::{parse_from_bytes, Message, RepeatedField};
 use protocol::jobsrv;
-use protocol::originsrv::{OriginIntegrationRequest, OriginIntegrationResponse,
-                          OriginProjectIntegrationRequest, OriginProjectIntegrationResponse};
+use protocol::originsrv::{Origin, OriginGet, OriginIntegrationRequest, OriginIntegrationResponse,
+                          OriginProjectIntegrationRequest, OriginProjectIntegrationResponse,
+                          OriginPrivateEncryptionKey, OriginPrivateEncryptionKeyGet,
+                          OriginPublicEncryptionKey, OriginPublicEncryptionKeyLatestGet,
+                          OriginSecretList, OriginSecretListGet, OriginSecret,
+                          OriginSecretDecrypted};
 use zmq;
 
 use config::Config;
 use data_store::DataStore;
-use error::Result;
+use error::{Error, Result};
 
 use super::scheduler::ScheduleClient;
 
@@ -391,6 +398,7 @@ impl WorkerMgr {
 
             self.add_integrations_to_job(&mut job);
             self.add_project_integrations_to_job(&mut job);
+            self.add_secrets_to_job(&mut job)?;
 
             match self.worker_start_job(&job, &worker_ident) {
                 Ok(()) => {
@@ -491,6 +499,104 @@ impl WorkerMgr {
                 debug!("Error fetching project integrations. e = {:?}", e);
             }
         }
+    }
+
+    fn add_secrets_to_job(&mut self, job: &mut Job) -> Result<()> {
+        let mut secrets = RepeatedField::new();
+        let mut secrets_request = OriginSecretListGet::new();
+        let mut origin_req = OriginGet::new();
+        let origin_name = job.get_project().get_origin_name().to_string();
+        let origin_owner_id = job.get_project().get_owner_id();
+        origin_req.set_name(origin_name.clone());
+        match self.route_conn.route::<OriginGet, Origin>(&origin_req) {
+            Ok(origin) => secrets_request.set_origin_id(origin.get_id()),
+            Err(e) => return Err(Error::NetError(e)),
+        };
+
+        match self.route_conn
+            .route::<OriginSecretListGet, OriginSecretList>(&secrets_request) {
+            Ok(osl) => {
+                let secrets_list = osl.get_secrets();
+                if secrets_list.len() > 0 {
+                    let mut db_priv_request = OriginPrivateEncryptionKeyGet::new();
+                    let mut db_pub_request = OriginPublicEncryptionKeyLatestGet::new();
+                    db_priv_request.set_owner_id(origin_owner_id.clone());
+                    db_priv_request.set_origin(origin_name.clone().to_string());
+                    db_pub_request.set_owner_id(origin_owner_id.clone());
+                    db_pub_request.set_origin(origin_name.clone().to_string());
+
+                    // fetch the private origin encryption key from the database
+                    let priv_key = match self.route_conn
+                        .route::<OriginPrivateEncryptionKeyGet, OriginPrivateEncryptionKey>(
+                            &db_priv_request,
+                        ) {
+                        Ok(key) => {
+                            let key_str = from_utf8(key.get_body()).unwrap();
+                            BoxKeyPair::secret_key_from_str(key_str)?
+                        }
+                        Err(err) => return Err(Error::NetError(err)),
+                    };
+
+                    // fetch the public origin encryption key from the database
+                    let (name, rev, pub_key) = match self.route_conn
+                        .route::<OriginPublicEncryptionKeyLatestGet, OriginPublicEncryptionKey>(
+                            &db_pub_request,
+                        ) {
+                        Ok(key) => {
+                            let key_str = from_utf8(key.get_body()).unwrap();
+                            let (name, rev) = match parse_key_str(key_str) {
+                                Ok((_, name_with_rev, _)) => parse_name_with_rev(name_with_rev)?,
+                                Err(e) => return Err(Error::HabitatCore(e)),
+                            };
+                            (name, rev, BoxKeyPair::public_key_from_str(key_str)?)
+                        }
+                        Err(err) => return Err(Error::NetError(err)),
+                    };
+
+                    let box_key_pair =
+                        BoxKeyPair::new(name, rev.clone(), Some(pub_key), Some(priv_key));
+                    for secret in secrets_list {
+                        debug!("Adding secret to job: {:?}", secret);
+                        let mut secret_decrypted = OriginSecret::new();
+                        let mut secret_decrypted_wrapper = OriginSecretDecrypted::new();
+                        match BoxKeyPair::secret_metadata(secret.get_value().as_bytes()) {
+                            Ok(secret_metadata) => {
+                                match box_key_pair.decrypt(
+                                    &secret_metadata.ciphertext,
+                                    None,
+                                    None,
+                                ) {
+                                    Ok(decrypted_secret) => {
+                                        secret_decrypted.set_id(secret.get_id());
+                                        secret_decrypted.set_origin_id(secret.get_origin_id());
+                                        secret_decrypted.set_name(secret.get_name().to_string());
+                                        secret_decrypted.set_value(
+                                            String::from_utf8(decrypted_secret)
+                                                .unwrap(),
+                                        );
+                                        secret_decrypted_wrapper.set_decrypted_secret(
+                                            secret_decrypted,
+                                        );
+                                        secrets.push(secret_decrypted_wrapper);
+                                    }
+                                    Err(e) => {
+                                        warn!("Unable to add secret to job: {}", e);
+                                        continue;
+                                    }
+                                };
+                            }
+                            Err(e) => {
+                                warn!("Failed to get metadata from secret: {}", e);
+                                continue;
+                            }
+                        };
+                    }
+                }
+                job.set_secrets(secrets);
+            }
+            Err(e) => return Err(Error::NetError(e)),
+        }
+        Ok(())
     }
 
     fn expire_workers(&mut self) -> Result<()> {
