@@ -59,6 +59,7 @@ resource "null_resource" "api_provision" {
     inline = [
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:api\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
     ]
   }
 
@@ -173,6 +174,7 @@ resource "null_resource" "datastore_provision" {
     inline = [
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:datastore\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
     ]
   }
 
@@ -290,6 +292,7 @@ resource "aws_instance" "jobsrv" {
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a dogstreams: /tmp/builder-scheduler.log:/etc/dd-agent/sch_log_parser.py:my_log_parser\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a tags: env:${var.env}, role:jobsrv\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo cp /tmp/sch_log_parser.py /etc/dd-agent/sch_log_parser.py",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
       "sudo /etc/init.d/datadog-agent start"
@@ -383,6 +386,7 @@ resource "aws_instance" "originsrv" {
     inline = [
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:originsrv\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo /etc/init.d/datadog-agent start"
     ]
   }
@@ -473,6 +477,7 @@ resource "aws_instance" "router" {
     inline = [
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:router\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo /etc/init.d/datadog-agent start"
     ]
   }
@@ -564,6 +569,7 @@ resource "aws_instance" "sessionsrv" {
     inline = [
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:sessionsrv\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo /etc/init.d/datadog-agent start"
     ]
   }
@@ -661,6 +667,7 @@ resource "aws_instance" "worker" {
     inline = [
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
       "sudo /etc/init.d/datadog-agent stop"
     ]
