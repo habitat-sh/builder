@@ -20,3 +20,4 @@ pub mod error;
 pub mod types;
 
 pub use error::{OAuthError, OAuthResult};
+pub use types::OAuthUserToken;

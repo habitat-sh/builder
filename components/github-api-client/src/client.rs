@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::fmt;
 use std::io::Read;
 use std::time::{UNIX_EPOCH, Duration, SystemTime};
 
@@ -25,7 +24,7 @@ use hyper::status::StatusCode;
 use hyper::header::{Authorization, Accept, Bearer, UserAgent, qitem};
 use hyper::mime::{Mime, TopLevel, SubLevel};
 use jwt;
-use oauth_common::{OAuthError, OAuthResult};
+use oauth_common::{OAuthError, OAuthResult, OAuthUserToken};
 use oauth_common::types::*;
 use serde_json;
 
@@ -69,24 +68,6 @@ impl AppToken {
     /// Retrieve the actual token content for use in HTTP calls.
     pub fn inner_token(&self) -> &str {
         self.inner_token.as_ref()
-    }
-}
-
-// Temporary type... will go away soon once we transition away from
-// personal Github tokens. Useful for expressing expectations through
-// explicitly typing, though.
-#[derive(Clone, Debug)]
-pub struct UserToken(TokenString);
-
-impl UserToken {
-    pub fn new(token: TokenString) -> Self {
-        UserToken(token)
-    }
-}
-
-impl fmt::Display for UserToken {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 
@@ -278,7 +259,7 @@ impl OAuthClient for GitHubClient {
         }
     }
 
-    fn user(&self, token: &str) -> OAuthResult<OAuthUser> {
+    fn user(&self, token: &OAuthUserToken) -> OAuthResult<OAuthUser> {
         let url = Url::parse(&format!("{}/user", self.url)).unwrap();
         Counter::UserApi("user").increment();
         let mut rep = match http_get(url, Some(token)) {

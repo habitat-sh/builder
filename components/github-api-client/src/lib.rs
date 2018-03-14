@@ -37,4 +37,4 @@ pub mod types;
 pub use client::GitHubClient;
 pub use config::GitHubCfg;
 pub use error::{HubError, HubResult};
-pub use client::{AppToken, UserToken};
+pub use client::AppToken;

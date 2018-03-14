@@ -12,9 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::any::Any;
+use std::fmt;
 
 use error::OAuthResult;
+
+// duplicated from github-api-client, feels bad, but taking a dependency
+// on github-api-client to pull this in feels worse.
+pub type TokenString = String;
+
+#[derive(Clone, Debug)]
+pub struct OAuthUserToken(TokenString);
+
+impl OAuthUserToken {
+    pub fn new(token: TokenString) -> Self {
+        OAuthUserToken(token)
+    }
+}
+
+impl fmt::Display for OAuthUserToken {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[allow(dead_code)]
 pub struct OAuthUser {
@@ -23,9 +42,9 @@ pub struct OAuthUser {
     pub email: Option<String>,
 }
 
-pub trait OAuthClient: Send + Sync + Any {
+pub trait OAuthClient: Send + Sync {
     fn authenticate(&self, &str) -> OAuthResult<String>;
-    fn user(&self, &str) -> OAuthResult<OAuthUser>;
+    fn user(&self, &OAuthUserToken) -> OAuthResult<OAuthUser>;
     fn box_clone(&self) -> Box<OAuthClient>;
     fn provider(&self) -> String;
 }

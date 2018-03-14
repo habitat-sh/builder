@@ -15,7 +15,7 @@
 use std::io::Read;
 
 use hab_http::ApiClient;
-use oauth_common::{OAuthError, OAuthResult};
+use oauth_common::{OAuthError, OAuthResult, OAuthUserToken};
 use oauth_common::types::*;
 use hyper::header::{Authorization, Basic, Bearer, ContentType};
 use serde_json;
@@ -69,7 +69,7 @@ impl OAuthClient for BitbucketClient {
 
     // This function uses a valid access token to retrieve details about a user. All we really care
     // about is username and email address
-    fn user(&self, token: &str) -> OAuthResult<OAuthUser> {
+    fn user(&self, token: &OAuthUserToken) -> OAuthResult<OAuthUser> {
         // TODO JB: make the version here dynamic
         let client = ApiClient::new(&self.config.api_url, "habitat", "0.54.0", None)
             .map_err(OAuthError::ApiClient)?;

@@ -22,7 +22,7 @@ use github_api_client::GitHubClient;
 use hab_net::{ErrCode, NetError};
 use hab_net::conn::RouteClient;
 use hab_net::privilege::FeatureFlags;
-use oauth_common::types::OAuthClient;
+use oauth_common::types::{OAuthClient, OAuthUserToken};
 use iron::Handler;
 use iron::headers::{self, Authorization, Bearer};
 use iron::method::Method;
@@ -314,9 +314,9 @@ pub fn session_create_oauth(req: &mut Request, token: &str) -> IronResult<Sessio
         "no XRouteClient extension in request",
     );
     debug!(
-        "GITHUB-CALL builder_http-gateway::middleware::session_create_github: Checking user with access token",
+        "OAUTH-CALL builder_http-gateway::middleware::session_create_oauth: Checking user with access token",
     );
-    match oauth.user(&UserToken::new(token.to_string())) {
+    match oauth.user(&OAuthUserToken::new(token.to_string())) {
         Ok(user) => {
             let mut request = SessionCreate::new();
             request.set_session_type(SessionType::User);
