@@ -82,7 +82,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
   }
 
   get providerName() {
-    return config.oauth_provider_name;
+    return this.store.getState().oauth.provider.name;
   }
 
   get token() {

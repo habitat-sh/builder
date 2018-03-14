@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, ElementRef, HostListener, Input } from '@angular/core';
-import config from '../config';
+import { AppStore } from '../app.store';
 
 @Component({
   selector: 'hab-user-nav',
@@ -27,7 +27,7 @@ export class UserNavComponent {
   @Input() signOut: Function;
   @Input() toggleUserNavMenu: Function;
 
-  constructor(private element: ElementRef) { }
+  constructor(private element: ElementRef, private store: AppStore) { }
 
   // This will be triggered on *any* click on the document. Toggle the menu
   // if it's already open and clicked on outside the dropdown, or if it's not
@@ -43,11 +43,7 @@ export class UserNavComponent {
     }
   }
 
-  get config() {
-    return config;
-  }
-
-  get provider() {
-    return config.oauth_provider;
+  get providerType() {
+    return this.store.getState().oauth.provider.type;
   }
 }

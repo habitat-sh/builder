@@ -1,11 +1,11 @@
 <div class="user-nav-component" >
   <ng-container *ngIf="isSignedIn">
     <span>
-      <img src="{{avatarUrl}}" />
+      <img src="{{ avatarUrl }}" />
     </span>
     <ul class="dropdown" *ngIf="isOpen">
       <li class="username">
-        <hab-icon [symbol]="provider"></hab-icon>
+        <hab-icon [symbol]="providerType"></hab-icon>
         {{ username }}
       </li>
       <li>
