@@ -43,8 +43,12 @@ impl HttpGateway for ApiSrv {
         if config.github.is_some() {
             let c = config.github.clone().unwrap();
             chain.link(persistent::Read::<OAuthCli>::both(
-                OAuthWrapper::new(Box::new(GitHubClient::new(c))),
+                OAuthWrapper::new(Box::new(GitHubClient::new(c.clone()))),
             ));
+
+            // we need to link a GitHubCli specifically because we're doing GH
+            // specific operations, e.g. with projects
+            chain.link(persistent::Read::<GitHubCli>::both(GitHubClient::new(c)));
         } else {
             let c = config.bitbucket.clone().unwrap();
             chain.link(persistent::Read::<OAuthCli>::both(
