@@ -13,6 +13,7 @@ habitatConfig({
     oauth_client_id: "{{cfg.oauth.client_id}}",
     oauth_authorize_url: "{{cfg.oauth.authorize_url}}",
     oauth_redirect_url: "{{cfg.oauth.redirect_url}}",
+    oauth_signup_url: "{{cfg.oauth.signup_url}}",
     source_code_url: "{{cfg.source_code_url}}",
     tutorials_url: "{{cfg.tutorials_url}}",
     version: "{{pkg.ident}}",

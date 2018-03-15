@@ -23,6 +23,17 @@ export default function oauth(state = initialState['oauth'], action) {
         .set('state', action.payload.state)
         .set('token', action.payload.token);
 
+    case actionTypes.SET_OAUTH_PROVIDER:
+      return state
+        .setIn(['provider', 'type'], action.payload.type)
+        .setIn(['provider', 'name'], action.payload.name)
+        .setIn(['provider', 'clientID'], action.payload.clientID)
+        .setIn(['provider', 'authorizeUrl'], action.payload.authorizeUrl)
+        .setIn(['provider', 'redirectUrl'], action.payload.redirectUrl)
+        .setIn(['provider', 'signupUrl'], action.payload.signupUrl)
+        .setIn(['provider', 'useState'], action.payload.useState)
+        .setIn(['provider', 'params'], action.payload.params);
+
     case actionTypes.SET_OAUTH_STATE:
       return state.set('state', action.payload);
 

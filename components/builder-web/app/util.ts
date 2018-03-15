@@ -13,50 +13,9 @@
 // limitations under the License.
 
 import * as moment from 'moment';
-import config from './config';
 import { Project } from './records/Project';
 import { AppStore } from './app.store';
 import { FeatureFlags } from './privilege';
-
-// Create a GitHub login URL
-export function createGitHubLoginUrl(state) {
-  const params = {
-    client_id: config['github_client_id'],
-    redirect_uri: `${config['github_redirect_uri'] || (window.location.protocol + '//' + window.location.host + '/')}`,
-    state
-  };
-  const urlPrefix = `${config['github_web_url']}/login/oauth/authorize`;
-  const queryString = Object.keys(params).map((k) =>
-    `${k}=${encodeURIComponent(params[k])}`).
-    join('&');
-  return `${urlPrefix}?${queryString}`;
-}
-
-export function createLoginUrl() {
-  const store = new AppStore();
-  let params: any = {};
-  let uri;
-
-  switch (config.oauth_provider) {
-    case 'github':
-      uri = config.oauth_authorize_url;
-      params.client_id = config.oauth_client_id;
-      params.redirect_uri = `${config.oauth_redirect_url || (window.location.protocol + '//' + window.location.host + '/')}`;
-      params.state = store.getState().oauth.state;
-      break;
-  }
-
-  if (!uri) {
-    console.error('Please configure an OAuth provider.');
-    return;
-  }
-
-  const qs = Object.keys(params)
-    .map(k => `${k}=${encodeURIComponent(params[k])}`)
-    .join('&');
-
-  return `${uri}?${qs}`;
-}
 
 // Pretty print a time
 // Print a number of seconds as minutes and seconds

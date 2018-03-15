@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { fromJS } from 'immutable';
 import * as actionTypes from '../actions/index';
 import initialState from '../initial-state';
 
@@ -33,9 +32,6 @@ export default function users(state = initialState['users'], action) {
 
     case actionTypes.POPULATE_PROFILE:
       return state.setIn(['current', 'profile'], action.payload);
-
-    case actionTypes.POPULATE_GITHUB_USER_DATA:
-      return state.setIn(['current', 'gitHub'], fromJS(action.payload));
 
     case actionTypes.SET_DELETING_ACCESS_TOKEN:
       return state.setIn(['current', 'ui', 'accessTokens', 'deleting'], action.payload);

@@ -19,6 +19,7 @@ use std::result;
 use std::str::{from_utf8, FromStr};
 
 use base64;
+use bitbucket_api_client::BitbucketClient;
 use bldr_core;
 use bldr_core::metrics::CounterMetric;
 use bldr_core::helpers::transition_visibility;
@@ -2639,14 +2640,38 @@ where
 }
 
 pub fn router(depot: DepotUtil) -> Result<Chain> {
-    let basic = Authenticated::new(depot.config.github.clone(), depot.config.key_dir.clone());
-    let worker = Authenticated::new(depot.config.github.clone(), depot.config.key_dir.clone())
-        .require(FeatureFlags::BUILD_WORKER);
+    let basic;
+    let worker;
+
+    if depot.config.github.is_some() {
+        let config = depot.config.github.clone();
+        let client = GitHubClient::new(config.unwrap());
+        basic = Authenticated::new(client.clone(), depot.config.key_dir.clone());
+        worker = Authenticated::new(client, depot.config.key_dir.clone())
+            .require(FeatureFlags::BUILD_WORKER);
+    } else {
+        let config = depot.config.bitbucket.clone();
+        let client = BitbucketClient::new(config.unwrap());
+        basic = Authenticated::new(client.clone(), depot.config.key_dir.clone());
+        worker = Authenticated::new(client, depot.config.key_dir.clone())
+            .require(FeatureFlags::BUILD_WORKER);
+    }
+
     let router = routes(basic, worker, &depot);
     let mut chain = Chain::new(router);
-    chain.link(persistent::Read::<GitHubCli>::both(
-        GitHubClient::new(depot.config.github.clone()),
-    ));
+
+    if depot.config.github.is_some() {
+        let config = depot.config.github.clone();
+        chain.link(persistent::Read::<OAuthCli>::both(OAuthWrapper::new(
+            Box::new(GitHubClient::new(config.unwrap())),
+        )));
+    } else {
+        let config = depot.config.bitbucket.clone();
+        chain.link(persistent::Read::<OAuthCli>::both(OAuthWrapper::new(
+            Box::new(BitbucketClient::new(config.unwrap())),
+        )));
+    }
+
     chain.link(persistent::Read::<SegmentCli>::both(
         SegmentClient::new(depot.config.segment.clone()),
     ));

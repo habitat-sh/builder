@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ops::Deref;
+
 use base64;
+use bitbucket_api_client::BitbucketClient;
 use bldr_core;
 use core::env;
-use github_api_client::{GitHubCfg, GitHubClient, HubError};
+use github_api_client::GitHubClient;
 use hab_net::{ErrCode, NetError};
 use hab_net::conn::RouteClient;
 use hab_net::privilege::FeatureFlags;
-use hyper;
+use oauth_common::types::{OAuthClient, OAuthUserToken};
 use iron::Handler;
 use iron::headers::{self, Authorization, Bearer};
 use iron::method::Method;
@@ -35,8 +38,6 @@ use segment_api_client::SegmentClient;
 use serde_json;
 use std::path::PathBuf;
 use unicase::UniCase;
-
-use github_api_client::UserToken;
 
 use super::net_err_to_http;
 use conn::RouteBroker;
@@ -99,7 +100,36 @@ impl Key for SegmentCli {
     type Value = SegmentClient;
 }
 
+pub struct BitbucketCli;
+
+impl Key for BitbucketCli {
+    type Value = BitbucketClient;
+}
+
+pub struct OAuthWrapper(Box<OAuthClient + Send>);
+
+impl OAuthWrapper {
+    pub fn new(client: Box<OAuthClient + Send>) -> Self {
+        OAuthWrapper(client)
+    }
+}
+
+impl Deref for OAuthWrapper {
+    type Target = Box<OAuthClient + Send>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct OAuthCli;
+
+impl Key for OAuthCli {
+    type Value = OAuthWrapper;
+}
+
 pub struct XRouteClient;
+
 impl Key for XRouteClient {
     type Value = RouteClient;
 }
@@ -114,17 +144,19 @@ impl BeforeMiddleware for XRouteClient {
 
 #[derive(Clone)]
 pub struct Authenticated {
-    github: GitHubClient,
+    oauth: Box<OAuthClient>,
     features: FeatureFlags,
     key_dir: PathBuf,
     optional: bool,
 }
 
 impl Authenticated {
-    pub fn new(config: GitHubCfg, key_dir: PathBuf) -> Self {
-        let github = GitHubClient::new(config);
+    pub fn new<T>(client: T, key_dir: PathBuf) -> Authenticated
+    where
+        T: OAuthClient,
+    {
         Authenticated {
-            github: github,
+            oauth: client.box_clone(),
             features: FeatureFlags::empty(),
             key_dir: key_dir,
             optional: false,
@@ -189,7 +221,7 @@ impl Authenticated {
         } else {
             // TBD: Deprecate github personal token support and remove this
             // We are temporarily falling back to github personal access token
-            session_create_github(req, token)
+            session_create_oauth(req, token)
         }
     }
 }
@@ -276,25 +308,34 @@ pub fn session_validate(
     }
 }
 
-pub fn session_create_github(req: &mut Request, token: &str) -> IronResult<Session> {
-    let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
+pub fn session_create_oauth(req: &mut Request, token: &str) -> IronResult<Session> {
+    let oauth = req.get::<persistent::Read<OAuthCli>>().unwrap();
     let conn = req.extensions.get_mut::<XRouteClient>().expect(
         "no XRouteClient extension in request",
     );
     debug!(
-        "GITHUB-CALL builder_http-gateway::middleware::session_create_github: Checking user with access token",
+        "OAUTH-CALL builder_http-gateway::middleware::session_create_oauth: Checking user with access token",
     );
-    match github.user(&UserToken::new(token.to_string())) {
+    match oauth.user(&OAuthUserToken::new(token.to_string())) {
         Ok(user) => {
             let mut request = SessionCreate::new();
             request.set_session_type(SessionType::User);
             request.set_token(token.to_owned());
-            request.set_extern_id(user.id);
-            request.set_name(user.login);
-            request.set_provider(OAuthProvider::GitHub);
+            request.set_extern_id(user.id.to_string());
+            request.set_name(user.username);
+
+            match oauth.provider().parse::<OAuthProvider>() {
+                Ok(p) => request.set_provider(p),
+                Err(e) => {
+                    debug!("Error parsing oauth provider: {:?}", e);
+                    request.set_provider(OAuthProvider::None);
+                }
+            }
+
             if let Some(email) = user.email {
                 request.set_email(email);
             }
+
             match conn.route::<SessionCreate, Session>(&request) {
                 Ok(session) => Ok(session),
                 Err(err) => {
@@ -304,32 +345,9 @@ pub fn session_create_github(req: &mut Request, token: &str) -> IronResult<Sessi
                 }
             }
         }
-        Err(HubError::ApiError(hyper::status::StatusCode::Unauthorized, _)) => {
-            let err = NetError::new(ErrCode::ACCESS_DENIED, "net:session-create:1");
-            let status = net_err_to_http(err.get_code());
-            let body = itry!(serde_json::to_string(&err));
-            Err(IronError::new(err, (body, status)))
-        }
-        Err(e @ HubError::ApiError(_, _)) => {
-            warn!("Unexpected response from GitHub, {:?}", e);
-            let err = NetError::new(ErrCode::BAD_REMOTE_REPLY, "net:session-create:2");
-            let status = net_err_to_http(err.get_code());
-            let body = itry!(serde_json::to_string(&err));
-            Err(IronError::new(err, (body, status)))
-        }
-        Err(e @ HubError::Serialization(_)) => {
-            warn!("Bad response body from GitHub, {:?}", e);
-            let err = NetError::new(ErrCode::BAD_REMOTE_REPLY, "net:session-create:3");
-            let status = net_err_to_http(err.get_code());
-            let body = itry!(serde_json::to_string(&err));
-            Err(IronError::new(err, (body, status)))
-        }
         Err(e) => {
-            error!("Unexpected error, err={:?}", e);
-            let err = NetError::new(ErrCode::BUG, "net:session-create:4");
-            let status = net_err_to_http(err.get_code());
-            let body = itry!(serde_json::to_string(&err));
-            Err(IronError::new(err, (body, status)))
+            let desc = format!("{}", &e);
+            Err(IronError::new(e, (desc, Status::Unauthorized)))
         }
     }
 }
@@ -342,7 +360,7 @@ pub fn session_create_short_circuit(req: &mut Request, token: &str) -> IronResul
         "bobo" => {
             let mut request = SessionCreate::new();
             request.set_session_type(SessionType::User);
-            request.set_extern_id(0);
+            request.set_extern_id("0".to_string());
             request.set_email("bobo@example.com".to_string());
             request.set_name("bobo".to_string());
             request.set_provider(OAuthProvider::GitHub);
@@ -351,7 +369,7 @@ pub fn session_create_short_circuit(req: &mut Request, token: &str) -> IronResul
         "mystique" => {
             let mut request = SessionCreate::new();
             request.set_session_type(SessionType::User);
-            request.set_extern_id(1);
+            request.set_extern_id("1".to_string());
             request.set_email("mystique@example.com".to_string());
             request.set_name("mystique".to_string());
             request.set_provider(OAuthProvider::GitHub);
@@ -359,7 +377,7 @@ pub fn session_create_short_circuit(req: &mut Request, token: &str) -> IronResul
         }
         "hank" => {
             let mut request = SessionCreate::new();
-            request.set_extern_id(2);
+            request.set_extern_id("2".to_string());
             request.set_email("hank@example.com".to_string());
             request.set_name("hank".to_string());
             request.set_provider(OAuthProvider::GitHub);

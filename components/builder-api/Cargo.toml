@@ -51,6 +51,9 @@ path = "../github-api-client"
 [dependencies.segment-api-client]
 path = "../segment-api-client"
 
+[dependencies.bitbucket-api-client]
+path = "../bitbucket-api-client"
+
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"
 
@@ -62,6 +65,9 @@ path = "../builder-depot"
 
 [dependencies.habitat_http_client]
 git = "https://github.com/habitat-sh/core.git"
+
+[dependencies.oauth-common]
+path = "../oauth-common"
 
 [dependencies.habitat_net]
 path = "../net"

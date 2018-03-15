@@ -22,12 +22,12 @@ import {
   fetchProfile,
   setPrivileges,
   signingIn,
-  signInFailed,
-  signOut
+  signInFailed
 } from './index';
-import { DANGER, WARNING } from './notifications';
+import { DANGER } from './notifications';
 import { setBldrSessionToken } from './sessions';
 import { Browser } from '../browser';
+import { OAuthProvider } from '../oauth-providers';
 
 const uuid = require('uuid').v4;
 const authenticateEndpoint = `${config['habitat_api_url']}/v1/authenticate`;
@@ -35,7 +35,7 @@ const authenticateEndpoint = `${config['habitat_api_url']}/v1/authenticate`;
 export const LOAD_OAUTH_STATE = 'LOAD_OAUTH_STATE';
 export const POPULATE_GITHUB_INSTALLATIONS = 'POPULATE_GITHUB_INSTALLATIONS';
 export const POPULATE_GITHUB_REPOSITORIES = 'POPULATE_GITHUB_REPOSITORIES';
-export const POPULATE_GITHUB_USER_DATA = 'POPULATE_GITHUB_USER_DATA';
+export const SET_OAUTH_PROVIDER = 'SET_OAUTH_PROVIDER';
 export const SET_OAUTH_STATE = 'SET_OAUTH_STATE';
 export const SET_OAUTH_TOKEN = 'SET_OAUTH_TOKEN';
 
@@ -44,34 +44,6 @@ export function authenticate(oauthToken: string, bldrToken: string) {
 
     if (oauthToken) {
       dispatch(setOAuthToken(oauthToken));
-
-      if (config.oauth_provider === 'github') {
-        fetch(`${config.github_api_url}/user?access_token=${oauthToken}`).then(response => {
-          if (response.ok) {
-            return response.json();
-          } else {
-            return response.json().then(error => { throw error; });
-          }
-        })
-          .then(data => {
-            dispatch(populateGitHubUserData(data));
-            dispatch(setCurrentUsername(data.login));
-          })
-          .catch(error => {
-            // We can assume an error from the response is a 401; anything
-            // else is probably a transient failure on GitHub's end, which
-            // we can expect to clear when we try to sign in again.
-            //
-            // When we get an unauthorized response, our token is no
-            // longer valid, so sign out.
-            dispatch(signOut(true, getState().router.route.url));
-            dispatch(addNotification({
-              title: 'Authorization Failed',
-              body: 'Please sign in again.',
-              type: WARNING,
-            }));
-          });
-      }
     }
 
     if (bldrToken) {
@@ -86,42 +58,42 @@ export function authenticate(oauthToken: string, bldrToken: string) {
 export function exchangeOAuthCode(code: string, state: string) {
 
   return (dispatch, getState) => {
-    dispatch(setOAuthState());
 
-    if (state === getState().oauth.state) {
-      dispatch(signingIn(true));
+    if (getState().oauth.provider.useState && state !== getState().oauth.state) {
+      dispatch(signInFailed());
+      return;
+    }
 
-      fetch(`${authenticateEndpoint}/${code}`).then(response => {
-        return response.json();
-      })
-        .then(data => {
-          dispatch(signingIn(false));
+    dispatch(signingIn(true));
 
-          if (data.oauth_token && data.token) {
-            dispatch(authenticate(data.oauth_token, data.token));
-            dispatch(setPrivileges(data.flags));
-          } else {
-            dispatch(signInFailed());
-            dispatch(addNotification({
-              title: 'Authentication Failed',
-              body: `[err=${data.code}] ${data.msg}`,
-              type: DANGER
-            }));
-          }
-        })
-        .catch(error => {
-          dispatch(signingIn(false));
+    fetch(`${authenticateEndpoint}/${code}`).then(response => {
+      return response.json();
+    })
+      .then(data => {
+        dispatch(signingIn(false));
+
+        if (data.oauth_token && data.token) {
+          dispatch(authenticate(data.oauth_token, data.token));
+          dispatch(setCurrentUsername(data.login));
+          dispatch(setPrivileges(data.flags));
+        } else {
           dispatch(signInFailed());
           dispatch(addNotification({
             title: 'Authentication Failed',
-            body: 'Unable to retrieve OAuth token.',
+            body: `[err=${data.code}] ${data.msg}`,
             type: DANGER
           }));
-        });
-    }
-    else {
-      dispatch(signInFailed());
-    }
+        }
+      })
+      .catch(error => {
+        dispatch(signingIn(false));
+        dispatch(signInFailed());
+        dispatch(addNotification({
+          title: 'Authentication Failed',
+          body: 'Unable to retrieve OAuth token.',
+          type: DANGER
+        }));
+      });
   };
 }
 
@@ -132,13 +104,6 @@ export function loadOAuthState() {
       token: Browser.getCookie('oauthToken'),
       state: Browser.getCookie('oauthState')
     },
-  };
-}
-
-function populateGitHubUserData(payload) {
-  return {
-    type: POPULATE_GITHUB_USER_DATA,
-    payload,
   };
 }
 
@@ -156,6 +121,29 @@ export function setOAuthState() {
 
   return {
     type: SET_OAUTH_STATE,
+    payload
+  };
+}
+
+export function loadOAuthProvider() {
+  return (dispatch, getState) => {
+    dispatch(setOAuthState());
+    dispatch(setOAuthProvider(
+      OAuthProvider.fromConfig(
+        config.oauth_provider,
+        config.oauth_client_id,
+        config.oauth_authorize_url,
+        config.oauth_redirect_url,
+        config.oauth_signup_url,
+        getState().oauth.state
+      )
+    ));
+  };
+}
+
+function setOAuthProvider(payload) {
+  return {
+    type: SET_OAUTH_PROVIDER,
     payload
   };
 }

@@ -6,14 +6,14 @@
     <div class="content">
       <section class="upper">
         <a mat-raised-button color="primary" class="button" href="{{ loginUrl }}">
-          <hab-icon symbol="github"></hab-icon>
-          <span>Sign In with GitHub</span>
+          <hab-icon [symbol]="providerType"></hab-icon>
+          <span>Sign In with {{ providerName }}</span>
         </a>
       </section>
       <section class="lower">
-        <p>
-          Don't have a GitHub account?
-          <a href="{{ signupUrl }}" target="_blank">Sign up, it's free</a>.
+        <p *ngIf="signupUrl">
+          Don't have a {{ providerName }} account?
+          <a href="{{ signupUrl }}" target="_blank">Sign up here</a>.
         </p>
         <p>
           New to Habitat? Signing in will also create a new account.

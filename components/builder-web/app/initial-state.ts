@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { List, Map, Record } from 'immutable';
+import { List, Record } from 'immutable';
 import { BehaviorSubject } from 'rxjs';
 import { Origin } from './records/Origin';
 import { Package } from './records/Package';
@@ -84,7 +84,17 @@ export default Record({
   })(),
   oauth: Record({
     state: undefined,
-    token: undefined
+    token: undefined,
+    provider: Record({
+      type: undefined,
+      name: undefined,
+      clientID: undefined,
+      authorizeUrl: undefined,
+      redirectUrl: undefined,
+      signupUrl: undefined,
+      useState: undefined,
+      params: undefined
+    })()
   })(),
   origins: Record({
     current: Origin(),
@@ -213,7 +223,6 @@ export default Record({
       isUserNavOpen: false,
       username: undefined,
       flags: 0,
-      gitHub: Map(),
       profile: Record({
         id: undefined,
         name: undefined,

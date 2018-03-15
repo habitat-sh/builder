@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
+extern crate habitat_http_client as hab_http;
+extern crate hyper;
+extern crate serde_json;
 
-pub use super::GatewayCfg;
-pub use core::config::ConfigFile;
-pub use github_api_client::config::GitHubCfg;
-pub use bitbucket_api_client::config::BitbucketCfg;
-pub use hab_net::app::config::RouterAddr;
+pub mod error;
+pub mod types;
+
+pub use error::{OAuthError, OAuthResult};
+pub use types::OAuthUserToken;

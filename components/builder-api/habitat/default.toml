@@ -5,12 +5,20 @@ listen = "0.0.0.0"
 port   = 9636
 
 [github]
+enabled        = false
 url            = "https://api.github.com"
 web_url        = "https://github.com"
 client_id      = ""
 client_secret  = ""
 app_id         = 5565
 webhook_secret = ""
+
+[bitbucket]
+enabled        = false
+api_url        = "https://api.bitbucket.org"
+web_url        = "https://bitbucket.org"
+client_id      = ""
+client_secret  = ""
 
 [depot]
 builds_enabled          = true

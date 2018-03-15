@@ -1,0 +1,15 @@
+[package]
+name = "bitbucket-api-client"
+version = "0.0.0"
+authors = ["Josh Black <raskchanky@gmail.com>"]
+description = "Bitbucket HTTP API Client"
+workspace = "../../"
+
+[dependencies]
+habitat_http_client = { git = "https://github.com/habitat-sh/core.git" }
+oauth-common = { path = "../oauth-common" }
+hyper = "0.10"
+log = "*"
+serde = ">= 1.0.0"
+serde_derive = ">= 1.0.0"
+serde_json = ">= 1.0.0"

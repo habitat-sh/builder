@@ -16,8 +16,7 @@ import { Injectable } from '@angular/core';
 import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from '@angular/router';
 import { AppStore } from '../../app.store';
 import { Browser } from '../../browser';
-import { signOut } from '../../actions/index';
-import config from '../../config';
+import { requestRoute, signOut } from '../../actions/index';
 
 @Injectable()
 export class SignedInGuard implements CanActivate {
@@ -79,7 +78,7 @@ export class SignedInGuard implements CanActivate {
   }
 
   private sendHome() {
-    Browser.redirect(config.www_url);
+    this.store.dispatch(requestRoute(['/pkgs']));
   }
 
   private redirectToSignIn(url?: string) {

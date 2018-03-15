@@ -20,6 +20,7 @@ extern crate hyper;
 extern crate hyper_openssl;
 #[macro_use]
 extern crate log;
+extern crate oauth_common;
 extern crate regex;
 extern crate serde;
 #[macro_use]
@@ -36,4 +37,4 @@ pub mod types;
 pub use client::GitHubClient;
 pub use config::GitHubCfg;
 pub use error::{HubError, HubResult};
-pub use client::{AppToken, UserToken};
+pub use client::AppToken;

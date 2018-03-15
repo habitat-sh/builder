@@ -32,7 +32,8 @@ pub struct Config {
     pub http: HttpCfg,
     /// List of net addresses for routing servers to connect to
     pub routers: Vec<RouterAddr>,
-    pub github: GitHubCfg,
+    pub github: Option<GitHubCfg>,
+    pub bitbucket: Option<BitbucketCfg>,
     pub segment: SegmentCfg,
     /// Filepath to location on disk to store entities
     pub path: PathBuf,
@@ -61,7 +62,8 @@ impl Default for Config {
         Config {
             http: HttpCfg::default(),
             routers: vec![RouterAddr::default()],
-            github: GitHubCfg::default(),
+            github: None,
+            bitbucket: None,
             segment: SegmentCfg::default(),
             path: PathBuf::from("/hab/svc/builder-api/data"),
             events_enabled: false, // TODO: change to default to true later

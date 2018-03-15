@@ -16,7 +16,6 @@ import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { AppStore } from '../app.store';
 import { setLayout, signOut } from '../actions/index';
-import { createLoginUrl } from '../util';
 import config from '../config';
 
 @Component({
@@ -30,12 +29,26 @@ export class SignInPageComponent implements OnDestroy {
     this.store.dispatch(setLayout('sign-in'));
   }
 
+  get providerType() {
+    return this.store.getState().oauth.provider.type;
+  }
+
+  get providerName() {
+    return this.store.getState().oauth.provider.name;
+  }
+
   get loginUrl() {
-    return createLoginUrl();
+    const provider = this.store.getState().oauth.provider;
+
+    const qs = Object.keys(provider.params)
+      .map(k => `${k}=${encodeURIComponent(provider.params[k])}`)
+      .join('&');
+
+    return `${provider.authorizeUrl}?${qs}`;
   }
 
   get signupUrl() {
-    return `${config['github_web_url']}/join`;
+    return this.store.getState().oauth.provider.signupUrl;
   }
 
   get wwwUrl() {
