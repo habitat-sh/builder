@@ -1,4 +1,4 @@
-export enum OAuthProviderType {
+enum OAuthProviderType {
   GitHub = 'github',
   BitBucket = 'bitbucket'
 }
