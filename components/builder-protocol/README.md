@@ -48,10 +48,3 @@ Definitions for network protocol messages and serialization implementations for 
       }
   }
   ```
-
-* Finally, run this command to autogenerate the rest of what is needed for your protocol
-
-```bash
-$ cargo build --features protocols
-```
-

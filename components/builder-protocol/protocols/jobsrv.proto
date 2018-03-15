@@ -1,7 +1,7 @@
 syntax = "proto2";
 package jobsrv;
-import "protocols/net.proto";
-import "protocols/originsrv.proto";
+import "net.proto";
+import "originsrv.proto";
 
 enum Os {
   Linux = 1;

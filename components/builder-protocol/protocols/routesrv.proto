@@ -1,5 +1,5 @@
 syntax = "proto2";
-import "protocols/net.proto";
+import "net.proto";
 package routesrv;
 
 message Disconnect {}

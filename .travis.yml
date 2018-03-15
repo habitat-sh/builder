@@ -48,7 +48,6 @@ matrix:
             - curl
             - libbz2-dev
             - liblzma-dev
-            - libprotobuf-dev
             - libssl-dev
             - pkg-config
       cache:
@@ -58,6 +57,8 @@ matrix:
           - "$HOME/pkgs"
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
+        - ./support/ci/install_hab.sh
+        - ./support/ci/install_protobuf.sh
         - ./support/ci/compile_libsodium.sh
         - ./support/ci/compile_libarchive.sh
         - ./support/ci/compile_zmq.sh
@@ -87,7 +88,6 @@ matrix:
             - curl
             - libbz2-dev
             - liblzma-dev
-            - libprotobuf-dev
             - libssl-dev
             - pkg-config
       cache:
@@ -97,6 +97,8 @@ matrix:
           - "$HOME/pkgs"
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
+        - ./support/ci/install_hab.sh
+        - ./support/ci/install_protobuf.sh
         - ./support/ci/compile_libsodium.sh
         - ./support/ci/compile_libarchive.sh
         - ./support/ci/compile_zmq.sh
@@ -126,7 +128,6 @@ matrix:
             - curl
             - libbz2-dev
             - liblzma-dev
-            - libprotobuf-dev
             - libssl-dev
             - pkg-config
       cache:
@@ -136,6 +137,8 @@ matrix:
           - "$HOME/pkgs"
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
+        - ./support/ci/install_hab.sh
+        - ./support/ci/install_protobuf.sh
         - ./support/ci/compile_libsodium.sh
         - ./support/ci/compile_libarchive.sh
         - ./support/ci/compile_zmq.sh
