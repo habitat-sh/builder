@@ -34,7 +34,7 @@ export abstract class OAuthProvider {
     }
 
     if (!this.signupUrl) {
-      console.warn(`Consider configuring Builder with an OAuth signup URL for your users (e.g., 'https://github.com/join').`);
+      console.warn(`Consider configuring Builder with an OAuth signup URL for your users. (e.g., 'https://github.com/join').`);
     }
   }
 
