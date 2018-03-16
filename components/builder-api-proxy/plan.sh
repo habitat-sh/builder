@@ -12,7 +12,6 @@ pkg_build_deps=(
   core/phantomjs
   core/python2
   core/make
-  core/openssl
 )
 pkg_svc_user="root"
 pkg_svc_run="nginx -c ${pkg_svc_config_path}/nginx.conf"
@@ -50,7 +49,10 @@ do_build() {
   for b in node_modules/.bin/*; do
     fix_interpreter $(readlink -f -n $b) core/coreutils bin/env
   done
-  npm run dist
+
+  # Pass the release identifier to the bundle script to enable cache-busting
+  npm run dist -- ${pkg_prefix: -14}
+
   rm -rf dist/node_modules
   popd > /dev/null
 }

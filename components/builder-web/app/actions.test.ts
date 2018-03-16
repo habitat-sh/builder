@@ -67,8 +67,8 @@ describe('actions', () => {
         expect(cookies.set.calls.allArgs()).toEqual(
           [
             ['oauthToken', 'some-token', { domain: 'localhost', secure: false }],
-            ['oauthToken', 'some-token', { domain: 'habitat.sh', secure: false }],
-            ['oauthToken', 'some-token', { domain: 'acceptance.habitat.foo', secure: false }],
+            ['oauthToken', 'some-token', { domain: 'builder.habitat.sh', secure: false }],
+            ['oauthToken', 'some-token', { domain: 'builder.acceptance.habitat.foo', secure: false }],
             ['oauthToken', 'some-token', { domain: '1.2.3.4', secure: false }]
           ]
         );

@@ -1,19 +1,10 @@
 import * as cookies from 'js-cookie';
+import config from './config';
 
 export class Browser {
 
   static get cookieDomain() {
-    let delim = '.';
-    let hostname = this.currentHostname;
-    let tld = hostname.split(delim).pop();
-
-    if (isNaN(Number(tld))) {
-      let domain = hostname.split(delim);
-      domain.shift();
-      return domain.join(delim) || hostname;
-    } else {
-      return hostname;
-    }
+    return config.cookie_domain || this.currentHostname;
   }
 
   static get currentHostname() {

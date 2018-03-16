@@ -1,6 +1,7 @@
 habitatConfig({
     habitat_api_url: "{{cfg.app_url}}",
     community_url: "{{cfg.community_url}}",
+    cookie_domain: "{{cfg.cookie_domain}}",
     docs_url: "{{cfg.docs_url}}",
     environment: "{{cfg.environment}}",
     friends_only: {{cfg.friends_only}},
@@ -29,5 +30,6 @@ habitatConfig({
     learn_url: "{{cfg.learn_url}}",
     enable_builder: {{cfg.enable_builder}},
     enable_access_tokens: {{cfg.enable_access_tokens}},
+    enable_statuspage: {{cfg.hosted}},
     use_gravatar: {{cfg.use_gravatar}}
 });
