@@ -18,6 +18,8 @@ learn_url            = "https://www.habitat.sh/learn"
 enable_builder       = true
 enable_access_tokens = true
 use_gravatar         = true
+hosted               = false
+cookie_domain        = ""
 
 [github]
 url          = "https://api.github.com"

@@ -6,6 +6,9 @@ habitatConfig({
     // Enable Builder-specific features
     enable_builder: true,
 
+    // Enable StatusPage.io integration
+    enable_statuspage: false,
+
     // The URL for community information
     community_url: "https://www.habitat.sh/community",
 
