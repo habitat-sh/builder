@@ -1,5 +1,6 @@
-components/builder-* @chefsalim @raskchanky @reset
-components/builder-web @cnunciato @raskchanky @mgamini
+components/builder-* @chefsalim @raskchanky @reset @elliott-davis
+components/builder-web @cnunciato @raskchanky @mgamini @elliott-davis
 components/op @raskchanky
-support @fnichol @raskchanky @baumanj
+support @fnichol @raskchanky @baumanj @elliott-davis
 tools @baumanj @chefsalim @christophermaier @eeyun
+.studiorc @elliott-davis
