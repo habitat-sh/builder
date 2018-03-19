@@ -134,32 +134,6 @@ impl GitHubClient {
         }
     }
 
-    pub fn check_team_membership(
-        &self,
-        token: &AppToken,
-        team: u32,
-        user: &str,
-    ) -> HubResult<Option<TeamMembership>> {
-        let url = Url::parse(&format!("{}/teams/{}/memberships/{}", self.url, team, user))
-            .map_err(HubError::HttpClientParse)?;
-
-        Counter::Api("check_team_membership").increment();
-        let mut rep = http_get(url, Some(&token.inner_token))?;
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
-        debug!("GitHub response body, {}", body);
-        match rep.status {
-            StatusCode::NotFound => return Ok(None),
-            StatusCode::Ok => (),
-            status => {
-                let err: HashMap<String, String> = serde_json::from_str(&body)?;
-                return Err(HubError::ApiError(status, err));
-            }
-        }
-        let membership = serde_json::from_str(&body)?;
-        Ok(Some(membership))
-    }
-
     /// Returns the contents of a file or directory in a repository.
     pub fn contents(&self, token: &AppToken, repo: u32, path: &str) -> HubResult<Option<Contents>> {
         let url = Url::parse(&format!(

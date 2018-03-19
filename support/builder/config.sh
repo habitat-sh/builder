@@ -20,6 +20,7 @@ mkdir -p /hab/svc/builder-api
 cat <<EOT > /hab/svc/builder-api/user.toml
 log_level = "debug"
 [github]
+enabled = true
 url = "$GITHUB_API_URL"
 web_url = "$GITHUB_WEB_URL"
 client_id = "$GITHUB_CLIENT_ID"

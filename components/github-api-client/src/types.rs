@@ -374,19 +374,6 @@ pub struct SearchItem {
     pub score: f32,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct TeamMembership {
-    pub url: String,
-    pub role: String,
-    pub state: String,
-}
-
-impl TeamMembership {
-    pub fn active(&self) -> bool {
-        self.state == "active"
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
