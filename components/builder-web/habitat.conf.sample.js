@@ -12,6 +12,11 @@ habitatConfig({
     // Enable Builder-specific features
     enable_builder: true,
 
+    // Enable supported container-registry integrations
+    enable_publisher_amazon: false,
+    enable_publisher_azure: false,
+    enable_publisher_docker: false,
+
     // Enable StatusPage.io integration
     enable_statuspage: false,
 

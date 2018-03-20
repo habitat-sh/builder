@@ -75,7 +75,11 @@ export default Record({
     })()
   })(),
   features: Record({
-    accessTokens: false,
+    publishers: Record({
+      amazon: false,
+      azure: false,
+      docker: false
+    })(),
     builder: false
   })(),
   notifications: Record({

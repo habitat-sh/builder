@@ -10,19 +10,21 @@
         (.hart file) to a Docker container and publish it to your registry account(s).
       </p>
       <div class="buttons">
-        <div class="wrapper" *ngFor="let provider of providers">
-          <button mat-raised-button (click)="addIntegration(provider.key)">
-            <div class="tile {{ provider.key }}">
-              <hab-icon [symbol]="provider.key"></hab-icon>
-            </div>
-            <div class="add-icon">
-              <hab-icon symbol="add-circle"></hab-icon>
-            </div>
-            <div class="label">
-              {{ provider.name }}
-            </div>
-          </button>
-        </div>
+        <ng-container *ngFor="let provider of providers">
+          <div class="wrapper" *ngIf="provider.enabled">
+            <button mat-raised-button (click)="addIntegration(provider.key)">
+              <div class="tile {{ provider.key }}">
+                <hab-icon [symbol]="provider.key"></hab-icon>
+              </div>
+              <div class="add-icon">
+                <hab-icon symbol="add-circle"></hab-icon>
+              </div>
+              <div class="label">
+                {{ provider.name }}
+              </div>
+            </button>
+          </div>
+        </ng-container>
       </div>
     </section>
     <section>

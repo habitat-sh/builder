@@ -1,14 +1,17 @@
-cookie_domain        = ""
-demo_app_url         = "https://www.habitat.sh/demo/build-system/steps/1/"
-docs_url             = "https://www.habitat.sh/docs"
-enable_builder       = false
-environment          = "production"
-hosted               = false
-source_code_url      = "https://github.com/habitat-sh/habitat"
-status_url           = "https://status.habitat.sh/"
-tutorials_url        = "https://www.habitat.sh/learn"
-use_gravatar         = true
-www_url              = "https://www.habitat.sh"
+cookie_domain           = ""
+demo_app_url            = "https://www.habitat.sh/demo/build-system/steps/1/"
+docs_url                = "https://www.habitat.sh/docs"
+enable_publisher_amazon = false
+enable_publisher_azure  = false
+enable_publisher_docker = false
+enable_builder          = false
+environment             = "production"
+hosted                  = false
+source_code_url         = "https://github.com/habitat-sh/habitat"
+status_url              = "https://status.habitat.sh/"
+tutorials_url           = "https://www.habitat.sh/learn"
+use_gravatar            = true
+www_url                 = "https://www.habitat.sh"
 
 [github]
 app_id       = 5565

@@ -20,7 +20,11 @@ export default function builds(state = initialState['features'], action) {
   switch (action.type) {
 
     case actionTypes.LOAD_FEATURES:
-      return state.set('builder', !!config['enable_builder']);
+      return state
+        .setIn(['publishers', 'amazon'], !!config['enable_publisher_amazon'])
+        .setIn(['publishers', 'azure'], !!config['enable_publisher_azure'])
+        .setIn(['publishers', 'docker'], !!config['enable_publisher_docker'])
+        .set('builder', !!config['enable_builder']);
 
     default:
       return state;
