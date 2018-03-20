@@ -99,10 +99,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
     return this.store.getState().users.current.newAccessToken;
   }
 
-  get accessTokensEnabled() {
-    return this.store.getState().features.accessTokens;
-  }
-
   get loadingAccessTokens() {
     return this.store.getState().users.current.ui.accessTokens.loading;
   }
@@ -148,10 +144,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   private fetch() {
     this.store.dispatch(fetchProfile(this.token));
-
-    if (config.enable_access_tokens) {
-      this.store.dispatch(fetchAccessTokens(this.token));
-    }
+    this.store.dispatch(fetchAccessTokens(this.token));
   }
 
   private clearAccessTokens() {
