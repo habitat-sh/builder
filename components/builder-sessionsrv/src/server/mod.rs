@@ -22,12 +22,11 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 
 use base64;
-use github_api_client::GitHubClient;
 use hab_net::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
 use protocol::{message, sessionsrv as proto};
 
-use config::{Config, PermissionsCfg};
+use config::Config;
 use data_store::DataStore;
 use error::{SrvError, SrvResult};
 
@@ -156,8 +155,6 @@ impl PartialEq for Session {
 #[derive(Clone)]
 pub struct ServerState {
     datastore: DataStore,
-    github: Arc<Box<GitHubClient>>,
-    permissions: Arc<PermissionsCfg>,
     sessions: Arc<Box<RwLock<HashSet<Session>>>>,
     tokens: Arc<Box<RwLock<HashMap<u64, Option<String>>>>>,
 }
@@ -166,8 +163,6 @@ impl ServerState {
     fn new(cfg: Config) -> SrvResult<Self> {
         Ok(ServerState {
             datastore: DataStore::new(&cfg.datastore, cfg.app.shards.unwrap())?,
-            github: Arc::new(Box::new(GitHubClient::new(cfg.github))),
-            permissions: Arc::new(cfg.permissions),
             sessions: Arc::new(Box::new(RwLock::new(HashSet::default()))),
             tokens: Arc::new(Box::new(RwLock::new(HashMap::new()))), // TBD: Handle multiple tokens / account
         })

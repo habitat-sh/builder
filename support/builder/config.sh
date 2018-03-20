@@ -338,12 +338,6 @@ shards = [
 [datastore]
 password = "$PGPASSWORD"
 database = "builder_sessionsrv"
-
-[github]
-url = "$GITHUB_API_URL"
-client_id = "$GITHUB_CLIENT_ID"
-client_secret = "$GITHUB_CLIENT_SECRET"
-app_id = $GITHUB_APP_ID
 EOT
 
 mkdir -p /hab/svc/builder-worker
