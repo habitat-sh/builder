@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-
 use hab_net::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
 use bldr_core;
@@ -273,14 +271,11 @@ pub fn session_create(
 ) -> SrvResult<()> {
     let mut msg = req.parse::<proto::SessionCreate>()?;
     debug!("session-create, {:?}", msg);
-    let mut flags = FeatureFlags::default();
-    if env::var_os("HAB_FUNC_TEST").is_some() {
-        flags = FeatureFlags::empty();
-    } else if msg.get_session_type() == proto::SessionType::Builder {
-        flags = FeatureFlags::all();
-    } else if msg.get_provider() == proto::OAuthProvider::GitHub {
-        assign_permissions(msg.get_name(), &mut flags, state)
-    }
+    let flags = if msg.get_session_type() == proto::SessionType::Builder {
+        FeatureFlags::all()
+    } else {
+        FeatureFlags::empty()
+    };
 
     let account = if msg.get_session_type() == proto::SessionType::Builder {
         let mut account = proto::Account::new();
@@ -482,71 +477,4 @@ pub fn account_invitation_list(
         }
     }
     Ok(())
-}
-
-fn assign_permissions(name: &str, flags: &mut FeatureFlags, state: &ServerState) {
-    let installation_id = state.permissions.app_install_id;
-    debug!(
-        "GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Getting app_installation_token; installation_id={}",
-        installation_id
-    );
-    match state.github.app_installation_token(
-        state.permissions.app_install_id,
-    ) {
-        Ok(token) => {
-            debug!(
-                "GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Checking team membership for {}",
-                name
-            );
-            match state.github.check_team_membership(
-                &token,
-                state.permissions.admin_team,
-                name,
-            ) {
-                Ok(Some(membership)) => {
-                    if membership.active() {
-                        debug!("Granting feature flag={:?}", FeatureFlags::ADMIN);
-                        flags.set(FeatureFlags::ADMIN, true);
-                    }
-                }
-                Ok(None) => (),
-                Err(err) => warn!("Failed to check github team membership, {}", err),
-            }
-            for team in state.permissions.early_access_teams.iter() {
-                debug!(
-                    "GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Checking team membership for {}",
-                    name
-                );
-                match state.github.check_team_membership(&token, *team, name) {
-                    Ok(Some(membership)) => {
-                        if membership.active() {
-                            debug!("Granting feature flag={:?}", FeatureFlags::EARLY_ACCESS);
-                            flags.set(FeatureFlags::EARLY_ACCESS, true);
-                            break;
-                        }
-                    }
-                    Ok(None) => (),
-                    Err(err) => warn!("Failed to check github team membership, {}", err),
-                }
-            }
-            for team in state.permissions.build_worker_teams.iter() {
-                debug!(
-                    "GITHUB-CALL builder_sessionsrv::server::handlers::assign_permissions: Checking team membership for {}",
-                    name
-                );
-                match state.github.check_team_membership(&token, *team, name) {
-                    Ok(Some(membership)) => {
-                        if membership.active() {
-                            debug!("Granting feature flag={:?}", FeatureFlags::BUILD_WORKER);
-                            flags.set(FeatureFlags::BUILD_WORKER, true);
-                            break;
-                        }
-                    }
-                    Ok(None) => (),
-                    Err(err) => warn!("Failed to check github team membership, {}", err),
-                }
-            }
-        }
-        Err(err) => warn!("Failed to obtain installation token, {}", err),
-    }
 }

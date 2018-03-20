@@ -100,7 +100,7 @@ build-builder() { stop-on-failure _build-builder "$@"; }
 
 ui-dev-mode() {
   for svc in sessionsrv worker api originsrv; do
-  cat <<CONFIG | hab config apply builder-${svc}.default $(date +%s)
+  cat <<CONFIG | hab config apply builder-${svc}.default "$(date +%s)"
 [github]
 client_id = "Iv1.732260b62f84db15"
 client_secret = "fc7654ed8c65ccfe014cd339a55e3538f935027a"
@@ -112,7 +112,7 @@ done
 upload_github_keys() {
   if [[ -f "/src/.secrets/builder-github-app.pem" ]]; then
     for svc in sessionsrv worker api originsrv; do
-      hab file upload "builder-${svc}.default" $(date +%s) "/src/.secrets/builder-github-app.pem"
+      hab file upload "builder-${svc}.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
     done
   else
     echo "Please follow instruction #6 here: https://github.com/habitat-sh/habitat/blob/master/BUILDER_DEV.md#pre-reqs"
@@ -208,11 +208,16 @@ _stop-builder() {
 stop-builder() { stop-on-failure _stop-builder "$@"; }
 
 generate_bldr_keys() {
-  KEY_NAME=$(hab user key generate bldr | grep -Po "bldr-\d+")
-  for svc in api jobsrv worker; do
-    hab file upload "builder-${svc}.default" $(date +%s) "/hab/cache/keys/${KEY_NAME}.pub"
-    hab file upload "builder-${svc}.default" $(date +%s) "/hab/cache/keys/${KEY_NAME}.box.key"
-  done
+  if [ -n "$(find /hab/cache/keys -name "bldr-*.pub")" ]; then
+    echo "Re-using existing builder key"
+  else
+    echo "Generating builder key"
+    KEY_NAME=$(hab user key generate bldr | grep -Po "bldr-\d+")
+    for svc in api jobsrv worker; do
+      hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
+      hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
+    done
+  fi
 }
 
 load_package() {
