@@ -64,14 +64,23 @@ export class OriginIntegrationsTabComponent implements OnInit, OnDestroy {
   }
 
   get providers() {
+    const publishers = this.store.getState().features.publishers;
+
     return [
       {
         key: 'docker',
-        name: 'Docker Hub'
+        name: 'Docker Hub',
+        enabled: publishers.docker
       },
       {
         key: 'amazon',
-        name: 'Amazon Container Registry'
+        name: 'Amazon Container Registry',
+        enabled: publishers.amazon
+      },
+      {
+        key: 'azure',
+        name: 'Azure Container Registry',
+        enabled: publishers.azure
       }
     ];
   }

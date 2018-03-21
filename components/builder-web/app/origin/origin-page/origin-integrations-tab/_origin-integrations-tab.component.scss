@@ -26,7 +26,7 @@
         @include tablet-up {
           flex: 1;
         }
-  
+
         display: flex;
         align-items: center;
       }
@@ -38,28 +38,31 @@
         &.docker {
           background-color: $docker-blue;
         }
-  
+
         &.google {
           background-color: $google-blue;
         }
-  
+
         &.amazon {
           background-color: $amazon-orange;
         }
-  
+
         &.azure {
           background-color: $azure-blue;
         }
       }
 
       .add-icon {
-        margin: 0 $default-margin / 2;
+        hab-icon {
+          margin: 0 $default-margin / 2;
+        }
       }
 
       .label {
-        margin-right: $default-margin;
+        white-space: normal;
+        text-align: left;
         font-weight: 600;
-        line-height: normal;
+        line-height: 20px;
       }
 
       hab-icon {

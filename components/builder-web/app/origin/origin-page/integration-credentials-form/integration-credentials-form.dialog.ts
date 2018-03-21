@@ -89,6 +89,28 @@ export class IntegrationCredentialsFormDialog implements OnDestroy {
     }
   }
 
+  labelFor(field) {
+    return {
+      docker: {
+        type: 'Docker Hub',
+        username: 'Docker Hub Username',
+        password: 'Docker Hub Password'
+      },
+      amazon: {
+        type: 'Amazon Container Registry',
+        url: 'Registry URL',
+        username: 'IAM Access Key ID',
+        password: 'IAM Secret Access Key'
+      },
+      azure: {
+        type: 'Azure Container Registry',
+        url: 'Server URL',
+        username: 'Service Principal ID',
+        password: 'Service Principal Password'
+      }
+    }[this.data.type][field];
+  }
+
   onNoClick(): void {
     this.dialogRef.close();
   }
@@ -113,6 +135,25 @@ export class IntegrationCredentialsFormDialog implements OnDestroy {
       // We can currently only validate DockerHub creds (╯︵╰,)
       this.dialogRef.close(this.model);
     }
+  }
+
+  placeholderFor(field) {
+    return {
+      docker: {
+        username: 'Username',
+        password: 'Password'
+      },
+      amazon: {
+        url: 'https://aws-account-id.dkr.ecr.region.amazonaws.com',
+        username: 'Access Key ID',
+        password: 'Secret Access Key'
+      },
+      azure: {
+        url: 'yourserver.azurecr.io',
+        username: 'Principal ID',
+        password: 'Principal Password'
+      }
+    }[this.data.type][field];
   }
 
   close() {

@@ -3,6 +3,9 @@ habitatConfig({
     demo_app_url: "{{cfg.demo_app_url}}",
     docs_url: "{{cfg.docs_url}}",
     enable_builder: {{cfg.enable_builder}},
+    enable_publisher_amazon: {{cfg.enable_publisher_amazon}},
+    enable_publisher_azure: {{cfg.enable_publisher_azure}},
+    enable_publisher_docker: {{cfg.enable_publisher_docker}},
     enable_statuspage: {{cfg.hosted}},
     environment: "{{cfg.environment}}",
     github_api_url: "{{cfg.github.url}}",
@@ -17,7 +20,7 @@ habitatConfig({
     source_code_url: "{{cfg.source_code_url}}",
     status_url: "{{cfg.status_url}}",
     tutorials_url: "{{cfg.tutorials_url}}",
-    use_gravatar: {{cfg.use_gravatar}}
+    use_gravatar: {{cfg.use_gravatar}},
     version: "{{pkg.ident}}",
     www_url: "{{cfg.www_url}}",
 });
