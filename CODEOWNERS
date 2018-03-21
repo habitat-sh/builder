@@ -1,3 +1,4 @@
+* @raskchanky
 components/bitbucket-api-client @raskchanky
 components/builder-* @chefsalim @raskchanky @reset @elliott-davis
 components/builder-web @cnunciato @raskchanky @mgamini @elliott-davis
@@ -7,5 +8,5 @@ components/oauth-common @raskchanky
 components/op @raskchanky
 components/segment-api-client @raskchanky
 support @fnichol @raskchanky @baumanj @elliott-davis
-tools @baumanj @chefsalim @christophermaier @eeyun
-.studiorc @elliott-davis
+tools @baumanj @chefsalim @christophermaier @eeyun @raskchanky
+.studiorc @elliott-davis @raskchanky
