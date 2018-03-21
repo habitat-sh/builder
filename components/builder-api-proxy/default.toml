@@ -1,3 +1,4 @@
+app_url                 = "https://bldr.habitat.sh"
 cookie_domain           = ""
 demo_app_url            = "https://www.habitat.sh/demo/build-system/steps/1/"
 docs_url                = "https://www.habitat.sh/docs"
