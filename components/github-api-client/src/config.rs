@@ -13,9 +13,9 @@
 // limitations under the License.
 
 /// URL to GitHub API endpoint
-pub const DEFAULT_GITHUB_URL: &'static str = "https://api.github.com";
-/// URL to GitHub Web endpoint
-pub const DEFAULT_GITHUB_WEB_URL: &'static str = "https://github.com";
+pub const DEFAULT_GITHUB_API_URL: &'static str = "https://api.github.com";
+/// URL to GitHub Token endpoint
+pub const DEFAULT_GITHUB_TOKEN_URL: &'static str = "https://github.com/login/oauth/access_token";
 /// Default Client ID providing a value in development environments only.
 ///
 /// See https://developer.github.com/apps
@@ -33,9 +33,9 @@ pub const DEV_GITHUB_WEBHOOK_SECRET: &'static str = "58d4afaf5e5617ab0f8c39e5056
 #[serde(default)]
 pub struct GitHubCfg {
     /// URL to GitHub API
-    pub url: String,
+    pub api_url: String,
     /// URL to GitHub Web
-    pub web_url: String,
+    pub token_url: String,
     /// Path to GitHub App private key
     pub app_private_key: String,
     /// Client identifier used for GitHub API requests
@@ -51,8 +51,8 @@ pub struct GitHubCfg {
 impl Default for GitHubCfg {
     fn default() -> Self {
         GitHubCfg {
-            url: DEFAULT_GITHUB_URL.to_string(),
-            web_url: DEFAULT_GITHUB_WEB_URL.to_string(),
+            api_url: DEFAULT_GITHUB_API_URL.to_string(),
+            token_url: DEFAULT_GITHUB_TOKEN_URL.to_string(),
             app_private_key: "/src/.secrets/builder-github-app.pem".to_string(),
             client_id: DEV_GITHUB_CLIENT_ID.to_string(),
             client_secret: DEV_GITHUB_CLIENT_SECRET.to_string(),

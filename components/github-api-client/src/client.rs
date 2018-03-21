@@ -73,8 +73,8 @@ impl AppToken {
 
 #[derive(Clone)]
 pub struct GitHubClient {
-    pub url: String,
-    pub web_url: String,
+    pub api_url: String,
+    pub token_url: String,
     pub client_id: String,
     pub client_secret: String,
     app_id: u32,
@@ -85,8 +85,8 @@ pub struct GitHubClient {
 impl GitHubClient {
     pub fn new(config: GitHubCfg) -> Self {
         GitHubClient {
-            url: config.url,
-            web_url: config.web_url,
+            api_url: config.api_url,
+            token_url: config.token_url,
             client_id: config.client_id,
             client_secret: config.client_secret,
             app_id: config.app_id,
@@ -97,7 +97,7 @@ impl GitHubClient {
 
     pub fn app(&self) -> HubResult<App> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id);
-        let url = Url::parse(&format!("{}/app", self.url)).map_err(
+        let url = Url::parse(&format!("{}/app", self.api_url)).map_err(
             HubError::HttpClientParse,
         )?;
         let mut rep = http_get(url, Some(app_token))?;
@@ -116,7 +116,7 @@ impl GitHubClient {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id);
         let url = Url::parse(&format!(
             "{}/installations/{}/access_tokens",
-            self.url,
+            self.api_url,
             install_id
         )).map_err(HubError::HttpClientParse)?;
 
@@ -138,7 +138,7 @@ impl GitHubClient {
     pub fn contents(&self, token: &AppToken, repo: u32, path: &str) -> HubResult<Option<Contents>> {
         let url = Url::parse(&format!(
             "{}/repositories/{}/contents/{}",
-            self.url,
+            self.api_url,
             repo,
             path
         )).map_err(HubError::HttpClientParse)?;
@@ -166,7 +166,7 @@ impl GitHubClient {
     }
 
     pub fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
-        let url = Url::parse(&format!("{}/repositories/{}", self.url, repo)).unwrap();
+        let url = Url::parse(&format!("{}/repositories/{}", self.api_url, repo)).unwrap();
         Counter::Api("repo").increment();
         let mut rep = http_get(url, Some(&token.inner_token))?;
         let mut body = String::new();
@@ -189,7 +189,7 @@ impl GitHubClient {
     // auth and the response body seemed small. We don't even care what the
     // response is. For our purposes, just receiving a response is enough.
     pub fn meta(&self) -> HubResult<()> {
-        let url = Url::parse(&format!("{}/meta", self.url)).unwrap();
+        let url = Url::parse(&format!("{}/meta", self.api_url)).unwrap();
         let mut rep = http_get(url, None::<String>)?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -207,8 +207,8 @@ impl GitHubClient {
 impl OAuthClient for GitHubClient {
     fn authenticate(&self, code: &str) -> OAuthResult<String> {
         let url = Url::parse(&format!(
-            "{}/login/oauth/access_token?client_id={}&client_secret={}&code={}",
-            self.web_url,
+            "{}?client_id={}&client_secret={}&code={}",
+            self.token_url,
             self.client_id,
             self.client_secret,
             code
@@ -234,7 +234,7 @@ impl OAuthClient for GitHubClient {
     }
 
     fn user(&self, token: &OAuthUserToken) -> OAuthResult<OAuthUser> {
-        let url = Url::parse(&format!("{}/user", self.url)).unwrap();
+        let url = Url::parse(&format!("{}/user", self.api_url)).unwrap();
         Counter::UserApi("user").increment();
         let mut rep = match http_get(url, Some(token)) {
             Ok(r) => r,
@@ -368,7 +368,7 @@ fn http_client<T>(url: T) -> HubResult<ApiClient>
 where
     T: IntoUrl,
 {
-    ApiClient::new(url, "hab", "0.53.0", None).map_err(HubError::ApiClient)
+    ApiClient::new(url, "bldr", "0.0.0", None).map_err(HubError::ApiClient)
 }
 
 #[cfg(test)]

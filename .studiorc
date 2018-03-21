@@ -5,7 +5,8 @@ set -uo pipefail
 
 export APP_HOSTNAME
 export GITHUB_API_URL
-export GITHUB_WEB_URL
+export GITHUB_AUTHORIZE_URL
+export GITHUB_TOKEN_URL
 export GITHUB_CLIENT_ID
 export GITHUB_CLIENT_SECRET
 export SSL_CERT_FILE

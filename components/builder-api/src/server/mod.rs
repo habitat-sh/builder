@@ -82,6 +82,14 @@ impl HttpGateway for ApiSrv {
         let basic;
         let admin;
 
+        // Allow one and only one auth config
+        // TODO: Update configs so that structurally only a single auth config is possible
+        if ((config.github.is_none() && config.bitbucket.is_none()) ||
+                (config.github.is_some() && config.bitbucket.is_some()))
+        {
+            panic!("Must have one and only one auth config (github or bitbucket)");
+        }
+
         if config.github.is_some() {
             let c = config.github.clone();
             let client = GitHubClient::new(c.unwrap());

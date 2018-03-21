@@ -17,7 +17,7 @@ www_url                 = "https://www.habitat.sh"
 [github]
 app_id       = 5565
 app_url      = "https://github.com/apps/habitat-builder"
-url          = "https://api.github.com"
+api_url      = "https://api.github.com"
 
 [oauth]
 authorize_url  = "https://github.com/login/oauth/authorize"

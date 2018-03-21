@@ -8,7 +8,7 @@ habitatConfig({
     enable_publisher_docker: {{cfg.enable_publisher_docker}},
     enable_statuspage: {{cfg.hosted}},
     environment: "{{cfg.environment}}",
-    github_api_url: "{{cfg.github.url}}",
+    github_api_url: "{{cfg.github.api_url}}",
     github_app_url: "{{cfg.github.app_url}}",
     github_app_id: "{{cfg.github.app_id}}",
     habitat_api_url: "{{cfg.app_url}}",
