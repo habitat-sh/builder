@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /// URL to Bitbucket web site
-pub const DEFAULT_BITBUCKET_WEB_URL: &'static str = "https://bitbucket.org";
+pub const DEFAULT_BITBUCKET_TOKEN_URL: &'static str = "https://bitbucket.org/site/oauth2/access_token";
 
 /// URL to Bitbucket API site
 pub const DEFAULT_BITBUCKET_API_URL: &'static str = "https://api.bitbucket.org";
@@ -27,7 +27,7 @@ pub const DEV_BITBUCKET_CLIENT_SECRET: &'static str = "7EPUST337P4YCX6H8Pub9nrWB
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct BitbucketCfg {
-    pub web_url: String,
+    pub token_url: String,
     pub api_url: String,
     pub client_id: String,
     pub client_secret: String,
@@ -36,7 +36,7 @@ pub struct BitbucketCfg {
 impl Default for BitbucketCfg {
     fn default() -> Self {
         BitbucketCfg {
-            web_url: DEFAULT_BITBUCKET_WEB_URL.to_string(),
+            token_url: DEFAULT_BITBUCKET_TOKEN_URL.to_string(),
             api_url: DEFAULT_BITBUCKET_API_URL.to_string(),
             client_id: DEV_BITBUCKET_CLIENT_ID.to_string(),
             client_secret: DEV_BITBUCKET_CLIENT_SECRET.to_string(),

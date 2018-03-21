@@ -6,8 +6,8 @@ port   = 9636
 
 [github]
 enabled        = false
-url            = "https://api.github.com"
-web_url        = "https://github.com"
+api_url        = "https://api.github.com"
+token_url      = "https://github.com/login/oauth/access_token"
 client_id      = ""
 client_secret  = ""
 app_id         = 5565
@@ -16,7 +16,7 @@ webhook_secret = ""
 [bitbucket]
 enabled        = false
 api_url        = "https://api.bitbucket.org"
-web_url        = "https://bitbucket.org"
+token_url      = "https://bitbucket.org/site/oauth2/access_token"
 client_id      = ""
 client_secret  = ""
 

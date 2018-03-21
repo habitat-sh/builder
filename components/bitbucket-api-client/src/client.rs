@@ -39,11 +39,11 @@ impl OAuthClient for BitbucketClient {
     // it for an access token
     fn authenticate(&self, code: &str) -> OAuthResult<String> {
         // TODO JB: make the version here dynamic
-        let client = ApiClient::new(&self.config.web_url, "habitat", "0.54.0", None)
+        let client = ApiClient::new(&self.config.token_url, "bldr", "0.0.0", None)
             .map_err(OAuthError::ApiClient)?;
         let params = format!("grant_type=authorization_code&code={}", code);
         let req = client
-            .post("site/oauth2/access_token")
+            .post("")
             .header(Authorization(Basic {
                 username: self.config.client_id.clone(),
                 password: Some(self.config.client_secret.clone()),
@@ -71,7 +71,7 @@ impl OAuthClient for BitbucketClient {
     // about is username and email address
     fn user(&self, token: &OAuthUserToken) -> OAuthResult<OAuthUser> {
         // TODO JB: make the version here dynamic
-        let client = ApiClient::new(&self.config.api_url, "habitat", "0.54.0", None)
+        let client = ApiClient::new(&self.config.api_url, "bldr", "0.0.0", None)
             .map_err(OAuthError::ApiClient)?;
         let mut req = client.get("1.0/user");
         req = req.header(Authorization(Bearer { token: token.to_string() }));

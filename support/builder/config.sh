@@ -21,8 +21,8 @@ cat <<EOT > /hab/svc/builder-api/user.toml
 log_level = "debug"
 [github]
 enabled = true
-url = "$GITHUB_API_URL"
-web_url = "$GITHUB_WEB_URL"
+api_url = "$GITHUB_API_URL"
+token_url = "$GITHUB_TOKEN_URL"
 client_id = "$GITHUB_CLIENT_ID"
 client_secret = "$GITHUB_CLIENT_SECRET"
 app_id = $GITHUB_APP_ID
@@ -35,8 +35,7 @@ log_level = "debug"
 app_url = "http://${APP_HOSTNAME}:9636"
 
 [github]
-url = "$GITHUB_API_URL"
-web_url = "$GITHUB_WEB_URL"
+api_url = "$GITHUB_API_URL"
 client_secret = "$GITHUB_CLIENT_SECRET"
 app_id = $GITHUB_APP_ID
 app_url = "${GITHUB_APP_URL}"
@@ -44,7 +43,7 @@ app_url = "${GITHUB_APP_URL}"
 [oauth]
 provider       = "github"
 client_id      = "$GITHUB_CLIENT_ID"
-authorize_url  = "https://github.com/login/oauth/authorize"
+authorize_url  = "$GITHUB_AUTHORIZE_URL"
 EOT
 
 mkdir -p /hab/svc/builder-jobsrv
@@ -351,9 +350,6 @@ airlock_enabled = false
 data_path = "/hab/svc/builder-worker/data"
 bldr_url = "http://localhost:9636"
 [github]
-url = "$GITHUB_API_URL"
-web_url = "$GITHUB_WEB_URL"
-client_id = "$GITHUB_CLIENT_ID"
-client_secret = "$GITHUB_CLIENT_SECRET"
+api_url = "$GITHUB_API_URL"
 app_id = $GITHUB_APP_ID
 EOT

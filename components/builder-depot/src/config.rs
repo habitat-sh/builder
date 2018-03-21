@@ -153,7 +153,7 @@ mod tests {
         port = 9001
 
         [github]
-        url = "https://api.github.com"
+        api_url = "https://api.github.com"
         client_id = "0c2f738a7d0bd300de10"
         client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
         "#;
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(&format!("{}", config.http.listen), "127.0.0.1");
         assert_eq!(config.http.port, 9000);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9001");
-        assert_eq!(config.github.url, "https://api.github.com");
+        assert_eq!(config.github.api_url, "https://api.github.com");
         assert_eq!(config.github.client_id, "0c2f738a7d0bd300de10");
         assert_eq!(
             config.github.client_secret,

@@ -167,7 +167,7 @@ mod tests {
         port = 9632
 
         [github]
-        url = "https://api.github.com"
+        api_url = "https://api.github.com"
         client_id = "0c2f738a7d0bd300de10"
         client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
 
@@ -185,17 +185,24 @@ mod tests {
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9632");
-        assert_eq!(config.github.unwrap().url, "https://api.github.com");
-        assert_eq!(config.github.unwrap().client_id, "0c2f738a7d0bd300de10");
+
+        let github = config.github.unwrap();
+        assert_eq!(github.api_url, "https://api.github.com");
+        assert_eq!(github.client_id, "0c2f738a7d0bd300de10");
         assert_eq!(
-            config.github.unwrap().client_secret,
+            github.client_secret,
             "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
         );
         assert_eq!(config.ui.root, Some("/some/path".to_string()));
         assert_eq!(config.segment.url, "https://api.segment.io");
-        assert_eq!(config.bitbucket.unwrap().web_url, "https://bitbucket.org");
-        assert_eq!(config.bitbucket.unwrap().client_id, "haha");
-        assert_eq!(config.bitbucket.unwrap().client_secret, "abc123");
+
+        let bitbucket = config.bitbucket.unwrap();
+        assert_eq!(
+            bitbucket.token_url,
+            "https://bitbucket.org/site/oauth2/access_token"
+        );
+        assert_eq!(bitbucket.client_id, "haha");
+        assert_eq!(bitbucket.client_secret, "abc123");
     }
 
     #[test]
@@ -231,7 +238,7 @@ mod tests {
         port = 9632
 
         [github]
-        url = "https://api.github.com"
+        api_url = "https://api.github.com"
         client_id = "0c2f738a7d0bd300de10"
         client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
         "#;
@@ -244,15 +251,17 @@ mod tests {
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9632");
-        assert_eq!(config.github.unwrap().url, "https://api.github.com");
-        assert_eq!(config.github.unwrap().client_id, "0c2f738a7d0bd300de10");
+
+        let github = config.github.unwrap();
+        assert_eq!(github.api_url, "https://api.github.com");
+        assert_eq!(github.client_id, "0c2f738a7d0bd300de10");
         assert_eq!(
-            config.github.unwrap().client_secret,
+            github.client_secret,
             "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
         );
         assert_eq!(config.ui.root, Some("/some/path".to_string()));
         assert_eq!(config.segment.url, "https://api.segment.io");
-        assert_eq!(config.bitbucket, None);
+        assert!(config.bitbucket.is_none());
     }
 
     #[test]
