@@ -29,7 +29,6 @@ export default Record({
   gitHub: Record({
     installations: List(),
     repositories: List(),
-    username: undefined,
     ui: Record({
       installations: Record({
         loading: false

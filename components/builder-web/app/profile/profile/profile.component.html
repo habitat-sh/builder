@@ -27,69 +27,67 @@
           </button>
         </section>
       </form>
-      <ng-container *ngIf="accessTokensEnabled">
-        <hr>
-        <section>
-          <h3>Personal Access Token</h3>
-          <p>
-            Personal access tokens are used for secure communication between the Habitat CLI
-            and the Builder service. If you've forgotten your token, you'll need to generate
-            a new one.
-          </p>
-          <ng-container *ngIf="generatingAccessToken || deletingAccessToken">
-            <div class="controls processing">
-              <div class="loading">
-                <input type="text" value="{{ processingLabel }}..." disabled="disabled">
+      <hr>
+      <section>
+        <h3>Personal Access Token</h3>
+        <p>
+          Personal access tokens are used for secure communication between the Habitat CLI
+          and the Builder service. If you've forgotten your token, you'll need to generate
+          a new one.
+        </p>
+        <ng-container *ngIf="generatingAccessToken || deletingAccessToken">
+          <div class="controls processing">
+            <div class="loading">
+              <input type="text" value="{{ processingLabel }}..." disabled="disabled">
+              <hab-icon symbol="loading" class="spinning"></hab-icon>
+            </div>
+          </div>
+        </ng-container>
+        <ng-container *ngIf="!generatingAccessToken && !deletingAccessToken">
+          <ng-container *ngIf="!accessToken && !newAccessToken">
+            <ng-container *ngIf="!loadingAccessTokens">
+              <div class="controls">
+                <input type="text" value="No token found" disabled="disabled">
+                <div class="actions">
+                  <a class="generate" (click)="generateToken(false)" *ngIf="!generatingAccessToken">{{ buttonLabel }}</a>
+                </div>
+              </div>
+            </ng-container>
+            <ng-container *ngIf="loadingAccessTokens">
+              <div class="controls processing">
                 <hab-icon symbol="loading" class="spinning"></hab-icon>
+              </div>
+            </ng-container>
+          </ng-container>
+          <ng-container *ngIf="newAccessToken">
+            <div class="controls">
+              <hab-copyable style="input" [text]="newAccessToken.token"></hab-copyable>
+              <div class="actions">
+                <a class="generate" (click)="generateToken(true)">{{ buttonLabel }}</a>
+                <a class="delete" (click)="deleteToken(newAccessToken.id)" *ngIf="!deletingAccessToken">Delete</a>
+              </div>
+            </div>
+            <p class="footnote">
+              Set your token in the CLI by running <strong>export HAB_AUTH_TOKEN=&lt;your-token&gt;</strong>.
+              <a href="{{config['docs_url']}}/habitat-cli/">See the Habitat docs</a> for more information.
+            </p>
+            <p class="notice">
+              <hab-icon symbol="warning"></hab-icon>
+              Make sure to copy your personal access token now. You won't be able to see it again!
+            </p>
+          </ng-container>
+          <ng-container *ngIf="accessToken && !newAccessToken">
+            <div class="controls">
+              <input type="password" value="*********************************" disabled="disabled">
+              <div class="actions">
+                <a class="generate" (click)="generateToken(true)">{{ buttonLabel }}</a>
+                <a class="delete" (click)="deleteToken(accessToken.id)" *ngIf="!deletingAccessToken">Delete</a>
               </div>
             </div>
           </ng-container>
-          <ng-container *ngIf="!generatingAccessToken && !deletingAccessToken">
-            <ng-container *ngIf="!accessToken && !newAccessToken">
-              <ng-container *ngIf="!loadingAccessTokens">
-                <div class="controls">
-                  <input type="text" value="No token found" disabled="disabled">
-                  <div class="actions">
-                    <a class="generate" (click)="generateToken(false)" *ngIf="!generatingAccessToken">{{ buttonLabel }}</a>
-                  </div>
-                </div>
-              </ng-container>
-              <ng-container *ngIf="loadingAccessTokens">
-                <div class="controls processing">
-                  <hab-icon symbol="loading" class="spinning"></hab-icon>
-                </div>
-              </ng-container>
-            </ng-container>
-            <ng-container *ngIf="newAccessToken">
-              <div class="controls">
-                <hab-copyable style="input" [text]="newAccessToken.token"></hab-copyable>
-                <div class="actions">
-                  <a class="generate" (click)="generateToken(true)">{{ buttonLabel }}</a>
-                  <a class="delete" (click)="deleteToken(newAccessToken.id)" *ngIf="!deletingAccessToken">Delete</a>
-                </div>
-              </div>
-              <p class="footnote">
-                Set your token in the CLI by running <strong>export HAB_AUTH_TOKEN=&lt;your-token&gt;</strong>.
-                <a href="{{config['docs_url']}}/habitat-cli/">See the Habitat docs</a> for more information.
-              </p>
-              <p class="notice">
-                <hab-icon symbol="warning"></hab-icon>
-                Make sure to copy your personal access token now. You won't be able to see it again!
-              </p>
-            </ng-container>
-            <ng-container *ngIf="accessToken && !newAccessToken">
-              <div class="controls">
-                <input type="password" value="*********************************" disabled="disabled">
-                <div class="actions">
-                  <a class="generate" (click)="generateToken(true)">{{ buttonLabel }}</a>
-                  <a class="delete" (click)="deleteToken(accessToken.id)" *ngIf="!deletingAccessToken">Delete</a>
-                </div>
-              </div>
-            </ng-container>
-          </ng-container>
-        </section>
-        <hr>
-      </ng-container>
+        </ng-container>
+      </section>
+      <hr>
     </div>
   </div>
 </div>

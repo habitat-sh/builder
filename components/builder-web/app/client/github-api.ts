@@ -28,24 +28,6 @@ export class GitHubApiClient {
     };
   }
 
-  public getUser(username: string) {
-    return new Promise((resolve, reject) => {
-      fetch(`${config['github_api_url']}/users/${username}?access_token=${this.token}`, {
-        method: 'GET'
-      }).then(response => {
-        if (response.ok) {
-          resolve(response.json());
-        } else {
-          if (response.status === 404) {
-            reject(new Error(`GitHub user '${username}' does not exist.`));
-          } else {
-            reject(new Error(response.statusText));
-          }
-        }
-      }).catch(error => reject(error));
-    });
-  }
-
   public getUserInstallations(username: string) {
     return new Promise((resolve, reject) => {
       fetch(`${config['github_api_url']}/user/installations?access_token=${this.token}`, {

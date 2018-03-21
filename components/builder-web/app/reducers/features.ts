@@ -20,9 +20,7 @@ export default function builds(state = initialState['features'], action) {
   switch (action.type) {
 
     case actionTypes.LOAD_FEATURES:
-      return state
-        .set('builder', !!config['enable_builder'])
-        .set('accessTokens', !!config['enable_access_tokens']);
+      return state.set('builder', !!config['enable_builder']);
 
     default:
       return state;
