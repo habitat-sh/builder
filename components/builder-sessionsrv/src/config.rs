@@ -14,7 +14,6 @@
 // Configuration for a Habitat SessionSrv service
 
 use db::config::DataStoreCfg;
-use github_api_client::config::GitHubCfg;
 use hab_net::app::config::*;
 
 use error::SrvError;
@@ -24,8 +23,6 @@ use error::SrvError;
 pub struct Config {
     pub app: AppCfg,
     pub datastore: DataStoreCfg,
-    pub github: GitHubCfg,
-    pub permissions: PermissionsCfg,
 }
 
 impl Default for Config {
@@ -35,8 +32,6 @@ impl Default for Config {
         Config {
             app: AppCfg::default(),
             datastore: datastore,
-            github: GitHubCfg::default(),
-            permissions: PermissionsCfg::default(),
         }
     }
 }
@@ -51,33 +46,6 @@ impl ConfigFile for Config {
     type Error = SrvError;
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(default)]
-pub struct PermissionsCfg {
-    pub app_install_id: u32,
-    /// A GitHub Team identifier for which members will automatically have administration
-    /// privileges assigned to their session
-    pub admin_team: u32,
-    /// GitHub team's whose members are granted Builder Worker abilities. These abilities
-    /// include downloading the latest private key for any origin and uploading a package into
-    /// any origin regardless of membership. This is essentially a user who ignores all rules.
-    pub build_worker_teams: Vec<u32>,
-    /// GitHub team's assigned to the early access group who may have access to features in Builder
-    /// before a normal user.
-    pub early_access_teams: Vec<u32>,
-}
-
-impl Default for PermissionsCfg {
-    fn default() -> Self {
-        PermissionsCfg {
-            app_install_id: 56940,
-            admin_team: 1995301,
-            build_worker_teams: vec![2555389, 1996256],
-            early_access_teams: vec![1995301],
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,17 +53,6 @@ mod tests {
     #[test]
     fn config_from_file() {
         let content = r#"
-        [permissions]
-        admin_team = 2000
-        build_worker_teams = [
-            3000,
-            3001
-        ]
-        early_access_teams = [
-            4000,
-            4001
-        ]
-
         [datastore]
         host = "1.1.1.1"
         port = 9000
@@ -105,17 +62,9 @@ mod tests {
         connection_timeout_sec = 4800
         connection_test = true
         pool_size = 1
-
-        [github]
-        url = "https://api.github.com"
-        client_id = "0c2f738a7d0bd300de10"
-        client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
         "#;
 
         let config = Config::from_raw(&content).unwrap();
-        assert_eq!(config.permissions.admin_team, 2000);
-        assert_eq!(config.permissions.build_worker_teams, vec![3000, 3001]);
-        assert_eq!(config.permissions.early_access_teams, vec![4000, 4001]);
         assert_eq!(&format!("{}", config.datastore.host), "1.1.1.1");
         assert_eq!(config.datastore.port, 9000);
         assert_eq!(config.datastore.user, "test");
@@ -124,11 +73,5 @@ mod tests {
         assert_eq!(config.datastore.connection_timeout_sec, 4800);
         assert_eq!(config.datastore.connection_test, true);
         assert_eq!(config.datastore.pool_size, 1);
-        assert_eq!(config.github.url, "https://api.github.com");
-        assert_eq!(config.github.client_id, "0c2f738a7d0bd300de10");
-        assert_eq!(
-            config.github.client_secret,
-            "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
-        );
     }
 }

@@ -6,13 +6,6 @@ routers = [
   {{~/eachAlive}}
 ]
 
-[permissions]
-{{toToml cfg.permissions}}
-
-[github]
-app_private_key = "{{pkg.svc_files_path}}/builder-github-app.pem"
-{{toToml cfg.github}}
-
 [datastore]
 {{toToml cfg.datastore}}
 {{~#eachAlive bind.datastore.members as |member|}}
