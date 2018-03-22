@@ -12,11 +12,11 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-clippy = {version = "*", optional = true}
-constant_time_eq = "*"
 base64 = "*"
 bodyparser = "*"
 builder-http-gateway = { path = "../builder-http-gateway" }
+clippy = {version = "*", optional = true}
+constant_time_eq = "*"
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"

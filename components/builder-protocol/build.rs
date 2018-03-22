@@ -2,5 +2,5 @@
 include!("../libbuild-protocols.rs");
 
 fn main() {
-    protocols::generate_if_feature_enabled();
+    protocols::generate_protocols();
 }
