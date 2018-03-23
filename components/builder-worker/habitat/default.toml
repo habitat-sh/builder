@@ -7,8 +7,5 @@ airlock_enabled = true
 recreate_ns_dir = false
 
 [github]
-url = "https://api.github.com"
-web_url = "https://github.com"
-client_id = ""
-client_secret = ""
+api_url = "https://api.github.com"
 app_id = 5565
