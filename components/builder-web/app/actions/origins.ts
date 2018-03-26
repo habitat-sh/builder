@@ -29,6 +29,7 @@ export const POPULATE_ORIGIN_MEMBERS = 'POPULATE_ORIGIN_MEMBERS';
 export const POPULATE_ORIGIN_PUBLIC_KEYS = 'POPULATE_ORIGIN_PUBLIC_KEYS';
 export const POPULATE_ORIGIN_INTEGRATION = 'POPULATE_ORIGIN_INTEGRATION';
 export const POPULATE_ORIGIN_INTEGRATIONS = 'POPULATE_ORIGIN_INTEGRATIONS';
+export const POPULATE_ORIGIN_SECRETS = 'POPULATE_ORIGIN_SECRETS';
 export const SET_CURRENT_ORIGIN = 'SET_CURRENT_ORIGIN';
 export const SET_CURRENT_ORIGIN_CREATING_FLAG = 'SET_CURRENT_ORIGIN_CREATING_FLAG';
 export const SET_CURRENT_ORIGIN_LOADING = 'SET_CURRENT_ORIGIN_LOADING';
@@ -230,6 +231,17 @@ export function fetchOriginPublicKeys(originName: string, token: string) {
   };
 }
 
+export function fetchOriginSecrets(origin: string, token: string) {
+  return dispatch => {
+    new BuilderApiClient(token).getOriginSecrets(origin).
+      then(response => {
+        dispatch(populateOriginSecrets(response));
+      }).catch(error => {
+        dispatch(populateOriginSecrets(undefined, error));
+      });
+  };
+}
+
 export function generateOriginKeys(origin: string, token: string) {
   return dispatch => {
     new BuilderApiClient(token).generateOriginKeys(origin).
@@ -326,6 +338,26 @@ export function updateOrigin(origin: any, token: string) {
       .catch(error => {
         dispatch(addNotification({
           title: 'Error saving origin settings',
+          body: error.message,
+          type: DANGER
+        }));
+      });
+  };
+}
+
+export function deleteOriginSecret(origin: string, key: string, token: string) {
+  return dispatch => {
+    new BuilderApiClient(token).deleteOriginSecret(origin, key)
+      .then(() => {
+        dispatch(addNotification({
+          title: 'Origin secret deleted',
+          type: SUCCESS
+        }));
+        dispatch(fetchOriginSecrets(origin, token));
+      })
+      .catch(error => {
+        dispatch(addNotification({
+          title: 'Error deleting origin secret',
           body: error.message,
           type: DANGER
         }));
@@ -449,6 +481,14 @@ function populateOriginMembers(payload, error = undefined) {
 function populateOriginPublicKeys(payload, error = undefined) {
   return {
     type: POPULATE_ORIGIN_PUBLIC_KEYS,
+    payload,
+    error,
+  };
+}
+
+function populateOriginSecrets(payload, error = undefined) {
+  return {
+    type: POPULATE_ORIGIN_SECRETS,
     payload,
     error,
   };

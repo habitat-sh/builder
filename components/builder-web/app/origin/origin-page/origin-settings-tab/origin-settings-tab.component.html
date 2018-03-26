@@ -7,5 +7,27 @@
       </p>
       <hab-visibility-selector [setting]="visibility" (changed)="update($event)"></hab-visibility-selector>
     </section>
+
+    <section *ngIf="memberOfOrigin">
+      <h3>Origin Secrets</h3>
+      <p>
+        With the Habitat CLI, you can encrypt and store secrets to expose as environment variables in your Builder builds.
+        <a href="{{ config.docs_url }}/habitat-cli/#hab-origin-secret">See the CLI docs</a> for more information.
+      </p>
+      <ul class="action-list">
+        <li class="heading">
+          <h4>Key Name</h4>
+        </li>
+        <li class="none" *ngIf="secrets.size === 0">
+          <span>None on file.</span>
+        </li>
+        <li *ngFor="let secret of secrets" class="item pending-invite">
+          <span class="column">{{ secret.key }}</span>
+          <span class="column actions">
+            <hab-icon symbol="cancel" (click)="deleteSecret(secret)" title="Delete this secret"></hab-icon>
+          </span>
+        </li>
+      </ul>
+    </section>
   </div>
 </div>

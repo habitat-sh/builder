@@ -484,6 +484,23 @@ export class BuilderApiClient {
     });
   }
 
+  public getOriginSecrets(originName: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/depot/origins/${originName}/secret`, {
+        headers: this.headers,
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public getProfile() {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/profile`, {
@@ -714,6 +731,24 @@ export class BuilderApiClient {
         headers: this.headers,
         method: 'PUT',
         body: JSON.stringify(origin)
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve();
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public deleteOriginSecret(origin: string, key: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/depot/origins/${origin}/secret/${key}`, {
+        headers: this.headers,
+        method: 'DELETE'
       })
         .then(response => this.handleUnauthorized(response, reject))
         .then(response => {

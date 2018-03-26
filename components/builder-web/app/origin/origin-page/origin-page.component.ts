@@ -17,7 +17,7 @@ import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs/Subscription';
 import { AppStore } from '../../app.store';
 import { Origin } from '../../records/Origin';
-import { fetchOrigin, fetchMyOrigins, getUniquePackages, fetchIntegrations, fetchProjects } from '../../actions';
+import { fetchOrigin, fetchMyOrigins, getUniquePackages, fetchIntegrations, fetchProjects, fetchOriginSecrets } from '../../actions';
 
 @Component({
   template: require('./origin-page.component.html')
@@ -40,6 +40,7 @@ export class OriginPageComponent implements OnInit, OnDestroy {
     this.fetchMyOrigins();
     this.fetchPackages();
     this.fetchProjects();
+    this.fetchSecrets();
     this.loadPackages = this.fetchPackages.bind(this);
   }
 
@@ -107,5 +108,11 @@ export class OriginPageComponent implements OnInit, OnDestroy {
 
   private fetchPackages() {
     this.store.dispatch(getUniquePackages(this.origin.name, 0, this.token));
+  }
+
+  private fetchSecrets() {
+    if (this.token) {
+      this.store.dispatch(fetchOriginSecrets(this.origin.name, this.token));
+    }
   }
 }

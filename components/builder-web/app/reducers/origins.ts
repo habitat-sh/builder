@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { List } from 'immutable';
+import { sortBy } from 'lodash';
 import * as actionTypes from '../actions/index';
 import initialState from '../initial-state';
 import { Origin } from '../records/Origin';
@@ -97,6 +98,16 @@ export default function origins(state = initialState['origins'], action) {
           ['ui', 'current', 'publicKeyListErrorMessage'],
           undefined
           );
+      }
+
+    case actionTypes.POPULATE_ORIGIN_SECRETS:
+      if (action.payload) {
+        return state.set('currentSecrets', List(
+          sortBy(action.payload, 'name')
+            .map(secret => { return { key: secret.name, value: secret.value }; }))
+        );
+      } else {
+        return state.set('currentSecrets', List());
       }
 
     case actionTypes.SET_CURRENT_ORIGIN:
