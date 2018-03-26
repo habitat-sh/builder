@@ -21,6 +21,5 @@ git = "https://github.com/habitat-sh/core.git"
 
 [build-dependencies]
 pkg-config = "0.3"
-
-[features]
-protocols = []
+protoc = "1.4"
+protoc-rust = "1.4"

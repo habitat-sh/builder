@@ -11,6 +11,7 @@ do_dev_prepare() {
   do_builder_prepare
   export CARGO_TARGET_DIR="/tmp/target"
   PLAN_CONTEXT="../habitat"
+  export RUST_BACKTRACE=1
 }
 
 do_prepare() {

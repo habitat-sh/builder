@@ -1,45 +1,24 @@
 mod protocols {
     extern crate pkg_config;
-
-    use std::env;
+    extern crate protoc;
+    extern crate protoc_rust;
+    
     use std::fs;
-    use std::path::PathBuf;
-    use std::process::Command;
 
-    pub fn generate_if_feature_enabled() {
-        if env::var("CARGO_FEATURE_PROTOCOLS").is_ok() {
-            generate_protocols();
-        }
+    pub fn generate_protocols() {
+        let protocols = protocol_files();
+        protoc_rust::run(protoc_rust::Args {
+            out_dir: "src/message",
+            input: protocols
+                .iter()
+                .map(AsRef::as_ref)
+                .collect::<Vec<&str>>()
+                .as_slice(),
+            includes: &["protocols"],
+        }).expect("protoc is not available on PATH");
     }
 
-    fn generate_protocols() {
-        let prefix = match env::var("PROTOBUF_PREFIX").ok() {
-            Some(prefix) => prefix,
-            None => {
-                match pkg_config::get_variable("protobuf", "prefix") {
-                    Ok(prefix) => prefix,
-                    Err(msg) => panic!("Unable to locate protobuf, err={:?}", msg),
-                }
-            }
-        };
-
-        let out_dir = r"src/message";
-        let cmd = Command::new(format!("{}/bin/protoc", prefix))
-            .arg("--rust_out")
-            .arg(out_dir)
-            .args(&protocol_files())
-            .output();
-        match cmd {
-            Ok(out) => {
-                if !out.status.success() {
-                    panic!("{:?}", out)
-                }
-            }
-            Err(e) => panic!("{}", e),
-        }
-    }
-
-    fn protocol_files() -> Vec<PathBuf> {
+    fn protocol_files() -> Vec<String> {
         let mut files = vec![];
         for entry in fs::read_dir("protocols").unwrap() {
             let file = entry.unwrap();
@@ -48,7 +27,7 @@ mod protocols {
                 continue;
             }
             if file.metadata().unwrap().is_file() {
-                files.push(file.path());
+                files.push(file.path().to_str().unwrap().into());
             }
         }
         files

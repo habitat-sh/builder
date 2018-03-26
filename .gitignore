@@ -20,3 +20,7 @@ test/builder-api/node_modules
 test/builder-api/services.log
 tmp/
 pkgs/
+
+#### Generated Files
+components/builder-protocol/src/message
+!components/builder-protocol/src/message/mod.rs
