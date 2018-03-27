@@ -2067,47 +2067,6 @@ fn demote_package(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn download_latest_builder_key(req: &mut Request) -> IronResult<Response> {
-    let lock = req.get::<persistent::State<DepotUtil>>().expect(
-        "depot not found",
-    );
-    let depot = lock.read().expect("depot read lock is poisoned");
-
-    // The builder key pair is expected to be found at the key_dir config.
-    // It is not currently persisted in the DB. Instead, it will be
-    // propagated via a 'hab file upload' to the depot service group.
-    let kp = match BoxKeyPair::get_latest_pair_for(
-        bldr_core::keys::BUILDER_KEY_NAME,
-        &depot.config.key_dir,
-    ) {
-        Ok(p) => p,
-        Err(_) => return Ok(Response::with((status::NotFound, "key-pair"))),
-    };
-
-    let key = match kp.public() {
-        Ok(k) => k,
-        Err(_) => return Ok(Response::with((status::NotFound, "public-key"))),
-    };
-
-    let xfilename = format!("{}-{}.pub", kp.name, kp.rev);
-    let body = base64::encode(&key[..]);
-
-    let output = format!(
-        "{}\n{}\n\n{}",
-        PUBLIC_BOX_KEY_VERSION,
-        kp.name_with_rev(),
-        body
-    );
-
-    let mut response = Response::with((status::Ok, output));
-    response.headers.set(ContentDisposition(
-        format!("attachment; filename=\"{}\"", xfilename),
-    ));
-    response.headers.set(XFileName(xfilename));
-    dont_cache_response(&mut response);
-    Ok(response)
-}
-
 pub fn create_origin_secret(req: &mut Request) -> IronResult<Response> {
     let params = match validate_params(req, &["origin"]) {
         Ok(p) => p,
@@ -2569,11 +2528,6 @@ where
         "/origins/:origin/secret_keys/latest",
         XHandler::new(download_latest_origin_secret_key).before(basic.clone()),
         "origin_secret_key_latest",
-    );
-    r.get(
-        "/builder/keys/latest",
-        download_latest_builder_key,
-        "builder_key_latest",
     );
     r.get(
         "/origins/:origin/integrations/:integration/names",
