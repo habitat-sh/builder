@@ -174,17 +174,4 @@ describe('Keys API', function() {
         });
     });
   });
-
-  describe('Builder keys', function() {
-    it('can retrieve the latest key', function(done) {
-      this.skip(); // don't run in master until passing
-      request.get('/depot/builder/keys/latest')
-        .expect(200)
-        .end(function(err, res) {
-          expect(res.text).to.include('BOX-PUB-1');
-          expect(res.text.match(/bldr-[0-9]{14}/)).to.not.be.null;
-          done(err);
-        });
-    });
-  });
 });
