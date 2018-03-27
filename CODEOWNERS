@@ -2,11 +2,12 @@
 components/bitbucket-api-client @raskchanky
 components/builder-* @chefsalim @raskchanky @reset @elliott-davis
 components/builder-web @cnunciato @raskchanky @mgamini @elliott-davis
+components/builder-worker @chefsalim @raskchanky @reset @elliott-davis @fnichol
 components/github-api-client @raskchanky
 components/net @raskchanky
 components/oauth-common @raskchanky
 components/op @raskchanky
 components/segment-api-client @raskchanky
 support @fnichol @raskchanky @baumanj @elliott-davis
-tools @baumanj @chefsalim @christophermaier @eeyun @raskchanky
+tools @baumanj @chefsalim @christophermaier @eeyun @raskchanky @fnichol
 .studiorc @elliott-davis @raskchanky
