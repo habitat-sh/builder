@@ -16,7 +16,7 @@ stop_pattern="###HABITAT-${environment}-STOP###"
 script_dir=$(dirname "$0")
 
 # Remove the entries from the config file
-sed -i '.habitat_backup' '/'"${start_pattern}"'/,/'"${stop_pattern}"'/d' ~/.ssh/config
+sed -i'.habitat_backup' '/'"${start_pattern}"'/,/'"${stop_pattern}"'/d' ~/.ssh/config
 
 echo "" >> ~/.ssh/config
 echo "${start_pattern}" >> ~/.ssh/config
