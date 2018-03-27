@@ -16,6 +16,7 @@ import { authenticate, removeSession, loadOAuthProvider, loadBldrSessionState, l
 import { addNotification, SUCCESS, DANGER } from './notifications';
 import { BuilderApiClient } from '../client/builder-api';
 import { Browser } from '../browser';
+import config from '../config';
 
 export const CLEAR_ACCESS_TOKENS = 'CLEAR_ACCESS_TOKENS';
 export const CLEAR_NEW_ACCESS_TOKEN = 'CLEAR_NEW_ACCESS_TOKEN';
@@ -179,10 +180,16 @@ export function setDeletingAccessToken(payload) {
 }
 
 function notifySegment(data: any) {
-  const segment = window['analytics'];
-
-  if (segment && typeof segment.identify === 'function') {
-    segment.identify(data.id, { email: data.email, name: data.name });
+  const analytics = window['analytics'];
+  if (analytics && typeof analytics.identify === 'function') {
+    analytics.identify(data.id, {
+      email: data.email,
+      name: data.name,
+      company: {
+        id: config.company_id,
+        name: config.company_name
+      }
+    });
   }
 }
 

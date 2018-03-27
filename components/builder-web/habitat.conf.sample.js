@@ -1,5 +1,9 @@
 habitatConfig({
 
+    // Company information, for analytics (optional)
+    company_id: "builder-dev",
+    company_name: "Habitat Builder Dev",
+
     // Cookie domain (optional; e.g., 'bldr.company.co')
     cookie_domain: "",
 
