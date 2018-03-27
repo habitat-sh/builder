@@ -1,6 +1,7 @@
 enum OAuthProviderType {
   GitHub = 'github',
-  BitBucket = 'bitbucket'
+  BitBucket = 'bitbucket',
+  OpenID = 'openid'
 }
 
 export abstract class OAuthProvider {
@@ -44,6 +45,8 @@ export abstract class OAuthProvider {
         return new GitHubProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.BitBucket:
         return new BitBucketProvider(clientID, authorizeUrl, redirectUrl, signupUrl);
+      case OAuthProviderType.OpenID:
+      return new OpenIDProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case undefined:
       case '':
         console.error(`Please configure Builder with an OAuth provider. Supported providers are ${OAuthProvider.providers}.`);
@@ -88,6 +91,28 @@ class BitBucketProvider extends OAuthProvider {
       {
         client_id: clientID,
         response_type: 'code'
+      }
+    );
+  }
+}
+
+class OpenIDProvider extends OAuthProvider {
+  name: string = 'OpenID';
+
+  constructor(clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string) {
+    super(
+      OAuthProviderType.OpenID,
+      clientID,
+      authorizeUrl,
+      redirectUrl,
+      signupUrl,
+      true,
+      {
+        client_id: clientID,
+        redirect_uri: redirectUrl,
+        response_type: 'code',
+        scope: 'openid profile email offline_access',
+        state: state
       }
     );
   }

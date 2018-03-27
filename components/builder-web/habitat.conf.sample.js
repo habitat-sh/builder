@@ -52,6 +52,11 @@ habitatConfig({
     // oauth_redirect_url: "http://localhost:3000/",
     // oauth_signup_url: "https://bitbucket.org/account/signup/",
 
+    // oauth_provider: "openid",
+    // oauth_client_id: "habitat",
+    // oauth_authorize_url: "https://a2-dev.test/dex/auth",
+    // oauth_redirect_url: "http://localhost:3000/",
+
     // The URL for the Habitat source code
     source_code_url: "https://github.com/habitat-sh/habitat",
 
