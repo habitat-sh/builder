@@ -55,3 +55,14 @@
     }
   }
 }
+
+@include desktop-up {
+
+  main {
+    .content {
+      &:not(.full) {
+        max-width: 75%;
+      }
+    }
+  }
+}

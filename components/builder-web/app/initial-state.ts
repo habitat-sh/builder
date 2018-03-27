@@ -104,6 +104,7 @@ export default Record({
     currentPublicKeys: List(),
     currentMembers: List(),
     currentPendingInvitations: List(),
+    currentSecrets: List(),
     mine: List(),
     myInvitations: List(),
     currentIntegrations: Record({

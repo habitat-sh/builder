@@ -41,7 +41,7 @@
   </a>
 </nav>
 <div class="body">
-  <div class="content">
+  <div class="content" [class.full]="useFullWidth">
     <hab-build-notice [build]="activeBuild" *ngIf="showActiveBuild"></hab-build-notice>
     <router-outlet (activate)="onRouteActivate($event)"></router-outlet>
   </div>
