@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::env as std_env;
 use std::fs::{self, File};
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 
 use hab_core::env;
@@ -165,9 +166,17 @@ impl<'a> DockerExporter<'a> {
 
     fn spawn_dockerd(&self) -> io::Result<Child> {
         let root = self.dockerd_path();
-        let env_path = &*DOCKERD_PROGRAM.parent().expect(
-            "Dockerd parent directory exists",
-        );
+        // TED: feels bad but we need to add sbin to the path
+        // so Dockerd can get to apparmor_parser
+        let env_paths = [
+            &*DOCKERD_PROGRAM.parent().expect(
+                "Dockerd parent directory exists",
+            ),
+            &Path::new("/sbin"),
+        ];
+        let env_path = std_env::join_paths(env_paths.iter())
+            .expect("Cannot join PATH elements for dockerd spawn")
+            .to_os_string();
         let daemon_json = root.join("etc/daemon.json");
         fs::create_dir_all(daemon_json.parent().expect(
             "Daemon JSON parent directory exists",
@@ -201,10 +210,7 @@ impl<'a> DockerExporter<'a> {
         cmd.arg("--raw-logs");
         debug!("building dockerd command, cmd={:?}", &cmd);
         cmd.env_clear();
-        debug!(
-            "setting docker export command env, PATH={}",
-            env_path.display()
-        );
+        debug!("setting docker export command env, PATH={:?}", env_path);
         cmd.env("PATH", env_path); // Sadly, `dockerd` needs its collaborator programs on `PATH`
         cmd.stdout(Stdio::from(File::create(
             self.workspace.root().join("dockerd.stdout.log"),
