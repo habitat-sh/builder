@@ -1250,11 +1250,11 @@ pub fn origin_secret_create(
         Ok(ref os) => conn.route_reply(req, os)?,
         Err(SrvError::OriginSecretCreate(ref db))
             if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
-            let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-create:1");
+            let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-secret-create:1");
             conn.route_reply(req, &*err)?;
         }
         Err(e) => {
-            let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-create:2");
+            let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-secret-create:2");
             error!("{}, {}", err, e);
             conn.route_reply(req, &*err)?;
         }
