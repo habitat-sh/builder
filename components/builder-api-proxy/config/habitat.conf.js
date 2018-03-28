@@ -1,4 +1,6 @@
 habitatConfig({
+    company_id: "{{cfg.analytics.company_id}}",
+    company_name: "{{cfg.analytics.company_name}}",
     cookie_domain: "{{cfg.cookie_domain}}",
     demo_app_url: "{{cfg.demo_app_url}}",
     docs_url: "{{cfg.docs_url}}",
