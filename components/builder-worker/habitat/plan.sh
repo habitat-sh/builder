@@ -7,7 +7,7 @@ pkg_bin_dirs=(bin)
 pkg_deps=(habitat/airlock core/glibc core/openssl core/gcc-libs core/zeromq core/libsodium
   core/libarchive core/zlib core/hab-studio core/hab-pkg-export-docker
   core/docker core/curl)
-pkg_build_deps=(core/make core/cmake core/protobuf core/protobuf-rust core/coreutils core/cacerts
+pkg_build_deps=(core/make core/cmake core/protobuf-cpp core/protobuf-rust core/coreutils core/cacerts
   core/rust core/gcc core/git core/pkg-config)
 pkg_binds=(
   [jobsrv]="worker_port worker_heartbeat log_port"
