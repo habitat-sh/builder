@@ -175,8 +175,9 @@ impl Dispatcher for OriginSrv {
         config: Self::Config,
         router_pipe: Arc<String>,
     ) -> SrvResult<<Self::State as AppState>::InitState> {
+        let jobsrv_enabled = config.jobsrv_enabled;
         let state = ServerState::new(config, router_pipe)?;
-        state.datastore.register_async_events();
+        state.datastore.register_async_events(jobsrv_enabled);
         state.datastore.start_async();
         Ok(state)
     }

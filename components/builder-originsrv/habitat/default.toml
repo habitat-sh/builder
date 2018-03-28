@@ -1,4 +1,5 @@
 log_level = "info"
+jobsrv_enabled = true
 
 [app]
 shards = []

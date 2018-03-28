@@ -24,6 +24,8 @@ use error::SrvError;
 pub struct Config {
     pub app: AppCfg,
     pub datastore: DataStoreCfg,
+    /// Whether jobsrv is present or not
+    pub jobsrv_enabled: bool,
 }
 
 impl Default for Config {
@@ -33,6 +35,7 @@ impl Default for Config {
         Config {
             app: AppCfg::default(),
             datastore: datastore,
+            jobsrv_enabled: true,
         }
     }
 }
