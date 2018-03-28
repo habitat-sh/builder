@@ -99,7 +99,7 @@ impl DataStore {
         Ok(())
     }
 
-    pub fn register_async_events(&self) {
+    pub fn register_async_events(&self, jobsrv_enabled: bool) {
         self.async.register(
             "sync_invitations".to_string(),
             sync_invitations,
@@ -108,10 +108,13 @@ impl DataStore {
             "sync_origins".to_string(),
             sync_origins,
         );
-        self.async.register(
-            "sync_packages".to_string(),
-            sync_packages,
-        );
+
+        if jobsrv_enabled {
+            self.async.register(
+                "sync_packages".to_string(),
+                sync_packages,
+            );
+        }
     }
 
     pub fn start_async(&self) {
