@@ -70,7 +70,7 @@ export class DockerExportSettingsComponent implements OnChanges, OnDestroy {
   }
 
   get username() {
-    return this.store.getState().users.current.username;
+    return this.store.getState().users.current.profile.name;
   }
 
   get valid() {

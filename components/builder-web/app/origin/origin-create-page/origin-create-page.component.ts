@@ -66,7 +66,7 @@ export class OriginCreatePageComponent implements AfterViewInit {
   }
 
   get username() {
-    return this.store.getState().users.current.username;
+    return this.store.getState().users.current.profile.name;
   }
 
   createOrigin(origin) {
