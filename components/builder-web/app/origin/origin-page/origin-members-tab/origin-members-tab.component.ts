@@ -90,7 +90,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
   }
 
   canDelete(member) {
-    return this.store.getState().users.current.username !== member;
+    return this.store.getState().users.current.profile.name !== member;
   }
 
   delete(member) {
