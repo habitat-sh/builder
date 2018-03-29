@@ -192,12 +192,14 @@ impl<'a> DockerExporter<'a> {
         }
         cmd.arg("-H");
         cmd.arg(self.dockerd_sock());
+        // TED: Containerd has a file path limit of 67 characters and we were at 70 for most of ours.
+        // Shortning up the directories here to give us some breathing room
         cmd.arg("--pidfile");
-        cmd.arg(root.join("var/run/docker.pid"));
+        cmd.arg(root.join("v/r/docker.pid"));
         cmd.arg("--data-root");
-        cmd.arg(root.join("var/lib/docker"));
+        cmd.arg(root.join("v/l/docker"));
         cmd.arg("--exec-root");
-        cmd.arg(root.join("var/run/docker"));
+        cmd.arg(root.join("v/r/d"));
         cmd.arg("--config-file");
         cmd.arg(daemon_json);
         // TODO fn: Hard-coding this feels wrong. I'd like the {{pkg.svc_run_group}} for this
@@ -252,7 +254,7 @@ impl<'a> DockerExporter<'a> {
             None => {
                 format!(
                     "unix://{}",
-                    self.dockerd_path().join("var/run/docker.sock").display()
+                    self.dockerd_path().join("v/r/docker.sock").display()
                 )
             }
         }
