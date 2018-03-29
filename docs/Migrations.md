@@ -2,6 +2,12 @@
 
 All builder migrations are run with [Diesel](http://diesel.rs). This document describes how to create and manage those migrations.
 
+## Install the Diesel client
+
+```
+cargo install diesel_cli --no-default-features --features postgres
+```
+
 ## Generating new migrations
 
 Every time you need to make a change to the Builder schema you will be required to generate a new migration

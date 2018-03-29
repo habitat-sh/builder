@@ -18,9 +18,7 @@ use std::io::{BufWriter, Read, Write};
 use std::result;
 use std::str::{from_utf8, FromStr};
 
-use base64;
 use bitbucket_api_client::BitbucketClient;
-use bldr_core;
 use bldr_core::metrics::CounterMetric;
 use bldr_core::helpers::transition_visibility;
 use bodyparser;
@@ -29,7 +27,6 @@ use hab_core::package::{ident, FromArchive, Identifiable, PackageArchive, Packag
                         PackageTarget};
 use hab_core::crypto::keys::{PairType, parse_key_str, parse_name_with_rev};
 use hab_core::crypto::BoxKeyPair;
-use hab_core::crypto::PUBLIC_BOX_KEY_VERSION;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, all_visibilities, check_origin_access, check_origin_owner,
                                   dont_cache_response, get_param, validate_params,
@@ -1149,6 +1146,12 @@ fn get_origin_schedule_status(req: &mut Request) -> IronResult<Response> {
         None => return Ok(Response::with(status::BadRequest)),
     }
 
+    let limit = match helpers::extract_query_value("limit", req) {
+        Some(limit) => limit.parse::<u32>().unwrap_or(10),
+        None => 10,
+    };
+    request.set_limit(limit);
+
     match route_message::<JobGroupOriginGet, JobGroupOriginResponse>(req, &request) {
         Ok(jgor) => Ok(render_json(status::Ok, &jgor.get_job_groups())),
         Err(e) => Ok(render_net_error(&e)),
@@ -1169,8 +1172,14 @@ fn get_schedule(req: &mut Request) -> IronResult<Response> {
         }
     };
 
+    let include_projects = match helpers::extract_query_value("include_projects", req) {
+        Some(val) => val.parse::<bool>().unwrap_or(true),
+        None => true,
+    };
+
     let mut request = JobGroupGet::new();
     request.set_group_id(group_id);
+    request.set_include_projects(include_projects);
 
     match route_message::<JobGroupGet, JobGroup>(req, &request) {
         Ok(group) => {

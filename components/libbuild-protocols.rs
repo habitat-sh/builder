@@ -2,7 +2,7 @@ mod protocols {
     extern crate pkg_config;
     extern crate protoc;
     extern crate protoc_rust;
-    
+
     use std::fs;
 
     pub fn generate_protocols() {
@@ -15,7 +15,9 @@ mod protocols {
                 .collect::<Vec<&str>>()
                 .as_slice(),
             includes: &["protocols"],
-        }).expect("protoc is not available on PATH");
+        }).expect(
+            "Failed to run protoc, please check that it is available on your PATH, and that the src/message folder is writable",
+        );
     }
 
     fn protocol_files() -> Vec<String> {

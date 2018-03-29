@@ -84,8 +84,8 @@ impl HttpGateway for ApiSrv {
 
         // Allow one and only one auth config
         // TODO: Update configs so that structurally only a single auth config is possible
-        if ((config.github.is_none() && config.bitbucket.is_none()) ||
-                (config.github.is_some() && config.bitbucket.is_some()))
+        if (config.github.is_none() && config.bitbucket.is_none()) ||
+            (config.github.is_some() && config.bitbucket.is_some())
         {
             panic!("Must have one and only one auth config (github or bitbucket)");
         }

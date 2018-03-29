@@ -157,10 +157,12 @@ message JobGroupCancel {
 
 message JobGroupGet {
   optional uint64 group_id = 1;
+  optional bool include_projects = 2;
 }
 
 message JobGroupOriginGet {
   optional string origin = 1;
+  optional uint32 limit = 2;
 }
 
 message JobGroupOriginResponse {
