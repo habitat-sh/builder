@@ -569,21 +569,19 @@ impl DataStore {
         msg: &jobsrv::JobGroupOriginGet,
     ) -> Result<jobsrv::JobGroupOriginResponse> {
         let origin = msg.get_origin();
+        let limit = msg.get_limit();
+
         let conn = self.pool.get_shard(0)?;
-        let rows = &conn.query("SELECT * FROM get_job_groups_for_origin_v1($1)", &[&origin])
-            .map_err(Error::JobGroupOriginGet)?;
+        let rows = &conn.query(
+            "SELECT * FROM get_job_groups_for_origin_v2($1, $2)",
+            &[&origin, &(limit as i32)],
+        ).map_err(Error::JobGroupOriginGet)?;
 
         let mut response = jobsrv::JobGroupOriginResponse::new();
         let mut job_groups = RepeatedField::new();
 
         for row in rows {
             let mut group = self.row_to_job_group(&row)?;
-            let project_rows = &conn.query(
-                "SELECT * FROM get_group_projects_for_group_v1($1)",
-                &[&(group.get_id() as i64)],
-            ).map_err(Error::JobGroupGet)?;
-            let projects = self.rows_to_job_group_projects(&project_rows)?;
-            group.set_projects(projects);
             job_groups.push(group);
         }
 
@@ -593,6 +591,8 @@ impl DataStore {
 
     pub fn get_job_group(&self, msg: &jobsrv::JobGroupGet) -> Result<Option<jobsrv::JobGroup>> {
         let group_id = msg.get_group_id();
+        let include_projects = msg.get_include_projects();
+
         let conn = self.pool.get_shard(0)?;
         let rows = &conn.query("SELECT * FROM get_group_v1($1)", &[&(group_id as i64)])
             .map_err(Error::JobGroupGet)?;
@@ -606,15 +606,18 @@ impl DataStore {
 
         let mut group = self.row_to_job_group(&rows.get(0))?;
 
-        let project_rows = &conn.query(
-            "SELECT * FROM get_group_projects_for_group_v1($1)",
-            &[&(group_id as i64)],
-        ).map_err(Error::JobGroupGet)?;
+        if include_projects {
+            let project_rows = &conn.query(
+                "SELECT * FROM get_group_projects_for_group_v1($1)",
+                &[&(group_id as i64)],
+            ).map_err(Error::JobGroupGet)?;
 
-        assert!(project_rows.len() > 0); // should at least have one
-        let projects = self.rows_to_job_group_projects(&project_rows)?;
+            assert!(project_rows.len() > 0); // should at least have one
+            let projects = self.rows_to_job_group_projects(&project_rows)?;
 
-        group.set_projects(projects);
+            group.set_projects(projects);
+        }
+
         Ok(Some(group))
     }
 
