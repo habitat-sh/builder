@@ -68,6 +68,7 @@ class GitHubProvider extends OAuthProvider {
       {
         client_id: clientID,
         redirect_uri: redirectUrl,
+        response_type: 'code',
         state: state
       }
     );

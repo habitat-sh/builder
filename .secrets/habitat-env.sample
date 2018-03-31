@@ -6,5 +6,6 @@ GITHUB_AUTHORIZE_URL="https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL="https://github.com/login/oauth/access_token"
 GITHUB_CLIENT_ID="Iv1.04b78696442708f6"
 GITHUB_CLIENT_SECRET="b4acf029896e9c7fb6613390124e8ae3c35889aa"
+GITHUB_REDIRECT_URL="http://localhost/"
 GITHUB_APP_ID=8053
 GITHUB_APP_URL="https://github.com/apps/habitat-builder-dev-studio"

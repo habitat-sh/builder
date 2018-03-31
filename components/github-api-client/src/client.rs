@@ -75,6 +75,7 @@ impl AppToken {
 pub struct GitHubClient {
     pub api_url: String,
     pub token_url: String,
+    pub redirect_url: String,
     pub client_id: String,
     pub client_secret: String,
     app_id: u32,
@@ -87,6 +88,7 @@ impl GitHubClient {
         GitHubClient {
             api_url: config.api_url,
             token_url: config.token_url,
+            redirect_url: config.redirect_url,
             client_id: config.client_id,
             client_secret: config.client_secret,
             app_id: config.app_id,
@@ -207,11 +209,13 @@ impl GitHubClient {
 impl OAuthClient for GitHubClient {
     fn authenticate(&self, code: &str) -> OAuthResult<String> {
         let url = Url::parse(&format!(
-            "{}?client_id={}&client_secret={}&code={}",
+            "{}?client_id={}&client_secret={}&grant_type=authorization_code&code={}&redirect_uri={}",
             self.token_url,
             self.client_id,
             self.client_secret,
-            code
+            code,
+            self.redirect_url
+
         )).map_err(OAuthError::HttpClientParse)?;
 
         Counter::Authenticate.increment();
@@ -248,14 +252,32 @@ impl OAuthClient for GitHubClient {
             return Err(OAuthError::HttpResponse(rep.status, body));
         }
 
-        let user: User = serde_json::from_str(&body).map_err(
+        let user: serde_json::Value = serde_json::from_str(&body).map_err(
             OAuthError::Serialization,
         )?;
 
+        // Gitlab API has username instead of login
+        let username = if user["login"].is_string() {
+            user["login"].to_string()
+        } else {
+            assert!(user["username"].is_string());
+            user["username"].to_string()
+        };
+
+        let email = if user["email"].is_string() {
+            Some(user["email"].to_string())
+        } else {
+            None
+        };
+
+        let id = user["id"].to_string();
+
+        debug!("OAuthUser: {}, {}, {:?}", id, username, email);
+
         Ok(OAuthUser {
-            id: user.id.to_string(),
-            username: user.login,
-            email: user.email,
+            id: id,
+            username: username,
+            email: email,
         })
     }
 

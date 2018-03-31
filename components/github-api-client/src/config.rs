@@ -36,6 +36,8 @@ pub struct GitHubCfg {
     pub api_url: String,
     /// URL to GitHub Web
     pub token_url: String,
+    /// OAuth redirect URL
+    pub redirect_url: String,
     /// Path to GitHub App private key
     pub app_private_key: String,
     /// Client identifier used for GitHub API requests
@@ -53,6 +55,7 @@ impl Default for GitHubCfg {
         GitHubCfg {
             api_url: DEFAULT_GITHUB_API_URL.to_string(),
             token_url: DEFAULT_GITHUB_TOKEN_URL.to_string(),
+            redirect_url: "".to_string(),
             app_private_key: "/src/.secrets/builder-github-app.pem".to_string(),
             client_id: DEV_GITHUB_CLIENT_ID.to_string(),
             client_secret: DEV_GITHUB_CLIENT_SECRET.to_string(),

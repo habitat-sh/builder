@@ -23,6 +23,7 @@ log_level = "debug"
 enabled = true
 api_url = "$GITHUB_API_URL"
 token_url = "$GITHUB_TOKEN_URL"
+redirect_url = "$GITHUB_REDIRECT_URL"
 client_id = "$GITHUB_CLIENT_ID"
 client_secret = "$GITHUB_CLIENT_SECRET"
 app_id = $GITHUB_APP_ID
@@ -44,6 +45,7 @@ app_url = "${GITHUB_APP_URL}"
 provider       = "github"
 client_id      = "$GITHUB_CLIENT_ID"
 authorize_url  = "$GITHUB_AUTHORIZE_URL"
+redirect_url   = "$GITHUB_REDIRECT_URL"
 EOT
 
 mkdir -p /hab/svc/builder-jobsrv

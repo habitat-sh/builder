@@ -8,6 +8,7 @@ port   = 9636
 enabled        = false
 api_url        = "https://api.github.com"
 token_url      = "https://github.com/login/oauth/access_token"
+redirect_url   = ""
 client_id      = ""
 client_secret  = ""
 app_id         = 5565
