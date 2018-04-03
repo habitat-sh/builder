@@ -257,20 +257,22 @@ impl OAuthClient for GitHubClient {
         )?;
 
         // Gitlab API has username instead of login
+        // TODO: Convert this to use a structured deserialization and
+        // cleaner distinction between the GitHub and GitLab APIs
         let username = if user["login"].is_string() {
-            user["login"].to_string()
+            user["login"].as_str().unwrap().to_string()
         } else {
             assert!(user["username"].is_string());
-            user["username"].to_string()
+            user["username"].as_str().unwrap().to_string()
         };
 
         let email = if user["email"].is_string() {
-            Some(user["email"].to_string())
+            Some(user["email"].as_str().unwrap().to_string())
         } else {
             None
         };
 
-        let id = user["id"].to_string();
+        let id = user["id"].as_u64().unwrap().to_string();
 
         debug!("OAuthUser: {}, {}, {:?}", id, username, email);
 
