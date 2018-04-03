@@ -1,0 +1,13 @@
+[package]
+name = "oauth-client"
+version = "0.0.0"
+authors = ["Josh Black <raskchanky@gmail.com>"]
+description = "OAuth Client"
+workspace = "../../"
+
+[dependencies]
+log = "*"
+reqwest = "*"
+serde = ">= 1.0.0"
+serde_derive = ">= 1.0.0"
+serde_json = ">= 1.0.0"
