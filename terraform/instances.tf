@@ -102,13 +102,14 @@ resource "null_resource" "api_provision" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
+      "sudo /tmp/install_base_packages.sh",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load habitat/builder-api --group ${var.env} --bind router:builder-router.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
-      "sudo hab svc load habitat/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
-      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-api --force --group ${var.env} --bind router:builder-router.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-api-proxy --force --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --force --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 }
@@ -228,8 +229,8 @@ resource "null_resource" "datastore_provision" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load habitat/builder-datastore --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
-      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-datastore --force --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load core/sumologic --force --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 }
