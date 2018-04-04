@@ -4,22 +4,18 @@ log_level = "info"
 listen = "0.0.0.0"
 port   = 9636
 
-[github]
-enabled        = false
-api_url        = "https://api.github.com"
+[oauth]
+provider       = "github"
 token_url      = "https://github.com/login/oauth/access_token"
+userinfo_url   = "https://api.github.com/user"
 redirect_url   = ""
 client_id      = ""
 client_secret  = ""
+
+[github]
+api_url        = "https://api.github.com"
 app_id         = 5565
 webhook_secret = ""
-
-[bitbucket]
-enabled        = false
-api_url        = "https://api.bitbucket.org"
-token_url      = "https://bitbucket.org/site/oauth2/access_token"
-client_id      = ""
-client_secret  = ""
 
 [depot]
 builds_enabled          = true

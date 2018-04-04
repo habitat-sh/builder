@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use reqwest::Client;
-use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers};
+use reqwest::header::{qitem, Accept, Authorization, Bearer, ContentType, Headers};
 use reqwest::mime;
 use serde_json;
 
@@ -21,7 +21,7 @@ use config::OAuth2Cfg;
 use error::{Error, Result};
 use types::*;
 
-pub struct GitHub;
+pub struct Bitbucket;
 
 #[derive(Deserialize)]
 struct AuthOk {
@@ -29,24 +29,19 @@ struct AuthOk {
 }
 
 #[derive(Deserialize)]
-struct User {
-    pub id: u32,
-    pub login: String,
-    pub email: Option<String>,
+pub struct UserOk {
+    pub user: User,
 }
 
-impl GitHub {
+#[derive(Deserialize)]
+pub struct User {
+    pub username: String,
+}
+
+impl Bitbucket {
     fn user(&self, config: &OAuth2Cfg, client: &Client, token: &str) -> Result<OAuth2User> {
         let mut headers = Headers::new();
-        headers.set(Accept(vec![
-            qitem(mime::APPLICATION_JSON),
-            qitem("application/vnd.github.v3+json".parse().unwrap()),
-            qitem(
-                "application/vnd.github.machine-man-preview+json"
-                    .parse()
-                    .unwrap(),
-            ),
-        ]));
+        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
         headers.set(Authorization(Bearer {
             token: token.to_string(),
         }));
@@ -58,18 +53,18 @@ impl GitHub {
             .map_err(Error::HttpClient)?;
 
         let body = resp.text().map_err(Error::HttpClient)?;
-        debug!("GitHub response body: {}", body);
+        debug!("Bitbucket response body: {}", body);
 
         if resp.status().is_success() {
-            let user = match serde_json::from_str::<User>(&body) {
+            let user_ok = match serde_json::from_str::<UserOk>(&body) {
                 Ok(msg) => msg,
                 Err(e) => return Err(Error::Serialization(e)),
             };
 
             Ok(OAuth2User {
-                id: user.id.to_string(),
-                username: user.login,
-                email: user.email,
+                id: user_ok.user.username.to_string(),
+                username: user_ok.user.username.to_string(),
+                email: None,
             })
         } else {
             Err(Error::HttpResponse(resp.status(), body))
@@ -77,29 +72,30 @@ impl GitHub {
     }
 }
 
-impl OAuth2Provider for GitHub {
+impl OAuth2Provider for Bitbucket {
     fn authenticate(
         &self,
         config: &OAuth2Cfg,
         client: &Client,
         code: &str,
     ) -> Result<(String, OAuth2User)> {
-        let url = format!(
-            "{}?client_id={}&client_secret={}&code={}",
-            config.token_url, config.client_id, config.client_secret, code
-        );
+        let url = format!("{}", config.token_url);
+        let params = format!("grant_type=authorization_code&code={}", code);
 
         let mut headers = Headers::new();
         headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
+        headers.set(ContentType::form_url_encoded());
 
         let mut resp = client
             .post(&url)
             .headers(headers)
+            .basic_auth(&config.client_id[..], Some(&config.client_secret[..]))
+            .body(params)
             .send()
             .map_err(Error::HttpClient)?;
 
         let body = resp.text().map_err(Error::HttpClient)?;
-        debug!("GitHub response body: {}", body);
+        debug!("Bitbucket response body: {}", body);
 
         let token = if resp.status().is_success() {
             match serde_json::from_str::<AuthOk>(&body) {

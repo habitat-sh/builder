@@ -36,6 +36,9 @@ urlencoded = { version = "*", git = "https://github.com/iron/urlencoded" }
 git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
 
+[dependencies.oauth-client]
+path = "../oauth-client"
+
 [dependencies.github-api-client]
 path = "../github-api-client"
 
@@ -44,9 +47,3 @@ path = "../segment-api-client"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"
-
-[dependencies.oauth-common]
-path = "../oauth-common"
-
-[dependencies.bitbucket-api-client]
-path = "../bitbucket-api-client"

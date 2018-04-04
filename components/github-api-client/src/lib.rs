@@ -20,7 +20,6 @@ extern crate hyper;
 extern crate hyper_openssl;
 #[macro_use]
 extern crate log;
-extern crate oauth_common;
 extern crate regex;
 extern crate serde;
 #[macro_use]

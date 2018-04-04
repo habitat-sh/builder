@@ -131,19 +131,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitbucket-api-client"
-version = "0.0.0"
-dependencies = [
- "habitat_http_client 0.0.0 (git+https://github.com/habitat-sh/core.git)",
- "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "oauth-common 0.0.0",
- "serde 1.0.33 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.33 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.11 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "bitflags"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -203,7 +190,6 @@ name = "builder-http-gateway"
 version = "0.0.0"
 dependencies = [
  "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "bitbucket-api-client 0.0.0",
  "bodyparser 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "builder_core 0.0.0",
  "env_logger 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -216,7 +202,7 @@ dependencies = [
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "mount 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "oauth-common 0.0.0",
+ "oauth-client 0.0.0",
  "params 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "persistent 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "protobuf 1.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -785,7 +771,6 @@ dependencies = [
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper-openssl 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "oauth-common 0.0.0",
  "regex 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.33 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.33 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -837,7 +822,6 @@ name = "habitat_builder_api"
 version = "0.0.0"
 dependencies = [
  "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "bitbucket-api-client 0.0.0",
  "bodyparser 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "builder-http-gateway 0.0.0",
  "builder_core 0.0.0",
@@ -856,7 +840,7 @@ dependencies = [
  "iron 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "mount 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "oauth-common 0.0.0",
+ "oauth-client 0.0.0",
  "openssl 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "params 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "persistent 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1103,7 +1087,6 @@ name = "habitat_depot"
 version = "0.0.0"
 dependencies = [
  "base64 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "bitbucket-api-client 0.0.0",
  "bodyparser 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "builder-http-gateway 0.0.0",
  "builder_core 0.0.0",
@@ -1860,19 +1843,11 @@ dependencies = [
 name = "oauth-client"
 version = "0.0.0"
 dependencies = [
+ "builder_core 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.8.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.33 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.33 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.11 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "oauth-common"
-version = "0.0.0"
-dependencies = [
- "habitat_http_client 0.0.0 (git+https://github.com/habitat-sh/core.git)",
- "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.11 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

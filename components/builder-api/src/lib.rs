@@ -16,7 +16,6 @@
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate base64;
-extern crate bitbucket_api_client;
 extern crate bodyparser;
 extern crate builder_core as bldr_core;
 extern crate builder_http_gateway as http_gateway;
@@ -34,7 +33,7 @@ extern crate iron;
 #[macro_use]
 extern crate log;
 extern crate mount;
-extern crate oauth_common;
+extern crate oauth_client;
 extern crate openssl;
 extern crate params;
 extern crate persistent;

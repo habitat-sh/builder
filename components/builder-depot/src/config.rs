@@ -32,8 +32,6 @@ pub struct Config {
     pub http: HttpCfg,
     /// List of net addresses for routing servers to connect to
     pub routers: Vec<RouterAddr>,
-    pub github: Option<GitHubCfg>,
-    pub bitbucket: Option<BitbucketCfg>,
     pub segment: SegmentCfg,
     /// Filepath to location on disk to store entities
     pub path: PathBuf,
@@ -62,8 +60,6 @@ impl Default for Config {
         Config {
             http: HttpCfg::default(),
             routers: vec![RouterAddr::default()],
-            github: None,
-            bitbucket: None,
             segment: SegmentCfg::default(),
             path: PathBuf::from("/hab/svc/builder-api/data"),
             events_enabled: false, // TODO: change to default to true later
@@ -151,11 +147,6 @@ mod tests {
         [[routers]]
         host = "172.18.0.2"
         port = 9001
-
-        [github]
-        api_url = "https://api.github.com"
-        client_id = "0c2f738a7d0bd300de10"
-        client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
         "#;
 
         let config = Config::from_raw(&content).unwrap();
@@ -169,12 +160,6 @@ mod tests {
         assert_eq!(&format!("{}", config.http.listen), "127.0.0.1");
         assert_eq!(config.http.port, 9000);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9001");
-        assert_eq!(config.github.api_url, "https://api.github.com");
-        assert_eq!(config.github.client_id, "0c2f738a7d0bd300de10");
-        assert_eq!(
-            config.github.client_secret,
-            "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
-        );
         assert_eq!(config.targets.len(), 2);
         assert_eq!(config.targets[0].platform, Platform::Linux);
         assert_eq!(config.targets[0].architecture, Architecture::X86_64);

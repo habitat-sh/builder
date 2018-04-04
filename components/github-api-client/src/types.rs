@@ -53,30 +53,6 @@ impl fmt::Display for AppAuthErr {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct AuthOk {
-    pub access_token: String,
-    pub scope: String,
-    pub token_type: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct AuthErr {
-    pub error: String,
-    pub error_description: String,
-    pub error_uri: String,
-}
-
-impl fmt::Display for AuthErr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "err={}, desc={}, uri={}",
-            self.error, self.error_description, self.error_uri
-        )
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 pub struct AppOwner {
     pub login: String,
     pub id: u32,

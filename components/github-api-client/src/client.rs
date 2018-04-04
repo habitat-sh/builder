@@ -24,8 +24,6 @@ use hyper::status::StatusCode;
 use hyper::header::{qitem, Accept, Authorization, Bearer, UserAgent};
 use hyper::mime::{Mime, SubLevel, TopLevel};
 use jwt;
-use oauth_common::{OAuthError, OAuthResult, OAuthUserToken};
-use oauth_common::types::*;
 use serde_json;
 
 use config::GitHubCfg;
@@ -74,10 +72,6 @@ impl AppToken {
 #[derive(Clone)]
 pub struct GitHubClient {
     pub api_url: String,
-    pub token_url: String,
-    pub redirect_url: String,
-    pub client_id: String,
-    pub client_secret: String,
     app_id: u32,
     app_private_key: String,
     pub webhook_secret: String,
@@ -87,10 +81,6 @@ impl GitHubClient {
     pub fn new(config: GitHubCfg) -> Self {
         GitHubClient {
             api_url: config.api_url,
-            token_url: config.token_url,
-            redirect_url: config.redirect_url,
-            client_id: config.client_id,
-            client_secret: config.client_secret,
             app_id: config.app_id,
             app_private_key: config.app_private_key,
             webhook_secret: config.webhook_secret,
@@ -198,91 +188,6 @@ impl GitHubClient {
         }
 
         Ok(())
-    }
-}
-
-impl OAuthClient for GitHubClient {
-    fn authenticate(&self, code: &str) -> OAuthResult<String> {
-        let url = Url::parse(&format!(
-            "{}?client_id={}&client_secret={}&grant_type=authorization_code&code={}&redirect_uri={}",
-            self.token_url,
-            self.client_id,
-            self.client_secret,
-            code,
-            self.redirect_url
-
-        )).map_err(OAuthError::HttpClientParse)?;
-
-        Counter::Authenticate.increment();
-        let mut rep = match http_post(url, None::<String>) {
-            Ok(r) => r,
-            Err(e) => return Err(OAuthError::Hub(e.to_string())),
-        };
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
-
-        if rep.status.is_success() {
-            debug!("GitHub response body, {}", body);
-            match serde_json::from_str::<AuthOk>(&body) {
-                Ok(msg) => Ok(msg.access_token),
-                Err(e) => Err(OAuthError::Serialization(e)),
-            }
-        } else {
-            Err(OAuthError::HttpResponse(rep.status, body))
-        }
-    }
-
-    fn user(&self, token: &OAuthUserToken) -> OAuthResult<OAuthUser> {
-        let url = Url::parse(&format!("{}/user", self.api_url)).unwrap();
-        Counter::UserApi("user").increment();
-        let mut rep = match http_get(url, Some(token)) {
-            Ok(r) => r,
-            Err(e) => return Err(OAuthError::Hub(e.to_string())),
-        };
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
-        debug!("GitHub response body, {}", body);
-
-        if rep.status != StatusCode::Ok {
-            return Err(OAuthError::HttpResponse(rep.status, body));
-        }
-
-        let user: serde_json::Value =
-            serde_json::from_str(&body).map_err(OAuthError::Serialization)?;
-
-        // Gitlab API has username instead of login
-        // TODO: Convert this to use a structured deserialization and
-        // cleaner distinction between the GitHub and GitLab APIs
-        let username = if user["login"].is_string() {
-            user["login"].as_str().unwrap().to_string()
-        } else {
-            assert!(user["username"].is_string());
-            user["username"].as_str().unwrap().to_string()
-        };
-
-        let email = if user["email"].is_string() {
-            Some(user["email"].as_str().unwrap().to_string())
-        } else {
-            None
-        };
-
-        let id = user["id"].as_u64().unwrap().to_string();
-
-        debug!("OAuthUser: {}, {}, {:?}", id, username, email);
-
-        Ok(OAuthUser {
-            id: id,
-            username: username,
-            email: email,
-        })
-    }
-
-    fn box_clone(&self) -> Box<OAuthClient> {
-        Box::new((*self).clone())
-    }
-
-    fn provider(&self) -> String {
-        String::from("github")
     }
 }
 

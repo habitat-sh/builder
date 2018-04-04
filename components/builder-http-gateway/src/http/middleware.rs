@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ops::Deref;
-
 use base64;
-use bitbucket_api_client::BitbucketClient;
 use bldr_core;
 use core::env;
+use oauth_client::client::OAuth2Client;
+use oauth_client::types::OAuth2User;
 use github_api_client::GitHubClient;
 use hab_net::{ErrCode, NetError};
 use hab_net::conn::RouteClient;
 use hab_net::privilege::FeatureFlags;
-use oauth_common::types::{OAuthClient, OAuthUserToken};
 use iron::Handler;
 use iron::headers::{self, Authorization, Bearer};
 use iron::method::Method;
@@ -30,7 +28,6 @@ use iron::middleware::{AfterMiddleware, AroundMiddleware, BeforeMiddleware};
 use iron::prelude::*;
 use iron::status::Status;
 use iron::typemap::Key;
-use persistent;
 use protocol::message;
 use protocol::net::NetOk;
 use protocol::sessionsrv::*;
@@ -88,6 +85,12 @@ impl Handler for XHandler {
     }
 }
 
+pub struct OAuthCli;
+
+impl Key for OAuthCli {
+    type Value = OAuth2Client;
+}
+
 pub struct GitHubCli;
 
 impl Key for GitHubCli {
@@ -98,34 +101,6 @@ pub struct SegmentCli;
 
 impl Key for SegmentCli {
     type Value = SegmentClient;
-}
-
-pub struct BitbucketCli;
-
-impl Key for BitbucketCli {
-    type Value = BitbucketClient;
-}
-
-pub struct OAuthWrapper(Box<OAuthClient + Send>);
-
-impl OAuthWrapper {
-    pub fn new(client: Box<OAuthClient + Send>) -> Self {
-        OAuthWrapper(client)
-    }
-}
-
-impl Deref for OAuthWrapper {
-    type Target = Box<OAuthClient + Send>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub struct OAuthCli;
-
-impl Key for OAuthCli {
-    type Value = OAuthWrapper;
 }
 
 pub struct XRouteClient;
@@ -144,19 +119,14 @@ impl BeforeMiddleware for XRouteClient {
 
 #[derive(Clone)]
 pub struct Authenticated {
-    oauth: Box<OAuthClient>,
     features: FeatureFlags,
     key_dir: PathBuf,
     optional: bool,
 }
 
 impl Authenticated {
-    pub fn new<T>(client: T, key_dir: PathBuf) -> Authenticated
-    where
-        T: OAuthClient,
-    {
+    pub fn new(key_dir: PathBuf) -> Authenticated {
         Authenticated {
-            oauth: client.box_clone(),
             features: FeatureFlags::empty(),
             key_dir: key_dir,
             optional: false,
@@ -211,17 +181,18 @@ impl Authenticated {
             Ok(decoded_token) => decoded_token,
             Err(e) => {
                 warn!("Failed to base64 decode token, err={:?}", e);
-                let err = NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode");
+                let err = NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode:1");
                 return Err(IronError::new(err, Status::Forbidden));
             }
         };
 
-        if let Ok(session_token) = message::decode(&decoded_token) {
-            session_validate(req, self.features, session_token)
-        } else {
-            // TBD: Deprecate github personal token support and remove this
-            // We are temporarily falling back to github personal access token
-            session_create_oauth(req, token)
+        match message::decode(&decoded_token) {
+            Ok(session_token) => session_validate(req, self.features, session_token),
+            Err(e) => {
+                warn!("Failed to decode token, err={:?}", e);
+                let err = NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode:2");
+                return Err(IronError::new(err, Status::Forbidden));
+            }
         }
     }
 }
@@ -310,46 +281,40 @@ pub fn session_validate(
     }
 }
 
-pub fn session_create_oauth(req: &mut Request, token: &str) -> IronResult<Session> {
-    let oauth = req.get::<persistent::Read<OAuthCli>>().unwrap();
+pub fn session_create_oauth(
+    req: &mut Request,
+    token: &str,
+    user: &OAuth2User,
+    provider: &str,
+) -> IronResult<Session> {
     let conn = req.extensions
         .get_mut::<XRouteClient>()
         .expect("no XRouteClient extension in request");
-    debug!(
-        "OAUTH-CALL builder_http-gateway::middleware::session_create_oauth: Checking user with access token",
-    );
-    match oauth.user(&OAuthUserToken::new(token.to_string())) {
-        Ok(user) => {
-            let mut request = SessionCreate::new();
-            request.set_session_type(SessionType::User);
-            request.set_token(token.to_owned());
-            request.set_extern_id(user.id.to_string());
-            request.set_name(user.username);
 
-            match oauth.provider().parse::<OAuthProvider>() {
-                Ok(p) => request.set_provider(p),
-                Err(e) => {
-                    debug!("Error parsing oauth provider: {:?}", e);
-                    request.set_provider(OAuthProvider::None);
-                }
-            }
+    let mut request = SessionCreate::new();
+    request.set_session_type(SessionType::User);
+    request.set_token(token.to_owned());
+    request.set_extern_id(user.id.clone());
+    request.set_name(user.username.clone());
 
-            if let Some(email) = user.email {
-                request.set_email(email);
-            }
-
-            match conn.route::<SessionCreate, Session>(&request) {
-                Ok(session) => Ok(session),
-                Err(err) => {
-                    let body = itry!(serde_json::to_string(&err));
-                    let status = net_err_to_http(err.get_code());
-                    Err(IronError::new(err, (body, status)))
-                }
-            }
-        }
+    match provider.parse::<OAuthProvider>() {
+        Ok(p) => request.set_provider(p),
         Err(e) => {
-            let desc = format!("{}", &e);
-            Err(IronError::new(e, (desc, Status::Unauthorized)))
+            warn!("Error parsing oauth provider: {:?}", e);
+            request.set_provider(OAuthProvider::None);
+        }
+    }
+
+    if let Some(ref email) = user.email {
+        request.set_email(email.clone());
+    }
+
+    match conn.route::<SessionCreate, Session>(&request) {
+        Ok(session) => Ok(session),
+        Err(err) => {
+            let body = itry!(serde_json::to_string(&err));
+            let status = net_err_to_http(err.get_code());
+            Err(IronError::new(err, (body, status)))
         }
     }
 }

@@ -13,65 +13,58 @@
 // limitations under the License.
 
 use std::env;
-
 use reqwest::{self, header};
-
-use config::Config;
+use config::OAuth2Cfg;
 use error::Result;
 use types::*;
 
-#[derive(Clone, Debug)]
-pub struct Client {
+use builder_core::metrics::CounterMetric;
+use metrics::Counter;
+use github::GitHub;
+use gitlab::GitLab;
+use bitbucket::Bitbucket;
+
+pub struct OAuth2Client {
     inner: reqwest::Client,
-    provider: Box<OAuthProvider>,
-    pub config: Config,
+    pub config: OAuth2Cfg,
+    pub provider: Box<OAuth2Provider>,
 }
 
-impl Client {
-    pub fn new(config: Config, provider: Box<OAuthProvider>) -> Self {
+impl OAuth2Client {
+    pub fn new(config: OAuth2Cfg) -> Self {
         let mut headers = header::Headers::new();
         headers.set(header::UserAgent::new("oauth-client"));
         let mut client = reqwest::Client::builder();
         client.default_headers(headers);
 
-        if let Ok(url) = env::var("HTTP_PROXY") {
-            if let Ok(p) = reqwest::Proxy::http(&url) {
-                client.proxy(p);
-            } else {
-                println!(
-                    "Attempted to set a client proxy to {}, but that failed",
-                    url,
-                )
+        for proxy_var in &["HTTP_PROXY", "HTTPS_PROXY"] {
+            if let Ok(url) = env::var(proxy_var) {
+                match reqwest::Proxy::http(&url) {
+                    Ok(p) => {
+                        client.proxy(p);
+                    }
+                    Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
+                }
             }
         }
 
-        if let Ok(url) = env::var("HTTPS_PROXY") {
-            if let Ok(p) = reqwest::Proxy::https(&url) {
-                client.proxy(p);
-            } else {
-                println!(
-                    "Attempted to set a client proxy to {}, but that failed",
-                    url,
-                )
-            }
-        }
+        let provider: Box<OAuth2Provider> = match &config.provider[..] {
+            "github" => Box::new(GitHub),
+            "gitlab" => Box::new(GitLab),
+            "bitbucket" => Box::new(Bitbucket),
+            _ => panic!("Unknown OAuth provider: {}", config.provider),
+        };
 
-        Client {
+        OAuth2Client {
             inner: client.build().unwrap(),
-            provider: provider,
             config: config,
+            provider: provider,
         }
     }
 
-    pub fn authenticate(&self, code: &str) -> Result<String> {
-        self.provider.authenticate(&self.inner, code)
-    }
-
-    pub fn user(&self, token: &str) -> Result<User> {
-        self.provider.user(&self.inner, token)
-    }
-
-    pub fn provider(&self) -> String {
-        self.provider.name.clone()
+    pub fn authenticate(&self, code: &str) -> Result<(String, OAuth2User)> {
+        Counter::Authenticate(self.config.provider.clone()).increment();
+        debug!("Authenticate called, config: {:?}", self.config);
+        self.provider.authenticate(&self.config, &self.inner, code)
     }
 }

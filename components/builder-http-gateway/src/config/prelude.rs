@@ -16,6 +16,4 @@ pub use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 
 pub use super::GatewayCfg;
 pub use core::config::ConfigFile;
-pub use github_api_client::config::GitHubCfg;
-pub use bitbucket_api_client::config::BitbucketCfg;
 pub use hab_net::app::config::RouterAddr;

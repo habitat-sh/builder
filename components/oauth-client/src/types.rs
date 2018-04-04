@@ -14,17 +14,15 @@
 
 use reqwest;
 
-use config::Config;
+use config::OAuth2Cfg;
 use error::Result;
 
-pub struct User {
+pub struct OAuth2User {
     pub id: String,
     pub username: String,
     pub email: Option<String>,
 }
 
-pub trait OAuthProvider {
-    fn authenticate(&self, &Config, &reqwest::Client, &str) -> Result<String>;
-    fn user(&self, &Config, &reqwest::Client, &str) -> Result<User>;
-    fn name(&self) -> String;
+pub trait OAuth2Provider: Sync + Send {
+    fn authenticate(&self, &OAuth2Cfg, &reqwest::Client, &str) -> Result<(String, OAuth2User)>;
 }

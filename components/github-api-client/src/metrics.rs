@@ -21,7 +21,6 @@ use builder_core::metrics;
 pub type Endpoint = &'static str;
 
 pub enum Counter {
-    Authenticate,
     InstallationToken,
     // Github App-mediated API calls
     Api(Endpoint),
@@ -34,7 +33,6 @@ impl metrics::CounterMetric for Counter {}
 impl metrics::Metric for Counter {
     fn id(&self) -> Cow<'static, str> {
         match *self {
-            Counter::Authenticate => "github.authenticate".into(),
             Counter::InstallationToken => "github.installation-token".into(),
             Counter::Api(ref endpoint) => format!("github.api.{}", endpoint).into(),
             Counter::UserApi(ref endpoint) => format!("github.user-api.{}", endpoint).into(),

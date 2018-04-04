@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate habitat_http_client as hab_http;
-extern crate hyper;
-#[macro_use]
-extern crate log;
-extern crate oauth_common;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
+//! Centralized definition of all Github API client metrics that we
+//! wish to track.
 
-pub mod client;
-pub mod config;
-pub mod types;
+use std::borrow::Cow;
+use builder_core::metrics;
 
-pub use client::BitbucketClient;
-pub use config::BitbucketCfg;
+pub enum Counter {
+    Authenticate(String),
+}
+
+impl metrics::CounterMetric for Counter {}
+
+impl metrics::Metric for Counter {
+    fn id(&self) -> Cow<'static, str> {
+        match *self {
+            Counter::Authenticate(ref provider) => format!("{}.authenticate", provider).into(),
+        }
+    }
+}

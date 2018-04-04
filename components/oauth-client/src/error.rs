@@ -16,11 +16,13 @@ use std::error;
 use std::fmt;
 
 use reqwest;
+use serde_json;
 
 #[derive(Debug)]
 pub enum Error {
     HttpClient(reqwest::Error),
     HttpResponse(reqwest::StatusCode, String),
+    Serialization(serde_json::Error),
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;
@@ -29,13 +31,11 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             Error::HttpClient(ref e) => format!("{}", e),
-            Error::HttpResponse(ref code, ref response) => {
-                format!(
-                    "Received a non-200 response, status={}, response={}",
-                    code,
-                    response
-                )
-            }
+            Error::HttpResponse(ref code, ref response) => format!(
+                "Received a non-200 response, status={}, response={}",
+                code, response
+            ),
+            Error::Serialization(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
     }
@@ -46,12 +46,7 @@ impl error::Error for Error {
         match *self {
             Error::HttpClient(ref err) => err.description(),
             Error::HttpResponse(_, _) => "Non-200 HTTP response.",
+            Error::Serialization(ref err) => err.description(),
         }
     }
 }
-
-// impl From<io::Error> for OAuthError {
-//     fn from(err: io::Error) -> Self {
-//         OAuthError::IO(err)
-//     }
-// }

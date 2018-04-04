@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern crate builder_core;
 #[macro_use]
 extern crate log;
 extern crate reqwest;
@@ -22,6 +23,9 @@ extern crate serde_json;
 
 pub mod client;
 pub mod config;
-pub mod error;
 pub mod github;
+pub mod gitlab;
+pub mod bitbucket;
+pub mod error;
 pub mod types;
+pub mod metrics;
