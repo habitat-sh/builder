@@ -18,11 +18,9 @@ use std::io::{BufWriter, Read, Write};
 use std::result;
 use std::str::{from_utf8, FromStr};
 
-use bitbucket_api_client::BitbucketClient;
 use bldr_core::metrics::CounterMetric;
 use bldr_core::helpers::transition_visibility;
 use bodyparser;
-use github_api_client::GitHubClient;
 use hab_core::package::{ident, FromArchive, Identifiable, PackageArchive, PackageIdent,
                         PackageTarget};
 use hab_core::crypto::keys::{PairType, parse_key_str, parse_name_with_rev};
@@ -2603,37 +2601,12 @@ where
 }
 
 pub fn router(depot: DepotUtil) -> Result<Chain> {
-    let basic;
-    let worker;
-
-    if depot.config.github.is_some() {
-        let config = depot.config.github.clone();
-        let client = GitHubClient::new(config.unwrap());
-        basic = Authenticated::new(client.clone(), depot.config.key_dir.clone());
-        worker = Authenticated::new(client, depot.config.key_dir.clone())
-            .require(FeatureFlags::BUILD_WORKER);
-    } else {
-        let config = depot.config.bitbucket.clone();
-        let client = BitbucketClient::new(config.unwrap());
-        basic = Authenticated::new(client.clone(), depot.config.key_dir.clone());
-        worker = Authenticated::new(client, depot.config.key_dir.clone())
-            .require(FeatureFlags::BUILD_WORKER);
-    }
+    let basic = Authenticated::new(depot.config.key_dir.clone());
+    let worker =
+        Authenticated::new(depot.config.key_dir.clone()).require(FeatureFlags::BUILD_WORKER);
 
     let router = routes(basic, worker, &depot);
     let mut chain = Chain::new(router);
-
-    if depot.config.github.is_some() {
-        let config = depot.config.github.clone();
-        chain.link(persistent::Read::<OAuthCli>::both(OAuthWrapper::new(
-            Box::new(GitHubClient::new(config.unwrap())),
-        )));
-    } else {
-        let config = depot.config.bitbucket.clone();
-        chain.link(persistent::Read::<OAuthCli>::both(OAuthWrapper::new(
-            Box::new(BitbucketClient::new(config.unwrap())),
-        )));
-    }
 
     chain.link(persistent::Read::<SegmentCli>::both(
         SegmentClient::new(depot.config.segment.clone()),

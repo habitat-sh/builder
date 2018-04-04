@@ -13,22 +13,26 @@
 // limitations under the License.
 
 use std::env;
-
+use std::collections::HashMap;
 use reqwest::{self, header};
-
-use config::Config;
-use error::Result;
+use config::OAuth2Cfg;
+use error::{Result, Error};
 use types::*;
 
-#[derive(Clone, Debug)]
-pub struct Client {
+use builder_core::metrics::CounterMetric;
+use metrics::Counter;
+use github::GitHub;
+
+pub struct OAuth2Client {
     inner: reqwest::Client,
-    provider: Box<OAuthProvider>,
-    pub config: Config,
+    pub config: OAuth2Cfg,
+    pub provider: Box<OAuth2Provider>,
 }
 
-impl Client {
-    pub fn new(config: Config, provider: Box<OAuthProvider>) -> Self {
+impl OAuth2Client {
+    pub fn new(config: OAuth2Cfg) -> Self {
+        println!("**** NEW OAUTH2CLIENT, Config: {:?}", config);
+
         let mut headers = header::Headers::new();
         headers.set(header::UserAgent::new("oauth-client"));
         let mut client = reqwest::Client::builder();
@@ -56,22 +60,19 @@ impl Client {
             }
         }
 
-        Client {
+        let provider = Box::new(GitHub);
+
+        OAuth2Client {
             inner: client.build().unwrap(),
-            provider: provider,
             config: config,
+            provider: provider,
         }
     }
 
-    pub fn authenticate(&self, code: &str) -> Result<String> {
-        self.provider.authenticate(&self.inner, code)
-    }
+    pub fn authenticate(&self, code: &str, state: &str) -> Result<(String, OAuth2User)> {
+        Counter::Authenticate(self.config.provider.clone()).increment();
 
-    pub fn user(&self, token: &str) -> Result<User> {
-        self.provider.user(&self.inner, token)
-    }
-
-    pub fn provider(&self) -> String {
-        self.provider.name.clone()
+        println!("**** AUTHENTICATE CALLED, Config: {:?}", self.config);
+        self.provider.authenticate(&self.config, &self.inner, code)
     }
 }

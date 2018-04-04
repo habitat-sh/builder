@@ -16,11 +16,11 @@ mod handlers;
 
 use std::path::PathBuf;
 
-use bitbucket_api_client::BitbucketClient;
 use depot;
-use github_api_client::GitHubClient;
 use http_gateway;
 use http_gateway::app::prelude::*;
+use github_api_client::GitHubClient;
+use oauth_client::client::OAuth2Client;
 use hab_net::privilege::FeatureFlags;
 use iron;
 use mount::Mount;
@@ -40,21 +40,15 @@ impl HttpGateway for ApiSrv {
 
     fn add_middleware(config: Arc<Self::Config>, chain: &mut iron::Chain) {
         chain.link(persistent::Read::<Self::Config>::both(config.clone()));
-        if config.github.is_some() {
-            let c = config.github.clone().unwrap();
-            chain.link(persistent::Read::<OAuthCli>::both(
-                OAuthWrapper::new(Box::new(GitHubClient::new(c.clone()))),
-            ));
 
-            // we need to link a GitHubCli specifically because we're doing GH
-            // specific operations, e.g. with projects
-            chain.link(persistent::Read::<GitHubCli>::both(GitHubClient::new(c)));
-        } else {
-            let c = config.bitbucket.clone().unwrap();
-            chain.link(persistent::Read::<OAuthCli>::both(
-                OAuthWrapper::new(Box::new(BitbucketClient::new(c))),
-            ));
-        }
+        chain.link(persistent::Read::<OAuthCli>::both(
+            OAuth2Client::new(config.oauth.clone()),
+        ));
+
+        chain.link(persistent::Read::<GitHubCli>::both(
+            GitHubClient::new(config.github.clone()),
+        ));
+
         chain.link(persistent::Read::<SegmentCli>::both(
             SegmentClient::new(config.segment.clone()),
         ));
@@ -64,8 +58,6 @@ impl HttpGateway for ApiSrv {
     fn mount(config: Arc<Self::Config>, chain: iron::Chain) -> Mount {
         let mut depot_config = config.depot.clone();
         depot_config.segment = config.segment.clone();
-        depot_config.github = config.github.clone();
-        depot_config.bitbucket = config.bitbucket.clone();
         let depot = depot::DepotUtil::new(depot_config);
         let depot_chain = depot::server::router(depot).unwrap();
         let mut mount = Mount::new();
@@ -79,28 +71,8 @@ impl HttpGateway for ApiSrv {
     }
 
     fn router(config: Arc<Self::Config>) -> Router {
-        let basic;
-        let admin;
-
-        // Allow one and only one auth config
-        // TODO: Update configs so that structurally only a single auth config is possible
-        if (config.github.is_none() && config.bitbucket.is_none()) ||
-            (config.github.is_some() && config.bitbucket.is_some())
-        {
-            panic!("Must have one and only one auth config (github or bitbucket)");
-        }
-
-        if config.github.is_some() {
-            let c = config.github.clone();
-            let client = GitHubClient::new(c.unwrap());
-            basic = Authenticated::new(client.clone(), config.depot.key_dir.clone());
-            admin = Authenticated::new(client, PathBuf::new()).require(FeatureFlags::ADMIN);
-        } else {
-            let c = config.bitbucket.clone();
-            let client = BitbucketClient::new(c.unwrap());
-            basic = Authenticated::new(client.clone(), config.depot.key_dir.clone());
-            admin = Authenticated::new(client, PathBuf::new()).require(FeatureFlags::ADMIN);
-        }
+        let basic = Authenticated::new(config.depot.key_dir.clone());
+        let admin = Authenticated::new(PathBuf::new()).require(FeatureFlags::ADMIN);
 
         let mut r = Router::new();
 

@@ -120,10 +120,18 @@ fn search_account(req: &mut Request, key: String, value: String) -> IronResult<R
 }
 
 pub fn authenticate(req: &mut Request) -> IronResult<Response> {
+    println!("AUTHENTICATE CALLED");
+
     let code = match get_param(req, "code") {
         Some(c) => c,
         None => return Ok(Response::with(status::BadRequest)),
     };
+
+    // TBD -
+    // let state = match get_param(req, "state") {
+    //     Some(s) => s,
+    //     None => return Ok(Response::with(status::BadRequest)),
+    // };
 
     if env::var_os("HAB_FUNC_TEST").is_some() {
         let session = {
@@ -135,9 +143,9 @@ pub fn authenticate(req: &mut Request) -> IronResult<Response> {
     let oauth = req.get::<persistent::Read<OAuthCli>>().unwrap();
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
 
-    match oauth.authenticate(&code) {
-        Ok(token) => {
-            let session = session_create_oauth(req, &token)?;
+    match oauth.authenticate(&code, "state") {
+        Ok((token, user)) => {
+            let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
 
             // We don't really want to abort anything just because a call to segment failed. Let's
             // just log it and move on.
@@ -150,6 +158,7 @@ pub fn authenticate(req: &mut Request) -> IronResult<Response> {
 
             Ok(render_json(status::Ok, &session))
         }
+        /* TBD - Fix
         Err(OAuthError::HttpResponse(code, response)) => {
             let msg = format!("{}-{}", code, response);
             let err = NetError::new(ErrCode::ACCESS_DENIED, msg);
@@ -160,6 +169,7 @@ pub fn authenticate(req: &mut Request) -> IronResult<Response> {
             let err = NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1");
             Ok(render_net_error(&err))
         }
+        */
         Err(e) => {
             warn!("unhandled authentication error, {:?}", e);
             let err = NetError::new(ErrCode::BUG, "rg:auth:2");

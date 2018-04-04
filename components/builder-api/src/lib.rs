@@ -34,6 +34,7 @@ extern crate iron;
 #[macro_use]
 extern crate log;
 extern crate mount;
+extern crate oauth_client;
 extern crate oauth_common;
 extern crate openssl;
 extern crate params;

@@ -49,9 +49,3 @@ impl error::Error for Error {
         }
     }
 }
-
-// impl From<io::Error> for OAuthError {
-//     fn from(err: io::Error) -> Self {
-//         OAuthError::IO(err)
-//     }
-// }

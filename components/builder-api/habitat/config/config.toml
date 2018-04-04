@@ -6,16 +6,12 @@ root = "{{pkg.svc_static_path}}"
 [http]
 {{toToml cfg.http}}
 
-{{#if cfg.github.enabled ~}}
+[oauth]
+{{toToml cfg.oauth}}
+
 [github]
 app_private_key = "{{pkg.svc_files_path}}/builder-github-app.pem"
 {{toToml cfg.github}}
-{{/if ~}}
-
-{{#if cfg.bitbucket.enabled ~}}
-[bitbucket]
-{{toToml cfg.bitbucket}}
-{{/if ~}}
 
 [segment]
 {{toToml cfg.segment}}

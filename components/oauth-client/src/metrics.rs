@@ -12,18 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[macro_use]
-extern crate log;
-extern crate builder_core;
-extern crate reqwest;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
+//! Centralized definition of all Github API client metrics that we
+//! wish to track.
 
-pub mod client;
-pub mod config;
-pub mod github;
-pub mod error;
-pub mod types;
-pub mod metrics;
+use std::borrow::Cow;
+use builder_core::metrics;
+
+pub enum Counter {
+    Authenticate(String),
+}
+
+impl metrics::CounterMetric for Counter {}
+
+impl metrics::Metric for Counter {
+    fn id(&self) -> Cow<'static, str> {
+        match *self {
+            Counter::Authenticate(ref provider) => {
+                format!("oauth.authenticate.{}", provider).into()
+            }
+        }
+    }
+}

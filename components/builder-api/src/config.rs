@@ -19,9 +19,10 @@ use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use std::option::IntoIter;
 
-use bitbucket_api_client::BitbucketCfg;
 use depot;
 use http_gateway::config::prelude::*;
+use github_api_client::config::GitHubCfg;
+use oauth_client::config::OAuth2Cfg;
 use segment_api_client::SegmentCfg;
 use typemap;
 
@@ -33,8 +34,8 @@ pub struct Config {
     pub http: HttpCfg,
     /// List of net addresses for routing servers to connect to
     pub routers: Vec<RouterAddr>,
-    pub github: Option<GitHubCfg>,
-    pub bitbucket: Option<BitbucketCfg>,
+    pub oauth: OAuth2Cfg,
+    pub github: GitHubCfg,
     pub segment: SegmentCfg,
     pub ui: UiCfg,
     /// Depot's configuration
@@ -54,8 +55,8 @@ impl Default for Config {
         Config {
             http: HttpCfg::default(),
             routers: vec![RouterAddr::default()],
-            github: None,
-            bitbucket: None,
+            oauth: OAuth2Cfg::default(),
+            github: GitHubCfg::default(),
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
             depot: depot::config::Config::default(),
@@ -166,15 +167,12 @@ mod tests {
         host = "172.18.0.2"
         port = 9632
 
-        [github]
-        api_url = "https://api.github.com"
+        [oauth]
         client_id = "0c2f738a7d0bd300de10"
         client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
 
-        [bitbucket]
-        web_url = "https://bitbucket.org"
-        client_id = "haha"
-        client_secret = "abc123"
+        [github]
+        api_url = "https://api.github.com"
         "#;
 
         let config = Config::from_raw(&content).unwrap();
@@ -186,82 +184,15 @@ mod tests {
         assert_eq!(config.http.handler_count, 128);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9632");
 
-        let github = config.github.unwrap();
-        assert_eq!(github.api_url, "https://api.github.com");
-        assert_eq!(github.client_id, "0c2f738a7d0bd300de10");
+        assert_eq!(config.oauth.client_id, "0c2f738a7d0bd300de10");
         assert_eq!(
-            github.client_secret,
+            config.oauth.client_secret,
             "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
         );
+
+        assert_eq!(config.github.api_url, "https://api.github.com");
         assert_eq!(config.ui.root, Some("/some/path".to_string()));
         assert_eq!(config.segment.url, "https://api.segment.io");
-
-        let bitbucket = config.bitbucket.unwrap();
-        assert_eq!(
-            bitbucket.token_url,
-            "https://bitbucket.org/site/oauth2/access_token"
-        );
-        assert_eq!(bitbucket.client_id, "haha");
-        assert_eq!(bitbucket.client_secret, "abc123");
-    }
-
-    #[test]
-    fn config_from_file_without_bitbucket() {
-        let content = r#"
-        events_enabled = true
-        non_core_builds_enabled = true
-        jobsrv_enabled = false
-
-        [http]
-        listen = "0:0:0:0:0:0:0:1"
-        port = 9636
-        handler_count = 128
-
-        [ui]
-        root = "/some/path"
-
-        [depot]
-        path = "/hab/svc/hab-depot/data"
-        events_enabled = true
-        log_dir = "/hab/svc/hab-depot/var/log"
-
-        [[targets]]
-        platform = "linux"
-        architecture = "x86_64"
-
-        [[targets]]
-        platform = "windows"
-        architecture = "x86_64"
-
-        [[routers]]
-        host = "172.18.0.2"
-        port = 9632
-
-        [github]
-        api_url = "https://api.github.com"
-        client_id = "0c2f738a7d0bd300de10"
-        client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
-        "#;
-
-        let config = Config::from_raw(&content).unwrap();
-        assert_eq!(config.events_enabled, true);
-        assert_eq!(config.jobsrv_enabled, false);
-        assert_eq!(config.non_core_builds_enabled, true);
-        assert_eq!(&format!("{}", config.http.listen), "::1");
-        assert_eq!(config.http.port, 9636);
-        assert_eq!(config.http.handler_count, 128);
-        assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9632");
-
-        let github = config.github.unwrap();
-        assert_eq!(github.api_url, "https://api.github.com");
-        assert_eq!(github.client_id, "0c2f738a7d0bd300de10");
-        assert_eq!(
-            github.client_secret,
-            "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
-        );
-        assert_eq!(config.ui.root, Some("/some/path".to_string()));
-        assert_eq!(config.segment.url, "https://api.segment.io");
-        assert!(config.bitbucket.is_none());
     }
 
     #[test]

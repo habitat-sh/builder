@@ -45,6 +45,9 @@ features = [ "suggestions", "color", "unstable" ]
 git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
 
+[dependencies.oauth-client]
+path = "../oauth-client"
+
 [dependencies.github-api-client]
 path = "../github-api-client"
 
