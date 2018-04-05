@@ -21,6 +21,7 @@ use integrations::{decrypt, encrypt, validate};
 use protocol::{message, sessionsrv};
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
+pub const BUILDER_ACCOUNT_NAME: &'static str = "BUILDER";
 
 // Access token prefix rules:
 // MUST CONTAIN AN *INVALID* base-64 character

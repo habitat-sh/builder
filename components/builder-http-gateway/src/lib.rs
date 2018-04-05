@@ -16,12 +16,12 @@
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate base64;
-extern crate oauth_client;
-extern crate github_api_client;
 extern crate bodyparser;
 extern crate builder_core as bldr_core;
+extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as core;
+extern crate habitat_depot_client as depot_client;
 extern crate habitat_net as hab_net;
 #[macro_use]
 extern crate hyper;
@@ -31,6 +31,7 @@ extern crate iron;
 extern crate log;
 extern crate mount;
 extern crate num_cpus;
+extern crate oauth_client;
 extern crate params;
 extern crate persistent;
 extern crate protobuf;

@@ -21,9 +21,9 @@ use hab_net::{ErrCode, NetError, NetOk, NetResult};
 use hab_net::privilege::FeatureFlags;
 use http::controller::*;
 
+use iron::headers::{Referer, UserAgent};
 use iron::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::modifiers::Header;
-use iron::headers::{Referer, UserAgent};
 use iron::status::{self, Status};
 use protocol::originsrv::{CheckOriginAccessRequest, CheckOriginAccessResponse,
                           CheckOriginOwnerRequest, CheckOriginOwnerResponse, Origin,
@@ -49,6 +49,13 @@ pub fn dont_cache_response(response: &mut Response) {
     response
         .headers
         .set(CacheControl(format!("private, no-cache, no-store")));
+}
+
+pub fn is_request_from_hab(req: &mut Request) -> bool {
+    match req.headers.get::<UserAgent>() {
+        Some(ref agent) => agent.as_str().starts_with("hab/"),
+        None => false,
+    }
 }
 
 pub fn validate_params(
@@ -427,6 +434,13 @@ pub fn promote_or_demote_job_group(
 pub fn get_optional_session_id(req: &mut Request) -> Option<u64> {
     match req.extensions.get::<Authenticated>() {
         Some(session) => Some(session.get_id()),
+        None => None,
+    }
+}
+
+pub fn get_optional_oauth_token(req: &mut Request) -> Option<String> {
+    match req.extensions.get::<Authenticated>() {
+        Some(session) => Some(session.get_oauth_token().to_owned()),
         None => None,
     }
 }
