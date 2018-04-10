@@ -156,7 +156,7 @@ main {
     @include icon-size(32);
     cursor: pointer;
     position: absolute;
-    background: url(/assets/images/habitat-mark.svg) no-repeat center left;
+    @include background-icon('menu', $dark-gray);
     background-size: contain;
     top: 22px;
     left: $default-margin;
