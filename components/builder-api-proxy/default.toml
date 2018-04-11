@@ -36,6 +36,7 @@ signup_url     = "https://github.com/join"
 worker_connections   = 8000
 worker_processes     = "auto"
 worker_rlimit_nofile = 8192
+max_body_size        = "1024m"
 
 [http]
 keepalive_timeout = "20s"
