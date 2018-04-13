@@ -1,5 +1,6 @@
 enum OAuthProviderType {
   GitHub = 'github',
+  GitLab = 'gitlab',
   BitBucket = 'bitbucket'
 }
 
@@ -42,6 +43,8 @@ export abstract class OAuthProvider {
     switch (type) {
       case OAuthProviderType.GitHub:
         return new GitHubProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
+      case OAuthProviderType.GitLab:
+        return new GitLabProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.BitBucket:
         return new BitBucketProvider(clientID, authorizeUrl, redirectUrl, signupUrl);
       case undefined:
@@ -60,6 +63,27 @@ class GitHubProvider extends OAuthProvider {
   constructor(clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string) {
     super(
       OAuthProviderType.GitHub,
+      clientID,
+      authorizeUrl,
+      redirectUrl,
+      signupUrl,
+      true,
+      {
+        client_id: clientID,
+        redirect_uri: redirectUrl,
+        response_type: 'code',
+        state: state
+      }
+    );
+  }
+}
+
+class GitLabProvider extends OAuthProvider {
+  name: string = 'GitLab';
+
+  constructor(clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string) {
+    super(
+      OAuthProviderType.GitLab,
       clientID,
       authorizeUrl,
       redirectUrl,
