@@ -82,7 +82,6 @@ pub enum Error {
     Zmq(zmq::Error),
 }
 
-
 pub type Result<T> = result::Result<T, Error>;
 
 impl fmt::Display for Error {

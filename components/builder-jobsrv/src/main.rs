@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 #[macro_use]
 extern crate clap;
@@ -42,18 +42,14 @@ fn main() {
     };
 
     match subcmd {
-        "migrate" => {
-            match jobsrv::server::migrate(config) {
-                Ok(_) => process::exit(0),
-                Err(e) => exit_with(e, 1),
-            }
-        }
-        "start" => {
-            match jobsrv::server::run(config) {
-                Ok(_) => process::exit(0),
-                Err(e) => exit_with(e, 1),
-            }
-        }
+        "migrate" => match jobsrv::server::migrate(config) {
+            Ok(_) => process::exit(0),
+            Err(e) => exit_with(e, 1),
+        },
+        "start" => match jobsrv::server::run(config) {
+            Ok(_) => process::exit(0),
+            Err(e) => exit_with(e, 1),
+        },
         _ => unreachable!(),
     }
 }

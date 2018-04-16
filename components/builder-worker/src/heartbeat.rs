@@ -17,7 +17,7 @@ use std::time::Duration;
 use std::thread::{self, JoinHandle};
 
 use hab_net::socket::DEFAULT_CONTEXT;
-use protocol::{message, jobsrv as proto};
+use protocol::{jobsrv as proto, message};
 use zmq;
 
 use config::Config;
@@ -98,7 +98,8 @@ impl HeartbeatCli {
     /// Set the `HeartbeatMgr` state to busy
     pub fn set_busy(&mut self) -> Result<()> {
         self.state.set_state(proto::WorkerState::Busy);
-        self.sock.send_str(PulseState::Pulse.as_ref(), zmq::SNDMORE)?;
+        self.sock
+            .send_str(PulseState::Pulse.as_ref(), zmq::SNDMORE)?;
         self.sock.send(&message::encode(&self.state)?, 0)?;
         self.sock.recv(&mut self.msg, 0)?;
         Ok(())
@@ -107,7 +108,8 @@ impl HeartbeatCli {
     /// Set the `HeartbeatMgr` state to ready
     pub fn set_ready(&mut self) -> Result<()> {
         self.state.set_state(proto::WorkerState::Ready);
-        self.sock.send_str(PulseState::Pulse.as_ref(), zmq::SNDMORE)?;
+        self.sock
+            .send_str(PulseState::Pulse.as_ref(), zmq::SNDMORE)?;
         self.sock.send(&message::encode(&self.state)?, 0)?;
         self.sock.recv(&mut self.msg, 0)?;
         Ok(())
@@ -140,7 +142,9 @@ impl HeartbeatMgr {
         let jobsrv_addrs = config.jobsrv_addrs();
         let handle = thread::Builder::new()
             .name("heartbeat".to_string())
-            .spawn(move || { heartbeat.run(tx, jobsrv_addrs).unwrap(); })
+            .spawn(move || {
+                heartbeat.run(tx, jobsrv_addrs).unwrap();
+            })
             .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),

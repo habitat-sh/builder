@@ -43,8 +43,7 @@ impl Publisher {
         }
         debug!(
             "Publisher (url: {}, channel: {:?})",
-            self.url,
-            self.channel_opt
+            self.url, self.channel_opt
         );
 
         let client = depot_client::Client::new(&self.url, PRODUCT, VERSION, None).unwrap();
@@ -85,7 +84,8 @@ impl Publisher {
             };
 
             if channel != STABLE_CHANNEL && channel != UNSTABLE_CHANNEL {
-                match retry(RETRIES,
+                match retry(
+                    RETRIES,
                     RETRY_WAIT,
                     || client.create_channel(&ident.origin, &channel, auth_token),
                     |res| {
@@ -103,8 +103,10 @@ impl Publisher {
                 ) {
                     Ok(_) => (),
                     Err(err) => {
-                        let msg = format!("Failed to create channel {} after {} retries",
-                            channel, RETRIES);
+                        let msg = format!(
+                            "Failed to create channel {} after {} retries",
+                            channel, RETRIES
+                        );
                         warn!("{}", msg);
                         logger.log(&msg);
                         return Err(Error::Retry(err));
@@ -112,7 +114,8 @@ impl Publisher {
                 }
             }
 
-            match retry(RETRIES,
+            match retry(
+                RETRIES,
                 RETRY_WAIT,
                 || client.promote_package(&ident, &channel, auth_token),
                 |res| {
@@ -126,8 +129,10 @@ impl Publisher {
             ) {
                 Ok(_) => (),
                 Err(err) => {
-                    let msg = format!("Failed to promote {} to {} after {} retries",
-                        ident, channel, RETRIES);
+                    let msg = format!(
+                        "Failed to promote {} to {} after {} retries",
+                        ident, channel, RETRIES
+                    );
                     warn!("{}", msg);
                     logger.log(&msg);
                     return Err(Error::Retry(err));

@@ -74,7 +74,9 @@ impl OAuthClient for BitbucketClient {
         let client = ApiClient::new(&self.config.api_url, "bldr", "0.0.0", None)
             .map_err(OAuthError::ApiClient)?;
         let mut req = client.get("1.0/user");
-        req = req.header(Authorization(Bearer { token: token.to_string() }));
+        req = req.header(Authorization(Bearer {
+            token: token.to_string(),
+        }));
         let mut resp = req.send().map_err(OAuthError::HttpClient)?;
         let mut body = String::new();
         resp.read_to_string(&mut body)?;
@@ -82,13 +84,11 @@ impl OAuthClient for BitbucketClient {
         if resp.status.is_success() {
             debug!("Bitbucket response body, {}", body);
             match serde_json::from_str::<UserOk>(&body) {
-                Ok(msg) => {
-                    Ok(OAuthUser {
-                        id: msg.user.username.clone(),
-                        username: msg.user.username,
-                        email: None,
-                    })
-                }
+                Ok(msg) => Ok(OAuthUser {
+                    id: msg.user.username.clone(),
+                    username: msg.user.username,
+                    email: None,
+                }),
                 Err(e) => {
                     return Err(OAuthError::Serialization(e));
                 }

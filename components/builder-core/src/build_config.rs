@@ -246,28 +246,13 @@ mod test {
         let bldr_api = cfg.get("builder-api").unwrap();
         let default = cfg.get("default").unwrap();
 
-        assert!(hab_sup.triggered_by(
-            "master",
-            &["components/hab-sup/Cargo.toml"],
-        ));
-        assert!(hab_sup.triggered_by(
-            "master",
-            &["components/hAb-Sup/Cargo.toml"],
-        ));
-        assert!(hab_sup.triggered_by(
-            "dev",
-            &["components/hab-sup/Cargo.toml"],
-        ));
+        assert!(hab_sup.triggered_by("master", &["components/hab-sup/Cargo.toml"],));
+        assert!(hab_sup.triggered_by("master", &["components/hAb-Sup/Cargo.toml"],));
+        assert!(hab_sup.triggered_by("dev", &["components/hab-sup/Cargo.toml"],));
         assert_eq!(hab_sup.triggered_by("master", &["components"]), false);
 
-        assert!(bldr_api.triggered_by(
-            "master",
-            &["components/builder-api/habitat/plan.sh"],
-        ));
-        assert!(bldr_api.triggered_by(
-            "master",
-            &["components/net/Cargo.toml"],
-        ));
+        assert!(bldr_api.triggered_by("master", &["components/builder-api/habitat/plan.sh"],));
+        assert!(bldr_api.triggered_by("master", &["components/net/Cargo.toml"],));
 
         assert!(default.triggered_by("master", &["habitat/plan.sh"]));
         assert!(default.triggered_by("master", &["habitat/hooks/init"]));

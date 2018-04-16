@@ -44,9 +44,9 @@ use router::Router;
 use super::controller::route_message;
 
 pub fn dont_cache_response(response: &mut Response) {
-    response.headers.set(CacheControl(
-        format!("private, no-cache, no-store"),
-    ));
+    response
+        .headers
+        .set(CacheControl(format!("private, no-cache, no-store")));
 }
 
 pub fn validate_params(
@@ -363,10 +363,9 @@ pub fn promote_or_demote_job_group(
     // as if this is called by the scheduler it needs to promote/demote the group before marking it
     // Complete.
     if group.get_projects().iter().any(|&ref p| {
-        p.get_state() == JobGroupProjectState::NotStarted ||
-            p.get_state() == JobGroupProjectState::InProgress
-    })
-    {
+        p.get_state() == JobGroupProjectState::NotStarted
+            || p.get_state() == JobGroupProjectState::InProgress
+    }) {
         return Err(NetError::new(
             ErrCode::GROUP_NOT_COMPLETE,
             "hg:promote-or-demote-job-group:0",
@@ -400,9 +399,9 @@ pub fn promote_or_demote_job_group(
             }
 
             let ident = OriginPackageIdent::from_str(ident_str).unwrap();
-            let project_list = origin_map.entry(ident.get_origin().to_string()).or_insert(
-                Vec::new(),
-            );
+            let project_list = origin_map
+                .entry(ident.get_origin().to_string())
+                .or_insert(Vec::new());
             project_list.push(project);
         }
     }

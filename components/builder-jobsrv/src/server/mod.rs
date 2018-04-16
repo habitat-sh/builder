@@ -31,7 +31,7 @@ use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;
 use self::log_ingester::LogIngester;
 use self::worker_manager::{WorkerMgr, WorkerMgrClient};
-use self::scheduler::{ScheduleMgr, ScheduleClient};
+use self::scheduler::{ScheduleClient, ScheduleMgr};
 use config::{ArchiveCfg, Config};
 use data_store::DataStore;
 use error::{Error, Result};
@@ -48,9 +48,15 @@ lazy_static! {
         map.register(JobGroupCancel::descriptor_static(None), handlers::job_group_cancel);
         map.register(JobGroupGet::descriptor_static(None), handlers::job_group_get);
         map.register(JobGroupOriginGet::descriptor_static(None), handlers::job_group_origin_get);
-        map.register(JobGraphPackageCreate::descriptor_static(None), handlers::job_graph_package_create);
-        map.register(JobGraphPackagePreCreate::descriptor_static(None), handlers::job_graph_package_precreate);
-        map.register(JobGraphPackageStatsGet::descriptor_static(None), handlers::job_graph_package_stats_get);
+        map.register(
+            JobGraphPackageCreate::descriptor_static(None), handlers::job_graph_package_create
+            );
+        map.register(
+            JobGraphPackagePreCreate::descriptor_static(None), handlers::job_graph_package_precreate
+            );
+        map.register(
+            JobGraphPackageStatsGet::descriptor_static(None), handlers::job_graph_package_stats_get
+            );
         map.register(JobGraphPackageReverseDependenciesGet::descriptor_static(None),
             handlers::job_graph_package_reverse_dependencies_get);
         map
@@ -129,9 +135,7 @@ impl Dispatcher for JobSrv {
         for stat in res {
             info!(
                 "Target {}: {} nodes, {} edges",
-                stat.target,
-                stat.node_count,
-                stat.edge_count,
+                stat.target, stat.node_count, stat.edge_count,
             );
         }
 

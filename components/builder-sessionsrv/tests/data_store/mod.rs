@@ -81,9 +81,8 @@ fn delete_origin() {
 
     let mut acclist = sessionsrv::AccountOriginListRequest::new();
     acclist.set_account_id(bobo.get_id());
-    let accounts1 = ds.get_origins_by_account(&acclist).expect(
-        "failed to get origin by account",
-    );
+    let accounts1 = ds.get_origins_by_account(&acclist)
+        .expect("failed to get origin by account");
 
     assert_eq!(1, accounts1.get_origins().len());
 
@@ -92,9 +91,8 @@ fn delete_origin() {
     aor.set_origin_id(1);
     ds.delete_origin(&aor).expect("could not delete origin");
 
-    let accounts2 = ds.get_origins_by_account(&acclist).expect(
-        "failed to get origin by account",
-    );
+    let accounts2 = ds.get_origins_by_account(&acclist)
+        .expect("failed to get origin by account");
 
     assert_eq!(0, accounts2.get_origins().len());
 }

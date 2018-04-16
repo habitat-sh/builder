@@ -96,9 +96,8 @@ pub fn check_required_packages(pkgs: &[&str]) -> Result<()> {
 pub fn check_user_group_membership(username: &str) -> Result<()> {
     let user = String::from(username);
     for grp in vec!["tty"].iter() {
-        let user_group = users::get_group_by_name(grp).ok_or(Error::GroupNotFound(
-            String::from(*grp),
-        ))?;
+        let user_group =
+            users::get_group_by_name(grp).ok_or(Error::GroupNotFound(String::from(*grp)))?;
         if !user_group.members().contains(&user) {
             return Err(Error::UserNotInGroup(user, String::from(*grp)));
         }

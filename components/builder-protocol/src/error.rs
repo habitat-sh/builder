@@ -59,12 +59,10 @@ impl fmt::Display for ProtocolError {
             ProtocolError::MsgNotInitialized => {
                 format!("Message not ready for transport, is it missing it's header?")
             }
-            ProtocolError::NoControlFrame(ref e) => {
-                format!(
-                    "No `routesrv::ControlFrame` matches the given string, {}",
-                    e
-                )
-            }
+            ProtocolError::NoControlFrame(ref e) => format!(
+                "No `routesrv::ControlFrame` matches the given string, {}",
+                e
+            ),
             ProtocolError::NoProtocol(ref e) => {
                 format!("No `net::Protocol` matching given string, {}", e)
             }

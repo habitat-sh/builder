@@ -37,7 +37,7 @@ use hab_core::os::users;
 use hab_core::package::archive::PackageArchive;
 use hab_core::util::perm;
 use hab_net::socket::DEFAULT_CONTEXT;
-use protocol::{message, jobsrv};
+use protocol::{jobsrv, message};
 use protocol::originsrv::OriginPackageIdent;
 use protocol::net::{self, ErrCode};
 use zmq;
@@ -89,8 +89,8 @@ pub struct Runner {
 
 impl Runner {
     pub fn new(job: Job, config: Arc<Config>, net_ident: &str, cancel: Arc<AtomicBool>) -> Self {
-        let depot_cli = depot_client::Client::new(&config.bldr_url, PRODUCT, VERSION, None)
-            .unwrap();
+        let depot_cli =
+            depot_client::Client::new(&config.bldr_url, PRODUCT, VERSION, None).unwrap();
 
         let log_path = config.log_path.clone();
         let mut logger = Logger::init(PathBuf::from(log_path), "builder-worker.log");
@@ -173,7 +173,6 @@ impl Runner {
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
                 return Err(err);
             }
-
         };
 
         Ok(streamer)
@@ -253,9 +252,9 @@ impl Runner {
     ) -> Result<PackageArchive> {
         self.check_cancel(tx)?;
 
-        self.workspace.job.set_build_started_at(
-            Utc::now().to_rfc3339(),
-        );
+        self.workspace
+            .job
+            .set_build_started_at(Utc::now().to_rfc3339());
 
         let mut section = streamer.start_section(Section::BuildPackage)?;
 
@@ -267,15 +266,15 @@ impl Runner {
         // finished.
         let mut archive = match self.build(streamer) {
             Ok(archive) => {
-                self.workspace.job.set_build_finished_at(
-                    Utc::now().to_rfc3339(),
-                );
+                self.workspace
+                    .job
+                    .set_build_finished_at(Utc::now().to_rfc3339());
                 archive
             }
             Err(err) => {
-                self.workspace.job.set_build_finished_at(
-                    Utc::now().to_rfc3339(),
-                );
+                self.workspace
+                    .job
+                    .set_build_finished_at(Utc::now().to_rfc3339());
                 let msg = format!(
                     "Failed studio build for {}, err={:?}",
                     self.workspace.job.get_project().get_name(),
@@ -657,7 +656,9 @@ impl RunnerMgr {
         let mut runner = Self::new(config, net_ident).unwrap();
         let handle = thread::Builder::new()
             .name("runner".to_string())
-            .spawn(move || { runner.run(tx).unwrap(); })
+            .spawn(move || {
+                runner.run(tx).unwrap();
+            })
             .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),

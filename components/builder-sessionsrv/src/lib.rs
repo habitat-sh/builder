@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate base64;
+extern crate builder_core as bldr_core;
 extern crate chrono;
 extern crate diesel;
 #[macro_use]
@@ -25,7 +26,6 @@ extern crate habitat_builder_db as db;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
 extern crate habitat_net as hab_net;
-extern crate builder_core as bldr_core;
 extern crate hyper;
 #[macro_use]
 extern crate lazy_static;

@@ -42,7 +42,7 @@ use hyper::client::Client as HyperClient;
 use super::LogArchiver;
 use VERSION;
 use config::ArchiveCfg;
-use error::{Result, Error};
+use error::{Error, Result};
 
 pub struct S3Archiver {
     client: S3Client<DefaultCredentialsProvider, HyperClient>,
@@ -97,9 +97,11 @@ impl S3Archiver {
 
         Ok(S3Archiver {
             client: client,
-            bucket: config.bucket.as_ref().cloned().expect(
-                "Missing Bucket Name!",
-            ),
+            bucket: config
+                .bucket
+                .as_ref()
+                .cloned()
+                .expect("Missing Bucket Name!"),
         })
     }
 
@@ -127,9 +129,9 @@ impl LogArchiver for S3Archiver {
         //
         // The code in the S3 library we're currently using isn't
         // UnwindSafe, so we need to deal with that, too.
-        let result = panic::catch_unwind(AssertUnwindSafe(
-            || self.client.put_object(&put_object, None),
-        ));
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            self.client.put_object(&put_object, None)
+        }));
 
         match result {
             Ok(Ok(_)) => Ok(()), // normal result
@@ -174,10 +176,7 @@ impl LogArchiver for S3Archiver {
                     None => format!("{:?}", e),
                 };
                 return Err(Error::CaughtPanic(
-                    format!(
-                        "Failure to retrieve archived log for job {}",
-                        job_id
-                    ),
+                    format!("Failure to retrieve archived log for job {}", job_id),
                     source,
                 ));
             }

@@ -37,13 +37,10 @@ pub enum SegmentError {
 impl fmt::Display for SegmentError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            SegmentError::ApiError(ref code, ref response) => {
-                format!(
-                    "Received a non-200 response, status={}, response={:?}",
-                    code,
-                    response
-                )
-            }
+            SegmentError::ApiError(ref code, ref response) => format!(
+                "Received a non-200 response, status={}, response={:?}",
+                code, response
+            ),
             SegmentError::ContentDecode(ref e) => format!("{}", e),
             SegmentError::HttpClient(ref e) => format!("{}", e),
             SegmentError::HttpClientParse(ref e) => format!("{}", e),

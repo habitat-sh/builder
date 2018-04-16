@@ -81,7 +81,6 @@ mod tests {
         channel = "unstable"
         "#;
 
-
         let config = Config::default();
         let cfg = TomlPublishBuilder::from_raw(toml).unwrap().build(&config);
         assert_eq!("https://bldr.habitat.sh", cfg.url);

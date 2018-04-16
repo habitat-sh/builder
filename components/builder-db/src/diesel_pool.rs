@@ -35,14 +35,13 @@ impl DieselPool {
             match r2d2::Pool::builder()
                 .max_size(config.pool_size)
                 .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
-                .build(manager) {
+                .build(manager)
+            {
                 Ok(pool) => return Ok(DieselPool { inner: pool }),
-                Err(e) => {
-                    error!(
-                        "Error initializing connection pool to Postgres, will retry: {}",
-                        e
-                    )
-                }
+                Err(e) => error!(
+                    "Error initializing connection pool to Postgres, will retry: {}",
+                    e
+                ),
             }
             thread::sleep(Duration::from_millis(config.connection_retry_ms));
         }

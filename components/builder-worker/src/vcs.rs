@@ -18,7 +18,7 @@ use bldr_core::job::Job;
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 use git2;
-use github_api_client::{GitHubClient, GitHubCfg};
+use github_api_client::{GitHubCfg, GitHubClient};
 use url::Url;
 
 use error::{Error, Result};
@@ -87,9 +87,9 @@ impl VCS {
                         // because the subsequent git2 clone call
                         // doesn't use our Github client... maybe we
                         // should pull it in?
-                        let t = self.github_client.app_installation_token(id).map_err(|e| {
-                            Error::GithubAppAuthErr(e)
-                        })?;
+                        let t = self.github_client
+                            .app_installation_token(id)
+                            .map_err(|e| Error::GithubAppAuthErr(e))?;
                         Counter::GitAuthenticatedClone.increment();
                         Some(t.inner_token().to_string())
                     }
@@ -108,17 +108,13 @@ impl VCS {
     }
 
     pub fn url(&self, token: Option<String>) -> Result<Url> {
-        let mut url = Url::parse(self.data.as_str()).map_err(
-            |e| Error::UrlParseError(e),
-        )?;
+        let mut url = Url::parse(self.data.as_str()).map_err(|e| Error::UrlParseError(e))?;
         if self.data.starts_with("https://") {
             if let Some(ref tok) = token {
-                url.set_username("x-access-token").map_err(
-                    |_| Error::CannotAddCreds,
-                )?;
-                url.set_password(Some(tok.as_str())).map_err(|_| {
-                    Error::CannotAddCreds
-                })?;
+                url.set_username("x-access-token")
+                    .map_err(|_| Error::CannotAddCreds)?;
+                url.set_password(Some(tok.as_str()))
+                    .map_err(|_| Error::CannotAddCreds)?;
             }
         } else {
             return Err(Error::NotHTTPSCloneUrl(url));

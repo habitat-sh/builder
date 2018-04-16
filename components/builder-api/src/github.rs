@@ -15,10 +15,10 @@
 use std::io::Read;
 use std::str::FromStr;
 
-use bldr_core::build_config::{BLDR_CFG, BuildCfg};
+use bldr_core::build_config::{BuildCfg, BLDR_CFG};
 use bldr_core::metrics::CounterMetric;
 use constant_time_eq::constant_time_eq;
-use github_api_client::{GitHubClient, AppToken};
+use github_api_client::{AppToken, GitHubClient};
 use hab_core::package::Plan;
 use hex;
 use http_gateway::http::controller::*;
@@ -58,12 +58,10 @@ pub fn handle_event(req: &mut Request) -> IronResult<Response> {
     Counter::GitHubEvent.increment();
 
     let event = match req.headers.get::<XGitHubEvent>() {
-        Some(&XGitHubEvent(ref event)) => {
-            match GitHubEvent::from_str(event) {
-                Ok(event) => event,
-                Err(err) => return Ok(Response::with((status::BadRequest, err.to_string()))),
-            }
-        }
+        Some(&XGitHubEvent(ref event)) => match GitHubEvent::from_str(event) {
+            Ok(event) => event,
+            Err(err) => return Ok(Response::with((status::BadRequest, err.to_string()))),
+        },
         _ => return Ok(Response::with(status::BadRequest)),
     };
 
@@ -93,8 +91,7 @@ pub fn handle_event(req: &mut Request) -> IronResult<Response> {
     if !constant_time_eq(gh_signature.as_bytes(), computed_signature.as_bytes()) {
         warn!(
             "Web hook signatures don't match. GH = {}, Our = {}",
-            gh_signature,
-            computed_signature
+            gh_signature, computed_signature
         );
         return Ok(Response::with(status::BadRequest));
     }
@@ -113,21 +110,17 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
         None => return Ok(Response::with(status::BadRequest)),
     };
     let install_id = match params.find("install_id") {
-        Some(install_id) => {
-            match install_id.parse::<u32>() {
-                Ok(install_id) => install_id,
-                Err(_) => return Ok(Response::with(status::BadRequest)),
-            }
-        }
+        Some(install_id) => match install_id.parse::<u32>() {
+            Ok(install_id) => install_id,
+            Err(_) => return Ok(Response::with(status::BadRequest)),
+        },
         None => return Ok(Response::with(status::BadRequest)),
     };
     let repo_id = match params.find("repo_id") {
-        Some(repo_id) => {
-            match repo_id.parse::<u32>() {
-                Ok(repo_id) => repo_id,
-                Err(_) => return Ok(Response::with(status::BadRequest)),
-            }
-        }
+        Some(repo_id) => match repo_id.parse::<u32>() {
+            Ok(repo_id) => repo_id,
+            Err(_) => return Ok(Response::with(status::BadRequest)),
+        },
         None => return Ok(Response::with(status::BadRequest)),
     };
 
@@ -161,9 +154,10 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
     let hook = match serde_json::from_str::<GitHubWebhookPush>(&body) {
         Ok(hook) => hook,
         Err(err) => {
-            return Ok(Response::with(
-                (status::UnprocessableEntity, err.to_string()),
-            ));
+            return Ok(Response::with((
+                status::UnprocessableEntity,
+                err.to_string(),
+            )));
         }
     };
     debug!(
@@ -241,23 +235,19 @@ fn build_plans(req: &mut Request, repo_url: &str, plans: Vec<Plan>) -> IronResul
 
 fn read_bldr_config(github: &GitHubClient, token: &AppToken, hook: &GitHubWebhookPush) -> BuildCfg {
     match github.contents(&token, hook.repository.id, BLDR_CFG) {
-        Ok(Some(contents)) => {
-            match contents.decode() {
-                Ok(ref bytes) => {
-                    match BuildCfg::from_slice(bytes) {
-                        Ok(cfg) => cfg,
-                        Err(err) => {
-                            debug!("unable to parse bldr.toml, {}", err);
-                            BuildCfg::default()
-                        }
-                    }
-                }
+        Ok(Some(contents)) => match contents.decode() {
+            Ok(ref bytes) => match BuildCfg::from_slice(bytes) {
+                Ok(cfg) => cfg,
                 Err(err) => {
-                    debug!("unable to read bldr.toml, {}", err);
+                    debug!("unable to parse bldr.toml, {}", err);
                     BuildCfg::default()
                 }
+            },
+            Err(err) => {
+                debug!("unable to read bldr.toml, {}", err);
+                BuildCfg::default()
             }
-        }
+        },
         Ok(None) => BuildCfg::default(),
         Err(err) => {
             warn!("unable to retrieve bldr.toml, {}", err);
@@ -274,12 +264,7 @@ fn read_plans(
 ) -> Vec<Plan> {
     let mut plans = Vec::with_capacity(config.projects().len());
     for project in config.triggered_by(hook.branch(), hook.changed().as_slice()) {
-        if let Some(plan) = read_plan(
-            github,
-            &token,
-            hook,
-            &project.plan_file().to_string_lossy(),
-        )
+        if let Some(plan) = read_plan(github, &token, hook, &project.plan_file().to_string_lossy())
         {
             plans.push(plan)
         }
@@ -294,23 +279,19 @@ fn read_plan(
     path: &str,
 ) -> Option<Plan> {
     match github.contents(&token, hook.repository.id, path) {
-        Ok(Some(contents)) => {
-            match contents.decode() {
-                Ok(bytes) => {
-                    match Plan::from_bytes(bytes.as_slice()) {
-                        Ok(plan) => Some(plan),
-                        Err(err) => {
-                            debug!("unable to read plan, {}, {}", path, err);
-                            None
-                        }
-                    }
-                }
+        Ok(Some(contents)) => match contents.decode() {
+            Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
+                Ok(plan) => Some(plan),
                 Err(err) => {
                     debug!("unable to read plan, {}, {}", path, err);
                     None
                 }
+            },
+            Err(err) => {
+                debug!("unable to read plan, {}, {}", path, err);
+                None
             }
-        }
+        },
         Ok(None) => None,
         Err(err) => {
             warn!("unable to retrieve plan, {}, {}", path, err);

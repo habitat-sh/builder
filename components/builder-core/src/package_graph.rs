@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, BinaryHeap};
+use std::collections::{BinaryHeap, HashMap};
 use std::cmp::Ordering;
 use std::str::FromStr;
 use protocol::jobsrv;
-use petgraph::{Graph, Direction};
+use petgraph::{Direction, Graph};
 use petgraph::graph::NodeIndex;
-use petgraph::algo::{is_cyclic_directed, connected_components};
+use petgraph::algo::{connected_components, is_cyclic_directed};
 use hab_core::package::PackageIdent;
 
 use rdeps::rdeps;
@@ -91,10 +91,8 @@ impl PackageGraph {
             assert_eq!(self.package_names[self.package_max], short_name);
 
             let node_index = self.graph.add_node(self.package_max);
-            self.package_map.insert(short_name.clone(), (
-                self.package_max,
-                node_index,
-            ));
+            self.package_map
+                .insert(short_name.clone(), (self.package_max, node_index));
             self.package_max = self.package_max + 1;
 
             (self.package_max - 1, node_index)
@@ -158,8 +156,7 @@ impl PackageGraph {
                 if is_cyclic_directed(&self.graph) {
                     debug!(
                         "graph is cyclic after adding {} -> {} - failing check_extend",
-                        dep_name,
-                        name
+                        dep_name, name
                     );
                     circular_dep = true;
                     break;
@@ -224,8 +221,7 @@ impl PackageGraph {
                 if is_cyclic_directed(&self.graph) {
                     warn!(
                         "graph is cyclic after adding {} -> {} - rolling back",
-                        depname,
-                        name
+                        depname, name
                     );
                     let e = self.graph.find_edge(dep_node, pkg_node).unwrap();
                     self.graph.remove_edge(e).unwrap();
@@ -240,18 +236,14 @@ impl PackageGraph {
         let mut v: Vec<(String, String)> = Vec::new();
 
         match self.package_map.get(name) {
-            Some(&(_, pkg_node)) => {
-                match rdeps(&self.graph, pkg_node) {
-                    Ok(deps) => {
-                        for n in deps {
-                            let name = self.package_names[n].clone();
-                            let ident = format!("{}", self.latest_map.get(&name).unwrap());
-                            v.push((name, ident));
-                        }
-                    }
-                    Err(e) => panic!("Error: {:?}", e),
-                }
-            }
+            Some(&(_, pkg_node)) => match rdeps(&self.graph, pkg_node) {
+                Ok(deps) => for n in deps {
+                    let name = self.package_names[n].clone();
+                    let ident = format!("{}", self.latest_map.get(&name).unwrap());
+                    v.push((name, ident));
+                },
+                Err(e) => panic!("Error: {:?}", e),
+            },
             None => return None,
         }
 
@@ -267,11 +259,9 @@ impl PackageGraph {
             debug!("{}", pkg_name);
 
             match rdeps(&self.graph, node) {
-                Ok(v) => {
-                    for n in v {
-                        debug!("|_ {}", self.package_names[n]);
-                    }
-                }
+                Ok(v) => for n in v {
+                    debug!("|_ {}", self.package_names[n]);
+                },
                 Err(e) => panic!("Error: {:?}", e),
             }
         }

@@ -54,24 +54,20 @@ impl fmt::Display for ConnErr {
             ConnErr::MultipleSender => write!(f, "Message header contained multiple senders"),
             ConnErr::NoBody => write!(f, "Message missing body message part"),
             ConnErr::NoIdentity => write!(f, "Message missing identity message parts"),
-            ConnErr::NoHeader => {
-                write!(
-                    f,
-                    "Unable to send or receive message without a `Header` message part"
-                )
-            }
+            ConnErr::NoHeader => write!(
+                f,
+                "Unable to send or receive message without a `Header` message part"
+            ),
             ConnErr::NoRouteInfo => write!(f, "Expected to receive `RouteInfo` message part"),
             ConnErr::NoTxn => write!(f, "Expected to receive `Txn` message part"),
             ConnErr::Protocol(ref e) => write!(f, "{}", e),
             ConnErr::Shutdown(ref e) => write!(f, "Received shutdown signal, {}", e),
             ConnErr::Socket(ref e) => write!(f, "Connection send/recv error, {}", e),
             ConnErr::Timeout => write!(f, "Connection recv timeout"),
-            ConnErr::TxnNotComplete => {
-                write!(
-                    f,
-                    "Attempted to send transaction reply to an incomplete message"
-                )
-            }
+            ConnErr::TxnNotComplete => write!(
+                f,
+                "Attempted to send transaction reply to an incomplete message"
+            ),
         }
     }
 }
@@ -104,22 +100,21 @@ impl error::Error for ConnErr {
 impl<'a> From<&'a ConnErr> for protocol::net::ErrCode {
     fn from(err: &ConnErr) -> protocol::net::ErrCode {
         match *err {
-            ConnErr::BadIdentity(_) |
-            ConnErr::BadHeader(_) |
-            ConnErr::BadRouteInfo(_) |
-            ConnErr::BadTxn(_) |
-            ConnErr::HostUnreachable |
-            ConnErr::MultipleSender |
-            ConnErr::NoBody |
-            ConnErr::NoHeader |
-            ConnErr::NoIdentity |
-            ConnErr::NoRouteInfo |
-            ConnErr::NoTxn |
-            ConnErr::Protocol(_) |
-            ConnErr::TxnNotComplete => protocol::net::ErrCode::BUG,
+            ConnErr::BadIdentity(_)
+            | ConnErr::BadHeader(_)
+            | ConnErr::BadRouteInfo(_)
+            | ConnErr::BadTxn(_)
+            | ConnErr::HostUnreachable
+            | ConnErr::MultipleSender
+            | ConnErr::NoBody
+            | ConnErr::NoHeader
+            | ConnErr::NoIdentity
+            | ConnErr::NoRouteInfo
+            | ConnErr::NoTxn
+            | ConnErr::Protocol(_)
+            | ConnErr::TxnNotComplete => protocol::net::ErrCode::BUG,
 
-            ConnErr::Shutdown(_) |
-            ConnErr::Socket(_) => protocol::net::ErrCode::SOCK,
+            ConnErr::Shutdown(_) | ConnErr::Socket(_) => protocol::net::ErrCode::SOCK,
 
             ConnErr::Timeout => protocol::net::ErrCode::TIMEOUT,
         }

@@ -122,14 +122,8 @@ impl Serialize for Job {
         // package identifier, but we'll only have that if the job was
         // complete. The project information will always be present,
         // however.
-        strukt.serialize_field(
-            "origin",
-            &self.get_project().get_origin_name(),
-        )?;
-        strukt.serialize_field(
-            "name",
-            &self.get_project().get_package_name(),
-        )?;
+        strukt.serialize_field("origin", &self.get_project().get_origin_name())?;
+        strukt.serialize_field("name", &self.get_project().get_package_name())?;
 
         if self.has_package_ident() {
             let ident = self.get_package_ident();
@@ -138,16 +132,10 @@ impl Serialize for Job {
         }
 
         if self.has_build_started_at() {
-            strukt.serialize_field(
-                "build_started_at",
-                &self.get_build_started_at(),
-            )?;
+            strukt.serialize_field("build_started_at", &self.get_build_started_at())?;
         }
         if self.has_build_finished_at() {
-            strukt.serialize_field(
-                "build_finished_at",
-                &self.get_build_finished_at(),
-            )?;
+            strukt.serialize_field("build_finished_at", &self.get_build_finished_at())?;
         }
 
         strukt.serialize_field("state", &self.get_state())?;
@@ -506,10 +494,7 @@ impl Serialize for JobGroupProject {
         strukt.serialize_field("name", &self.get_name())?;
         strukt.serialize_field("ident", &self.get_ident())?;
         strukt.serialize_field("state", &self.get_state())?;
-        strukt.serialize_field(
-            "job_id",
-            &self.get_job_id().to_string(),
-        )?;
+        strukt.serialize_field("job_id", &self.get_job_id().to_string())?;
         strukt.end()
     }
 }
@@ -524,10 +509,7 @@ impl Serialize for JobGroup {
         strukt.serialize_field("state", &self.get_state())?;
         strukt.serialize_field("projects", &self.get_projects())?;
         strukt.serialize_field("created_at", &self.get_created_at())?;
-        strukt.serialize_field(
-            "project_name",
-            &self.get_project_name(),
-        )?;
+        strukt.serialize_field("project_name", &self.get_project_name())?;
         strukt.end()
     }
 }
@@ -537,10 +519,7 @@ impl Serialize for JobGraphPackageReverseDependencies {
     where
         S: Serializer,
     {
-        let mut strukt = serializer.serialize_struct(
-            "job_graph_package_reverse_dependencies",
-            3,
-        )?;
+        let mut strukt = serializer.serialize_struct("job_graph_package_reverse_dependencies", 3)?;
         strukt.serialize_field("origin", &self.get_origin())?;
         strukt.serialize_field("name", &self.get_name())?;
         strukt.serialize_field("rdeps", &self.get_rdeps())?;
@@ -556,10 +535,7 @@ impl Serialize for JobGraphPackageStats {
         let mut strukt = serializer.serialize_struct("job_graph_package_stats", 2)?;
         strukt.serialize_field("plans", &self.get_plans())?;
         strukt.serialize_field("builds", &self.get_builds())?;
-        strukt.serialize_field(
-            "unique_packages",
-            &self.get_unique_packages(),
-        )?;
+        strukt.serialize_field("unique_packages", &self.get_unique_packages())?;
         strukt.end()
     }
 }

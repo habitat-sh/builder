@@ -34,15 +34,13 @@ where
         put_old.as_ref().display()
     );
     match unsafe { ffi::pivot_root(c_new_root.as_ptr(), c_put_old.as_ptr()) } {
-        rc if rc < 0 => {
-            Err(Error::PivotRoot(format!(
-                "pivot_root({}, {}) returned: {} ({})",
-                new_root.as_ref().display(),
-                put_old.as_ref().display(),
-                rc,
-                errno::errno()
-            )))
-        }
+        rc if rc < 0 => Err(Error::PivotRoot(format!(
+            "pivot_root({}, {}) returned: {} ({})",
+            new_root.as_ref().display(),
+            put_old.as_ref().display(),
+            rc,
+            errno::errno()
+        ))),
         _ => Ok(()),
     }
 }

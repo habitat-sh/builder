@@ -118,15 +118,13 @@ fn setns<P: AsRef<Path>>(path: P, nstype: libc::c_int) -> Result<()> {
         nstype,
     );
     match unsafe { libc::setns(fd, nstype) } {
-        rc if rc < 0 => {
-            Err(Error::Setns(format!(
-                "setns({}, {}) returned: {} ({})",
-                path.as_ref().display(),
-                nstype,
-                rc,
-                errno::errno(),
-            )))
-        }
+        rc if rc < 0 => Err(Error::Setns(format!(
+            "setns({}, {}) returned: {} ({})",
+            path.as_ref().display(),
+            nstype,
+            rc,
+            errno::errno(),
+        ))),
         _ => Ok(()),
     }
 }
@@ -138,9 +136,10 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
     let line = {
         let file = File::open(path)?;
         let file = BufReader::new(file);
-        match file.lines().map(|l| l.unwrap()).find(|ref line| {
-            line.split(":").next().unwrap_or("") == entry
-        }) {
+        match file.lines()
+            .map(|l| l.unwrap())
+            .find(|ref line| line.split(":").next().unwrap_or("") == entry)
+        {
             Some(line) => line,
             None => {
                 return Err(Error::FileEntryNotFound(

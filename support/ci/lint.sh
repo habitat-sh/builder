@@ -47,12 +47,23 @@ exit_with() {
 }
 
 program=$(basename $0)
-rf_version="0.9.0"
+rf_version="0.3.8"
 
 # Fix commit range in Travis, if set.
 # See: https://github.com/travis-ci/travis-ci/issues/4596
 if [ -n "${TRAVIS_COMMIT_RANGE:-}" ]; then
   TRAVIS_COMMIT_RANGE="${TRAVIS_COMMIT_RANGE/.../..}"
+fi
+
+# Since we removed the generated protocol files from the repo, we need to
+# ensure they're present before linting, otherwise rustfmt will die.
+this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ ! -f "$this_dir/../../components/builder-protocol/src/message/jobsrv.rs" ]; then
+  echo "There are no generated protocol files in builder-protocol/src/message. Regenerating those now."
+  pushd "$this_dir/../../components/builder-protocol"
+  cargo clean
+  cargo build
+  popd
 fi
 
 info "Checking for rustfmt"
@@ -63,6 +74,7 @@ fi
 info "Checking for version $rf_version of rustfmt"
 actual="$(rustfmt --version | cut -d ' ' -f 1)"
 if [[ "$actual" != "$rf_version-nightly" ]]; then
+  echo "rustfmt is located at $(which rustfmt)"
   exit_with "\`rustfmt' version $actual doesn't match expected: $rf_version" 2
 fi
 

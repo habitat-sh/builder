@@ -27,11 +27,9 @@ pub fn check_running_user_is_root() -> Result<()> {
 }
 
 pub fn gid_for_groupname(groupname: &str) -> Result<u32> {
-    Ok(
-        users::get_group_by_name(groupname)
-            .ok_or(Error::GroupnameNotFound(String::from(groupname)))?
-            .gid(),
-    )
+    Ok(users::get_group_by_name(groupname)
+        .ok_or(Error::GroupnameNotFound(String::from(groupname)))?
+        .gid())
 }
 
 pub fn uid_for_username(username: &str) -> Result<u32> {

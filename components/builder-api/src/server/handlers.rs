@@ -29,14 +29,14 @@ use hyper::status::StatusCode;
 use iron::status;
 use params::{FromValue, Params};
 use persistent;
-use protocol::jobsrv::{Job, JobGet, JobLogGet, JobLog, JobState, ProjectJobsGet,
-                       ProjectJobsGetResponse, JobGroupCancel, JobGroupGet, JobGroup};
-use protocol::jobsrv::{JobGraphPackageReverseDependenciesGet, JobGraphPackageReverseDependencies};
+use protocol::jobsrv::{Job, JobGet, JobGroup, JobGroupCancel, JobGroupGet, JobLog, JobLogGet,
+                       JobState, ProjectJobsGet, ProjectJobsGetResponse};
+use protocol::jobsrv::{JobGraphPackageReverseDependencies, JobGraphPackageReverseDependenciesGet};
 use protocol::originsrv::*;
 use protocol::sessionsrv::{Account, AccountGet, AccountGetId, AccountInvitationListRequest,
                            AccountInvitationListResponse, AccountOriginListRequest,
-                           AccountOriginListResponse, AccountUpdate, AccountToken,
-                           AccountTokenCreate, AccountTokensGet, AccountTokens, AccountTokenRevoke};
+                           AccountOriginListResponse, AccountToken, AccountTokenCreate,
+                           AccountTokenRevoke, AccountTokens, AccountTokensGet, AccountUpdate};
 use router::Router;
 use serde_json;
 
@@ -78,17 +78,13 @@ pub fn account_show(req: &mut Request) -> IronResult<Response> {
 
 pub fn search(req: &mut Request) -> IronResult<Response> {
     match req.get::<bodyparser::Struct<SearchTerm>>() {
-        Ok(Some(body)) => {
-            match &*body.entity.to_lowercase() {
-                "account" => search_account(req, body.attr, body.value),
-                entity => {
-                    Ok(Response::with((
-                        status::UnprocessableEntity,
-                        format!("Unknown search entity: {}", entity),
-                    )))
-                }
-            }
-        }
+        Ok(Some(body)) => match &*body.entity.to_lowercase() {
+            "account" => search_account(req, body.attr, body.value),
+            entity => Ok(Response::with((
+                status::UnprocessableEntity,
+                format!("Unknown search entity: {}", entity),
+            ))),
+        },
         _ => Ok(Response::with(status::UnprocessableEntity)),
     }
 }
@@ -126,9 +122,7 @@ pub fn authenticate(req: &mut Request) -> IronResult<Response> {
     };
 
     if env::var_os("HAB_FUNC_TEST").is_some() {
-        let session = {
-            session_create_short_circuit(req, &code)?
-        };
+        let session = { session_create_short_circuit(req, &code)? };
         return Ok(render_json(status::Ok, &session));
     }
 
@@ -259,15 +253,13 @@ pub fn generate_access_token(req: &mut Request) -> IronResult<Response> {
 
 pub fn revoke_access_token(req: &mut Request) -> IronResult<Response> {
     let token_id = match get_param(req, "id") {
-        Some(id) => {
-            match id.parse::<u64>() {
-                Ok(n) => n,
-                Err(e) => {
-                    debug!("Bad id param. e = {:?}", e);
-                    return Ok(Response::with(status::BadRequest));
-                }
+        Some(id) => match id.parse::<u64>() {
+            Ok(n) => n,
+            Err(e) => {
+                debug!("Bad id param. e = {:?}", e);
+                return Ok(Response::with(status::BadRequest));
             }
-        }
+        },
         None => return Ok(Response::with(status::BadRequest)),
     };
 
@@ -283,7 +275,6 @@ pub fn revoke_access_token(req: &mut Request) -> IronResult<Response> {
 // This route is only available if jobsrv_enabled is true
 pub fn job_group_promote(req: &mut Request) -> IronResult<Response> {
     job_group_promote_or_demote(req, true)
-
 }
 
 // This route is only available if jobsrv_enabled is true
@@ -294,15 +285,13 @@ pub fn job_group_demote(req: &mut Request) -> IronResult<Response> {
 // This route is only available if jobsrv_enabled is true
 fn job_group_promote_or_demote(req: &mut Request, promote: bool) -> IronResult<Response> {
     let group_id = match get_param(req, "id") {
-        Some(id) => {
-            match id.parse::<u64>() {
-                Ok(g) => g,
-                Err(e) => {
-                    debug!("Error finding group. e = {:?}", e);
-                    return Ok(Response::with(status::BadRequest));
-                }
+        Some(id) => match id.parse::<u64>() {
+            Ok(g) => g,
+            Err(e) => {
+                debug!("Error finding group. e = {:?}", e);
+                return Ok(Response::with(status::BadRequest));
             }
-        }
+        },
         None => return Ok(Response::with(status::BadRequest)),
     };
 
@@ -340,15 +329,13 @@ fn job_group_promote_or_demote(req: &mut Request, promote: bool) -> IronResult<R
 // This route is only available if jobsrv_enabled is true
 pub fn job_group_cancel(req: &mut Request) -> IronResult<Response> {
     let group_id = match get_param(req, "id") {
-        Some(id) => {
-            match id.parse::<u64>() {
-                Ok(g) => g,
-                Err(e) => {
-                    debug!("Error finding group. e = {:?}", e);
-                    return Ok(Response::with(status::BadRequest));
-                }
+        Some(id) => match id.parse::<u64>() {
+            Ok(g) => g,
+            Err(e) => {
+                debug!("Error finding group. e = {:?}", e);
+                return Ok(Response::with(status::BadRequest));
             }
-        }
+        },
         None => return Ok(Response::with(status::BadRequest)),
     };
 
@@ -403,12 +390,10 @@ pub fn validate_registry_credentials(req: &mut Request) -> IronResult<Response> 
 
     let url = match body["url"].as_str() {
         Some(url) => url,
-        None => {
-            match registry_type.as_ref() {
-                "docker" => "https://hub.docker.com/v2",
-                _ => return Ok(Response::with(status::BadRequest)),
-            }
-        }
+        None => match registry_type.as_ref() {
+            "docker" => "https://hub.docker.com/v2",
+            _ => return Ok(Response::with(status::BadRequest)),
+        },
     };
 
     let client = match ApiClient::new(url, PRODUCT, VERSION, None) {
@@ -428,15 +413,13 @@ pub fn validate_registry_credentials(req: &mut Request) -> IronResult<Response> 
         .send();
 
     match result {
-        Ok(response) => {
-            match response.status {
-                StatusCode::Ok => Ok(Response::with(status::NoContent)),
-                _ => {
-                    debug!("Non-OK Response: {}", &response.status);
-                    Ok(Response::with(response.status))
-                }
+        Ok(response) => match response.status {
+            StatusCode::Ok => Ok(Response::with(status::NoContent)),
+            _ => {
+                debug!("Non-OK Response: {}", &response.status);
+                Ok(Response::with(response.status))
             }
-        }
+        },
         Err(e) => {
             debug!("Error sending request: {:?}", e);
             Ok(Response::with(status::Forbidden))
@@ -521,15 +504,13 @@ pub fn rdeps_show(req: &mut Request) -> IronResult<Response> {
 pub fn job_show(req: &mut Request) -> IronResult<Response> {
     let mut request = JobGet::new();
     match get_param(req, "id") {
-        Some(id) => {
-            match id.parse::<u64>() {
-                Ok(i) => request.set_id(i),
-                Err(e) => {
-                    debug!("Error finding id. e = {:?}", e);
-                    return Ok(Response::with(status::BadRequest));
-                }
+        Some(id) => match id.parse::<u64>() {
+            Ok(i) => request.set_id(i),
+            Err(e) => {
+                debug!("Error finding id. e = {:?}", e);
+                return Ok(Response::with(status::BadRequest));
             }
-        }
+        },
         None => return Ok(Response::with(status::BadRequest)),
     }
 
@@ -582,18 +563,16 @@ pub fn job_log(req: &mut Request) -> IronResult<Response> {
     request.set_start(start);
 
     match get_param(req, "id") {
-        Some(id) => {
-            match id.parse::<u64>() {
-                Ok(i) => {
-                    request.set_id(i);
-                    job_get.set_id(i);
-                }
-                Err(e) => {
-                    debug!("Error parsing id. e = {:?}", e);
-                    return Ok(Response::with(status::BadRequest));
-                }
+        Some(id) => match id.parse::<u64>() {
+            Ok(i) => {
+                request.set_id(i);
+                job_get.set_id(i);
             }
-        }
+            Err(e) => {
+                debug!("Error parsing id. e = {:?}", e);
+                return Ok(Response::with(status::BadRequest));
+            }
+        },
         None => return Ok(Response::with(status::BadRequest)),
     }
 
@@ -609,11 +588,11 @@ pub fn job_log(req: &mut Request) -> IronResult<Response> {
             let mut project_get = OriginProjectGet::new();
             project_get.set_name(job.get_project().get_name().to_string());
 
-            let project =
-                match route_message::<OriginProjectGet, OriginProject>(req, &project_get) {
-                    Ok(p) => p,
-                    Err(err) => return Ok(render_net_error(&err)),
-                };
+            let project = match route_message::<OriginProjectGet, OriginProject>(req, &project_get)
+            {
+                Ok(p) => p,
+                Err(err) => return Ok(render_net_error(&err)),
+            };
 
             if vec![
                 OriginPackageVisibility::Private,
@@ -747,27 +726,23 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
     };
 
     match github.contents(&token, repo_id, &project.get_plan_path()) {
-        Ok(Some(contents)) => {
-            match contents.decode() {
-                Ok(bytes) => {
-                    match Plan::from_bytes(bytes.as_slice()) {
-                        Ok(plan) => {
-                            project.set_origin_name(String::from(origin.get_name()));
-                            project.set_origin_id(origin.get_id());
-                            project.set_package_name(String::from(plan.name.trim_matches('"')));
-                        }
-                        Err(e) => {
-                            debug!("Error matching Plan. e = {:?}", e);
-                            return Ok(Response::with((status::UnprocessableEntity, "rg:pc:3")));
-                        }
-                    }
+        Ok(Some(contents)) => match contents.decode() {
+            Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
+                Ok(plan) => {
+                    project.set_origin_name(String::from(origin.get_name()));
+                    project.set_origin_id(origin.get_id());
+                    project.set_package_name(String::from(plan.name.trim_matches('"')));
                 }
                 Err(e) => {
-                    error!("Base64 decode failure: {:?}", e);
-                    return Ok(Response::with((status::UnprocessableEntity, "rg:pc:4")));
+                    debug!("Error matching Plan. e = {:?}", e);
+                    return Ok(Response::with((status::UnprocessableEntity, "rg:pc:3")));
                 }
+            },
+            Err(e) => {
+                error!("Base64 decode failure: {:?}", e);
+                return Ok(Response::with((status::UnprocessableEntity, "rg:pc:4")));
             }
-        }
+        },
         Ok(None) => return Ok(Response::with((status::NotFound, "rg:pc:5"))),
         Err(e) => {
             warn!("Error fetching contents from GH. e = {:?}", e);
@@ -888,30 +863,26 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
     };
 
     match github.contents(&token, repo_id, &project.get_plan_path()) {
-        Ok(Some(contents)) => {
-            match contents.decode() {
-                Ok(bytes) => {
-                    match Plan::from_bytes(bytes.as_slice()) {
-                        Ok(plan) => {
-                            debug!("plan = {:?}", &plan);
-                            if plan.name != name {
-                                return Ok(Response::with((status::UnprocessableEntity, "rg:pu:7")));
-                            }
-                            project.set_origin_name(String::from(origin));
-                            project.set_package_name(String::from(name));
-                        }
-                        Err(e) => {
-                            debug!("Error matching Plan. e = {:?}", e);
-                            return Ok(Response::with((status::UnprocessableEntity, "rg:pu:3")));
-                        }
+        Ok(Some(contents)) => match contents.decode() {
+            Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
+                Ok(plan) => {
+                    debug!("plan = {:?}", &plan);
+                    if plan.name != name {
+                        return Ok(Response::with((status::UnprocessableEntity, "rg:pu:7")));
                     }
+                    project.set_origin_name(String::from(origin));
+                    project.set_package_name(String::from(name));
                 }
                 Err(e) => {
-                    debug!("Error decoding content from b64. e = {:?}", e);
-                    return Ok(Response::with((status::UnprocessableEntity, "rg:pu:4")));
+                    debug!("Error matching Plan. e = {:?}", e);
+                    return Ok(Response::with((status::UnprocessableEntity, "rg:pu:3")));
                 }
+            },
+            Err(e) => {
+                debug!("Error decoding content from b64. e = {:?}", e);
+                return Ok(Response::with((status::UnprocessableEntity, "rg:pu:4")));
             }
-        }
+        },
         Ok(None) => return Ok(Response::with((status::NotFound, "rg:pu:6"))),
         Err(e) => {
             warn!("Erroring fetching contents from GH. e = {:?}", e);
@@ -1014,24 +985,26 @@ pub fn project_jobs(req: &mut Request) -> IronResult<Response> {
             let list: Vec<serde_json::Value> = response
                 .get_jobs()
                 .iter()
-                .map(|job| if job.get_state() == JobState::Complete {
-                    let channels =
-                        helpers::channels_for_package_ident(req, &job.get_package_ident());
-                    let platforms =
-                        helpers::platforms_for_package_ident(req, &job.get_package_ident());
-                    let mut job_json = serde_json::to_value(job).unwrap();
+                .map(|job| {
+                    if job.get_state() == JobState::Complete {
+                        let channels =
+                            helpers::channels_for_package_ident(req, &job.get_package_ident());
+                        let platforms =
+                            helpers::platforms_for_package_ident(req, &job.get_package_ident());
+                        let mut job_json = serde_json::to_value(job).unwrap();
 
-                    if channels.is_some() {
-                        job_json["channels"] = json!(channels);
+                        if channels.is_some() {
+                            job_json["channels"] = json!(channels);
+                        }
+
+                        if platforms.is_some() {
+                            job_json["platforms"] = json!(platforms);
+                        }
+
+                        job_json
+                    } else {
+                        serde_json::to_value(job).unwrap()
                     }
-
-                    if platforms.is_some() {
-                        job_json["platforms"] = json!(platforms);
-                    }
-
-                    job_json
-                } else {
-                    serde_json::to_value(job).unwrap()
                 })
                 .collect();
 
@@ -1149,17 +1122,15 @@ pub fn get_project_integration(req: &mut Request) -> IronResult<Response> {
             };
             Ok(render_json(status::Ok, &v))
         }
-        Err(err) => {
-            match err.get_code() {
-                ErrCode::ENTITY_NOT_FOUND => Ok(Response::with((status::NotFound))),
-                _ => {
-                    error!(
-                        "Unexpected error retrieving project integration, err={:?}",
-                        err
-                    );
-                    Ok(Response::with((status::InternalServerError, "api:gpi:2")))
-                }
+        Err(err) => match err.get_code() {
+            ErrCode::ENTITY_NOT_FOUND => Ok(Response::with((status::NotFound))),
+            _ => {
+                error!(
+                    "Unexpected error retrieving project integration, err={:?}",
+                    err
+                );
+                Ok(Response::with((status::InternalServerError, "api:gpi:2")))
             }
-        }
+        },
     }
 }

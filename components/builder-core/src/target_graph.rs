@@ -50,8 +50,7 @@ impl TargetGraph {
             Err(err) => {
                 error!(
                     "Invalid target specified for TargetGraph: {}! Err: {}",
-                    target_str,
-                    err
+                    target_str, err
                 );
                 None
             }
@@ -64,8 +63,7 @@ impl TargetGraph {
             Err(err) => {
                 error!(
                     "Invalid target specified for TargetGraph: {}! Err: {}",
-                    target_str,
-                    err
+                    target_str, err
                 );
                 None
             }

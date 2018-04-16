@@ -43,9 +43,10 @@ impl Master {
     pub fn ptsname(&self) -> Result<PathBuf> {
         let ptr = match unsafe { libc::ptsname(self.0) } {
             c if c.is_null() => {
-                return Err(Error::Ptsname(
-                    format!("ptsname({}) returned: NULL pointer", self.0,),
-                ))
+                return Err(Error::Ptsname(format!(
+                    "ptsname({}) returned: NULL pointer",
+                    self.0,
+                )))
             }
             c => c,
         };
@@ -55,25 +56,21 @@ impl Master {
     }
 
     fn new<P: AsRef<Path>>(ptmx_path: P) -> Result<Self> {
-        let c_path = CString::new(ptmx_path.as_ref().to_string_lossy().as_ref())
-            .map_err(|err| {
-                Error::CreateMaster(format!(
-                    "cannot create c string from path: {} ({})",
-                    ptmx_path.as_ref().display(),
-                    err
-                ))
-            })?;
-
+        let c_path = CString::new(ptmx_path.as_ref().to_string_lossy().as_ref()).map_err(|err| {
+            Error::CreateMaster(format!(
+                "cannot create c string from path: {} ({})",
+                ptmx_path.as_ref().display(),
+                err
+            ))
+        })?;
 
         match unsafe { libc::open(c_path.as_ptr(), libc::O_RDWR) } {
-            fd if fd < 0 => {
-                Err(Error::CreateMaster(format!(
+            fd if fd < 0 => Err(Error::CreateMaster(format!(
                 "open({}) returned: {} ({})",
                 ptmx_path.as_ref().display(),
                 fd,
                 errno::errno(),
-            )))
-            }
+            ))),
             fd => Ok(Master(fd)),
         }
     }
@@ -81,14 +78,12 @@ impl Master {
     // Grant access to the slave pseudoterminal
     fn grantpt(&self) -> Result<()> {
         match unsafe { libc::grantpt(self.0) } {
-            rc if rc < 0 => {
-                Err(Error::Grantpt(format!(
+            rc if rc < 0 => Err(Error::Grantpt(format!(
                 "grantpt({}) returned: {} ({})",
                 self.0,
                 rc,
                 errno::errno(),
-            )))
-            }
+            ))),
             _ => Ok(()),
         }
     }
@@ -96,14 +91,12 @@ impl Master {
     // Unlocks the pseudoterminal master/slave pair
     fn unlockpt(&self) -> Result<()> {
         match unsafe { libc::unlockpt(self.0) } {
-            rc if rc < 0 => {
-                Err(Error::Unlockpt(format!(
+            rc if rc < 0 => Err(Error::Unlockpt(format!(
                 "unlockpt({}) returned: {} ({})",
                 self.0,
                 rc,
                 errno::errno(),
-            )))
-            }
+            ))),
             _ => Ok(()),
         }
     }

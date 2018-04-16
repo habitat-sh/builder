@@ -19,7 +19,7 @@ use std::str::FromStr;
 pub use core::config::ConfigFile;
 use num_cpus;
 use protocol::routesrv::DEFAULT_ROUTER_PORT;
-use protocol::sharding::{SHARD_COUNT, ShardId};
+use protocol::sharding::{ShardId, SHARD_COUNT};
 use toml;
 
 use socket::ToAddrString;

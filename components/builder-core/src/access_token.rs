@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use std::path::PathBuf;
-use chrono::{self, Utc, TimeZone, Duration};
+use chrono::{self, Duration, TimeZone, Utc};
 use chrono::LocalResult::Single;
 use hab_net::privilege::FeatureFlags;
 use error::{Error, Result};
-use integrations::{encrypt, decrypt, validate};
+use integrations::{decrypt, encrypt, validate};
 use protocol::{message, sessionsrv};
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;

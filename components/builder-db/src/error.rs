@@ -55,12 +55,10 @@ impl fmt::Display for Error {
             Error::AsyncMalformedChannel(ref e) => {
                 format!("Notification received, but the channel is malformed, {}", e)
             }
-            Error::AsyncMalformedShardId(ref e) => {
-                format!(
-                    "Notification received, but the channels shard id is malformed, {}",
-                    e
-                )
-            }
+            Error::AsyncMalformedShardId(ref e) => format!(
+                "Notification received, but the channels shard id is malformed, {}",
+                e
+            ),
             Error::AsyncFunctionCheck(ref e) => {
                 format!("Async function database check failed, {}", e)
             }

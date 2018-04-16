@@ -77,34 +77,28 @@ impl fmt::Display for Error {
             Error::AirlockFailure(ref e) => {
                 format!("Airlock networking exited with non-zero exit code, {}", e)
             }
-            Error::AirlockNetworking(ref p, ref e) => {
-                format!(
-                    "Error while running airlock networking command for {}, err={}",
-                    p.display(),
-                    e
-                )
-            }
-            Error::BuildEnvFile(ref p, ref e) => {
-                format!(
-                    "Unable to read workspace build env file, {}, {}",
-                    p.display(),
-                    e
-                )
-            }
+            Error::AirlockNetworking(ref p, ref e) => format!(
+                "Error while running airlock networking command for {}, err={}",
+                p.display(),
+                e
+            ),
+            Error::BuildEnvFile(ref p, ref e) => format!(
+                "Unable to read workspace build env file, {}, {}",
+                p.display(),
+                e
+            ),
             Error::BuildFailure(ref e) => {
                 format!("Build studio exited with non-zero exit code, {}", e)
             }
             Error::BuilderCore(ref e) => format!("{}", e),
             Error::CannotAddCreds => format!("Cannot add credentials to url"),
-            Error::Chown(ref p, ref u, ref g, ref e) => {
-                format!(
-                    "Unable to recursively chown path, {} with '{}:{}', {}",
-                    p.display(),
-                    u,
-                    g,
-                    e
-                )
-            }
+            Error::Chown(ref p, ref u, ref g, ref e) => format!(
+                "Unable to recursively chown path, {} with '{}:{}', {}",
+                p.display(),
+                u,
+                g,
+                e
+            ),
             Error::ChownWait(ref e) => format!("Unable to complete chown process, {}", e),
             Error::CreateDirectory(ref p, ref e) => {
                 format!("Unable to create directory {}, err={}", p.display(), e)
@@ -121,12 +115,10 @@ impl fmt::Display for Error {
             Error::InvalidIntegrations(ref s) => format!("Invalid integration: {}", s),
             Error::NoNetworkGatewayError => format!("No network_gateway config specified"),
             Error::NoNetworkInterfaceError => format!("No network_interface config specified"),
-            Error::NotHTTPSCloneUrl(ref e) => {
-                format!(
-                    "Attempted to clone {}. Only HTTPS clone urls are supported",
-                    e
-                )
-            }
+            Error::NotHTTPSCloneUrl(ref e) => format!(
+                "Attempted to clone {}. Only HTTPS clone urls are supported",
+                e
+            ),
             Error::NoStudioGroup => {
                 format!("System is missing studio group, {}", studio::STUDIO_GROUP)
             }
@@ -136,29 +128,23 @@ impl fmt::Display for Error {
             Error::Protobuf(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::Retry(ref e) => format!("{}", e),
-            Error::StreamLine(ref e) => {
-                format!(
-                    "Error while reading a line while consuming an output stream, err={}",
-                    e
-                )
-            }
+            Error::StreamLine(ref e) => format!(
+                "Error while reading a line while consuming an output stream, err={}",
+                e
+            ),
             Error::StreamTargetSend(ref e) => {
                 format!("Error while writing a message to the job stream, err={}", e)
             }
-            Error::StudioBuild(ref p, ref e) => {
-                format!(
-                    "Error while running studio build at {}, err={}",
-                    p.display(),
-                    e
-                )
-            }
-            Error::StudioTeardown(ref p, ref e) => {
-                format!(
-                    "Error while tearing down studio at {}, err={}",
-                    p.display(),
-                    e
-                )
-            }
+            Error::StudioBuild(ref p, ref e) => format!(
+                "Error while running studio build at {}, err={}",
+                p.display(),
+                e
+            ),
+            Error::StudioTeardown(ref p, ref e) => format!(
+                "Error while tearing down studio at {}, err={}",
+                p.display(),
+                e
+            ),
             Error::UrlParseError(ref e) => format!("{}", e),
             Error::WorkspaceSetup(ref p, ref e) => {
                 format!("Error while setting up workspace at {}, err={}", p, e)

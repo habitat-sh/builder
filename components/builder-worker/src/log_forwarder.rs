@@ -58,7 +58,9 @@ impl LogForwarder {
         let jobsrv_addrs = config.jobsrv_addrs();
         let handle = thread::Builder::new()
             .name("log".to_string())
-            .spawn(move || { log.run(tx, jobsrv_addrs).unwrap(); })
+            .spawn(move || {
+                log.run(tx, jobsrv_addrs).unwrap();
+            })
             .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
@@ -88,17 +90,14 @@ impl LogForwarder {
         // This hacky sleep is recommended and required by zmq for connections to establish
         thread::sleep(Duration::from_millis(100));
 
-        self.logger.log(
-            "Starting proxy between log_pipe and jobsrv",
-        );
+        self.logger
+            .log("Starting proxy between log_pipe and jobsrv");
 
         // If we ever have multiple JobServers these need to be sent to, then we might need some
         // additional logic.
         if let Err(e) = zmq::proxy(&mut self.intake_sock, &mut self.output_sock) {
-            self.logger.log(
-                format!("ZMQ proxy returned an error: {:?}", e)
-                    .as_ref(),
-            );
+            self.logger
+                .log(format!("ZMQ proxy returned an error: {:?}", e).as_ref());
             return Err(Error::Zmq(e));
         }
         Ok(())

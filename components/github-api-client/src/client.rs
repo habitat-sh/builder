@@ -14,15 +14,15 @@
 
 use std::collections::HashMap;
 use std::io::Read;
-use std::time::{UNIX_EPOCH, Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use builder_core::metrics::CounterMetric;
 use hab_http::ApiClient;
 use hyper::{self, Url};
 use hyper::client::IntoUrl;
 use hyper::status::StatusCode;
-use hyper::header::{Authorization, Accept, Bearer, UserAgent, qitem};
-use hyper::mime::{Mime, TopLevel, SubLevel};
+use hyper::header::{qitem, Accept, Authorization, Bearer, UserAgent};
+use hyper::mime::{Mime, SubLevel, TopLevel};
 use jwt;
 use oauth_common::{OAuthError, OAuthResult, OAuthUserToken};
 use oauth_common::types::*;
@@ -99,9 +99,7 @@ impl GitHubClient {
 
     pub fn app(&self) -> HubResult<App> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id);
-        let url = Url::parse(&format!("{}/app", self.api_url)).map_err(
-            HubError::HttpClientParse,
-        )?;
+        let url = Url::parse(&format!("{}/app", self.api_url)).map_err(HubError::HttpClientParse)?;
         let mut rep = http_get(url, Some(app_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -118,8 +116,7 @@ impl GitHubClient {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id);
         let url = Url::parse(&format!(
             "{}/installations/{}/access_tokens",
-            self.api_url,
-            install_id
+            self.api_url, install_id
         )).map_err(HubError::HttpClientParse)?;
 
         Counter::InstallationToken.increment();
@@ -140,9 +137,7 @@ impl GitHubClient {
     pub fn contents(&self, token: &AppToken, repo: u32, path: &str) -> HubResult<Option<Contents>> {
         let url = Url::parse(&format!(
             "{}/repositories/{}/contents/{}",
-            self.api_url,
-            repo,
-            path
+            self.api_url, repo, path
         )).map_err(HubError::HttpClientParse)?;
 
         Counter::Api("contents").increment();
@@ -252,9 +247,8 @@ impl OAuthClient for GitHubClient {
             return Err(OAuthError::HttpResponse(rep.status, body));
         }
 
-        let user: serde_json::Value = serde_json::from_str(&body).map_err(
-            OAuthError::Serialization,
-        )?;
+        let user: serde_json::Value =
+            serde_json::from_str(&body).map_err(OAuthError::Serialization)?;
 
         // Gitlab API has username instead of login
         // TODO: Convert this to use a structured deserialization and
@@ -330,23 +324,25 @@ where
     }
 
     let client = http_client(endpoint.as_str())?;
-    let req = client.get_with_custom_url(path, |url| if u.query().is_some() {
-        url.set_query(Some(u.query().unwrap()))
+    let req = client.get_with_custom_url(path, |url| {
+        if u.query().is_some() {
+            url.set_query(Some(u.query().unwrap()))
+        }
     });
 
     let req = req.header(Accept(vec![
-        qitem(
-            Mime(TopLevel::Application, SubLevel::Json, vec![])
-        ),
+        qitem(Mime(TopLevel::Application, SubLevel::Json, vec![])),
         qitem("application/vnd.github.v3+json".parse().unwrap()),
         qitem(
             "application/vnd.github.machine-man-preview+json"
                 .parse()
-                .unwrap()
+                .unwrap(),
         ),
     ])).header(UserAgent(USER_AGENT.to_string()));
     let req = match token {
-        Some(token) => req.header(Authorization(Bearer { token: token.to_string() })),
+        Some(token) => req.header(Authorization(Bearer {
+            token: token.to_string(),
+        })),
         None => req,
     };
     req.send().map_err(HubError::HttpClient)
@@ -366,23 +362,25 @@ where
     }
 
     let client = http_client(endpoint.as_str())?;
-    let req = client.post_with_custom_url(path, |url| if u.query().is_some() {
-        url.set_query(Some(u.query().unwrap()))
+    let req = client.post_with_custom_url(path, |url| {
+        if u.query().is_some() {
+            url.set_query(Some(u.query().unwrap()))
+        }
     });
 
     let req = req.header(Accept(vec![
-        qitem(
-            Mime(TopLevel::Application, SubLevel::Json, vec![])
-        ),
+        qitem(Mime(TopLevel::Application, SubLevel::Json, vec![])),
         qitem("application/vnd.github.v3+json".parse().unwrap()),
         qitem(
             "application/vnd.github.machine-man-preview+json"
                 .parse()
-                .unwrap()
+                .unwrap(),
         ),
     ])).header(UserAgent(USER_AGENT.to_string()));
     let req = match token {
-        Some(token) => req.header(Authorization(Bearer { token: token.to_string() })),
+        Some(token) => req.header(Authorization(Bearer {
+            token: token.to_string(),
+        })),
         None => req,
     };
     req.send().map_err(HubError::HttpClient)

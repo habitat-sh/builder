@@ -92,24 +92,21 @@ impl NetCfg {
     pub fn worker_command_addr(&self) -> String {
         format!(
             "tcp://{}:{}",
-            self.worker_command_listen,
-            self.worker_command_port
+            self.worker_command_listen, self.worker_command_port
         )
     }
 
     pub fn worker_heartbeat_addr(&self) -> String {
         format!(
             "tcp://{}:{}",
-            self.worker_heartbeat_listen,
-            self.worker_heartbeat_port
+            self.worker_heartbeat_listen, self.worker_heartbeat_port
         )
     }
 
     pub fn log_ingestion_addr(&self) -> String {
         format!(
             "tcp://{}:{}",
-            self.log_ingestion_listen,
-            self.log_ingestion_port
+            self.log_ingestion_listen, self.log_ingestion_port
         )
     }
 }

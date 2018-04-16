@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use hab_core::package::archive::PackageArchive;
 use bldr_core::logger::Logger;
 use config::Config;

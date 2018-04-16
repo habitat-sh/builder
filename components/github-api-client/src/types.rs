@@ -47,8 +47,7 @@ impl fmt::Display for AppAuthErr {
         write!(
             f,
             "message={}, documentation_url={}",
-            self.message,
-            self.documentation_url
+            self.message, self.documentation_url
         )
     }
 }
@@ -72,9 +71,7 @@ impl fmt::Display for AuthErr {
         write!(
             f,
             "err={}, desc={}, uri={}",
-            self.error,
-            self.error_description,
-            self.error_uri
+            self.error, self.error_description, self.error_uri
         )
     }
 }

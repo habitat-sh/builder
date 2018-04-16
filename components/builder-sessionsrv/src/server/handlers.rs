@@ -226,9 +226,7 @@ pub fn account_token_validate(
 }
 
 pub fn cache_tokens_for_account(state: &mut ServerState, account_id: u64) -> SrvResult<()> {
-    let needs_cache_entry = {
-        state.tokens.read().unwrap().get(&account_id).is_none()
-    };
+    let needs_cache_entry = { state.tokens.read().unwrap().get(&account_id).is_none() };
 
     if needs_cache_entry {
         let mut tokens = state.tokens.write().unwrap();

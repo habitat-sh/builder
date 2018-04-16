@@ -122,8 +122,9 @@ macro_rules! datastore_test {
                 let diesel_pool = DieselPool::new(&config).expect("Failed to create pool");
                 let template_pool = Pool::new(&config, shards.clone())
                     .expect("Failed to create pool");
-                let ds = $datastore::from_pool(template_pool, diesel_pool.clone(), shards.clone(), router_pipe.clone())
-                    .expect("Failed to create data store from pool");
+                let ds = $datastore::from_pool(
+                    template_pool, diesel_pool.clone(), shards.clone(), router_pipe.clone()
+                    ).expect("Failed to create data store from pool");
                 ds.setup().expect("Failed to migrate data");
             });
             let test_number = TEST_COUNT.fetch_add(1, Ordering::SeqCst);

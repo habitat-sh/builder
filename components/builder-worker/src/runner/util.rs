@@ -32,9 +32,8 @@ pub fn chown_recursive<P: AsRef<Path>>(path: P, uid: u32, gid: u32) -> Result<()
     debug!("building chown command, cmd={:?}", &cmd);
 
     debug!("spawning chown command");
-    let mut child = cmd.spawn().map_err(|e| {
-        Error::Chown(path.as_ref().to_path_buf(), uid, gid, e)
-    })?;
+    let mut child = cmd.spawn()
+        .map_err(|e| Error::Chown(path.as_ref().to_path_buf(), uid, gid, e))?;
     let exit_status = child.wait().map_err(Error::ChownWait)?;
     debug!("completed chown command, status={:?}", exit_status);
     Ok(())
@@ -86,9 +85,10 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
                     }
                 }
                 None => {
-                    return Err(Error::InvalidIntegrations(
-                        format!("project integration {} missing", str_key),
-                    ));
+                    return Err(Error::InvalidIntegrations(format!(
+                        "project integration {} missing",
+                        str_key
+                    )));
                 }
             }
         }
@@ -104,9 +104,10 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
                     }
                 }
                 None => {
-                    return Err(Error::InvalidIntegrations(
-                        format!("project integration {} missing", bool_key),
-                    ));
+                    return Err(Error::InvalidIntegrations(format!(
+                        "project integration {} missing",
+                        bool_key
+                    )));
                 }
             }
         }
@@ -158,9 +159,10 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
                     }
                 }
                 None => {
-                    return Err(Error::InvalidIntegrations(
-                        format!("origin integration {} missing", str_key),
-                    ));
+                    return Err(Error::InvalidIntegrations(format!(
+                        "origin integration {} missing",
+                        str_key
+                    )));
                 }
             }
         }
@@ -168,7 +170,6 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
     debug!("validated integrations");
     Ok(())
 }
-
 
 /// Builds the Docker exporter details from the origin and project integrations.
 pub fn docker_exporter_spec(workspace: &Workspace) -> DockerExporterSpec {
@@ -180,13 +181,14 @@ pub fn docker_exporter_spec(workspace: &Workspace) -> DockerExporterSpec {
     // above. As a result, Any panics that occur are most likely due to programmer error and not
     // input validation.
 
-    let origin_integration = workspace.job.get_integrations().first().expect(
-        "Origin integrations must not be empty",
-    );
+    let origin_integration = workspace
+        .job
+        .get_integrations()
+        .first()
+        .expect("Origin integrations must not be empty");
 
-    let creds: JsonValue = serde_json::from_str(origin_integration.get_body()).expect(
-        "Origin integrations body must be JSON",
-    );
+    let creds: JsonValue = serde_json::from_str(origin_integration.get_body())
+        .expect("Origin integrations body must be JSON");
 
     let opts: JsonValue = serde_json::from_str(
         workspace

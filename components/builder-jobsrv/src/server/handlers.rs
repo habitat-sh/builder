@@ -225,16 +225,14 @@ pub fn job_group_cancel(
     jgc.set_group_id(msg.get_group_id());
 
     let group = match state.datastore.get_job_group(&jgc) {
-        Ok(group_opt) => {
-            match group_opt {
-                Some(group) => group,
-                None => {
-                    let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-cancel:1");
-                    conn.route_reply(req, &*err)?;
-                    return Ok(());
-                }
+        Ok(group_opt) => match group_opt {
+            Some(group) => group,
+            None => {
+                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-cancel:1");
+                conn.route_reply(req, &*err)?;
+                return Ok(());
             }
-        }
+        },
         Err(err) => {
             warn!(
                 "Failed to get group {} from datastore: {:?}",
@@ -253,9 +251,10 @@ pub fn job_group_cancel(
     state.datastore.cancel_job_group(group.get_id())?;
 
     // Set all the InProgress projects jobs to CancelPending
-    for project in group.get_projects().iter().filter(|&ref p| {
-        p.get_state() == jobsrv::JobGroupProjectState::InProgress
-    })
+    for project in group
+        .get_projects()
+        .iter()
+        .filter(|&ref p| p.get_state() == jobsrv::JobGroupProjectState::InProgress)
     {
         let job_id = project.get_job_id();
         let mut req = jobsrv::JobGet::new();
@@ -268,10 +267,7 @@ pub fn job_group_cancel(
                 state.datastore.update_job(&job)?;
             }
             None => {
-                warn!(
-                    "Unable to cancel job {:?} (not found)",
-                    job_id,
-                );
+                warn!("Unable to cancel job {:?} (not found)", job_id,);
             }
         }
     }

@@ -60,12 +60,12 @@ impl fmt::Display for Error {
         let msg = match *self {
             Error::Command(ref e) => format!("Error calling command, exited {}", e),
             Error::CreateMaster(ref e) => format!("Error creating pseudoterminal master, {}", e),
-            Error::EffectiveGroupnameNotFound => String::from(
-                "Could not determine groupname of process",
-            ),
-            Error::EffectiveUsernameNotFound => String::from(
-                "Could not determine username of process",
-            ),
+            Error::EffectiveGroupnameNotFound => {
+                String::from("Could not determine groupname of process")
+            }
+            Error::EffectiveUsernameNotFound => {
+                String::from("Could not determine username of process")
+            }
             Error::FileEntryNotFound(ref e, ref f) => {
                 format!("Could not find file entry {} in {}", e, f)
             }
@@ -75,9 +75,9 @@ impl fmt::Display for Error {
             Error::GidNotFound(ref g) => format!("Could not find group for gid: '{}'", g),
             Error::GroupnameNotFound(ref g) => format!("Could not find local groupname: '{}'", g),
             Error::GroupNotFound(ref g) => format!("Could not find {} unix group", g),
-            Error::HomeDirectoryNotFound => String::from(
-                "Could not determine user's home directory",
-            ),
+            Error::HomeDirectoryNotFound => {
+                String::from("Could not determine user's home directory")
+            }
             Error::InterfaceNotFound(ref i) => format!("Could not find network interface {}", i),
             Error::IpAddressNotFound(ref i) => {
                 format!("Could not find IP address for network interface {}", i)
@@ -91,20 +91,14 @@ impl fmt::Display for Error {
             Error::Ptsname(ref e) => format!("Error calling ptsname, {}", e),
             Error::RootUserRequired => String::from("This command must be run as the root user"),
             Error::Setns(ref e) => format!("Error calling setns, {}", e),
-            Error::SubGidRangeTooSmall(ref r, ref m) => {
-                format!(
-                    "Range '{}' in subgid is too small for user, minimum required: '{}'",
-                    r,
-                    m
-                )
-            }
-            Error::SubUidRangeTooSmall(ref r, ref m) => {
-                format!(
-                    "Range '{}' in subuid is too small for user, minimum required: '{}'",
-                    r,
-                    m
-                )
-            }
+            Error::SubGidRangeTooSmall(ref r, ref m) => format!(
+                "Range '{}' in subgid is too small for user, minimum required: '{}'",
+                r, m
+            ),
+            Error::SubUidRangeTooSmall(ref r, ref m) => format!(
+                "Range '{}' in subuid is too small for user, minimum required: '{}'",
+                r, m
+            ),
             Error::Unlockpt(ref e) => format!("Error calling unlockpt, {}", e),
             Error::Unshare(ref e) => format!("Unshare error: {}", e),
             Error::UserNotInGroup(ref u, ref g) => {

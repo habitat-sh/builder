@@ -15,7 +15,7 @@
 mod handlers;
 
 use std::borrow::Borrow;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use std::sync::RwLock;

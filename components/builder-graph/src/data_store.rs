@@ -19,7 +19,7 @@ use db::pool::Pool;
 use postgres;
 use protocol::jobsrv;
 use protobuf::RepeatedField;
-use error::{Result, Error};
+use error::{Error, Result};
 
 // DataStore inherits Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Debug, Clone)]

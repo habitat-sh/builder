@@ -42,9 +42,8 @@ impl LogDirectory {
     where
         T: AsRef<Path> + Into<PathBuf>,
     {
-        let meta = fs::metadata(&path).map_err(|e| {
-            Error::LogDirDoesNotExist(path.as_ref().into(), e)
-        })?;
+        let meta =
+            fs::metadata(&path).map_err(|e| Error::LogDirDoesNotExist(path.as_ref().into(), e))?;
         if !meta.is_dir() {
             return Err(Error::LogDirIsNotDir(path.into()));
         }

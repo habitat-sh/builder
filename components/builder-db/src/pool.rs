@@ -37,8 +37,7 @@ impl fmt::Debug for Pool {
         write!(
             f,
             "Pool {{ inner: {:?}, shards: {:?} }}",
-            self.inner,
-            self.shards
+            self.inner, self.shards
         )
     }
 }
@@ -51,19 +50,18 @@ impl Pool {
             match r2d2::Pool::builder()
                 .max_size(config.pool_size)
                 .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
-                .build(manager) {
+                .build(manager)
+            {
                 Ok(pool) => {
                     return Ok(Pool {
                         inner: pool,
                         shards: shards,
                     })
                 }
-                Err(e) => {
-                    error!(
-                        "Error initializing connection pool to Postgres, will retry: {}",
-                        e
-                    )
-                }
+                Err(e) => error!(
+                    "Error initializing connection pool to Postgres, will retry: {}",
+                    e
+                ),
             }
             thread::sleep(Duration::from_millis(config.connection_retry_ms));
         }
@@ -85,9 +83,8 @@ impl Pool {
 
         let schema_name = format!("shard_{}", shard_id);
         let sql_search_path = format!("SET search_path TO {}", schema_name);
-        conn.execute(&sql_search_path, &[]).map_err(
-            Error::SchemaSwitch,
-        )?;
+        conn.execute(&sql_search_path, &[])
+            .map_err(Error::SchemaSwitch)?;
         Ok(conn)
     }
 
@@ -95,9 +92,9 @@ impl Pool {
         &self,
         routable: &T,
     ) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>> {
-        let optional_shard_id = routable.route_key().map(
-            |k| k.hash(&mut FnvHasher::default()),
-        );
+        let optional_shard_id = routable
+            .route_key()
+            .map(|k| k.hash(&mut FnvHasher::default()));
 
         let shard_id = match optional_shard_id {
             Some(id) => (id % SHARD_COUNT as u64) as u32,

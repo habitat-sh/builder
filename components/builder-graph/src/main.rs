@@ -1,4 +1,3 @@
-
 // Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,28 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
+extern crate builder_core as bldr_core;
+extern crate clap;
+extern crate copperline;
+extern crate env_logger;
+extern crate habitat_builder_db as db;
+extern crate habitat_builder_protocol as protocol;
+extern crate habitat_core as hab_core;
+extern crate habitat_net as hab_net;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
-extern crate time;
 extern crate petgraph;
-extern crate walkdir;
-extern crate habitat_core as hab_core;
-extern crate builder_core as bldr_core;
-extern crate habitat_builder_protocol as protocol;
-extern crate habitat_builder_db as db;
-extern crate habitat_net as hab_net;
-extern crate clap;
 extern crate postgres;
 extern crate protobuf;
 extern crate r2d2;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate copperline;
+extern crate time;
+extern crate walkdir;
 
 pub mod config;
 pub mod data_store;
@@ -42,7 +41,7 @@ pub mod error;
 
 use std::fs::File;
 use std::io::Write;
-use clap::{Arg, App};
+use clap::{App, Arg};
 use time::PreciseTime;
 use bldr_core::package_graph::PackageGraph;
 use hab_core::config::ConfigFile;
@@ -94,8 +93,10 @@ fn main() {
         start_time.to(end_time)
     );
 
-    println!("\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
-        exit\n",);
+    println!(
+        "\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
+         exit\n",
+    );
 
     let mut filter = String::from("");
     let mut done = false;
@@ -394,22 +395,20 @@ fn check_package(
     filter: &str,
 ) {
     match datastore.get_job_graph_package(ident) {
-        Ok(package) => {
-            for dep in package.get_deps() {
-                if dep.starts_with(filter) {
-                    let name = short_name(dep);
-                    {
-                        let entry = deps_map.entry(name).or_insert(dep.clone());
-                        if *entry != *dep {
-                            println!("Conflict: {}", ident);
-                            println!("  {}", *entry);
-                            println!("  {}", dep);
-                        }
+        Ok(package) => for dep in package.get_deps() {
+            if dep.starts_with(filter) {
+                let name = short_name(dep);
+                {
+                    let entry = deps_map.entry(name).or_insert(dep.clone());
+                    if *entry != *dep {
+                        println!("Conflict: {}", ident);
+                        println!("  {}", *entry);
+                        println!("  {}", dep);
                     }
-                    check_package(datastore, deps_map, dep, filter);
                 }
+                check_package(datastore, deps_map, dep, filter);
             }
-        }
+        },
         Err(_) => println!("No matching package found for {}", ident),
     };
 }

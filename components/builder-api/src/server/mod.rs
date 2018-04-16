@@ -42,22 +42,22 @@ impl HttpGateway for ApiSrv {
         chain.link(persistent::Read::<Self::Config>::both(config.clone()));
         if config.github.is_some() {
             let c = config.github.clone().unwrap();
-            chain.link(persistent::Read::<OAuthCli>::both(
-                OAuthWrapper::new(Box::new(GitHubClient::new(c.clone()))),
-            ));
+            chain.link(persistent::Read::<OAuthCli>::both(OAuthWrapper::new(
+                Box::new(GitHubClient::new(c.clone())),
+            )));
 
             // we need to link a GitHubCli specifically because we're doing GH
             // specific operations, e.g. with projects
             chain.link(persistent::Read::<GitHubCli>::both(GitHubClient::new(c)));
         } else {
             let c = config.bitbucket.clone().unwrap();
-            chain.link(persistent::Read::<OAuthCli>::both(
-                OAuthWrapper::new(Box::new(BitbucketClient::new(c))),
-            ));
+            chain.link(persistent::Read::<OAuthCli>::both(OAuthWrapper::new(
+                Box::new(BitbucketClient::new(c)),
+            )));
         }
-        chain.link(persistent::Read::<SegmentCli>::both(
-            SegmentClient::new(config.segment.clone()),
-        ));
+        chain.link(persistent::Read::<SegmentCli>::both(SegmentClient::new(
+            config.segment.clone(),
+        )));
         chain.link_after(Cors);
     }
 
@@ -84,8 +84,8 @@ impl HttpGateway for ApiSrv {
 
         // Allow one and only one auth config
         // TODO: Update configs so that structurally only a single auth config is possible
-        if (config.github.is_none() && config.bitbucket.is_none()) ||
-            (config.github.is_some() && config.bitbucket.is_some())
+        if (config.github.is_none() && config.bitbucket.is_none())
+            || (config.github.is_some() && config.bitbucket.is_some())
         {
             panic!("Must have one and only one auth config (github or bitbucket)");
         }

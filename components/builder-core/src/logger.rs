@@ -43,10 +43,9 @@ impl Logger {
         let dt: DateTime<Utc> = Utc::now();
         let fmt_msg = format!("{},{}\n", dt.format("%Y-%m-%d %H:%M:%S"), msg);
 
-        self.file.write_all(fmt_msg.as_bytes()).expect(&format!(
-            "Logger unable to write to {:?}",
-            self.file
-        ));
+        self.file
+            .write_all(fmt_msg.as_bytes())
+            .expect(&format!("Logger unable to write to {:?}", self.file));
     }
 
     // Log format (fields are comma-separated)

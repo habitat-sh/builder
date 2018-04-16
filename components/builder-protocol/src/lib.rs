@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate fnv;
 extern crate habitat_core as hab_core;
@@ -37,5 +37,5 @@ pub mod sharding;
 pub mod originsrv;
 
 pub use self::error::{ProtocolError, ProtocolResult};
-pub use self::message::{Message, Protocol, Persistable, Routable, RouteKey};
-pub use self::sharding::{ShardId, SHARD_COUNT, InstaId};
+pub use self::message::{Message, Persistable, Protocol, Routable, RouteKey};
+pub use self::sharding::{InstaId, ShardId, SHARD_COUNT};

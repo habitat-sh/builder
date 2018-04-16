@@ -14,7 +14,7 @@
 
 use std::error::Error;
 use std::fmt;
-use std::net::{Ipv4Addr, IpAddr};
+use std::net::{IpAddr, Ipv4Addr};
 
 use num_cpus;
 use postgres_shared::params::{ConnectParams, Host, IntoConnectParams};

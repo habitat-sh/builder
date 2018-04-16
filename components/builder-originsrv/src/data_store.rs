@@ -33,7 +33,7 @@ use hab_net::conn::{RouteClient, RouteConn};
 use hab_net::{ErrCode, NetError};
 use hab_core::package::PackageIdent;
 use postgres::rows::Rows;
-use protocol::{originsrv, sessionsrv, jobsrv};
+use protocol::{jobsrv, originsrv, sessionsrv};
 use protocol::net::NetOk;
 use protocol::originsrv::Pageable;
 use postgres;
@@ -100,20 +100,14 @@ impl DataStore {
     }
 
     pub fn register_async_events(&self, jobsrv_enabled: bool) {
-        self.async.register(
-            "sync_invitations".to_string(),
-            sync_invitations,
-        );
-        self.async.register(
-            "sync_origins".to_string(),
-            sync_origins,
-        );
+        self.async
+            .register("sync_invitations".to_string(), sync_invitations);
+        self.async
+            .register("sync_origins".to_string(), sync_origins);
 
         if jobsrv_enabled {
-            self.async.register(
-                "sync_packages".to_string(),
-                sync_packages,
-            );
+            self.async
+                .register("sync_packages".to_string(), sync_packages);
         }
     }
 
@@ -179,8 +173,8 @@ impl DataStore {
         for row in rows.iter() {
             let id: i64 = row.get("id");
             let pv: String = row.get("visibility");
-            let vis: originsrv::OriginPackageVisibility =
-                pv.parse().map_err(SrvError::UnknownOriginPackageVisibility)?;
+            let vis: originsrv::OriginPackageVisibility = pv.parse()
+                .map_err(SrvError::UnknownOriginPackageVisibility)?;
             let new_vis = transition_visibility(project.get_visibility(), vis);
             map.entry(new_vis).or_insert(Vec::new()).push(id);
         }
@@ -246,8 +240,8 @@ impl DataStore {
         }
 
         let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility =
-            pv.parse().map_err(SrvError::UnknownOriginPackageVisibility)?;
+        let pv2: originsrv::OriginPackageVisibility = pv.parse()
+            .map_err(SrvError::UnknownOriginPackageVisibility)?;
         project.set_visibility(pv2);
 
         Ok(project)
@@ -319,9 +313,9 @@ impl DataStore {
                 &opic.get_integration().get_body(),
             ],
         ).map_err(SrvError::OriginProjectIntegrationCreate)?;
-        rows.iter().nth(0).expect(
-            "Insert returns row, but no row present",
-        );
+        rows.iter()
+            .nth(0)
+            .expect("Insert returns row, but no row present");
         Ok(())
     }
 
@@ -404,7 +398,11 @@ impl DataStore {
             "SELECT * FROM check_account_in_origin_members_v1($1, $2)",
             &[&coar.get_origin_name(), &(coar.get_account_id() as i64)],
         ).map_err(SrvError::OriginAccountInOrigin)?;
-        if rows.len() != 0 { Ok(true) } else { Ok(false) }
+        if rows.len() != 0 {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn my_origins(
@@ -473,8 +471,7 @@ impl DataStore {
             Err(e) => {
                 error!(
                     "Failed to update session service on invitation acceptance/ignore, {:?}, {:?}",
-                    aoia,
-                    e
+                    aoia, e
                 );
                 return Err(SrvError::from(e));
             }
@@ -506,8 +503,7 @@ impl DataStore {
             Err(e) => {
                 error!(
                     "Failed to update session service on invitation ignore, {:?}, {:?}",
-                    aoiir,
-                    e
+                    aoiir, e
                 );
                 return Err(SrvError::from(e));
             }
@@ -559,8 +555,7 @@ impl DataStore {
             Err(e) => {
                 error!(
                     "Failed to update session service on invitation rescind, {:?}, {:?}",
-                    aoirr,
-                    e
+                    aoirr, e
                 );
                 return Err(SrvError::from(e));
             }
@@ -952,9 +947,8 @@ impl DataStore {
         origin.set_name(row.get("name"));
 
         let dpv: String = row.get("default_package_visibility");
-        let new_dpv: originsrv::OriginPackageVisibility = dpv.parse().map_err(
-            SrvError::UnknownOriginPackageVisibility,
-        )?;
+        let new_dpv: originsrv::OriginPackageVisibility = dpv.parse()
+            .map_err(SrvError::UnknownOriginPackageVisibility)?;
         origin.set_default_package_visibility(new_dpv);
         let ooid: i64 = row.get("owner_id");
         origin.set_owner_id(ooid as u64);
@@ -987,9 +981,9 @@ impl DataStore {
         ).map_err(SrvError::OriginCreate)?;
         if rows.len() == 1 {
             self.async.schedule("sync_origins")?;
-            let row = rows.iter().nth(0).expect(
-                "Insert returns row, but no row present",
-            );
+            let row = rows.iter()
+                .nth(0)
+                .expect("Insert returns row, but no row present");
             let o = self.row_to_origin(row)?;
             Ok(Some(o))
         } else {
@@ -1024,7 +1018,7 @@ impl DataStore {
         let conn = self.pool.get(&origin_get)?;
         let rows = &conn.query(
             "SELECT * FROM origins_with_secret_key_full_name_v2 WHERE name = $1 LIMIT \
-                        1",
+             1",
             &[&origin_name],
         ).map_err(SrvError::OriginGet)?;
         if rows.len() != 0 {
@@ -1035,9 +1029,8 @@ impl DataStore {
             origin.set_name(row.get("name"));
             let ooid: i64 = row.get("owner_id");
             let dpv: String = row.get("default_package_visibility");
-            let new_dpv: originsrv::OriginPackageVisibility = dpv.parse().map_err(
-                SrvError::UnknownOriginPackageVisibility,
-            )?;
+            let new_dpv: originsrv::OriginPackageVisibility = dpv.parse()
+                .map_err(SrvError::UnknownOriginPackageVisibility)?;
             origin.set_default_package_visibility(new_dpv);
             origin.set_owner_id(ooid as u64);
             let private_key_name: Option<String> = row.get("private_key_name");
@@ -1131,7 +1124,6 @@ impl DataStore {
         &self,
         rows: &postgres::rows::Rows,
     ) -> SrvResult<originsrv::OriginPackageIdent> {
-
         let mut pkgs: Vec<PackageIdent> = Vec::new();
 
         for row in rows.iter() {
@@ -1146,9 +1138,7 @@ impl DataStore {
         pkgs.sort();
         let latest_ident = pkgs.pop().unwrap();
         let ident_str = format!("{}", latest_ident);
-        Ok(
-            originsrv::OriginPackageIdent::from_str(ident_str.as_str()).unwrap(),
-        )
+        Ok(originsrv::OriginPackageIdent::from_str(ident_str.as_str()).unwrap())
     }
 
     pub fn get_origin_package_latest(
@@ -1509,9 +1499,7 @@ impl DataStore {
         let owner_id: i64 = row.get("owner_id");
         package.set_owner_id(owner_id as u64);
         let ident: String = row.get("ident");
-        package.set_ident(
-            originsrv::OriginPackageIdent::from_str(ident.as_str()).unwrap(),
-        );
+        package.set_ident(originsrv::OriginPackageIdent::from_str(ident.as_str()).unwrap());
         package.set_checksum(row.get("checksum"));
         package.set_manifest(row.get("manifest"));
         package.set_config(row.get("config"));
@@ -1529,8 +1517,8 @@ impl DataStore {
         package.set_tdeps(self.into_idents(row.get("tdeps")));
 
         let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility =
-            pv.parse().map_err(SrvError::UnknownOriginPackageVisibility)?;
+        let pv2: originsrv::OriginPackageVisibility = pv.parse()
+            .map_err(SrvError::UnknownOriginPackageVisibility)?;
         package.set_visibility(pv2);
 
         Ok(package)
@@ -1558,9 +1546,9 @@ impl DataStore {
                 &occ.get_name(),
             ],
         ).map_err(SrvError::OriginChannelCreate)?;
-        let row = rows.iter().nth(0).expect(
-            "Insert returns row, but no row present",
-        );
+        let row = rows.iter()
+            .nth(0)
+            .expect("Insert returns row, but no row present");
         Ok(self.row_to_origin_channel(&row))
     }
 
@@ -1711,9 +1699,9 @@ impl DataStore {
                 &oic.get_integration().get_body(),
             ],
         ).map_err(SrvError::OriginIntegrationCreate)?;
-        rows.iter().nth(0).expect(
-            "Insert returns row, but no row present",
-        );
+        rows.iter()
+            .nth(0)
+            .expect("Insert returns row, but no row present");
         Ok(())
     }
 
@@ -1911,9 +1899,8 @@ fn sync_origins(pool: Pool, mut route_conn: RouteClient) -> DbResult<EventOutcom
     let mut result = EventOutcome::Finished;
     for shard in pool.shards.iter() {
         let conn = pool.get_shard(*shard)?;
-        let rows = &conn.query("SELECT * FROM sync_origins_v1()", &[]).map_err(
-            DbError::AsyncFunctionCheck,
-        )?;
+        let rows = &conn.query("SELECT * FROM sync_origins_v1()", &[])
+            .map_err(DbError::AsyncFunctionCheck)?;
         if rows.len() > 0 {
             let mut request = sessionsrv::AccountOriginCreate::new();
             for row in rows.iter() {
@@ -1935,8 +1922,7 @@ fn sync_origins(pool: Pool, mut route_conn: RouteClient) -> DbResult<EventOutcom
                     Err(e) => {
                         warn!(
                             "Failed to sync origin creation with the session service, {:?}, {}",
-                            request,
-                            e
+                            request, e
                         );
                         result = EventOutcome::Retry;
                     }
@@ -1985,8 +1971,7 @@ fn sync_packages(pool: Pool, mut route_conn: RouteClient) -> DbResult<EventOutco
                     Err(e) => {
                         warn!(
                             "Failed to sync package creation with the jobsrv service, {:?}: {}",
-                            request,
-                            e
+                            request, e
                         );
                         result = EventOutcome::Retry;
                     }
@@ -2027,8 +2012,7 @@ fn sync_invitations(pool: Pool, mut route_conn: RouteClient) -> DbResult<EventOu
                     Err(e) => {
                         warn!(
                             "Failed to sync invitation with the session service, {:?}: {}",
-                            aoic,
-                            e
+                            aoic, e
                         );
                         result = EventOutcome::Retry;
                     }
