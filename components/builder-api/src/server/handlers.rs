@@ -354,6 +354,7 @@ pub fn job_group_cancel(req: &mut Request) -> IronResult<Response> {
 
     let mut jgg = JobGroupGet::new();
     jgg.set_group_id(group_id);
+    jgg.set_include_projects(true);
 
     let group = match route_message::<JobGroupGet, JobGroup>(req, &jgg) {
         Ok(group) => group,
