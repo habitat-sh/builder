@@ -430,6 +430,7 @@ impl ScheduleMgr {
     fn get_group(&mut self, group_id: u64) -> Result<jobsrv::JobGroup> {
         let mut msg: jobsrv::JobGroupGet = jobsrv::JobGroupGet::new();
         msg.set_group_id(group_id);
+        msg.set_include_projects(true);
 
         match self.datastore.get_job_group(&msg) {
             Ok(group_opt) => {

@@ -223,6 +223,7 @@ pub fn job_group_cancel(
     // Get the job group
     let mut jgc = jobsrv::JobGroupGet::new();
     jgc.set_group_id(msg.get_group_id());
+    jgc.set_include_projects(true);
 
     let group = match state.datastore.get_job_group(&jgc) {
         Ok(group_opt) => {

@@ -356,6 +356,7 @@ pub fn promote_or_demote_job_group(
 ) -> NetResult<NetOk> {
     let mut group_get = JobGroupGet::new();
     group_get.set_group_id(group_id);
+    group_get.set_include_projects(true);
     let group = route_message::<JobGroupGet, JobGroup>(req, &group_get)?;
 
     // This only makes sense if the group is complete. If the group isn't complete, return now and
