@@ -142,9 +142,8 @@ impl Message {
     {
         self.reset();
         self.set_body(message)?;
-        self.header.set_message_id(
-            message.descriptor().name().to_string(),
-        );
+        self.header
+            .set_message_id(message.descriptor().name().to_string());
         self.header.set_has_txn(true);
         self.header.set_has_route_info(true);
         self.route_info = Some(RouteInfo::build(message));
@@ -157,13 +156,12 @@ impl Message {
     where
         T: protobuf::Message,
     {
-        self.txn_mut().ok_or(ProtocolError::NoTxn).and_then(|x| {
-            Ok(x.set_complete(true))
-        })?;
+        self.txn_mut()
+            .ok_or(ProtocolError::NoTxn)
+            .and_then(|x| Ok(x.set_complete(true)))?;
         self.set_body(message)?;
-        self.header.set_message_id(
-            message.descriptor().name().to_string(),
-        );
+        self.header
+            .set_message_id(message.descriptor().name().to_string());
         Ok(())
     }
 
@@ -331,12 +329,7 @@ impl Default for RouteInfo {
 
 impl fmt::Display for RouteInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "protocol={}, hash={:?}",
-            self.protocol(),
-            self.hash(),
-        )
+        write!(f, "protocol={}, hash={:?}", self.protocol(), self.hash(),)
     }
 }
 
@@ -415,18 +408,14 @@ pub trait Routable: protobuf::MessageStatic {
 
     fn protocol() -> net::Protocol {
         match Self::descriptor_static(None).full_name().rsplit(".").last() {
-            Some(name) => {
-                match net::Protocol::from_str(name) {
-                    Ok(protocol) => protocol,
-                    Err(err) => panic!("{}", err),
-                }
-            }
-            None => {
-                panic!(
-                    "Malformed protobuf: unable to determine protocol, '{:?}'",
-                    Self::descriptor_static(None).full_name()
-                )
-            }
+            Some(name) => match net::Protocol::from_str(name) {
+                Ok(protocol) => protocol,
+                Err(err) => panic!("{}", err),
+            },
+            None => panic!(
+                "Malformed protobuf: unable to determine protocol, '{:?}'",
+                Self::descriptor_static(None).full_name()
+            ),
         }
     }
 

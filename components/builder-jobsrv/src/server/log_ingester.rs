@@ -20,7 +20,7 @@ use std::thread::{self, JoinHandle};
 
 use hab_net::socket::DEFAULT_CONTEXT;
 use protobuf::parse_from_bytes;
-use protocol::jobsrv::{JobLogComplete, JobLogChunk};
+use protocol::jobsrv::{JobLogChunk, JobLogComplete};
 use server::log_archiver::{self, LogArchiver};
 use server::log_directory::LogDirectory;
 use zmq;
@@ -68,7 +68,9 @@ impl LogIngester {
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new()
             .name("log-ingester".to_string())
-            .spawn(move || { ingester.run(tx).unwrap(); })
+            .spawn(move || {
+                ingester.run(tx).unwrap();
+            })
             .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
@@ -98,10 +100,10 @@ impl LogIngester {
 
                             // TODO: Consider caching file handles for
                             // currently-processing logs.
-                            let open = OpenOptions::new().create(true).append(true).open(
-                                log_file
-                                    .as_path(),
-                            );
+                            let open = OpenOptions::new()
+                                .create(true)
+                                .append(true)
+                                .open(log_file.as_path());
 
                             match open {
                                 Ok(mut file) => {

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::path::{Path, PathBuf};
-use walkdir::{WalkDir, IntoIter};
+use walkdir::{IntoIter, WalkDir};
 use hab_core::package::{FromArchive, PackageArchive};
 use protocol::originsrv::OriginPackage;
 use protocol::jobsrv;
@@ -24,7 +24,9 @@ pub struct FileWalker {
 
 impl FileWalker {
     pub fn new<T: AsRef<Path>>(path: T) -> Self {
-        FileWalker { walker: WalkDir::new(path.as_ref()).follow_links(false).into_iter() }
+        FileWalker {
+            walker: WalkDir::new(path.as_ref()).follow_links(false).into_iter(),
+        }
     }
 }
 
@@ -32,17 +34,15 @@ pub fn extract_package<T: AsRef<Path>>(path: T) -> Option<OriginPackage> {
     let mut archive = PackageArchive::new(PathBuf::from(path.as_ref()));
 
     match archive.ident() {
-        Ok(_) => {
-            match OriginPackage::from_archive(&mut archive) {
-                Ok(p) => {
-                    return Some(p);
-                }
-                Err(e) => {
-                    error!("Error parsing package from archive: {:?}", e);
-                    return None;
-                }
+        Ok(_) => match OriginPackage::from_archive(&mut archive) {
+            Ok(p) => {
+                return Some(p);
             }
-        }
+            Err(e) => {
+                error!("Error parsing package from archive: {:?}", e);
+                return None;
+            }
+        },
         Err(e) => {
             error!("Error reading, archive={:?} error={:?}", &archive, &e);
             return None;

@@ -59,15 +59,13 @@ where
             ptr::null(),
         )
     } {
-        rc if rc < 0 => {
-            Err(Error::Mount(format!(
-                "mount_bind({}, {}, ...) returned: {} ({})",
-                source.as_ref().display(),
-                target.as_ref().display(),
-                rc,
-                errno::errno(),
-            )))
-        }
+        rc if rc < 0 => Err(Error::Mount(format!(
+            "mount_bind({}, {}, ...) returned: {} ({})",
+            source.as_ref().display(),
+            target.as_ref().display(),
+            rc,
+            errno::errno(),
+        ))),
         _ => Ok(()),
     }
 }
@@ -93,14 +91,12 @@ where
             ptr::null(),
         )
     } {
-        rc if rc < 0 => {
-            Err(Error::Mount(format!(
-                "mount_private({}, ...) returned: {} ({})",
-                target.as_ref().display(),
-                rc,
-                errno::errno(),
-            )))
-        }
+        rc if rc < 0 => Err(Error::Mount(format!(
+            "mount_private({}, ...) returned: {} ({})",
+            target.as_ref().display(),
+            rc,
+            errno::errno(),
+        ))),
         _ => Ok(()),
     }
 }
@@ -124,14 +120,12 @@ where
             ptr::null(),
         )
     } {
-        rc if rc < 0 => {
-            Err(Error::Mount(format!(
-                "mount_proc({}, ...) returned: {} ({})",
-                target.as_ref().display(),
-                rc,
-                errno::errno(),
-            )))
-        }
+        rc if rc < 0 => Err(Error::Mount(format!(
+            "mount_proc({}, ...) returned: {} ({})",
+            target.as_ref().display(),
+            rc,
+            errno::errno(),
+        ))),
         _ => Ok(()),
     }
 }
@@ -173,14 +167,12 @@ where
             c_data.as_ptr() as *const libc::c_void,
         )
     } {
-        rc if rc < 0 => {
-            Err(Error::Mount(format!(
-                "mount_tmpfs({}, ...) returned: {} ({})",
-                target.as_ref().display(),
-                rc,
-                errno::errno(),
-            )))
-        }
+        rc if rc < 0 => Err(Error::Mount(format!(
+            "mount_tmpfs({}, ...) returned: {} ({})",
+            target.as_ref().display(),
+            rc,
+            errno::errno(),
+        ))),
         _ => Ok(()),
     }
 }
@@ -215,14 +207,12 @@ where
             c_data.as_ptr() as *const libc::c_void,
         )
     } {
-        rc if rc < 0 => {
-            Err(Error::Mount(format!(
-                "mount_devpts({}, ...) returned: {} ({})",
-                target.as_ref().display(),
-                rc,
-                errno::errno(),
-            )))
-        }
+        rc if rc < 0 => Err(Error::Mount(format!(
+            "mount_devpts({}, ...) returned: {} ({})",
+            target.as_ref().display(),
+            rc,
+            errno::errno(),
+        ))),
         _ => Ok(()),
     }
 }
@@ -244,14 +234,12 @@ where
             ptr::null(),
         )
     } {
-        rc if rc < 0 => {
-            Err(Error::Mount(format!(
-                "mount_mqueue({}, ...) returned: {} ({})",
-                target.as_ref().display(),
-                rc,
-                errno::errno(),
-            )))
-        }
+        rc if rc < 0 => Err(Error::Mount(format!(
+            "mount_mqueue({}, ...) returned: {} ({})",
+            target.as_ref().display(),
+            rc,
+            errno::errno(),
+        ))),
         _ => Ok(()),
     }
 }
@@ -260,32 +248,24 @@ pub fn umount<T: AsRef<Path>>(target: T, flags: Option<libc::c_int>) -> Result<(
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
 
     match flags {
-        Some(c_flags) => {
-            match unsafe { libc::umount2(c_target.as_ptr(), c_flags) } {
-                rc if rc < 0 => {
-                    Err(Error::Mount(format!(
+        Some(c_flags) => match unsafe { libc::umount2(c_target.as_ptr(), c_flags) } {
+            rc if rc < 0 => Err(Error::Mount(format!(
                 "umount2({},{}) returned: {} ({})",
                 target.as_ref().display(),
                 c_flags,
                 rc,
                 errno::errno(),
-            )))
-                }
-                _ => Ok(()),
-            }
-        }
-        None => {
-            match unsafe { libc::umount(c_target.as_ptr()) } {
-                rc if rc < 0 => {
-                    Err(Error::Mount(format!(
+            ))),
+            _ => Ok(()),
+        },
+        None => match unsafe { libc::umount(c_target.as_ptr()) } {
+            rc if rc < 0 => Err(Error::Mount(format!(
                 "umount({}) returned: {} ({})",
                 target.as_ref().display(),
                 rc,
                 errno::errno(),
-            )))
-                }
-                _ => Ok(()),
-            }
-        }
+            ))),
+            _ => Ok(()),
+        },
     }
 }

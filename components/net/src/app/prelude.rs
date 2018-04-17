@@ -29,7 +29,7 @@ pub use protocol::{Message, Protocol};
 pub use super::start as app_start;
 pub use super::AppState;
 pub use super::config::AppCfg;
-pub use super::dispatcher::{Dispatcher, DispatchTable};
+pub use super::dispatcher::{DispatchTable, Dispatcher};
 pub use super::error::{AppError, AppResult};
 pub use conn::RouteConn;
 pub use error::{ErrCode, NetError, NetOk};

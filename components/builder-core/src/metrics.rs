@@ -15,7 +15,7 @@
 use dogstatsd::{Client, Options};
 use std::borrow::{Borrow, Cow};
 use std::sync::{Once, ONCE_INIT};
-use std::sync::mpsc::{channel, sync_channel, Sender, Receiver, SyncSender};
+use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
 use std::thread;
 use hab_core::env;
 
@@ -74,7 +74,13 @@ enum MetricOperation {
 }
 
 type MetricValue = f64;
-type MetricTuple = (MetricType, MetricOperation, MetricId, Option<MetricValue>, Vec<String>);
+type MetricTuple = (
+    MetricType,
+    MetricOperation,
+    MetricId,
+    Option<MetricValue>,
+    Vec<String>,
+);
 
 // One-time initialization
 static mut SENDER: *const Sender<MetricTuple> = 0 as *const Sender<MetricTuple>;
@@ -83,7 +89,9 @@ static INIT: Once = ONCE_INIT;
 
 fn sender() -> Sender<MetricTuple> {
     unsafe {
-        INIT.call_once(|| { SENDER = Box::into_raw(Box::new(init())); });
+        INIT.call_once(|| {
+            SENDER = Box::into_raw(Box::new(init()));
+        });
         (*SENDER).clone()
     }
 }
@@ -112,28 +120,20 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
 
     loop {
         let (mtyp, mop, mid, mval, mtags): MetricTuple = rx.recv().unwrap();
-        debug!("Received metrics tuple: {:?}", (
-            mtyp,
-            mop,
-            &mid,
-            mval,
-            &mtags,
-        ));
+        debug!(
+            "Received metrics tuple: {:?}",
+            (mtyp, mop, &mid, mval, &mtags,)
+        );
 
         match client {
-            Some(ref mut cli) => {
-                match mtyp {
-                    MetricType::Counter => {
-                        match mop {
-                            MetricOperation::Increment => {
-                                cli.incr(mid.borrow(), &mtags).unwrap_or_else(|e| {
-                                    warn!("Could not increment metric; {:?}", e)
-                                })
-                            }
-                        };
-                    }
+            Some(ref mut cli) => match mtyp {
+                MetricType::Counter => {
+                    match mop {
+                        MetricOperation::Increment => cli.incr(mid.borrow(), &mtags)
+                            .unwrap_or_else(|e| warn!("Could not increment metric; {:?}", e)),
+                    };
                 }
-            }
+            },
             None => (),
         }
     }

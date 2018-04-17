@@ -27,9 +27,8 @@ fn migration() {
 fn create_job() {
     let mut job = jobsrv::Job::new();
     job.mut_project().set_vcs_type(String::from("git"));
-    job.mut_project().set_vcs_data(String::from(
-        "http://github.com/habitat-sh/habitat",
-    ));
+    job.mut_project()
+        .set_vcs_data(String::from("http://github.com/habitat-sh/habitat"));
     job.mut_project().set_name("core/habitat".to_string());
     let ds = datastore_test!(DataStore);
     ds.setup().expect("Failed to migrate data");
@@ -40,9 +39,8 @@ fn test_job() -> jobsrv::Job {
     let mut job = jobsrv::Job::new();
     job.set_id(0);
     job.mut_project().set_vcs_type(String::from("git"));
-    job.mut_project().set_vcs_data(String::from(
-        "http://github.com/habitat-sh/habitat",
-    ));
+    job.mut_project()
+        .set_vcs_data(String::from("http://github.com/habitat-sh/habitat"));
     job.mut_project().set_name("core/habitat".to_string());
     job
 }
@@ -61,19 +59,19 @@ fn get_job() {
     let rjob3 = ds.create_job(&mut job3).expect("Failed to create a job");
     let mut get_job = jobsrv::JobGet::new();
     get_job.set_id(rjob1.get_id());
-    let j1 = ds.get_job(&get_job).expect("Failed to get job 0").expect(
-        "Job should exist",
-    );
+    let j1 = ds.get_job(&get_job)
+        .expect("Failed to get job 0")
+        .expect("Job should exist");
 
     get_job.set_id(rjob2.get_id());
-    let j2 = ds.get_job(&get_job).expect("Failed to get job 2").expect(
-        "Job should exist",
-    );
+    let j2 = ds.get_job(&get_job)
+        .expect("Failed to get job 2")
+        .expect("Job should exist");
 
     get_job.set_id(rjob3.get_id());
-    let j3 = ds.get_job(&get_job).expect("Failed to get job 3").expect(
-        "Job should exist",
-    );
+    let j3 = ds.get_job(&get_job)
+        .expect("Failed to get job 3")
+        .expect("Job should exist");
     assert!(j1.get_id() != 0);
     assert!(!j1.get_project().has_vcs_installation_id());
     assert!(j2.get_id() != 0);
@@ -103,9 +101,8 @@ fn next_pending_job() {
 
     // Get one job, it should be FIFO, and it should have its status set to Dispatched,
     // and worker set to the passed in worker id
-    let pending_job = ds.next_pending_job("worker1").expect(
-        "Failed to get pending job",
-    );
+    let pending_job = ds.next_pending_job("worker1")
+        .expect("Failed to get pending job");
     assert!(pending_job.is_some(), "Failed to find a pending job");
     assert_eq!(
         pending_job.unwrap().get_id(),
@@ -124,9 +121,8 @@ fn next_pending_job() {
 
     // Get second job, it should be FIFO, and it should have its status set to Dispatched,
     // and worker set to the passed in worker id
-    let pending_job_2 = ds.next_pending_job("worker2").expect(
-        "Failed to get pending job",
-    );
+    let pending_job_2 = ds.next_pending_job("worker2")
+        .expect("Failed to get pending job");
     assert!(pending_job_2.is_some(), "Failed to find a pending job");
     assert_eq!(
         pending_job_2.unwrap().get_id(),
@@ -143,9 +139,8 @@ fn next_pending_job() {
     assert_eq!(job2_dispatched.get_worker(), "worker2");
 
     // No jobs returns an empty array
-    let no_job = ds.next_pending_job("worker3").expect(
-        "Failed to get empty pending jobs",
-    );
+    let no_job = ds.next_pending_job("worker3")
+        .expect("Failed to get empty pending jobs");
     assert!(no_job.is_none());
 }
 
@@ -179,9 +174,8 @@ fn create_job_group() {
     msg.set_package(String::from("Bar"));
 
     let ds = datastore_test!(DataStore);
-    ds.create_job_group(&msg, project_names).expect(
-        "Failed to create a group",
-    );
+    ds.create_job_group(&msg, project_names)
+        .expect("Failed to create a group");
 }
 
 #[test]
@@ -192,15 +186,12 @@ fn get_job_group() {
     msg.set_package(String::from("Bar"));
 
     let ds = datastore_test!(DataStore);
-    let group1 = ds.create_job_group(&msg, project_names.clone()).expect(
-        "Failed to create a group",
-    );
-    let group2 = ds.create_job_group(&msg, project_names.clone()).expect(
-        "Failed to create a group",
-    );
-    let group3 = ds.create_job_group(&msg, project_names.clone()).expect(
-        "Failed to create a group",
-    );
+    let group1 = ds.create_job_group(&msg, project_names.clone())
+        .expect("Failed to create a group");
+    let group2 = ds.create_job_group(&msg, project_names.clone())
+        .expect("Failed to create a group");
+    let group3 = ds.create_job_group(&msg, project_names.clone())
+        .expect("Failed to create a group");
 
     let mut get_msg1 = jobsrv::JobGroupGet::new();
     get_msg1.set_group_id(group1.get_id());
@@ -251,14 +242,12 @@ fn pending_groups() {
 
     let ds = datastore_test!(DataStore);
 
-    let group1 = ds.create_job_group(&msg, project_names.clone()).expect(
-        "Failed to create a group",
-    );
+    let group1 = ds.create_job_group(&msg, project_names.clone())
+        .expect("Failed to create a group");
 
     // Check that it is queued
-    let queued_groups = ds.get_queued_job_groups().expect(
-        "Failed to get queued groups",
-    );
+    let queued_groups = ds.get_queued_job_groups()
+        .expect("Failed to get queued groups");
     assert_eq!(queued_groups.len(), 1, "Failed to find a queued group");
     assert_eq!(
         queued_groups[0].get_id(),
@@ -267,18 +256,15 @@ fn pending_groups() {
     );
 
     // There should not be any pending groups yet
-    let pending_groups_0 = ds.pending_job_groups(1).expect(
-        "Failed to get pendings group",
-    );
+    let pending_groups_0 = ds.pending_job_groups(1)
+        .expect("Failed to get pendings group");
     assert_eq!(pending_groups_0.len(), 0, "Found unexpected pending group");
 
-    let group2 = ds.create_job_group(&msg2, project_names.clone()).expect(
-        "Failed to create a group",
-    );
+    let group2 = ds.create_job_group(&msg2, project_names.clone())
+        .expect("Failed to create a group");
 
-    let group3 = ds.create_job_group(&msg3, project_names.clone()).expect(
-        "Failed to create a group",
-    );
+    let group3 = ds.create_job_group(&msg3, project_names.clone())
+        .expect("Failed to create a group");
 
     // Now set group states
     ds.set_job_group_state(group1.get_id(), jobsrv::JobGroupState::GroupPending)
@@ -291,9 +277,8 @@ fn pending_groups() {
         .expect("Failed to set group state");
 
     // Get one group, it should be FIFO, and it should have its state set to Dispatching
-    let pending_groups = ds.pending_job_groups(1).expect(
-        "Failed to get pendings group",
-    );
+    let pending_groups = ds.pending_job_groups(1)
+        .expect("Failed to get pendings group");
     assert_eq!(pending_groups.len(), 1, "Failed to find a pending group");
     assert_eq!(
         pending_groups[0].get_id(),
@@ -313,9 +298,8 @@ fn pending_groups() {
     );
 
     // Get the remaining groups; a larger number results in the total set
-    let remaining_groups = ds.pending_job_groups(5).expect(
-        "Failed to get remaining pending groups",
-    );
+    let remaining_groups = ds.pending_job_groups(5)
+        .expect("Failed to get remaining pending groups");
     assert_eq!(
         remaining_groups.len(),
         2,
@@ -323,9 +307,8 @@ fn pending_groups() {
     );
 
     // No groups returns an empty array
-    let no_groups = ds.pending_job_groups(100).expect(
-        "Failed to get empty pending groups",
-    );
+    let no_groups = ds.pending_job_groups(100)
+        .expect("Failed to get empty pending groups");
     assert_eq!(no_groups.len(), 0);
 }
 
@@ -338,9 +321,8 @@ fn set_job_group_state() {
 
     let ds = datastore_test!(DataStore);
 
-    let group = ds.create_job_group(&msg, project_names.clone()).expect(
-        "Failed to create a group",
-    );
+    let group = ds.create_job_group(&msg, project_names.clone())
+        .expect("Failed to create a group");
 
     let mut get_msg = jobsrv::JobGroupGet::new();
     get_msg.set_group_id(group.get_id());
@@ -376,16 +358,14 @@ fn create_graph_package() {
     msg.set_deps(deps);
 
     let ds = datastore_test!(DataStore);
-    let package = ds.create_job_graph_package(&msg).expect(
-        "Failed to create a graph package",
-    );
+    let package = ds.create_job_graph_package(&msg)
+        .expect("Failed to create a graph package");
 
     assert_eq!(package.get_ident(), "Foo/Bar/123/456");
     assert_eq!(package.get_target(), "quantum");
 
-    let packages = ds.get_job_graph_packages().expect(
-        "Failed to get graph packages",
-    );
+    let packages = ds.get_job_graph_packages()
+        .expect("Failed to get graph packages");
     assert_eq!(packages.len(), 1);
     assert_eq!(packages.last().unwrap().get_ident(), "Foo/Bar/123/456");
 }
@@ -397,9 +377,8 @@ fn get_graph_stats() {
     let mut stats_msg = jobsrv::JobGraphPackageStatsGet::new();
     stats_msg.set_origin(String::from("Foo"));
 
-    let stats = ds.get_job_graph_package_stats(&stats_msg).expect(
-        "Failed to get graph stats",
-    );
+    let stats = ds.get_job_graph_package_stats(&stats_msg)
+        .expect("Failed to get graph stats");
 
     assert_eq!(stats.get_plans(), 0);
     assert_eq!(stats.get_builds(), 0);

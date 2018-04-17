@@ -50,11 +50,9 @@ impl Workspace {
     pub fn last_built(&self) -> Result<PackageArchive> {
         let last_build = self.last_build_env();
         match StudioBuild::from_file(&last_build) {
-            Ok(build) => {
-                Ok(PackageArchive::new(
-                    self.out().join(build.pkg_artifact.unwrap()),
-                ))
-            }
+            Ok(build) => Ok(PackageArchive::new(
+                self.out().join(build.pkg_artifact.unwrap()),
+            )),
             Err(err) => Err(Error::BuildEnvFile(last_build, err)),
         }
     }
@@ -63,14 +61,12 @@ impl Workspace {
     pub fn attempted_build(&self) -> Result<PackageIdent> {
         let last_build = self.pre_build_env();
         match StudioBuild::from_file(&last_build) {
-            Ok(build) => {
-                Ok(PackageIdent::new(
-                    build.pkg_origin,
-                    build.pkg_name,
-                    Some(build.pkg_version),
-                    Some(build.pkg_release),
-                ))
-            }
+            Ok(build) => Ok(PackageIdent::new(
+                build.pkg_origin,
+                build.pkg_name,
+                Some(build.pkg_version),
+                Some(build.pkg_release),
+            )),
             Err(err) => Err(Error::BuildEnvFile(last_build, err)),
         }
     }
@@ -202,21 +198,15 @@ mod tests {
         assert_eq!(build.pkg_ident, "core/valgrind/3.12.0/20161031181251");
         assert_eq!(
             build.pkg_artifact,
-            Some(
-                "core-valgrind-3.12.0-20161031181251-x86_64-linux.hart".to_string(),
-            )
+            Some("core-valgrind-3.12.0-20161031181251-x86_64-linux.hart".to_string(),)
         );
         assert_eq!(
             build.pkg_sha256sum,
-            Some(
-                "3aeacaca8cf8274740863caae350f545cf97b15c79bdf6f873c0811b1a1ffbcf".to_string(),
-            )
+            Some("3aeacaca8cf8274740863caae350f545cf97b15c79bdf6f873c0811b1a1ffbcf".to_string(),)
         );
         assert_eq!(
             build.pkg_blake2bsum,
-            Some(
-                "3b38af666a8f307b89ae47ff098cb75503ee15892d1a8a98d0ae24da1cfd153b".to_string(),
-            )
+            Some("3b38af666a8f307b89ae47ff098cb75503ee15892d1a8a98d0ae24da1cfd153b".to_string(),)
         );
     }
 

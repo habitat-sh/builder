@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
+extern crate base64;
+extern crate chrono;
 extern crate dogstatsd;
 extern crate glob;
 extern crate habitat_builder_protocol as protocol;
@@ -23,18 +25,16 @@ extern crate habitat_net as hab_net;
 extern crate iron;
 #[macro_use]
 extern crate log;
-extern crate time;
 extern crate petgraph;
-extern crate walkdir;
-extern crate chrono;
-extern crate base64;
 extern crate protobuf;
 extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate time;
 extern crate toml;
+extern crate walkdir;
 
 pub mod access_token;
 pub mod build_config;

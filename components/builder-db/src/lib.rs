@@ -74,29 +74,29 @@
 //!    patterns mean we likely won't need to do a whole lot of that.
 //!
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate diesel;
+extern crate fallible_iterator;
 extern crate fnv;
+extern crate habitat_builder_protocol as protocol;
+extern crate habitat_core as hcore;
+extern crate habitat_net as hab_net;
 #[macro_use]
 extern crate log;
 extern crate num_cpus;
 extern crate postgres;
 extern crate postgres_shared;
-extern crate threadpool;
-extern crate rand;
-extern crate time;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate r2d2_postgres;
+extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate fallible_iterator;
-extern crate habitat_builder_protocol as protocol;
-extern crate habitat_core as hcore;
-extern crate habitat_net as hab_net;
+extern crate threadpool;
+extern crate time;
 extern crate url;
 
 pub mod config;

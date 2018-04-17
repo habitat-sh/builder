@@ -14,7 +14,7 @@
 
 #[macro_use]
 extern crate habitat_builder_db as db;
-extern crate habitat_builder_sessionsrv as sessionsrv;
 extern crate habitat_builder_protocol as protocol;
+extern crate habitat_builder_sessionsrv as sessionsrv;
 
 mod data_store;

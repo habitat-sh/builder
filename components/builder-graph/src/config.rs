@@ -29,7 +29,9 @@ impl Default for Config {
     fn default() -> Self {
         let mut datastore = DataStoreCfg::default();
         datastore.database = String::from("builder_jobsrv");
-        Config { datastore: datastore }
+        Config {
+            datastore: datastore,
+        }
     }
 }
 

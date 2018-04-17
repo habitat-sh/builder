@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
-extern crate habitat_core as hab_core;
-extern crate habitat_builder_protocol as protocol;
 extern crate habitat_builder_originsrv as originsrv;
+extern crate habitat_builder_protocol as protocol;
+extern crate habitat_core as hab_core;
 #[macro_use]
 extern crate log;
 
@@ -43,18 +43,14 @@ fn main() {
     };
 
     match subcmd {
-        "migrate" => {
-            match originsrv::server::migrate(config) {
-                Ok(_) => process::exit(0),
-                Err(e) => exit_with(e, 1),
-            }
-        }
-        "start" => {
-            match originsrv::server::run(config) {
-                Ok(_) => process::exit(0),
-                Err(e) => exit_with(e, 1),
-            }
-        }
+        "migrate" => match originsrv::server::migrate(config) {
+            Ok(_) => process::exit(0),
+            Err(e) => exit_with(e, 1),
+        },
+        "start" => match originsrv::server::run(config) {
+            Ok(_) => process::exit(0),
+            Err(e) => exit_with(e, 1),
+        },
         _ => unreachable!(),
     }
 }

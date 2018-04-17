@@ -87,16 +87,14 @@ where
     }
 
     match box_secret.receiver {
-        Some(recv) => {
-            match BoxKeyPair::get_pair_for(recv, &key_dir.as_ref()) {
-                Ok(_) => (),
-                Err(err) => {
-                    let e = format!("Unable to find receiver key pair, err={:?}", &err);
-                    error!("Unable to find receiver key pair, err={:?}", err);
-                    return Err(Error::DecryptError(e));
-                }
+        Some(recv) => match BoxKeyPair::get_pair_for(recv, &key_dir.as_ref()) {
+            Ok(_) => (),
+            Err(err) => {
+                let e = format!("Unable to find receiver key pair, err={:?}", &err);
+                error!("Unable to find receiver key pair, err={:?}", err);
+                return Err(Error::DecryptError(e));
             }
-        }
+        },
         None => {
             let e = format!("No receiver key pair specified");
             error!("No receiver key pair specified");

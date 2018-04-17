@@ -110,7 +110,8 @@ pub fn origin_create(
             conn.route_reply(req, &*err)?;
         }
         Err(SrvError::OriginCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-create:1");
             conn.route_reply(req, &*err)?;
         }
@@ -211,7 +212,8 @@ pub fn origin_integration_create(
     match state.datastore.upsert_origin_integration(&msg) {
         Ok(()) => conn.route_reply(req, &NetOk::new())?,
         Err(SrvError::OriginIntegrationCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-integration-create:1");
             conn.route_reply(req, &*err)?;
         }
@@ -382,7 +384,8 @@ pub fn origin_private_encryption_key_create(
     match state.datastore.create_origin_private_encryption_key(&msg) {
         Ok(ref osk) => conn.route_reply(req, osk)?,
         Err(SrvError::OriginPrivateEncryptionKeyCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(
                 ErrCode::ENTITY_CONFLICT,
                 "vt:origin-private-encryption-key-create:1",
@@ -410,7 +413,8 @@ pub fn origin_public_encryption_key_create(
     match state.datastore.create_origin_public_encryption_key(&msg) {
         Ok(ref osk) => conn.route_reply(req, osk)?,
         Err(SrvError::OriginPublicEncryptionKeyCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(
                 ErrCode::ENTITY_CONFLICT,
                 "vt:origin-public-encryption-key-create:1",
@@ -459,9 +463,10 @@ pub fn origin_public_encryption_key_latest_get(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginPublicEncryptionKeyLatestGet>()?;
-    match state.datastore.get_origin_public_encryption_key_latest(
-        &msg,
-    ) {
+    match state
+        .datastore
+        .get_origin_public_encryption_key_latest(&msg)
+    {
         Ok(Some(ref key)) => conn.route_reply(req, key)?,
         Ok(None) => {
             let err = NetError::new(
@@ -517,7 +522,8 @@ pub fn origin_public_encryption_key_list(
     let msg = req.parse::<proto::OriginPublicEncryptionKeyListRequest>()?;
     match state
         .datastore
-        .list_origin_public_encryption_keys_for_origin(&msg) {
+        .list_origin_public_encryption_keys_for_origin(&msg)
+    {
         Ok(ref opklr) => conn.route_reply(req, opklr)?,
         Err(e) => {
             let err = NetError::new(
@@ -540,7 +546,8 @@ pub fn origin_secret_key_create(
     match state.datastore.create_origin_secret_key(&msg) {
         Ok(ref osk) => conn.route_reply(req, osk)?,
         Err(SrvError::OriginPrivateSigningKeyCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-secret-key-create:1");
             conn.route_reply(req, &*err)?;
         }
@@ -583,7 +590,8 @@ pub fn origin_public_key_create(
     match state.datastore.create_origin_public_key(&msg) {
         Ok(ref osk) => conn.route_reply(req, osk)?,
         Err(SrvError::OriginPublicSigningKeyCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-public-key-create:1");
             conn.route_reply(req, &*err)?;
         }
@@ -667,7 +675,8 @@ pub fn project_create(
     match state.datastore.create_origin_project(&opc) {
         Ok(ref project) => conn.route_reply(req, project)?,
         Err(SrvError::OriginProjectCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-project-create:1");
             conn.route_reply(req, &*err)?;
         }
@@ -686,9 +695,10 @@ pub fn project_delete(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginProjectDelete>()?;
-    match state.datastore.delete_origin_project_by_name(
-        msg.get_name(),
-    ) {
+    match state
+        .datastore
+        .delete_origin_project_by_name(msg.get_name())
+    {
         Ok(()) => conn.route_reply(req, &NetOk::new())?,
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-project-delete:1");
@@ -763,7 +773,8 @@ pub fn project_integration_create(
     match state.datastore.create_project_integration(&msg) {
         Ok(()) => conn.route_reply(req, &NetOk::new())?,
         Err(SrvError::OriginProjectIntegrationCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:project-integration-create:1");
             conn.route_reply(req, &*err)?;
         }
@@ -845,7 +856,8 @@ pub fn origin_channel_create(
     match state.datastore.create_origin_channel(&msg) {
         Ok(ref occ) => conn.route_reply(req, occ)?,
         Err(SrvError::OriginChannelCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-channel-create:1");
             conn.route_reply(req, &*err)?;
         }
@@ -1026,9 +1038,10 @@ pub fn origin_package_version_list(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginPackageVersionListRequest>()?;
-    match state.datastore.list_origin_package_versions_for_origin(
-        &msg,
-    ) {
+    match state
+        .datastore
+        .list_origin_package_versions_for_origin(&msg)
+    {
         Ok(ref opvlr) => conn.route_reply(req, opvlr)?,
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-package-version-list:1");
@@ -1045,9 +1058,10 @@ pub fn origin_package_platform_list(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginPackagePlatformListRequest>()?;
-    match state.datastore.list_origin_package_platforms_for_package(
-        &msg,
-    ) {
+    match state
+        .datastore
+        .list_origin_package_platforms_for_package(&msg)
+    {
         Ok(ref opplr) => conn.route_reply(req, opplr)?,
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-package-platform-list:1");
@@ -1064,9 +1078,10 @@ pub fn origin_package_channel_list(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginPackageChannelListRequest>()?;
-    match state.datastore.list_origin_package_channels_for_package(
-        &msg,
-    ) {
+    match state
+        .datastore
+        .list_origin_package_channels_for_package(&msg)
+    {
         Ok(Some(ref opclr)) => conn.route_reply(req, opclr)?,
         Ok(None) => {
             let err = NetError::new(
@@ -1108,9 +1123,10 @@ pub fn origin_channel_package_list(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginChannelPackageListRequest>()?;
-    match state.datastore.list_origin_channel_package_for_channel(
-        &msg,
-    ) {
+    match state
+        .datastore
+        .list_origin_channel_package_for_channel(&msg)
+    {
         Ok(ref oplr) => conn.route_reply(req, oplr)?,
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-channel-package-list:1");
@@ -1249,7 +1265,8 @@ pub fn origin_secret_create(
     match state.datastore.create_origin_secret(&mut msg) {
         Ok(ref os) => conn.route_reply(req, os)?,
         Err(SrvError::OriginSecretCreate(ref db))
-            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION => {
+            if db.code().is_some() && *db.code().unwrap() == postgres::error::UNIQUE_VIOLATION =>
+        {
             let err = NetError::new(ErrCode::ENTITY_CONFLICT, "vt:origin-secret-create:1");
             conn.route_reply(req, &*err)?;
         }

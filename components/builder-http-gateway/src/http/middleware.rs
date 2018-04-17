@@ -259,12 +259,14 @@ impl AfterMiddleware for Cors {
             UniCase("authorization".to_string()),
             UniCase("range".to_string()),
         ]));
-        res.headers.set(headers::AccessControlAllowMethods(
-            vec![Method::Put, Method::Delete, Method::Patch],
-        ));
-        res.headers.set(headers::AccessControlExposeHeaders(
-            vec![UniCase("content-disposition".to_string())],
-        ));
+        res.headers.set(headers::AccessControlAllowMethods(vec![
+            Method::Put,
+            Method::Delete,
+            Method::Patch,
+        ]));
+        res.headers.set(headers::AccessControlExposeHeaders(vec![
+            UniCase("content-disposition".to_string()),
+        ]));
         Ok(res)
     }
 }
@@ -310,9 +312,9 @@ pub fn session_validate(
 
 pub fn session_create_oauth(req: &mut Request, token: &str) -> IronResult<Session> {
     let oauth = req.get::<persistent::Read<OAuthCli>>().unwrap();
-    let conn = req.extensions.get_mut::<XRouteClient>().expect(
-        "no XRouteClient extension in request",
-    );
+    let conn = req.extensions
+        .get_mut::<XRouteClient>()
+        .expect("no XRouteClient extension in request");
     debug!(
         "OAUTH-CALL builder_http-gateway::middleware::session_create_oauth: Checking user with access token",
     );
@@ -353,9 +355,9 @@ pub fn session_create_oauth(req: &mut Request, token: &str) -> IronResult<Sessio
 }
 
 pub fn session_create_short_circuit(req: &mut Request, token: &str) -> IronResult<Session> {
-    let conn = req.extensions.get_mut::<XRouteClient>().expect(
-        "no XRouteClient extension in request",
-    );
+    let conn = req.extensions
+        .get_mut::<XRouteClient>()
+        .expect("no XRouteClient extension in request");
     let request = match token.as_ref() {
         "bobo" => {
             let mut request = SessionCreate::new();

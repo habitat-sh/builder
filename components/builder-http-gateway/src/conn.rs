@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use hab_net::app::config::RouterAddr;
-use hab_net::conn::{RECV_TIMEOUT_MS, SEND_TIMEOUT_MS, ConnErr, RouteClient};
-use hab_net::socket::{DEFAULT_CONTEXT, ToAddrString};
+use hab_net::conn::{ConnErr, RouteClient, RECV_TIMEOUT_MS, SEND_TIMEOUT_MS};
+use hab_net::socket::{ToAddrString, DEFAULT_CONTEXT};
 use iron::typemap;
 use zmq;
 

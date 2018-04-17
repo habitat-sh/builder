@@ -40,9 +40,7 @@ impl FsRoot {
             path.display(),
             policy
         );
-        fs::create_dir(&path).map_err(
-            |e| Error::FsRoot(path.clone(), e),
-        )?;
+        fs::create_dir(&path).map_err(|e| Error::FsRoot(path.clone(), e))?;
         Ok(FsRoot(Some(path), policy))
     }
 
@@ -54,9 +52,8 @@ impl FsRoot {
         match self.1 {
             FsRootPolicy::Cleanup => {
                 debug!("removing fs root, path={}", self.as_ref().display());
-                fs::remove_dir_all(self.as_ref()).map_err(|e| {
-                    Error::FsRoot(self.as_ref().into(), e)
-                })?;
+                fs::remove_dir_all(self.as_ref())
+                    .map_err(|e| Error::FsRoot(self.as_ref().into(), e))?;
                 // Prevent `Drop` from removing the dir a second time
                 self.0 = None;
                 Ok(())

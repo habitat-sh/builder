@@ -95,12 +95,10 @@ impl fmt::Display for InstaId {
 impl PartialOrd for InstaId {
     fn partial_cmp(&self, other: &InstaId) -> Option<Ordering> {
         match self.timestamp().cmp(&other.timestamp()) {
-            Ordering::Equal => {
-                match self.inner_id().cmp(&other.inner_id()) {
-                    Ordering::Equal => None,
-                    ordering => Some(ordering),
-                }
-            }
+            Ordering::Equal => match self.inner_id().cmp(&other.inner_id()) {
+                Ordering::Equal => None,
+                ordering => Some(ordering),
+            },
             ordering => Some(ordering),
         }
     }

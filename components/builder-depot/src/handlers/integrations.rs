@@ -30,9 +30,8 @@ use serde_json;
 use DepotUtil;
 
 pub fn encrypt(req: &mut Request, content: &str) -> Result<String, Status> {
-    let lock = req.get::<persistent::State<DepotUtil>>().expect(
-        "depot not found",
-    );
+    let lock = req.get::<persistent::State<DepotUtil>>()
+        .expect("depot not found");
     let depot = lock.read().expect("depot read lock is poisoned");
 
     bldr_core::integrations::encrypt(&depot.config.key_dir, content.as_bytes())
@@ -40,16 +39,13 @@ pub fn encrypt(req: &mut Request, content: &str) -> Result<String, Status> {
 }
 
 pub fn decrypt(req: &mut Request, content: &str) -> Result<String, Status> {
-    let lock = req.get::<persistent::State<DepotUtil>>().expect(
-        "depot not found",
-    );
+    let lock = req.get::<persistent::State<DepotUtil>>()
+        .expect("depot not found");
     let depot = lock.read().expect("depot read lock is poisoned");
 
     let bytes = bldr_core::integrations::decrypt(&depot.config.key_dir, content)
         .map_err(|_| status::InternalServerError)?;
-    Ok(String::from_utf8(bytes).map_err(
-        |_| status::InternalServerError,
-    )?)
+    Ok(String::from_utf8(bytes).map_err(|_| status::InternalServerError)?)
 }
 
 pub fn validate_params(
@@ -203,29 +199,27 @@ pub fn get_origin_integration(req: &mut Request) -> IronResult<Response> {
     request.set_integration(oi);
 
     match route_message::<OriginIntegrationGet, OriginIntegration>(req, &request) {
-        Ok(integration) => {
-            match decrypt(req, &integration.get_body()) {
-                Ok(decrypted) => {
-                    let val = serde_json::from_str(&decrypted).unwrap();
-                    let mut map: serde_json::Map<String, serde_json::Value> =
-                        serde_json::from_value(val).unwrap();
+        Ok(integration) => match decrypt(req, &integration.get_body()) {
+            Ok(decrypted) => {
+                let val = serde_json::from_str(&decrypted).unwrap();
+                let mut map: serde_json::Map<String, serde_json::Value> =
+                    serde_json::from_value(val).unwrap();
 
-                    map.remove("password");
+                map.remove("password");
 
-                    let sanitized = json!({
+                let sanitized = json!({
                         "origin": integration.get_origin().to_string(),
                         "integration": integration.get_integration().to_string(),
                         "name": integration.get_name().to_string(),
                         "body": serde_json::to_value(map).unwrap()
                     });
 
-                    let mut response = render_json(status::Ok, &sanitized);
-                    helpers::dont_cache_response(&mut response);
-                    Ok(response)
-                }
-                Err(st) => return Ok(Response::with(st)),
+                let mut response = render_json(status::Ok, &sanitized);
+                helpers::dont_cache_response(&mut response);
+                Ok(response)
             }
-        }
+            Err(st) => return Ok(Response::with(st)),
+        },
         Err(err) => Ok(render_net_error(&err)),
     }
 }

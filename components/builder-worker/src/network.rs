@@ -41,12 +41,11 @@ impl NetworkNamespace {
         debug!("building airlock networking setup command, cmd={:?}", &cmd);
 
         debug!("spawning airlock networking setup command");
-        let mut child = cmd.spawn().map_err(|e| {
-            Error::AirlockNetworking(self.0.to_path_buf(), e)
-        })?;
-        let exit_status = child.wait().map_err(|e| {
-            Error::AirlockNetworking(self.0.to_path_buf(), e)
-        })?;
+        let mut child = cmd.spawn()
+            .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
+        let exit_status = child
+            .wait()
+            .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
         info!(
             "completed airlock networking setup command, status={:?}",
             exit_status
@@ -71,12 +70,11 @@ impl NetworkNamespace {
         );
 
         debug!("spawning airlock networking destroy command");
-        let mut child = cmd.spawn().map_err(|e| {
-            Error::AirlockNetworking(self.0.to_path_buf(), e)
-        })?;
-        let exit_status = child.wait().map_err(|e| {
-            Error::AirlockNetworking(self.0.to_path_buf(), e)
-        })?;
+        let mut child = cmd.spawn()
+            .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
+        let exit_status = child
+            .wait()
+            .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
         info!(
             "completed airlock networking destroy command, status={:?}",
             exit_status

@@ -30,12 +30,8 @@ impl metrics::CounterMetric for Counter {}
 impl metrics::Metric for Counter {
     fn id(&self) -> Cow<'static, str> {
         match *self {
-            Counter::GitAuthenticatedClone => {
-                format!("github.authenticated_clone").into()
-            },
-            Counter::GitClone => {
-                format!("github.clone").into()
-            }
+            Counter::GitAuthenticatedClone => format!("github.authenticated_clone").into(),
+            Counter::GitClone => format!("github.clone").into(),
         }
     }
 }

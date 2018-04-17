@@ -106,11 +106,7 @@ impl RouteClient {
             return Err(err);
         }
         if self.msg_buf.header().has_route_info() {
-            if let Err(e) = try_read_route_info(
-                &self.socket,
-                &mut self.msg_buf,
-                &mut self.recv_buf,
-            )
+            if let Err(e) = try_read_route_info(&self.socket, &mut self.msg_buf, &mut self.recv_buf)
             {
                 let err = NetError::new(ErrCode::from(&e), "net:route:4");
                 error!("{}, {}", err, e);

@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
+extern crate base64;
 extern crate bitbucket_api_client;
+extern crate bodyparser;
+extern crate builder_core as bldr_core;
+extern crate builder_http_gateway as http_gateway;
+extern crate crypto;
+extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
 extern crate habitat_net as hab_net;
-extern crate builder_core as bldr_core;
-extern crate builder_http_gateway as http_gateway;
-extern crate bodyparser;
-extern crate crypto;
 extern crate hyper;
 extern crate iron;
 extern crate iron_test;
@@ -32,8 +34,8 @@ extern crate log;
 extern crate mount;
 extern crate persistent;
 extern crate protobuf;
-extern crate regex;
 extern crate r2d2;
+extern crate regex;
 extern crate router;
 extern crate segment_api_client;
 extern crate serde;
@@ -46,11 +48,9 @@ extern crate time;
 extern crate toml;
 extern crate unicase;
 extern crate url;
+extern crate uuid;
 extern crate walkdir;
 extern crate zmq;
-extern crate uuid;
-extern crate base64;
-extern crate github_api_client;
 
 pub mod config;
 pub mod error;
@@ -119,9 +119,9 @@ impl DepotUtil {
         let mut output = [0; 64];
         digest.input_str(&ident.to_string());
         digest.result(&mut output);
-        self.packages_path().join(format!("{:x}", output[0])).join(
-            format!("{:x}", output[1]),
-        )
+        self.packages_path()
+            .join(format!("{:x}", output[0]))
+            .join(format!("{:x}", output[1]))
     }
 
     fn packages_path(&self) -> PathBuf {

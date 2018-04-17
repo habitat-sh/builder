@@ -138,9 +138,7 @@ where
         };
         let reply_queue = self.reply_queue.clone();
         let request_queue = self.request_queue.clone();
-        thread::spawn(move || {
-            worker_run::<T>(tx, worker_id, reply_queue, request_queue, state)
-        });
+        thread::spawn(move || worker_run::<T>(tx, worker_id, reply_queue, request_queue, state));
         if rx.recv().is_ok() {
             debug!("worker[{}] ready", worker_id);
             self.workers.insert(worker_id, rx);

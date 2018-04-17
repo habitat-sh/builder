@@ -12,25 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 #[macro_use]
 extern crate bitflags;
+extern crate builder_core as bldr_core;
 extern crate chrono;
 #[macro_use]
 extern crate features;
 extern crate git2;
 extern crate github_api_client;
+extern crate habitat_builder_protocol;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
 extern crate habitat_depot_client as depot_client;
 extern crate habitat_net as hab_net;
+extern crate hyper;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
 extern crate protobuf;
+extern crate retry;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -38,10 +42,6 @@ extern crate serde_json;
 extern crate toml;
 extern crate url;
 extern crate zmq;
-extern crate habitat_builder_protocol;
-extern crate builder_core as bldr_core;
-extern crate retry;
-extern crate hyper;
 
 pub mod config;
 pub mod error;

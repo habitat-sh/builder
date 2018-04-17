@@ -82,9 +82,9 @@ impl<'a> DockerExporter<'a> {
     pub fn export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
         let dockerd = self.spawn_dockerd().map_err(Error::Exporter)?;
         let exit_status = self.run_export(streamer);
-        self.teardown_dockerd(dockerd).err().map(|e| {
-            error!("failed to teardown dockerd instance, err={:?}", e)
-        });
+        self.teardown_dockerd(dockerd)
+            .err()
+            .map(|e| error!("failed to teardown dockerd instance, err={:?}", e));
         exit_status
     }
 
@@ -148,8 +148,7 @@ impl<'a> DockerExporter<'a> {
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
         debug!(
             "setting docker export command env, {}={}",
-            DOCKER_HOST_ENVVAR,
-            sock
+            DOCKER_HOST_ENVVAR, sock
         );
         cmd.env(DOCKER_HOST_ENVVAR, sock); // Use the job-specific `dockerd`
         cmd.stdout(Stdio::piped());
@@ -169,18 +168,20 @@ impl<'a> DockerExporter<'a> {
         // TED: feels bad but we need to add sbin to the path
         // so Dockerd can get to apparmor_parser
         let env_paths = [
-            &*DOCKERD_PROGRAM.parent().expect(
-                "Dockerd parent directory exists",
-            ),
+            &*DOCKERD_PROGRAM
+                .parent()
+                .expect("Dockerd parent directory exists"),
             &Path::new("/sbin"),
         ];
         let env_path = std_env::join_paths(env_paths.iter())
             .expect("Cannot join PATH elements for dockerd spawn")
             .to_os_string();
         let daemon_json = root.join("etc/daemon.json");
-        fs::create_dir_all(daemon_json.parent().expect(
-            "Daemon JSON parent directory exists",
-        ))?;
+        fs::create_dir_all(
+            daemon_json
+                .parent()
+                .expect("Daemon JSON parent directory exists"),
+        )?;
         {
             let mut f = File::create(&daemon_json)?;
             f.write_all(b"{}")?;
@@ -251,12 +252,10 @@ impl<'a> DockerExporter<'a> {
     fn dockerd_sock(&self) -> String {
         match env::var_os(DEV_MODE) {
             Some(_) => "unix:///var/run/docker.sock".to_string(),
-            None => {
-                format!(
-                    "unix://{}",
-                    self.dockerd_path().join("v/r/docker.sock").display()
-                )
-            }
+            None => format!(
+                "unix://{}",
+                self.dockerd_path().join("v/r/docker.sock").display()
+            ),
         }
     }
 }

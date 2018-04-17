@@ -30,7 +30,7 @@ use std::thread;
 use bldr_core::logger::Logger;
 use hab_net::socket::DEFAULT_CONTEXT;
 use protobuf::Message;
-use protocol::jobsrv::{JobLogComplete, JobLogChunk};
+use protocol::jobsrv::{JobLogChunk, JobLogComplete};
 use zmq;
 
 use error::{Error, Result};
@@ -176,13 +176,10 @@ impl JobStreamer {
             return Ok(());
         }
 
-        let mut target = self.target.lock().expect(
-            "Stream target mutex is poisoned!",
-        );
-        target.stream_line(
-            self.id,
-            format!("builder_log::end::{}", self.id),
-        )?;
+        let mut target = self.target
+            .lock()
+            .expect("Stream target mutex is poisoned!");
+        target.stream_line(self.id, format!("builder_log::end::{}", self.id))?;
         self.finished = true;
         target.finish(self.id)
     }
@@ -251,9 +248,9 @@ impl StreamTarget {
         chunk.set_seq(self.line_count);
         chunk.set_content(line);
 
-        self.sock.send_str(LOG_LINE, zmq::SNDMORE).map_err(|e| {
-            Error::StreamTargetSend(e)
-        })?;
+        self.sock
+            .send_str(LOG_LINE, zmq::SNDMORE)
+            .map_err(|e| Error::StreamTargetSend(e))?;
         self.sock
             .send(chunk.write_to_bytes().unwrap().as_slice(), 0)
             .map_err(|e| Error::StreamTargetSend(e))?;
@@ -274,11 +271,9 @@ impl StreamTarget {
         let mut complete = JobLogComplete::new();
         complete.set_job_id(id);
 
-        self.sock.send_str(LOG_COMPLETE, zmq::SNDMORE).map_err(
-            |e| {
-                Error::StreamTargetSend(e)
-            },
-        )?;
+        self.sock
+            .send_str(LOG_COMPLETE, zmq::SNDMORE)
+            .map_err(|e| Error::StreamTargetSend(e))?;
         self.sock
             .send(complete.write_to_bytes().unwrap().as_slice(), 0)
             .map_err(|e| Error::StreamTargetSend(e))?;

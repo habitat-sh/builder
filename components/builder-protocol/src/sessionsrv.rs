@@ -167,10 +167,7 @@ impl Serialize for AccountToken {
     {
         let mut strukt = serializer.serialize_struct("account_token", 5)?;
         strukt.serialize_field("id", &self.get_id().to_string())?;
-        strukt.serialize_field(
-            "account_id",
-            &self.get_account_id().to_string(),
-        )?;
+        strukt.serialize_field("account_id", &self.get_account_id().to_string())?;
         strukt.serialize_field("token", self.get_token())?;
         strukt.serialize_field("created_at", &self.get_created_at())?;
         strukt.end()
@@ -297,18 +294,9 @@ impl Serialize for AccountInvitationListResponse {
     where
         S: Serializer,
     {
-        let mut strukt = serializer.serialize_struct(
-            "account_invitation_list_response",
-            2,
-        )?;
-        strukt.serialize_field(
-            "account_id",
-            &self.get_account_id().to_string(),
-        )?;
-        strukt.serialize_field(
-            "invitations",
-            self.get_invitations(),
-        )?;
+        let mut strukt = serializer.serialize_struct("account_invitation_list_response", 2)?;
+        strukt.serialize_field("account_id", &self.get_account_id().to_string())?;
+        strukt.serialize_field("invitations", self.get_invitations())?;
         strukt.end()
     }
 }
@@ -324,26 +312,11 @@ impl Serialize for AccountOriginInvitation {
             "origin_invitation_id",
             &self.get_origin_invitation_id().to_string(),
         )?;
-        strukt.serialize_field(
-            "account_id",
-            &self.get_account_id().to_string(),
-        )?;
-        strukt.serialize_field(
-            "account_name",
-            self.get_account_name(),
-        )?;
-        strukt.serialize_field(
-            "origin_id",
-            &self.get_origin_id().to_string(),
-        )?;
-        strukt.serialize_field(
-            "origin_name",
-            self.get_origin_name(),
-        )?;
-        strukt.serialize_field(
-            "owner_id",
-            &self.get_owner_id().to_string(),
-        )?;
+        strukt.serialize_field("account_id", &self.get_account_id().to_string())?;
+        strukt.serialize_field("account_name", self.get_account_name())?;
+        strukt.serialize_field("origin_id", &self.get_origin_id().to_string())?;
+        strukt.serialize_field("origin_name", self.get_origin_name())?;
+        strukt.serialize_field("owner_id", &self.get_owner_id().to_string())?;
         strukt.end()
     }
 }
@@ -353,14 +326,8 @@ impl Serialize for AccountOriginListResponse {
     where
         S: Serializer,
     {
-        let mut strukt = serializer.serialize_struct(
-            "account_origin_list_response",
-            2,
-        )?;
-        strukt.serialize_field(
-            "account_id",
-            &self.get_account_id().to_string(),
-        )?;
+        let mut strukt = serializer.serialize_struct("account_origin_list_response", 2)?;
+        strukt.serialize_field("account_id", &self.get_account_id().to_string())?;
         strukt.serialize_field("origins", self.get_origins())?;
         strukt.end()
     }
@@ -377,10 +344,7 @@ impl Serialize for Session {
         strukt.serialize_field("email", self.get_email())?;
         strukt.serialize_field("token", self.get_token())?;
         strukt.serialize_field("flags", &self.get_flags())?;
-        strukt.serialize_field(
-            "oauth_token",
-            self.get_oauth_token(),
-        )?;
+        strukt.serialize_field("oauth_token", self.get_oauth_token())?;
         strukt.end()
     }
 }

@@ -13,7 +13,8 @@
 // limitations under the License.
 
 /// URL to Bitbucket web site
-pub const DEFAULT_BITBUCKET_TOKEN_URL: &'static str = "https://bitbucket.org/site/oauth2/access_token";
+pub const DEFAULT_BITBUCKET_TOKEN_URL: &'static str =
+    "https://bitbucket.org/site/oauth2/access_token";
 
 /// URL to Bitbucket API site
 pub const DEFAULT_BITBUCKET_API_URL: &'static str = "https://api.bitbucket.org";

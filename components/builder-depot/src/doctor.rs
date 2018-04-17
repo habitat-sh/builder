@@ -239,9 +239,7 @@ impl<'a> Doctor<'a> {
                 Err(e) => {
                     debug!("Error reading, archive={:?} error={:?}", &archive, &e);
                     self.report.failure(
-                        OperationType::ArchiveInsert(
-                            entry.path().to_string_lossy().to_string(),
-                        ),
+                        OperationType::ArchiveInsert(entry.path().to_string_lossy().to_string()),
                         Reason::BadArchive,
                     );
                 }
@@ -252,9 +250,7 @@ impl<'a> Doctor<'a> {
             if let Some(e) = fs::remove_dir(dir.path()).err() {
                 debug!("Error deleting: {:?}", &e);
                 self.report.failure(
-                    OperationType::CleanupTrash(
-                        self.packages_path.to_string_lossy().to_string(),
-                    ),
+                    OperationType::CleanupTrash(self.packages_path.to_string_lossy().to_string()),
                     Reason::NotEmpty,
                 );
             }

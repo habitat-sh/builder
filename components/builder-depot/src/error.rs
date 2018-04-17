@@ -54,25 +54,21 @@ impl fmt::Display for Error {
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::HabitatNet(ref e) => format!("{}", e),
             Error::HTTP(ref e) => format!("{}", e),
-            Error::InvalidPackageIdent(ref e) => {
-                format!(
-                    "Invalid package identifier: {:?}. A valid identifier is in the form \
-                         origin/name (example: acme/redis)",
-                    e
-                )
-            }
+            Error::InvalidPackageIdent(ref e) => format!(
+                "Invalid package identifier: {:?}. A valid identifier is in the form \
+                 origin/name (example: acme/redis)",
+                e
+            ),
             Error::IO(ref e) => format!("{}", e),
             Error::MessageTypeNotFound => format!("Unable to find message for given type"),
             Error::NetError(ref e) => format!("{}", e),
             Error::NoXFilename => {
                 format!("Invalid download from Builder - missing X-Filename header")
             }
-            Error::NoFilePart => {
-                format!(
-                    "An invalid path was passed - we needed a filename, and this path does \
-                         not have one"
-                )
-            }
+            Error::NoFilePart => format!(
+                "An invalid path was passed - we needed a filename, and this path does \
+                 not have one"
+            ),
             Error::NulError(ref e) => format!("{}", e),
             Error::PackageIsAlreadyInChannel(ref p, ref c) => {
                 format!("{} is already in the {} channel.", p, c)

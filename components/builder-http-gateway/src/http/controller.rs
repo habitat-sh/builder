@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub use hab_net::{ErrCode, NetError, NetOk, NetResult};
-pub use iron::{status, headers};
+pub use iron::{headers, status};
 pub use iron::headers::{ContentType, UserAgent};
 pub use iron::prelude::*;
 use protobuf;

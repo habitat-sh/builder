@@ -122,26 +122,23 @@ impl<'a> Studio<'a> {
         debug!("building studio build command, cmd={:?}", &cmd);
         debug!(
             "setting studio build command env, {}={}",
-            BLDR_CHANNEL_ENVVAR,
-            &channel
+            BLDR_CHANNEL_ENVVAR, &channel
         );
         cmd.env(BLDR_CHANNEL_ENVVAR, channel);
         debug!(
             "setting studio build command env, {}={}",
-            BLDR_URL_ENVVAR,
-            self.bldr_url
+            BLDR_URL_ENVVAR, self.bldr_url
         );
         cmd.env(BLDR_URL_ENVVAR, self.bldr_url);
         cmd.env(AUTH_TOKEN_ENVVAR, self.auth_token);
 
         debug!("spawning studio build command");
-        let mut child = cmd.spawn().map_err(|e| {
-            Error::StudioBuild(self.workspace.studio().to_path_buf(), e)
-        })?;
+        let mut child = cmd.spawn()
+            .map_err(|e| Error::StudioBuild(self.workspace.studio().to_path_buf(), e))?;
         streamer.consume_child(&mut child)?;
-        let exit_status = child.wait().map_err(|e| {
-            Error::StudioBuild(self.workspace.studio().to_path_buf(), e)
-        })?;
+        let exit_status = child
+            .wait()
+            .map_err(|e| Error::StudioBuild(self.workspace.studio().to_path_buf(), e))?;
         debug!("completed studio build command, status={:?}", exit_status);
 
         Ok(exit_status)
@@ -198,10 +195,10 @@ pub fn set_studio_uid(uid: u32) {
 }
 
 pub fn key_path() -> PathBuf {
-    (&*STUDIO_HOME).lock().unwrap().join(format!(
-        ".{}",
-        fs::CACHE_KEY_PATH
-    ))
+    (&*STUDIO_HOME)
+        .lock()
+        .unwrap()
+        .join(format!(".{}", fs::CACHE_KEY_PATH))
 }
 
 /// Returns a path argument suitable to pass to a Studio build command.

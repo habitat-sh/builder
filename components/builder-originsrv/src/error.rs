@@ -157,12 +157,10 @@ impl fmt::Display for SrvError {
             SrvError::OriginChannelPackageGet(ref e) => {
                 format!("Error getting package for a channel from database, {}", e)
             }
-            SrvError::OriginChannelPackageLatestGet(ref e) => {
-                format!(
-                    "Error getting the latest package for a channel from database, {}",
-                    e
-                )
-            }
+            SrvError::OriginChannelPackageLatestGet(ref e) => format!(
+                "Error getting the latest package for a channel from database, {}",
+                e
+            ),
             SrvError::OriginChannelPackageList(ref e) => {
                 format!("Error listing packages for a channel from database, {}", e)
             }
@@ -203,24 +201,18 @@ impl fmt::Display for SrvError {
             SrvError::OriginInvitationRescind(ref e) => {
                 format!("Error rescinding origin invitation, {}", e)
             }
-            SrvError::OriginInvitationListForOrigin(ref e) => {
-                format!(
-                    "Error listing origin invitations for an origin in database, {}",
-                    e
-                )
-            }
-            SrvError::OriginInvitationListForAccount(ref e) => {
-                format!(
-                    "Error listing origin invitations for an account in database, {}",
-                    e
-                )
-            }
-            SrvError::OriginInvitationValidate(ref e) => {
-                format!(
-                    "Error validating origin invitation for an account in database, {}",
-                    e
-                )
-            }
+            SrvError::OriginInvitationListForOrigin(ref e) => format!(
+                "Error listing origin invitations for an origin in database, {}",
+                e
+            ),
+            SrvError::OriginInvitationListForAccount(ref e) => format!(
+                "Error listing origin invitations for an account in database, {}",
+                e
+            ),
+            SrvError::OriginInvitationValidate(ref e) => format!(
+                "Error validating origin invitation for an account in database, {}",
+                e
+            ),
             SrvError::OriginPackageCreate(ref e) => {
                 format!("Error creating package in database, {}", e)
             }
@@ -242,12 +234,10 @@ impl fmt::Display for SrvError {
             SrvError::OriginPackageList(ref e) => {
                 format!("Error getting list of packages for this origin, {}", e)
             }
-            SrvError::OriginPackageVersionList(ref e) => {
-                format!(
-                    "Error getting list of package versions for this origin, {}",
-                    e
-                )
-            }
+            SrvError::OriginPackageVersionList(ref e) => format!(
+                "Error getting list of package versions for this origin, {}",
+                e
+            ),
             SrvError::OriginPackageGroupDemote(ref e) => {
                 format!("Error demoting package group from channel, {}", e)
             }
@@ -263,12 +253,10 @@ impl fmt::Display for SrvError {
             SrvError::OriginPackageSearch(ref e) => {
                 format!("Error searching list of packages for this origin, {}", e)
             }
-            SrvError::OriginPackageUniqueList(ref e) => {
-                format!(
-                    "Error getting unique list of packages for this origin, {}",
-                    e
-                )
-            }
+            SrvError::OriginPackageUniqueList(ref e) => format!(
+                "Error getting unique list of packages for this origin, {}",
+                e
+            ),
             SrvError::OriginPackageUpdate(ref e) => {
                 format!("Error updating a package in this origin, {}", e)
             }
@@ -296,48 +284,34 @@ impl fmt::Display for SrvError {
             SrvError::OriginProjectIntegrationGet(ref e) => {
                 format!("Error getting project integration from database, {}", e)
             }
-            SrvError::OriginProjectIntegrationRequest(ref e) => {
-                format!(
-                    "Error retrieving project integration request from database, {}",
-                    e
-                )
-            }
-            SrvError::OriginPrivateEncryptionKeyCreate(ref e) => {
-                format!(
-                    "Error creating origin private encryption key in database, {}",
-                    e
-                )
-            }
-            SrvError::OriginPrivateEncryptionKeyGet(ref e) => {
-                format!(
-                    "Error getting origin private encryption key from database, {}",
-                    e
-                )
-            }
-            SrvError::OriginPublicEncryptionKeyCreate(ref e) => {
-                format!(
-                    "Error creating origin public encryption key in database, {}",
-                    e
-                )
-            }
-            SrvError::OriginPublicEncryptionKeyGet(ref e) => {
-                format!(
-                    "Error getting origin public encryption key from database, {}",
-                    e
-                )
-            }
-            SrvError::OriginPublicEncryptionKeyLatestGet(ref e) => {
-                format!(
-                    "Error getting latest origin public encryption key from database, {}",
-                    e
-                )
-            }
-            SrvError::OriginPublicEncryptionKeyListForOrigin(ref e) => {
-                format!(
-                    "Error listing origin public encryption keys for an origin from database, {}",
-                    e
-                )
-            }
+            SrvError::OriginProjectIntegrationRequest(ref e) => format!(
+                "Error retrieving project integration request from database, {}",
+                e
+            ),
+            SrvError::OriginPrivateEncryptionKeyCreate(ref e) => format!(
+                "Error creating origin private encryption key in database, {}",
+                e
+            ),
+            SrvError::OriginPrivateEncryptionKeyGet(ref e) => format!(
+                "Error getting origin private encryption key from database, {}",
+                e
+            ),
+            SrvError::OriginPublicEncryptionKeyCreate(ref e) => format!(
+                "Error creating origin public encryption key in database, {}",
+                e
+            ),
+            SrvError::OriginPublicEncryptionKeyGet(ref e) => format!(
+                "Error getting origin public encryption key from database, {}",
+                e
+            ),
+            SrvError::OriginPublicEncryptionKeyLatestGet(ref e) => format!(
+                "Error getting latest origin public encryption key from database, {}",
+                e
+            ),
+            SrvError::OriginPublicEncryptionKeyListForOrigin(ref e) => format!(
+                "Error listing origin public encryption keys for an origin from database, {}",
+                e
+            ),
             SrvError::OriginPrivateSigningKeyCreate(ref e) => {
                 format!("Error creating origin secret key in database, {}", e)
             }
@@ -350,12 +324,10 @@ impl fmt::Display for SrvError {
             SrvError::OriginPublicSigningKeyGet(ref e) => {
                 format!("Error getting origin public key from database, {}", e)
             }
-            SrvError::OriginPublicSigningKeyLatestGet(ref e) => {
-                format!(
-                    "Error getting latest origin public key from database, {}",
-                    e
-                )
-            }
+            SrvError::OriginPublicSigningKeyLatestGet(ref e) => format!(
+                "Error getting latest origin public key from database, {}",
+                e
+            ),
             SrvError::OriginSecretCreate(ref e) => {
                 format!("Error creating origin secret in the database, {}", e)
             }
@@ -368,12 +340,10 @@ impl fmt::Display for SrvError {
             SrvError::OriginSecretList(ref e) => {
                 format!("Error getting origin secret list from the database, {}", e)
             }
-            SrvError::OriginPublicSigningKeyListForOrigin(ref e) => {
-                format!(
-                    "Error listing origin public keys for an origin from database, {}",
-                    e
-                )
-            }
+            SrvError::OriginPublicSigningKeyListForOrigin(ref e) => format!(
+                "Error listing origin public keys for an origin from database, {}",
+                e
+            ),
             SrvError::OriginAccountList(ref e) => {
                 format!("Error getting list of origins for this account, {}", e)
             }

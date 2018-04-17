@@ -25,7 +25,7 @@
 use config::ArchiveCfg;
 use error::Result;
 use server::log_directory::LogDirectory;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::fs::{self, OpenOptions};
 use std::io::Read;
 use std::path::PathBuf;
@@ -38,9 +38,10 @@ pub struct LocalArchiver(PathBuf);
 impl LocalArchiver {
     // CM TODO: Implement an error type for bad configuration
     pub fn new(config: &ArchiveCfg) -> Result<LocalArchiver> {
-        let archive_dir = config.local_dir.as_ref().expect(
-            "Missing local archive directory!",
-        );
+        let archive_dir = config
+            .local_dir
+            .as_ref()
+            .expect("Missing local archive directory!");
         LogDirectory::validate(archive_dir)?;
         Ok(LocalArchiver(archive_dir.clone()))
     }

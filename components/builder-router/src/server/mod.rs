@@ -147,10 +147,8 @@ impl Server {
             Some(hash) => (hash % SHARD_COUNT as u64) as u32,
             None => (self.rng.gen::<u64>() % SHARD_COUNT as u64) as u32,
         };
-        self.servers.get(
-            &message.route_info().unwrap().protocol(),
-            &shard_id,
-        )
+        self.servers
+            .get(&message.route_info().unwrap().protocol(), &shard_id)
     }
 
     /// A tickless timer for determining how long to wait between each server tick. This value is
@@ -183,10 +181,8 @@ impl ServerMap {
         for shard in shards {
             registrations.insert(shard, net_ident.clone());
         }
-        self.timestamps.insert(
-            net_ident,
-            time::clock_time() + SERVER_TTL,
-        );
+        self.timestamps
+            .insert(net_ident, time::clock_time() + SERVER_TTL);
         true
     }
 
@@ -194,23 +190,24 @@ impl ServerMap {
         for map in self.reg.values_mut() {
             map.retain(|_, net_ident| net_ident.as_slice() != target);
         }
-        self.timestamps.retain(
-            |net_ident, _| net_ident.as_slice() != target,
-        );
+        self.timestamps
+            .retain(|net_ident, _| net_ident.as_slice() != target);
     }
 
     pub fn expire(&mut self) {
         let now = time::clock_time();
         let mut expired = vec![];
-        self.timestamps.retain(|id, last| if *last <= now {
-            info!(
-                "expiring server registration, {:?}",
-                String::from_utf8_lossy(&id)
-            );
-            expired.push(id.clone());
-            false
-        } else {
-            true
+        self.timestamps.retain(|id, last| {
+            if *last <= now {
+                info!(
+                    "expiring server registration, {:?}",
+                    String::from_utf8_lossy(&id)
+                );
+                expired.push(id.clone());
+                false
+            } else {
+                true
+            }
         });
         for net_ident in expired.iter() {
             self.drop(net_ident);
@@ -227,10 +224,9 @@ impl ServerMap {
     pub fn next_expiration(&self) -> i64 {
         let mut timestamps = self.timestamps.values().collect::<Vec<&i64>>();
         timestamps.sort_by(|av, bv| av.cmp(bv));
-        let expiration = timestamps.first().map_or(
-            30_000,
-            |v| **v - time::clock_time(),
-        );
+        let expiration = timestamps
+            .first()
+            .map_or(30_000, |v| **v - time::clock_time());
         if expiration.is_negative() {
             0
         } else {

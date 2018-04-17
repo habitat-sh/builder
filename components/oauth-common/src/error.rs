@@ -39,13 +39,10 @@ impl fmt::Display for OAuthError {
             OAuthError::ApiClient(ref e) => format!("{}", e),
             OAuthError::HttpClient(ref e) => format!("{}", e),
             OAuthError::HttpClientParse(ref e) => format!("{}", e),
-            OAuthError::HttpResponse(ref code, ref response) => {
-                format!(
-                    "Received a non-200 response, status={}, response={}",
-                    code,
-                    response
-                )
-            }
+            OAuthError::HttpResponse(ref code, ref response) => format!(
+                "Received a non-200 response, status={}, response={}",
+                code, response
+            ),
             OAuthError::Hub(ref e) => format!("{}", e),
             OAuthError::IO(ref e) => format!("{}", e),
             OAuthError::Serialization(ref e) => format!("{}", e),

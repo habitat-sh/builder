@@ -127,8 +127,8 @@ impl NetError {
     }
 
     pub fn parse(msg: &protocol::Message) -> Result<NetError, LibError> {
-        let err = protocol::message::decode::<net::NetError>(&msg.body)
-            .map_err(LibError::Protocol)?;
+        let err =
+            protocol::message::decode::<net::NetError>(&msg.body).map_err(LibError::Protocol)?;
         Ok(NetError(err))
     }
 

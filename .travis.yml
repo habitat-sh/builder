@@ -10,7 +10,7 @@ os: linux
 
 env:
   global:
-    - PATH=$HOME/.cargo/bin:$PATH
+    - PATH=$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$HOME/.cargo/bin:$PATH
     # Habitat Rust program components
     - _RUST_HAB_BIN_COMPONENTS="components/airlock"
     # Builder Rust program components
@@ -55,6 +55,8 @@ matrix:
         cargo: true
         directories:
           - "$HOME/pkgs"
+      before_script:
+        - rustup component add rustfmt-preview
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
         - ./support/ci/install_hab.sh
@@ -62,7 +64,7 @@ matrix:
         - ./support/ci/compile_libsodium.sh
         - ./support/ci/compile_libarchive.sh
         - ./support/ci/compile_zmq.sh
-        - ./support/ci/install_rustfmt.sh
+        - source ./support/ci/rust_env.sh
       script:
         - ./support/ci/rust_tests.sh
         - ./support/ci/lint.sh
@@ -95,6 +97,8 @@ matrix:
         cargo: true
         directories:
           - "$HOME/pkgs"
+      before_script:
+        - rustup component add rustfmt-preview
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
         - ./support/ci/install_hab.sh
@@ -102,7 +106,7 @@ matrix:
         - ./support/ci/compile_libsodium.sh
         - ./support/ci/compile_libarchive.sh
         - ./support/ci/compile_zmq.sh
-        - ./support/ci/install_rustfmt.sh
+        - source ./support/ci/rust_env.sh
       script:
         - ./support/ci/rust_tests.sh
         - ./support/ci/lint.sh
@@ -135,6 +139,8 @@ matrix:
         cargo: true
         directories:
           - "$HOME/pkgs"
+      before_script:
+        - rustup component add rustfmt-preview
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
         - ./support/ci/install_hab.sh
@@ -142,7 +148,6 @@ matrix:
         - ./support/ci/compile_libsodium.sh
         - ./support/ci/compile_libarchive.sh
         - ./support/ci/compile_zmq.sh
-        - ./support/ci/install_rustfmt.sh
         - source ./support/ci/rust_env.sh
         - openssl aes-256-cbc -K $encrypted_builder_github_app_pem_key -iv $encrypted_builder_github_app_pem_iv -in ./support/ci/builder-github-app.pem.enc -out /tmp/builder-github-app.pem -d
       script:

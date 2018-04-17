@@ -29,12 +29,12 @@ use diesel::result::Error as Dre;
 use postgres;
 use postgres::rows::Rows;
 use protobuf;
-use protocol::net::{NetError, ErrCode};
-use protocol::{originsrv, jobsrv};
+use protocol::net::{ErrCode, NetError};
+use protocol::{jobsrv, originsrv};
 use protocol::originsrv::Pageable;
 use protobuf::{ProtobufEnum, RepeatedField};
 
-use error::{Result, Error};
+use error::{Error, Result};
 
 /// DataStore inherints being Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Clone)]
@@ -758,12 +758,12 @@ impl DataStore {
             jobsrv::JobState::Complete => "Success",
             jobsrv::JobState::Rejected => "NotStarted", // retry submission
             jobsrv::JobState::Failed => "Failure",
-            jobsrv::JobState::Pending |
-            jobsrv::JobState::Processing |
-            jobsrv::JobState::Dispatched => "InProgress",
-            jobsrv::JobState::CancelPending |
-            jobsrv::JobState::CancelProcessing |
-            jobsrv::JobState::CancelComplete => "Canceled",
+            jobsrv::JobState::Pending
+            | jobsrv::JobState::Processing
+            | jobsrv::JobState::Dispatched => "InProgress",
+            jobsrv::JobState::CancelPending
+            | jobsrv::JobState::CancelProcessing
+            | jobsrv::JobState::CancelComplete => "Canceled",
         };
 
         if job.get_state() == jobsrv::JobState::Complete {
@@ -810,9 +810,8 @@ impl DataStore {
         let mut jobs = Vec::new();
         let conn = self.pool.get_shard(0)?;
 
-        let rows = &conn.query("SELECT * FROM sync_jobs_v2()", &[]).map_err(
-            Error::SyncJobs,
-        )?;
+        let rows = &conn.query("SELECT * FROM sync_jobs_v2()", &[])
+            .map_err(Error::SyncJobs)?;
 
         for row in rows.iter() {
             match row_to_job(&row) {
@@ -915,9 +914,9 @@ fn row_to_job(row: &postgres::rows::Row) -> Result<jobsrv::Job> {
             project.set_vcs_data(vcsa.remove(0).expect("expected vcs data"));
             if vcsa.len() > 0 {
                 if let Some(install_id) = vcsa.remove(0) {
-                    project.set_vcs_installation_id(install_id.parse::<u32>().map_err(
-                        Error::ParseVCSInstallationId,
-                    )?);
+                    project.set_vcs_installation_id(install_id
+                        .parse::<u32>()
+                        .map_err(Error::ParseVCSInstallationId)?);
                 }
             }
         }

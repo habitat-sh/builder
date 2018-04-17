@@ -21,7 +21,7 @@ use hab_core::users;
 use hab_core::util::perm;
 use hab_net;
 use hab_net::socket::DEFAULT_CONTEXT;
-use protocol::{message, jobsrv};
+use protocol::{jobsrv, message};
 use zmq;
 
 use config::Config;
@@ -120,20 +120,16 @@ impl Server {
                 self.fe_sock.recv(&mut self.msg, 0)?; // Receive Job msg
 
                 match self.state {
-                    State::Ready => {
-                        match wc.get_op() {
-                            jobsrv::WorkerOperation::StartJob => self.start_job()?,
-                            jobsrv::WorkerOperation::CancelJob => {
-                                warn!("Received unexpected Cancel for Ready worker")
-                            }
+                    State::Ready => match wc.get_op() {
+                        jobsrv::WorkerOperation::StartJob => self.start_job()?,
+                        jobsrv::WorkerOperation::CancelJob => {
+                            warn!("Received unexpected Cancel for Ready worker")
                         }
-                    }
-                    State::Busy => {
-                        match wc.get_op() {
-                            jobsrv::WorkerOperation::StartJob => self.reject_job()?,
-                            jobsrv::WorkerOperation::CancelJob => self.cancel_job()?,
-                        }
-                    }
+                    },
+                    State::Busy => match wc.get_op() {
+                        jobsrv::WorkerOperation::StartJob => self.reject_job()?,
+                        jobsrv::WorkerOperation::CancelJob => self.cancel_job()?,
+                    },
                 }
                 fe_msg = false;
             }
@@ -187,14 +183,14 @@ impl Server {
         if self.config.network_interface.is_some() && self.config.network_gateway.is_none() {
             error!(
                 "ERROR: No 'network_gateway' config value specfied when 'network_interface' \
-                   was provided. Both must be present to work correctly."
+                 was provided. Both must be present to work correctly."
             );
             return Err(Error::NoNetworkGatewayError);
         }
         if self.config.network_gateway.is_some() && self.config.network_interface.is_none() {
             error!(
                 "ERROR: No 'network_interface' config value specfied when 'network_gateway' \
-                   was provided. Both must be present to work correctly."
+                 was provided. Both must be present to work correctly."
             );
             return Err(Error::NoNetworkInterfaceError);
         }
@@ -214,12 +210,14 @@ impl Server {
             }
         }
 
-        let interface = self.config.network_interface.as_ref().expect(
-            "network_interface is set",
-        );
-        let gateway = self.config.network_gateway.as_ref().expect(
-            "network_gateway is set",
-        );
+        let interface = self.config
+            .network_interface
+            .as_ref()
+            .expect("network_interface is set");
+        let gateway = self.config
+            .network_gateway
+            .as_ref()
+            .expect("network_gateway is set");
         self.prepare_dirs()?;
         net_ns.create(interface, gateway, studio::STUDIO_USER)
     }
@@ -239,13 +237,12 @@ impl Server {
         // Set parent directory of ns_dir to be owned by the build user so that the appropriate
         // directories, files, and bind-mounts can be created for the build user
         let parent_path = self.config.ns_dir_path();
-        let parent_path = parent_path.parent().expect(
-            "parent directory path segement for ns_dir should exist",
-        );
+        let parent_path = parent_path
+            .parent()
+            .expect("parent directory path segement for ns_dir should exist");
         if !parent_path.is_dir() {
-            fs::create_dir_all(parent_path).map_err(|e| {
-                Error::CreateDirectory(parent_path.to_path_buf(), e)
-            })?;
+            fs::create_dir_all(parent_path)
+                .map_err(|e| Error::CreateDirectory(parent_path.to_path_buf(), e))?;
         }
         perm::set_owner(&parent_path, studio::STUDIO_USER, studio::STUDIO_GROUP)?;
         perm::set_permissions(&parent_path, 0o750)?;
@@ -255,9 +252,10 @@ impl Server {
 
     fn enable_features_from_config(&self) {
         let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List)]);
-        let features_enabled = self.config.features_enabled.split(",").map(|f| {
-            f.trim().to_uppercase()
-        });
+        let features_enabled = self.config
+            .features_enabled
+            .split(",")
+            .map(|f| f.trim().to_uppercase());
         for key in features_enabled {
             if features.contains_key(key.as_str()) {
                 info!("Enabling feature: {}", key);
@@ -277,16 +275,10 @@ pub fn run(config: Config) -> Result<()> {
 }
 
 fn init_users() -> Result<()> {
-    let uid = users::get_uid_by_name(studio::STUDIO_USER).ok_or(
-        Error::NoStudioUser,
-    )?;
-    let gid = users::get_gid_by_name(studio::STUDIO_GROUP).ok_or(
-        Error::NoStudioGroup,
-    )?;
+    let uid = users::get_uid_by_name(studio::STUDIO_USER).ok_or(Error::NoStudioUser)?;
+    let gid = users::get_gid_by_name(studio::STUDIO_GROUP).ok_or(Error::NoStudioGroup)?;
     let mut home = studio::STUDIO_HOME.lock().unwrap();
-    *home = users::get_home_for_user(studio::STUDIO_USER).ok_or(
-        Error::NoStudioGroup,
-    )?;
+    *home = users::get_home_for_user(studio::STUDIO_USER).ok_or(Error::NoStudioGroup)?;
     studio::set_studio_uid(uid);
     studio::set_studio_gid(gid);
     Ok(())

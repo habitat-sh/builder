@@ -44,13 +44,10 @@ impl fmt::Display for HubError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             HubError::ApiClient(ref e) => format!("{}", e),
-            HubError::ApiError(ref code, ref response) => {
-                format!(
-                    "Received a non-200 response, status={}, response={:?}",
-                    code,
-                    response
-                )
-            }
+            HubError::ApiError(ref code, ref response) => format!(
+                "Received a non-200 response, status={}, response={:?}",
+                code, response
+            ),
             HubError::AppAuth(ref e) => format!("GitHub App Authentication error, {}", e),
             HubError::Auth(ref e) => format!("GitHub Authentication error, {}", e),
             HubError::ContentDecode(ref e) => format!("{}", e),

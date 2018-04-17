@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate airlock;
 #[macro_use]
@@ -48,15 +48,13 @@ fn _main() -> Result<()> {
     match app_matches.subcommand() {
         ("nsrun", Some(m)) => sub_nsrun(m),
         ("run", Some(m)) => sub_run(m),
-        ("netns", Some(m)) => {
-            match m.subcommand() {
-                ("create", Some(m)) => sub_netns_create(m),
-                ("createasuser", Some(m)) => sub_netns_createasuser(m),
-                ("createinns", Some(m)) => sub_netns_createinns(m),
-                ("destroy", Some(m)) => sub_netns_destroy(m),
-                _ => unreachable!(),
-            }
-        }
+        ("netns", Some(m)) => match m.subcommand() {
+            ("create", Some(m)) => sub_netns_create(m),
+            ("createasuser", Some(m)) => sub_netns_createasuser(m),
+            ("createinns", Some(m)) => sub_netns_createinns(m),
+            ("destroy", Some(m)) => sub_netns_destroy(m),
+            _ => unreachable!(),
+        },
         _ => unreachable!(),
     }
 }

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate aws_sdk_rust;
 extern crate builder_core as bldr_core;
@@ -21,10 +21,10 @@ extern crate chrono;
 extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
+extern crate habitat_builder_db as db;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
 extern crate habitat_net as hab_net;
-extern crate habitat_builder_db as db;
 extern crate hyper;
 #[macro_use]
 extern crate lazy_static;
@@ -33,13 +33,13 @@ extern crate linked_hash_map;
 extern crate log;
 extern crate postgres;
 extern crate protobuf;
-extern crate rand;
-extern crate time;
 extern crate r2d2;
+extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate sha2;
+extern crate time;
 extern crate toml;
 extern crate zmq;
 

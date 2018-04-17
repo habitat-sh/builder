@@ -13,9 +13,9 @@
 // limitations under the License.
 
 // NOTE: This is only here to allow manual testing of the API client.
-extern crate segment_api_client as segment;
 #[macro_use]
 extern crate log;
+extern crate segment_api_client as segment;
 
 use std::env;
 use std::process::exit;

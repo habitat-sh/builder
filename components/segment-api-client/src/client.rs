@@ -16,10 +16,10 @@ use std::time::Duration;
 
 use hyper;
 use hyper::client::Response;
-use hyper::header::{Authorization, Accept, Basic, ContentType, Headers, UserAgent, qitem};
+use hyper::header::{qitem, Accept, Authorization, Basic, ContentType, Headers, UserAgent};
 use hyper::net::HttpsConnector;
 use hyper_openssl::OpensslClient;
-use hyper::mime::{Mime, TopLevel, SubLevel};
+use hyper::mime::{Mime, SubLevel, TopLevel};
 use serde_json;
 
 use config::SegmentCfg;
@@ -43,9 +43,7 @@ impl SegmentClient {
     }
 
     pub fn identify(&self, user_id: &str) -> SegmentResult<Response> {
-        let json = json!({
-            "userId": user_id
-        });
+        let json = json!({ "userId": user_id });
 
         self.http_post(
             "identify",
@@ -73,9 +71,10 @@ impl SegmentClient {
     {
         let url = format!("{}/v1/{}", self.url, path);
         let client = hyper_client();
-        let req = client.post(&url).body(&body).headers(
-            configure_headers(token),
-        );
+        let req = client
+            .post(&url)
+            .body(&body)
+            .headers(configure_headers(token));
         req.send().map_err(SegmentError::HttpClient)
     }
 }
@@ -86,13 +85,13 @@ where
 {
     let mut headers = Headers::new();
     headers.set(Accept(vec![
-        qitem(
-            Mime(TopLevel::Application, SubLevel::Json, vec![])
-        ),
+        qitem(Mime(TopLevel::Application, SubLevel::Json, vec![])),
     ]));
-    headers.set(ContentType(
-        Mime(TopLevel::Application, SubLevel::Json, vec![]),
-    ));
+    headers.set(ContentType(Mime(
+        TopLevel::Application,
+        SubLevel::Json,
+        vec![],
+    )));
     headers.set(UserAgent(USER_AGENT.to_string()));
     headers.set(Authorization(Basic {
         username: token.to_string(),

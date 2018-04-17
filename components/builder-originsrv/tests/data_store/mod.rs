@@ -29,9 +29,9 @@ fn create_origin_poop() {
     ds.create_origin(&origin).expect("Should create origin");
 
     // Create new database connection
-    let conn = ds.pool.get(&origin).expect(
-        "Cannot get connection from pool",
-    );
+    let conn = ds.pool
+        .get(&origin)
+        .expect("Cannot get connection from pool");
 
     let rows = conn.query("SELECT COUNT(*) FROM origin_channels", &[])
         .expect("Failed to query database for number of channels");
@@ -66,9 +66,8 @@ fn get_origin_by_name() {
     origin.set_owner_name(String::from("scottkelly"));
     ds.create_origin(&origin).expect("Should create origin");
 
-    let new_origin = ds.get_origin_by_name("neurosis").expect(
-        "Could not get the origin",
-    );
+    let new_origin = ds.get_origin_by_name("neurosis")
+        .expect("Could not get the origin");
     assert!(new_origin.is_some(), "Origin did not exist");
     let fg = new_origin.unwrap();
     assert_eq!(fg.get_name(), "neurosis");
@@ -96,9 +95,8 @@ fn create_origin_secret_key() {
     oskc.set_origin_id(neurosis.get_id());
     oskc.set_owner_id(1);
     oskc.set_body(String::from("very_secret").into_bytes());
-    ds.create_origin_secret_key(&oskc).expect(
-        "Failed to create origin secret key",
-    );
+    ds.create_origin_secret_key(&oskc)
+        .expect("Failed to create origin secret key");
 
     // Origin secret keys get returned with the origin
     let first = ds.get_origin_by_name("neurosis")
@@ -108,9 +106,8 @@ fn create_origin_secret_key() {
 
     // They are also sorted based on the latest key if there is more than one
     oskc.set_revision(String::from("20160612031945"));
-    ds.create_origin_secret_key(&oskc).expect(
-        "Failed to create origin secret key",
-    );
+    ds.create_origin_secret_key(&oskc)
+        .expect("Failed to create origin secret key");
     let second = ds.get_origin_by_name("neurosis")
         .expect("Could not get the origin")
         .expect("origin did not exist");
@@ -137,9 +134,8 @@ fn create_origin_secret_key_handles_unique_constraint_violations_correctly() {
     oskc.set_origin_id(neurosis.get_id());
     oskc.set_owner_id(1);
     oskc.set_body(String::from("very_secret").into_bytes());
-    ds.create_origin_secret_key(&oskc).expect(
-        "Failed to create origin secret key",
-    );
+    ds.create_origin_secret_key(&oskc)
+        .expect("Failed to create origin secret key");
 
     // Create a duplicate origin secret key, which should fail
     let mut oskc2 = originsrv::OriginPrivateSigningKeyCreate::new();
@@ -173,13 +169,11 @@ fn get_origin_secret_key() {
     oskc.set_origin_id(neurosis.get_id());
     oskc.set_owner_id(1);
     oskc.set_body(String::from("very_secret").into_bytes());
-    ds.create_origin_secret_key(&oskc).expect(
-        "Failed to create origin secret key",
-    );
+    ds.create_origin_secret_key(&oskc)
+        .expect("Failed to create origin secret key");
     oskc.set_revision(String::from("20160612031945"));
-    ds.create_origin_secret_key(&oskc).expect(
-        "Failed to create origin secret key",
-    );
+    ds.create_origin_secret_key(&oskc)
+        .expect("Failed to create origin secret key");
 
     let mut osk_get = originsrv::OriginPrivateSigningKeyGet::new();
     osk_get.set_origin(String::from("neurosis"));
@@ -214,18 +208,16 @@ fn create_origin_public_key() {
     oskc.set_origin_id(neurosis.get_id());
     oskc.set_owner_id(1);
     oskc.set_body(String::from("very_public").into_bytes());
-    ds.create_origin_public_key(&oskc).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_public_key(&oskc)
+        .expect("Failed to create origin public key");
     let mut oskc2 = originsrv::OriginPublicSigningKeyCreate::new();
     oskc2.set_name(String::from("neurosis"));
     oskc2.set_origin_id(neurosis.get_id());
     oskc2.set_owner_id(1);
     oskc2.set_revision(String::from("20160612031945"));
     oskc2.set_body(String::from("very_very_public").into_bytes());
-    ds.create_origin_public_key(&oskc2).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_public_key(&oskc2)
+        .expect("Failed to create origin public key");
 
     let mut oskg = originsrv::OriginPublicSigningKeyGet::new();
     oskg.set_owner_id(1);
@@ -257,18 +249,16 @@ fn create_origin_public_key_handles_unique_constraint_violations_correctly() {
     oskc.set_origin_id(neurosis.get_id());
     oskc.set_owner_id(1);
     oskc.set_body(String::from("very_public").into_bytes());
-    ds.create_origin_public_key(&oskc).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_public_key(&oskc)
+        .expect("Failed to create origin public key");
     let mut oskc2 = originsrv::OriginPublicSigningKeyCreate::new();
     oskc2.set_name(String::from("neurosis"));
     oskc2.set_origin_id(neurosis.get_id());
     oskc2.set_owner_id(1);
     oskc2.set_revision(String::from("20160612031945"));
     oskc2.set_body(String::from("very_very_public").into_bytes());
-    ds.create_origin_public_key(&oskc2).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_public_key(&oskc2)
+        .expect("Failed to create origin public key");
 
     // Create a duplicate origin public key, which should fail
     let mut opkc = originsrv::OriginPublicSigningKeyCreate::new();
@@ -303,14 +293,12 @@ fn get_origin_public_key_latest() {
     oskc.set_origin_id(neurosis.get_id());
     oskc.set_owner_id(1);
     oskc.set_body(body);
-    ds.create_origin_public_key(&oskc).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_public_key(&oskc)
+        .expect("Failed to create origin public key");
     oskc.set_revision(String::from("20160612031945"));
     oskc.set_body(String::from("very_very_public").into_bytes());
-    ds.create_origin_public_key(&oskc).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_public_key(&oskc)
+        .expect("Failed to create origin public key");
 
     let mut osk_get = originsrv::OriginPublicSigningKeyLatestGet::new();
     osk_get.set_origin(String::from("neurosis"));
@@ -345,24 +333,21 @@ fn list_origin_public_key() {
     oskc.set_origin_id(neurosis.get_id());
     oskc.set_owner_id(1);
     oskc.set_body(String::from("very_public").into_bytes());
-    ds.create_origin_public_key(&oskc).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_public_key(&oskc)
+        .expect("Failed to create origin public key");
     let mut oskc2 = originsrv::OriginPublicSigningKeyCreate::new();
     oskc2.set_name(String::from("neurosis"));
     oskc2.set_origin_id(neurosis.get_id());
     oskc2.set_owner_id(1);
     oskc2.set_revision(String::from("20160612031945"));
     oskc2.set_body(String::from("very_very_public").into_bytes());
-    ds.create_origin_public_key(&oskc2).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_public_key(&oskc2)
+        .expect("Failed to create origin public key");
 
     let mut oskl = originsrv::OriginPublicSigningKeyListRequest::new();
     oskl.set_origin_id(neurosis.get_id());
-    let keys = ds.list_origin_public_keys_for_origin(&oskl).expect(
-        "Could not get the keys from the database",
-    );
+    let keys = ds.list_origin_public_keys_for_origin(&oskl)
+        .expect("Could not get the keys from the database");
     assert_eq!(keys.get_keys().len(), 2);
     let key1 = keys.get_keys().iter().nth(0).unwrap();
     assert_eq!(key1.get_revision(), "20160612031945");
@@ -389,17 +374,14 @@ fn create_origin_invitation() {
     oic.set_account_id(2);
     oic.set_account_name(String::from("noel_gallagher"));
     oic.set_owner_id(1);
-    ds.create_origin_invitation(&oic).expect(
-        "Failed to create the origin invitation",
-    );
-    ds.create_origin_invitation(&oic).expect(
-        "Failed to create the origin invitation again, which should be a no-op",
-    );
+    ds.create_origin_invitation(&oic)
+        .expect("Failed to create the origin invitation");
+    ds.create_origin_invitation(&oic)
+        .expect("Failed to create the origin invitation again, which should be a no-op");
 
     oic.set_owner_id(5);
-    ds.create_origin_invitation(&oic).expect(
-        "Failed to create the origin invitation again, which should be a no-op",
-    );
+    ds.create_origin_invitation(&oic)
+        .expect("Failed to create the origin invitation again, which should be a no-op");
 
     // We should never create an invitation for the same person and org
     let conn = ds.pool.get(&oic).expect("Cannot get connection from pool");
@@ -424,9 +406,8 @@ fn list_origin_invitations_for_origin() {
 
     let mut oilr = originsrv::OriginInvitationListRequest::new();
     oilr.set_origin_id(neurosis.get_id());
-    let no_invites = ds.list_origin_invitations_for_origin(&oilr).expect(
-        "Failed to get origin list from database",
-    );
+    let no_invites = ds.list_origin_invitations_for_origin(&oilr)
+        .expect("Failed to get origin list from database");
     assert_eq!(
         no_invites.get_invitations().len(),
         0,
@@ -439,24 +420,20 @@ fn list_origin_invitations_for_origin() {
     oic.set_account_id(2);
     oic.set_account_name(String::from("noel_gallagher"));
     oic.set_owner_id(1);
-    ds.create_origin_invitation(&oic).expect(
-        "Failed to create the origin invitation",
-    );
+    ds.create_origin_invitation(&oic)
+        .expect("Failed to create the origin invitation");
     oic.set_account_id(3);
     oic.set_account_name(String::from("maynard_james_keenan"));
-    ds.create_origin_invitation(&oic).expect(
-        "Failed to create the origin invitation",
-    );
+    ds.create_origin_invitation(&oic)
+        .expect("Failed to create the origin invitation");
     oic.set_account_id(4);
     oic.set_account_name(String::from("danny_cary"));
-    ds.create_origin_invitation(&oic).expect(
-        "Failed to create the origin invitation",
-    );
+    ds.create_origin_invitation(&oic)
+        .expect("Failed to create the origin invitation");
 
     // List comes back in alphabetical order by origin
-    let oi_list = ds.list_origin_invitations_for_origin(&oilr).expect(
-        "Could not get origin invitation list from database",
-    );
+    let oi_list = ds.list_origin_invitations_for_origin(&oilr)
+        .expect("Could not get origin invitation list from database");
     assert_eq!(oi_list.get_invitations().len(), 3);
     let danny = oi_list.get_invitations().iter().nth(0).unwrap();
     assert_eq!(danny.get_account_id(), 4);
@@ -484,9 +461,8 @@ fn check_account_in_origin() {
     coar.set_account_id(1);
 
     assert!(
-        ds.check_account_in_origin(&coar).expect(
-            "failed to check membership in the database",
-        ),
+        ds.check_account_in_origin(&coar,)
+            .expect("failed to check membership in the database",),
         "Member should have been in the origin"
     );
 }
@@ -515,9 +491,8 @@ fn create_origin_project() {
     let mut opc = originsrv::OriginProjectCreate::new();
     opc.set_project(op);
 
-    ds.create_origin_project(&opc).expect(
-        "Failed to create origin project",
-    );
+    ds.create_origin_project(&opc)
+        .expect("Failed to create origin project");
 }
 
 #[test]
@@ -543,9 +518,8 @@ fn create_origin_project_handles_unique_constraint_violations_correctly() {
     let mut opc = originsrv::OriginProjectCreate::new();
     opc.set_project(op.clone());
 
-    ds.create_origin_project(&opc).expect(
-        "Failed to create origin project",
-    );
+    ds.create_origin_project(&opc)
+        .expect("Failed to create origin project");
 
     // Now let's insert a duplicate, which should throw an error
     let mut opc2 = originsrv::OriginProjectCreate::new();
@@ -578,9 +552,8 @@ fn create_origin_project_returns_no_installation_id_when_none_was_set() {
     let mut opc = originsrv::OriginProjectCreate::new();
     opc.set_project(op.clone());
 
-    let proj = ds.create_origin_project(&opc).expect(
-        "Failed to create origin project",
-    );
+    let proj = ds.create_origin_project(&opc)
+        .expect("Failed to create origin project");
 
     assert_eq!(proj.has_vcs_installation_id(), false);
 }
@@ -683,9 +656,8 @@ fn delete_origin_project_by_name() {
     let mut opc = originsrv::OriginProjectCreate::new();
     opc.set_project(op);
 
-    ds.create_origin_project(&opc).expect(
-        "Failed to create project in database",
-    );
+    ds.create_origin_project(&opc)
+        .expect("Failed to create project in database");
     assert!(
         ds.delete_origin_project_by_name("neurosis/zeal").is_ok(),
         "Should delete existing project"
@@ -716,9 +688,8 @@ fn delete_origin_member_by_name() {
     omr.set_origin_id(neurosis.get_id());
     omr.set_account_name(String::from("scottkelly"));
 
-    ds.delete_origin_member(&omr).expect(
-        "Failed to delete member in database",
-    );
+    ds.delete_origin_member(&omr)
+        .expect("Failed to delete member in database");
 
     let mut omlr = originsrv::OriginMemberListRequest::new();
     omlr.set_origin_id(neurosis.get_id());
@@ -790,9 +761,8 @@ fn update_origin_package() {
     package.set_target("x86_64-linux".to_string());
     package.set_exposes(vec![1, 2]);
     package.set_visibility(originsrv::OriginPackageVisibility::Private);
-    ds.create_origin_package(&package).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package)
+        .expect("Failed to create origin package");
 
     let mut package_get = originsrv::OriginPackageGet::new();
     package_get.set_ident(ident.clone());
@@ -810,9 +780,8 @@ fn update_origin_package() {
     result.set_visibility(originsrv::OriginPackageVisibility::Public);
     upd.set_pkg(result);
 
-    ds.update_origin_package(&upd).expect(
-        "Failed to update origin package",
-    );
+    ds.update_origin_package(&upd)
+        .expect("Failed to update origin package");
 
     let mut package_get2 = originsrv::OriginPackageGet::new();
     package_get2.set_ident(ident.clone());
@@ -889,9 +858,8 @@ fn update_origin_project() {
     let mut opc = originsrv::OriginProjectCreate::new();
     opc.set_project(op.clone());
 
-    ds.create_origin_project(&opc).expect(
-        "Failed to create project in database",
-    );
+    ds.create_origin_project(&opc)
+        .expect("Failed to create project in database");
 
     let mut project = ds.get_origin_project_by_name("neurosis/zeal")
         .expect("Error getting project form database")
@@ -910,9 +878,8 @@ fn update_origin_project() {
     let updated_project = project.clone();
     opu.set_project(project);
 
-    ds.update_origin_project(&opu).expect(
-        "Failed to update project in database",
-    );
+    ds.update_origin_project(&opu)
+        .expect("Failed to update project in database");
 
     let sepultura = ds.get_origin_project_by_name("neurosis/sepultura")
         .expect("Error getting project form database")
@@ -1026,9 +993,8 @@ fn create_origin_package() {
     package.set_target("x86_64-linux".to_string());
     package.set_exposes(vec![1, 2]);
 
-    ds.create_origin_package(&package).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package)
+        .expect("Failed to create origin package");
 }
 
 #[test]
@@ -1087,9 +1053,8 @@ fn get_origin_package() {
     package.set_config("config".to_string());
     package.set_target("x86_64-linux".to_string());
     package.set_exposes(vec![1, 2]);
-    ds.create_origin_package(&package).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package)
+        .expect("Failed to create origin package");
 
     let mut package_get = originsrv::OriginPackageGet::new();
     package_get.set_ident(ident.clone());
@@ -1148,21 +1113,18 @@ fn get_latest_package() {
     package.set_config("config".to_string());
     package.set_target("x86_64-windows".to_string());
     package.set_exposes(vec![1, 2]);
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident2.clone());
     package.set_target("x86_64-linux".to_string());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident3.clone());
     package.set_target("x86_64-linux".to_string());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut package_get = originsrv::OriginPackageLatestGet::new();
     let mut search_ident = originsrv::OriginPackageIdent::new();
@@ -1231,24 +1193,20 @@ fn list_origin_package_versions_for_origin() {
     package.set_config("config".to_string());
     package.set_target("x86_64-windows".to_string());
     package.set_exposes(vec![1, 2]);
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident2.clone());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident3.clone());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident4.clone());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut opvl = originsrv::OriginPackageVersionListRequest::new();
     opvl.set_origin("core".to_string());
@@ -1268,9 +1226,8 @@ fn list_origin_package_versions_for_origin() {
     assert_eq!(v2.get_latest(), "20170209064044");
 
     opvl.set_name("crazy".to_string());
-    let result2 = ds.list_origin_package_versions_for_origin(&opvl).expect(
-        "Could not get the packages from the database",
-    );
+    let result2 = ds.list_origin_package_versions_for_origin(&opvl)
+        .expect("Could not get the packages from the database");
     assert_eq!(result2.get_versions().len(), 0);
 }
 
@@ -1318,35 +1275,28 @@ fn list_origin_package_for_origin() {
     package.set_config("config".to_string());
     package.set_target("x86_64-windows".to_string());
     package.set_exposes(vec![1, 2]);
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident2.clone());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident3.clone());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident4.clone());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut opl = originsrv::OriginPackageListRequest::new();
-    opl.set_ident(
-        originsrv::OriginPackageIdent::from_str("core/cacerts").unwrap(),
-    );
+    opl.set_ident(originsrv::OriginPackageIdent::from_str("core/cacerts").unwrap());
     opl.set_start(1);
     opl.set_stop(2);
     opl.set_visibilities(vec![originsrv::OriginPackageVisibility::Public]);
-    let result = ds.list_origin_package_for_origin(&opl.clone()).expect(
-        "Could not get the packages from the database",
-    );
+    let result = ds.list_origin_package_for_origin(&opl.clone())
+        .expect("Could not get the packages from the database");
     assert_eq!(result.get_idents().len(), 2);
     assert_eq!(result.get_start(), 1);
     assert_eq!(result.get_stop(), 2);
@@ -1358,36 +1308,29 @@ fn list_origin_package_for_origin() {
 
     opl.set_start(1);
     opl.set_stop(20);
-    let result2 = ds.list_origin_package_for_origin(&opl).expect(
-        "Could not get the packages from the database",
-    );
+    let result2 = ds.list_origin_package_for_origin(&opl)
+        .expect("Could not get the packages from the database");
     assert_eq!(result2.get_idents().len(), 2);
     assert_eq!(result2.get_start(), 1);
     assert_eq!(result2.get_stop(), 2);
     assert_eq!(result2.get_count(), 3);
 
-    opl.set_ident(
-        originsrv::OriginPackageIdent::from_str("core/crazy").unwrap(),
-    );
+    opl.set_ident(originsrv::OriginPackageIdent::from_str("core/crazy").unwrap());
     opl.set_start(0);
     opl.set_stop(20);
-    let result3 = ds.list_origin_package_for_origin(&opl).expect(
-        "Could not get the packages from the database",
-    );
+    let result3 = ds.list_origin_package_for_origin(&opl)
+        .expect("Could not get the packages from the database");
     assert_eq!(result3.get_idents().len(), 0);
     assert_eq!(result3.get_start(), 0);
     assert_eq!(result3.get_stop(), 20);
     assert_eq!(result3.get_count(), 0);
 
-    opl.set_ident(
-        originsrv::OriginPackageIdent::from_str("core/cacerts").unwrap(),
-    );
+    opl.set_ident(originsrv::OriginPackageIdent::from_str("core/cacerts").unwrap());
     opl.set_distinct(true);
     opl.set_start(0);
     opl.set_stop(20);
-    let result4 = ds.list_origin_package_for_origin(&opl).expect(
-        "Could not get the packages from the database",
-    );
+    let result4 = ds.list_origin_package_for_origin(&opl)
+        .expect("Could not get the packages from the database");
     assert_eq!(result4.get_idents().len(), 1);
     assert_eq!(result4.get_start(), 0);
     assert_eq!(result4.get_stop(), 0);
@@ -1446,27 +1389,23 @@ fn list_origin_package_for_origin_unique() {
     package.set_config("config".to_string());
     package.set_target("x86_64-windows".to_string());
     package.set_exposes(vec![1, 2]);
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident2.clone());
     package.set_origin_id(origin1.get_id());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident3.clone());
     package.set_origin_id(origin2.get_id());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident4.clone());
     package.set_origin_id(origin1.get_id());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut opl = originsrv::OriginPackageUniqueListRequest::new();
     opl.set_origin("core".to_string());
@@ -1487,9 +1426,8 @@ fn list_origin_package_for_origin_unique() {
     opl.set_origin("core2".to_string());
     opl.set_start(0);
     opl.set_stop(20);
-    let result2 = ds.list_origin_package_unique_for_origin(&opl).expect(
-        "Could not get the packages from the database",
-    );
+    let result2 = ds.list_origin_package_unique_for_origin(&opl)
+        .expect("Could not get the packages from the database");
     assert_eq!(result2.get_idents().len(), 1);
     assert_eq!(result2.get_start(), 0);
     assert_eq!(result2.get_stop(), 0);
@@ -1570,48 +1508,41 @@ fn search_origin_package_for_origin() {
     package.set_config("config".to_string());
     package.set_target("x86_64-windows".to_string());
     package.set_exposes(vec![1, 2]);
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident2.clone());
     package.set_origin_id(origin1.get_id());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident3.clone());
     package.set_origin_id(origin2.get_id());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident4.clone());
     package.set_origin_id(origin1.get_id());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident5.clone());
     package.set_origin_id(origin3.get_id());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident6.clone());
     package.set_origin_id(origin4.get_id());
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut ops = originsrv::OriginPackageSearchRequest::new();
     ops.set_origin("core".to_string());
     ops.set_query("red_".to_string());
     ops.set_start(0);
     ops.set_stop(2);
-    let result = ds.search_origin_package_for_origin(&ops.clone()).expect(
-        "Could not get the packages from the database",
-    );
+    let result = ds.search_origin_package_for_origin(&ops.clone())
+        .expect("Could not get the packages from the database");
     assert_eq!(result.get_idents().len(), 1);
     assert_eq!(result.get_start(), 0);
     assert_eq!(result.get_stop(), 0);
@@ -1622,9 +1553,8 @@ fn search_origin_package_for_origin() {
     ops.set_query("red".to_string());
     ops.set_start(1);
     ops.set_stop(20);
-    let result2 = ds.search_origin_package_for_origin(&ops).expect(
-        "Could not get the packages from the database",
-    );
+    let result2 = ds.search_origin_package_for_origin(&ops)
+        .expect("Could not get the packages from the database");
     assert_eq!(result2.get_idents().len(), 2);
     assert_eq!(result2.get_start(), 1);
     assert_eq!(result2.get_stop(), 2);
@@ -1637,9 +1567,8 @@ fn search_origin_package_for_origin() {
     ops.set_query("do".to_string());
     ops.set_start(0);
     ops.set_stop(2);
-    let result3 = ds.search_origin_package_for_origin(&ops).expect(
-        "Could not get the packages from the database",
-    );
+    let result3 = ds.search_origin_package_for_origin(&ops)
+        .expect("Could not get the packages from the database");
     assert_eq!(result3.get_idents().len(), 1);
     assert_eq!(result3.get_start(), 0);
     assert_eq!(result3.get_stop(), 0);
@@ -1651,9 +1580,8 @@ fn search_origin_package_for_origin() {
     ops.set_start(0);
     ops.set_stop(20);
     ops.set_distinct(true);
-    let result4 = ds.search_origin_package_for_origin(&ops).expect(
-        "Could not get the packages from the database",
-    );
+    let result4 = ds.search_origin_package_for_origin(&ops)
+        .expect("Could not get the packages from the database");
     assert_eq!(result4.get_idents().len(), 2);
     assert_eq!(result4.get_start(), 0);
     assert_eq!(result4.get_stop(), 1);
@@ -1667,9 +1595,8 @@ fn search_origin_package_for_origin() {
     ops.set_start(0);
     ops.set_stop(20);
     ops.set_distinct(true);
-    let result5 = ds.search_origin_package_for_origin(&ops).expect(
-        "Could not get the packages from the database",
-    );
+    let result5 = ds.search_origin_package_for_origin(&ops)
+        .expect("Could not get the packages from the database");
     assert_eq!(result5.get_idents().len(), 5);
     assert_eq!(result5.get_start(), 0);
     assert_eq!(result5.get_stop(), 4);
@@ -1690,9 +1617,8 @@ fn search_origin_package_for_origin() {
     ops.set_start(0);
     ops.set_stop(20);
     ops.set_distinct(false);
-    let result6 = ds.search_origin_package_for_origin(&ops).expect(
-        "Could not get the packages from the database",
-    );
+    let result6 = ds.search_origin_package_for_origin(&ops)
+        .expect("Could not get the packages from the database");
     assert_eq!(result6.get_idents().len(), 6);
     assert_eq!(result6.get_start(), 0);
     assert_eq!(result6.get_stop(), 5);
@@ -1729,9 +1655,8 @@ fn create_origin_channel() {
     oscc.set_origin_id(neurosis.get_id());
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("eve"));
-    ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin public key");
 
     // Create new database connection
     let conn = ds.pool.get(&oscc).expect("Cannot get connection from pool");
@@ -1760,9 +1685,8 @@ fn create_origin_channel_handles_unique_constraint_violations_correctly() {
     oscc.set_origin_id(neurosis.get_id());
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("eve"));
-    ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin public key",
-    );
+    ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin public key");
 
     // Create a duplicate origin channel which should fail
     let mut occ = originsrv::OriginChannelCreate::new();
@@ -1793,23 +1717,20 @@ fn list_origin_channel() {
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("eve"));
     oscc.set_owner_id(1);
-    ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
     let mut oscc2 = originsrv::OriginChannelCreate::new();
     oscc2.set_origin_id(neurosis.get_id());
     oscc2.set_origin_name(neurosis.get_name().to_string());
     oscc2.set_name(String::from("online"));
     oscc2.set_owner_id(1);
-    ds.create_origin_channel(&oscc2).expect(
-        "Failed to create origin channel",
-    );
+    ds.create_origin_channel(&oscc2)
+        .expect("Failed to create origin channel");
 
     let mut occl = originsrv::OriginChannelListRequest::new();
     occl.set_origin_id(neurosis.get_id());
-    let channels = ds.list_origin_channels(&occl).expect(
-        "Could not get the channels from the database",
-    );
+    let channels = ds.list_origin_channels(&occl)
+        .expect("Could not get the channels from the database");
     let channel_1 = channels.get_channels().iter().nth(0).unwrap();
     assert_eq!(channel_1.get_name(), "eve");
     let channel_2 = channels.get_channels().iter().nth(1).unwrap();
@@ -1839,9 +1760,8 @@ fn list_origin_package_channels_for_package() {
     occ.set_origin_name(neurosis.get_name().to_string());
     occ.set_name(String::from("foo"));
     occ.set_owner_id(1);
-    let channel = ds.create_origin_channel(&occ).expect(
-        "Could not create channel",
-    );
+    let channel = ds.create_origin_channel(&occ)
+        .expect("Could not create channel");
 
     let mut ident = originsrv::OriginPackageIdent::new();
     ident.set_origin("core".to_string());
@@ -1858,9 +1778,8 @@ fn list_origin_package_channels_for_package() {
     package.set_config("config".to_string());
     package.set_target("x86_64-windows".to_string());
     package.set_exposes(vec![1, 2]);
-    ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut package_get = originsrv::OriginPackageGet::new();
     package_get.set_ident(ident.clone());
@@ -1873,9 +1792,8 @@ fn list_origin_package_channels_for_package() {
     opp.set_channel_id(channel.get_id());
     opp.set_package_id(result.get_id());
     opp.set_ident(ident.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     let mut opclr = originsrv::OriginPackageChannelListRequest::new();
     opclr.set_ident(ident);
@@ -1907,17 +1825,15 @@ fn get_origin_channel() {
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("eve"));
     oscc.set_owner_id(1);
-    ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
     let mut oscc2 = originsrv::OriginChannelCreate::new();
     oscc2.set_origin_id(neurosis.get_id());
     oscc2.set_origin_name(neurosis.get_name().to_string());
     oscc2.set_name(String::from("online"));
     oscc2.set_owner_id(1);
-    let channel2 = ds.create_origin_channel(&oscc2).expect(
-        "Failed to create origin channel",
-    );
+    let channel2 = ds.create_origin_channel(&oscc2)
+        .expect("Failed to create origin channel");
 
     let mut ocg = originsrv::OriginChannelGet::new();
     ocg.set_origin_name(neurosis.get_name().to_string());
@@ -1948,9 +1864,8 @@ fn promote_origin_package_group() {
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("eve"));
     oscc.set_owner_id(1);
-    let channel1 = ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    let channel1 = ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
 
     let mut ident1 = originsrv::OriginPackageIdent::new();
     ident1.set_origin("core".to_string());
@@ -1979,21 +1894,18 @@ fn promote_origin_package_group() {
     package.set_config("config".to_string());
     package.set_target("x86_64-windows".to_string());
     package.set_exposes(vec![1, 2]);
-    let package1 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package1 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident2.clone());
     package.set_target("x86_64-linux".to_string());
-    let package2 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package2 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     package.set_ident(ident3.clone());
     package.set_target("x86_64-linux".to_string());
-    let package3 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package3 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut package_ids: Vec<u64> = Vec::new();
     package_ids.push(package1.get_id());
@@ -2004,9 +1916,8 @@ fn promote_origin_package_group() {
     opp.set_channel_id(channel1.get_id());
     opp.set_package_ids(package_ids);
     opp.set_origin(origin.get_name().to_string());
-    ds.promote_origin_package_group(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package_group(&opp)
+        .expect("Could not promote package");
 
     let mut opl = originsrv::OriginChannelPackageListRequest::new();
     opl.set_name(channel1.get_name().to_string());
@@ -2047,9 +1958,8 @@ fn get_demote_channel_package() {
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("eve"));
     oscc.set_owner_id(1);
-    let channel1 = ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    let channel1 = ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
 
     let mut ident1 = originsrv::OriginPackageIdent::new();
     ident1.set_origin("neurosis".to_string());
@@ -2061,25 +1971,22 @@ fn get_demote_channel_package() {
     package.set_owner_id(1);
     package.set_origin_id(neurosis.get_id());
     package.set_ident(ident1.clone());
-    let package = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut opp = originsrv::OriginPackagePromote::new();
     opp.set_channel_id(channel1.get_id());
     opp.set_package_id(package.get_id());
     opp.set_ident(ident1.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     let mut opd = originsrv::OriginPackageDemote::new();
     opd.set_channel_id(channel1.get_id());
     opd.set_package_id(package.get_id());
     opd.set_ident(ident1);
-    ds.demote_origin_package(&opd).expect(
-        "Could not promote package",
-    );
+    ds.demote_origin_package(&opd)
+        .expect("Could not promote package");
 }
 
 #[test]
@@ -2101,9 +2008,8 @@ fn get_promote_channel_package() {
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("eve"));
     oscc.set_owner_id(1);
-    let channel1 = ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    let channel1 = ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
 
     let mut ident1 = originsrv::OriginPackageIdent::new();
     ident1.set_origin("neurosis".to_string());
@@ -2115,17 +2021,15 @@ fn get_promote_channel_package() {
     package.set_owner_id(1);
     package.set_origin_id(neurosis.get_id());
     package.set_ident(ident1.clone());
-    let package = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut opp = originsrv::OriginPackagePromote::new();
     opp.set_channel_id(channel1.get_id());
     opp.set_package_id(package.get_id());
     opp.set_ident(ident1);
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 }
 
 #[test]
@@ -2147,9 +2051,8 @@ fn get_channel_package() {
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("eve"));
     oscc.set_owner_id(1);
-    let channel1 = ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    let channel1 = ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
 
     let mut ident1 = originsrv::OriginPackageIdent::new();
     ident1.set_origin("neurosis".to_string());
@@ -2161,17 +2064,15 @@ fn get_channel_package() {
     package.set_owner_id(1);
     package.set_origin_id(neurosis.get_id());
     package.set_ident(ident1.clone());
-    let package = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     let mut opp = originsrv::OriginPackagePromote::new();
     opp.set_channel_id(channel1.get_id());
     opp.set_package_id(package.get_id());
     opp.set_ident(ident1.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     let mut package_get = originsrv::OriginChannelPackageGet::new();
     package_get.set_ident(ident1.clone());
@@ -2205,9 +2106,8 @@ fn get_latest_channel_package() {
     oscc.set_origin_name(origin.get_name().to_string());
     oscc.set_name(String::from("eve"));
     oscc.set_owner_id(1);
-    let channel1 = ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    let channel1 = ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
 
     // Create another origin channel
     let mut oscc2 = originsrv::OriginChannelCreate::new();
@@ -2215,9 +2115,8 @@ fn get_latest_channel_package() {
     oscc2.set_origin_name(origin.get_name().to_string());
     oscc2.set_name(String::from("online"));
     oscc2.set_owner_id(1);
-    let channel2 = ds.create_origin_channel(&oscc2).expect(
-        "Failed to create origin channel",
-    );
+    let channel2 = ds.create_origin_channel(&oscc2)
+        .expect("Failed to create origin channel");
 
     //setup idents
     let mut ident1 = originsrv::OriginPackageIdent::new();
@@ -2250,61 +2149,53 @@ fn get_latest_channel_package() {
     package.set_exposes(vec![1, 2]);
 
     // package1 core/cacerts/2017.01.17/20170209064044 windows
-    let package1 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package1 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     // package2 core/cacerts/2017.01.18/20170209064044 linux
     package.set_ident(ident2.clone());
     package.set_target("x86_64-linux".to_string());
-    let package2 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package2 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     // package3 core/cacerts/2017.01.18/20170209064045 linux
     package.set_ident(ident3.clone());
     package.set_target("x86_64-linux".to_string());
-    let package3 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package3 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     // channel1/package1
     let mut opp = originsrv::OriginPackagePromote::new();
     opp.set_channel_id(channel1.get_id());
     opp.set_package_id(package1.get_id());
     opp.set_ident(ident1.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     // channel1/package2
     opp.set_package_id(package2.get_id());
     opp.set_ident(ident2.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     // channel1/package3
     opp.set_package_id(package3.get_id());
     opp.set_ident(ident3.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     // channel2/package1
     opp.set_channel_id(channel2.get_id());
     opp.set_package_id(package1.get_id());
     opp.set_ident(ident1.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     // channel2/package2
     opp.set_package_id(package2.get_id());
     opp.set_ident(ident2.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     let mut package_get = originsrv::OriginChannelPackageLatestGet::new();
     package_get.set_name(channel1.get_name().to_string());
@@ -2368,9 +2259,8 @@ fn list_origin_channel_package_for_channel() {
     oscc.set_origin_name(origin.get_name().to_string());
     oscc.set_name(String::from("eve"));
     oscc.set_owner_id(1);
-    let channel1 = ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    let channel1 = ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
 
     // Create another origin channel
     let mut oscc2 = originsrv::OriginChannelCreate::new();
@@ -2378,9 +2268,8 @@ fn list_origin_channel_package_for_channel() {
     oscc2.set_origin_name(origin.get_name().to_string());
     oscc2.set_name(String::from("online"));
     oscc2.set_owner_id(1);
-    let channel2 = ds.create_origin_channel(&oscc2).expect(
-        "Failed to create origin channel",
-    );
+    let channel2 = ds.create_origin_channel(&oscc2)
+        .expect("Failed to create origin channel");
 
     //setup idents
     let mut ident1 = originsrv::OriginPackageIdent::new();
@@ -2418,64 +2307,54 @@ fn list_origin_channel_package_for_channel() {
     package.set_exposes(vec![1, 2]);
 
     // package1 core/cacerts/2017.01.17/20170209064044
-    let package1 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package1 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     // package2 core/cacerts/2017.01.18/20170209064044
     package.set_ident(ident2.clone());
-    let package2 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package2 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     // package3 core/cacerts/2017.01.18/20170209064045
     package.set_ident(ident3.clone());
-    let package3 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package3 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     // package1 core/cacerts2/2017.01.19/20170209064045
     package.set_ident(ident4.clone());
-    let package4 = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package4 = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     // channel1/package1
     let mut opp = originsrv::OriginPackagePromote::new();
     opp.set_channel_id(channel1.get_id());
     opp.set_package_id(package1.get_id());
     opp.set_ident(ident1.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     // channel1/package2
     opp.set_package_id(package2.get_id());
     opp.set_ident(ident2.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     // channel2/package3
     opp.set_channel_id(channel2.get_id());
     opp.set_package_id(package3.get_id());
     opp.set_ident(ident3.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     // channel2/package4
     opp.set_package_id(package4.get_id());
     opp.set_ident(ident4.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     let mut opl = originsrv::OriginChannelPackageListRequest::new();
     opl.set_name(channel1.get_name().to_string());
-    opl.set_ident(
-        originsrv::OriginPackageIdent::from_str("core/cacerts").unwrap(),
-    );
+    opl.set_ident(originsrv::OriginPackageIdent::from_str("core/cacerts").unwrap());
     opl.set_start(0);
     opl.set_stop(2);
     opl.set_visibilities(vec![originsrv::OriginPackageVisibility::Public]);
@@ -2494,9 +2373,8 @@ fn list_origin_channel_package_for_channel() {
     opl.set_ident(originsrv::OriginPackageIdent::from_str("core").unwrap());
     opl.set_start(1);
     opl.set_stop(20);
-    let result2 = ds.list_origin_channel_package_for_channel(&opl).expect(
-        "Could not get the packages from the database",
-    );
+    let result2 = ds.list_origin_channel_package_for_channel(&opl)
+        .expect("Could not get the packages from the database");
     assert_eq!(result2.get_idents().len(), 1);
     assert_eq!(result2.get_start(), 1);
     assert_eq!(result2.get_stop(), 1);
@@ -2524,9 +2402,8 @@ fn delete_origin_channel_by_name() {
     oscc.set_origin_name(neurosis.get_name().to_string());
     oscc.set_name(String::from("arthas"));
     oscc.set_owner_id(1);
-    let channel1 = ds.create_origin_channel(&oscc).expect(
-        "Failed to create origin channel",
-    );
+    let channel1 = ds.create_origin_channel(&oscc)
+        .expect("Failed to create origin channel");
 
     // Check that channel exists
     let mut ocg = originsrv::OriginChannelGet::new();
@@ -2565,9 +2442,8 @@ fn delete_origin_channel_by_name() {
     oscc2.set_origin_name(neurosis.get_name().to_string());
     oscc2.set_name(String::from("sylvanas"));
     oscc2.set_owner_id(1);
-    let channel2 = ds.create_origin_channel(&oscc2).expect(
-        "Failed to create origin channel",
-    );
+    let channel2 = ds.create_origin_channel(&oscc2)
+        .expect("Failed to create origin channel");
 
     // Check that channel exists
     let mut ocg2 = originsrv::OriginChannelGet::new();
@@ -2589,18 +2465,16 @@ fn delete_origin_channel_by_name() {
     package.set_owner_id(1);
     package.set_origin_id(neurosis.get_id());
     package.set_ident(ident1.clone());
-    let package = ds.create_origin_package(&package.clone()).expect(
-        "Failed to create origin package",
-    );
+    let package = ds.create_origin_package(&package.clone())
+        .expect("Failed to create origin package");
 
     // Promote that package to the channel
     let mut opp = originsrv::OriginPackagePromote::new();
     opp.set_channel_id(channel2.get_id());
     opp.set_package_id(package.get_id());
     opp.set_ident(ident1.clone());
-    ds.promote_origin_package(&opp).expect(
-        "Could not promote package",
-    );
+    ds.promote_origin_package(&opp)
+        .expect("Could not promote package");
 
     // Check that there is a relationship between the package and the channel
     let mut package_get = originsrv::OriginChannelPackageGet::new();
@@ -2627,7 +2501,6 @@ fn delete_origin_channel_by_name() {
     let _ = ds.get_origin_package(&package_get)
         .expect("Failed to get origin package")
         .unwrap();
-
 
     // Check that there is no longer a relationship between the deleted channel and the package
     let mut package_get = originsrv::OriginChannelPackageGet::new();

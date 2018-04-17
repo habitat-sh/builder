@@ -186,7 +186,7 @@ use self::error::{AppError, AppResult};
 use self::dispatcher::{Dispatcher, DispatcherPool};
 use conn::{self, ConnErr, ConnEvent};
 use error::{ErrCode, NetError};
-use socket::{self, DEFAULT_CONTEXT, ToAddrString};
+use socket::{self, ToAddrString, DEFAULT_CONTEXT};
 use time;
 
 /// Coordination signals for the Application's main thread.
@@ -279,9 +279,9 @@ where
     fn forward_request(&mut self) -> AppResult<(), T::Error> {
         {
             let addr = self.select_router()?;
-            self.router_sock.send(addr, zmq::SNDMORE).map_err(
-                ConnErr::Socket,
-            )?;
+            self.router_sock
+                .send(addr, zmq::SNDMORE)
+                .map_err(ConnErr::Socket)?;
         }
         proxy_message::<T>(
             &mut self.pipe_out,
@@ -321,17 +321,14 @@ where
                         ErrCode::REG_CONFLICT => {
                             error!("{}, retrying registration to RouteSrv", err);
                         }
-                        ErrCode::REG_NOT_FOUND => {
-                            match conn::send_to(
-                                &self.router_sock,
-                                &self.registration,
-                                self.msg_buf.sender().unwrap(),
-                            ) {
-                                Ok(()) |
-                                Err(ConnErr::HostUnreachable) => (),
-                                Err(err) => return Err(AppError::from(err)),
-                            }
-                        }
+                        ErrCode::REG_NOT_FOUND => match conn::send_to(
+                            &self.router_sock,
+                            &self.registration,
+                            self.msg_buf.sender().unwrap(),
+                        ) {
+                            Ok(()) | Err(ConnErr::HostUnreachable) => (),
+                            Err(err) => return Err(AppError::from(err)),
+                        },
                         _ => error!("{}, unhandled error from RouteSrv", err),
                     }
                 } else {
@@ -444,9 +441,11 @@ where
     /// Randomly select a RouteSrv from the active peers to route a request to.
     fn select_router(&self) -> AppResult<&[u8], T::Error> {
         // JW TODO: Select a random RouteSrv to send to
-        self.routers.iter().last().map(Vec::as_slice).ok_or(
-            AppError::NoRouter,
-        )
+        self.routers
+            .iter()
+            .last()
+            .map(Vec::as_slice)
+            .ok_or(AppError::NoRouter)
     }
 
     /// Wait for incoming messages from RouteSrv(s) and Dispatchers and return a `RecvEvent` when
@@ -477,7 +476,11 @@ where
     /// variable depending upon when the next heartbeat is expected to occur.
     fn wait_timeout(&self) -> i64 {
         let time = self.next_heartbeat - time::clock_time();
-        if time.is_negative() { 0 } else { time }
+        if time.is_negative() {
+            0
+        } else {
+            time
+        }
     }
 }
 
