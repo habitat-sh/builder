@@ -1,7 +1,7 @@
 enum OAuthProviderType {
   GitHub = 'github',
   GitLab = 'gitlab',
-  BitBucket = 'bitbucket'
+  Bitbucket = 'bitbucket'
 }
 
 export abstract class OAuthProvider {
@@ -45,8 +45,8 @@ export abstract class OAuthProvider {
         return new GitHubProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.GitLab:
         return new GitLabProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
-      case OAuthProviderType.BitBucket:
-        return new BitBucketProvider(clientID, authorizeUrl, redirectUrl, signupUrl);
+      case OAuthProviderType.Bitbucket:
+        return new BitbucketProvider(clientID, authorizeUrl, redirectUrl, signupUrl);
       case undefined:
       case '':
         console.error(`Please configure Builder with an OAuth provider. Supported providers are ${OAuthProvider.providers}.`);
@@ -99,12 +99,12 @@ class GitLabProvider extends OAuthProvider {
   }
 }
 
-class BitBucketProvider extends OAuthProvider {
-  name: string = 'BitBucket';
+class BitbucketProvider extends OAuthProvider {
+  name: string = 'Bitbucket';
 
   constructor(clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string) {
     super(
-      OAuthProviderType.BitBucket,
+      OAuthProviderType.Bitbucket,
       clientID,
       authorizeUrl,
       redirectUrl,
