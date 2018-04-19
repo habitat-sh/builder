@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate habitat_http_client as hab_http;
-extern crate hyper;
-extern crate serde_json;
+use reqwest;
 
-pub mod error;
-pub mod types;
+use config::OAuth2Cfg;
+use error::Result;
 
-pub use error::{OAuthError, OAuthResult};
-pub use types::OAuthUserToken;
+pub struct OAuth2User {
+    pub id: String,
+    pub username: String,
+    pub email: Option<String>,
+}
+
+pub trait OAuth2Provider: Sync + Send {
+    fn authenticate(&self, &OAuth2Cfg, &reqwest::Client, &str) -> Result<(String, OAuth2User)>;
+}

@@ -31,7 +31,6 @@ pub enum HubError {
     ApiClient(hab_http::Error),
     ApiError(hyper::status::StatusCode, HashMap<String, String>),
     AppAuth(types::AppAuthErr),
-    Auth(types::AuthErr),
     ContentDecode(base64::DecodeError),
     HttpClient(hyper::Error),
     HttpClientParse(hyper::error::ParseError),
@@ -49,7 +48,6 @@ impl fmt::Display for HubError {
                 code, response
             ),
             HubError::AppAuth(ref e) => format!("GitHub App Authentication error, {}", e),
-            HubError::Auth(ref e) => format!("GitHub Authentication error, {}", e),
             HubError::ContentDecode(ref e) => format!("{}", e),
             HubError::HttpClient(ref e) => format!("{}", e),
             HubError::HttpClientParse(ref e) => format!("{}", e),
@@ -67,7 +65,6 @@ impl error::Error for HubError {
             HubError::ApiClient(ref err) => err.description(),
             HubError::ApiError(_, _) => "Response returned a non-200 status code.",
             HubError::AppAuth(_) => "GitHub App authorization error.",
-            HubError::Auth(_) => "GitHub authorization error.",
             HubError::ContentDecode(ref err) => err.description(),
             HubError::HttpClient(ref err) => err.description(),
             HubError::HttpClientParse(ref err) => err.description(),
@@ -75,12 +72,6 @@ impl error::Error for HubError {
             HubError::IO(ref err) => err.description(),
             HubError::Serialization(ref err) => err.description(),
         }
-    }
-}
-
-impl From<types::AuthErr> for HubError {
-    fn from(err: types::AuthErr) -> Self {
-        HubError::Auth(err)
     }
 }
 

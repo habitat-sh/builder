@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate habitat_http_client as hab_http;
-extern crate hyper;
+extern crate builder_core;
 #[macro_use]
 extern crate log;
-extern crate oauth_common;
+extern crate reqwest;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -24,7 +23,9 @@ extern crate serde_json;
 
 pub mod client;
 pub mod config;
+pub mod github;
+pub mod gitlab;
+pub mod bitbucket;
+pub mod error;
 pub mod types;
-
-pub use client::BitbucketClient;
-pub use config::BitbucketCfg;
+pub mod metrics;

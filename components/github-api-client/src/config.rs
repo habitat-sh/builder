@@ -14,16 +14,6 @@
 
 /// URL to GitHub API endpoint
 pub const DEFAULT_GITHUB_API_URL: &'static str = "https://api.github.com";
-/// URL to GitHub Token endpoint
-pub const DEFAULT_GITHUB_TOKEN_URL: &'static str = "https://github.com/login/oauth/access_token";
-/// Default Client ID providing a value in development environments only.
-///
-/// See https://developer.github.com/apps
-pub const DEV_GITHUB_CLIENT_ID: &'static str = "Iv1.732260b62f84db15";
-/// Default Client Secret providing a value in development environments only.
-///
-/// See https://developer.github.com/apps
-pub const DEV_GITHUB_CLIENT_SECRET: &'static str = "fc7654ed8c65ccfe014cd339a55e3538f935027a";
 /// Default github application id created in the habitat-sh org
 pub const DEFAULT_GITHUB_APP_ID: u32 = 5629;
 /// Webhook secret token
@@ -34,16 +24,8 @@ pub const DEV_GITHUB_WEBHOOK_SECRET: &'static str = "58d4afaf5e5617ab0f8c39e5056
 pub struct GitHubCfg {
     /// URL to GitHub API
     pub api_url: String,
-    /// URL to GitHub Web
-    pub token_url: String,
-    /// OAuth redirect URL
-    pub redirect_url: String,
     /// Path to GitHub App private key
     pub app_private_key: String,
-    /// Client identifier used for GitHub API requests
-    pub client_id: String,
-    /// Client secret used for GitHub API requests
-    pub client_secret: String,
     /// App Id used for builder integration
     pub app_id: u32,
     /// Secret key for validating payloads sent by a GitHub WebHook
@@ -54,11 +36,7 @@ impl Default for GitHubCfg {
     fn default() -> Self {
         GitHubCfg {
             api_url: DEFAULT_GITHUB_API_URL.to_string(),
-            token_url: DEFAULT_GITHUB_TOKEN_URL.to_string(),
-            redirect_url: "".to_string(),
             app_private_key: "/src/.secrets/builder-github-app.pem".to_string(),
-            client_id: DEV_GITHUB_CLIENT_ID.to_string(),
-            client_secret: DEV_GITHUB_CLIENT_SECRET.to_string(),
             app_id: DEFAULT_GITHUB_APP_ID,
             webhook_secret: DEV_GITHUB_WEBHOOK_SECRET.to_string(),
         }

@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
+//! Centralized definition of all Github API client metrics that we
+//! wish to track.
 
-pub use super::GatewayCfg;
-pub use core::config::ConfigFile;
-pub use hab_net::app::config::RouterAddr;
+use std::borrow::Cow;
+use builder_core::metrics;
+
+pub enum Counter {
+    Authenticate(String),
+}
+
+impl metrics::CounterMetric for Counter {}
+
+impl metrics::Metric for Counter {
+    fn id(&self) -> Cow<'static, str> {
+        match *self {
+            Counter::Authenticate(ref provider) => format!("{}.authenticate", provider).into(),
+        }
+    }
+}

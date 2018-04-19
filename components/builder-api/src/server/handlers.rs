@@ -21,12 +21,12 @@ use bldr_core;
 use bldr_core::helpers::transition_visibility;
 use hab_core::package::{Identifiable, Plan};
 use http_client::ApiClient;
-use oauth_common::OAuthError;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, check_origin_access, get_param, validate_params};
 use hyper::header::{Accept, ContentType};
 use hyper::status::StatusCode;
 use iron::status;
+use oauth_client::error::Error as OAuthError;
 use params::{FromValue, Params};
 use persistent;
 use protocol::jobsrv::{Job, JobGet, JobGroup, JobGroupCancel, JobGroupGet, JobLog, JobLogGet,
@@ -130,13 +130,8 @@ pub fn authenticate(req: &mut Request) -> IronResult<Response> {
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
 
     match oauth.authenticate(&code) {
-        Ok(token) => {
-            let session = session_create_oauth(req, &token)?;
-
-            // We don't really want to abort anything just because a call to segment failed. Let's
-            // just log it and move on.
-            // TODO JB: this likely needs to change after we switch to our own internal session
-            // tokens
+        Ok((token, user)) => {
+            let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
             let id_str = session.get_id().to_string();
             if let Err(e) = segment.identify(&id_str) {
                 warn!("Error identifying a user in segment, {}", e);
@@ -149,14 +144,9 @@ pub fn authenticate(req: &mut Request) -> IronResult<Response> {
             let err = NetError::new(ErrCode::ACCESS_DENIED, msg);
             Ok(render_net_error(&err))
         }
-        Err(OAuthError::Serialization(e)) => {
-            warn!("bad reply from our oauth provider, {}", e);
-            let err = NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1");
-            Ok(render_net_error(&err))
-        }
         Err(e) => {
-            warn!("unhandled authentication error, {:?}", e);
-            let err = NetError::new(ErrCode::BUG, "rg:auth:2");
+            warn!("Oauth client error, {:?}", e);
+            let err = NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1");
             Ok(render_net_error(&err))
         }
     }
@@ -1124,7 +1114,7 @@ pub fn get_project_integration(req: &mut Request) -> IronResult<Response> {
             Ok(render_json(status::Ok, &v))
         }
         Err(err) => match err.get_code() {
-            ErrCode::ENTITY_NOT_FOUND => Ok(Response::with((status::NotFound))),
+            ErrCode::ENTITY_NOT_FOUND => Ok(Response::with(status::NotFound)),
             _ => {
                 error!(
                     "Unexpected error retrieving project integration, err={:?}",

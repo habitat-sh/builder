@@ -31,6 +31,10 @@ do_builder_install() {
   ln -sfv "$CARGO_TARGET_DIR/$rustc_target/${builder_build_type#--}/$bin" \
     "$pkg_path/bin/$bin"
 
+  build_line "Copying new config into package"
+  cp -v "$PLAN_CONTEXT/default.toml" "$pkg_path/default.toml"
+  cp -v "$PLAN_CONTEXT/config/config.toml" "$pkg_path/config/config.toml"
+
   build_line "Copying run hooks into package"
   for hook in "$PLAN_CONTEXT"/hooks/*; do
     cp -v "$hook" "$pkg_path/hooks/$(basename "$hook")"

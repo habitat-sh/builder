@@ -46,9 +46,6 @@ path = "../builder-core"
 [dependencies.github-api-client]
 path = "../github-api-client"
 
-[dependencies.bitbucket-api-client]
-path = "../bitbucket-api-client"
-
 [dependencies.segment-api-client]
 path = "../segment-api-client"
 

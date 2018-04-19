@@ -4,7 +4,6 @@ debug = true
 [workspace]
 members = [
   "components/airlock",
-  "components/bitbucket-api-client",
   "components/builder-api",
   "components/builder-core",
   "components/builder-db",
@@ -19,7 +18,7 @@ members = [
   "components/builder-worker",
   "components/github-api-client",
   "components/net",
-  "components/oauth-common",
+  "components/oauth-client",
   "components/op",
   "components/segment-api-client"
 ]
