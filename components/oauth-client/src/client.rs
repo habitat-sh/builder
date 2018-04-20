@@ -20,6 +20,7 @@ use types::*;
 
 use builder_core::metrics::CounterMetric;
 use metrics::Counter;
+use azure_ad::AzureAD;
 use github::GitHub;
 use gitlab::GitLab;
 use bitbucket::Bitbucket;
@@ -49,6 +50,7 @@ impl OAuth2Client {
         }
 
         let provider: Box<OAuth2Provider> = match &config.provider[..] {
+            "azure-ad" => Box::new(AzureAD),
             "github" => Box::new(GitHub),
             "gitlab" => Box::new(GitLab),
             "bitbucket" => Box::new(Bitbucket),

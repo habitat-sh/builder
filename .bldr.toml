@@ -16,7 +16,7 @@ paths = [
 ]
 
 [builder-api-proxy]
-plan_path = "components/builder-api-proxy"
+plan_path = "components/builder-api-proxy/habitat"
 paths = [
   "components/builder-web/*",
 ]

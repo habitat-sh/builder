@@ -35,7 +35,7 @@ do_before() {
 }
 
 do_unpack() {
-  pushd "$PLAN_CONTEXT/../builder-web" > /dev/null
+  pushd "$PLAN_CONTEXT/../../builder-web" > /dev/null
   { git ls-files; git ls-files --exclude-standard --others; } \
   | _tar_pipe_app_cp_to "${HAB_CACHE_SRC_PATH}"
   popd > /dev/null

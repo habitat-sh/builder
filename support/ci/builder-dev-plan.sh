@@ -1,3 +1,5 @@
+source ../../../support/ci/builder-dev-base-plan.sh
+
 pkg_build_deps+=(core/sccache)
 pkg_origin=habitat-dev
 
@@ -16,11 +18,6 @@ do_dev_prepare() {
 
 do_prepare() {
   do_dev_prepare
-}
-
-do_clean() {
-  build_line "Leaving $CACHE_PATH entact"
-  return 0
 }
 
 do_builder_install() {
@@ -43,38 +40,4 @@ do_builder_install() {
 
 do_install_wrapper() {
   do_install
-}
-
-# TED: Shame! Nobody should ever do this in real life
-
-do_build_config() {
-  return 0
-}
-
-do_build_service() {
-  return 0
-}
-
-_generate_artifact() {
-  return 0
-}
-
-_render_metadata_FILES() {
-  return 0
-}
-
-_build_manifest() {
-  return 0
-}
-
-_prepare_build_outputs() {
-  return 0
-}
-
-_build_metadata() {
-  return 0
-}
-
-do_end() {
-  rm -rf "${pkg_prefix}/../../${pkg_version}"
 }
