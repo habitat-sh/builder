@@ -21,6 +21,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
+pub mod azure_ad;
 pub mod client;
 pub mod config;
 pub mod github;

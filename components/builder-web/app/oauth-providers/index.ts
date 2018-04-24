@@ -1,4 +1,5 @@
 enum OAuthProviderType {
+  AzureAD = 'azure-ad',
   GitHub = 'github',
   GitLab = 'gitlab',
   Bitbucket = 'bitbucket'
@@ -41,6 +42,8 @@ export abstract class OAuthProvider {
 
   static fromConfig(type: string, clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string): OAuthProvider {
     switch (type) {
+      case OAuthProviderType.AzureAD:
+        return new AzureADProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.GitHub:
         return new GitHubProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.GitLab:
@@ -54,6 +57,29 @@ export abstract class OAuthProvider {
       default:
         console.error(`Unsupported OAuth provider '${type}'. Supported providers are ${OAuthProvider.providers}.`);
     }
+  }
+}
+
+class AzureADProvider extends OAuthProvider {
+  name: string = 'Azure AD';
+
+  constructor(clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string) {
+    super(
+      OAuthProviderType.AzureAD,
+      clientID,
+      authorizeUrl,
+      redirectUrl,
+      signupUrl,
+      true,
+      {
+        client_id: clientID,
+        redirect_uri: redirectUrl,
+        response_type: 'code',
+        state: state,
+        scope: 'openid',
+        nonce: 0 // Ok since we're not using id_token
+      }
+    );
   }
 }
 

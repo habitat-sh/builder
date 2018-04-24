@@ -51,6 +51,7 @@ impl FromStr for OAuthProvider {
 
     fn from_str(value: &str) -> result::Result<Self, Self::Err> {
         match value.to_lowercase().as_ref() {
+            "azure-ad" => Ok(OAuthProvider::AzureAD),
             "github" => Ok(OAuthProvider::GitHub),
             "bitbucket" => Ok(OAuthProvider::Bitbucket),
             "none" => Ok(OAuthProvider::None),
