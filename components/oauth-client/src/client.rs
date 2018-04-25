@@ -38,14 +38,23 @@ impl OAuth2Client {
         let mut client = reqwest::Client::builder();
         client.default_headers(headers);
 
-        for proxy_var in &["HTTP_PROXY", "HTTPS_PROXY"] {
-            if let Ok(url) = env::var(proxy_var) {
-                match reqwest::Proxy::http(&url) {
-                    Ok(p) => {
-                        client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
+        if let Ok(url) = env::var("HTTP_PROXY") {
+            debug!("Using HTTP_PROXY: {}", url);
+            match reqwest::Proxy::http(&url) {
+                Ok(p) => {
+                    client.proxy(p);
                 }
+                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
+            }
+        }
+
+        if let Ok(url) = env::var("HTTPS_PROXY") {
+            debug!("Using HTTPS_PROXY: {}", url);
+            match reqwest::Proxy::https(&url) {
+                Ok(p) => {
+                    client.proxy(p);
+                }
+                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
             }
         }
 
