@@ -273,6 +273,21 @@ pub fn job_group_cancel(
         }
     }
 
+    // Add audit entry
+    let mut jga = jobsrv::JobGroupAudit::new();
+    jga.set_group_id(group.get_id());
+    jga.set_operation(jobsrv::JobGroupOperation::JobGroupOpCancel);
+    jga.set_trigger(msg.get_trigger());
+    jga.set_requester_id(msg.get_requester_id());
+    jga.set_requester_name(msg.get_requester_name().to_string());
+
+    match state.datastore.create_audit_entry(&jga) {
+        Ok(_) => (),
+        Err(err) => {
+            warn!("Failed to create audit entry, err={:?}", err);
+        }
+    };
+
     state.worker_mgr.notify_work()?;
     conn.route_reply(req, &net::NetOk::new())?;
     Ok(())
@@ -387,6 +402,21 @@ pub fn job_group_create(
         };
         state.schedule_cli.notify()?;
         new_group
+    };
+
+    // Add audit entry
+    let mut jga = jobsrv::JobGroupAudit::new();
+    jga.set_group_id(group.get_id());
+    jga.set_operation(jobsrv::JobGroupOperation::JobGroupOpCreate);
+    jga.set_trigger(msg.get_trigger());
+    jga.set_requester_id(msg.get_requester_id());
+    jga.set_requester_name(msg.get_requester_name().to_string());
+
+    match state.datastore.create_audit_entry(&jga) {
+        Ok(_) => (),
+        Err(err) => {
+            warn!("Failed to create audit entry, err={:?}", err);
+        }
     };
 
     conn.route_reply(req, &group)?;

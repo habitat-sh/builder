@@ -564,6 +564,22 @@ impl DataStore {
         Ok(())
     }
 
+    pub fn create_audit_entry(&self, msg: &jobsrv::JobGroupAudit) -> Result<()> {
+        let conn = self.pool.get_shard(0)?;
+        conn.query(
+            "SELECT add_audit_entry_v1($1, $2, $3, $4, $5)",
+            &[
+                &(msg.get_group_id() as i64),
+                &(msg.get_operation() as i16),
+                &(msg.get_trigger() as i16),
+                &(msg.get_requester_id() as i64),
+                &msg.get_requester_name().to_string(),
+            ],
+        ).map_err(Error::JobGroupAudit)?;
+
+        Ok(())
+    }
+
     pub fn get_job_group_origin(
         &self,
         msg: &jobsrv::JobGroupOriginGet,

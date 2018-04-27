@@ -28,7 +28,7 @@ use openssl::pkey::PKey;
 use openssl::sign::Signer;
 use persistent;
 use protocol::originsrv::{OriginProject, OriginProjectGet};
-use protocol::jobsrv::{JobGroup, JobGroupSpec};
+use protocol::jobsrv::{JobGroup, JobGroupSpec, JobGroupTrigger};
 use router::Router;
 use serde_json;
 
@@ -191,10 +191,15 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
     debug!("Config, {:?}", config);
     let plans = read_plans(&github, &token, &hook, &config);
     debug!("Triggered Plans, {:?}", plans);
-    build_plans(req, &hook.repository.clone_url, plans)
+    build_plans(req, &hook.repository.clone_url, &hook.pusher.name, plans)
 }
 
-fn build_plans(req: &mut Request, repo_url: &str, plans: Vec<Plan>) -> IronResult<Response> {
+fn build_plans(
+    req: &mut Request,
+    repo_url: &str,
+    pusher: &str,
+    plans: Vec<Plan>,
+) -> IronResult<Response> {
     let mut request = JobGroupSpec::new();
 
     for plan in plans.iter() {
@@ -225,6 +230,9 @@ fn build_plans(req: &mut Request, repo_url: &str, plans: Vec<Plan>) -> IronResul
         // the directory structure the plan is found in or metadata inside the plan. We will need
         // to have this done before we support building additional targets with Builder.
         request.set_target("x86_64-linux".to_string());
+        request.set_trigger(JobGroupTrigger::Webhook);
+        request.set_requester_name(pusher.to_string());
+
         match route_message::<JobGroupSpec, JobGroup>(req, &request) {
             Ok(group) => debug!("JobGroup created, {:?}", group),
             Err(err) => debug!("Failed to create group, {:?}", err),

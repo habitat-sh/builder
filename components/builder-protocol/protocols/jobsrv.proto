@@ -112,6 +112,27 @@ message JobLog {
   optional bool is_complete = 4;
 }
 
+enum JobGroupTrigger {
+  Unknown = 0;
+  Webhook = 1;
+  Upload = 2;
+  HabClient = 3;
+  BuilderUI = 4;
+}
+
+enum JobGroupOperation {
+  JobGroupOpCreate = 1;
+  JobGroupOpCancel = 2;
+}
+
+message JobGroupAudit {
+  optional uint64 group_id = 1;
+  optional JobGroupOperation operation = 2;
+  optional JobGroupTrigger trigger = 3;
+  optional uint64 requester_id = 4;
+  optional string requester_name = 5;
+}
+
 message JobGroupSpec {
   optional string origin = 1;
   optional string package = 2;
@@ -119,6 +140,9 @@ message JobGroupSpec {
   optional string target = 4;
   optional bool origin_only = 5;
   optional bool package_only = 6;
+  optional JobGroupTrigger trigger = 7;
+  optional uint64 requester_id = 8;
+  optional string requester_name = 9;
 }
 
 enum JobGroupProjectState {
@@ -153,6 +177,9 @@ message JobGroupAbort {
 
 message JobGroupCancel {
   optional uint64 group_id = 1;
+  optional JobGroupTrigger trigger = 7;
+  optional uint64 requester_id = 8;
+  optional string requester_name = 9;
 }
 
 message JobGroupGet {

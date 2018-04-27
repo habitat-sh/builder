@@ -272,6 +272,56 @@ impl Persistable for Job {
     }
 }
 
+impl fmt::Display for JobGroupTrigger {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let value = match *self {
+            JobGroupTrigger::Unknown => "Unknown",
+            JobGroupTrigger::Webhook => "Webhook",
+            JobGroupTrigger::Upload => "Upload",
+            JobGroupTrigger::HabClient => "HabClient",
+            JobGroupTrigger::BuilderUI => "BuilderUI",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl FromStr for JobGroupTrigger {
+    type Err = ProtocolError;
+
+    fn from_str(value: &str) -> result::Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            "unknown" => Ok(JobGroupTrigger::Unknown),
+            "webhook" => Ok(JobGroupTrigger::Webhook),
+            "upload" => Ok(JobGroupTrigger::Upload),
+            "habclient" => Ok(JobGroupTrigger::HabClient),
+            "builderui" => Ok(JobGroupTrigger::BuilderUI),
+            _ => Err(ProtocolError::BadJobGroupState(value.to_string())),
+        }
+    }
+}
+
+impl fmt::Display for JobGroupOperation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let value = match *self {
+            JobGroupOperation::JobGroupOpCreate => "JobGroupCreate",
+            JobGroupOperation::JobGroupOpCancel => "JobGroupCancel",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl FromStr for JobGroupOperation {
+    type Err = ProtocolError;
+
+    fn from_str(value: &str) -> result::Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            "jobgroupcreate" => Ok(JobGroupOperation::JobGroupOpCreate),
+            "jobgroupcancel" => Ok(JobGroupOperation::JobGroupOpCancel),
+            _ => Err(ProtocolError::BadJobGroupState(value.to_string())),
+        }
+    }
+}
+
 impl Routable for JobGroupSpec {
     type H = String;
 
