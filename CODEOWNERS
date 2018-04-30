@@ -8,6 +8,6 @@ components/net @raskchanky
 components/oauth-common @raskchanky
 components/op @raskchanky
 components/segment-api-client @raskchanky
-support @fnichol @raskchanky @baumanj @elliott-davis
-tools @baumanj @chefsalim @christophermaier @eeyun @raskchanky @fnichol
+support @fnichol @raskchanky @elliott-davis
+tools @chefsalim @christophermaier @eeyun @raskchanky @fnichol
 .studiorc @elliott-davis @raskchanky
