@@ -23,6 +23,7 @@ use http::controller::*;
 
 use iron::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::modifiers::Header;
+use iron::headers::{Referer, UserAgent};
 use iron::status::{self, Status};
 use protocol::originsrv::{CheckOriginAccessRequest, CheckOriginAccessResponse,
                           CheckOriginOwnerRequest, CheckOriginOwnerResponse, Origin,
@@ -34,8 +35,9 @@ use protocol::originsrv::{CheckOriginAccessRequest, CheckOriginAccessResponse,
                           OriginPackagePromote, OriginPackageVisibility, OriginPrivateSigningKey,
                           OriginPrivateSigningKeyCreate, OriginPublicSigningKey,
                           OriginPublicSigningKeyCreate};
-use protocol::jobsrv::{JobGroup, JobGroupGet, JobGroupProject, JobGroupProjectState};
-use protocol::sessionsrv::Session;
+use protocol::jobsrv::{JobGroup, JobGroupGet, JobGroupProject, JobGroupProjectState,
+                       JobGroupTrigger};
+use protocol::sessionsrv::{Account, AccountGetId};
 use serde::Serialize;
 use serde_json;
 use urlencoded::UrlEncodedQuery;
@@ -429,11 +431,11 @@ pub fn get_optional_session_id(req: &mut Request) -> Option<u64> {
     }
 }
 
-pub fn generate_origin_keys(req: &mut Request, session: Session, origin: Origin) -> NetResult<()> {
+pub fn generate_origin_keys(req: &mut Request, session_id: u64, origin: Origin) -> NetResult<()> {
     let mut public_request = OriginPublicSigningKeyCreate::new();
     let mut secret_request = OriginPrivateSigningKeyCreate::new();
-    public_request.set_owner_id(session.get_id());
-    secret_request.set_owner_id(session.get_id());
+    public_request.set_owner_id(session_id);
+    secret_request.set_owner_id(session_id);
     public_request.set_name(origin.get_name().to_string());
     public_request.set_origin_id(origin.get_id());
     secret_request.set_name(origin.get_name().to_string());
@@ -458,6 +460,36 @@ pub fn generate_origin_keys(req: &mut Request, session: Session, origin: Origin)
     route_message::<OriginPrivateSigningKeyCreate, OriginPrivateSigningKey>(req, &secret_request)?;
 
     Ok(())
+}
+
+pub fn trigger_from_request(req: &mut Request) -> JobGroupTrigger {
+    let user_agent = &req.headers.get::<UserAgent>().unwrap().as_str();
+    let referer = match req.headers.get::<Referer>() {
+        Some(s) => s.as_str(),
+        None => "",
+    };
+
+    // TODO: the search strings should be configurable.
+    if user_agent.starts_with("hab/") {
+        JobGroupTrigger::HabClient
+    } else if referer.contains("habitat.sh") {
+        JobGroupTrigger::BuilderUI
+    } else {
+        JobGroupTrigger::Unknown
+    }
+}
+
+pub fn get_session_user_name(req: &mut Request, account_id: u64) -> String {
+    let mut msg = AccountGetId::new();
+    msg.set_id(account_id);
+
+    match route_message::<AccountGetId, Account>(req, &msg) {
+        Ok(account) => account.get_name().to_string(),
+        Err(err) => {
+            warn!("Failed to get account, err={:?}", err);
+            "".to_string()
+        }
+    }
 }
 
 fn do_group_promotion_or_demotion(

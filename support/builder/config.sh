@@ -16,6 +16,11 @@ else
   exit 1
 fi
 
+mkdir -p /hab/svc/builder-router
+cat <<EOT > /hab/svc/builder-router/user.toml
+log_level = "info"
+EOT
+
 mkdir -p /hab/svc/builder-api
 cat <<EOT > /hab/svc/builder-api/user.toml
 log_level = "debug"
@@ -36,6 +41,7 @@ EOT
 mkdir -p /hab/svc/builder-api-proxy
 cat <<EOT > /hab/svc/builder-api-proxy/user.toml
 log_level = "debug"
+enable_builder = true
 
 app_url = "http://${APP_HOSTNAME}:9636"
 
@@ -54,6 +60,7 @@ EOT
 
 mkdir -p /hab/svc/builder-jobsrv
 cat <<EOT > /hab/svc/builder-jobsrv/user.toml
+log_level = "debug"
 
 [datastore]
 password = "$PGPASSWORD"

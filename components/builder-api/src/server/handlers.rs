@@ -22,7 +22,8 @@ use bldr_core::helpers::transition_visibility;
 use hab_core::package::{Identifiable, Plan};
 use http_client::ApiClient;
 use http_gateway::http::controller::*;
-use http_gateway::http::helpers::{self, check_origin_access, get_param, validate_params};
+use http_gateway::http::helpers::{self, check_origin_access, get_param, get_session_user_name,
+                                  trigger_from_request, validate_params};
 use hyper::header::{Accept, ContentType};
 use hyper::status::StatusCode;
 use iron::status;
@@ -318,6 +319,17 @@ fn job_group_promote_or_demote(req: &mut Request, promote: bool) -> IronResult<R
 
 // This route is only available if jobsrv_enabled is true
 pub fn job_group_cancel(req: &mut Request) -> IronResult<Response> {
+    let (session_id, mut session_name) = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        (session.get_id(), session.get_name().to_string())
+    };
+
+    // Sessions created via Personal Access Tokens only have ids, so we may need
+    // to get the username explicitly.
+    if session_name.is_empty() {
+        session_name = get_session_user_name(req, session_id)
+    }
+
     let group_id = match get_param(req, "id") {
         Some(id) => match id.parse::<u64>() {
             Ok(g) => g,
@@ -347,6 +359,9 @@ pub fn job_group_cancel(req: &mut Request) -> IronResult<Response> {
 
     let mut jgc = JobGroupCancel::new();
     jgc.set_group_id(group_id);
+    jgc.set_trigger(trigger_from_request(req));
+    jgc.set_requester_id(session_id);
+    jgc.set_requester_name(session_name);
 
     match route_message::<JobGroupCancel, NetOk>(req, &jgc) {
         Ok(_) => Ok(Response::with(status::NoContent)),

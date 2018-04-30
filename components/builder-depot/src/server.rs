@@ -27,7 +27,8 @@ use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, all_visibilities, check_origin_access, check_origin_owner,
-                                  dont_cache_response, get_param, validate_params,
+                                  dont_cache_response, get_param, get_session_user_name,
+                                  trigger_from_request, validate_params,
                                   visibility_for_optional_session};
 use http_gateway::http::middleware::{SegmentCli, XRouteClient};
 use hab_net::{ErrCode, NetOk, NetResult};
@@ -42,7 +43,7 @@ use protobuf;
 use protocol::originsrv::*;
 use protocol::jobsrv::{JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet,
                        JobGroup, JobGroupAbort, JobGroupGet, JobGroupOriginGet,
-                       JobGroupOriginResponse, JobGroupSpec};
+                       JobGroupOriginResponse, JobGroupSpec, JobGroupTrigger};
 use protocol::sessionsrv::{Account, AccountGet, AccountOriginRemove};
 use regex::Regex;
 use router::{Params, Router};
@@ -528,7 +529,11 @@ fn generate_origin_encryption_keys(
 
 fn generate_origin_keys(req: &mut Request) -> IronResult<Response> {
     debug!("Generate Origin Keys {:?}", req);
-    let session = req.extensions.get::<Authenticated>().unwrap().clone();
+    let session_id = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        session.get_id()
+    };
+
     match get_param(req, "origin") {
         Some(origin) => {
             if !check_origin_access(req, &origin).unwrap_or(false) {
@@ -536,7 +541,7 @@ fn generate_origin_keys(req: &mut Request) -> IronResult<Response> {
             }
 
             match helpers::get_origin(req, origin) {
-                Ok(origin) => match helpers::generate_origin_keys(req, session, origin) {
+                Ok(origin) => match helpers::generate_origin_keys(req, session_id, origin) {
                     Ok(_) => Ok(Response::with(status::Created)),
                     Err(err) => Ok(render_net_error(&err)),
                 },
@@ -724,7 +729,16 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
 
 fn upload_package(req: &mut Request) -> IronResult<Response> {
     let ident = ident_from_req(req);
-    let session_id = helpers::get_optional_session_id(req);
+    let (session_id, mut session_name) = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        (session.get_id(), session.get_name().to_string())
+    };
+
+    // Sessions created via Personal Access Tokens only have ids, so we may need
+    // to get the username explicitly.
+    if session_name.is_empty() {
+        session_name = get_session_user_name(req, session_id)
+    }
 
     if !ident.valid() || !ident.fully_qualified() {
         info!(
@@ -794,11 +808,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 
     let mut ident_req = OriginPackageGet::new();
     ident_req.set_ident(ident.clone());
-    ident_req.set_visibilities(visibility_for_optional_session(
-        req,
-        session_id,
-        &ident.get_origin(),
-    ));
+    ident_req.set_visibilities(all_visibilities());
 
     // Return conflict only if we have BOTH package metadata and a valid
     // archive on disk.
@@ -962,6 +972,9 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
                     request.set_deps_only(true);
                     request.set_origin_only(!depot.config.non_core_builds_enabled);
                     request.set_package_only(false);
+                    request.set_trigger(JobGroupTrigger::Upload);
+                    request.set_requester_id(session_id);
+                    request.set_requester_name(session_name);
 
                     match route_message::<JobGroupSpec, JobGroup>(req, &request) {
                         Ok(group) => {
@@ -1018,7 +1031,17 @@ fn package_stats(req: &mut Request) -> IronResult<Response> {
 
 // This route is unreachable when jobsrv_enabled is false
 fn schedule(req: &mut Request) -> IronResult<Response> {
-    let session = req.extensions.get::<Authenticated>().unwrap().clone();
+    let (session_id, mut session_name) = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        (session.get_id(), session.get_name().to_string())
+    };
+
+    // Sessions created via Personal Access Tokens only have ids, so we may need
+    // to get the username explicitly.
+    if session_name.is_empty() {
+        session_name = get_session_user_name(req, session_id)
+    }
+
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
     let origin_name = match get_param(req, "origin") {
         Some(origin) => origin,
@@ -1066,7 +1089,7 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
         }
         Err(err) => return Ok(render_net_error(&err)),
     };
-    let account_name = session.get_name().to_string();
+    let account_name = session_name.clone();
     let need_keys = match route_message::<OriginPrivateSigningKeyGet, OriginPrivateSigningKey>(
         req,
         &secret_key_request,
@@ -1084,7 +1107,7 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
     };
 
     if need_keys {
-        if let Err(err) = helpers::generate_origin_keys(req, session, origin) {
+        if let Err(err) = helpers::generate_origin_keys(req, session_id, origin) {
             return Ok(render_net_error(&err));
         }
     }
@@ -1096,6 +1119,9 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
     request.set_deps_only(deps_only);
     request.set_origin_only(origin_only);
     request.set_package_only(package_only);
+    request.set_trigger(trigger_from_request(req));
+    request.set_requester_id(session_id);
+    request.set_requester_name(session_name);
 
     match route_message::<JobGroupSpec, JobGroup>(req, &request) {
         Ok(group) => {
