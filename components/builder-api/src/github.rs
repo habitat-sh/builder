@@ -29,6 +29,7 @@ use openssl::sign::Signer;
 use persistent;
 use protocol::originsrv::{OriginProject, OriginProjectGet};
 use protocol::jobsrv::{JobGroup, JobGroupSpec, JobGroupTrigger};
+use protocol::sessionsrv::{Account, AccountGet};
 use router::Router;
 use serde_json;
 
@@ -187,17 +188,31 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
         }
     };
 
+    let mut account_get = AccountGet::new();
+    account_get.set_name(hook.pusher.name.clone());
+    let account_id = match route_message::<AccountGet, Account>(req, &account_get) {
+        Ok(account) => Some(account.get_id()),
+        Err(_) => None,
+    };
+
     let config = read_bldr_config(&*github, &token, &hook);
     debug!("Config, {:?}", config);
     let plans = read_plans(&github, &token, &hook, &config);
     debug!("Triggered Plans, {:?}", plans);
-    build_plans(req, &hook.repository.clone_url, &hook.pusher.name, plans)
+    build_plans(
+        req,
+        &hook.repository.clone_url,
+        &hook.pusher.name,
+        account_id,
+        plans,
+    )
 }
 
 fn build_plans(
     req: &mut Request,
     repo_url: &str,
     pusher: &str,
+    account_id: Option<u64>,
     plans: Vec<Plan>,
 ) -> IronResult<Response> {
     let mut request = JobGroupSpec::new();
@@ -232,6 +247,9 @@ fn build_plans(
         request.set_target("x86_64-linux".to_string());
         request.set_trigger(JobGroupTrigger::Webhook);
         request.set_requester_name(pusher.to_string());
+        if account_id.is_some() {
+            request.set_requester_id(account_id.unwrap());
+        }
 
         match route_message::<JobGroupSpec, JobGroup>(req, &request) {
             Ok(group) => debug!("JobGroup created, {:?}", group),
