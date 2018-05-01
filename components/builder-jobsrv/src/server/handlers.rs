@@ -401,22 +401,23 @@ pub fn job_group_create(
             None => state.datastore.create_job_group(&msg, projects)?,
         };
         state.schedule_cli.notify()?;
+
+        // Add audit entry
+        let mut jga = jobsrv::JobGroupAudit::new();
+        jga.set_group_id(new_group.get_id());
+        jga.set_operation(jobsrv::JobGroupOperation::JobGroupOpCreate);
+        jga.set_trigger(msg.get_trigger());
+        jga.set_requester_id(msg.get_requester_id());
+        jga.set_requester_name(msg.get_requester_name().to_string());
+
+        match state.datastore.create_audit_entry(&jga) {
+            Ok(_) => (),
+            Err(err) => {
+                warn!("Failed to create audit entry, err={:?}", err);
+            }
+        };
+
         new_group
-    };
-
-    // Add audit entry
-    let mut jga = jobsrv::JobGroupAudit::new();
-    jga.set_group_id(group.get_id());
-    jga.set_operation(jobsrv::JobGroupOperation::JobGroupOpCreate);
-    jga.set_trigger(msg.get_trigger());
-    jga.set_requester_id(msg.get_requester_id());
-    jga.set_requester_name(msg.get_requester_name().to_string());
-
-    match state.datastore.create_audit_entry(&jga) {
-        Ok(_) => (),
-        Err(err) => {
-            warn!("Failed to create audit entry, err={:?}", err);
-        }
     };
 
     conn.route_reply(req, &group)?;
