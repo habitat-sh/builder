@@ -76,6 +76,7 @@ pub struct Worker {
     pub expiry: Instant,
     pub job_id: Option<u64>,
     pub job_expiry: Option<Instant>,
+    pub canceling: bool,
 }
 
 impl Worker {
@@ -86,6 +87,7 @@ impl Worker {
             expiry: Instant::now() + Duration::from_millis(WORKER_TIMEOUT_MS),
             job_id: None,
             job_expiry: None,
+            canceling: false,
         }
     }
 
@@ -94,11 +96,13 @@ impl Worker {
         self.expiry = Instant::now() + Duration::from_millis(WORKER_TIMEOUT_MS);
         self.job_id = None;
         self.job_expiry = None;
+        self.canceling = false;
     }
 
     pub fn busy(&mut self, job_id: u64, job_timeout: u64) {
         self.state = jobsrv::WorkerState::Busy;
         self.expiry = Instant::now() + Duration::from_millis(WORKER_TIMEOUT_MS);
+        self.canceling = false;
 
         if self.job_id.is_none() {
             self.job_id = Some(job_id);
@@ -107,6 +111,14 @@ impl Worker {
         } else {
             assert!(self.job_id.unwrap() == job_id);
         }
+    }
+
+    pub fn cancel(&mut self) {
+        self.canceling = true;
+    }
+
+    pub fn is_canceling(&mut self) -> bool {
+        self.canceling
     }
 
     pub fn refresh(&mut self) {
@@ -730,9 +742,10 @@ impl WorkerMgr {
             }
             (jobsrv::WorkerState::Busy, jobsrv::WorkerState::Busy) => {
                 let job_id = worker.job_id.unwrap(); // unwrap Ok
-                if worker.is_job_expired() {
+                if worker.is_job_expired() && !worker.is_canceling() {
                     debug!("Canceling job due to timeout: {}", job_id);
                     self.cancel_job(job_id, &worker_ident)?;
+                    worker.cancel();
                 };
                 worker.refresh();
             }
