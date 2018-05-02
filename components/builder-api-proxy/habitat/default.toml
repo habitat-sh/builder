@@ -40,7 +40,18 @@ max_body_size        = "1024m"
 
 [http]
 keepalive_timeout = "20s"
-listen_port       = 80
 sendfile          = "on"
 tcp_nopush        = "on"
 tcp_nodelay       = "on"
+
+[server]
+listen_port               = 80
+listen_tls_port           = 443
+listen_tls                = false
+cert_file                 = "ssl-certificate.crt"
+cert_key_file             = "ssl-certificate.key"
+ssl_protocols             = "TLSv1 TLSv1.1 TLSv1.2"
+ssl_ciphers               = "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
+ssl_session_cache         = "shared:SSL:10m"
+ssl_session_timeout       = "10m"
+ssl_prefer_server_ciphers = "on"

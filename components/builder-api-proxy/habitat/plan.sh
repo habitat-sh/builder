@@ -16,13 +16,14 @@ pkg_build_deps=(
 pkg_svc_user="root"
 pkg_svc_run="nginx -c ${pkg_svc_config_path}/nginx.conf"
 pkg_exports=(
-  [port]=http.listen_port
+  [port]=server.listen_port
+  [ssl-port]=server.listen_tls_port
   [url]=app_url
 )
 pkg_binds=(
   [http]="port"
 )
-pkg_exposes=(port)
+pkg_exposes=(port ssl-port)
 
 pkg_version() {
   # TED: After migrating the builder repo we needed to add to
