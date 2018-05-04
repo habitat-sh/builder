@@ -119,7 +119,8 @@ class GitLabProvider extends OAuthProvider {
         client_id: clientID,
         redirect_uri: redirectUrl,
         response_type: 'code',
-        state: state
+        state: state,
+        scope: 'openid'
       }
     );
   }

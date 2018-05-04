@@ -6,6 +6,7 @@ enum OAuthProvider {
   None = 1;
   Bitbucket = 2;
   AzureAD = 3;
+  GitLab = 4;
 }
 
 message Account {
