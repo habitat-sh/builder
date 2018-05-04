@@ -30,8 +30,8 @@ struct AuthOk {
 
 #[derive(Deserialize)]
 struct User {
-    pub id: u32,
-    pub username: String,
+    pub sub: String,
+    pub nickname: String,
     pub email: Option<String>,
 }
 
@@ -59,8 +59,8 @@ impl GitLab {
             };
 
             Ok(OAuth2User {
-                id: user.id.to_string(),
-                username: user.username,
+                id: user.sub,
+                username: user.nickname,
                 email: user.email,
             })
         } else {

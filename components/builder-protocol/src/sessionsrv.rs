@@ -53,6 +53,7 @@ impl FromStr for OAuthProvider {
         match value.to_lowercase().as_ref() {
             "azure-ad" => Ok(OAuthProvider::AzureAD),
             "github" => Ok(OAuthProvider::GitHub),
+            "gitlab" => Ok(OAuthProvider::GitLab),
             "bitbucket" => Ok(OAuthProvider::Bitbucket),
             "none" => Ok(OAuthProvider::None),
             "" => Ok(OAuthProvider::None),
