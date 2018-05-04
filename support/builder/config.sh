@@ -43,7 +43,7 @@ cat <<EOT > /hab/svc/builder-api-proxy/user.toml
 log_level = "debug"
 enable_builder = true
 
-app_url = "http://${APP_HOSTNAME}:9636"
+app_url = "http://${APP_HOSTNAME}"
 
 [github]
 api_url = "$GITHUB_API_URL"
