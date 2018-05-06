@@ -55,6 +55,7 @@ impl FromStr for OAuthProvider {
             "github" => Ok(OAuthProvider::GitHub),
             "gitlab" => Ok(OAuthProvider::GitLab),
             "bitbucket" => Ok(OAuthProvider::Bitbucket),
+            "okta" => Ok(OAuthProvider::Okta),
             "none" => Ok(OAuthProvider::None),
             "" => Ok(OAuthProvider::None),
             _ => Err(Error::BadOAuthProvider),

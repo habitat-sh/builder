@@ -24,6 +24,7 @@ use azure_ad::AzureAD;
 use github::GitHub;
 use gitlab::GitLab;
 use bitbucket::Bitbucket;
+use okta::Okta;
 
 pub struct OAuth2Client {
     inner: reqwest::Client,
@@ -63,6 +64,7 @@ impl OAuth2Client {
             "github" => Box::new(GitHub),
             "gitlab" => Box::new(GitLab),
             "bitbucket" => Box::new(Bitbucket),
+            "okta" => Box::new(Okta),
             _ => panic!("Unknown OAuth provider: {}", config.provider),
         };
 

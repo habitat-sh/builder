@@ -2,7 +2,8 @@ enum OAuthProviderType {
   AzureAD = 'azure-ad',
   GitHub = 'github',
   GitLab = 'gitlab',
-  Bitbucket = 'bitbucket'
+  Bitbucket = 'bitbucket',
+  Okta = 'okta'
 }
 
 export abstract class OAuthProvider {
@@ -50,6 +51,8 @@ export abstract class OAuthProvider {
         return new GitLabProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.Bitbucket:
         return new BitbucketProvider(clientID, authorizeUrl, redirectUrl, signupUrl);
+      case OAuthProviderType.Okta:
+        return new OktaProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case undefined:
       case '':
         console.error(`Please configure Builder with an OAuth provider. Supported providers are ${OAuthProvider.providers}.`);
@@ -144,3 +147,27 @@ class BitbucketProvider extends OAuthProvider {
     );
   }
 }
+
+class OktaProvider extends OAuthProvider {
+  name: string = 'Okta';
+
+  constructor(clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string) {
+    super(
+      OAuthProviderType.Okta,
+      clientID,
+      authorizeUrl,
+      redirectUrl,
+      signupUrl,
+      true,
+      {
+        client_id: clientID,
+        redirect_uri: redirectUrl,
+        response_type: 'code',
+        state: state,
+        scope: 'openid profile email',
+        nonce: 0
+      }
+    );
+  }
+}
+
