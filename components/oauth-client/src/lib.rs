@@ -27,6 +27,7 @@ pub mod config;
 pub mod github;
 pub mod gitlab;
 pub mod bitbucket;
+pub mod okta;
 pub mod error;
 pub mod types;
 pub mod metrics;
