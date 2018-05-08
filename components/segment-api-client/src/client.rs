@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Duration;
-
-use hyper;
-use hyper::client::Response;
+use hab_http::ApiClient;
+use hyper::client::{IntoUrl, Response};
 use hyper::header::{qitem, Accept, Authorization, Basic, ContentType, Headers, UserAgent};
-use hyper::net::HttpsConnector;
-use hyper_openssl::OpensslClient;
 use hyper::mime::{Mime, SubLevel, TopLevel};
 use serde_json;
 
@@ -26,7 +22,6 @@ use config::SegmentCfg;
 use error::{SegmentError, SegmentResult};
 
 const USER_AGENT: &'static str = "Habitat-Builder";
-const HTTP_TIMEOUT: u64 = 3_000;
 
 #[derive(Clone, Debug)]
 pub struct SegmentClient {
@@ -69,14 +64,22 @@ impl SegmentClient {
     where
         U: ToString,
     {
-        let url = format!("{}/v1/{}", self.url, path);
-        let client = hyper_client();
+        let client = http_client(&self.url)?;
+        let url_path = format!("v1/{}", path);
         let req = client
-            .post(&url)
+            .post(&url_path)
             .body(&body)
             .headers(configure_headers(token));
+
         req.send().map_err(SegmentError::HttpClient)
     }
+}
+
+fn http_client<T>(url: T) -> SegmentResult<ApiClient>
+where
+    T: IntoUrl,
+{
+    ApiClient::new(url, "bldr", "0.0.0", None).map_err(SegmentError::ApiClient)
 }
 
 fn configure_headers<U>(token: U) -> Headers
@@ -99,13 +102,4 @@ where
     }));
 
     headers
-}
-
-fn hyper_client() -> hyper::Client {
-    let ssl = OpensslClient::new().unwrap();
-    let connector = HttpsConnector::new(ssl);
-    let mut client = hyper::Client::with_connector(connector);
-    client.set_read_timeout(Some(Duration::from_millis(HTTP_TIMEOUT)));
-    client.set_write_timeout(Some(Duration::from_millis(HTTP_TIMEOUT)));
-    client
 }

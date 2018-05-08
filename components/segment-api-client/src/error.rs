@@ -20,11 +20,13 @@ use std::io;
 use base64;
 use hyper;
 use serde_json;
+use hab_http;
 
 pub type SegmentResult<T> = Result<T, SegmentError>;
 
 #[derive(Debug)]
 pub enum SegmentError {
+    ApiClient(hab_http::Error),
     ApiError(hyper::status::StatusCode, HashMap<String, String>),
     ContentDecode(base64::DecodeError),
     HttpClient(hyper::Error),
@@ -37,6 +39,7 @@ pub enum SegmentError {
 impl fmt::Display for SegmentError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            SegmentError::ApiClient(ref e) => format!("{}", e),
             SegmentError::ApiError(ref code, ref response) => format!(
                 "Received a non-200 response, status={}, response={:?}",
                 code, response
@@ -55,6 +58,7 @@ impl fmt::Display for SegmentError {
 impl error::Error for SegmentError {
     fn description(&self) -> &str {
         match *self {
+            SegmentError::ApiClient(ref err) => err.description(),
             SegmentError::ApiError(_, _) => "Response returned a non-200 status code.",
             SegmentError::ContentDecode(ref err) => err.description(),
             SegmentError::HttpClient(ref err) => err.description(),
