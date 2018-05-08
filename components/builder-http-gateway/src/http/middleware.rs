@@ -17,6 +17,7 @@ use bldr_core;
 use core::env;
 use oauth_client::client::OAuth2Client;
 use oauth_client::types::OAuth2User;
+use depot_client::Client as DepotClient;
 use github_api_client::GitHubClient;
 use hab_net::{ErrCode, NetError};
 use hab_net::conn::RouteClient;
@@ -95,6 +96,12 @@ pub struct GitHubCli;
 
 impl Key for GitHubCli {
     type Value = GitHubClient;
+}
+
+pub struct DepotCli;
+
+impl Key for DepotCli {
+    type Value = DepotClient;
 }
 
 pub struct SegmentCli;

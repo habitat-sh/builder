@@ -23,6 +23,7 @@ extern crate crypto;
 extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
+extern crate habitat_depot_client as depot_client;
 extern crate habitat_net as hab_net;
 extern crate hyper;
 extern crate iron;
@@ -69,6 +70,7 @@ use crypto::digest::Digest;
 use hab_core::package::{Identifiable, PackageArchive, PackageTarget};
 use iron::typemap;
 
+#[derive(Clone, Debug)]
 pub struct DepotUtil {
     pub config: Config,
 }

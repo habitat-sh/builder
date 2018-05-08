@@ -18,28 +18,33 @@ use std::io;
 use std::fmt;
 use std::result;
 
+use depot_client;
 use hab_core;
 use hab_core::package::{self, Identifiable};
 use hab_net;
 use hyper;
+use iron;
 
 #[derive(Debug)]
 pub enum Error {
     BadPort(String),
     ChannelAlreadyExists(String),
     ChannelDoesNotExist(String),
+    DepotClientError(depot_client::Error),
     HabitatCore(hab_core::Error),
     HabitatNet(hab_net::error::LibError),
     NetError(hab_net::NetError),
     HTTP(hyper::status::StatusCode),
     InvalidPackageIdent(String),
     IO(io::Error),
+    IronResponse(iron::response::Response),
     MessageTypeNotFound,
     NoXFilename,
     NoFilePart,
     NulError(ffi::NulError),
     PackageIsAlreadyInChannel(String, String),
     RemotePackageNotFound(package::PackageIdent),
+    UnsupportedPlatform(String),
     WriteSyncFailed,
 }
 
@@ -51,6 +56,7 @@ impl fmt::Display for Error {
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::ChannelAlreadyExists(ref e) => format!("{} already exists.", e),
             Error::ChannelDoesNotExist(ref e) => format!("{} does not exist.", e),
+            Error::DepotClientError(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::HabitatNet(ref e) => format!("{}", e),
             Error::HTTP(ref e) => format!("{}", e),
@@ -60,6 +66,9 @@ impl fmt::Display for Error {
                 e
             ),
             Error::IO(ref e) => format!("{}", e),
+            Error::IronResponse(ref e) => {
+                format!("HTTP Response {}", e.status.unwrap().to_string())
+            }
             Error::MessageTypeNotFound => format!("Unable to find message for given type"),
             Error::NetError(ref e) => format!("{}", e),
             Error::NoXFilename => {
@@ -80,6 +89,9 @@ impl fmt::Display for Error {
                     format!("Cannot find a release of package in any sources: {}", pkg)
                 }
             }
+            Error::UnsupportedPlatform(ref e) => {
+                format!("Unsupported platform or architecture: {}", e)
+            }
             Error::WriteSyncFailed => {
                 format!("Could not write to destination; perhaps the disk is full?")
             }
@@ -94,6 +106,7 @@ impl error::Error for Error {
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::ChannelAlreadyExists(_) => "Channel already exists.",
             Error::ChannelDoesNotExist(_) => "Channel does not exist.",
+            Error::DepotClientError(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),
             Error::HabitatNet(ref err) => err.description(),
             Error::HTTP(_) => "Received an HTTP error",
@@ -101,6 +114,7 @@ impl error::Error for Error {
                 "Package identifiers must be in origin/name format (example: acme/redis)"
             }
             Error::IO(ref err) => err.description(),
+            Error::IronResponse(_) => "HTTP Response",
             Error::NetError(ref err) => err.description(),
             Error::NulError(_) => {
                 "An attempt was made to build a CString with a null byte inside it"
@@ -112,6 +126,7 @@ impl error::Error for Error {
                 "An invalid path was passed - we needed a filename, and this path does not have one"
             }
             Error::MessageTypeNotFound => "Unable to find message for given type",
+            Error::UnsupportedPlatform(_) => "Unsupported platform or architecture",
             Error::WriteSyncFailed => {
                 "Could not write to destination; bytes written was 0 on a non-0 buffer"
             }

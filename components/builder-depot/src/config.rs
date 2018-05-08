@@ -49,6 +49,9 @@ pub struct Config {
     pub targets: Vec<PackageTarget>,
     /// Whether jobsrv is present or not
     pub jobsrv_enabled: bool,
+    /// Upstream depot to pull packages from if someone tries to install from this depot and they
+    /// aren't present. This is optional because e.g. public Builder doesn't have an upstream.
+    pub upstream_depot: Option<String>,
 }
 
 impl ConfigFile for Config {
@@ -72,6 +75,7 @@ impl Default for Config {
                 PackageTarget::new(Platform::Windows, Architecture::X86_64),
             ],
             jobsrv_enabled: true,
+            upstream_depot: None,
         }
     }
 }
@@ -131,6 +135,7 @@ mod tests {
         log_dir = "/hab/svc/hab-depot/var/log"
         key_dir = "/hab/svc/hab-depot/files"
         jobsrv_enabled = false
+        upstream_depot = "http://example.com"
 
         [[targets]]
         platform = "linux"
@@ -157,6 +162,10 @@ mod tests {
         assert_eq!(config.log_dir, PathBuf::from("/hab/svc/hab-depot/var/log"));
         assert_eq!(config.key_dir, PathBuf::from("/hab/svc/hab-depot/files"));
         assert_eq!(config.jobsrv_enabled, false);
+        assert_eq!(
+            config.upstream_depot,
+            Some(String::from("http://example.com"))
+        );
         assert_eq!(&format!("{}", config.http.listen), "127.0.0.1");
         assert_eq!(config.http.port, 9000);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9001");
@@ -176,5 +185,6 @@ mod tests {
 
         let config = Config::from_raw(&content).unwrap();
         assert_eq!(config.http.port, 9000);
+        assert_eq!(config.upstream_depot, None);
     }
 }

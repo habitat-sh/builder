@@ -12,6 +12,7 @@ bodyparser = "*"
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 builder-http-gateway = { path = "../builder-http-gateway" }
+habitat_depot_client = { git = "https://github.com/habitat-sh/habitat.git" }
 hyper = "0.10"
 iron = "*"
 iron-test = "*"

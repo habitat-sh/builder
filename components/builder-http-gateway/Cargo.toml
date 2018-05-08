@@ -8,9 +8,10 @@ workspace = "../../"
 [dependencies]
 base64 = "*"
 bodyparser = "*"
+builder_core = { path = "../builder-core" }
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
-builder_core = { path = "../builder-core" }
+habitat_depot_client = { git = "https://github.com/habitat-sh/habitat.git" }
 habitat_net = { path = "../net" }
 hyper = "0.10"
 iron = "*"

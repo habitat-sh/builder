@@ -14,17 +14,21 @@
 
 use std::fs::{self, File};
 use std::path::PathBuf;
-use std::io::{BufWriter, Read, Write};
+use std::io::{self, BufWriter, Read, Write};
 use std::result;
 use std::str::{FromStr, from_utf8};
+use std::thread::spawn;
 
-use bldr_core::metrics::CounterMetric;
+use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
 use bldr_core::helpers::transition_visibility;
+use bldr_core::metrics::CounterMetric;
 use bodyparser;
+use depot_client::{Client as DepotClient, DisplayProgress};
 use hab_core::package::{ident, FromArchive, Identifiable, PackageArchive, PackageIdent,
                         PackageTarget};
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
+use http_gateway::conn::RouteBroker;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, all_visibilities, check_origin_access, check_origin_owner,
                                   dont_cache_response, get_param, get_session_user_name,
@@ -53,6 +57,7 @@ use url;
 use uuid::Uuid;
 
 use super::DepotUtil;
+use config::Config;
 use error::{Error, Result};
 use metrics::Counter;
 use handlers;
@@ -420,6 +425,7 @@ fn write_archive(filename: &PathBuf, body: &mut Body) -> Result<PackageArchive> 
     let mut writer = BufWriter::new(file);
     let mut written: i64 = 0;
     let mut buf = [0u8; 100000]; // Our byte buffer
+
     loop {
         let len = body.read(&mut buf)?; // Raise IO errors
         match len {
@@ -437,6 +443,7 @@ fn write_archive(filename: &PathBuf, body: &mut Body) -> Result<PackageArchive> 
             }
         };
     }
+
     Ok(PackageArchive::new(filename))
 }
 
@@ -784,7 +791,17 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     let temp_name = format!("{}.tmp", Uuid::new_v4());
     let temp_path = parent_path.join(temp_name);
 
-    let mut archive = write_archive(&temp_path, &mut req.body)?;
+    let mut archive = match write_archive(&temp_path, &mut req.body) {
+        Ok(a) => a,
+        Err(e) => {
+            warn!("Error writing archive to disk: {:?}", &e);
+            return Ok(Response::with((
+                status::InternalServerError,
+                format!("ds:up:7, err={:?}", e),
+            )));
+        }
+    };
+
     debug!("Package Archive: {:#?}", archive);
 
     let target_from_artifact = match archive.target() {
@@ -845,37 +862,8 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 
     // Check with scheduler to ensure we don't have circular deps, if configured
     if depot.config.jobsrv_enabled {
-        let mut pcr_req = JobGraphPackagePreCreate::new();
-        pcr_req.set_ident(format!("{}", ident));
-        pcr_req.set_target(target_from_artifact.to_string());
-
-        let mut pcr_deps = protobuf::RepeatedField::new();
-        let deps_from_artifact = match archive.deps() {
-            Ok(deps) => deps,
-            Err(e) => {
-                info!("Could not get deps from {:#?}: {:#?}", archive, e);
-                return Ok(Response::with((status::UnprocessableEntity, "ds:up:4")));
-            }
-        };
-
-        for ident in deps_from_artifact {
-            let dep_str = format!("{}", ident);
-            pcr_deps.push(dep_str);
-        }
-        pcr_req.set_deps(pcr_deps);
-
-        match route_message::<JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
-            Ok(_) => (),
-            Err(err) => {
-                if err.get_code() == ErrCode::ENTITY_CONFLICT {
-                    warn!(
-                        "Failed package circular dependency check: {:?}, err: {:?}",
-                        ident, err
-                    );
-                    return Ok(Response::with(status::FailedDependency));
-                }
-                return Ok(render_net_error(&err));
-            }
+        if let Err(r) = check_circular_deps(req, &ident, &target_from_artifact, &mut archive) {
+            return Ok(r);
         }
     }
 
@@ -902,112 +890,49 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         }
     };
 
-    if ident.satisfies(package.get_ident()) {
-        {
-            let session = req.extensions.get::<Authenticated>().unwrap();
-            package.set_owner_id(session.get_id());
-        }
-
-        // let's make sure this origin actually exists
-        match helpers::get_origin(req, &ident.get_origin()) {
-            Ok(origin) => package.set_origin_id(origin.get_id()),
-            Err(err) => return Ok(render_net_error(&err)),
-        }
-
-        // Zero this out initially
-        package.clear_visibility();
-
-        // First, try to fetch visibility settings from a project, if one exists
-        let mut project_get = OriginProjectGet::new();
-        let project_name = format!("{}/{}", ident.get_origin(), ident.get_name());
-        project_get.set_name(project_name);
-
-        match route_message::<OriginProjectGet, OriginProject>(req, &project_get) {
-            Ok(proj) => {
-                if proj.has_visibility() {
-                    package.set_visibility(proj.get_visibility());
-                }
-            }
-            Err(_) => {
-                // There's no project for this package. No worries - we'll check the origin
-                let mut origin_get = OriginGet::new();
-                origin_get.set_name(ident.get_origin().to_string());
-
-                match route_message::<OriginGet, Origin>(req, &origin_get) {
-                    Ok(o) => {
-                        if o.has_default_package_visibility() {
-                            package.set_visibility(o.get_default_package_visibility());
-                        }
-                    }
-                    Err(err) => return Ok(render_net_error(&err)),
-                }
-            }
-        }
-
-        // If, after checking both the project and the origin, there's still no visibility set
-        // (this is highly unlikely), then just make it public.
-        if !package.has_visibility() {
-            package.set_visibility(OriginPackageVisibility::Public);
-        }
-
-        // Don't re-create the origin package if it already exists
-        if !origin_package_found {
-            if let Err(err) = route_message::<OriginPackageCreate, OriginPackage>(req, &package) {
-                return Ok(render_net_error(&err));
-            }
-
-            // Schedule re-build of dependent packages (if requested)
-            // Don't schedule builds if the upload is being done by the builder
-            if depot.config.builds_enabled
-                && (ident.get_origin() == "core" || depot.config.non_core_builds_enabled)
-                && !match helpers::extract_query_value("builder", req) {
-                    Some(_) => true,
-                    None => false,
-                } {
-                if depot.config.jobsrv_enabled {
-                    let mut request = JobGroupSpec::new();
-                    request.set_origin(ident.get_origin().to_string());
-                    request.set_package(ident.get_name().to_string());
-                    request.set_target(target_from_artifact.to_string());
-                    request.set_deps_only(true);
-                    request.set_origin_only(!depot.config.non_core_builds_enabled);
-                    request.set_package_only(false);
-                    request.set_trigger(JobGroupTrigger::Upload);
-                    request.set_requester_id(session_id);
-                    request.set_requester_name(session_name);
-
-                    match route_message::<JobGroupSpec, JobGroup>(req, &request) {
-                        Ok(group) => {
-                            debug!(
-                                "Scheduled reverse dependecy build for {}, group id: {}, origin_only: {}",
-                                ident,
-                                group.get_id(),
-                                !depot.config.non_core_builds_enabled
-                            )
-                        }
-                        Err(err) => warn!("Unable to schedule build, err: {:?}", err),
-                    }
-                }
-            }
-        }
-
-        let mut response = Response::with((
-            status::Created,
-            format!("/pkgs/{}/download", package.get_ident()),
-        ));
-        let mut base_url: url::Url = req.url.clone().into();
-        base_url.set_path(&format!("pkgs/{}/download", package.get_ident()));
-        response
-            .headers
-            .set(headers::Location(format!("{}", base_url)));
-        Ok(response)
-    } else {
+    if !ident.satisfies(package.get_ident()) {
         info!(
             "Ident mismatch, expected={:?}, got={:?}",
             ident,
             package.get_ident()
         );
-        Ok(Response::with((status::UnprocessableEntity, "ds:up:6")))
+
+        return Ok(Response::with((status::UnprocessableEntity, "ds:up:6")));
+    }
+
+    let config = depot.config.clone();
+    let builder_flag = helpers::extract_query_value("builder", req);
+
+    match process_upload_for_package_archive(
+        &ident,
+        &mut package,
+        &target_from_artifact,
+        session_id,
+        session_name,
+        origin_package_found,
+        config,
+        builder_flag,
+    ) {
+        Ok(_) => {
+            let mut response = Response::with((
+                status::Created,
+                format!("/pkgs/{}/download", package.get_ident()),
+            ));
+            let mut base_url: url::Url = req.url.clone().into();
+            base_url.set_path(&format!("pkgs/{}/download", package.get_ident()));
+            response
+                .headers
+                .set(headers::Location(format!("{}", base_url)));
+            Ok(response)
+        }
+        Err(_) => {
+            info!(
+                "Ident mismatch, expected={:?}, got={:?}",
+                ident,
+                package.get_ident()
+            );
+            Ok(Response::with((status::UnprocessableEntity, "ds:up:6")))
+        }
     }
 }
 
@@ -1318,23 +1243,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
         Ok(package) => {
             if let Some(archive) = depot.archive(package.get_ident(), &agent_target) {
                 match fs::metadata(&archive.path) {
-                    Ok(_) => {
-                        let mut response = Response::with((status::Ok, archive.path.clone()));
-                        do_cache_response(&mut response);
-                        let disp = ContentDisposition {
-                            disposition: DispositionType::Attachment,
-                            parameters: vec![
-                                DispositionParam::Filename(
-                                    Charset::Iso_8859_1,
-                                    None,
-                                    archive.file_name().as_bytes().to_vec(),
-                                ),
-                            ],
-                        };
-                        response.headers.set(disp);
-                        response.headers.set(XFileName(archive.file_name()));
-                        Ok(response)
-                    }
+                    Ok(_) => download_response_for_archive(archive),
                     Err(_) => Ok(Response::with(status::NotFound)),
                 }
             } else {
@@ -1343,7 +1252,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
                 Ok(Response::with(status::InternalServerError))
             }
         }
-        Err(err) => return Ok(render_net_error(&err)),
+        Err(err) => Ok(render_net_error(&err)),
     }
 }
 
@@ -1779,7 +1688,9 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
                 session_id,
                 &ident.get_origin(),
             ));
-            request.set_ident(ident);
+            request.set_ident(ident.clone());
+
+            refresh_package_from_upstream_depot(req, ident.clone(), Some(channel.clone()));
 
             match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(req, &request)
             {
@@ -1813,7 +1724,9 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
                 session_id,
                 &ident.get_origin(),
             ));
-            request.set_ident(ident);
+            request.set_ident(ident.clone());
+
+            refresh_package_from_upstream_depot(req, ident.clone(), None);
 
             match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request) {
                 Ok(id) => ident = id.into(),
@@ -2307,6 +2220,370 @@ fn target_from_headers(user_agent_header: &UserAgent) -> result::Result<PackageT
     }
 }
 
+fn check_circular_deps(
+    req: &mut Request,
+    ident: &OriginPackageIdent,
+    target: &PackageTarget,
+    archive: &mut PackageArchive,
+) -> result::Result<(), Response> {
+    let mut pcr_req = JobGraphPackagePreCreate::new();
+    pcr_req.set_ident(format!("{}", ident));
+    pcr_req.set_target(target.to_string());
+
+    let mut pcr_deps = protobuf::RepeatedField::new();
+    let deps_from_artifact = match archive.deps() {
+        Ok(deps) => deps,
+        Err(e) => {
+            info!("Could not get deps from {:#?}: {:#?}", archive, e);
+            return Err(Response::with((status::UnprocessableEntity, "ds:up:4")));
+        }
+    };
+
+    for ident in deps_from_artifact {
+        let dep_str = format!("{}", ident);
+        pcr_deps.push(dep_str);
+    }
+    pcr_req.set_deps(pcr_deps);
+
+    match route_message::<JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            if err.get_code() == ErrCode::ENTITY_CONFLICT {
+                warn!(
+                    "Failed package circular dependency check: {}, err: {:?}",
+                    ident, err
+                );
+                return Err(Response::with(status::FailedDependency));
+            }
+            return Err(render_net_error(&err));
+        }
+    }
+}
+
+fn process_upload_for_package_archive(
+    ident: &OriginPackageIdent,
+    package: &mut OriginPackageCreate,
+    target: &PackageTarget,
+    owner_id: u64,
+    owner_name: String,
+    origin_package_found: bool,
+    config: Config,
+    builder_flag: Option<String>,
+) -> NetResult<()> {
+    // We need to do it this way instead of via route_message because this function can't be passed
+    // a Request struct, because it's sometimes called from a background thread, and Request
+    // structs are not cloneable.
+    let mut conn = RouteBroker::connect().unwrap();
+
+    package.set_owner_id(owner_id);
+
+    // Let's make sure this origin actually exists. Yes, I know we have a helper function for this
+    // but it requires the Request struct, which is not available here.
+    let mut request = OriginGet::new();
+    request.set_name(ident.get_origin().to_string());
+    match conn.route::<OriginGet, Origin>(&request) {
+        Ok(origin) => package.set_origin_id(origin.get_id()),
+        Err(err) => return Err(err),
+    }
+
+    // Zero this out initially
+    package.clear_visibility();
+
+    // First, try to fetch visibility settings from a project, if one exists
+    let mut project_get = OriginProjectGet::new();
+    let project_name = format!("{}/{}", ident.get_origin(), ident.get_name());
+    project_get.set_name(project_name);
+
+    match conn.route::<OriginProjectGet, OriginProject>(&project_get) {
+        Ok(proj) => {
+            if proj.has_visibility() {
+                package.set_visibility(proj.get_visibility());
+            }
+        }
+        Err(_) => {
+            // There's no project for this package. No worries - we'll check the origin
+            let mut origin_get = OriginGet::new();
+            origin_get.set_name(ident.get_origin().to_string());
+
+            match conn.route::<OriginGet, Origin>(&origin_get) {
+                Ok(o) => {
+                    if o.has_default_package_visibility() {
+                        package.set_visibility(o.get_default_package_visibility());
+                    }
+                }
+                Err(err) => return Err(err),
+            }
+        }
+    }
+
+    // If, after checking both the project and the origin, there's still no visibility set
+    // (this is highly unlikely), then just make it public.
+    if !package.has_visibility() {
+        package.set_visibility(OriginPackageVisibility::Public);
+    }
+
+    // Don't re-create the origin package if it already exists
+    if !origin_package_found {
+        if let Err(err) = conn.route::<OriginPackageCreate, OriginPackage>(&package) {
+            return Err(err);
+        }
+
+        // Schedule re-build of dependent packages (if requested)
+        // Don't schedule builds if the upload is being done by the builder
+        if config.builds_enabled && (ident.get_origin() == "core" || config.non_core_builds_enabled)
+            && builder_flag.is_none()
+        {
+            if config.jobsrv_enabled {
+                let mut request = JobGroupSpec::new();
+                request.set_origin(ident.get_origin().to_string());
+                request.set_package(ident.get_name().to_string());
+                request.set_target(target.to_string());
+                request.set_deps_only(true);
+                request.set_origin_only(!config.non_core_builds_enabled);
+                request.set_package_only(false);
+                request.set_trigger(JobGroupTrigger::Upload);
+                request.set_requester_id(owner_id);
+                request.set_requester_name(owner_name);
+
+                match conn.route::<JobGroupSpec, JobGroup>(&request) {
+                    Ok(group) => debug!(
+                        "Scheduled reverse dependecy build for {}, group id: {}, origin_only: {}",
+                        ident,
+                        group.get_id(),
+                        !config.non_core_builds_enabled
+                    ),
+                    Err(err) => warn!("Unable to schedule build, err: {:?}", err),
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+// This function is called from a background thread, so we can't pass the Request object into it.
+fn download_package_from_upstream_depot(
+    depot: DepotUtil,
+    depot_cli: DepotClient,
+    upstream_depot: &str,
+    ident: OriginPackageIdent,
+    channel: Option<String>,
+) -> Result<OriginPackage> {
+    let parent_path = depot.archive_parent(&ident);
+
+    match fs::create_dir_all(parent_path.clone()) {
+        Ok(_) => {}
+        Err(e) => {
+            error!("Unable to create archive directory, err={:?}", e);
+            return Err(Error::IO(e));
+        }
+    };
+
+    // This is pretty frustrating, but I'll explain why this seemingly useless struct
+    // is here. We want to pass None as the last parameter to fetch_package, because
+    // this is running on a server and there's no TTY, so we have no need for
+    // a progress bar. Passing None by itself doesn't work, because the compiler
+    // complains that it can't infer the type for None. Passing None::<DisplayProgress>
+    // doesn't work because the compiler complains that it doesn't know the size of
+    // that parameter. So in order to get this to compile, we need to create this 100%
+    // useless struct that implements the DisplayProgress trait, just so we can cast
+    // None to it when we call the function. If someone has a better way of doing this,
+    // fantastic. I will happily change this code and subscribe to your newsletter.
+    struct NoProgress {}
+    impl DisplayProgress for NoProgress {
+        fn size(&mut self, _size: u64) {}
+
+        fn finish(&mut self) {}
+    }
+
+    impl Write for NoProgress {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+            Ok(0)
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    match depot_cli.fetch_package(&ident, None, &parent_path, None::<NoProgress>) {
+        Ok(mut archive) => {
+            let target_from_artifact = archive.target().map_err(Error::HabitatCore)?;
+            if !depot.config.targets.contains(&target_from_artifact) {
+                debug!(
+                    "Unsupported package platform or architecture {}.",
+                    &target_from_artifact
+                );
+                return Err(Error::UnsupportedPlatform(target_from_artifact.to_string()));
+            };
+
+            let mut package_create = match OriginPackageCreate::from_archive(&mut archive) {
+                Ok(p) => p,
+                Err(e) => {
+                    info!("Error building package from archive: {:#?}", e);
+                    return Err(Error::HabitatCore(e));
+                }
+            };
+
+            let config = depot.config.clone();
+
+            if let Err(e) = process_upload_for_package_archive(
+                &ident,
+                &mut package_create,
+                &target_from_artifact,
+                BUILDER_ACCOUNT_ID,
+                BUILDER_ACCOUNT_NAME.to_string(),
+                false,
+                config,
+                None,
+            ) {
+                return Err(Error::NetError(e));
+            }
+
+            // We need to ensure that the new package is in the proper channels. Right now, this function
+            // is only called when we need to fetch packages from an upstream depot, whether that's
+            // in-band with a request, such as 'hab pkg install', or in a background thread. Either
+            // way, though, its purpose is to make packages on our local depot here mirror what
+            // they look like in the upstream.
+            //
+            // Given this, we need to ensure that packages fetched from this mechanism end up in
+            // the stable channel, since that's where 'hab pkg install' tries to install them from.
+            // It'd be a pretty jarring experience if someone did a 'hab pkg install' for
+            // core/tree, and it succeeded the first time when it fetched it from the upstream
+            // depot, and failed the second time from the local depot because it couldn't be found
+            // in the stable channel.
+            //
+            // Creating and promoting to channels without the use of the Request struct is messy and will
+            // require much refactoring of code, so at the moment, we're going to punt on the hard problem
+            // here and just check to see if the channel is stable, and if so, do the right thing. If it's
+            // not stable, we do nothing (though the odds of this happening are vanishingly small).
+            if channel.is_some() && channel.clone().unwrap().as_str() == "stable" {
+                let mut conn = RouteBroker::connect().unwrap();
+                let mut channel_get = OriginChannelGet::new();
+                channel_get.set_origin_name(ident.get_origin().to_string());
+                channel_get.set_name("stable".to_string());
+
+                let origin_channel = conn.route::<OriginChannelGet, OriginChannel>(&channel_get)
+                    .map_err(Error::NetError)?;
+
+                let mut package_get = OriginPackageGet::new();
+                package_get.set_ident(ident.clone());
+                package_get.set_visibilities(all_visibilities());
+
+                let origin_package = conn.route::<OriginPackageGet, OriginPackage>(&package_get)
+                    .map_err(Error::NetError)?;
+
+                let mut promote = OriginPackagePromote::new();
+                promote.set_channel_id(origin_channel.get_id());
+                promote.set_package_id(origin_package.get_id());
+                promote.set_ident(ident);
+
+                match conn.route::<OriginPackagePromote, NetOk>(&promote) {
+                    Ok(_) => Ok(origin_package),
+                    Err(e) => Err(Error::NetError(e)),
+                }
+            } else {
+                if channel.is_some() {
+                    info!("Installing packages from an upstream depot and the channel wasn't stable. Instead, it was {}", channel.unwrap());
+                }
+
+                match OriginPackage::from_archive(&mut archive) {
+                    Ok(p) => Ok(p),
+                    Err(e) => Err(Error::HabitatCore(e)),
+                }
+            }
+        }
+        Err(e) => {
+            warn!(
+                "Failed to download {} from upstream_depot {:?}. e = {:?}",
+                ident, upstream_depot, e
+            );
+            Err(Error::DepotClientError(e))
+        }
+    }
+}
+
+fn check_package_from_upstream_depot(
+    depot: DepotUtil,
+    depot_cli: DepotClient,
+    upstream_depot: String,
+    ident: OriginPackageIdent,
+    channel: Option<String>,
+) -> Result<OriginPackage> {
+    let another_channel = channel.clone();
+    let channel_ref = another_channel.as_ref().map(|x| &**x);
+
+    match depot_cli.show_package(&ident, channel_ref, None) {
+        Ok(mut package) => {
+            let pkg_ident: PackageIdent = ident.clone().into();
+            let remote_pkg_ident: PackageIdent = package.take_ident().into();
+
+            if remote_pkg_ident > pkg_ident {
+                let opi: OriginPackageIdent = OriginPackageIdent::from(remote_pkg_ident);
+                download_package_from_upstream_depot(
+                    depot,
+                    depot_cli,
+                    &upstream_depot,
+                    opi,
+                    channel,
+                )
+            } else {
+                Err(Error::IronResponse(Response::with(status::NotFound)))
+            }
+        }
+        Err(e) => {
+            debug!(
+                "Failed to show package {} from {}: {:?}",
+                ident, upstream_depot, e
+            );
+            Err(Error::DepotClientError(e))
+        }
+    }
+}
+
+fn refresh_package_from_upstream_depot(
+    req: &mut Request,
+    ident: OriginPackageIdent,
+    channel: Option<String>,
+) {
+    let lock = req.get::<persistent::State<DepotUtil>>()
+        .expect("depot not found");
+    let d = lock.read().expect("depot read lock is poisoned");
+    let depot = d.clone();
+    let config = d.config.clone();
+
+    if config.upstream_depot.is_none() {
+        return;
+    }
+
+    let depot_cli = depot_client_from_config(&config).unwrap();
+    let upstream_depot = config.upstream_depot.unwrap(); // unwrap is fine because we just checked if it was None
+
+    // Let's do the actual work that takes time in the background so the main request handler can
+    // continue on its way.
+    spawn(move || {
+        let _ = check_package_from_upstream_depot(depot, depot_cli, upstream_depot, ident, channel);
+    });
+}
+
+fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response> {
+    let mut response = Response::with((status::Ok, archive.path.clone()));
+    do_cache_response(&mut response);
+    let disp = ContentDisposition {
+        disposition: DispositionType::Attachment,
+        parameters: vec![
+            DispositionParam::Filename(
+                Charset::Iso_8859_1,
+                None,
+                archive.file_name().as_bytes().to_vec(),
+            ),
+        ],
+    };
+    response.headers.set(disp);
+    response.headers.set(XFileName(archive.file_name()));
+    Ok(response)
+}
+
 fn is_a_service<T>(req: &mut Request, ident: &T) -> bool
 where
     T: Identifiable,
@@ -2602,6 +2879,16 @@ where
     r
 }
 
+fn depot_client_from_config(config: &Config) -> Option<DepotClient> {
+    if let Some(ref upstream_depot) = config.upstream_depot {
+        // TODO: we keep running into this issue where PRODUCT and VERSION aren't available and
+        // hardcoding values. how do we avoid this?
+        Some(DepotClient::new(upstream_depot, "builder-depot", "0.0.0", None).unwrap())
+    } else {
+        None
+    }
+}
+
 pub fn router(depot: DepotUtil) -> Result<Chain> {
     let basic = Authenticated::new(depot.config.key_dir.clone());
     let worker =
@@ -2613,17 +2900,13 @@ pub fn router(depot: DepotUtil) -> Result<Chain> {
     chain.link(persistent::Read::<SegmentCli>::both(SegmentClient::new(
         depot.config.segment.clone(),
     )));
+
+    if let Some(depot_client) = depot_client_from_config(&depot.config) {
+        chain.link(persistent::Read::<DepotCli>::both(depot_client));
+    }
+
     chain.link(persistent::State::<DepotUtil>::both(depot));
     chain.link_before(XRouteClient);
     chain.link_after(Cors);
     Ok(chain)
-}
-
-impl From<Error> for IronError {
-    fn from(err: Error) -> IronError {
-        IronError {
-            error: Box::new(err),
-            response: Response::with((status::InternalServerError, "Internal Habitat error")),
-        }
-    }
 }
