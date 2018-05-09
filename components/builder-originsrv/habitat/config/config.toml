@@ -1,3 +1,5 @@
+jobsrv_enabled = {{cfg.jobsrv_enabled}}
+
 [app]
 {{toToml cfg.app}}
 routers = [
