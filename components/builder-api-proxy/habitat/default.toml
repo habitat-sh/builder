@@ -37,6 +37,8 @@ worker_connections   = 8000
 worker_processes     = "auto"
 worker_rlimit_nofile = 8192
 max_body_size        = "1024m"
+proxy_send_timeout   = 60
+proxy_read_timeout   = 60
 
 [http]
 keepalive_timeout = "20s"
