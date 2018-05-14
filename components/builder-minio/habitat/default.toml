@@ -1,0 +1,4 @@
+key_id = "DEFAULTKEYID"
+secret_key = "DEFAULTSECRETACCESSKEY"
+use_ssl = false
+gen_cert = false

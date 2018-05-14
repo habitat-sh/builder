@@ -20,6 +20,7 @@ extern crate bodyparser;
 extern crate builder_core as bldr_core;
 extern crate builder_http_gateway as http_gateway;
 extern crate crypto;
+extern crate futures;
 extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
@@ -37,6 +38,8 @@ extern crate protobuf;
 extern crate r2d2;
 extern crate regex;
 extern crate router;
+extern crate rusoto_core as rusoto;
+extern crate rusoto_s3;
 extern crate segment_api_client;
 extern crate serde;
 #[macro_use]
@@ -45,6 +48,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate tempfile;
 extern crate time;
+extern crate tokio_core;
 extern crate toml;
 extern crate unicase;
 extern crate url;
@@ -52,6 +56,7 @@ extern crate uuid;
 extern crate walkdir;
 extern crate zmq;
 
+pub mod backend;
 pub mod config;
 pub mod error;
 pub mod handlers;
@@ -62,11 +67,10 @@ pub mod upstream;
 pub use self::config::Config;
 pub use self::error::{Error, Result};
 
-use std::fs;
+use std::fs::{self, File};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use crypto::digest::Digest;
-use crypto::sha2::Sha256;
 use hab_core::package::{Identifiable, PackageArchive, PackageTarget};
 use iron::typemap;
 
@@ -74,8 +78,8 @@ pub trait DepotUtil {
     fn archive<T: Identifiable>(&self, ident: &T, target: &PackageTarget)
         -> Option<PackageArchive>;
     fn archive_path<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf;
-    fn archive_parent<T: Identifiable>(&self, ident: &T) -> PathBuf;
     fn packages_path(&self) -> PathBuf;
+    fn write_archive(filename: &PathBuf, body: Vec<u8>) -> Result<PackageArchive>;
 }
 
 impl DepotUtil for config::Config {
@@ -95,33 +99,22 @@ impl DepotUtil for config::Config {
     // Return a formatted string representing the filename of an archive for the given package
     // identifier pieces.
     fn archive_path<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf {
-        let mut digest = Sha256::new();
-        let mut output = [0; 64];
-        digest.input_str(&ident.to_string());
-        digest.result(&mut output);
-        self.packages_path()
-            .join(format!("{:x}", output[0]))
-            .join(format!("{:x}", output[1]))
-            .join(format!(
-                "{}-{}-{}-{}-{}-{}.hart",
-                ident.origin(),
-                ident.name(),
-                ident.version().unwrap(),
-                ident.release().unwrap(),
-                target.architecture,
-                target.platform
-            ))
+        self.packages_path().join(format!(
+            "{}-{}-{}-{}-{}-{}.hart",
+            ident.origin(),
+            ident.name(),
+            ident.version().unwrap(),
+            ident.release().unwrap(),
+            target.architecture,
+            target.platform
+        ))
     }
 
-    // Return a formatted string representing the folder location for an archive.
-    fn archive_parent<T: Identifiable>(&self, ident: &T) -> PathBuf {
-        let mut digest = Sha256::new();
-        let mut output = [0; 64];
-        digest.input_str(&ident.to_string());
-        digest.result(&mut output);
-        self.packages_path()
-            .join(format!("{:x}", output[0]))
-            .join(format!("{:x}", output[1]))
+    fn write_archive(filename: &PathBuf, body: Vec<u8>) -> Result<PackageArchive> {
+        let file = File::create(&filename)?;
+        let mut write = BufWriter::new(file);
+        let _payload = write.write_all(&body)?;
+        Ok(PackageArchive::new(filename))
     }
 
     fn packages_path(&self) -> PathBuf {

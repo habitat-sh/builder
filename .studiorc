@@ -92,7 +92,7 @@ _build-builder() {
   fi
 
   if [[ "$#" -eq 0 ]]; then
-    build-builder api jobsrv originsrv router sessionsrv worker
+    build-builder api jobsrv originsrv router sessionsrv worker minio
     return $?
   fi
 
@@ -103,7 +103,7 @@ _build-builder() {
 build-builder() { stop-on-failure _build-builder "$@"; }
 
 ui-dev-mode() {
-  for svc in sessionsrv worker api originsrv; do
+  for svc in sessionsrv worker api originsrv minio; do
   cat <<CONFIG | hab config apply builder-${svc}.default "$(date +%s)"
 [github]
 client_id = "Iv1.732260b62f84db15"
@@ -115,7 +115,7 @@ done
 
 upload_github_keys() {
   if [[ -f "/src/.secrets/builder-github-app.pem" ]]; then
-    for svc in sessionsrv worker api originsrv; do
+    for svc in sessionsrv worker api originsrv minio; do
       hab file upload "builder-${svc}.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
     done
   else
@@ -140,10 +140,16 @@ _start-builder() {
     start-builder originsrv
     start-builder sessionsrv
     start-builder worker
+    start-builder minio
     sleep 2
     generate_bldr_keys
     upload_github_keys
+    configure-minio
     echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
+    echo "Minio login available at http://localhost:9000"
+    echo "Username: DEFAULTKEYID"
+    echo "Password: DEFAULTSECRETACCESSKEY"
+    echo "AWS-CLI ENVVARS have been set with these values"
     return $?
   fi
 
@@ -164,7 +170,7 @@ start-builder() { stop-on-failure _start-builder "$@"; }
 _load-if-not-loaded() {
   local pkg_ident
   pkg_ident=$1
-  if hab sup status "$pkg_ident" > /dev/null; then
+  if hab sup status "$pkg_ident" | grep "$pkg_ident" > /dev/null; then
     echo "$pkg_ident is already loaded"
   else
     hab svc load "$@"
@@ -173,12 +179,26 @@ _load-if-not-loaded() {
 load-if-not-loaded() { stop-on-failure _load-if-not-loaded "$@"; }
 
 start-datastore() {
-  if hab sup status habitat/builder-datastore > /dev/null; then
+if hab sup status habitat/builder-datastore | grep "habitat/builder-datastore" > /dev/null; then
     echo "habitat/builder-datastore is already loaded"
   else
     init-datastore
     hab svc load habitat/builder-datastore
   fi
+}
+
+configure-minio() {
+ if hab svc status habitat/builder-minio | grep "habitat/builder-minio" > /dev/null; then
+   echo "habitat/builder-minio is already loaded"
+   hab pkg install -bf core/aws-cli
+   export AWS_ACCESS_KEY_ID="DEFAULTKEYID"
+   export AWS_SECRET_ACCESS_KEY="DEFAULTSECRETACCESSKEY"
+   aws --endpoint-url http://localhost:9000 s3api create-bucket --bucket "habitat-builder-dev-artifact-store.default"
+   echo "Default bucket created successfully with dev credentials"
+ else
+     hab svc load habitat/builder-minio
+     start-minio
+ fi
 }
 
 start-cache() {
@@ -193,11 +213,12 @@ declare -A svc_params=(
   [router]="     -s at-once"
   [sessionsrv]=" -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
   [worker]="     -s at-once --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default"
+  [minio]="      -s at-once"
 )
 
 _stop-builder() {
   if [[ "$#" -eq 0 ]]; then
-    stop-builder cache api api-proxy datastore jobsrv originsrv router sessionsrv worker
+    stop-builder cache api api-proxy datastore jobsrv originsrv router sessionsrv worker minio
     return $?
   fi
 
@@ -264,7 +285,7 @@ export -f psql
 
 # Cleanup any development touch files we laid down when checking to see if we could run NO_INSTALL_DEPS
 local_cleanup() {
-  for svc in api api-proxy datastore jobsrv originsrv router sessionsrv worker; do
+  for svc in api api-proxy datastore jobsrv originsrv router sessionsrv worker minio; do
     if [ -f "/src/components/builder-${svc}/cleanup" ]; then
       rm "/src/components/builder-${svc}/cleanup"
     fi
@@ -297,11 +318,12 @@ The following commands are available:
     USAGE: start-builder [SERVICE]...
             stop-builder [SERVICE]...
     With no args, load/unload all builder services
-    Valid services: api api-proxy cache datastore jobsrv originsrv router sessionsrv worker
+    Valid services: api api-proxy cache datastore jobsrv originsrv router sessionsrv worker minio
   * ui-dev-mode - helper to switch the github app to localhost:3000
 4. Helpers
   * psql - wrapper around psql to enable passwordless auth
   * upload_github_keys - internal function to upload github secret keys to the ring
+  * configure-minio - internal function to create the default minio bucket
 5. Docs
   * dev_docs (alias: help)
 DOCS

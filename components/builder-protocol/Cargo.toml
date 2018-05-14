@@ -9,7 +9,7 @@ workspace = "../../"
 [dependencies]
 clippy = { version = "*", optional = true }
 fnv = "*"
-protobuf = "*"
+protobuf = "1.4.4"
 serde = "*"
 serde_derive = "*"
 time = "*"
