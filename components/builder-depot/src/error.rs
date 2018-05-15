@@ -24,6 +24,8 @@ use hab_core::package::{self, Identifiable};
 use hab_net;
 use hyper;
 use iron;
+use protobuf;
+use zmq;
 
 #[derive(Debug)]
 pub enum Error {
@@ -43,9 +45,11 @@ pub enum Error {
     NoFilePart,
     NulError(ffi::NulError),
     PackageIsAlreadyInChannel(String, String),
+    Protobuf(protobuf::ProtobufError),
     RemotePackageNotFound(package::PackageIdent),
     UnsupportedPlatform(String),
     WriteSyncFailed,
+    Zmq(zmq::Error),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -82,6 +86,7 @@ impl fmt::Display for Error {
             Error::PackageIsAlreadyInChannel(ref p, ref c) => {
                 format!("{} is already in the {} channel.", p, c)
             }
+            Error::Protobuf(ref e) => format!("{}", e),
             Error::RemotePackageNotFound(ref pkg) => {
                 if pkg.fully_qualified() {
                     format!("Cannot find package in any sources: {}", pkg)
@@ -95,6 +100,7 @@ impl fmt::Display for Error {
             Error::WriteSyncFailed => {
                 format!("Could not write to destination; perhaps the disk is full?")
             }
+            Error::Zmq(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
     }
@@ -120,6 +126,7 @@ impl error::Error for Error {
                 "An attempt was made to build a CString with a null byte inside it"
             }
             Error::PackageIsAlreadyInChannel(_, _) => "Package is already in channel",
+            Error::Protobuf(ref err) => err.description(),
             Error::RemotePackageNotFound(_) => "Cannot find a package in any sources",
             Error::NoXFilename => "Invalid download from Builder - missing X-Filename header",
             Error::NoFilePart => {
@@ -130,6 +137,7 @@ impl error::Error for Error {
             Error::WriteSyncFailed => {
                 "Could not write to destination; bytes written was 0 on a non-0 buffer"
             }
+            Error::Zmq(ref err) => err.description(),
         }
     }
 }
