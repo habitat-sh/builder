@@ -49,7 +49,7 @@ log "Version ${hab_version}"
 # Preliminaries, Helpers, Constants
 
 find_if_exists() {
-  command -v ${1} || { log "Required utility '${1}' cannot be found!  Aborting."; exit 1; }
+  command -v "${1}" || { log "Required utility '${1}' cannot be found!  Aborting."; exit 1; }
 }
 
 # These are the key utilities this script uses. If any are not present
@@ -118,12 +118,12 @@ this_bootstrap_bundle=hab_builder_bootstrap_$(date +%Y%m%d%H%M%S)
 # blindly copy everything in ${sandbox_dir}/hab/cache/artifacts, confident
 # that those artifacts are everything we need, and no more.
 sandbox_dir=${this_bootstrap_bundle}
-mkdir ${sandbox_dir}
+mkdir "${sandbox_dir}"
 log "Using ${sandbox_dir} as the Habitat root directory"
 
 for package in "${sup_packages[@]}" "${builder_packages[@]}" "${helper_packages[@]}"
 do
-  env FS_ROOT=${sandbox_dir} ${depot_flag} ${hab} pkg install --channel=stable ${package} >&2
+  env FS_ROOT="${sandbox_dir}" ${depot_flag} "${hab}" pkg install --channel=stable "${package}" >&2
 done
 
 ########################################################################
@@ -132,53 +132,55 @@ done
 artifact_dir=${sandbox_dir}/hab/cache/artifacts
 log "Creating TAR for all artifacts"
 
-sup_artifact=$(echo ${artifact_dir}/core-hab-sup-*)
+sup_artifact=$(echo "${artifact_dir}"/core-hab-sup-*)
 archive_name=${this_bootstrap_bundle}.tar
 log "Generating archive: ${archive_name}"
 
 tar --create \
        --verbose \
-       --file=${archive_name} \
-       --directory=${sandbox_dir}/hab/cache \
+       --file="${archive_name}" \
+       --directory="${sandbox_dir}"/hab/cache \
        artifacts >&2
 
 # We'll need a hab binary to bootstrap ourselves; let's take the one
 # we just downloaded, shall we?
-hab_pkg_dir=$(echo ${sandbox_dir}/hab/pkgs/core/hab/${hab_version}/*)
+hab_pkg_dir=$(echo "${sandbox_dir}"/hab/pkgs/core/hab/"${hab_version}"/*)
 tar --append \
        --verbose \
-       --file=${archive_name} \
-       --directory=${hab_pkg_dir} \
+       --file="${archive_name}" \
+       --directory="${hab_pkg_dir}" \
        bin >&2
 
 # We're also going to need the public origin key(s)!
 tar --append \
        --verbose \
-       --file=${archive_name} \
-       --directory=${sandbox_dir}/hab/cache \
+       --file="${archive_name}" \
+       --directory="${sandbox_dir}"/hab/cache \
        keys >&2
 
 ########################################################################
 # Upload to S3
 
-checksum=$(sha256sum ${archive_name} | awk '{print $1}')
+checksum=$(sha256sum "${archive_name}" | awk '{print $1}')
 
 # Encapsulate the fact that we want our uploaded files to be publicly
 # accessible.
 s3_cp() {
-  aws s3 cp --acl=public-read ${1} ${2} >&2
+  aws s3 cp --acl=public-read "${1}" "${2}" >&2
 }
 
-s3_cp ${archive_name} s3://${s3_bucket}
+s3_cp "${archive_name}" s3://${s3_bucket}
 
 manifest_file=${this_bootstrap_bundle}_manifest.txt
-echo ${archive_name} > ${manifest_file}
-echo ${checksum} >> ${manifest_file}
-echo >> ${manifest_file}
-tar --list --file ${archive_name} | sort >> ${manifest_file}
+{
+  echo "${archive_name}"
+  echo "${checksum}"
+  echo
+  tar --list --file "${archive_name}" | sort
+} > "${manifest_file}"
 
-s3_cp ${manifest_file} s3://${s3_bucket}
-s3_cp s3://${s3_bucket}/${manifest_file} s3://${s3_bucket}/LATEST
+s3_cp "${manifest_file}" s3://${s3_bucket}
+s3_cp s3://${s3_bucket}/"${manifest_file}" s3://${s3_bucket}/LATEST
 
-rm -rdf $sandbox_dir
-rm -Rdf $archive_name
+rm -rdf "$sandbox_dir"
+rm -Rdf "$archive_name"

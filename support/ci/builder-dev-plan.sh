@@ -1,13 +1,15 @@
 source ../../../support/ci/builder-dev-base-plan.sh
 
 pkg_build_deps+=(core/sccache)
+# shellcheck disable=2034
 pkg_origin=habitat-dev
 
 do_dev_prepare() {
   # Order matters here
   export CARGO_HOME="/tmp/cargo_cache"
   export builder_build_type="--debug"
-  export RUSTC_WRAPPER="$(pkg_path_for core/sccache)/bin/sccache"
+  export RUSTC_WRAPPER
+  RUSTC_WRAPPER="$(pkg_path_for core/sccache)/bin/sccache"
   export SCCACHE_DIR="/tmp/cargo_cache"
   export SCCACHE_START_SERVER=0
   do_builder_prepare
@@ -20,6 +22,7 @@ do_prepare() {
   do_dev_prepare
 }
 
+# shellcheck disable=2154
 do_builder_install() {
   local pkg_path
   pkg_path=$(hab pkg path habitat/"$pkg_name")

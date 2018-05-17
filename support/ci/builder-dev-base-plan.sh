@@ -35,5 +35,6 @@ _build_metadata() {
 }
 
 do_end() {
+  # shellcheck disable=2154
   rm -rf "${pkg_prefix}/../../${pkg_version}"
 }

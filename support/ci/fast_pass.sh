@@ -36,17 +36,17 @@ else
   echo
   echo "Checking for changed files since last merge commit:"
   echo
-  echo_indented $CHANGED_FILES
+  echo_indented "$CHANGED_FILES"
   echo
 
   echo "Among the affected files:"
   echo
-  echo_indented $AFFECTED_FILES
+  echo_indented "$AFFECTED_FILES"
   echo
 
   echo "And in the affected directories:"
   echo
-  echo_indented $AFFECTED_DIRS
+  echo_indented "$AFFECTED_DIRS"
   echo
 
   check_affected() {

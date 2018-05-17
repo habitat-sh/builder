@@ -14,7 +14,6 @@ shellcheck --version
 # Exclude the following shellcheck issues since they're pervasive and innocuous:
 # https://github.com/koalaman/shellcheck/wiki/SC1090
 # https://github.com/koalaman/shellcheck/wiki/SC1091
-# https://github.com/koalaman/shellcheck/wiki/SC1117
 # https://github.com/koalaman/shellcheck/wiki/SC2148
 # https://github.com/koalaman/shellcheck/wiki/SC2034
 find . -type f \
@@ -23,6 +22,6 @@ find . -type f \
   -and \! -path "*.sample" \
   -and \! -path "*.ps1" \
   -print \
-  | xargs shellcheck --external-sources --exclude=1090,1091,1117,2148,2034
+  | xargs shellcheck --external-sources --exclude=1090,1091,2148,2034
 
 echo "shellcheck found no errors"
