@@ -54,10 +54,10 @@ extern crate zmq;
 
 pub mod config;
 pub mod error;
-pub mod doctor;
 pub mod metrics;
 pub mod server;
 pub mod handlers;
+pub mod upstream;
 
 pub use self::config::Config;
 pub use self::error::{Error, Result};
@@ -70,16 +70,15 @@ use crypto::digest::Digest;
 use hab_core::package::{Identifiable, PackageArchive, PackageTarget};
 use iron::typemap;
 
-#[derive(Clone, Debug)]
-pub struct DepotUtil {
-    pub config: Config,
+pub trait DepotUtil {
+    fn archive<T: Identifiable>(&self, ident: &T, target: &PackageTarget)
+        -> Option<PackageArchive>;
+    fn archive_path<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf;
+    fn archive_parent<T: Identifiable>(&self, ident: &T) -> PathBuf;
+    fn packages_path(&self) -> PathBuf;
 }
 
-impl DepotUtil {
-    pub fn new(config: Config) -> DepotUtil {
-        DepotUtil { config: config }
-    }
-
+impl DepotUtil for config::Config {
     // Return a PackageArchive representing the given package. None is returned if Builder
     // doesn't have an archive for the given package.
     fn archive<T>(&self, ident: &T, target: &PackageTarget) -> Option<PackageArchive>
@@ -126,10 +125,10 @@ impl DepotUtil {
     }
 
     fn packages_path(&self) -> PathBuf {
-        Path::new(&self.config.path).join("pkgs")
+        Path::new(&self.path).join("pkgs")
     }
 }
 
-impl typemap::Key for DepotUtil {
+impl typemap::Key for config::Config {
     type Value = Self;
 }

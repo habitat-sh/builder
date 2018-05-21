@@ -52,6 +52,8 @@ pub struct Config {
     /// Upstream depot to pull packages from if someone tries to install from this depot and they
     /// aren't present. This is optional because e.g. public Builder doesn't have an upstream.
     pub upstream_depot: Option<String>,
+    // Origins for which we pull from upstream (default: core)
+    pub upstream_origins: Vec<String>,
 }
 
 impl ConfigFile for Config {
@@ -76,6 +78,7 @@ impl Default for Config {
             ],
             jobsrv_enabled: true,
             upstream_depot: None,
+            upstream_origins: vec!["core".to_string()],
         }
     }
 }
@@ -136,6 +139,7 @@ mod tests {
         key_dir = "/hab/svc/hab-depot/files"
         jobsrv_enabled = false
         upstream_depot = "http://example.com"
+        upstream_origins = ["foo", "bar"]
 
         [[targets]]
         platform = "linux"
@@ -166,6 +170,10 @@ mod tests {
             config.upstream_depot,
             Some(String::from("http://example.com"))
         );
+        assert_eq!(
+            config.upstream_origins,
+            vec!["foo".to_string(), "bar".to_string()]
+        );
         assert_eq!(&format!("{}", config.http.listen), "127.0.0.1");
         assert_eq!(config.http.port, 9000);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9001");
@@ -186,5 +194,6 @@ mod tests {
         let config = Config::from_raw(&content).unwrap();
         assert_eq!(config.http.port, 9000);
         assert_eq!(config.upstream_depot, None);
+        assert_eq!(config.upstream_origins, vec!["core".to_string()]);
     }
 }

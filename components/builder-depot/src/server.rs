@@ -17,7 +17,6 @@ use std::path::PathBuf;
 use std::io::{self, BufWriter, Read, Write};
 use std::result;
 use std::str::{FromStr, from_utf8};
-use std::thread::spawn;
 
 use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
 use bldr_core::helpers::transition_visibility;
@@ -61,6 +60,7 @@ use config::Config;
 use error::{Error, Result};
 use metrics::Counter;
 use handlers;
+use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
 
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginCreateReq {
@@ -761,7 +761,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with(status::Forbidden));
     }
 
-    let lock = req.get::<persistent::State<DepotUtil>>()
+    let lock = req.get::<persistent::State<Config>>()
         .expect("depot not found");
 
     let depot = lock.read().expect("depot read lock is poisoned");
@@ -815,7 +815,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         }
     };
 
-    if !depot.config.targets.contains(&target_from_artifact) {
+    if !depot.targets.contains(&target_from_artifact) {
         debug!(
             "Unsupported package platform or architecture {}.",
             target_from_artifact
@@ -861,7 +861,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     }
 
     // Check with scheduler to ensure we don't have circular deps, if configured
-    if depot.config.jobsrv_enabled {
+    if depot.jobsrv_enabled {
         if let Err(r) = check_circular_deps(req, &ident, &target_from_artifact, &mut archive) {
             return Ok(r);
         }
@@ -900,7 +900,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with((status::UnprocessableEntity, "ds:up:6")));
     }
 
-    let config = depot.config.clone();
+    let config = depot.clone();
     let builder_flag = helpers::extract_query_value("builder", req);
 
     match process_upload_for_package_archive(
@@ -979,11 +979,9 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
     }
 
     {
-        let lock = req.get::<persistent::State<DepotUtil>>().unwrap();
+        let lock = req.get::<persistent::State<Config>>().unwrap();
         let depot = lock.read().unwrap();
-        if !depot.config.builds_enabled
-            || (origin_name != "core" && !depot.config.non_core_builds_enabled)
-        {
+        if !depot.builds_enabled || (origin_name != "core" && !depot.non_core_builds_enabled) {
             return Ok(Response::with(status::Forbidden));
         }
     }
@@ -1220,7 +1218,7 @@ fn package_channels(req: &mut Request) -> IronResult<Response> {
 }
 
 fn download_package(req: &mut Request) -> IronResult<Response> {
-    let lock = req.get::<persistent::State<DepotUtil>>()
+    let lock = req.get::<persistent::State<Config>>()
         .expect("depot not found");
     let depot = lock.read().expect("depot read lock is poisoned");
     let session_id = helpers::get_optional_session_id(req);
@@ -1232,7 +1230,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
     ident_req.set_ident(ident);
 
     let agent_target = target_from_headers(&req.headers.get::<UserAgent>().unwrap()).unwrap();
-    if !depot.config.targets.contains(&agent_target) {
+    if !depot.targets.contains(&agent_target) {
         return Ok(Response::with((
             status::NotImplemented,
             "Unsupported client platform ({}).",
@@ -1690,14 +1688,20 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
             ));
             request.set_ident(ident.clone());
 
-            refresh_package_from_upstream_depot(req, ident.clone(), Some(channel.clone()));
-
             match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(req, &request)
             {
                 Ok(id) => ident = id.into(),
-                Err(err) => return Ok(render_net_error(&err)),
+                Err(err) => {
+                    // Notify upstream with a non-fully qualified ident to handle checking
+                    // of a package that does not exist in the on-premise depot
+                    notify_upstream(req, &ident);
+                    return Ok(render_net_error(&err));
+                }
             }
         }
+
+        // Notify upstream with a fully qualified ident
+        notify_upstream(req, &ident);
 
         let mut request = OriginChannelPackageGet::new();
         request.set_name(channel);
@@ -1726,13 +1730,19 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
             ));
             request.set_ident(ident.clone());
 
-            refresh_package_from_upstream_depot(req, ident.clone(), None);
-
             match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request) {
                 Ok(id) => ident = id.into(),
-                Err(err) => return Ok(render_net_error(&err)),
+                Err(err) => {
+                    // Notify upstream with a non-fully qualified ident to handle checking
+                    // of a package that does not exist in the on-premise depot
+                    notify_upstream(req, &ident);
+                    return Ok(render_net_error(&err));
+                }
             }
         }
+
+        // Notify upstream with a fully qualified ident
+        notify_upstream(req, &ident);
 
         let mut request = OriginPackageGet::new();
         request.set_visibilities(visibility_for_optional_session(
@@ -1744,7 +1754,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
 
         match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
             Ok(pkg) => {
-                let lock = req.get::<persistent::State<DepotUtil>>()
+                let lock = req.get::<persistent::State<Config>>()
                     .expect("depot not found");
 
                 let depot = lock.read().expect("depot read lock is poisoned");
@@ -2362,10 +2372,10 @@ fn process_upload_for_package_archive(
 }
 
 // This function is called from a background thread, so we can't pass the Request object into it.
-fn download_package_from_upstream_depot(
-    depot: DepotUtil,
-    depot_cli: DepotClient,
-    upstream_depot: &str,
+// TBD: Move this to upstream module and refactor later
+pub fn download_package_from_upstream_depot(
+    depot: &Config,
+    depot_cli: &DepotClient,
     ident: OriginPackageIdent,
     channel: Option<String>,
 ) -> Result<OriginPackage> {
@@ -2409,7 +2419,7 @@ fn download_package_from_upstream_depot(
     match depot_cli.fetch_package(&ident, None, &parent_path, None::<NoProgress>) {
         Ok(mut archive) => {
             let target_from_artifact = archive.target().map_err(Error::HabitatCore)?;
-            if !depot.config.targets.contains(&target_from_artifact) {
+            if !depot.targets.contains(&target_from_artifact) {
                 debug!(
                     "Unsupported package platform or architecture {}.",
                     &target_from_artifact
@@ -2425,7 +2435,7 @@ fn download_package_from_upstream_depot(
                 }
             };
 
-            let config = depot.config.clone();
+            let config = depot.clone();
 
             if let Err(e) = process_upload_for_package_archive(
                 &ident,
@@ -2494,76 +2504,15 @@ fn download_package_from_upstream_depot(
             }
         }
         Err(e) => {
-            warn!(
-                "Failed to download {} from upstream_depot {:?}. e = {:?}",
-                ident, upstream_depot, e
-            );
+            warn!("Failed to download {}. e = {:?}", ident, e);
             Err(Error::DepotClientError(e))
         }
     }
 }
 
-fn check_package_from_upstream_depot(
-    depot: DepotUtil,
-    depot_cli: DepotClient,
-    upstream_depot: String,
-    ident: OriginPackageIdent,
-    channel: Option<String>,
-) -> Result<OriginPackage> {
-    let another_channel = channel.clone();
-    let channel_ref = another_channel.as_ref().map(|x| &**x);
-
-    match depot_cli.show_package(&ident, channel_ref, None) {
-        Ok(mut package) => {
-            let pkg_ident: PackageIdent = ident.clone().into();
-            let remote_pkg_ident: PackageIdent = package.take_ident().into();
-
-            if remote_pkg_ident > pkg_ident {
-                let opi: OriginPackageIdent = OriginPackageIdent::from(remote_pkg_ident);
-                download_package_from_upstream_depot(
-                    depot,
-                    depot_cli,
-                    &upstream_depot,
-                    opi,
-                    channel,
-                )
-            } else {
-                Err(Error::IronResponse(Response::with(status::NotFound)))
-            }
-        }
-        Err(e) => {
-            debug!(
-                "Failed to show package {} from {}: {:?}",
-                ident, upstream_depot, e
-            );
-            Err(Error::DepotClientError(e))
-        }
-    }
-}
-
-fn refresh_package_from_upstream_depot(
-    req: &mut Request,
-    ident: OriginPackageIdent,
-    channel: Option<String>,
-) {
-    let lock = req.get::<persistent::State<DepotUtil>>()
-        .expect("depot not found");
-    let d = lock.read().expect("depot read lock is poisoned");
-    let depot = d.clone();
-    let config = d.config.clone();
-
-    if config.upstream_depot.is_none() {
-        return;
-    }
-
-    let depot_cli = depot_client_from_config(&config).unwrap();
-    let upstream_depot = config.upstream_depot.unwrap(); // unwrap is fine because we just checked if it was None
-
-    // Let's do the actual work that takes time in the background so the main request handler can
-    // continue on its way.
-    spawn(move || {
-        let _ = check_package_from_upstream_depot(depot, depot_cli, upstream_depot, ident, channel);
-    });
+fn notify_upstream(req: &mut Request, ident: &OriginPackageIdent) {
+    let upstream_cli = req.get::<persistent::Read<UpstreamCli>>().unwrap();
+    upstream_cli.refresh(ident).unwrap();
 }
 
 fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response> {
@@ -2588,7 +2537,7 @@ fn is_a_service<T>(req: &mut Request, ident: &T) -> bool
 where
     T: Identifiable,
 {
-    let lock = req.get::<persistent::State<DepotUtil>>()
+    let lock = req.get::<persistent::State<Config>>()
         .expect("depot not found");
     let depot = lock.read().expect("depot read lock is poisoned");
     let agent_target = target_from_headers(&req.headers.get::<UserAgent>().unwrap()).unwrap();
@@ -2606,14 +2555,14 @@ fn do_cache_response(response: &mut Response) {
     )));
 }
 
-pub fn routes<M>(basic: Authenticated, worker: M, depot: &DepotUtil) -> Router
+pub fn routes<M>(basic: Authenticated, worker: M, depot: &Config) -> Router
 where
     M: BeforeMiddleware + Clone,
 {
     let opt = basic.clone().optional();
     let mut r = Router::new();
 
-    if depot.config.jobsrv_enabled {
+    if depot.jobsrv_enabled {
         r.get(
             "/pkgs/origins/:origin/stats",
             package_stats,
@@ -2879,33 +2828,22 @@ where
     r
 }
 
-fn depot_client_from_config(config: &Config) -> Option<DepotClient> {
-    if let Some(ref upstream_depot) = config.upstream_depot {
-        // TODO: we keep running into this issue where PRODUCT and VERSION aren't available and
-        // hardcoding values. how do we avoid this?
-        Some(DepotClient::new(upstream_depot, "builder-depot", "0.0.0", None).unwrap())
-    } else {
-        None
-    }
-}
-
-pub fn router(depot: DepotUtil) -> Result<Chain> {
-    let basic = Authenticated::new(depot.config.key_dir.clone());
-    let worker =
-        Authenticated::new(depot.config.key_dir.clone()).require(FeatureFlags::BUILD_WORKER);
+pub fn router(depot: Config) -> Result<Chain> {
+    let basic = Authenticated::new(depot.key_dir.clone());
+    let worker = Authenticated::new(depot.key_dir.clone()).require(FeatureFlags::BUILD_WORKER);
 
     let router = routes(basic, worker, &depot);
     let mut chain = Chain::new(router);
 
     chain.link(persistent::Read::<SegmentCli>::both(SegmentClient::new(
-        depot.config.segment.clone(),
+        depot.segment.clone(),
     )));
 
-    if let Some(depot_client) = depot_client_from_config(&depot.config) {
-        chain.link(persistent::Read::<DepotCli>::both(depot_client));
-    }
+    UpstreamMgr::start(&depot)?;
+    let upstream_cli = UpstreamClient::default();
+    chain.link(persistent::Read::<UpstreamCli>::both(upstream_cli));
 
-    chain.link(persistent::State::<DepotUtil>::both(depot));
+    chain.link(persistent::State::<Config>::both(depot));
     chain.link_before(XRouteClient);
     chain.link_after(Cors);
     Ok(chain)
