@@ -22,10 +22,10 @@ use hab_net::conn::RouteClient;
 use hab_net::socket::DEFAULT_CONTEXT;
 use zmq;
 
-use protocol::jobsrv;
-use protocol::originsrv;
 use data_store::DataStore;
 use error::{Error, Result};
+use protocol::jobsrv;
+use protocol::originsrv;
 
 use bldr_core::logger::Logger;
 use hab_core::channel::bldr_channel_name;

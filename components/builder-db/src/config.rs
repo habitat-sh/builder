@@ -18,8 +18,8 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use num_cpus;
 use postgres_shared::params::{ConnectParams, Host, IntoConnectParams};
-use url::percent_encoding::{utf8_percent_encode, PATH_SEGMENT_ENCODE_SET};
 pub use protocol::sharding::ShardId;
+use url::percent_encoding::{utf8_percent_encode, PATH_SEGMENT_ENCODE_SET};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use hab_core::package::archive::PackageArchive;
 use bldr_core::logger::Logger;
 use config::Config;
 use error::Result;
+use hab_core::package::archive::PackageArchive;
 
-use super::workspace::Workspace;
 use super::publisher::Publisher;
+use super::workspace::Workspace;
 
 pub fn post_process(
     archive: &mut PackageArchive,

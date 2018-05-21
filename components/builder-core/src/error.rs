@@ -17,10 +17,10 @@ use std::fmt;
 use std::result;
 use std::string;
 
-use protocol;
 use base64;
 use chrono;
 use hab_core;
+use protocol;
 
 #[derive(Debug)]
 pub enum Error {

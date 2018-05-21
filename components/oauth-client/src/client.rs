@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use reqwest::{self, header};
 use config::OAuth2Cfg;
 use error::Result;
+use reqwest::{self, header};
+use std::env;
 use types::*;
 
-use builder_core::metrics::CounterMetric;
-use metrics::Counter;
 use azure_ad::AzureAD;
+use bitbucket::Bitbucket;
+use builder_core::metrics::CounterMetric;
 use github::GitHub;
 use gitlab::GitLab;
-use bitbucket::Bitbucket;
+use metrics::Counter;
 use okta::Okta;
 
 pub struct OAuth2Client {

@@ -15,8 +15,8 @@
 //! Centralized definition of all Github API client metrics that we
 //! wish to track.
 
-use std::borrow::Cow;
 use builder_core::metrics;
+use std::borrow::Cow;
 
 pub enum Counter {
     Authenticate(String),

@@ -16,9 +16,9 @@ use std::path::Path;
 
 use bldr_core::job::Job;
 use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
 use git2;
 use github_api_client::{GitHubCfg, GitHubClient};
+use metrics::Counter;
 use url::Url;
 
 use error::{Error, Result};

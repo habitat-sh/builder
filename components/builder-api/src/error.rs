@@ -17,9 +17,9 @@ use std::fmt;
 use std::io;
 use std::result;
 
+use depot;
 use hab_core;
 use hab_net;
-use depot;
 use hyper;
 use protobuf;
 use zmq;

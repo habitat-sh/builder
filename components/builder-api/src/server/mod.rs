@@ -17,19 +17,19 @@ mod handlers;
 use std::path::PathBuf;
 
 use depot;
+use github_api_client::GitHubClient;
+use hab_net::privilege::FeatureFlags;
 use http_gateway;
 use http_gateway::app::prelude::*;
-use github_api_client::GitHubClient;
-use oauth_client::client::OAuth2Client;
-use hab_net::privilege::FeatureFlags;
 use iron;
 use mount::Mount;
+use oauth_client::client::OAuth2Client;
 use persistent;
 use segment_api_client::SegmentClient;
 use staticfile::Static;
 
-use super::github;
 use self::handlers::*;
+use super::github;
 use config::Config;
 
 struct ApiSrv;

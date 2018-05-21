@@ -14,8 +14,8 @@
 
 use std::path::Path;
 use std::process::Command;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 use pnet_datalink as pnet;
 

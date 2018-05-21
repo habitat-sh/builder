@@ -17,13 +17,13 @@ use std::fmt;
 use std::result;
 use std::str::FromStr;
 
-use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use message::{Persistable, Routable};
 
-use sharding::InstaId;
 pub use message::sessionsrv::*;
+use sharding::InstaId;
 
 #[derive(Debug)]
 pub enum Error {

@@ -21,5 +21,5 @@ extern crate habitat_builder_sessionsrv as bldr_sessionsrv;
 extern crate habitat_core as hcore;
 
 pub mod config;
-pub mod util;
 pub mod error;
+pub mod util;

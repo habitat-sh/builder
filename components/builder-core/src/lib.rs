@@ -43,12 +43,12 @@ pub mod error;
 pub mod file_walker;
 pub mod helpers;
 pub mod integrations;
+pub mod job;
 pub mod keys;
 pub mod logger;
 pub mod metrics;
 pub mod package_graph;
 pub mod rdeps;
 pub mod target_graph;
-pub mod job;
 
 pub use error::Error;

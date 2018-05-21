@@ -54,9 +54,9 @@ extern crate zmq;
 
 pub mod config;
 pub mod error;
+pub mod handlers;
 pub mod metrics;
 pub mod server;
-pub mod handlers;
 pub mod upstream;
 
 pub use self::config::Config;
@@ -65,8 +65,8 @@ pub use self::error::{Error, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crypto::sha2::Sha256;
 use crypto::digest::Digest;
+use crypto::sha2::Sha256;
 use hab_core::package::{Identifiable, PackageArchive, PackageTarget};
 use iron::typemap;
 

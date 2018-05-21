@@ -19,9 +19,9 @@ use bldr_core;
 use db;
 use hab_core;
 use hab_net;
+use postgres;
 use protobuf;
 use protocol;
-use postgres;
 use r2d2;
 use zmq;
 

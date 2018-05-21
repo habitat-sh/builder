@@ -20,15 +20,15 @@ use std::io;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use diesel::Connection;
-use diesel::result::Error;
 use db::config::{DataStoreCfg, ShardId};
+use db::diesel_pool::DieselPool;
 use db::migration::shard_setup;
 use db::pool::Pool;
-use db::diesel_pool::DieselPool;
-use protocol::sessionsrv;
+use diesel::Connection;
+use diesel::result::Error;
 use postgres;
 use protobuf;
+use protocol::sessionsrv;
 
 use error::{SrvError, SrvResult};
 

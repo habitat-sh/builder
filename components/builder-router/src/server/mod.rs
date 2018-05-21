@@ -16,8 +16,8 @@ mod handlers;
 
 use std::collections::HashMap;
 
-use hab_net::{ErrCode, NetError};
 use hab_net::time;
+use hab_net::{ErrCode, NetError};
 use protocol::message::{Message, Protocol};
 use protocol::routesrv::PING_INTERVAL_MS;
 use protocol::sharding::{ShardId, SHARD_COUNT};

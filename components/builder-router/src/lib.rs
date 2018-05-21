@@ -28,9 +28,9 @@ extern crate toml;
 extern crate zmq;
 
 pub mod config;
+mod conn;
 pub mod error;
 pub mod server;
-mod conn;
 
 pub use self::config::Config;
 pub use self::error::{Error, Result};

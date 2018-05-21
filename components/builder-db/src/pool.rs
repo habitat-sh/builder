@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::thread;
 use std::time::Duration;
-use std::fmt;
 
 use fnv::FnvHasher;
-use rand::{self, Rng};
 use r2d2;
 use r2d2_postgres::{self, PostgresConnectionManager, TlsMode};
+use rand::{self, Rng};
 
 use config::DataStoreCfg;
 use error::{Error, Result};

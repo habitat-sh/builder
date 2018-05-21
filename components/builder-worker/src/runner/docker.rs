@@ -24,8 +24,8 @@ use hab_core::os::process::{self, Pid, Signal};
 
 use error::{Error, Result};
 use runner::job_streamer::JobStreamer;
-use runner::{DEV_MODE, NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 use runner::workspace::Workspace;
+use runner::{DEV_MODE, NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 
 lazy_static! {
     /// Absolute path to the Docker exporter program

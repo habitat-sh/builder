@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
 use std::result;
 use std::str::FromStr;
-use std::fmt;
 
-use message::{Persistable, Routable};
 use message::originsrv::OriginPackage;
+use message::{Persistable, Routable};
 use originsrv::Pageable;
 use protobuf::RepeatedField;
 use regex::Regex;

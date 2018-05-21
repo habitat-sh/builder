@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use std::sync::mpsc;
-use std::time::Duration;
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 use hab_net::socket::DEFAULT_CONTEXT;
 use protocol::{jobsrv as proto, message};

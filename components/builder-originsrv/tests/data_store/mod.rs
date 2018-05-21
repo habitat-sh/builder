@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use originsrv::data_store::DataStore;
 use protobuf;
 use protocol::originsrv;
-use originsrv::data_store::DataStore;
 
 use std::str::FromStr;
 

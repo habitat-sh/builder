@@ -15,8 +15,8 @@
 //! Centralized definition of all Builder API metrics that we
 //! wish to track.
 
-use std::borrow::Cow;
 use bldr_core::metrics;
+use std::borrow::Cow;
 
 pub enum Counter {
     GitHubEvent,

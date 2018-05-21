@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BinaryHeap, HashMap};
-use std::cmp::Ordering;
-use std::str::FromStr;
-use protocol::jobsrv;
-use petgraph::{Direction, Graph};
-use petgraph::graph::NodeIndex;
-use petgraph::algo::{connected_components, is_cyclic_directed};
 use hab_core::package::PackageIdent;
+use petgraph::algo::{connected_components, is_cyclic_directed};
+use petgraph::graph::NodeIndex;
+use petgraph::{Direction, Graph};
+use protocol::jobsrv;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
+use std::str::FromStr;
 
 use rdeps::rdeps;
 
@@ -331,8 +331,8 @@ impl PackageGraph {
 
 #[cfg(test)]
 mod test {
-    use protobuf::RepeatedField;
     use super::*;
+    use protobuf::RepeatedField;
 
     #[test]
     fn empty_graph() {

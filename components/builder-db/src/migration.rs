@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use error::Result;
+use diesel::pg::PgConnection;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_query;
-use diesel::pg::PgConnection;
+use error::Result;
 
 pub fn shard_setup(conn: &PgConnection, shard_id: u32) -> Result<()> {
     debug!("Migrating shard_{:?}", shard_id);

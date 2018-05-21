@@ -15,8 +15,8 @@
 use std::collections::{HashMap, HashSet};
 
 use petgraph::Graph;
-use petgraph::graph::NodeIndex;
 use petgraph::algo::{is_cyclic_directed, toposort};
+use petgraph::graph::NodeIndex;
 use petgraph::visit::{Bfs, Walker};
 
 #[derive(Debug, PartialEq)]

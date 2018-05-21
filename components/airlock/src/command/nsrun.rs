@@ -22,11 +22,11 @@ use std::process::{Command, Stdio};
 
 use libc;
 
-use {Error, Result};
 use coreutils::{chmod, mkdir_p, rmdir, symlink, touch, umask};
-use mount::{self, Mount};
 use filesystem;
+use mount::{self, Mount};
 use pty;
+use {Error, Result};
 
 const ROOTFS_DIRS: &'static [&'static str] = &[
     "etc",

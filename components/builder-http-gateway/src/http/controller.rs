@@ -13,18 +13,18 @@
 // limitations under the License.
 
 pub use hab_net::{ErrCode, NetError, NetOk, NetResult};
-pub use iron::{headers, status};
 pub use iron::headers::{ContentType, UserAgent};
 pub use iron::prelude::*;
+pub use iron::{headers, status};
 use protobuf;
 use protocol::Routable;
 
-pub use super::net_err_to_http;
 pub use super::headers::*;
+use super::middleware::XRouteClient;
 pub use super::middleware::*;
+pub use super::net_err_to_http;
 pub use super::rendering::{render_json, render_net_error};
 pub use conn::RouteBroker;
-use super::middleware::XRouteClient;
 
 pub fn route_message<M, R>(req: &mut Request, msg: &M) -> NetResult<R>
 where

@@ -21,9 +21,9 @@ use std::result;
 use std::sync::mpsc;
 
 use bldr_core;
-use hab_core;
 use git2;
 use github_api_client;
+use hab_core;
 use protobuf;
 use protocol;
 use retry;

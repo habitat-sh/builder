@@ -16,8 +16,8 @@ use std::error;
 use std::fmt;
 use std::result;
 
-use r2d2;
 use postgres;
+use r2d2;
 
 #[derive(Debug)]
 pub enum Error {

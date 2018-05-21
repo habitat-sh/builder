@@ -33,7 +33,7 @@ pub mod error;
 pub mod metrics;
 pub mod types;
 
+pub use client::AppToken;
 pub use client::GitHubClient;
 pub use config::GitHubCfg;
 pub use error::{HubError, HubResult};
-pub use client::AppToken;

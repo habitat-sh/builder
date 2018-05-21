@@ -16,9 +16,9 @@
 
 use std::env;
 
-use bodyparser;
 use bldr_core;
 use bldr_core::helpers::transition_visibility;
+use bodyparser;
 use hab_core::package::{Identifiable, Plan};
 use http_client::ApiClient;
 use http_gateway::http::controller::*;
@@ -41,11 +41,11 @@ use protocol::sessionsrv::{Account, AccountGet, AccountGetId, AccountInvitationL
 use router::Router;
 use serde_json;
 
+use super::SegmentCli;
 use config::Config;
 use github;
 use headers::*;
 use types::*;
-use super::SegmentCli;
 
 // A default name for per-project integrations. Currently, there
 // can only be one.
@@ -497,10 +497,10 @@ pub fn rdeps_show(req: &mut Request) -> IronResult<Response> {
     // For now, hard code a default value
     rdeps_get.set_target("x86_64-linux".to_string());
 
-    match route_message::<
-        JobGraphPackageReverseDependenciesGet,
-        JobGraphPackageReverseDependencies,
-    >(req, &rdeps_get) {
+    match route_message::<JobGraphPackageReverseDependenciesGet, JobGraphPackageReverseDependencies>(
+        req,
+        &rdeps_get,
+    ) {
         Ok(rdeps) => Ok(render_json(status::Ok, &rdeps)),
         Err(err) => return Ok(render_net_error(&err)),
     }

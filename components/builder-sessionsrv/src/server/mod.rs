@@ -33,47 +33,85 @@ use error::{SrvError, SrvResult};
 lazy_static! {
     static ref DISPATCH_TABLE: DispatchTable<SessionSrv> = {
         let mut map = DispatchTable::new();
-        map.register(proto::AccountGet::descriptor_static(None), handlers::account_get);
-        map.register(proto::AccountGetId::descriptor_static(None), handlers::account_get_id);
-        map.register(proto::AccountCreate::descriptor_static(None), handlers::account_create);
-        map.register(proto::AccountUpdate::descriptor_static(None), handlers::account_update);
-        map.register(proto::AccountFindOrCreate::descriptor_static(None),
-            handlers::account_find_or_create);
-        map.register(proto::AccountTokenCreate::descriptor_static(None),
-            handlers::account_token_create);
-        map.register(proto::AccountTokenRevoke::descriptor_static(None),
-            handlers::account_token_revoke);
-        map.register(proto::AccountTokensGet::descriptor_static(None),
-            handlers::account_tokens_get);
-        map.register(proto::AccountTokenValidate::descriptor_static(None),
-            handlers::account_token_validate);
-        map.register(proto::SessionCreate::descriptor_static(None), handlers::session_create);
-        map.register(proto::SessionGet::descriptor_static(None), handlers::session_get);
-        map.register(proto::AccountInvitationListRequest::descriptor_static(None),
-            handlers::account_invitation_list);
-        map.register(proto::AccountOriginInvitationCreate::descriptor_static(None),
-            handlers::account_origin_invitation_create);
-        map.register(proto::AccountOriginInvitationAcceptRequest::descriptor_static(None),
-            handlers::account_origin_invitation_accept
+        map.register(
+            proto::AccountGet::descriptor_static(None),
+            handlers::account_get,
         );
-        map.register(proto::AccountOriginInvitationIgnoreRequest::descriptor_static(None),
-            handlers::account_origin_invitation_ignore
+        map.register(
+            proto::AccountGetId::descriptor_static(None),
+            handlers::account_get_id,
         );
-        map.register(proto::AccountOriginInvitationRescindRequest::descriptor_static(None),
-            handlers::account_origin_invitation_rescind
+        map.register(
+            proto::AccountCreate::descriptor_static(None),
+            handlers::account_create,
         );
-        map.register(proto::AccountOriginListRequest::descriptor_static(None),
-            handlers::account_origin_list_request);
-        map.register(proto::AccountOriginCreate::descriptor_static(None),
-            handlers::account_origin_create);
-        map.register(proto::AccountOriginRemove::descriptor_static(None),
-            handlers::account_origin_remove);
+        map.register(
+            proto::AccountUpdate::descriptor_static(None),
+            handlers::account_update,
+        );
+        map.register(
+            proto::AccountFindOrCreate::descriptor_static(None),
+            handlers::account_find_or_create,
+        );
+        map.register(
+            proto::AccountTokenCreate::descriptor_static(None),
+            handlers::account_token_create,
+        );
+        map.register(
+            proto::AccountTokenRevoke::descriptor_static(None),
+            handlers::account_token_revoke,
+        );
+        map.register(
+            proto::AccountTokensGet::descriptor_static(None),
+            handlers::account_tokens_get,
+        );
+        map.register(
+            proto::AccountTokenValidate::descriptor_static(None),
+            handlers::account_token_validate,
+        );
+        map.register(
+            proto::SessionCreate::descriptor_static(None),
+            handlers::session_create,
+        );
+        map.register(
+            proto::SessionGet::descriptor_static(None),
+            handlers::session_get,
+        );
+        map.register(
+            proto::AccountInvitationListRequest::descriptor_static(None),
+            handlers::account_invitation_list,
+        );
+        map.register(
+            proto::AccountOriginInvitationCreate::descriptor_static(None),
+            handlers::account_origin_invitation_create,
+        );
+        map.register(
+            proto::AccountOriginInvitationAcceptRequest::descriptor_static(None),
+            handlers::account_origin_invitation_accept,
+        );
+        map.register(
+            proto::AccountOriginInvitationIgnoreRequest::descriptor_static(None),
+            handlers::account_origin_invitation_ignore,
+        );
+        map.register(
+            proto::AccountOriginInvitationRescindRequest::descriptor_static(None),
+            handlers::account_origin_invitation_rescind,
+        );
+        map.register(
+            proto::AccountOriginListRequest::descriptor_static(None),
+            handlers::account_origin_list_request,
+        );
+        map.register(
+            proto::AccountOriginCreate::descriptor_static(None),
+            handlers::account_origin_create,
+        );
+        map.register(
+            proto::AccountOriginRemove::descriptor_static(None),
+            handlers::account_origin_remove,
+        );
         map
     };
-
-    static ref SESSION_DURATION: Duration = {
-        Duration::from_secs(1 * 24 * 60 * 60)
-    };
+    static ref SESSION_DURATION: Duration = { Duration::from_secs(1 * 24 * 60 * 60) };
 }
 
 #[derive(Clone, Debug)]
@@ -222,8 +260,8 @@ pub fn migrate(config: Config) -> SrvResult<()> {
 
 #[cfg(test)]
 mod test {
-    use protocol::sessionsrv as proto;
     use super::*;
+    use protocol::sessionsrv as proto;
 
     #[test]
     fn decode_session_token() {

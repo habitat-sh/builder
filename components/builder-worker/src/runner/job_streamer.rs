@@ -33,8 +33,8 @@ use protobuf::Message;
 use protocol::jobsrv::{JobLogChunk, JobLogComplete};
 use zmq;
 
-use error::{Error, Result};
 use super::workspace::Workspace;
+use error::{Error, Result};
 
 /// Streams the contents of a Builder job to a remote target. The contents of the stream consist of
 /// consuming the output streams of child processes (such as `hab-studio`,

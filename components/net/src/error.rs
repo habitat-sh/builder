@@ -17,8 +17,8 @@ use std::fmt;
 use std::io;
 use std::ops::Deref;
 
-pub use protocol::net::{ErrCode, NetOk};
 use protobuf::{self, MessageStatic};
+pub use protocol::net::{ErrCode, NetOk};
 use protocol::{self, net};
 use zmq;
 

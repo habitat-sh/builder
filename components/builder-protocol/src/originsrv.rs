@@ -11,14 +11,14 @@ use std::result;
 use std::str::FromStr;
 
 use hab_core;
-use hab_core::package::{self, FromArchive, Identifiable, PackageArchive};
 use hab_core::package::ident::version_sort;
+use hab_core::package::{self, FromArchive, Identifiable, PackageArchive};
 
-use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
-pub use message::originsrv::*;
 use message::Routable;
+pub use message::originsrv::*;
 use sharding::InstaId;
 
 #[derive(Debug)]
