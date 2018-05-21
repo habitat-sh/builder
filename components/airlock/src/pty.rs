@@ -16,8 +16,8 @@ use std::ffi::{CStr, CString};
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
 
-use libc;
 use errno;
+use libc;
 
 use {Error, Result};
 

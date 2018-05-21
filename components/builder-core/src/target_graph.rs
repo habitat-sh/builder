@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
-use std::iter::Iterator;
-use std::collections::HashMap;
 use hab_core::package::PackageTarget;
-use protocol::jobsrv;
 use package_graph::PackageGraph;
+use protocol::jobsrv;
+use std::collections::HashMap;
+use std::iter::Iterator;
+use std::str::FromStr;
 
 pub struct TargetGraphStats {
     pub target: PackageTarget,

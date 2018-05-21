@@ -12,26 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod log_archiver;
 mod handlers;
-mod worker_manager;
+pub mod log_archiver;
 mod log_directory;
 mod log_ingester;
 mod scheduler;
+mod worker_manager;
 
 use std::sync::RwLock;
 use time::PreciseTime;
 
+use bldr_core::target_graph::TargetGraph;
 use hab_net::app::prelude::*;
 use hab_net::conn::RouteClient;
 use protocol::jobsrv::*;
-use bldr_core::target_graph::TargetGraph;
 
 use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;
 use self::log_ingester::LogIngester;
-use self::worker_manager::{WorkerMgr, WorkerMgrClient};
 use self::scheduler::{ScheduleClient, ScheduleMgr};
+use self::worker_manager::{WorkerMgr, WorkerMgrClient};
 use config::{ArchiveCfg, Config};
 use data_store::DataStore;
 use error::{Error, Result};
@@ -41,24 +41,47 @@ lazy_static! {
         let mut map = DispatchTable::new();
         map.register(JobSpec::descriptor_static(None), handlers::job_create);
         map.register(JobGet::descriptor_static(None), handlers::job_get);
-        map.register(ProjectJobsGet::descriptor_static(None), handlers::project_jobs_get);
+        map.register(
+            ProjectJobsGet::descriptor_static(None),
+            handlers::project_jobs_get,
+        );
         map.register(JobLogGet::descriptor_static(None), handlers::job_log_get);
-        map.register(JobGroupSpec::descriptor_static(None), handlers::job_group_create);
-        map.register(JobGroupAbort::descriptor_static(None), handlers::job_group_abort);
-        map.register(JobGroupCancel::descriptor_static(None), handlers::job_group_cancel);
-        map.register(JobGroupGet::descriptor_static(None), handlers::job_group_get);
-        map.register(JobGroupOriginGet::descriptor_static(None), handlers::job_group_origin_get);
         map.register(
-            JobGraphPackageCreate::descriptor_static(None), handlers::job_graph_package_create
-            );
+            JobGroupSpec::descriptor_static(None),
+            handlers::job_group_create,
+        );
         map.register(
-            JobGraphPackagePreCreate::descriptor_static(None), handlers::job_graph_package_precreate
-            );
+            JobGroupAbort::descriptor_static(None),
+            handlers::job_group_abort,
+        );
         map.register(
-            JobGraphPackageStatsGet::descriptor_static(None), handlers::job_graph_package_stats_get
-            );
-        map.register(JobGraphPackageReverseDependenciesGet::descriptor_static(None),
-            handlers::job_graph_package_reverse_dependencies_get);
+            JobGroupCancel::descriptor_static(None),
+            handlers::job_group_cancel,
+        );
+        map.register(
+            JobGroupGet::descriptor_static(None),
+            handlers::job_group_get,
+        );
+        map.register(
+            JobGroupOriginGet::descriptor_static(None),
+            handlers::job_group_origin_get,
+        );
+        map.register(
+            JobGraphPackageCreate::descriptor_static(None),
+            handlers::job_graph_package_create,
+        );
+        map.register(
+            JobGraphPackagePreCreate::descriptor_static(None),
+            handlers::job_graph_package_precreate,
+        );
+        map.register(
+            JobGraphPackageStatsGet::descriptor_static(None),
+            handlers::job_graph_package_stats_get,
+        );
+        map.register(
+            JobGraphPackageReverseDependenciesGet::descriptor_static(None),
+            handlers::job_graph_package_reverse_dependencies_get,
+        );
         map
     };
 }

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bldr_core;
 use hab_net::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
-use bldr_core;
 
 use protocol::net;
 use protocol::sessionsrv as proto;

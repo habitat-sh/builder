@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod studio;
 mod docker;
 mod job_streamer;
 mod postprocessor;
 mod publisher;
+pub mod studio;
 mod toml_builder;
 mod util;
 mod workspace;
 
-use std::path::PathBuf;
 use std::fs;
-use std::sync::{mpsc, Arc};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 
-pub use protocol::jobsrv::JobState;
 use bldr_core;
 use bldr_core::job::Job;
 use bldr_core::logger::Logger;
@@ -37,22 +36,23 @@ use hab_core::os::users;
 use hab_core::package::archive::PackageArchive;
 use hab_core::util::perm;
 use hab_net::socket::DEFAULT_CONTEXT;
-use protocol::{jobsrv, message};
-use protocol::originsrv::OriginPackageIdent;
+pub use protocol::jobsrv::JobState;
 use protocol::net::{self, ErrCode};
+use protocol::originsrv::OriginPackageIdent;
+use protocol::{jobsrv, message};
 use zmq;
 
-use {PRODUCT, VERSION};
+use self::docker::DockerExporter;
 use self::job_streamer::{JobStreamer, Section};
 use self::postprocessor::post_process;
 use self::studio::{key_path, Studio, STUDIO_GROUP, STUDIO_USER};
-use self::docker::DockerExporter;
 use self::workspace::Workspace;
 use config::Config;
 use error::{Error, Result};
 use network::NetworkNamespace;
 use retry::retry;
 use vcs::VCS;
+use {PRODUCT, VERSION};
 
 // TODO fn: copied from `components/common/src/ui.rs`. As this component doesn't currently depend
 // on habitat_common it didnt' seem worth it to add a dependency for only this constant. Probably

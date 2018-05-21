@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use std::fs::{self, File};
-use std::path::PathBuf;
 use std::io::{self, BufWriter, Read, Write};
+use std::path::PathBuf;
 use std::result;
 use std::str::{FromStr, from_utf8};
 
@@ -23,10 +23,12 @@ use bldr_core::helpers::transition_visibility;
 use bldr_core::metrics::CounterMetric;
 use bodyparser;
 use depot_client::{Client as DepotClient, DisplayProgress};
+use hab_core::crypto::BoxKeyPair;
+use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::package::{ident, FromArchive, Identifiable, PackageArchive, PackageIdent,
                         PackageTarget};
-use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
-use hab_core::crypto::BoxKeyPair;
+use hab_net::privilege::FeatureFlags;
+use hab_net::{ErrCode, NetOk, NetResult};
 use http_gateway::conn::RouteBroker;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, all_visibilities, check_origin_access, check_origin_owner,
@@ -34,8 +36,6 @@ use http_gateway::http::helpers::{self, all_visibilities, check_origin_access, c
                                   trigger_from_request, validate_params,
                                   visibility_for_optional_session};
 use http_gateway::http::middleware::{SegmentCli, XRouteClient};
-use hab_net::{ErrCode, NetOk, NetResult};
-use hab_net::privilege::FeatureFlags;
 use hyper::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::headers::{ContentType, UserAgent};
@@ -43,10 +43,10 @@ use iron::middleware::BeforeMiddleware;
 use iron::request::Body;
 use persistent;
 use protobuf;
-use protocol::originsrv::*;
 use protocol::jobsrv::{JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet,
                        JobGroup, JobGroupAbort, JobGroupGet, JobGroupOriginGet,
                        JobGroupOriginResponse, JobGroupSpec, JobGroupTrigger};
+use protocol::originsrv::*;
 use protocol::sessionsrv::{Account, AccountGet, AccountOriginRemove};
 use regex::Regex;
 use router::{Params, Router};
@@ -58,8 +58,8 @@ use uuid::Uuid;
 use super::DepotUtil;
 use config::Config;
 use error::{Error, Result};
-use metrics::Counter;
 use handlers;
+use metrics::Counter;
 use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1482,11 +1482,10 @@ fn list_packages(req: &mut Request) -> IronResult<Response> {
             request.set_ident(
                 OriginPackageIdent::from_str(ident.as_str()).expect("invalid package identifier"),
             );
-            packages =
-                route_message::<OriginChannelPackageListRequest, OriginPackageListResponse>(
-                    req,
-                    &request,
-                );
+            packages = route_message::<OriginChannelPackageListRequest, OriginPackageListResponse>(
+                req,
+                &request,
+            );
         }
         None => {
             let mut request = OriginPackageListRequest::new();
@@ -2056,25 +2055,24 @@ pub fn create_origin_secret(req: &mut Request) -> IronResult<Response> {
     }
 
     // fetch the private origin encryption key from the database
-    let priv_key =
-        match route_message::<OriginPrivateEncryptionKeyGet, OriginPrivateEncryptionKey>(
-            req,
-            &db_priv_request,
-        ) {
-            Ok(key) => {
-                let key_str = from_utf8(key.get_body()).unwrap();
-                match BoxKeyPair::secret_key_from_str(key_str) {
-                    Ok(key) => key,
-                    Err(e) => {
-                        return Ok(Response::with((
-                            status::UnprocessableEntity,
-                            format!("{}", e),
-                        )))
-                    }
+    let priv_key = match route_message::<OriginPrivateEncryptionKeyGet, OriginPrivateEncryptionKey>(
+        req,
+        &db_priv_request,
+    ) {
+        Ok(key) => {
+            let key_str = from_utf8(key.get_body()).unwrap();
+            match BoxKeyPair::secret_key_from_str(key_str) {
+                Ok(key) => key,
+                Err(e) => {
+                    return Ok(Response::with((
+                        status::UnprocessableEntity,
+                        format!("{}", e),
+                    )))
                 }
             }
-            Err(err) => return Ok(render_net_error(&err)),
-        };
+        }
+        Err(err) => return Ok(render_net_error(&err)),
+    };
 
     let (name, rev) = match parse_name_with_rev(secret_metadata.sender) {
         Ok(val) => val,

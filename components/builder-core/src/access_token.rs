@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
-use chrono::{self, Duration, TimeZone, Utc};
 use chrono::LocalResult::Single;
-use hab_net::privilege::FeatureFlags;
+use chrono::{self, Duration, TimeZone, Utc};
 use error::{Error, Result};
+use hab_net::privilege::FeatureFlags;
 use integrations::{decrypt, encrypt, validate};
 use protocol::{message, sessionsrv};
+use std::path::PathBuf;
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
 pub const BUILDER_ACCOUNT_NAME: &'static str = "BUILDER";

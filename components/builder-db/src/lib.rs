@@ -99,10 +99,10 @@ extern crate threadpool;
 extern crate time;
 extern crate url;
 
+pub mod async;
 pub mod config;
+pub mod diesel_pool;
 pub mod error;
 pub mod migration;
 pub mod pool;
-pub mod async;
 pub mod test;
-pub mod diesel_pool;

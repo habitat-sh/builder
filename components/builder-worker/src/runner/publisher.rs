@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use hab_core::package::archive::PackageArchive;
-use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use bldr_core::logger::Logger;
+use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
+use hab_core::package::archive::PackageArchive;
 
 use super::{RETRIES, RETRY_WAIT};
-use {PRODUCT, VERSION};
 use depot_client;
+use error::{Error, Result};
 use hyper::status::StatusCode;
 use retry::retry;
-use error::{Error, Result};
+use {PRODUCT, VERSION};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct Publisher {

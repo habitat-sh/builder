@@ -14,8 +14,8 @@
 
 use std::error;
 use std::ffi;
-use std::io;
 use std::fmt;
+use std::io;
 use std::result;
 
 use depot_client;

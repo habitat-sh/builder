@@ -13,20 +13,20 @@
 // limitations under the License.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock};
+use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
-use std::fmt;
 
 use hab_net::conn::RouteClient;
 use rand::{self, Rng};
-use time::SteadyTime;
-use time::Duration as SteadyDuration;
 use threadpool::ThreadPool;
+use time::Duration as SteadyDuration;
+use time::SteadyTime;
 
-use pool::Pool;
 use error::Result;
+use pool::Pool;
 
 pub type DispatchKey = String;
 pub type EventFunction = fn(Pool, RouteClient) -> Result<EventOutcome>;

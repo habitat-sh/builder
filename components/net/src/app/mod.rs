@@ -167,9 +167,9 @@
 //! ```
 
 pub mod config;
+mod dispatcher;
 pub mod error;
 pub mod prelude;
-mod dispatcher;
 
 use std;
 use std::collections::HashSet;
@@ -177,13 +177,13 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use core::os::signals;
-use protocol::{self, Protocol};
 use protocol::routesrv;
+use protocol::{self, Protocol};
 use uuid::Uuid;
 use zmq;
 
-use self::error::{AppError, AppResult};
 use self::dispatcher::{Dispatcher, DispatcherPool};
+use self::error::{AppError, AppResult};
 use conn::{self, ConnErr, ConnEvent};
 use error::{ErrCode, NetError};
 use socket::{self, ToAddrString, DEFAULT_CONTEXT};

@@ -28,8 +28,8 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::result;
 
-use airlock::{FsRoot, FsRootPolicy, Result};
 use airlock::command;
+use airlock::{FsRoot, FsRootPolicy, Result};
 use clap::{App, ArgMatches};
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));

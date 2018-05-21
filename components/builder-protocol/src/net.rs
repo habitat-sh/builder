@@ -16,11 +16,11 @@ use std::fmt;
 use std::str::FromStr;
 
 use protobuf::core::ProtobufEnum;
-use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
-pub use message::{ErrCode, Message, NetError, NetOk, Protocol, RouteInfo, Txn};
 use error::ProtocolError;
+pub use message::{ErrCode, Message, NetError, NetOk, Protocol, RouteInfo, Txn};
 
 pub fn err<T>(code: ErrCode, msg: T) -> NetError
 where

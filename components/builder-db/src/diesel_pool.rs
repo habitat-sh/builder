@@ -16,8 +16,8 @@ use std::ops::{Deref, DerefMut};
 use std::thread;
 use std::time::Duration;
 
-use r2d2;
 use diesel::pg::PgConnection;
+use r2d2;
 use r2d2_diesel::ConnectionManager;
 
 use config::DataStoreCfg;

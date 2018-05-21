@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use hab_core::package::{FromArchive, PackageArchive};
+use protocol::jobsrv;
+use protocol::originsrv::OriginPackage;
 use std::path::{Path, PathBuf};
 use walkdir::{IntoIter, WalkDir};
-use hab_core::package::{FromArchive, PackageArchive};
-use protocol::originsrv::OriginPackage;
-use protocol::jobsrv;
 
 pub struct FileWalker {
     walker: IntoIter,

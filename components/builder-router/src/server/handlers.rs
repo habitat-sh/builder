@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use hab_net::{ErrCode, NetError};
-use protocol::routesrv;
 use protocol::message::Message;
+use protocol::routesrv;
 
 use super::ServerMap;
 use conn::SrvConn;

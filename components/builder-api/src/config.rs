@@ -20,8 +20,8 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use std::option::IntoIter;
 
 use depot;
-use http_gateway::config::prelude::*;
 use github_api_client::config::GitHubCfg;
+use http_gateway::config::prelude::*;
 use oauth_client::config::OAuth2Cfg;
 use segment_api_client::SegmentCfg;
 use typemap;

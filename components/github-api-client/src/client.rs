@@ -18,11 +18,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use builder_core::metrics::CounterMetric;
 use hab_http::ApiClient;
-use hyper::{self, Url};
 use hyper::client::IntoUrl;
-use hyper::status::StatusCode;
 use hyper::header::{qitem, Accept, Authorization, Bearer, UserAgent};
 use hyper::mime::{Mime, SubLevel, TopLevel};
+use hyper::status::StatusCode;
+use hyper::{self, Url};
 use jwt;
 use serde_json;
 
@@ -300,9 +300,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::env;
     use super::*;
     use config;
+    use std::env;
 
     #[test]
     fn use_a_proxy_from_the_env() {

@@ -21,18 +21,18 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use db::config::{DataStoreCfg, ShardId};
+use db::diesel_pool::DieselPool;
 use db::migration::shard_setup;
 use db::pool::Pool;
-use db::diesel_pool::DieselPool;
 use diesel::Connection;
 use diesel::result::Error as Dre;
 use postgres;
 use postgres::rows::Rows;
 use protobuf;
-use protocol::net::{ErrCode, NetError};
-use protocol::{jobsrv, originsrv};
-use protocol::originsrv::Pageable;
 use protobuf::{ProtobufEnum, RepeatedField};
+use protocol::net::{ErrCode, NetError};
+use protocol::originsrv::Pageable;
+use protocol::{jobsrv, originsrv};
 
 use error::{Error, Result};
 

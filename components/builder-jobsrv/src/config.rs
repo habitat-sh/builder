@@ -18,8 +18,8 @@ use std::env;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
-use hab_net::app::config::*;
 use db::config::DataStoreCfg;
+use hab_net::app::config::*;
 use server::log_archiver::ArchiveBackend;
 
 use error::Error;

@@ -21,9 +21,9 @@ use http_gateway::http::helpers::{self, check_origin_access};
 use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::status::{self, Status};
 
-use protocol::originsrv::*;
-use protocol::net::NetOk;
 use persistent;
+use protocol::net::NetOk;
+use protocol::originsrv::*;
 use router::Router;
 use serde_json;
 

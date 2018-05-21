@@ -14,9 +14,9 @@
 
 embed_migrations!("src/migrations");
 
-use std::io;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::io;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -29,15 +29,15 @@ use db::migration::shard_setup;
 use db::pool::Pool;
 use diesel::Connection;
 use diesel::result::Error as Dre;
+use hab_core::package::PackageIdent;
 use hab_net::conn::{RouteClient, RouteConn};
 use hab_net::{ErrCode, NetError};
-use hab_core::package::PackageIdent;
+use postgres;
 use postgres::rows::Rows;
-use protocol::{jobsrv, originsrv, sessionsrv};
+use protobuf;
 use protocol::net::NetOk;
 use protocol::originsrv::Pageable;
-use postgres;
-use protobuf;
+use protocol::{jobsrv, originsrv, sessionsrv};
 
 use error::{SrvError, SrvResult};
 

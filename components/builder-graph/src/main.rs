@@ -39,16 +39,16 @@ pub mod config;
 pub mod data_store;
 pub mod error;
 
+use bldr_core::package_graph::PackageGraph;
+use clap::{App, Arg};
+use config::Config;
+use copperline::Copperline;
+use data_store::DataStore;
+use hab_core::config::ConfigFile;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
-use clap::{App, Arg};
 use time::PreciseTime;
-use bldr_core::package_graph::PackageGraph;
-use hab_core::config::ConfigFile;
-use config::Config;
-use data_store::DataStore;
-use std::collections::HashMap;
-use copperline::Copperline;
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 

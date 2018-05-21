@@ -18,9 +18,9 @@ use std::fmt;
 use std::io;
 
 use base64;
+use hab_http;
 use hyper;
 use serde_json;
-use hab_http;
 
 pub type SegmentResult<T> = Result<T, SegmentError>;
 

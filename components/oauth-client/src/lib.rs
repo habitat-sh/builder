@@ -22,12 +22,12 @@ extern crate serde_derive;
 extern crate serde_json;
 
 pub mod azure_ad;
+pub mod bitbucket;
 pub mod client;
 pub mod config;
+pub mod error;
 pub mod github;
 pub mod gitlab;
-pub mod bitbucket;
-pub mod okta;
-pub mod error;
-pub mod types;
 pub mod metrics;
+pub mod okta;
+pub mod types;

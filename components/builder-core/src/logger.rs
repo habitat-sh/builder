@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use chrono::prelude::*;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-use std::fs::OpenOptions;
-use chrono::prelude::*;
 
 use protocol::jobsrv::{Job, JobGroup, JobGroupProject};
 

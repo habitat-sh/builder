@@ -14,8 +14,8 @@
 
 //! Configuration for a Habitat OriginSrv service
 
-use hab_net::app::config::*;
 use db::config::DataStoreCfg;
+use hab_net::app::config::*;
 
 use error::SrvError;
 

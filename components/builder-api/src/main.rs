@@ -24,12 +24,12 @@ extern crate habitat_core as hab_core;
 extern crate log;
 
 use std::fmt;
-use std::process;
 use std::path::PathBuf;
+use std::process;
 use std::str::FromStr;
 
-use hab_core::config::ConfigFile;
 use api::{Config, Error, Result};
+use hab_core::config::ConfigFile;
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &'static str = "/hab/svc/builder-api/config.toml";

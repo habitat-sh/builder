@@ -21,8 +21,8 @@ use errno;
 use libc;
 use unshare;
 
-use {Error, Result};
 use user;
+use {Error, Result};
 
 const MIN_SUB_RANGE: u32 = 65536;
 

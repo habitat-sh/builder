@@ -18,18 +18,18 @@ use std::io::Read;
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{self, Command};
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 use pnet_datalink as pnet;
 use pnet_datalink::NetworkInterface;
 
-use {Error, Result};
 use coreutils::touch;
 use mount::{self, Mount};
 use namespace;
 use user;
 use util;
+use {Error, Result};
 
 pub fn run<P: AsRef<Path>>(ns_dir: P, user: &str, interface: &str, gateway: &str) -> Result<()> {
     user::check_running_user_is_root()?;

@@ -16,10 +16,10 @@ use std::sync::Arc;
 
 use config::Config;
 use db::pool::Pool;
-use postgres;
-use protocol::jobsrv;
-use protobuf::RepeatedField;
 use error::{Error, Result};
+use postgres;
+use protobuf::RepeatedField;
+use protocol::jobsrv;
 
 // DataStore inherits Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Debug, Clone)]
