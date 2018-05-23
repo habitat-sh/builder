@@ -73,7 +73,7 @@ fi
 
 failed="$(mktemp -t "$(basename "$0")-failed-XXXX")"
 # shellcheck disable=2154
-trap 'code=$?; rm -f $failed; exit $code' INT TERM EXIT
+trap 'code=$?; rm -f "$failed"; exit $code' INT TERM EXIT
 
 if [[ -n "${LINT_ALL:-}" ]]; then
   cmd="find components -type f -name '*.rs'"
@@ -109,7 +109,7 @@ eval "$cmd" | while read -r file; do
       case $rf_exit in
         0|3)
           if echo "$output" | grep -q "Diff at line " >/dev/null; then
-            warn "File $file generates a diff after running rustfmt $rf_version"
+            warn "File $file generates a diff after running rustfmt"
             warn "Perhaps you forgot to run \`rustfmt' or \`cargo fmt'?"
             warn "Diff for $file:"
             echo "$output"
