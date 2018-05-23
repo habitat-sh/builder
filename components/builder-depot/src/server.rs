@@ -1229,7 +1229,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
     ident_req.set_visibilities(vis);
     ident_req.set_ident(ident);
 
-    let agent_target = target_from_headers(&req.headers.get::<UserAgent>().unwrap()).unwrap();
+    let agent_target = target_from_headers(req).unwrap();
     if !depot.targets.contains(&agent_target) {
         return Ok(Response::with((
             status::NotImplemented,
@@ -1672,14 +1672,16 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
     let mut ident = ident_from_req(req);
     let qualified = ident.fully_qualified();
 
+    let target = match helpers::extract_query_value("target", req) {
+        Some(t) => t,
+        None => target_from_headers(req).unwrap().to_string(),
+    };
+
     if let Some(channel) = channel {
         if !qualified {
-            let target = target_from_headers(&req.headers.get::<UserAgent>().unwrap())
-                .unwrap()
-                .to_string();
             let mut request = OriginChannelPackageLatestGet::new();
             request.set_name(channel.clone());
-            request.set_target(target);
+            request.set_target(target.clone());
             request.set_visibilities(visibility_for_optional_session(
                 req,
                 session_id,
@@ -1717,11 +1719,8 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
         }
     } else {
         if !qualified {
-            let target = target_from_headers(&req.headers.get::<UserAgent>().unwrap())
-                .unwrap()
-                .to_string();
             let mut request = OriginPackageLatestGet::new();
-            request.set_target(target);
+            request.set_target(target.clone());
             request.set_visibilities(visibility_for_optional_session(
                 req,
                 session_id,
@@ -1757,11 +1756,10 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
                     .expect("depot not found");
 
                 let depot = lock.read().expect("depot read lock is poisoned");
+                let pkg_target = PackageTarget::from_str(&target);
 
-                // If we don't have a valid archive on disk, return NotFound
-                let target = target_from_headers(&req.headers.get::<UserAgent>().unwrap()).unwrap();
-
-                if !depot.archive(&ident, &target).is_some() {
+                // If the target doesn't parse or there's no archive on disk, return 404
+                if pkg_target.is_err() || !depot.archive(&ident, &pkg_target.unwrap()).is_some() {
                     return Ok(Response::with(status::NotFound));
                 };
 
@@ -2201,7 +2199,8 @@ fn download_content_as_file(content: &[u8], filename: String) -> IronResult<Resp
     Ok(response)
 }
 
-fn target_from_headers(user_agent_header: &UserAgent) -> result::Result<PackageTarget, Response> {
+fn target_from_headers(req: &mut Request) -> result::Result<PackageTarget, Response> {
+    let user_agent_header = req.headers.get::<UserAgent>().unwrap();
     let user_agent = user_agent_header.as_str();
     debug!("Headers = {}", &user_agent);
 
@@ -2538,7 +2537,7 @@ where
     let lock = req.get::<persistent::State<Config>>()
         .expect("depot not found");
     let depot = lock.read().expect("depot read lock is poisoned");
-    let agent_target = target_from_headers(&req.headers.get::<UserAgent>().unwrap()).unwrap();
+    let agent_target = target_from_headers(req).unwrap();
 
     match depot.archive(ident, &agent_target) {
         Some(mut archive) => archive.is_a_service(),
