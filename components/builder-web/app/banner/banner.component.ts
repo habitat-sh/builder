@@ -11,7 +11,7 @@ export class BannerComponent {
   constructor(private store: AppStore) {}
 
   get hidden() {
-    return this.profile.id && !this.profile.email && !this.dismissed;
+    return this.profile.id && !this.dismissed;
   }
 
   get profile() {
