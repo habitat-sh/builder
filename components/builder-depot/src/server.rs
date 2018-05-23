@@ -1681,7 +1681,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
         if !qualified {
             let mut request = OriginChannelPackageLatestGet::new();
             request.set_name(channel.clone());
-            request.set_target(target);
+            request.set_target(target.clone());
             request.set_visibilities(visibility_for_optional_session(
                 req,
                 session_id,
@@ -1720,7 +1720,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
     } else {
         if !qualified {
             let mut request = OriginPackageLatestGet::new();
-            request.set_target(target);
+            request.set_target(target.clone());
             request.set_visibilities(visibility_for_optional_session(
                 req,
                 session_id,
@@ -1756,8 +1756,10 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
                     .expect("depot not found");
 
                 let depot = lock.read().expect("depot read lock is poisoned");
+                let pkg_target = PackageTarget::from_str(&target);
 
-                if !depot.archive(&ident, &target).is_some() {
+                // If the target doesn't parse or there's no archive on disk, return 404
+                if pkg_target.is_err() || !depot.archive(&ident, &pkg_target.unwrap()).is_some() {
                     return Ok(Response::with(status::NotFound));
                 };
 
