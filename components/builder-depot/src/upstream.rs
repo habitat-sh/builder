@@ -15,14 +15,16 @@
 use bldr_core::logger::Logger;
 use hab_core::package::{Identifiable, PackageIdent};
 use hab_net::socket::DEFAULT_CONTEXT;
+use http_gateway::conn::RouteBroker;
+use http_gateway::http::helpers::all_visibilities;
 use iron::typemap::Key;
 use protobuf::{parse_from_bytes, Message};
+use protocol::originsrv::*;
 use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
-
 use zmq;
 
 use config::Config;
@@ -161,13 +163,17 @@ impl UpstreamMgr {
                     continue;
                 }
 
-                let ident: OriginPackageIdent =
+                let msg_ident: OriginPackageIdent =
                     parse_from_bytes(&self.msg).map_err(Error::Protobuf)?;
 
-                debug!("Upstream received message: {:?}", ident);
+                debug!("Upstream received message: {:?}", msg_ident);
+
+                // We only care about the base ident
+                let ident =
+                    PackageIdent::new(msg_ident.get_origin(), msg_ident.get_name(), None, None);
 
                 if self.config.upstream_depot.is_some()
-                    && self.want_origins.contains(ident.get_origin())
+                    && self.want_origins.contains(ident.origin())
                     && !idents.contains(&ident)
                 {
                     debug!("Adding {} to work queue", &ident);
@@ -196,19 +202,40 @@ impl UpstreamMgr {
         }
     }
 
-    fn check_package(&mut self, ident: &OriginPackageIdent) -> Result<Option<PackageIdent>> {
+    fn latest_ident(&mut self, ident: &PackageIdent) -> Result<PackageIdent> {
+        let mut conn = RouteBroker::connect().unwrap();
+
+        let mut request = OriginChannelPackageLatestGet::new();
+        request.set_name("stable".to_owned());
+        request.set_target("x86_64-linux".to_owned()); // TODO: Handle proper targets
+        request.set_visibilities(all_visibilities());
+        request.set_ident(OriginPackageIdent::from(ident.clone()));
+
+        match conn.route::<OriginChannelPackageLatestGet, OriginPackageIdent>(&request) {
+            Ok(id) => Ok(id.into()),
+            Err(err) => Err(Error::NetError(err)),
+        }
+    }
+
+    fn check_package(&mut self, ident: &PackageIdent) -> Result<Option<PackageIdent>> {
         debug!("Checking upstream package: {}", ident);
+        assert!(!ident.fully_qualified());
+
+        let local_ident = match self.latest_ident(ident) {
+            Ok(i) => Some(i),
+            Err(_) => None,
+        };
+        debug!("Latest local ident: {:?}", local_ident);
 
         match self.depot_client {
             // We only sync down stable packages from the upstream for now
             Some(ref depot_cli) => match depot_cli.show_package(ident, Some("stable"), None) {
                 Ok(mut package) => {
-                    let pkg_ident: PackageIdent = ident.clone().into();
                     let remote_pkg_ident: PackageIdent = package.take_ident().into();
 
                     debug!("Got remote ident: {}", remote_pkg_ident);
 
-                    if !ident.fully_qualified() || remote_pkg_ident > pkg_ident {
+                    if local_ident.is_none() || remote_pkg_ident > local_ident.unwrap() {
                         let opi: OriginPackageIdent =
                             OriginPackageIdent::from(remote_pkg_ident.clone());
 
@@ -223,9 +250,9 @@ impl UpstreamMgr {
                             warn!("Failed to download package from upstream, err {:?}", err);
                             return Err(err);
                         }
+                        return Ok(Some(remote_pkg_ident));
                     }
-
-                    Ok(Some(remote_pkg_ident))
+                    Ok(None)
                 }
                 Err(err) => {
                     warn!(
