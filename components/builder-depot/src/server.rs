@@ -1229,17 +1229,30 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
     ident_req.set_visibilities(vis);
     ident_req.set_ident(ident);
 
-    let agent_target = target_from_headers(req).unwrap();
-    if !depot.targets.contains(&agent_target) {
+    let target = match helpers::extract_query_value("target", req) {
+        Some(t) => match PackageTarget::from_str(&t) {
+            Ok(pt) => pt,
+            Err(e) => {
+                warn!("error parsing bad target: {}, e: {:?}", &t, &e);
+                return Ok(Response::with((
+                    status::NotImplemented,
+                    format!("Unsupported client platform ({}).", t),
+                )));
+            }
+        },
+        None => target_from_headers(req).unwrap(),
+    };
+
+    if !depot.targets.contains(&target) {
         return Ok(Response::with((
             status::NotImplemented,
-            "Unsupported client platform ({}).",
+            format!("Unsupported client platform ({}).", &target),
         )));
     }
 
     match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
         Ok(package) => {
-            if let Some(archive) = depot.archive(package.get_ident(), &agent_target) {
+            if let Some(archive) = depot.archive(package.get_ident(), &target) {
                 match fs::metadata(&archive.path) {
                     Ok(_) => download_response_for_archive(archive),
                     Err(_) => Ok(Response::with(status::NotFound)),
