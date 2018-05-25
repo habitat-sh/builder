@@ -123,6 +123,8 @@ hab pkg install core/elasticseach
 load_package /hab/cache/artifacts/core-elasticsearch*.hart
 ```
 
+*NOTE*: By default, an automated fetch from the https://bldr.habitat.sh upstream is configured so that 'core' and 'habitat' origin packages are automatically retrieved from the upstream. Make sure you have those origins created. The upstream fetch happens in the background. To trigger a fetch for a non-existent package, you can do a local 'hab pkg search' for that package - it will initially fail with a 'Not Found', but will trigger a background fetch. If you run into any issues, check the upstream log file in the '/hab/svc/builder-api/var' directory.
+
 ### Option A: From the Web UI
 * Navigate to http://${APP_HOSTNAME}/#/pkgs
 * If you are not already logged in, log in.
