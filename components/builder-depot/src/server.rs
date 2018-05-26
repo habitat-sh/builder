@@ -1900,7 +1900,7 @@ fn render_package(
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
     let channels = helpers::channels_for_package_ident(req, pkg.get_ident());
     pkg_json["channels"] = json!(channels);
-    pkg_json["is_a_service"] = json!(is_a_service(req, pkg.get_ident()));
+    pkg_json["is_a_service"] = json!(is_a_service(pkg));
 
     let body = serde_json::to_string(&pkg_json).unwrap();
     let mut response = Response::with((status::Ok, body));
@@ -2543,19 +2543,13 @@ fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response
     Ok(response)
 }
 
-fn is_a_service<T>(req: &mut Request, ident: &T) -> bool
-where
-    T: Identifiable,
-{
-    let lock = req.get::<persistent::State<Config>>()
-        .expect("depot not found");
-    let depot = lock.read().expect("depot read lock is poisoned");
-    let agent_target = target_from_headers(req).unwrap();
+fn is_a_service(package: &OriginPackage) -> bool {
+    let m = package.get_manifest();
 
-    match depot.archive(ident, &agent_target) {
-        Some(mut archive) => archive.is_a_service(),
-        None => false,
-    }
+    // TODO: This is a temporary workaround until we plumb in a better solution for
+    // determining whether a package is a service from the DB instead of needing
+    // to crack the archive file to look for a SVC_USER file
+    m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
 }
 
 fn do_cache_response(response: &mut Response) {
