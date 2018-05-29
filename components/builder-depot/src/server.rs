@@ -1764,26 +1764,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
         request.set_ident(ident.clone());
 
         match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-            Ok(pkg) => {
-                let lock = req.get::<persistent::State<Config>>()
-                    .expect("depot not found");
-
-                let depot = lock.read().expect("depot read lock is poisoned");
-                let pkg_target = PackageTarget::from_str(&target);
-
-                // If the target doesn't parse or there's no archive on disk, return 404
-                if pkg_target.is_err() || !depot.archive(&ident, &pkg_target.unwrap()).is_some() {
-                    return Ok(Response::with(status::NotFound));
-                };
-
-                // If the request was for a fully qualified ident, cache the response, otherwise do
-                // not cache
-                if qualified {
-                    render_package(req, &pkg, true)
-                } else {
-                    render_package(req, &pkg, false)
-                }
-            }
+            Ok(pkg) => render_package(req, &pkg, qualified), // Cache if request was qualified
             Err(err) => Ok(render_net_error(&err)),
         }
     }
