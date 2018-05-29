@@ -40,9 +40,9 @@ use extern_url;
 use hyper::client::Client as HyperClient;
 
 use super::LogArchiver;
-use VERSION;
 use config::ArchiveCfg;
 use error::{Error, Result};
+use VERSION;
 
 pub struct S3Archiver {
     client: S3Client<DefaultCredentialsProvider, HyperClient>,

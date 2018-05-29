@@ -20,8 +20,8 @@ use std::time::{Duration, Instant};
 
 use bldr_core;
 use bldr_core::job::Job;
-use hab_core::crypto::BoxKeyPair;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
+use hab_core::crypto::BoxKeyPair;
 use hab_net::conn::RouteClient;
 use hab_net::socket::DEFAULT_CONTEXT;
 use linked_hash_map::LinkedHashMap;

@@ -19,11 +19,11 @@ use std::process;
 
 use unshare::{self, Namespace};
 
-use Result;
 use coreutils::{mkdir_p, touch};
 use namespace;
 use user;
 use util;
+use Result;
 
 pub fn run<P: AsRef<Path>>(
     ns_dir: P,

@@ -30,11 +30,11 @@ pub mod error;
 pub mod jobsrv;
 pub mod message;
 pub mod net;
+pub mod originsrv;
 pub mod routesrv;
 pub mod search;
 pub mod sessionsrv;
 pub mod sharding;
-pub mod originsrv;
 
 pub use self::error::{ProtocolError, ProtocolResult};
 pub use self::message::{Message, Persistable, Protocol, Routable, RouteKey};

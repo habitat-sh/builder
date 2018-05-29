@@ -13,10 +13,10 @@
 // limitations under the License.
 
 pub mod jobsrv;
+mod net;
+pub mod originsrv;
 pub mod routesrv;
 pub mod sessionsrv;
-pub mod originsrv;
-mod net;
 
 use std::borrow::Cow;
 use std::fmt;

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::Client;
 use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers};
 use reqwest::mime;
+use reqwest::Client;
 use serde_json;
 
 use config::OAuth2Cfg;

@@ -22,8 +22,8 @@ use std::time::Duration;
 use protobuf;
 use protocol::{Message, Protocol};
 
-use super::AppState;
 use super::config::AppCfg;
+use super::AppState;
 use conn::{ConnErr, ConnEvent, RouteConn};
 
 /// Dispatchers connect to Message Queue Servers

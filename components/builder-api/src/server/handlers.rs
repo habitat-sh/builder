@@ -498,8 +498,7 @@ pub fn rdeps_show(req: &mut Request) -> IronResult<Response> {
     rdeps_get.set_target("x86_64-linux".to_string());
 
     match route_message::<JobGraphPackageReverseDependenciesGet, JobGraphPackageReverseDependencies>(
-        req,
-        &rdeps_get,
+        req, &rdeps_get,
     ) {
         Ok(rdeps) => Ok(render_json(status::Ok, &rdeps)),
         Err(err) => return Ok(render_net_error(&err)),
@@ -645,8 +644,7 @@ pub fn list_account_invitations(req: &mut Request) -> IronResult<Response> {
         request.set_account_id(session.get_id());
     }
     match route_message::<AccountInvitationListRequest, AccountInvitationListResponse>(
-        req,
-        &request,
+        req, &request,
     ) {
         Ok(invites) => Ok(render_json(status::Ok, &invites)),
         Err(err) => Ok(render_net_error(&err)),

@@ -20,13 +20,13 @@ use github_api_client::GitHubClient;
 use hab_net::conn::RouteClient;
 use hab_net::privilege::FeatureFlags;
 use hab_net::{ErrCode, NetError};
-use iron::Handler;
 use iron::headers::{self, Authorization, Bearer};
 use iron::method::Method;
 use iron::middleware::{AfterMiddleware, AroundMiddleware, BeforeMiddleware};
 use iron::prelude::*;
 use iron::status::Status;
 use iron::typemap::Key;
+use iron::Handler;
 use oauth_client::client::OAuth2Client;
 use oauth_client::types::OAuth2User;
 use protocol::message;
@@ -242,9 +242,10 @@ impl AfterMiddleware for Cors {
             Method::Delete,
             Method::Patch,
         ]));
-        res.headers.set(headers::AccessControlExposeHeaders(vec![
-            UniCase("content-disposition".to_string()),
-        ]));
+        res.headers
+            .set(headers::AccessControlExposeHeaders(vec![UniCase(
+                "content-disposition".to_string(),
+            )]));
         Ok(res)
     }
 }

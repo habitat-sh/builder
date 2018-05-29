@@ -17,9 +17,9 @@ use std::path::Path;
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 
-use hab_net::ErrCode;
 use hab_net::conn::RouteClient;
 use hab_net::socket::DEFAULT_CONTEXT;
+use hab_net::ErrCode;
 use zmq;
 
 use data_store::DataStore;

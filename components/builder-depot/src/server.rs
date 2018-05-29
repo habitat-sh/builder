@@ -16,15 +16,15 @@ use std::fs::{self, File};
 use std::io::{self, BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::result;
-use std::str::{FromStr, from_utf8};
+use std::str::{from_utf8, FromStr};
 
 use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
 use bldr_core::helpers::transition_visibility;
 use bldr_core::metrics::CounterMetric;
 use bodyparser;
 use depot_client::{Client as DepotClient, DisplayProgress};
-use hab_core::crypto::BoxKeyPair;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
+use hab_core::crypto::BoxKeyPair;
 use hab_core::package::{ident, FromArchive, Identifiable, PackageArchive, PackageIdent,
                         PackageTarget};
 use hab_net::privilege::FeatureFlags;
@@ -464,8 +464,7 @@ fn download_latest_origin_encryption_key(req: &mut Request) -> IronResult<Respon
     };
 
     let key = match route_message::<OriginPublicEncryptionKeyLatestGet, OriginPublicEncryptionKey>(
-        req,
-        &request,
+        req, &request,
     ) {
         Ok(key) => key,
         Err(err) => {
@@ -1171,8 +1170,7 @@ fn download_latest_origin_key(req: &mut Request) -> IronResult<Response> {
         None => return Ok(Response::with(status::BadRequest)),
     }
     let key = match route_message::<OriginPublicSigningKeyLatestGet, OriginPublicSigningKey>(
-        req,
-        &request,
+        req, &request,
     ) {
         Ok(key) => key,
         Err(err) => return Ok(render_net_error(&err)),
@@ -1199,8 +1197,7 @@ fn package_channels(req: &mut Request) -> IronResult<Response> {
     request.set_ident(ident);
 
     match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
-        req,
-        &request,
+        req, &request,
     ) {
         Ok(channels) => {
             let list: Vec<String> = channels
@@ -1279,8 +1276,7 @@ fn list_origin_keys(req: &mut Request) -> IronResult<Response> {
         Err(err) => return Ok(render_net_error(&err)),
     }
     match route_message::<OriginPublicSigningKeyListRequest, OriginPublicSigningKeyListResponse>(
-        req,
-        &request,
+        req, &request,
     ) {
         Ok(list) => {
             let list: Vec<OriginKeyIdent> = list.get_keys()
@@ -1326,8 +1322,7 @@ fn list_unique_packages(req: &mut Request) -> IronResult<Response> {
     }
 
     match route_message::<OriginPackageUniqueListRequest, OriginPackageUniqueListResponse>(
-        req,
-        &request,
+        req, &request,
     ) {
         Ok(packages) => {
             debug!(
@@ -1380,8 +1375,7 @@ fn list_package_versions(req: &mut Request) -> IronResult<Response> {
     request.set_name(name);
 
     match route_message::<OriginPackageVersionListRequest, OriginPackageVersionListResponse>(
-        req,
-        &request,
+        req, &request,
     ) {
         Ok(packages) => {
             let body = serde_json::to_string(&packages.get_versions().to_vec()).unwrap();
@@ -1496,8 +1490,7 @@ fn list_packages(req: &mut Request) -> IronResult<Response> {
                 OriginPackageIdent::from_str(ident.as_str()).expect("invalid package identifier"),
             );
             packages = route_message::<OriginChannelPackageListRequest, OriginPackageListResponse>(
-                req,
-                &request,
+                req, &request,
             );
         }
         None => {
@@ -2530,13 +2523,11 @@ fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response
     do_cache_response(&mut response);
     let disp = ContentDisposition {
         disposition: DispositionType::Attachment,
-        parameters: vec![
-            DispositionParam::Filename(
-                Charset::Iso_8859_1,
-                None,
-                archive.file_name().as_bytes().to_vec(),
-            ),
-        ],
+        parameters: vec![DispositionParam::Filename(
+            Charset::Iso_8859_1,
+            None,
+            archive.file_name().as_bytes().to_vec(),
+        )],
     };
     response.headers.set(disp);
     response.headers.set(XFileName(archive.file_name()));

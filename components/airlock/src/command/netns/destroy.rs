@@ -17,10 +17,10 @@ use std::path::Path;
 
 use libc;
 
-use Result;
 use mount;
 use namespace;
 use user;
+use Result;
 
 pub fn run<P: AsRef<Path>>(ns_dir: P) -> Result<()> {
     user::check_running_user_is_root()?;

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use message::Routable;
 pub use message::routesrv::*;
+use message::Routable;
 
 pub const DEFAULT_ROUTER_PORT: u16 = 5562;
 pub const PING_INTERVAL_MS: i64 = 30_000;

@@ -91,8 +91,8 @@ pub mod init {
 #[allow(unused_must_use)]
 macro_rules! datastore_test {
     ($datastore:ident) => {{
-        use std::sync::Arc;
         use std::sync::atomic::Ordering;
+        use std::sync::Arc;
         use $crate::config::DataStoreCfg;
         use $crate::diesel_pool::DieselPool;
         use $crate::pool::Pool;

@@ -19,9 +19,9 @@ use std::time::Duration;
 
 use pnet_datalink as pnet;
 
-use Result;
 use namespace;
 use util;
+use Result;
 
 pub fn run<P: AsRef<Path>>(
     ns_dir: P,

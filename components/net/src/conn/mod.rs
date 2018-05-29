@@ -18,12 +18,12 @@
 
 mod error;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::Arc;
 
 use protobuf;
-use protocol::Routable;
 use protocol::message::{Header, Message, RouteInfo, Txn};
+use protocol::Routable;
 use zmq;
 
 pub use self::error::ConnErr;
