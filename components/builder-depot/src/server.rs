@@ -1226,20 +1226,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
     ident_req.set_visibilities(vis);
     ident_req.set_ident(ident);
 
-    let target = match helpers::extract_query_value("target", req) {
-        Some(t) => match PackageTarget::from_str(&t) {
-            Ok(pt) => pt,
-            Err(e) => {
-                warn!("error parsing bad target: {}, e: {:?}", &t, &e);
-                return Ok(Response::with((
-                    status::NotImplemented,
-                    format!("Unsupported client platform ({}).", t),
-                )));
-            }
-        },
-        None => target_from_headers(req).unwrap(),
-    };
-
+    let target = target_from_req(req);
     if !depot.targets.contains(&target) {
         return Ok(Response::with((
             status::NotImplemented,
@@ -1677,17 +1664,13 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
 
     let mut ident = ident_from_req(req);
     let qualified = ident.fully_qualified();
-
-    let target = match helpers::extract_query_value("target", req) {
-        Some(t) => t,
-        None => target_from_headers(req).unwrap().to_string(),
-    };
+    let target = target_from_req(req);
 
     if let Some(channel) = channel {
         if !qualified {
             let mut request = OriginChannelPackageLatestGet::new();
             request.set_name(channel.clone());
-            request.set_target(target.clone());
+            request.set_target(target.to_string());
             request.set_visibilities(visibility_for_optional_session(
                 req,
                 session_id,
@@ -1726,7 +1709,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
     } else {
         if !qualified {
             let mut request = OriginPackageLatestGet::new();
-            request.set_target(target.clone());
+            request.set_target(target.to_string());
             request.set_visibilities(visibility_for_optional_session(
                 req,
                 session_id,
@@ -1757,26 +1740,7 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
         request.set_ident(ident.clone());
 
         match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-            Ok(pkg) => {
-                let lock = req.get::<persistent::State<Config>>()
-                    .expect("depot not found");
-
-                let depot = lock.read().expect("depot read lock is poisoned");
-                let pkg_target = PackageTarget::from_str(&target);
-
-                // If the target doesn't parse or there's no archive on disk, return 404
-                if pkg_target.is_err() || !depot.archive(&ident, &pkg_target.unwrap()).is_some() {
-                    return Ok(Response::with(status::NotFound));
-                };
-
-                // If the request was for a fully qualified ident, cache the response, otherwise do
-                // not cache
-                if qualified {
-                    render_package(req, &pkg, true)
-                } else {
-                    render_package(req, &pkg, false)
-                }
-            }
+            Ok(pkg) => render_package(req, &pkg, qualified), // Cache if request was qualified
             Err(err) => Ok(render_net_error(&err)),
         }
     }
@@ -2183,8 +2147,12 @@ fn ident_from_req(req: &mut Request) -> OriginPackageIdent {
 
 fn ident_from_params(params: &Params) -> OriginPackageIdent {
     let mut ident = OriginPackageIdent::new();
-    ident.set_origin(params.find("origin").unwrap().to_string());
-    ident.set_name(params.find("pkg").unwrap().to_string());
+    if let Some(origin) = params.find("origin") {
+        ident.set_origin(origin.to_string());
+    }
+    if let Some(name) = params.find("pkg") {
+        ident.set_name(name.to_string());
+    }
     if let Some(ver) = params.find("version") {
         ident.set_version(ver.to_string());
     }
@@ -2205,31 +2173,44 @@ fn download_content_as_file(content: &[u8], filename: String) -> IronResult<Resp
     Ok(response)
 }
 
-fn target_from_headers(req: &mut Request) -> result::Result<PackageTarget, Response> {
-    let user_agent_header = req.headers.get::<UserAgent>().unwrap();
-    let user_agent = user_agent_header.as_str();
-    debug!("Headers = {}", &user_agent);
+fn target_from_req(req: &mut Request) -> PackageTarget {
+    // A target in a query param over-rides the user agent platform
+    let target = match helpers::extract_query_value("target", req) {
+        Some(t) => {
+            debug!("Query requested target = {}", t);
+            t
+        }
+        None => {
+            let user_agent_header = req.headers.get::<UserAgent>().unwrap();
+            let user_agent = user_agent_header.as_str();
+            debug!("Headers = {}", &user_agent);
 
-    let user_agent_regex =
-        Regex::new(r"(?P<client>[^\s]+)\s?(\((?P<target>\w+-\w+); (?P<kernel>.*)\))?").unwrap();
-    let user_agent_capture = user_agent_regex
-        .captures(user_agent)
-        .expect("Invalid user agent supplied.");
+            let user_agent_regex = Regex::new(
+                r"(?P<client>[^\s]+)\s?(\((?P<target>\w+-\w+); (?P<kernel>.*)\))?",
+            ).unwrap();
 
-    // All of our tooling that depends on this function to return a target will have a user
-    // agent that includes the platform. Therefore, if we can't find a target, it's safe to
-    // assume that some other kind of HTTP tool is being used, e.g. curl. For those kinds
-    // of clients, the target platform isn't important, so let's default it to linux
-    // instead of returning a bad request.
-    let target = if let Some(target_match) = user_agent_capture.name("target") {
-        target_match.as_str()
-    } else {
-        "x86_64-linux"
+            match user_agent_regex.captures(user_agent) {
+                Some(user_agent_capture) => {
+                    if let Some(target_match) = user_agent_capture.name("target") {
+                        target_match.as_str().to_string()
+                    } else {
+                        "".to_string()
+                    }
+                }
+                None => "".to_string(),
+            }
+        }
     };
 
-    match PackageTarget::from_str(target) {
-        Ok(t) => Ok(t),
-        Err(_) => Err(Response::with(status::BadRequest)),
+    // All of our tooling that depends on this function to return a target will have a user
+    // agent that includes the platform, or will specify a target in the query.
+    // Therefore, if we can't find a valid target, it's safe to assume that some other kind of HTTP
+    // tool is being used, e.g. curl, with looser constraints. For those kinds of cases,
+    // let's default it to Linux instead of returning a bad request if we can't properly parse
+    // the inbound target.
+    match PackageTarget::from_str(&target) {
+        Ok(t) => t,
+        Err(_) => PackageTarget::from_str("x86_64-linux").unwrap(),
     }
 }
 
