@@ -18,10 +18,10 @@ use std::process::{self, Command};
 
 use unshare::{self, Namespace};
 
-use FsRoot;
 use namespace;
 use user;
 use util;
+use FsRoot;
 
 use {Error, Result};
 

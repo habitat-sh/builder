@@ -87,9 +87,11 @@ where
     U: ToString,
 {
     let mut headers = Headers::new();
-    headers.set(Accept(vec![
-        qitem(Mime(TopLevel::Application, SubLevel::Json, vec![])),
-    ]));
+    headers.set(Accept(vec![qitem(Mime(
+        TopLevel::Application,
+        SubLevel::Json,
+        vec![],
+    ))]));
     headers.set(ContentType(Mime(
         TopLevel::Application,
         SubLevel::Json,

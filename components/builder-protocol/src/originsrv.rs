@@ -17,8 +17,8 @@ use hab_core::package::{self, FromArchive, Identifiable, PackageArchive};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use message::Routable;
 pub use message::originsrv::*;
+use message::Routable;
 use sharding::InstaId;
 
 #[derive(Debug)]

@@ -215,8 +215,7 @@ pub fn channels_for_package_ident(
     ));
 
     match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
-        req,
-        &opclr,
+        req, &opclr,
     ) {
         Ok(channels) => {
             let list: Vec<String> = channels
@@ -247,8 +246,7 @@ pub fn platforms_for_package_ident(
     ));
 
     match route_message::<OriginPackagePlatformListRequest, OriginPackagePlatformListResponse>(
-        req,
-        &opplr,
+        req, &opplr,
     ) {
         Ok(p) => Some(p.get_platforms().to_vec()),
         Err(_) => None,
