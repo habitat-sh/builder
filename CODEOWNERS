@@ -7,6 +7,6 @@ components/net @chefsalim @raskchanky
 components/oauth-client @chefsalim @raskchanky
 components/op @chefsalim @raskchanky
 components/segment-api-client @chefsalim @raskchanky
-support @fnichol @chefsalim @raskchanky @elliott-davis
-tools @chefsalim @christophermaier @eeyun @raskchanky @fnichol
+support @fnichol @chefsalim @raskchanky @baumanj @elliott-davis
+tools @baumanj @chefsalim @christophermaier @eeyun @raskchanky @fnichol
 .studiorc @chefsalim @elliott-davis @raskchanky
