@@ -60,6 +60,14 @@ provider       = "$OAUTH_PROVIDER"
 client_id      = "$OAUTH_CLIENT_ID"
 authorize_url  = "$OAUTH_AUTHORIZE_URL"
 redirect_url   = "$OAUTH_REDIRECT_URL"
+
+[nginx]
+max_body_size = "2048m"
+proxy_send_timeout = 180
+proxy_read_timeout = 180
+
+[http]
+keepalive_timeout = "180s"
 EOT
 
 mkdir -p /hab/svc/builder-jobsrv
