@@ -36,10 +36,6 @@ client_secret = "$OAUTH_CLIENT_SECRET"
 [github]
 api_url = "$GITHUB_API_URL"
 app_id = $GITHUB_APP_ID
-
-[depot]
-upstream_depot = "https://bldr.habitat.sh"
-upstream_origins = ["core","habitat"]
 EOT
 
 mkdir -p /hab/svc/builder-api-proxy
