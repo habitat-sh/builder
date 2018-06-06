@@ -1129,7 +1129,7 @@ dependencies = [
 [[package]]
 name = "habitat_depot_client"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#3d9b7a8e7212974e6a232890af224d663c5ef6c0"
+source = "git+https://github.com/habitat-sh/habitat.git#9a49fba13d901358e1f63ab3b4931742154f0dc3"
 dependencies = [
  "broadcast 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
