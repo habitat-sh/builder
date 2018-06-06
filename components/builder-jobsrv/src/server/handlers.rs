@@ -22,6 +22,7 @@ use hab_net::app::prelude::*;
 use protobuf::RepeatedField;
 use protocol::jobsrv;
 use protocol::net::{self, ErrCode};
+use protocol::originsrv;
 
 use super::ServerState;
 use error::{Error, Result};
@@ -293,6 +294,26 @@ pub fn job_group_cancel(
     Ok(())
 }
 
+fn is_project_linked(conn: &mut RouteConn, project_name: &str) -> bool {
+    let mut project_get = originsrv::OriginProjectGet::new();
+    project_get.set_name(String::from(project_name));
+
+    match conn.route::<originsrv::OriginProjectGet, originsrv::OriginProject>(&project_get) {
+        Ok(_) => true,
+        Err(err) => {
+            if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
+                false
+            } else {
+                warn!(
+                    "Unable to retrieve project: {:?}, error: {:?}",
+                    project_name, err
+                );
+                false
+            }
+        }
+    }
+}
+
 pub fn job_group_create(
     req: &mut Message,
     conn: &mut RouteConn,
@@ -363,6 +384,13 @@ pub fn job_group_create(
                 );
 
                 for s in rdeps {
+                    // If the project is not linked to Builder, don't bother
+                    // TODO (SA): Move the project list creation/vetting to background thread
+                    if !is_project_linked(conn, &s.0) {
+                        debug!("Project is not linked to Builder - not adding: {}", &s.0);
+                        continue;
+                    };
+
                     let origin = s.0.split("/").nth(0).unwrap();
 
                     // If the origin_only flag is true, make sure the origin matches
