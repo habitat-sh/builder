@@ -1684,14 +1684,14 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
                 Err(err) => {
                     // Notify upstream with a non-fully qualified ident to handle checking
                     // of a package that does not exist in the on-premise depot
-                    notify_upstream(req, &ident);
+                    notify_upstream(req, &ident, &target);
                     return Ok(render_net_error(&err));
                 }
             }
         }
 
         // Notify upstream with a fully qualified ident
-        notify_upstream(req, &ident);
+        notify_upstream(req, &ident, &target);
 
         let mut request = OriginChannelPackageGet::new();
         request.set_name(channel);
@@ -1722,14 +1722,14 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
                 Err(err) => {
                     // Notify upstream with a non-fully qualified ident to handle checking
                     // of a package that does not exist in the on-premise depot
-                    notify_upstream(req, &ident);
+                    notify_upstream(req, &ident, &target);
                     return Ok(render_net_error(&err));
                 }
             }
         }
 
         // Notify upstream with a fully qualified ident
-        notify_upstream(req, &ident);
+        notify_upstream(req, &ident, &target);
 
         let mut request = OriginPackageGet::new();
         request.set_visibilities(visibility_for_optional_session(
@@ -2362,6 +2362,7 @@ pub fn download_package_from_upstream_depot(
     depot_cli: &DepotClient,
     ident: OriginPackageIdent,
     channel: Option<String>,
+    target: Option<String>,
 ) -> Result<OriginPackage> {
     let parent_path = depot.archive_parent(&ident);
 
@@ -2400,7 +2401,7 @@ pub fn download_package_from_upstream_depot(
         }
     }
 
-    match depot_cli.fetch_package(&ident, None, &parent_path, None::<NoProgress>) {
+    match depot_cli.fetch_package(&ident, None, &parent_path, None::<NoProgress>, target) {
         Ok(mut archive) => {
             let target_from_artifact = archive.target().map_err(Error::HabitatCore)?;
             if !depot.targets.contains(&target_from_artifact) {
@@ -2494,9 +2495,9 @@ pub fn download_package_from_upstream_depot(
     }
 }
 
-fn notify_upstream(req: &mut Request, ident: &OriginPackageIdent) {
+fn notify_upstream(req: &mut Request, ident: &OriginPackageIdent, target: &PackageTarget) {
     let upstream_cli = req.get::<persistent::Read<UpstreamCli>>().unwrap();
-    upstream_cli.refresh(ident).unwrap();
+    upstream_cli.refresh(ident, target).unwrap();
 }
 
 fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response> {

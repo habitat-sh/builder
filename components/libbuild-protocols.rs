@@ -7,6 +7,7 @@ mod protocols {
 
     pub fn generate_protocols() {
         let protocols = protocol_files();
+
         protoc_rust::run(protoc_rust::Args {
             out_dir: "src/message",
             input: protocols

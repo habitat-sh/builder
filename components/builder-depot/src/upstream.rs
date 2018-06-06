@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use bldr_core::logger::Logger;
-use hab_core::package::{Identifiable, PackageIdent};
+use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 use hab_net::socket::DEFAULT_CONTEXT;
 use http_gateway::conn::RouteBroker;
 use http_gateway::http::helpers::all_visibilities;
@@ -29,7 +29,7 @@ use zmq;
 
 use config::Config;
 use error::{Error, Result};
-use protocol::originsrv::OriginPackageIdent;
+use protocol::originsrv::{OriginPackageIdent, UpstreamRequest};
 
 use depot_client::Client as DepotClient;
 use server::download_package_from_upstream_depot;
@@ -46,12 +46,16 @@ impl Key for UpstreamCli {
 }
 
 impl UpstreamClient {
-    pub fn refresh(&self, ident: &OriginPackageIdent) -> Result<()> {
+    pub fn refresh(&self, ident: &OriginPackageIdent, target: &PackageTarget) -> Result<()> {
+        let mut req = UpstreamRequest::new();
+        req.set_ident(ident.clone());
+        req.set_target(target.to_string());
+
         // TODO: Use a per-thread socket when we move to a post-Iron framework
         let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         socket.connect(UPSTREAM_MGR_ADDR).map_err(Error::Zmq)?;
         socket
-            .send(&ident.write_to_bytes().unwrap(), 0)
+            .send(&req.write_to_bytes().unwrap(), 0)
             .map_err(Error::Zmq)?;
         Ok(())
     }
@@ -128,7 +132,7 @@ impl UpstreamMgr {
             .map_err(Error::Zmq)?;
         let mut upstream_mgr_sock = false;
         let mut last_processed = Instant::now();
-        let mut idents = VecDeque::new();
+        let mut requests = VecDeque::new();
 
         rz.send(()).unwrap();
 
@@ -147,6 +151,7 @@ impl UpstreamMgr {
                         err
                     );
                 };
+
                 if (items[0].get_revents() & zmq::POLLIN) > 0 {
                     upstream_mgr_sock = true;
                 }
@@ -163,36 +168,48 @@ impl UpstreamMgr {
                     continue;
                 }
 
-                let msg_ident: OriginPackageIdent =
+                let mut upstream_request: UpstreamRequest =
                     parse_from_bytes(&self.msg).map_err(Error::Protobuf)?;
 
-                debug!("Upstream received message: {:?}", msg_ident);
+                // we have to assume ownership of these values here to appease the borrow checker
+                // - otherwise it complains about immutable vs mutable borrows
+                let msg_ident = upstream_request.take_ident();
+                let target = upstream_request.take_target();
+
+                debug!("Upstream received message: {:?}", &upstream_request);
 
                 // We only care about the base ident
                 let ident =
                     PackageIdent::new(msg_ident.get_origin(), msg_ident.get_name(), None, None);
+                upstream_request.set_ident(OriginPackageIdent::from(ident.clone()));
+                upstream_request.set_target(target.clone());
 
                 if self.config.upstream_depot.is_some()
                     && self.want_origins.contains(ident.origin())
-                    && !idents.contains(&ident)
+                    && !requests.contains(&upstream_request)
                 {
-                    debug!("Adding {} to work queue", &ident);
-                    idents.push_back(ident);
+                    debug!("Adding {}-{} to work queue", &ident, &target);
+                    requests.push_back(upstream_request.clone());
                 }
             }
 
-            // Handle potential work in idents queue
+            // Handle potential work in requests queue
             let now = Instant::now();
             if &now > &(last_processed + Duration::from_millis(DEFAULT_POLL_TIMEOUT_MS)) {
-                while let Some(ident) = idents.pop_front() {
-                    match self.check_package(&ident) {
+                while let Some(upstream_request) = requests.pop_front() {
+                    match self.check_request(&upstream_request) {
                         Ok(None) => (),
                         Ok(Some(ref ident)) => {
                             let msg = format!("UPDATED: {}", ident);
                             self.logger.log(&msg);
                         }
                         Err(err) => {
-                            let msg = format!("FAILURE: {} ({:?})", ident, err);
+                            let msg = format!(
+                                "FAILURE: {}-{} ({:?})",
+                                upstream_request.get_ident(),
+                                upstream_request.get_target(),
+                                err
+                            );
                             self.logger.log(&msg);
                         }
                     }
@@ -202,14 +219,14 @@ impl UpstreamMgr {
         }
     }
 
-    fn latest_ident(&mut self, ident: &PackageIdent) -> Result<PackageIdent> {
+    fn latest_ident(&mut self, ident: &OriginPackageIdent, target: &str) -> Result<PackageIdent> {
         let mut conn = RouteBroker::connect().unwrap();
 
         let mut request = OriginChannelPackageLatestGet::new();
         request.set_name("stable".to_owned());
-        request.set_target("x86_64-linux".to_owned()); // TODO: Handle proper targets
+        request.set_target(target.to_owned());
         request.set_visibilities(all_visibilities());
-        request.set_ident(OriginPackageIdent::from(ident.clone()));
+        request.set_ident(ident.clone());
 
         match conn.route::<OriginChannelPackageLatestGet, OriginPackageIdent>(&request) {
             Ok(id) => Ok(id.into()),
@@ -217,51 +234,61 @@ impl UpstreamMgr {
         }
     }
 
-    fn check_package(&mut self, ident: &PackageIdent) -> Result<Option<PackageIdent>> {
-        debug!("Checking upstream package: {}", ident);
+    fn check_request(
+        &mut self,
+        upstream_request: &UpstreamRequest,
+    ) -> Result<Option<PackageIdent>> {
+        let ident = upstream_request.get_ident();
+        let target = upstream_request.get_target();
+
+        debug!("Checking upstream package: {}-{}", ident, target);
         assert!(!ident.fully_qualified());
 
-        let local_ident = match self.latest_ident(ident) {
+        let local_ident = match self.latest_ident(ident, target) {
             Ok(i) => Some(i),
             Err(_) => None,
         };
+
         debug!("Latest local ident: {:?}", local_ident);
 
         match self.depot_client {
             // We only sync down stable packages from the upstream for now
-            Some(ref depot_cli) => match depot_cli.show_package(ident, Some("stable"), None) {
-                Ok(mut package) => {
-                    let remote_pkg_ident: PackageIdent = package.take_ident().into();
+            Some(ref depot_cli) => {
+                match depot_cli.show_package(ident, Some("stable"), None, Some(target)) {
+                    Ok(mut package) => {
+                        let remote_pkg_ident: PackageIdent = package.take_ident().into();
 
-                    debug!("Got remote ident: {}", remote_pkg_ident);
+                        debug!("Got remote ident: {}", remote_pkg_ident);
 
-                    if local_ident.is_none() || remote_pkg_ident > local_ident.unwrap() {
-                        let opi: OriginPackageIdent =
-                            OriginPackageIdent::from(remote_pkg_ident.clone());
+                        if local_ident.is_none() || remote_pkg_ident > local_ident.unwrap() {
+                            let opi: OriginPackageIdent =
+                                OriginPackageIdent::from(remote_pkg_ident.clone());
 
-                        debug!("Downloading package {:?} from upstream", opi);
+                            debug!("Downloading package {:?} from upstream", opi);
 
-                        if let Err(err) = download_package_from_upstream_depot(
-                            &self.config,
-                            depot_cli,
-                            opi,
-                            Some("stable".to_string()),
-                        ) {
-                            warn!("Failed to download package from upstream, err {:?}", err);
-                            return Err(err);
+                            if let Err(err) = download_package_from_upstream_depot(
+                                &self.config,
+                                depot_cli,
+                                opi,
+                                Some("stable".to_string()),
+                                Some(target.to_string()),
+                            ) {
+                                warn!("Failed to download package from upstream, err {:?}", err);
+                                return Err(err);
+                            }
+                            return Ok(Some(remote_pkg_ident));
                         }
-                        return Ok(Some(remote_pkg_ident));
+                        Ok(None)
                     }
-                    Ok(None)
+                    Err(err) => {
+                        warn!(
+                            "Failed to get package metadata for {} from {:?}, err {:?}",
+                            ident, self.config.upstream_depot, err
+                        );
+                        Err(Error::DepotClientError(err))
+                    }
                 }
-                Err(err) => {
-                    warn!(
-                        "Failed to get package metadata for {} from {:?}, err {:?}",
-                        ident, self.config.upstream_depot, err
-                    );
-                    Err(Error::DepotClientError(err))
-                }
-            },
+            }
             _ => Ok(None),
         }
     }
