@@ -34,7 +34,7 @@ resource "aws_s3_bucket" "www" {
   acl    = "public-read"
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   tags {

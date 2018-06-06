@@ -5,10 +5,14 @@
 
 set -eux
 
-sudo mount /dev/xvdf /mnt
-echo '/dev/xvdf /hab     ext4   defaults 0 0' | sudo tee -a /etc/fstab
-sudo mkdir -p /mnt/hab
-sudo ln -s /mnt/hab /hab
+if mountpoint -q /mnt; then
+    echo "Already Mounted"
+else
+    sudo mount /dev/xvdf /mnt
+    echo '/dev/xvdf /hab     ext4   defaults 0 0' | sudo tee -a /etc/fstab
+    sudo mkdir -p /mnt/hab
+    sudo ln -s /mnt/hab /hab
+fi
 
 # Add hab user / group
 sudo adduser --group hab || echo "Group 'hab' already exists"
