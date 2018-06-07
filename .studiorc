@@ -229,7 +229,7 @@ generate_bldr_keys() {
 }
 
 load_package() {
-  hab pkg upload --url http://localhost:9636/v1 --auth "${HAB_AUTH_TOKEN}" "$@" --channel stable
+  hab pkg upload --url http://localhost --auth "${HAB_AUTH_TOKEN}" "$@" --channel stable
 }
 
 load_packages() {
@@ -240,22 +240,14 @@ load_packages() {
   fi
 }
 
-load_bootstrap_packages() {
-  load_package /src/pkgs/core-hab-backline-0.39.0-dev-20171101044221-x86_64-linux.hart
-  load_package /src/pkgs/core-hab-launcher-6083-20171101045646-x86_64-linux.hart
-  load_package pkgs/core-hab-sup-0.34.0-dev-20170929202328-x86_64-linux.hart
-  load_package pkgs/core-docker-17.09.0-20171001205930-x86_64-linux.hart
-  load_package pkgs/core-elasticsearch-5.6.1-20171015201557-x86_64-linux.hart
-}
-
 origin() {
   local origin=${1:-core}
-  if curl --fail localhost:9636/v1/depot/origins \
+  if curl --fail localhost/v1/depot/origins \
     -d "{\"name\":\"${origin}\"}" \
     -H "Authorization:Bearer:${HAB_AUTH_TOKEN}";
   then
     hab origin key generate "${origin}"
-    hab origin key upload --url http://localhost:9636 -z "${HAB_AUTH_TOKEN}" -s "${origin}"
+    hab origin key upload --url http://localhost -z "${HAB_AUTH_TOKEN}" -s "${origin}"
   else
     echo "Failed to create origin ${origin}"
   fi
@@ -269,18 +261,6 @@ function psql() {
 }
 
 export -f psql
-
-project() {
-  curl http://localhost:9636/v1/projects -q \
-    -d '{ "origin": "core", "plan_path": "nginx/plan.sh", "github": { "organization": "habitat-sh", "repo": "core-plans" } }' \
-    -H "Authorization:Bearer:${HAB_AUTH_TOKEN}"
-}
-
-job() {
-  curl POST http://localhost:9636/v1/jobs \
-    -d '{"project_id":"core/nginx"}' \
-    -H "Authorization:Bearer:${HAB_AUTH_TOKEN}"
-}
 
 # Cleanup any development touch files we laid down when checking to see if we could run NO_INSTALL_DEPS
 local_cleanup() {
