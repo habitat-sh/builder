@@ -1,0 +1,10 @@
+#!/bin/sh
+
+exec 2>&1
+
+source "{{pkg.svc_config_path}}/config.sh"
+
+exec minio server \
+--config-dir {{pkg.svc_config_path}} \
+{{pkg.svc_data_path}}
+

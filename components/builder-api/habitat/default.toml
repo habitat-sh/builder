@@ -27,3 +27,10 @@ jobsrv_enabled          = true
 [segment]
 url       = "https://api.segment.io"
 write_key = ""
+
+[s3]
+backend = "Minio"
+key_id = "DEFAULTKEYID"
+secret_key = "DEFAULTSECRETACCESSKEY"
+endpoint = "http://localhost:9000"
+bucket_name = "habitat-builder-dev-artifact-store.default"

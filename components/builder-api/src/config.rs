@@ -37,6 +37,7 @@ pub struct Config {
     pub oauth: OAuth2Cfg,
     pub github: GitHubCfg,
     pub segment: SegmentCfg,
+    pub s3: depot::config::S3Cfg,
     pub ui: UiCfg,
     /// Depot's configuration
     pub depot: depot::config::Config,
@@ -57,6 +58,7 @@ impl Default for Config {
             routers: vec![RouterAddr::default()],
             oauth: OAuth2Cfg::default(),
             github: GitHubCfg::default(),
+            s3: depot::config::S3Cfg::default(),
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
             depot: depot::config::Config::default(),
@@ -171,6 +173,13 @@ mod tests {
         client_id = "0c2f738a7d0bd300de10"
         client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
 
+        [s3]
+        backend = "Minio"
+        key_id = "AWSKEYIDORSOMETHING"
+        secret_key = "aW5S3c437Key7hIn817s7o7a11yN457y70Wr173L1k37h15"
+        endpoint = "http://localhost:9000"
+        bucket_name = "hibbity-bibbity-poopity-scoopity"
+
         [github]
         api_url = "https://api.github.com"
         "#;
@@ -193,6 +202,14 @@ mod tests {
         assert_eq!(config.github.api_url, "https://api.github.com");
         assert_eq!(config.ui.root, Some("/some/path".to_string()));
         assert_eq!(config.segment.url, "https://api.segment.io");
+        assert_eq!(config.s3.backend, "Minio");
+        assert_eq!(config.s3.key_id, "AWSKEYIDORSOMETHING");
+        assert_eq!(
+            config.s3.secret_key,
+            "aW5S3c437Key7hIn817s7o7a11yN457y70Wr173L1k37h15"
+        );
+        assert_eq!(config.s3.endpoint, "http://localhost:9000");
+        assert_eq!(config.s3.bucket_name, "hibbity-bibbity-poopity-scoopity");
     }
 
     #[test]

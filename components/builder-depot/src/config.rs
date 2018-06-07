@@ -18,6 +18,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use std::option::IntoIter;
 use std::path::PathBuf;
 
+use github_api_client::GitHubCfg;
 use hab_core::config::ConfigFile;
 use hab_core::os::system::{Architecture, Platform};
 use hab_core::package::PackageTarget;
@@ -32,6 +33,8 @@ pub struct Config {
     pub http: HttpCfg,
     /// List of net addresses for routing servers to connect to
     pub routers: Vec<RouterAddr>,
+    pub github: Option<GitHubCfg>,
+    pub s3: S3Cfg,
     pub segment: SegmentCfg,
     /// Filepath to location on disk to store entities
     pub path: PathBuf,
@@ -65,6 +68,8 @@ impl Default for Config {
         Config {
             http: HttpCfg::default(),
             routers: vec![RouterAddr::default()],
+            github: None,
+            s3: S3Cfg::default(),
             segment: SegmentCfg::default(),
             path: PathBuf::from("/hab/svc/builder-api/data"),
             events_enabled: false, // TODO: change to default to true later
@@ -94,6 +99,35 @@ impl GatewayCfg for Config {
 
     fn route_addrs(&self) -> &[RouterAddr] {
         self.routers.as_slice()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub enum S3Backend {
+    Aws,
+    Minio,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct S3Cfg {
+    // These are for using S3 as the artifact storage
+    pub key_id: String,
+    pub secret_key: String,
+    pub bucket_name: String,
+    pub backend: S3Backend,
+    pub endpoint: String,
+}
+
+impl Default for S3Cfg {
+    fn default() -> Self {
+        S3Cfg {
+            key_id: String::from("DEFAULTKEYID"),
+            secret_key: String::from("DEFAULTSECRETACCESSKEY"),
+            bucket_name: String::from("habitat-builder-dev-artifact-store.default"),
+            backend: S3Backend::Minio,
+            endpoint: String::from("http://localhost:9000"),
+        }
     }
 }
 

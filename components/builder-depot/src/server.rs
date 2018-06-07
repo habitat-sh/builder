@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{self, File};
+use std::fs::{self, remove_file, File};
 use std::io::{self, BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::result;
@@ -56,6 +56,7 @@ use url;
 use uuid::Uuid;
 
 use super::DepotUtil;
+use backend::{s3, s3::S3Cli};
 use config::Config;
 use error::{Error, Result};
 use handlers;
@@ -739,6 +740,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         let session = req.extensions.get::<Authenticated>().unwrap();
         (session.get_id(), session.get_name().to_string())
     };
+    let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
 
     // Sessions created via Personal Access Tokens only have ids, so we may need
     // to get the username explicitly.
@@ -776,7 +778,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 
     // Find the path to folder where archive should be created, and
     // create the folder if necessary
-    let parent_path = depot.archive_parent(&ident);
+    let parent_path = depot.packages_path();
 
     match fs::create_dir_all(parent_path.clone()) {
         Ok(_) => {}
@@ -830,7 +832,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     // archive on disk.
     let origin_package_found =
         match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
-            Ok(_) => true,
+            Ok(_) => return Ok(Response::with(status::Conflict)),
             Err(err) => {
                 if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
                     false
@@ -840,10 +842,6 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
             }
         };
 
-    if origin_package_found && depot.archive(&ident, &target_from_artifact).is_some() {
-        return Ok(Response::with(status::Conflict));
-    };
-
     let checksum_from_artifact = match archive.checksum() {
         Ok(cksum) => cksum,
         Err(e) => {
@@ -851,6 +849,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
             return Ok(Response::with((status::UnprocessableEntity, "ds:up:2")));
         }
     };
+
     if checksum_from_param != checksum_from_artifact {
         info!(
             "Checksums did not match: from_param={:?}, from_artifact={:?}",
@@ -867,6 +866,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     }
 
     let filename = depot.archive_path(&ident, &target_from_artifact);
+    let temp_ident = ident.to_owned().into();
 
     match fs::rename(&temp_path, &filename) {
         Ok(_) => {}
@@ -879,58 +879,78 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         }
     }
 
-    info!("File added to Depot at {}", filename.to_string_lossy());
-    let mut archive = PackageArchive::new(filename);
-    let mut package = match OriginPackageCreate::from_archive(&mut archive) {
-        Ok(package) => package,
-        Err(e) => {
-            info!("Error building package from archive: {:#?}", e);
-            return Ok(Response::with((status::UnprocessableEntity, "ds:up:5")));
-        }
-    };
+    if s3handler
+        .upload(&filename, &temp_ident, &target_from_artifact)
+        .is_err()
+    {
+        error!("Unable to upload archive to s3!");
+        return Ok(Response::with(status::InternalServerError));
+    } else {
+        info!("File added to Depot: {:?}", &filename);
+        let mut archive = PackageArchive::new(filename.clone());
+        let mut package = match OriginPackageCreate::from_archive(&mut archive) {
+            Ok(package) => package,
+            Err(e) => {
+                info!("Error building package from archive: {:#?}", e);
+                return Ok(Response::with((status::UnprocessableEntity, "ds:up:5")));
+            }
+        };
 
-    if !ident.satisfies(package.get_ident()) {
-        info!(
-            "Ident mismatch, expected={:?}, got={:?}",
-            ident,
-            package.get_ident()
-        );
-
-        return Ok(Response::with((status::UnprocessableEntity, "ds:up:6")));
-    }
-
-    let config = depot.clone();
-    let builder_flag = helpers::extract_query_value("builder", req);
-
-    match process_upload_for_package_archive(
-        &ident,
-        &mut package,
-        &target_from_artifact,
-        session_id,
-        session_name,
-        origin_package_found,
-        config,
-        builder_flag,
-    ) {
-        Ok(_) => {
-            let mut response = Response::with((
-                status::Created,
-                format!("/pkgs/{}/download", package.get_ident()),
-            ));
-            let mut base_url: url::Url = req.url.clone().into();
-            base_url.set_path(&format!("pkgs/{}/download", package.get_ident()));
-            response
-                .headers
-                .set(headers::Location(format!("{}", base_url)));
-            Ok(response)
-        }
-        Err(_) => {
+        if !ident.satisfies(package.get_ident()) {
             info!(
                 "Ident mismatch, expected={:?}, got={:?}",
                 ident,
                 package.get_ident()
             );
-            Ok(Response::with((status::UnprocessableEntity, "ds:up:6")))
+
+            return Ok(Response::with((status::UnprocessableEntity, "ds:up:6")));
+        }
+
+        let config = depot.clone();
+        let builder_flag = helpers::extract_query_value("builder", req);
+
+        match process_upload_for_package_archive(
+            &ident,
+            &mut package,
+            &target_from_artifact,
+            session_id,
+            session_name,
+            origin_package_found,
+            config,
+            builder_flag,
+        ) {
+            Ok(_) => {
+                let mut response = Response::with((
+                    status::Created,
+                    format!("/pkgs/{}/download", package.get_ident()),
+                ));
+                let mut base_url: url::Url = req.url.clone().into();
+                base_url.set_path(&format!("pkgs/{}/download", package.get_ident()));
+                response
+                    .headers
+                    .set(headers::Location(format!("{}", base_url)));
+
+                match remove_file(&filename) {
+                    Ok(_) => debug!(
+                        "Successfully removed cached file after upload. {:?}",
+                        &filename
+                    ),
+                    Err(e) => error!(
+                        "Failed to remove cached file after upload: {:?}, {}",
+                        &filename, e
+                    ),
+                }
+
+                Ok(response)
+            }
+            Err(_) => {
+                info!(
+                    "Ident mismatch, expected={:?}, got={:?}",
+                    ident,
+                    package.get_ident()
+                );
+                Ok(Response::with((status::UnprocessableEntity, "ds:up:6")))
+            }
         }
     }
 }
@@ -1219,12 +1239,13 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
         .expect("depot not found");
     let depot = lock.read().expect("depot read lock is poisoned");
     let session_id = helpers::get_optional_session_id(req);
+    let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
     let mut ident_req = OriginPackageGet::new();
     let ident = ident_from_req(req);
     let mut vis = visibility_for_optional_session(req, session_id, &ident.get_origin());
     vis.push(OriginPackageVisibility::Hidden);
     ident_req.set_visibilities(vis);
-    ident_req.set_ident(ident);
+    ident_req.set_ident(ident.clone());
 
     let target = target_from_req(req);
     if !depot.targets.contains(&target) {
@@ -1236,6 +1257,15 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
 
     match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
         Ok(package) => {
+            let temp_path = depot.archive_path(package.get_ident(), &target);
+            let temp_ident = ident.to_owned().into();
+            match s3handler.download(&temp_path, &temp_ident, &target) {
+                Ok(_target) => {
+                    Response::with(status::Ok);
+                    _target
+                }
+                Err(_) => return Ok(Response::with(status::NotFound)),
+            }
             if let Some(archive) = depot.archive(package.get_ident(), &target) {
                 match fs::metadata(&archive.path) {
                     Ok(_) => download_response_for_archive(archive),
@@ -2364,7 +2394,7 @@ pub fn download_package_from_upstream_depot(
     channel: Option<String>,
     target: Option<String>,
 ) -> Result<OriginPackage> {
-    let parent_path = depot.archive_parent(&ident);
+    let parent_path = depot.packages_path();
 
     match fs::create_dir_all(parent_path.clone()) {
         Ok(_) => {}
@@ -2479,7 +2509,10 @@ pub fn download_package_from_upstream_depot(
                 }
             } else {
                 if channel.is_some() {
-                    info!("Installing packages from an upstream depot and the channel wasn't stable. Instead, it was {}", channel.unwrap());
+                    info!(
+                        "Installing packages from an upstream depot and the channel wasn't stable. Instead, it was {}",
+                        channel.unwrap()
+                    );
                 }
 
                 match OriginPackage::from_archive(&mut archive) {
@@ -2513,6 +2546,7 @@ fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response
     };
     response.headers.set(disp);
     response.headers.set(XFileName(archive.file_name()));
+    let _cleanup = remove_file(&archive.path);
     Ok(response)
 }
 
@@ -2814,6 +2848,10 @@ pub fn router(depot: Config) -> Result<Chain> {
 
     chain.link(persistent::Read::<SegmentCli>::both(SegmentClient::new(
         depot.segment.clone(),
+    )));
+
+    chain.link(persistent::Read::<S3Cli>::both(s3::S3Handler::new(
+        depot.s3.to_owned(),
     )));
 
     UpstreamMgr::start(&depot)?;

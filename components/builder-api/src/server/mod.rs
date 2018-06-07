@@ -58,6 +58,7 @@ impl HttpGateway for ApiSrv {
     fn mount(config: Arc<Self::Config>, chain: iron::Chain) -> Mount {
         let mut depot_config = config.depot.clone();
         depot_config.segment = config.segment.clone();
+        depot_config.s3 = config.s3.clone();
         let depot_chain = depot::server::router(depot_config).unwrap();
         let mut mount = Mount::new();
         if let Some(ref path) = config.ui.root {

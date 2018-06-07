@@ -25,6 +25,7 @@ use hab_net;
 use hyper;
 use iron;
 use protobuf;
+use rusoto_s3;
 use zmq;
 
 #[derive(Debug)]
@@ -32,19 +33,27 @@ pub enum Error {
     BadPort(String),
     ChannelAlreadyExists(String),
     ChannelDoesNotExist(String),
+    CreateBucketError(rusoto_s3::CreateBucketError),
     DepotClientError(depot_client::Error),
     HabitatCore(hab_core::Error),
     HabitatNet(hab_net::error::LibError),
-    NetError(hab_net::NetError),
     HTTP(hyper::status::StatusCode),
     InvalidPackageIdent(String),
     IO(io::Error),
     IronResponse(iron::response::Response),
+    ListBuckets(rusoto_s3::ListBucketsError),
     MessageTypeNotFound,
+    MultipartCompletion(rusoto_s3::CompleteMultipartUploadError),
+    MultipartUploadReq(rusoto_s3::CreateMultipartUploadError),
+    NetError(hab_net::NetError),
     NoXFilename,
     NoFilePart,
     NulError(ffi::NulError),
+    ObjectError(rusoto_s3::ListObjectsError),
     PackageIsAlreadyInChannel(String, String),
+    PackageUpload(rusoto_s3::PutObjectError),
+    PackageDownload(rusoto_s3::GetObjectError),
+    PartialUpload(rusoto_s3::UploadPartError),
     Protobuf(protobuf::ProtobufError),
     RemotePackageNotFound(package::PackageIdent),
     UnsupportedPlatform(String),
@@ -60,6 +69,7 @@ impl fmt::Display for Error {
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::ChannelAlreadyExists(ref e) => format!("{} already exists.", e),
             Error::ChannelDoesNotExist(ref e) => format!("{} does not exist.", e),
+            Error::CreateBucketError(ref e) => format!("{}", e),
             Error::DepotClientError(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::HabitatNet(ref e) => format!("{}", e),
@@ -73,7 +83,10 @@ impl fmt::Display for Error {
             Error::IronResponse(ref e) => {
                 format!("HTTP Response {}", e.status.unwrap().to_string())
             }
+            Error::ListBuckets(ref e) => format!("{}", e),
             Error::MessageTypeNotFound => format!("Unable to find message for given type"),
+            Error::MultipartCompletion(ref e) => format!("{}", e),
+            Error::MultipartUploadReq(ref e) => format!("{}", e),
             Error::NetError(ref e) => format!("{}", e),
             Error::NoXFilename => {
                 format!("Invalid download from Builder - missing X-Filename header")
@@ -83,9 +96,13 @@ impl fmt::Display for Error {
                  not have one"
             ),
             Error::NulError(ref e) => format!("{}", e),
+            Error::ObjectError(ref e) => format!("{}", e),
             Error::PackageIsAlreadyInChannel(ref p, ref c) => {
                 format!("{} is already in the {} channel.", p, c)
             }
+            Error::PackageUpload(ref e) => format!("{}", e),
+            Error::PackageDownload(ref e) => format!("{}", e),
+            Error::PartialUpload(ref e) => format!("{}", e),
             Error::Protobuf(ref e) => format!("{}", e),
             Error::RemotePackageNotFound(ref pkg) => {
                 if pkg.fully_qualified() {
@@ -112,6 +129,7 @@ impl error::Error for Error {
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::ChannelAlreadyExists(_) => "Channel already exists.",
             Error::ChannelDoesNotExist(_) => "Channel does not exist.",
+            Error::CreateBucketError(ref err) => err.description(),
             Error::DepotClientError(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),
             Error::HabitatNet(ref err) => err.description(),
@@ -121,11 +139,18 @@ impl error::Error for Error {
             }
             Error::IO(ref err) => err.description(),
             Error::IronResponse(_) => "HTTP Response",
+            Error::ListBuckets(ref err) => err.description(),
+            Error::MultipartCompletion(ref err) => err.description(),
+            Error::MultipartUploadReq(ref err) => err.description(),
             Error::NetError(ref err) => err.description(),
             Error::NulError(_) => {
                 "An attempt was made to build a CString with a null byte inside it"
             }
+            Error::ObjectError(ref err) => err.description(),
             Error::PackageIsAlreadyInChannel(_, _) => "Package is already in channel",
+            Error::PackageUpload(ref err) => err.description(),
+            Error::PackageDownload(ref err) => err.description(),
+            Error::PartialUpload(ref err) => err.description(),
             Error::Protobuf(ref err) => err.description(),
             Error::RemotePackageNotFound(_) => "Cannot find a package in any sources",
             Error::NoXFilename => "Invalid download from Builder - missing X-Filename header",
