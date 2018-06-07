@@ -102,6 +102,7 @@ resource "null_resource" "api_provision" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
+      "sudo /tmp/install_base_packages.sh habitat/builder-api",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
