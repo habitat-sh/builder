@@ -16,6 +16,12 @@ else
   exit 1
 fi
 
+mkdir -p /hab/svc/builder-minio
+cat <<EOT > /hab/svc/builder-minio/user.toml
+key_id = "depot"
+secret_key = "password"
+EOT
+
 mkdir -p /hab/svc/builder-router
 cat <<EOT > /hab/svc/builder-router/user.toml
 log_level = "info"

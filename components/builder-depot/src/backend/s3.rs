@@ -239,7 +239,7 @@ impl S3Handler {
                 let mut part_num: i64 = 0;
                 let mut should_break = false;
                 loop {
-                    let mut length = 0;
+                    let mut length;
                     {
                         let buffer = reader.fill_buf()?;
                         length = buffer.len();

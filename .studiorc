@@ -69,6 +69,7 @@ install-packages() {
   core/procps-ng \
   core/shadow \
   core/curl \
+  core/aws-cli \
   -b -c stable
 }
 
@@ -92,7 +93,7 @@ _build-builder() {
   fi
 
   if [[ "$#" -eq 0 ]]; then
-    build-builder api jobsrv originsrv router sessionsrv worker minio
+    build-builder api jobsrv originsrv router sessionsrv worker
     return $?
   fi
 
@@ -103,7 +104,7 @@ _build-builder() {
 build-builder() { stop-on-failure _build-builder "$@"; }
 
 ui-dev-mode() {
-  for svc in sessionsrv worker api originsrv minio; do
+  for svc in sessionsrv worker api originsrv; do
   cat <<CONFIG | hab config apply builder-${svc}.default "$(date +%s)"
 [github]
 client_id = "Iv1.732260b62f84db15"
@@ -115,7 +116,7 @@ done
 
 upload_github_keys() {
   if [[ -f "/src/.secrets/builder-github-app.pem" ]]; then
-    for svc in sessionsrv worker api originsrv minio; do
+    for svc in sessionsrv worker api originsrv; do
       hab file upload "builder-${svc}.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
     done
   else
@@ -141,14 +142,15 @@ _start-builder() {
     start-builder sessionsrv
     start-builder worker
     start-builder minio
+    configure-minio
     sleep 2
     generate_bldr_keys
     upload_github_keys
-    configure-minio
+
     echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
     echo "Minio login available at http://localhost:9000"
-    echo "Username: DEFAULTKEYID"
-    echo "Password: DEFAULTSECRETACCESSKEY"
+    echo "Username: depot"
+    echo "Password: password"
     echo "AWS-CLI ENVVARS have been set with these values"
     return $?
   fi
@@ -188,17 +190,14 @@ if hab sup status habitat/builder-datastore | grep "habitat/builder-datastore" >
 }
 
 configure-minio() {
- if hab svc status habitat/builder-minio | grep "habitat/builder-minio" > /dev/null; then
-   echo "habitat/builder-minio is already loaded"
-   hab pkg install -bf core/aws-cli
-   export AWS_ACCESS_KEY_ID="DEFAULTKEYID"
-   export AWS_SECRET_ACCESS_KEY="DEFAULTSECRETACCESSKEY"
-   aws --endpoint-url http://localhost:9000 s3api create-bucket --bucket "habitat-builder-dev-artifact-store.default"
-   echo "Default bucket created successfully with dev credentials"
- else
-     hab svc load habitat/builder-minio
-     start-minio
- fi
+   export AWS_ACCESS_KEY_ID="depot"
+   export AWS_SECRET_ACCESS_KEY="password"
+   if aws --endpoint-url http://localhost:9000 s3api list-buckets | grep "habitat-builder-artifact-store.default" > /dev/null; then
+     echo "Minio already configured"
+   else
+     echo "Creating bucket in Minio"
+     aws --endpoint-url http://localhost:9000 s3api create-bucket --bucket "habitat-builder-artifact-store.default"
+   fi
 }
 
 start-cache() {

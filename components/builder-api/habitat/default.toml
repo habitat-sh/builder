@@ -30,7 +30,7 @@ write_key = ""
 
 [s3]
 backend = "Minio"
-key_id = "DEFAULTKEYID"
-secret_key = "DEFAULTSECRETACCESSKEY"
+key_id = "depot"
+secret_key = "depot"
 endpoint = "http://localhost:9000"
-bucket_name = "habitat-builder-dev-artifact-store.default"
+bucket_name = "habitat-builder-artifact-store.default"
