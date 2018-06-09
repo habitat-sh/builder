@@ -1,4 +1,4 @@
-key_id = "DEFAULTKEYID"
-secret_key = "DEFAULTSECRETACCESSKEY"
+key_id = "depot"
+secret_key = "password"
 use_ssl = false
 gen_cert = false

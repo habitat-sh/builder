@@ -102,7 +102,7 @@ impl GatewayCfg for Config {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub enum S3Backend {
     Aws,
     Minio,
@@ -122,9 +122,9 @@ pub struct S3Cfg {
 impl Default for S3Cfg {
     fn default() -> Self {
         S3Cfg {
-            key_id: String::from("DEFAULTKEYID"),
-            secret_key: String::from("DEFAULTSECRETACCESSKEY"),
-            bucket_name: String::from("habitat-builder-dev-artifact-store.default"),
+            key_id: String::from("depot"),
+            secret_key: String::from("password"),
+            bucket_name: String::from("habitat-builder-artifact-store.default"),
             backend: S3Backend::Minio,
             endpoint: String::from("http://localhost:9000"),
         }
@@ -187,6 +187,11 @@ mod tests {
         listen = "127.0.0.1"
         port = 9000
 
+        [s3]
+        backend = "Aws"
+        endpoint = "https://aws"
+        bucket_name = "mybucket"
+
         [[routers]]
         host = "172.18.0.2"
         port = 9001
@@ -208,6 +213,12 @@ mod tests {
             config.upstream_origins,
             vec!["foo".to_string(), "bar".to_string()]
         );
+        assert_eq!(config.s3.backend, S3Backend::Aws);
+        assert_eq!(config.s3.key_id, "depot".to_string());
+        assert_eq!(config.s3.secret_key, "password".to_string());
+        assert_eq!(config.s3.endpoint, "https://aws".to_string());
+        assert_eq!(config.s3.bucket_name, "mybucket".to_string());
+
         assert_eq!(&format!("{}", config.http.listen), "127.0.0.1");
         assert_eq!(config.http.port, 9000);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9001");
