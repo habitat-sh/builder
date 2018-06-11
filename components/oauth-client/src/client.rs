@@ -18,6 +18,7 @@ use reqwest::{self, header};
 use std::env;
 use types::*;
 
+use active_directory::ActiveDirectory;
 use azure_ad::AzureAD;
 use bitbucket::Bitbucket;
 use builder_core::metrics::CounterMetric;
@@ -60,6 +61,7 @@ impl OAuth2Client {
         }
 
         let provider: Box<OAuth2Provider> = match &config.provider[..] {
+            "active-directory" => Box::new(ActiveDirectory),
             "azure-ad" => Box::new(AzureAD),
             "github" => Box::new(GitHub),
             "gitlab" => Box::new(GitLab),
