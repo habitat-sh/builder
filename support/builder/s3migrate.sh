@@ -25,7 +25,7 @@ keyMsg() {
 
 uploadMsg() {
     echo ""
-    echo "Uploading hartfile."
+    echo "Uploading hartfiles."
     echo "======================================"
 }
 
@@ -57,12 +57,9 @@ uploadHarts() {
         echo "Exiting!"
         exit 1
     fi
-        keyMsg
-    for hart in "${artifacts[@]}"; do
-        uploadMsg
-        keyId=$(generateKey "${hart}")
-        putArtifacts "${hart}" "${S3_BUCKET}" "${AWS_REGION}" "${keyId}"
-    done
+    keyMsg
+    uploadMsg
+    putArtifacts "/hab/svc/builder-api/data/pkgs/" "${S3_BUCKET}" "${AWS_REGION}"
     echo ""
     echo "########################################"
     echo "${#artifacts[@]} Artifacts have been migrated to s3!"
@@ -74,7 +71,7 @@ installDeps() {
     # We use aws-cli to handle the actual upload.
     # but we also need jq to parse the pkg info
 
-    PDEPS=("core/aws-cli" "core/jq-static")
+    PDEPS=("core/aws-cli" "core/jq-static" "habitat/s3-bulk-uploader")
 
     configMsg
 
@@ -83,28 +80,6 @@ installDeps() {
     done
 }
 
-generateKey() {
-    # Generates the s3 item key from the hartfile
-    FILEIN="${1}"
-    BASE="${FILEIN##*/}"
-
-    # Get the
-    MAIN=$(hab pkg info -j "${FILEIN}" | jq -r '. | .origin + "/" + .name + "/" + .version + "/" + .release ')
-    ARCH="x86_64"
-
-    SYSTEMS=("linux" "windows")
-    for sys in "${SYSTEMS[@]}"; do
-        if  [[ "${FILEIN}" = *"${sys}"* ]]; then
-            SYSTEM="${sys}"
-        fi
-    done
-
-    if [ -z "${SYSTEM}" ]; then
-        return 1
-    else
-        echo "${MAIN}/${ARCH}/${SYSTEM}/${BASE}"
-    fi
-}
 setBucket() {
     # Configure the bucket name to use for the upload
     echo ""
@@ -197,23 +172,27 @@ setRegion() {
 
 putArtifacts() {
     # handles the literal upload of artifacts to the configured s3 bucket
-    BODY="${1}"
+    DIR=${1}
     BUCKET="${2}"
     REGION="${3}"
-    KEY="${4}"
 
     # upload shellout
     if [  "${s3type}" == 'minio' ]; then
         echo ""
-        aws --endpoint-url "${REGION}" s3 cp "${BODY}" s3://"${BUCKET}/${KEY}"
+        s3-bulk-uploader -endpoint="${REGION}" -sourcedir="${DIR}" -bucket="${BUCKET}"
     else
         echo ""
-        aws s3api put-object --bucket "${BUCKET}" --key "${KEY}"  --body "${BODY}" --region "${REGION}"
+        s3-bulk-uploader -backend="aws" -region="${REGION}" -sourcedir="${DIR}" -bucket="${BUCKET}"
+#
     fi
 }
 
 genS3Config() {
-    aws configure
+    echo ""
+    read -r -p "AWS Access Key ID: " access_key_id
+        export AWS_SECRET_ACCESS_KEY="${secret_access_key}"
+    read -r -p "AWS Secret Access Key: " secret_access_key
+        export AWS_SECRET_ACCESS_KEY="${secret_access_key}"
 }
 
 credSelect() {
@@ -264,7 +243,7 @@ credCheck(){
         fi
     done
 
-    if  [ ${credsConfigured} ]; then
+    if  "${credsConfigured}" ; then
         echo ""
         echo "Credentials configured!"
     else
@@ -363,7 +342,7 @@ case ${1} in
         setRegion
         setBucket
         getHarts "${artifact_dir}"
-        uploadHarts
+        time uploadHarts
     ;;
     'aws')
         echo "Starting migration to AWS S3."
@@ -373,7 +352,7 @@ case ${1} in
         setRegion
         setBucket
         getHarts "${artifact_dir}"
-        uploadHarts
+        time uploadHarts
     ;;
     *) echo "Invalid argument. Arg must be 'minio' or 'aws'"
         exit 1
