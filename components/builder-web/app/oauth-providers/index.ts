@@ -1,9 +1,10 @@
 enum OAuthProviderType {
+  ActiveDirectory = 'active-directory',
   AzureAD = 'azure-ad',
   GitHub = 'github',
   GitLab = 'gitlab',
   Bitbucket = 'bitbucket',
-  Okta = 'okta'
+  Okta = 'okta',
 }
 
 export abstract class OAuthProvider {
@@ -43,6 +44,8 @@ export abstract class OAuthProvider {
 
   static fromConfig(type: string, clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string): OAuthProvider {
     switch (type) {
+      case OAuthProviderType.ActiveDirectory:
+        return new ActiveDirectoryProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.AzureAD:
         return new AzureADProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.GitHub:
@@ -60,6 +63,29 @@ export abstract class OAuthProvider {
       default:
         console.error(`Unsupported OAuth provider '${type}'. Supported providers are ${OAuthProvider.providers}.`);
     }
+  }
+}
+
+class ActiveDirectoryProvider extends OAuthProvider {
+  name: string = 'Active Directory';
+
+  constructor(clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string) {
+    super(
+      OAuthProviderType.ActiveDirectory,
+      clientID,
+      authorizeUrl,
+      redirectUrl,
+      signupUrl,
+      true,
+      {
+        client_id: clientID,
+        redirect_uri: redirectUrl,
+        response_type: 'code',
+        state: state,
+        scope: 'openid',
+        nonce: 0 // Ok since we're not using id_token
+      }
+    );
   }
 }
 
