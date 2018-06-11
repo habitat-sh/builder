@@ -29,8 +29,8 @@ url       = "https://api.segment.io"
 write_key = ""
 
 [s3]
-backend = "Minio"
+backend = "minio"
 key_id = "depot"
-secret_key = "depot"
+secret_key = "password"
 endpoint = "http://localhost:9000"
 bucket_name = "habitat-builder-artifact-store.default"

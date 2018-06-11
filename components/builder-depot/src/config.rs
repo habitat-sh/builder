@@ -103,6 +103,7 @@ impl GatewayCfg for Config {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum S3Backend {
     Aws,
     Minio,
@@ -188,7 +189,7 @@ mod tests {
         port = 9000
 
         [s3]
-        backend = "Aws"
+        backend = "aws"
         endpoint = "https://aws"
         bucket_name = "mybucket"
 
