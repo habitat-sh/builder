@@ -190,7 +190,7 @@ putArtifacts() {
 genS3Config() {
     echo ""
     read -r -p "AWS Access Key ID: " access_key_id
-        export AWS_SECRET_ACCESS_KEY="${secret_access_key}"
+        export AWS_ACCESS_KEY_ID="${access_key_id}"
     read -r -p "AWS Secret Access Key: " secret_access_key
         export AWS_SECRET_ACCESS_KEY="${secret_access_key}"
 }
