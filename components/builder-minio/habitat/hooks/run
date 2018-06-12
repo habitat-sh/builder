@@ -2,7 +2,8 @@
 
 exec 2>&1
 
-source "{{pkg.svc_config_path}}/config.sh"
+export MINIO_ACCESS_KEY="{{cfg.key_id}}"
+export MINIO_SECRET_KEY="{{cfg.secret_key}}"
 
 exec minio server \
 --config-dir {{pkg.svc_config_path}} \
