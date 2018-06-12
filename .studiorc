@@ -172,7 +172,7 @@ start-builder() { stop-on-failure _start-builder "$@"; }
 _load-if-not-loaded() {
   local pkg_ident
   pkg_ident=$1
-  if hab sup status "$pkg_ident" | grep "$pkg_ident" > /dev/null; then
+  if hab sup status "$pkg_ident" > /dev/null; then
     echo "$pkg_ident is already loaded"
   else
     hab svc load "$@"
@@ -181,7 +181,7 @@ _load-if-not-loaded() {
 load-if-not-loaded() { stop-on-failure _load-if-not-loaded "$@"; }
 
 start-datastore() {
-if hab sup status habitat/builder-datastore | grep "habitat/builder-datastore" > /dev/null; then
+if hab sup status habitat/builder-datastore > /dev/null; then
     echo "habitat/builder-datastore is already loaded"
   else
     init-datastore
