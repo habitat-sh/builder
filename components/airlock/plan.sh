@@ -1,3 +1,4 @@
+# shellcheck disable=2034
 pkg_name=airlock
 pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
@@ -18,6 +19,7 @@ do_before() {
   update_pkg_version
 }
 
+# shellcheck disable=2154
 _common_prepare() {
   do_default_prepare
 
@@ -42,7 +44,8 @@ do_prepare() {
   # Used to find libgcc_s.so.1 when compiling `build.rs` in dependencies. Since
   # this used only at build time, we will use the version found in the gcc
   # package proper--it won't find its way into the final binaries.
-  export LD_LIBRARY_PATH=$(pkg_path_for gcc)/lib
+  export LD_LIBRARY_PATH
+  LD_LIBRARY_PATH=$(pkg_path_for gcc)/lib
   build_line "Setting LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 }
 
@@ -51,8 +54,9 @@ do_build() {
 }
 
 do_install() {
-  install -v -D $CARGO_TARGET_DIR/$rustc_target/${build_type#--}/$bin \
-    $pkg_prefix/bin/$bin
+  # shellcheck disable=2154
+  install -v -D "$CARGO_TARGET_DIR"/$rustc_target/${build_type#--}/$bin \
+    "$pkg_prefix"/bin/$bin
 }
 
 do_strip() {

@@ -5,8 +5,10 @@ environment=${1}
 airlock_interface="ens4"
 ns_dir="/hab/svc/builder-worker/data/network/airlock-ns"
 
+# shellcheck disable=2013
 for worker in $(grep "Host ${environment}-builder-worker" ~/.ssh/config | awk '{print $2}' | sort); do
     echo "Worker ${worker}"
+    # shellcheck disable=2029
     if ssh "$worker" sudo test -d "${ns_dir}"; then
       # The Airlock network namespace is created
       output="$(ssh "$worker" sudo nsenter --user="$ns_dir/userns" --net="$ns_dir/netns" ip address show dev "$airlock_interface" | grep 'inet ')"

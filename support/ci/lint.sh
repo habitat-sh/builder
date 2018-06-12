@@ -13,10 +13,10 @@ fi
 info() {
   case "${TERM:-}" in
     *term | xterm-* | rxvt | screen | screen-*)
-      printf -- "   \033[1;32m${program}: \033[1;37m$1\033[0m\n"
+      printf -- "   \033[1;32m%s: \033[1;37m%s\033[0m\n" "${program}" "$1"
       ;;
     *)
-      printf -- "   ${program}: $1\n"
+      printf -- "   %s: %s\n" "${program}" "$1"
       ;;
   esac
   return 0
@@ -28,6 +28,7 @@ warn() {
       >&2 echo -e "   \033[1;32m${program}: \033[1;33mWARN \033[1;37m$1\033[0m"
       ;;
     *)
+      # shellcheck disable=2154
       >&2 echo "   ${pkg_name}: WARN $1"
       ;;
   esac
@@ -37,16 +38,16 @@ warn() {
 exit_with() {
   case "${TERM:-}" in
     *term | xterm-* | rxvt | screen | screen-*)
-      >&2 printf -- "\033[1;31mERROR: \033[1;37m$1\033[0m\n"
+      >&2 printf -- "\033[1;31mERROR: \033[1;37m%s\033[0m\n" "$1"
       ;;
     *)
-      >&2 printf -- "ERROR: $1\n"
+      >&2 printf -- "ERROR: %s\n" "$1"
       ;;
   esac
-  exit $2
+  exit "$2"
 }
 
-program=$(basename $0)
+program=$(basename "$0")
 
 # Fix commit range in Travis, if set.
 # See: https://github.com/travis-ci/travis-ci/issues/4596
@@ -70,8 +71,9 @@ if ! command -v rustfmt >/dev/null; then
   exit_with "Program \`rustfmt' not found on PATH, aborting" 1
 fi
 
-failed="$(mktemp -t "$(basename $0)-failed-XXXX")"
-trap 'code=$?; rm -f $failed; exit $code' INT TERM EXIT
+failed="$(mktemp -t "$(basename "$0")-failed-XXXX")"
+# shellcheck disable=2154
+trap 'code=$?; rm -f "$failed"; exit $code' INT TERM EXIT
 
 if [[ -n "${LINT_ALL:-}" ]]; then
   cmd="find components -type f -name '*.rs'"
@@ -88,7 +90,7 @@ else
   info "Selecting files from Git via: '$cmd'"
 fi
 
-eval "$cmd" | while read file; do
+eval "$cmd" | while read -r file; do
   case "${file##*.}" in
     rs)
       if [ ! -e "$file" ]; then
@@ -107,7 +109,7 @@ eval "$cmd" | while read file; do
       case $rf_exit in
         0|3)
           if echo "$output" | grep -q "Diff at line " >/dev/null; then
-            warn "File $file generates a diff after running rustfmt $rf_version"
+            warn "File $file generates a diff after running rustfmt"
             warn "Perhaps you forgot to run \`rustfmt' or \`cargo fmt'?"
             warn "Diff for $file:"
             echo "$output"
@@ -131,13 +133,13 @@ eval "$cmd" | while read file; do
   esac
 done
 
-if [[ $(cat "$failed" | wc -l) -gt 0 ]]; then
+if [[ $(wc -l < "$failed") -gt 0 ]]; then
   echo
   echo
   warn "Summary: One or more files failed linting:"
-  cat "$failed" | while read file; do
+  while read -r file; do
     warn "  * $file"
-  done
+  done < "$failed"
   exit_with "File(s) failed linting" 10
 else
   info "Summary: All checked files passed their lints."
