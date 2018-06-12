@@ -62,7 +62,7 @@ uploadHarts() {
     putArtifacts "/hab/svc/builder-api/data/pkgs/" "${S3_BUCKET}" "${AWS_REGION}"
     echo ""
     echo "########################################"
-    echo "${#artifacts[@]} Artifacts have been migrated to s3!"
+    echo "${#artifacts[@]} Artifacts have been migrated to ${s3type}!"
     echo "########################################"
     echo ""
 }
@@ -82,15 +82,36 @@ installDeps() {
 
 setBucket() {
     # Configure the bucket name to use for the upload
-    echo ""
-    echo "==========================================================="
-    echo "Please enter a target bucket name and press [ENTER]:"
-    read bucket_name
+    sgroups=("default" "dev" "prod" "acceptance" "live" "blue" "green")
+    for i in "${sgroups[@]}"; do
+        if curl -s localhost:9631/services/builder-api/"${i}" > /dev/null; then
+            bucket_name=$(curl -s localhost:9631/services/builder-api/"${i}" | jq .cfg.s3.bucket_name)
+            if [[ -n $bucket_name ]]; then
+                echo ""
+                echo "We've detected your minio bucket configuration set to: ${bucket_name}!"
+                read -r -p "Would you like to use this minio bucket? [y/N] " response
+                if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+                    echo "Setting bucket to ${bucket_name}"
+                    bucket_name="${bucket_name//\"}"
+                    break
+                fi
+            fi
+        fi
+    done
+
+    if [[ -z ${bucket_name} ]]; then
+      echo ""
+      echo "Please enter a target bucket name and press [ENTER]:"
+      read bucket_name
+    fi
+
     # Check if bucket exists, if so create it, if not continue using existing bucket
     if [ "${s3type}" == 'minio' ]; then
         if checkBucket "${AWS_REGION}" "${bucket_name}" >/dev/null; then
+            echo ""
             echo "Bucket: ${bucket_name} found!"
-            echo "WARNING: Specified bucket is not empty!"
+            echo "WARNING: Specified bucket already exists in minio!"
+            echo ""
             read -r -p "Are you sure you would like to use this bucket? [y/N] " response
             if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
                 echo "Using specified bucket."
@@ -99,7 +120,6 @@ setBucket() {
                 setBucket
             fi
         else
-            echo "Bucket: ${bucket_name} not found!"
             echo "Creating bucket: ${bucket_name}"
             aws --endpoint-url "${AWS_REGION}" s3api create-bucket --bucket "${bucket_name}"
             export S3_BUCKET=${bucket_name}
@@ -137,7 +157,9 @@ setRegion() {
         for i in "${sgroups[@]}"; do
             if curl -s localhost:9631/services/builder-minio/"${i}" > /dev/null; then
                 minioIP=$(curl -s localhost:9631/services/builder-minio/"${i}" | jq .sys.ip)
+                echo ""
                 echo "We've detected your minio instance at: ${minioIP}!"
+                echo ""
                 read -r -p "Would you like to use this minio instance? [y/N] " response
                 if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
                     echo "Setting endpoint to ${minioIP//\"}:9000"
@@ -177,7 +199,7 @@ putArtifacts() {
     REGION="${3}"
 
     # upload shellout
-    if [  "${s3type}" == 'minio' ]; then
+    if [ "${s3type}" == 'minio' ]; then
         echo ""
         s3-bulk-uploader -endpoint="${REGION}" -sourcedir="${DIR}" -bucket="${BUCKET}"
     else
@@ -261,11 +283,13 @@ credCheck(){
 }
 
 welcome() {
+    echo ""
     echo "==========================================================="
     echo "###########################################################"
     echo "################ Bldr Artifact S3 Migrate #################"
     echo "###########################################################"
     echo "==========================================================="
+    echo ""
     echo "This tool will migrate all of the locally stored packages to s3/minio."
     echo "You must have your AWS/Minio credentials configured on the system."
     credsConfigured=false
@@ -280,8 +304,10 @@ welcome() {
                 echo "We were able to detect your minio credentials!"
                 echo "(ACCESS_KEY_ID) Username: ${access_key_id}"
                 echo "(SECRET ACCESS_KEY) Password: ${secret_access_key}"
+                echo ""
                 read -r -p "Would you like to use these credentials? [y/N] " response
                     if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+                        echo "Setting detected credentials"
                         export AWS_ACCESS_KEY_ID=${access_key_id//\"}
                         export AWS_SECRET_ACCESS_KEY=${secret_access_key//\"}
                         return
