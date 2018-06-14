@@ -273,6 +273,10 @@ lazy_static! {
             MyOriginsRequest::descriptor_static(None),
             handlers::my_origins,
         );
+        map.register(
+            PackageChannelAudit::descriptor_static(None),
+            handlers::package_channel_audit,
+        );
         map
     };
 }

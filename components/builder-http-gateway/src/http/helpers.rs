@@ -34,7 +34,7 @@ use protocol::originsrv::{CheckOriginAccessRequest, CheckOriginAccessResponse,
                           OriginPackageChannelListResponse, OriginPackageGet,
                           OriginPackageGroupDemote, OriginPackageGroupPromote, OriginPackageIdent,
                           OriginPackagePlatformListRequest, OriginPackagePlatformListResponse,
-                          OriginPackagePromote, OriginPackageVisibility, OriginPrivateSigningKey,
+                          OriginPackageVisibility, OriginPrivateSigningKey,
                           OriginPrivateSigningKeyCreate, OriginPublicSigningKey,
                           OriginPublicSigningKeyCreate};
 use protocol::sessionsrv::{Account, AccountGetId};
@@ -325,35 +325,6 @@ pub fn create_channel(req: &mut Request, origin: &str, channel: &str) -> NetResu
     route_message::<OriginChannelCreate, OriginChannel>(req, &request)
 }
 
-pub fn promote_package_to_channel(
-    req: &mut Request,
-    ident: &OriginPackageIdent,
-    channel: &str,
-) -> NetResult<NetOk> {
-    if !check_origin_access(req, ident.get_origin()).unwrap_or(false) {
-        return Err(NetError::new(
-            ErrCode::ACCESS_DENIED,
-            "core:promote-package-to-channel:0",
-        ));
-    }
-
-    let mut channel_req = OriginChannelGet::new();
-    channel_req.set_origin_name(ident.get_origin().to_string());
-    channel_req.set_name(channel.to_string());
-
-    let origin_channel = route_message::<OriginChannelGet, OriginChannel>(req, &channel_req)?;
-    let mut request = OriginPackageGet::new();
-    request.set_ident(ident.clone());
-    request.set_visibilities(all_visibilities());
-
-    let package = route_message::<OriginPackageGet, OriginPackage>(req, &request)?;
-    let mut promote = OriginPackagePromote::new();
-    promote.set_channel_id(origin_channel.get_id());
-    promote.set_package_id(package.get_id());
-    promote.set_ident(ident.clone());
-    route_message::<OriginPackagePromote, NetOk>(req, &promote)
-}
-
 pub fn promote_or_demote_job_group(
     req: &mut Request,
     group_id: u64,
@@ -484,7 +455,8 @@ pub fn trigger_from_request(req: &mut Request) -> JobGroupTrigger {
     // TODO: the search strings should be configurable.
     if user_agent.starts_with("hab/") {
         JobGroupTrigger::HabClient
-    } else if referer.contains("habitat.sh") {
+    // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
+    } else if referer.contains("http") {
         JobGroupTrigger::BuilderUI
     } else {
         JobGroupTrigger::Unknown

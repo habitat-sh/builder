@@ -116,6 +116,25 @@ impl DataStore {
         async_thread.start(4);
     }
 
+    pub fn package_channel_audit(&self, pca: &originsrv::PackageChannelAudit) -> SrvResult<()> {
+        let conn = self.pool.get(pca)?;
+
+        &conn.query(
+            "SELECT * FROM add_audit_entry_v1($1, $2, $3, $4, $5, $6, $7)",
+            &[
+                &(pca.get_origin_id() as i64),
+                &(pca.get_package_id() as i64),
+                &(pca.get_channel_id() as i64),
+                &(pca.get_operation() as i16),
+                &(pca.get_trigger() as i16),
+                &(pca.get_requester_id() as i64),
+                &pca.get_requester_name().to_string(),
+            ],
+        ).map_err(SrvError::PackageChannelAudit)?;
+
+        Ok(())
+    }
+
     pub fn update_origin_package(&self, opu: &originsrv::OriginPackageUpdate) -> SrvResult<()> {
         let conn = self.pool.get(opu)?;
         let pkg = opu.get_pkg();

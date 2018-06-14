@@ -15,6 +15,27 @@ message AccountInvitationListResponse {
   repeated OriginInvitation invitations = 2;
 }
 
+enum PackageChannelTrigger {
+  Unknown = 0;
+  BuilderUI = 1;
+  HabClient = 2;
+}
+
+enum PackageChannelOperation {
+  Promote = 0;
+  Demote = 1;
+}
+
+message PackageChannelAudit {
+  optional uint64 package_id = 1;
+  optional uint64 channel_id = 2;
+  optional PackageChannelOperation operation = 3;
+  optional PackageChannelTrigger trigger = 4;
+  optional uint64 requester_id = 5;
+  optional string requester_name = 6;
+  optional uint64 origin_id = 7;
+}
+
 message CheckOriginAccessRequest {
   oneof account_info {
     uint64 account_id = 1;

@@ -1933,8 +1933,62 @@ fn promote_package(req: &mut Request) -> IronResult<Response> {
         None => return Ok(Response::with(status::BadRequest)),
     };
 
-    match helpers::promote_package_to_channel(req, &ident, &channel) {
-        Ok(_) => Ok(Response::with(status::Ok)),
+    if !check_origin_access(req, ident.get_origin()).unwrap_or(false) {
+        let err = NetError::new(ErrCode::ACCESS_DENIED, "core:promote-package-to-channel:0");
+        return Ok(render_net_error(&err));
+    }
+
+    let mut origin_get = OriginGet::new();
+    origin_get.set_name(ident.get_origin().to_string());
+
+    let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
+        Ok(o) => o.get_id(),
+        Err(err) => return Ok(render_net_error(&err)),
+    };
+
+    let mut channel_req = OriginChannelGet::new();
+    channel_req.set_origin_name(ident.get_origin().to_string());
+    channel_req.set_name(channel.to_string());
+
+    let origin_channel = match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Error retrieving channel: {:?}", &e);
+            return Ok(render_net_error(&e));
+        }
+    };
+
+    let mut request = OriginPackageGet::new();
+    request.set_ident(ident.clone());
+    request.set_visibilities(all_visibilities());
+
+    let package = match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
+        Ok(p) => p,
+        Err(e) => {
+            error!("Error retrieving package: {:?}", &e);
+            return Ok(render_net_error(&e));
+        }
+    };
+
+    let mut promote = OriginPackagePromote::new();
+    promote.set_channel_id(origin_channel.get_id());
+    promote.set_package_id(package.get_id());
+    promote.set_ident(ident.clone());
+
+    match route_message::<OriginPackagePromote, NetOk>(req, &promote) {
+        Ok(_) => match route_message::<OriginPackagePromote, NetOk>(req, &promote) {
+            Ok(_) => match audit_package_rank_change(
+                req,
+                package.get_id(),
+                origin_channel.get_id(),
+                PackageChannelOperation::Promote,
+                origin_id,
+            ) {
+                Ok(_) => Ok(Response::with(status::Ok)),
+                Err(err) => return Ok(render_net_error(&err)),
+            },
+            Err(err) => return Ok(render_net_error(&err)),
+        },
         Err(err) => Ok(render_net_error(&err)),
     }
 }
@@ -1971,6 +2025,14 @@ fn demote_package(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with(status::Forbidden));
     }
 
+    let mut origin_get = OriginGet::new();
+    origin_get.set_name(ident.get_origin().to_string());
+
+    let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
+        Ok(o) => o.get_id(),
+        Err(err) => return Ok(render_net_error(&err)),
+    };
+
     let mut channel_req = OriginChannelGet::new();
     channel_req.set_origin_name(ident.get_origin().to_string());
     channel_req.set_name(channel);
@@ -1984,9 +2046,18 @@ fn demote_package(req: &mut Request) -> IronResult<Response> {
                     let mut demote = OriginPackageDemote::new();
                     demote.set_channel_id(origin_channel.get_id());
                     demote.set_package_id(package.get_id());
-                    demote.set_ident(ident);
+                    demote.set_ident(ident.clone());
                     match route_message::<OriginPackageDemote, NetOk>(req, &demote) {
-                        Ok(_) => Ok(Response::with(status::Ok)),
+                        Ok(_) => match audit_package_rank_change(
+                            req,
+                            package.get_id(),
+                            origin_channel.get_id(),
+                            PackageChannelOperation::Demote,
+                            origin_id,
+                        ) {
+                            Ok(_) => Ok(Response::with(status::Ok)),
+                            Err(err) => return Ok(render_net_error(&err)),
+                        },
                         Err(err) => return Ok(render_net_error(&err)),
                     }
                 }
@@ -2551,6 +2622,39 @@ fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response
     response.headers.set(XFileName(archive.file_name()));
     let _cleanup = remove_file(&archive.path);
     Ok(response)
+}
+
+fn audit_package_rank_change(
+    req: &mut Request,
+    package_id: u64,
+    channel_id: u64,
+    operation: PackageChannelOperation,
+    origin_id: u64,
+) -> NetResult<NetOk> {
+    let mut audit = PackageChannelAudit::new();
+    audit.set_package_id(package_id);
+    audit.set_channel_id(channel_id);
+    audit.set_operation(operation);
+
+    let jgt = trigger_from_request(req);
+    audit.set_trigger(PackageChannelTrigger::from(jgt));
+
+    let (session_id, mut session_name) = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        (session.get_id(), session.get_name().to_string())
+    };
+
+    // Sessions created via Personal Access Tokens only have ids, so we may need
+    // to get the username explicitly.
+    if session_name.is_empty() {
+        session_name = get_session_user_name(req, session_id)
+    }
+
+    audit.set_requester_id(session_id);
+    audit.set_requester_name(session_name);
+    audit.set_origin_id(origin_id);
+
+    route_message::<PackageChannelAudit, NetOk>(req, &audit)
 }
 
 fn is_a_service(package: &OriginPackage) -> bool {

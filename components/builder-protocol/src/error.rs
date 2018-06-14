@@ -24,6 +24,8 @@ pub enum ProtocolError {
     BadJobGroupProjectState(String),
     BadJobGroupState(String),
     BadJobState(String),
+    BadPackageChannelOperation(String),
+    BadPackageChannelTrigger(String),
     BadSearchEntity(String),
     BadSearchKey(String),
     Decode(protobuf::ProtobufError),
@@ -45,6 +47,12 @@ impl fmt::Display for ProtocolError {
             }
             ProtocolError::BadJobGroupState(ref e) => format!("Bad Job Group State {}", e),
             ProtocolError::BadJobState(ref e) => format!("Bad Job State {}", e),
+            ProtocolError::BadPackageChannelOperation(ref e) => {
+                format!("Bad Package Channel Operation {}", e)
+            }
+            ProtocolError::BadPackageChannelTrigger(ref e) => {
+                format!("Bad Package Channel Trigger {}", e)
+            }
             ProtocolError::BadSearchEntity(ref e) => {
                 format!("Search not implemented for entity, {}", e)
             }
@@ -78,6 +86,12 @@ impl error::Error for ProtocolError {
             ProtocolError::BadJobGroupProjectState(_) => "Job Group Project state cannot be parsed",
             ProtocolError::BadJobGroupState(_) => "Job Group state cannot be parsed",
             ProtocolError::BadJobState(_) => "Job state cannot be parsed",
+            ProtocolError::BadPackageChannelOperation(_) => {
+                "Package Channel Operation cannot be parsed"
+            }
+            ProtocolError::BadPackageChannelTrigger(_) => {
+                "Package Channel Trigger cannot be parsed"
+            }
             ProtocolError::BadSearchEntity(_) => "Search not implemented for entity.",
             ProtocolError::BadSearchKey(_) => "Entity not indexed by the given key.",
             ProtocolError::Decode(_) => "Unable to decode protocol message",
