@@ -99,7 +99,7 @@ setBucket() {
         fi
     done
 
-    if [[ -z ${bucket_name} ]]; then
+    if [[ -z ${bucket_name:-} ]]; then
       echo ""
       echo "Please enter a target bucket name and press [ENTER]:"
       read bucket_name
