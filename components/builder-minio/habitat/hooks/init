@@ -1,0 +1,9 @@
+#!/bin/sh
+
+exec 2>&1
+
+{{#if cfg.use_ssl}}
+    mkdir -p {{pkg.svc_config_path}}/certs
+    cp {{pkg.svc_files_path}}/private.key {{pkg.svc_config_path}}/certs/private.key
+    cp {{pkg.svc_files_path}}/public.crt {{pkg.svc_config_path}}/certs/private.crt
+{{/if ~}}
