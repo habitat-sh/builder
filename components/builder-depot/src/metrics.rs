@@ -34,8 +34,8 @@ impl metrics::Metric for Counter {
         match *self {
             Counter::SearchPackages => "search-packages".into(),
             Counter::UploadRequests => "upload-packages".into(),
-            Counter::SingleUploadRequests => "upload-packages".into(),
-            Counter::MultipartUploadRequests => "upload-packages".into(),
+            Counter::SingleUploadRequests => "upload-single".into(),
+            Counter::MultipartUploadRequests => "upload-multi".into(),
             Counter::DownloadRequests => "download-packages".into(),
             Counter::UploadFailures => "upload-failures".into(),
         }
