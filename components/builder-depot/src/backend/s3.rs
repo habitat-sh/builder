@@ -150,6 +150,7 @@ impl S3Handler {
         let key = self.s3_key(ident, target).to_string_lossy().into_owned();
         let file = File::open(hart)?;
         let path_attr = &hart.clone().into_os_string().into_string().unwrap();
+        info!("S3Handler::upload request started for s3_key: {:?}", key);
         let size = file.metadata().unwrap().len() as usize;
         if size < MINLIMIT {
             self.single_upload(key, file, &path_attr)
@@ -200,7 +201,7 @@ impl S3Handler {
             Ok(_) => {
                 let end_time = PreciseTime::now();
                 info!(
-                    "Upload stats for {} ({} sec):",
+                    "Upload completed for {} (in {} sec):",
                     &path_attr,
                     start_time.to(end_time)
                 );
@@ -208,13 +209,7 @@ impl S3Handler {
             }
             Err(e) => {
                 Counter::UploadFailures.increment();
-                debug!("{:?}", e);
-                let end_time = PreciseTime::now();
-                info!(
-                    "Upload stats for {} ({} sec):",
-                    &path_attr,
-                    start_time.to(end_time)
-                );
+                warn!("Upload failed for {}: ({:?})", &path_attr, e);
                 Err(Error::PackageUpload(e))
             }
         }
@@ -281,19 +276,14 @@ impl S3Handler {
                     Ok(_) => {
                         let end_time = PreciseTime::now();
                         info!(
-                            "Upload stats for {} ({} sec):",
+                            "Upload completed for {} (in {} sec):",
                             &path_attr,
                             start_time.to(end_time)
                         );
                         Ok(())
                     }
                     Err(e) => {
-                        let end_time = PreciseTime::now();
-                        info!(
-                            "Upload stats for {} ({} sec):",
-                            &path_attr,
-                            start_time.to(end_time)
-                        );
+                        warn!("Upload failed for {}", &path_attr);
                         debug!("{:?}", e);
                         Err(Error::MultipartCompletion(e))
                     }
