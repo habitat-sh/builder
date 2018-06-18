@@ -57,8 +57,7 @@ s3_root_url="https://s3-us-west-2.amazonaws.com/habitat-builder-bootstrap"
 # Supervisor.
 sup_packages=(hab-launcher
               hab
-              hab-sup
-              hab-butterfly)
+              hab-sup)
 
 # Helper for syslog logging
 helper_packages=(nmap)
