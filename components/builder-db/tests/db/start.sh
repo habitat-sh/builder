@@ -20,7 +20,7 @@ fi
 mkdir -p /hab/svc/postgresql
 cp $DB_TEST_DIR/pg_hba.conf /hab/svc/postgresql
 cp $DB_TEST_DIR/user.toml /hab/svc/postgresql
-hab start core/postgresql &
+hab sup run core/postgresql &
 hab_pid=$!
 
 sudo_ppid=$(ps -p $$ -o 'ppid=')
