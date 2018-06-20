@@ -174,7 +174,7 @@ mod tests {
         client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
 
         [s3]
-        backend = "Minio"
+        backend = "minio"
         key_id = "AWSKEYIDORSOMETHING"
         secret_key = "aW5S3c437Key7hIn817s7o7a11yN457y70Wr173L1k37h15"
         endpoint = "http://localhost:9000"
@@ -202,7 +202,7 @@ mod tests {
         assert_eq!(config.github.api_url, "https://api.github.com");
         assert_eq!(config.ui.root, Some("/some/path".to_string()));
         assert_eq!(config.segment.url, "https://api.segment.io");
-        assert_eq!(config.s3.backend, "Minio");
+        assert_eq!(config.s3.backend, depot::config::S3Backend::Minio);
         assert_eq!(config.s3.key_id, "AWSKEYIDORSOMETHING");
         assert_eq!(
             config.s3.secret_key,
