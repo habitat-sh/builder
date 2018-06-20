@@ -31,7 +31,7 @@ use std::str::FromStr;
 
 use bldr_core::metrics::CounterMetric;
 use futures::{Future, Stream};
-use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
+use hab_core::package::{Identifiable, PackageArchive, PackageIdent, PackageTarget};
 use iron::typemap::Key;
 use metrics::Counter;
 use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
@@ -164,7 +164,7 @@ impl S3Handler {
         loc: &PathBuf,
         ident: &PackageIdent,
         target: &PackageTarget,
-    ) -> Result<()> {
+    ) -> Result<PackageArchive> {
         Counter::DownloadRequests.increment();
         let mut request = GetObjectRequest::default();
         let key = self.s3_key(ident, target).to_string_lossy().into_owned();
@@ -182,13 +182,12 @@ impl S3Handler {
 
         let file = body.expect("Downloaded pkg archive empty!").concat2();
         match Config::write_archive(&loc, file.wait().unwrap()) {
-            Ok(_) => (),
+            Ok(result) => return Ok(result),
             Err(e) => {
                 warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
                 return Err(e);
             }
         }
-        Ok(())
     }
 
     fn single_upload(&self, key: String, hart: File, path_attr: &str) -> Result<()> {

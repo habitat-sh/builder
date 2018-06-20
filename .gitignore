@@ -5,6 +5,7 @@
 .DS_Store
 .secrets/*
 !.secrets/habitat-env.sample
+*.swp
 .tags*
 .vagrant/
 .vscode
