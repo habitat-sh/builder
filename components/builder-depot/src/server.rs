@@ -2546,7 +2546,7 @@ fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response
     };
     response.headers.set(disp);
     response.headers.set(XFileName(archive.file_name()));
-    let _cleanup = remove_file(&archive.path);
+    //let _cleanup = remove_file(&archive.path);
     Ok(response)
 }
 
