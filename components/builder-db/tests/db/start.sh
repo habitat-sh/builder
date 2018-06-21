@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 #
 # Oh habitat, how you bring me back to my most hack-worthy roots. I love you for it.
 #
