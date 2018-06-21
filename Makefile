@@ -3,7 +3,6 @@ BIN = airlock
 LIB = builder-db builder-core github-api-client net
 SRV = builder-api builder-depot builder-router builder-jobsrv builder-sessionsrv builder-originsrv builder-worker
 ALL = $(BIN) $(LIB) $(SRV)
-VERSION := $(shell cat VERSION)
 
 .DEFAULT_GOAL := build-bin
 
@@ -95,17 +94,6 @@ fmt-srv: $(addprefix fmt-,$(SRV)) ## formats the service components' codebases
 help:
 	@perl -nle'print $& if m{^[a-zA-Z_-]+:.*?## .*$$}' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 .PHONY: help
-
-bundle: linux
-	sh -c 'AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_KEYPAIR_NAME=$(AWS_KEYPAIR_NAME) \
-		AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) terraform/scripts/create_bootstrap_bundle.sh \
-		$(VERSION)'
-
-changelog: linux
-	sh -c 'hab pkg install core/github_changelog_generator && \
-		hab pkg binlink core/git git --force && \
-		hab pkg binlink core/github_changelog_generator github_changelog_generator --force && \
-		github_changelog_generator --future-release $(VERSION) --token $(GITHUB_TOKEN)' --max-issues=1000
 
 define BUILD
 build-$1: linux ## builds the $1 component
