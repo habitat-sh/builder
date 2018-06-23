@@ -120,10 +120,6 @@ variable "instance_size_worker" {
   description = "AWS instance size for builder-worker server(s)"
 }
 
-variable "api_ebs_volume_id" {
-  description = "ID for EBS volume to attach to the API server"
-}
-
 variable "database_ebs_volume_id" {
   description = "ID for EBS volume to attach to the database server"
 }
