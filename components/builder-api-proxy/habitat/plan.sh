@@ -3,15 +3,19 @@ pkg_name=builder-api-proxy
 pkg_description="HTTP Proxy service fronting the Habitat Builder API service"
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=("Apache-2.0")
-pkg_deps=(core/nginx core/curl core/coreutils)
+pkg_deps=(
+  core/nginx/1.13.10/20180502174530
+  core/curl/7.54.1/20180419094759
+  core/coreutils/8.25/20170513213226
+)
 pkg_build_deps=(
-  core/node8
-  core/gcc
-  core/git
-  core/tar
-  core/phantomjs
-  core/python2
-  core/make
+  core/node8/8.6.0/20171102163558
+  core/gcc/5.2.0/20170513202244
+  core/git/2.14.2/20180416203520
+  core/tar/1.29/20170513213607
+  core/phantomjs/2.1.1/20180423190907
+  core/python2/2.7.14/20180419094026
+  core/make/4.2.1/20170513214620
 )
 pkg_svc_user="root"
 pkg_svc_run="nginx -c ${pkg_svc_config_path}/nginx.conf"

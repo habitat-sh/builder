@@ -3,8 +3,12 @@ pkg_name=builder-datastore
 pkg_description="Datastore service for a Habitat Builder service"
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=("Apache-2.0")
-pkg_deps=(core/postgresql)
-pkg_build_deps=(core/git)
+pkg_deps=(
+  core/postgresql/9.6.8/20180426174635
+)
+pkg_build_deps=(
+  core/git/2.14.2/20180416203520
+)
 pkg_exports=(
   [port]=port
 )
