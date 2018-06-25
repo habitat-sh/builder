@@ -175,12 +175,19 @@ impl S3Handler {
         let body = match payload {
             Ok(response) => response.body,
             Err(e) => {
+                warn!("Failed to retrieve object from S3: {:?}", e);
                 return Err(Error::PackageDownload(e));
             }
         };
 
         let file = body.expect("Downloaded pkg archive empty!").concat2();
-        let _result = Config::write_archive(&loc, file.wait().unwrap())?;
+        match Config::write_archive(&loc, file.wait().unwrap()) {
+            Ok(_) => (),
+            Err(e) => {
+                warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
+                return Err(e);
+            }
+        }
         Ok(())
     }
 

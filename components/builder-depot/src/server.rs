@@ -1265,7 +1265,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
                     _target
                 }
                 Err(e) => {
-                    debug!("{:?}", e);
+                    warn!("Failed to download package, err={:?}", e);
                     return Ok(Response::with(status::NotFound));
                 }
             }

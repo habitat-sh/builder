@@ -111,9 +111,21 @@ impl DepotUtil for config::Config {
     }
 
     fn write_archive(filename: &PathBuf, body: Vec<u8>) -> Result<PackageArchive> {
-        let file = File::create(&filename)?;
+        let file = match File::create(&filename) {
+            Ok(f) => f,
+            Err(e) => {
+                warn!(
+                    "Unable to create archive file for {:?}, err={:?}",
+                    filename, e
+                );
+                return Err(Error::IO(e));
+            }
+        };
         let mut write = BufWriter::new(file);
-        let _payload = write.write_all(&body)?;
+        if let Err(e) = write.write_all(&body) {
+            warn!("Unable to write archive for {:?}, err={:?}", filename, e);
+            return Err(Error::IO(e));
+        }
         Ok(PackageArchive::new(filename))
     }
 
