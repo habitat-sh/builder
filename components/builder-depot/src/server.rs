@@ -1264,7 +1264,10 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
                     Response::with(status::Ok);
                     _target
                 }
-                Err(_) => return Ok(Response::with(status::NotFound)),
+                Err(e) => {
+                    debug!("{:?}", e);
+                    return Ok(Response::with(status::NotFound));
+                }
             }
             if let Some(archive) = depot.archive(package.get_ident(), &target) {
                 match fs::metadata(&archive.path) {
