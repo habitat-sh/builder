@@ -41,6 +41,7 @@ use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::headers::{ContentType, UserAgent};
 use iron::middleware::BeforeMiddleware;
 use iron::request::Body;
+use iron::typemap;
 use persistent;
 use protobuf;
 use protocol::jobsrv::{JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet,
@@ -52,6 +53,7 @@ use regex::Regex;
 use router::{Params, Router};
 use segment_api_client::SegmentClient;
 use serde_json;
+use tempfile::{tempdir_in, TempDir};
 use url;
 use uuid::Uuid;
 
@@ -789,8 +791,10 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     };
 
     // Create a temp file at the archive location
+    let dir = tempdir_in(depot.packages_path()).expect("Unable to create a tempdir!");
+    let file_path = dir.path();
     let temp_name = format!("{}.tmp", Uuid::new_v4());
-    let temp_path = parent_path.join(temp_name);
+    let temp_path = parent_path.join(file_path).join(temp_name);
 
     let mut archive = match write_archive(&temp_path, &mut req.body) {
         Ok(a) => a,
@@ -865,7 +869,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         }
     }
 
-    let filename = depot.archive_path(&ident, &target_from_artifact);
+    let filename = file_path.join(depot.archive_name(&ident, &target_from_artifact));
     let temp_ident = ident.to_owned().into();
 
     match fs::rename(&temp_path, &filename) {
@@ -1257,27 +1261,16 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
 
     match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
         Ok(package) => {
-            let temp_path = depot.archive_path(package.get_ident(), &target);
+            let dir = tempdir_in(depot.packages_path()).expect("Unable to create a tempdir!");
+            let file_path = dir.path()
+                .join(depot.archive_name(package.get_ident(), &target));
             let temp_ident = ident.to_owned().into();
-            match s3handler.download(&temp_path, &temp_ident, &target) {
-                Ok(_target) => {
-                    Response::with(status::Ok);
-                    _target
-                }
+            match s3handler.download(&file_path, &temp_ident, &target) {
+                Ok(archive) => download_response_for_archive(archive, dir),
                 Err(e) => {
                     warn!("Failed to download package, err={:?}", e);
-                    return Ok(Response::with(status::NotFound));
+                    Ok(Response::with(status::NotFound))
                 }
-            }
-            if let Some(archive) = depot.archive(package.get_ident(), &target) {
-                match fs::metadata(&archive.path) {
-                    Ok(_) => download_response_for_archive(archive),
-                    Err(_) => Ok(Response::with(status::NotFound)),
-                }
-            } else {
-                // This can happen if the package is not found in the file system for some reason
-                error!("Inconsistentcy between metadata and filesystem!");
-                Ok(Response::with(status::InternalServerError))
             }
         }
         Err(err) => Ok(render_net_error(&err)),
@@ -2536,8 +2529,21 @@ fn notify_upstream(req: &mut Request, ident: &OriginPackageIdent, target: &Packa
     upstream_cli.refresh(ident, target).unwrap();
 }
 
-fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response> {
+struct TempDownloadPath;
+
+impl typemap::Key for TempDownloadPath {
+    type Value = TempDir;
+}
+
+fn download_response_for_archive(
+    archive: PackageArchive,
+    tempdir: TempDir,
+) -> IronResult<Response> {
     let mut response = Response::with((status::Ok, archive.path.clone()));
+    // Yo. This is some serious iron black magic. This is how we can get
+    // appropriate timing of the .drop of the tempdir to fire AFTER the
+    // response is finished being written
+    response.extensions.insert::<TempDownloadPath>(tempdir);
     do_cache_response(&mut response);
     let disp = ContentDisposition {
         disposition: DispositionType::Attachment,
@@ -2549,7 +2555,6 @@ fn download_response_for_archive(archive: PackageArchive) -> IronResult<Response
     };
     response.headers.set(disp);
     response.headers.set(XFileName(archive.file_name()));
-    let _cleanup = remove_file(&archive.path);
     Ok(response)
 }
 

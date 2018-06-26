@@ -77,7 +77,7 @@ use iron::typemap;
 pub trait DepotUtil {
     fn archive<T: Identifiable>(&self, ident: &T, target: &PackageTarget)
         -> Option<PackageArchive>;
-    fn archive_path<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf;
+    fn archive_name<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf;
     fn packages_path(&self) -> PathBuf;
     fn write_archive(filename: &PathBuf, body: Vec<u8>) -> Result<PackageArchive>;
 }
@@ -85,11 +85,14 @@ pub trait DepotUtil {
 impl DepotUtil for config::Config {
     // Return a PackageArchive representing the given package. None is returned if Builder
     // doesn't have an archive for the given package.
+    // TODO: This doesn't actually get called by the depot server process any longer
+    // It might be good to validate whether or not this is even required anymore
+    // and if it's not, remove the heck out of it!
     fn archive<T>(&self, ident: &T, target: &PackageTarget) -> Option<PackageArchive>
     where
         T: Identifiable,
     {
-        let file = self.archive_path(ident, target);
+        let file = self.archive_name(ident, target);
         match fs::metadata(&file) {
             Ok(_) => Some(PackageArchive::new(file)),
             Err(_) => None,
@@ -98,8 +101,8 @@ impl DepotUtil for config::Config {
 
     // Return a formatted string representing the filename of an archive for the given package
     // identifier pieces.
-    fn archive_path<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf {
-        self.packages_path().join(format!(
+    fn archive_name<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf {
+        PathBuf::from(format!(
             "{}-{}-{}-{}-{}-{}.hart",
             ident.origin(),
             ident.name(),
