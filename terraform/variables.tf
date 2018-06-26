@@ -100,6 +100,10 @@ variable "jobsrv_worker_count" {
   description = "Number of JobSrv workers to start"
 }
 
+variable "api_count" {
+  description = "Number of frontend/API nodes to start"
+}
+
 variable "connection_agent" {
   description = "Set to false to disable using ssh-agent to authenticate"
 }
