@@ -23,25 +23,10 @@ resource "aws_instance" "api" {
     agent       = "${var.connection_agent}"
   }
 
-  tags {
-    Name          = "builder-api-${count.index}"
-    X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
-    X-Application = "builder"
-    X-ManagedBy   = "Terraform"
-  }
-}
-
-resource "null_resource" "api_provision" {
-  triggers {
-    ebs_volume = "${aws_volume_attachment.api.id}"
-  }
-
-  connection {
-    host        = "${aws_instance.api.public_ip}"
-    user        = "ubuntu"
-    private_key = "${file("${var.connection_private_key}")}"
-    agent       = "${var.connection_agent}"
+  ebs_block_device {
+    device_name = "/dev/xvdf"
+    volume_size = 100
+    volume_type = "gp2"
   }
 
   provisioner "file" {
@@ -51,6 +36,7 @@ resource "null_resource" "api_provision" {
 
   provisioner "remote-exec" {
     scripts = [
+      "${path.module}/scripts/init_filesystem.sh",
       "${path.module}/scripts/foundation.sh",
     ]
   }
@@ -111,6 +97,14 @@ resource "null_resource" "api_provision" {
       "sudo hab svc load habitat/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
+  }
+
+  tags {
+    Name          = "builder-api-${count.index}"
+    X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
+    X-Environment = "${var.env}"
+    X-Application = "builder"
+    X-ManagedBy   = "Terraform"
   }
 }
 
