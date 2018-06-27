@@ -67,7 +67,7 @@ pub mod upstream;
 pub use self::config::Config;
 pub use self::error::{Error, Result};
 
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
@@ -75,33 +75,15 @@ use hab_core::package::{Identifiable, PackageArchive, PackageTarget};
 use iron::typemap;
 
 pub trait DepotUtil {
-    fn archive<T: Identifiable>(&self, ident: &T, target: &PackageTarget)
-        -> Option<PackageArchive>;
-    fn archive_name<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf;
+    fn archive_name<T: Identifiable>(ident: &T, target: &PackageTarget) -> PathBuf;
+    fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive>;
     fn packages_path(&self) -> PathBuf;
-    fn write_archive(filename: &PathBuf, body: Vec<u8>) -> Result<PackageArchive>;
 }
 
 impl DepotUtil for config::Config {
-    // Return a PackageArchive representing the given package. None is returned if Builder
-    // doesn't have an archive for the given package.
-    // TODO: This doesn't actually get called by the depot server process any longer
-    // It might be good to validate whether or not this is even required anymore
-    // and if it's not, remove the heck out of it!
-    fn archive<T>(&self, ident: &T, target: &PackageTarget) -> Option<PackageArchive>
-    where
-        T: Identifiable,
-    {
-        let file = self.archive_name(ident, target);
-        match fs::metadata(&file) {
-            Ok(_) => Some(PackageArchive::new(file)),
-            Err(_) => None,
-        }
-    }
-
     // Return a formatted string representing the filename of an archive for the given package
     // identifier pieces.
-    fn archive_name<T: Identifiable>(&self, ident: &T, target: &PackageTarget) -> PathBuf {
+    fn archive_name<T: Identifiable>(ident: &T, target: &PackageTarget) -> PathBuf {
         PathBuf::from(format!(
             "{}-{}-{}-{}-{}-{}.hart",
             ident.origin(),
@@ -113,7 +95,7 @@ impl DepotUtil for config::Config {
         ))
     }
 
-    fn write_archive(filename: &PathBuf, body: Vec<u8>) -> Result<PackageArchive> {
+    fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive> {
         let file = match File::create(&filename) {
             Ok(f) => f,
             Err(e) => {
@@ -125,7 +107,7 @@ impl DepotUtil for config::Config {
             }
         };
         let mut write = BufWriter::new(file);
-        if let Err(e) = write.write_all(&body) {
+        if let Err(e) = write.write_all(body) {
             warn!("Unable to write archive for {:?}, err={:?}", filename, e);
             return Err(Error::IO(e));
         }

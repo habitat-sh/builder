@@ -181,7 +181,7 @@ impl S3Handler {
         };
 
         let file = body.expect("Downloaded pkg archive empty!").concat2();
-        match Config::write_archive(&loc, file.wait().unwrap()) {
+        match Config::write_archive(&loc, &file.wait().unwrap()) {
             Ok(result) => return Ok(result),
             Err(e) => {
                 warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
