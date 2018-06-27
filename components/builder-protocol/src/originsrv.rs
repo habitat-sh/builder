@@ -17,6 +17,8 @@ use hab_core::package::{self, FromArchive, Identifiable, PackageArchive};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+use error::ProtocolError;
+use message::jobsrv::JobGroupTrigger;
 pub use message::originsrv::*;
 use message::Routable;
 use sharding::InstaId;
@@ -40,6 +42,70 @@ impl error::Error for Error {
         match *self {
             Error::BadOriginPackageVisibility => "Origin package visibility cannot be parsed",
         }
+    }
+}
+
+impl fmt::Display for PackageChannelTrigger {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let value = match *self {
+            PackageChannelTrigger::Unknown => "Unknown",
+            PackageChannelTrigger::BuilderUI => "BuilderUI",
+            PackageChannelTrigger::HabClient => "HabClient",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl FromStr for PackageChannelTrigger {
+    type Err = ProtocolError;
+
+    fn from_str(value: &str) -> result::Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            "unknown" => Ok(PackageChannelTrigger::Unknown),
+            "habclient" => Ok(PackageChannelTrigger::HabClient),
+            "builderui" => Ok(PackageChannelTrigger::BuilderUI),
+            _ => Err(ProtocolError::BadPackageChannelTrigger(value.to_string())),
+        }
+    }
+}
+
+impl From<JobGroupTrigger> for PackageChannelTrigger {
+    fn from(value: JobGroupTrigger) -> PackageChannelTrigger {
+        match value {
+            JobGroupTrigger::HabClient => PackageChannelTrigger::HabClient,
+            JobGroupTrigger::BuilderUI => PackageChannelTrigger::BuilderUI,
+            _ => PackageChannelTrigger::Unknown,
+        }
+    }
+}
+
+impl fmt::Display for PackageChannelOperation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let value = match *self {
+            PackageChannelOperation::Promote => "Promote",
+            PackageChannelOperation::Demote => "Demote",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl FromStr for PackageChannelOperation {
+    type Err = ProtocolError;
+
+    fn from_str(value: &str) -> result::Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            "promote" => Ok(PackageChannelOperation::Promote),
+            "demote" => Ok(PackageChannelOperation::Demote),
+            _ => Err(ProtocolError::BadPackageChannelOperation(value.to_string())),
+        }
+    }
+}
+
+impl Routable for PackageChannelAudit {
+    type H = u64;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(self.get_origin_id())
     }
 }
 
