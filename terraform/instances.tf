@@ -6,7 +6,7 @@ resource "aws_instance" "api" {
   instance_type = "${var.instance_size_api}"
   key_name      = "${var.aws_key_pair}"
   subnet_id     = "${var.public_subnet_id}"
-  count         = 1
+  count         = "${var.api_count}"
 
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
