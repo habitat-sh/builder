@@ -25,6 +25,7 @@ pub struct ProjectCreateReq {
     pub plan_path: String,
     pub installation_id: u32,
     pub repo_id: u32,
+    pub auto_build: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -32,6 +33,7 @@ pub struct ProjectUpdateReq {
     pub plan_path: String,
     pub installation_id: u32,
     pub repo_id: u32,
+    pub auto_build: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

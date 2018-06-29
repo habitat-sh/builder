@@ -147,7 +147,8 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       'origin': this.origin,
       'plan_path': this.planField.value,
       'installation_id': this.selectedInstallation.get('installation_id'),
-      'repo_id': this.activeRepo.get('id')
+      'repo_id': this.activeRepo.get('id'),
+      'auto_build': false
     };
   }
 
