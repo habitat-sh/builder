@@ -277,6 +277,10 @@ lazy_static! {
             PackageChannelAudit::descriptor_static(None),
             handlers::package_channel_audit,
         );
+        map.register(
+            PackageGroupChannelAudit::descriptor_static(None),
+            handlers::package_group_channel_audit,
+        );
         map
     };
 }

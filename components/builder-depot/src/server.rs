@@ -34,7 +34,7 @@ use http_gateway::conn::RouteBroker;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{
     self, all_visibilities, check_origin_access, check_origin_owner, dont_cache_response,
-    get_param, get_session_user_name, trigger_from_request, validate_params,
+    get_param, get_session_id_and_name, trigger_from_request, validate_params,
     visibility_for_optional_session,
 };
 use http_gateway::http::middleware::{SegmentCli, XRouteClient};
@@ -742,17 +742,9 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
 
 fn upload_package(req: &mut Request) -> IronResult<Response> {
     let ident = ident_from_req(req);
-    let (session_id, mut session_name) = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        (session.get_id(), session.get_name().to_string())
-    };
     let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
 
-    // Sessions created via Personal Access Tokens only have ids, so we may need
-    // to get the username explicitly.
-    if session_name.is_empty() {
-        session_name = get_session_user_name(req, session_id)
-    }
+    let (session_id, session_name) = get_session_id_and_name(req);
 
     if !ident.valid() || !ident.fully_qualified() {
         info!(
@@ -983,16 +975,7 @@ fn package_stats(req: &mut Request) -> IronResult<Response> {
 
 // This route is unreachable when jobsrv_enabled is false
 fn schedule(req: &mut Request) -> IronResult<Response> {
-    let (session_id, mut session_name) = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        (session.get_id(), session.get_name().to_string())
-    };
-
-    // Sessions created via Personal Access Tokens only have ids, so we may need
-    // to get the username explicitly.
-    if session_name.is_empty() {
-        session_name = get_session_user_name(req, session_id)
-    }
+    let (session_id, session_name) = get_session_id_and_name(req);
 
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
     let origin_name = match get_param(req, "origin") {
@@ -2649,16 +2632,7 @@ fn audit_package_rank_change(
     let jgt = trigger_from_request(req);
     audit.set_trigger(PackageChannelTrigger::from(jgt));
 
-    let (session_id, mut session_name) = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        (session.get_id(), session.get_name().to_string())
-    };
-
-    // Sessions created via Personal Access Tokens only have ids, so we may need
-    // to get the username explicitly.
-    if session_name.is_empty() {
-        session_name = get_session_user_name(req, session_id)
-    }
+    let (session_id, session_name) = get_session_id_and_name(req);
 
     audit.set_requester_id(session_id);
     audit.set_requester_name(session_name);

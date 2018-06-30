@@ -109,6 +109,7 @@ pub enum SrvError {
     OriginAccountList(postgres::error::Error),
     OriginAccountInOrigin(postgres::error::Error),
     PackageChannelAudit(postgres::error::Error),
+    PackageGroupChannelAudit(postgres::error::Error),
     Protocol(protocol::ProtocolError),
     SyncInvitations(postgres::error::Error),
     SyncInvitationsUpdate(postgres::error::Error),
@@ -354,6 +355,9 @@ impl fmt::Display for SrvError {
             SrvError::PackageChannelAudit(ref e) => {
                 format!("Error auditing package channel rank change, {}", e)
             }
+            SrvError::PackageGroupChannelAudit(ref e) => {
+                format!("Error auditing package group channel rank change, {}", e)
+            }
             SrvError::Protocol(ref e) => format!("{}", e),
             SrvError::SyncInvitations(ref e) => {
                 format!("Error syncing invitations for account, {}", e)
@@ -455,6 +459,7 @@ impl error::Error for SrvError {
             SrvError::OriginAccountInOrigin(ref err) => err.description(),
             SrvError::OriginUpdate(ref err) => err.description(),
             SrvError::PackageChannelAudit(ref err) => err.description(),
+            SrvError::PackageGroupChannelAudit(ref err) => err.description(),
             SrvError::Protocol(ref err) => err.description(),
             SrvError::SyncInvitations(ref err) => err.description(),
             SrvError::SyncInvitationsUpdate(ref err) => err.description(),

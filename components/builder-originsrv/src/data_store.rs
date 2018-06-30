@@ -120,7 +120,7 @@ impl DataStore {
         let conn = self.pool.get(pca)?;
 
         &conn.query(
-            "SELECT * FROM add_audit_entry_v1($1, $2, $3, $4, $5, $6, $7)",
+            "SELECT * FROM add_audit_package_entry_v1($1, $2, $3, $4, $5, $6, $7)",
             &[
                 &(pca.get_origin_id() as i64),
                 &(pca.get_package_id() as i64),
@@ -131,6 +131,35 @@ impl DataStore {
                 &pca.get_requester_name().to_string(),
             ],
         ).map_err(SrvError::PackageChannelAudit)?;
+
+        Ok(())
+    }
+
+    pub fn package_group_channel_audit(
+        &self,
+        pgca: &originsrv::PackageGroupChannelAudit,
+    ) -> SrvResult<()> {
+        let conn = self.pool.get(pgca)?;
+
+        let pkg_ids: Vec<i64> = pgca.get_package_ids()
+            .to_vec()
+            .iter()
+            .map(|&x| x as i64)
+            .collect();
+
+        &conn.query(
+            "SELECT * FROM add_audit_package_group_entry_v1($1, $2, $3, $4, $5, $6, $7, $8)",
+            &[
+                &(pgca.get_origin_id() as i64),
+                &(pgca.get_channel_id() as i64),
+                &pkg_ids,
+                &(pgca.get_operation() as i16),
+                &(pgca.get_trigger() as i16),
+                &(pgca.get_requester_id() as i64),
+                &pgca.get_requester_name().to_string(),
+                &(pgca.get_group_id() as i64),
+            ],
+        ).map_err(SrvError::PackageGroupChannelAudit)?;
 
         Ok(())
     }

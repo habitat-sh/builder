@@ -50,6 +50,23 @@ pub fn package_channel_audit(
     Ok(())
 }
 
+pub fn package_group_channel_audit(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::PackageGroupChannelAudit>()?;
+    match state.datastore.package_group_channel_audit(&msg) {
+        Ok(()) => conn.route_reply(req, &net::NetOk::new())?,
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "vt:package-group-channel-audit:1");
+            error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn origin_check_owner(
     req: &mut Message,
     conn: &mut RouteConn,

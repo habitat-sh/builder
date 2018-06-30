@@ -35,7 +35,8 @@ use protocol::originsrv::{
     OriginPackageGet, OriginPackageGroupDemote, OriginPackageGroupPromote, OriginPackageIdent,
     OriginPackagePlatformListRequest, OriginPackagePlatformListResponse, OriginPackageVisibility,
     OriginPrivateSigningKey, OriginPrivateSigningKeyCreate, OriginPublicSigningKey,
-    OriginPublicSigningKeyCreate,
+    OriginPublicSigningKeyCreate, PackageChannelOperation, PackageChannelTrigger,
+    PackageGroupChannelAudit,
 };
 use protocol::sessionsrv::{Account, AccountGetId};
 use serde::Serialize;
@@ -385,12 +386,49 @@ pub fn promote_or_demote_job_group(
         }
     }
 
+    let jgt = trigger_from_request(req);
+    let trigger = PackageChannelTrigger::from(jgt);
+
     for (origin, projects) in origin_map.iter() {
         match do_group_promotion_or_demotion(req, channel, projects.to_vec(), &origin, promote) {
-            Ok(_) => (),
+            Ok(package_ids) => {
+                let mut pgca = PackageGroupChannelAudit::new();
+
+                let mut channel_get = OriginChannelGet::new();
+                channel_get.set_origin_name(origin.clone());
+                channel_get.set_name(channel.to_string());
+                match route_message::<OriginChannelGet, OriginChannel>(req, &channel_get) {
+                    Ok(origin_channel) => pgca.set_channel_id(origin_channel.get_id()),
+                    Err(err) => return Err(err),
+                }
+
+                let mut origin_get = OriginGet::new();
+                origin_get.set_name(origin.clone());
+                match route_message::<OriginGet, Origin>(req, &origin_get) {
+                    Ok(origin_origin) => pgca.set_origin_id(origin_origin.get_id()),
+                    Err(err) => return Err(err),
+                }
+
+                pgca.set_package_ids(package_ids);
+
+                if promote {
+                    pgca.set_operation(PackageChannelOperation::Promote);
+                } else {
+                    pgca.set_operation(PackageChannelOperation::Demote);
+                }
+
+                let (session_id, session_name) = get_session_id_and_name(req);
+
+                pgca.set_trigger(trigger);
+                pgca.set_requester_id(session_id);
+                pgca.set_requester_name(session_name);
+                pgca.set_group_id(group_id);
+
+                route_message::<PackageGroupChannelAudit, NetOk>(req, &pgca)?;
+            }
             Err(e) => {
                 if e.get_code() != ErrCode::ACCESS_DENIED {
-                    info!("Failed to promote group, err: {:?}", e);
+                    warn!("Failed to promote or demote group, err: {:?}", e);
                     return Err(e);
                 }
             }
@@ -476,13 +514,28 @@ pub fn get_session_user_name(req: &mut Request, account_id: u64) -> String {
     }
 }
 
+pub fn get_session_id_and_name(req: &mut Request) -> (u64, String) {
+    let (session_id, mut session_name) = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        (session.get_id(), session.get_name().to_string())
+    };
+
+    // Sessions created via Personal Access Tokens only have ids, so we may need
+    // to get the username explicitly.
+    if session_name.is_empty() {
+        session_name = get_session_user_name(req, session_id)
+    }
+
+    (session_id, session_name)
+}
+
 fn do_group_promotion_or_demotion(
     req: &mut Request,
     channel: &str,
     projects: Vec<&JobGroupProject>,
     origin: &str,
     promote: bool,
-) -> NetResult<NetOk> {
+) -> NetResult<Vec<u64>> {
     if !check_origin_access(req, origin).unwrap_or(false) {
         return Err(NetError::new(
             ErrCode::ACCESS_DENIED,
@@ -526,18 +579,20 @@ fn do_group_promotion_or_demotion(
     if promote {
         let mut opgp = OriginPackageGroupPromote::new();
         opgp.set_channel_id(channel.get_id());
-        opgp.set_package_ids(package_ids);
+        opgp.set_package_ids(package_ids.clone());
         opgp.set_origin(origin.to_string());
 
-        route_message::<OriginPackageGroupPromote, NetOk>(req, &opgp)
+        route_message::<OriginPackageGroupPromote, NetOk>(req, &opgp)?;
     } else {
         let mut opgp = OriginPackageGroupDemote::new();
         opgp.set_channel_id(channel.get_id());
-        opgp.set_package_ids(package_ids);
+        opgp.set_package_ids(package_ids.clone());
         opgp.set_origin(origin.to_string());
 
-        route_message::<OriginPackageGroupDemote, NetOk>(req, &opgp)
+        route_message::<OriginPackageGroupDemote, NetOk>(req, &opgp)?;
     }
+
+    Ok(package_ids)
 }
 
 fn is_worker(req: &mut Request) -> bool {
