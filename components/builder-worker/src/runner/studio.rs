@@ -97,6 +97,7 @@ impl<'a> Studio<'a> {
         cmd.env("PATH", env::var("PATH").unwrap_or(String::from(""))); // Sets `$PATH`
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
+        cmd.env("HAB_FEAT_IGNORE_LOCAL", "true"); // Tells workers to always use the latest package in Builder
         for secret in self.workspace.job.get_secrets() {
             cmd.env(
                 format!(
