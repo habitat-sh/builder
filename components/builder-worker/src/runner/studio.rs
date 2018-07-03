@@ -15,14 +15,14 @@
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
+use hab_core::AUTH_TOKEN_ENVVAR;
 use hab_core::channel::{BLDR_CHANNEL_ENVVAR, STABLE_CHANNEL};
 use hab_core::env;
 use hab_core::fs;
 use hab_core::url::BLDR_URL_ENVVAR;
-use hab_core::AUTH_TOKEN_ENVVAR;
 
 use error::{Error, Result};
 use network::NetworkNamespace;
@@ -97,7 +97,18 @@ impl<'a> Studio<'a> {
         cmd.env("PATH", env::var("PATH").unwrap_or(String::from(""))); // Sets `$PATH`
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
-        cmd.env("HAB_FEAT_IGNORE_LOCAL", "true"); // Tells workers to always use the latest package in Builder
+
+        // Tells workers to ignore any locally-installed dependencies,
+        // and to always use what's in Builder
+        cmd.env("HAB_FEAT_IGNORE_LOCAL", "true");
+        // Ideally, we would just pass any `HAB_FEAT_*` flags into the
+        // studio directly, since we know they're "ours". Until we do,
+        // however, we'll need to prefix it with `HAB_STUDIO_SECRET_`.
+        //
+        // Follow https://github.com/habitat-sh/habitat/issues/5274
+        // for progress on this front.
+        cmd.env("HAB_STUDIO_SECRET_HAB_FEAT_IGNORE_LOCAL", "true");
+
         for secret in self.workspace.job.get_secrets() {
             cmd.env(
                 format!(
