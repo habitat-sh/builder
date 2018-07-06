@@ -25,18 +25,18 @@ use iron::headers::{Referer, UserAgent};
 use iron::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::modifiers::Header;
 use iron::status::{self, Status};
-use protocol::jobsrv::{JobGroup, JobGroupGet, JobGroupProject, JobGroupProjectState,
-                       JobGroupTrigger};
-use protocol::originsrv::{CheckOriginAccessRequest, CheckOriginAccessResponse,
-                          CheckOriginOwnerRequest, CheckOriginOwnerResponse, Origin,
-                          OriginChannel, OriginChannelCreate, OriginChannelGet, OriginGet,
-                          OriginPackage, OriginPackageChannelListRequest,
-                          OriginPackageChannelListResponse, OriginPackageGet,
-                          OriginPackageGroupDemote, OriginPackageGroupPromote, OriginPackageIdent,
-                          OriginPackagePlatformListRequest, OriginPackagePlatformListResponse,
-                          OriginPackageVisibility, OriginPrivateSigningKey,
-                          OriginPrivateSigningKeyCreate, OriginPublicSigningKey,
-                          OriginPublicSigningKeyCreate};
+use protocol::jobsrv::{
+    JobGroup, JobGroupGet, JobGroupProject, JobGroupProjectState, JobGroupTrigger,
+};
+use protocol::originsrv::{
+    CheckOriginAccessRequest, CheckOriginAccessResponse, CheckOriginOwnerRequest,
+    CheckOriginOwnerResponse, Origin, OriginChannel, OriginChannelCreate, OriginChannelGet,
+    OriginGet, OriginPackage, OriginPackageChannelListRequest, OriginPackageChannelListResponse,
+    OriginPackageGet, OriginPackageGroupDemote, OriginPackageGroupPromote, OriginPackageIdent,
+    OriginPackagePlatformListRequest, OriginPackagePlatformListResponse, OriginPackageVisibility,
+    OriginPrivateSigningKey, OriginPrivateSigningKeyCreate, OriginPublicSigningKey,
+    OriginPublicSigningKeyCreate,
+};
 use protocol::sessionsrv::{Account, AccountGetId};
 use serde::Serialize;
 use serde_json;

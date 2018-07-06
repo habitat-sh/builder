@@ -22,22 +22,27 @@ use bodyparser;
 use hab_core::package::{Identifiable, Plan};
 use http_client::ApiClient;
 use http_gateway::http::controller::*;
-use http_gateway::http::helpers::{self, check_origin_access, get_param, get_session_user_name,
-                                  trigger_from_request, validate_params};
+use http_gateway::http::helpers::{
+    self, check_origin_access, get_param, get_session_user_name, trigger_from_request,
+    validate_params,
+};
 use hyper::header::{Accept, ContentType};
 use hyper::status::StatusCode;
 use iron::status;
 use oauth_client::error::Error as OAuthError;
 use params::{FromValue, Params};
 use persistent;
-use protocol::jobsrv::{Job, JobGet, JobGroup, JobGroupCancel, JobGroupGet, JobLog, JobLogGet,
-                       JobState, ProjectJobsGet, ProjectJobsGetResponse};
+use protocol::jobsrv::{
+    Job, JobGet, JobGroup, JobGroupCancel, JobGroupGet, JobLog, JobLogGet, JobState,
+    ProjectJobsGet, ProjectJobsGetResponse,
+};
 use protocol::jobsrv::{JobGraphPackageReverseDependencies, JobGraphPackageReverseDependenciesGet};
 use protocol::originsrv::*;
-use protocol::sessionsrv::{Account, AccountGet, AccountGetId, AccountInvitationListRequest,
-                           AccountInvitationListResponse, AccountOriginListRequest,
-                           AccountOriginListResponse, AccountToken, AccountTokenCreate,
-                           AccountTokenRevoke, AccountTokens, AccountTokensGet, AccountUpdate};
+use protocol::sessionsrv::{
+    Account, AccountGet, AccountGetId, AccountInvitationListRequest, AccountInvitationListResponse,
+    AccountOriginListRequest, AccountOriginListResponse, AccountToken, AccountTokenCreate,
+    AccountTokenRevoke, AccountTokens, AccountTokensGet, AccountUpdate,
+};
 use router::Router;
 use serde_json;
 
