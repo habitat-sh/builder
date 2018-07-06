@@ -15,14 +15,14 @@
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::Mutex;
 
-use hab_core::AUTH_TOKEN_ENVVAR;
 use hab_core::channel::{BLDR_CHANNEL_ENVVAR, STABLE_CHANNEL};
 use hab_core::env;
 use hab_core::fs;
 use hab_core::url::BLDR_URL_ENVVAR;
+use hab_core::AUTH_TOKEN_ENVVAR;
 
 use error::{Error, Result};
 use network::NetworkNamespace;

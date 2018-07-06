@@ -27,12 +27,13 @@ use hab_net::socket::DEFAULT_CONTEXT;
 use linked_hash_map::LinkedHashMap;
 use protobuf::{parse_from_bytes, Message, RepeatedField};
 use protocol::jobsrv;
-use protocol::originsrv::{Origin, OriginGet, OriginIntegrationRequest, OriginIntegrationResponse,
-                          OriginPrivateEncryptionKey, OriginPrivateEncryptionKeyGet,
-                          OriginProjectIntegrationRequest, OriginProjectIntegrationResponse,
-                          OriginPublicEncryptionKey, OriginPublicEncryptionKeyLatestGet,
-                          OriginSecret, OriginSecretDecrypted, OriginSecretList,
-                          OriginSecretListGet};
+use protocol::originsrv::{
+    Origin, OriginGet, OriginIntegrationRequest, OriginIntegrationResponse,
+    OriginPrivateEncryptionKey, OriginPrivateEncryptionKeyGet, OriginProjectIntegrationRequest,
+    OriginProjectIntegrationResponse, OriginPublicEncryptionKey,
+    OriginPublicEncryptionKeyLatestGet, OriginSecret, OriginSecretDecrypted, OriginSecretList,
+    OriginSecretListGet,
+};
 use zmq;
 
 use config::Config;

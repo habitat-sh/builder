@@ -25,16 +25,18 @@ use bodyparser;
 use depot_client::{Client as DepotClient, DisplayProgress};
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
-use hab_core::package::{ident, FromArchive, Identifiable, PackageArchive, PackageIdent,
-                        PackageTarget};
+use hab_core::package::{
+    ident, FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget,
+};
 use hab_net::privilege::FeatureFlags;
 use hab_net::{ErrCode, NetOk, NetResult};
 use http_gateway::conn::RouteBroker;
 use http_gateway::http::controller::*;
-use http_gateway::http::helpers::{self, all_visibilities, check_origin_access, check_origin_owner,
-                                  dont_cache_response, get_param, get_session_user_name,
-                                  trigger_from_request, validate_params,
-                                  visibility_for_optional_session};
+use http_gateway::http::helpers::{
+    self, all_visibilities, check_origin_access, check_origin_owner, dont_cache_response,
+    get_param, get_session_user_name, trigger_from_request, validate_params,
+    visibility_for_optional_session,
+};
 use http_gateway::http::middleware::{SegmentCli, XRouteClient};
 use hyper::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
@@ -44,9 +46,11 @@ use iron::request::Body;
 use iron::typemap;
 use persistent;
 use protobuf;
-use protocol::jobsrv::{JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet,
-                       JobGroup, JobGroupAbort, JobGroupGet, JobGroupOriginGet,
-                       JobGroupOriginResponse, JobGroupSpec, JobGroupTrigger};
+use protocol::jobsrv::{
+    JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet, JobGroup,
+    JobGroupAbort, JobGroupGet, JobGroupOriginGet, JobGroupOriginResponse, JobGroupSpec,
+    JobGroupTrigger,
+};
 use protocol::originsrv::*;
 use protocol::sessionsrv::{Account, AccountGet, AccountOriginRemove};
 use regex::Regex;
@@ -2421,7 +2425,8 @@ fn process_upload_for_package_archive(
 
         // Schedule re-build of dependent packages (if requested)
         // Don't schedule builds if the upload is being done by the builder
-        if config.builds_enabled && (ident.get_origin() == "core" || config.non_core_builds_enabled)
+        if config.builds_enabled
+            && (ident.get_origin() == "core" || config.non_core_builds_enabled)
             && builder_flag.is_none()
         {
             if config.jobsrv_enabled {
