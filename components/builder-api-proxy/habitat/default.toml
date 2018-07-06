@@ -39,6 +39,7 @@ worker_rlimit_nofile = 8192
 max_body_size        = "1024m"
 proxy_send_timeout   = 60
 proxy_read_timeout   = 60
+limit_req_zone       = "$binary_remote_addr zone=mylimit:10m rate=1r/s"
 
 [http]
 keepalive_timeout = "20s"
