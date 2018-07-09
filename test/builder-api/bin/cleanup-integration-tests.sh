@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 
 # You might be asking yourself "Why does this file even exist?" The answer to that question lies
 # in the amount of time it takes to run 'test.sh'. Since test.sh is designed to be run in CI,

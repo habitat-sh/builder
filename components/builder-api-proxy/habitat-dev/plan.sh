@@ -1,3 +1,4 @@
+# shellcheck disable=SC2046,SC2086,SC2154
 source ../habitat/plan.sh
 source ../../../support/ci/builder-dev-base-plan.sh
 

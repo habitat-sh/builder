@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 
 # This script takes as input a path to a file of idents, and a channel
 # and promotes all the packages listed in the file to the specified

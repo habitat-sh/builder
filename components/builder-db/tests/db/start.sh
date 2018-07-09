@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # Oh habitat, how you bring me back to my most hack-worthy roots. I love you for it.
 #

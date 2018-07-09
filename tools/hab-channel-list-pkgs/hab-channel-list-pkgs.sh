@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2004,SC2086
 #
 # Returns a list of all fully qualified package identifiers that exist in an
 # origin's release channel. Prints the package identifiers to standard out, one

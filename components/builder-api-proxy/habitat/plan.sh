@@ -1,3 +1,4 @@
+# shellcheck disable=SC2046,SC2086,SC2154
 pkg_origin=habitat
 pkg_name=builder-api-proxy
 pkg_description="HTTP Proxy service fronting the Habitat Builder API service"

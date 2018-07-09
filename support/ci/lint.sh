@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2002,SC2059,SC2086,SC2154,SC2162
 
 # Fail if there are any unset variables and whenever a command returns a
 # non-zero exit code.

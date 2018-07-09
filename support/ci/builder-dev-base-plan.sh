@@ -1,3 +1,4 @@
+# shellcheck disable=SC2154
 # For dev purposes only - this bypasses artifact creation and other important
 # parts of the full plan build process
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2046,SC2086
 
 git log HEAD~1..HEAD | grep -q '!!! Temporary Commit !!!'
 is_tmp_commit=$?

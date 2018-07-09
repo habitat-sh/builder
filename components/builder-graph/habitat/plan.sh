@@ -1,3 +1,4 @@
+# shellcheck disable=SC2155
 source "../../../support/ci/builder-base-plan.sh"
 pkg_name=builder-graph
 pkg_origin=habitat
