@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2086
 #
 # Check to see what directories have been affected by a change. If directories
 # have not been affected, exit 0
@@ -37,16 +36,19 @@ else
   echo
   echo "Checking for changed files since last merge commit:"
   echo
+  # shellcheck disable=2086
   echo_indented $CHANGED_FILES
   echo
 
   echo "Among the affected files:"
   echo
+  # shellcheck disable=2086
   echo_indented $AFFECTED_FILES
   echo
 
   echo "And in the affected directories:"
   echo
+  # shellcheck disable=2086
   echo_indented $AFFECTED_DIRS
   echo
 
