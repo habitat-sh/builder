@@ -1,3 +1,4 @@
+# shellcheck disable=SC2086,SC2154,SC2155
 pkg_name=airlock
 pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"

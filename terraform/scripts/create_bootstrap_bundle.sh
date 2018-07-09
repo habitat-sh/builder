@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086,SC2129
 
 # Create a tarball of all the Habitat artifacts needed to run the
 # Habitat Supervisor on a system and upload it to S3. This includes

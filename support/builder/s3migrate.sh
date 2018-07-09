@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2162
 set -euo pipefail
 
 aggMsg() {

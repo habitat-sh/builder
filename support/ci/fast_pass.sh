@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # Check to see what directories have been affected by a change. If directories
 # have not been affected, exit 0

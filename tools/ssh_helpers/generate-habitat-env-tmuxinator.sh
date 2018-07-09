@@ -1,5 +1,5 @@
-
 #!/bin/bash
+# shellcheck disable=SC2013
 
 # Given an "environment", generates a tmuxinator YAML on STDOUT to
 # connect to all the Habitat Builder hosts in that environment.

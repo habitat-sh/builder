@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2068,SC2071,SC2073,SC2086
 
 # Downloads the latest builder bootstrap tarball from S3 and installs
 # the desired packages into /hab/cache/artifacts. All

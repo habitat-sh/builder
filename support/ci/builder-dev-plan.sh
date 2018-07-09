@@ -1,3 +1,4 @@
+# shellcheck disable=SC2154,SC2155
 source ../../../support/ci/builder-dev-base-plan.sh
 
 pkg_build_deps+=(core/sccache)
