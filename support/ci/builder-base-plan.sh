@@ -1,4 +1,3 @@
-# shellcheck disable=SC2154
 pkg_version() {
   # TED: After migrating the builder repo we needed to add to
   # the rev-count to keep version sorting working
@@ -36,10 +35,12 @@ do_builder_build() {
 }
 
 do_builder_install() {
+  # shellcheck disable=2154
   install -v -D "$CARGO_TARGET_DIR/$rustc_target/${builder_build_type#--}/$bin" \
     "$pkg_prefix/bin/$bin"
 }
 
+# shellcheck disable=2154
 do_builder_prepare() {
   export builder_build_type="${builder_build_type:---release}"
   # Can be either `--release` or `--debug` to determine cargo build strategy

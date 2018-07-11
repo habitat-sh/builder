@@ -1,4 +1,4 @@
-# shellcheck disable=SC2155
+# shellcheck disable=SC2034
 source "../../../support/ci/builder-base-plan.sh"
 pkg_name=builder-graph
 pkg_origin=habitat
@@ -15,6 +15,7 @@ do_prepare() {
   do_builder_prepare
 
   # Used by libssh2-sys
-  export DEP_Z_ROOT="$(pkg_path_for zlib)"
-  export DEP_Z_INCLUDE="$(pkg_path_for zlib)/include"
+  export DEP_Z_ROOT DEP_Z_INCLUDE
+  DEP_Z_ROOT="$(pkg_path_for zlib)"
+  DEP_Z_INCLUDE="$(pkg_path_for zlib)/include"
 }

@@ -1,4 +1,3 @@
-# shellcheck disable=SC2154
 # For dev purposes only - this bypasses artifact creation and other important
 # parts of the full plan build process
 
@@ -36,5 +35,6 @@ _build_metadata() {
 }
 
 do_end() {
+  # shellcheck disable=2154
   rm -rf "${pkg_prefix}/../../${pkg_version}"
 }
