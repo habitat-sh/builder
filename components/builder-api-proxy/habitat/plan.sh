@@ -1,4 +1,4 @@
-# shellcheck disable=SC2046,SC2086,SC2154
+# shellcheck disable=SC2034
 pkg_origin=habitat
 pkg_name=builder-api-proxy
 pkg_description="HTTP Proxy service fronting the Habitat Builder API service"
@@ -15,6 +15,7 @@ pkg_build_deps=(
   core/make
 )
 pkg_svc_user="root"
+# shellcheck disable=2154
 pkg_svc_run="nginx -c ${pkg_svc_config_path}/nginx.conf"
 pkg_exports=(
   [port]=server.listen_port
@@ -44,16 +45,17 @@ do_unpack() {
 }
 
 do_build() {
-  pushd $HAB_CACHE_SRC_PATH > /dev/null
+  pushd "$HAB_CACHE_SRC_PATH" > /dev/null
   export HOME=$HAB_CACHE_SRC_PATH
   export PATH=./node_modules/.bin:$PATH
   npm install
   for b in node_modules/.bin/*; do
-    fix_interpreter $(readlink -f -n $b) core/coreutils bin/env
+    fix_interpreter "$(readlink -f -n "$b")" core/coreutils bin/env
   done
 
   # Pass the release identifier to the bundle script to enable cache-busting
-  npm run dist -- ${pkg_prefix: -14}
+  # shellcheck disable=2154
+  npm run dist -- "${pkg_prefix: -14}"
 
   rm -rf dist/node_modules
   popd > /dev/null

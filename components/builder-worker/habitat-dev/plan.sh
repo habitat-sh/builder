@@ -1,4 +1,3 @@
-# shellcheck disable=SC2155
 source ../habitat/plan.sh
 source ../../../support/ci/builder-dev-plan.sh
 
@@ -6,8 +5,9 @@ do_prepare() {
   do_dev_prepare
 
   # Used by libssh2-sys
-  export DEP_Z_ROOT="$(pkg_path_for zlib)"
-  export DEP_Z_INCLUDE="$(pkg_path_for zlib)/include"
+  export DEP_Z_ROOT DEP_Z_INCLUDE
+  DEP_Z_ROOT="$(pkg_path_for zlib)"
+  DEP_Z_INCLUDE="$(pkg_path_for zlib)/include"
 
   # Compile the fully-qualified Studio package identifier into the binary
   PLAN_STUDIO_PKG_IDENT=$(pkg_path_for hab-studio | sed "s,^$HAB_PKG_PATH/,,")
