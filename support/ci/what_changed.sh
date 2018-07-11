@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2086
 
 # Determine what changed since our last merge commit.
 #
@@ -18,4 +17,4 @@ if [ "${CURRENT_SHA}" == "${LATEST_MERGE_COMMIT}" ] ; then
     LATEST_MERGE_COMMIT="$(git log --merges --max-count=1 --skip=1 --pretty=format:%H)"
 fi
 
-git diff --name-only ${LATEST_MERGE_COMMIT}
+git diff --name-only "${LATEST_MERGE_COMMIT}"

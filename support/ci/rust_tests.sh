@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2046,SC2086
 
 git log HEAD~1..HEAD | grep -q '!!! Temporary Commit !!!'
 is_tmp_commit=$?
@@ -11,7 +10,7 @@ fi
 
 echo "--> Running $0"
 
-source $(dirname $0)/rust_env.sh
+source "$(dirname "$0")"/rust_env.sh
 
 set -e
-make unit-${COMPONENTS:-all}
+make unit-"${COMPONENTS:-all}"
