@@ -756,6 +756,26 @@ impl From<hab_core::package::PackageIdent> for OriginPackageIdent {
     }
 }
 
+impl<'a> From<&'a OriginPackage> for package::PackageIdent {
+    fn from(value: &'a OriginPackage) -> package::PackageIdent {
+        value.get_ident().into()
+    }
+}
+
+impl<'a> From<&'a OriginPackageIdent> for package::PackageIdent {
+    fn from(value: &'a OriginPackageIdent) -> package::PackageIdent {
+        let mut ident =
+            package::PackageIdent::new(value.get_origin(), value.get_name(), None, None);
+        if !value.get_version().is_empty() {
+            ident.version = Some(value.get_version().into());
+        }
+        if !value.get_release().is_empty() {
+            ident.release = Some(value.get_release().into());
+        }
+        ident
+    }
+}
+
 impl FromStr for OriginPackageIdent {
     type Err = hab_core::Error;
 
@@ -1442,5 +1462,98 @@ mod tests {
             q
         );
         assert_eq!(vec!["3.6.12", "3.6.10", "3.6.6", "3.6.5"], r);
+    }
+
+    #[test]
+    fn convert_origin_package_ref_to_package_ident_fully_qualified() {
+        let mut origin_ident = OriginPackageIdent::new();
+        origin_ident.set_origin(String::from("acme"));
+        origin_ident.set_name(String::from("catapult"));
+        origin_ident.set_version(String::from("9000"));
+        origin_ident.set_release(String::from("20180628120102"));
+
+        let mut origin_pkg = OriginPackage::new();
+        origin_pkg.set_ident(origin_ident);
+
+        // ensure that we're using a ref of an `OriginPackage`
+        assert_eq!(
+            package::PackageIdent::from_str("acme/catapult/9000/20180628120102").unwrap(),
+            (&origin_pkg).into(),
+        )
+    }
+
+    #[test]
+    fn convert_origin_package_ref_to_package_ident_no_release() {
+        let mut origin_ident = OriginPackageIdent::new();
+        origin_ident.set_origin(String::from("acme"));
+        origin_ident.set_name(String::from("catapult"));
+        origin_ident.set_version(String::from("9000"));
+
+        let mut origin_pkg = OriginPackage::new();
+        origin_pkg.set_ident(origin_ident);
+
+        // ensure that we're using a ref of an `OriginPackage`
+        assert_eq!(
+            package::PackageIdent::from_str("acme/catapult/9000").unwrap(),
+            (&origin_pkg).into(),
+        )
+    }
+
+    #[test]
+    fn convert_origin_package_ref_to_package_ident_no_version() {
+        let mut origin_ident = OriginPackageIdent::new();
+        origin_ident.set_origin(String::from("acme"));
+        origin_ident.set_name(String::from("catapult"));
+
+        let mut origin_pkg = OriginPackage::new();
+        origin_pkg.set_ident(origin_ident);
+
+        // ensure that we're using a ref of an `OriginPackage`
+        assert_eq!(
+            package::PackageIdent::from_str("acme/catapult").unwrap(),
+            (&origin_pkg).into(),
+        )
+    }
+
+    #[test]
+    fn convert_origin_package_ident_ref_to_package_ident_fully_qualified() {
+        let mut origin_ident = OriginPackageIdent::new();
+        origin_ident.set_origin(String::from("acme"));
+        origin_ident.set_name(String::from("catapult"));
+        origin_ident.set_version(String::from("9000"));
+        origin_ident.set_release(String::from("20180628120102"));
+
+        // ensure that we're using a ref of an `OriginPackageIdent`
+        assert_eq!(
+            package::PackageIdent::from_str("acme/catapult/9000/20180628120102").unwrap(),
+            (&origin_ident).into(),
+        )
+    }
+
+    #[test]
+    fn convert_origin_package_ident_ref_to_package_ident_no_release() {
+        let mut origin_ident = OriginPackageIdent::new();
+        origin_ident.set_origin(String::from("acme"));
+        origin_ident.set_name(String::from("catapult"));
+        origin_ident.set_version(String::from("9000"));
+
+        // ensure that we're using a ref of an `OriginPackage`
+        assert_eq!(
+            package::PackageIdent::from_str("acme/catapult/9000").unwrap(),
+            (&origin_ident).into(),
+        )
+    }
+
+    #[test]
+    fn convert_origin_package_ident_ref_to_package_ident_no_version() {
+        let mut origin_ident = OriginPackageIdent::new();
+        origin_ident.set_origin(String::from("acme"));
+        origin_ident.set_name(String::from("catapult"));
+
+        // ensure that we're using a ref of an `OriginPackage`
+        assert_eq!(
+            package::PackageIdent::from_str("acme/catapult").unwrap(),
+            (&origin_ident).into(),
+        )
     }
 }

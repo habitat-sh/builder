@@ -26,12 +26,12 @@
 //! ID and a secret access key.
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use bldr_core::metrics::CounterMetric;
 use futures::{Future, Stream};
-use hab_core::package::{Identifiable, PackageArchive, PackageIdent, PackageTarget};
+use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
 use iron::typemap::Key;
 use metrics::Counter;
 use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
@@ -82,29 +82,6 @@ impl S3Handler {
         }
     }
 
-    // Helper function for programmatic creation of
-    // the s3 object key
-    fn s3_key<T>(&self, ident: &T, target: &PackageTarget) -> PathBuf
-    where
-        T: Identifiable,
-    {
-        Path::new(ident.origin())
-            .join(format!("{}", ident.name()))
-            .join(format!("{}", ident.version().unwrap()))
-            .join(format!("{}", ident.release().unwrap()))
-            .join(format!("{}", target.architecture))
-            .join(format!("{}", target.platform))
-            .join(format!(
-                "{}-{}-{}-{}-{}-{}.hart",
-                ident.origin(),
-                ident.name(),
-                ident.version().unwrap(),
-                ident.release().unwrap(),
-                target.architecture,
-                target.platform
-            ))
-    }
-
     // This function checks whether or not the
     // configured bucket exists in the configured
     // backend.
@@ -149,10 +126,10 @@ impl S3Handler {
         target: &PackageTarget,
     ) -> Result<()> {
         Counter::UploadRequests.increment();
-        let key = self.s3_key(ident, target).to_string_lossy().into_owned();
+        let key = s3_key(ident, target)?;
         let file = File::open(hart)?;
         let path_attr = &hart.clone().into_os_string().into_string().unwrap();
-        info!("S3Handler::upload request started for s3_key: {:?}", key);
+        info!("S3Handler::upload request started for s3_key: {}", key);
         let size = file.metadata().unwrap().len() as usize;
         if size < MINLIMIT {
             self.single_upload(key, file, &path_attr)
@@ -169,7 +146,7 @@ impl S3Handler {
     ) -> Result<PackageArchive> {
         Counter::DownloadRequests.increment();
         let mut request = GetObjectRequest::default();
-        let key = self.s3_key(ident, target).to_string_lossy().into_owned();
+        let key = s3_key(ident, target)?;
         request.bucket = self.bucket.to_owned();
         request.key = key;
 
@@ -309,4 +286,55 @@ pub struct S3Cli;
 
 impl Key for S3Cli {
     type Value = S3Handler;
+}
+
+// Helper function for programmatic creation of
+// the s3 object key
+fn s3_key(ident: &PackageIdent, target: &PackageTarget) -> Result<String> {
+    // Calling this method first ensures that the ident is fully qualified and the correct errors
+    // are returned in case of failure
+    let hart_name = ident.archive_name_with_target(target)?;
+
+    Ok(format!(
+        "{}/{}/{}",
+        ident.iter().collect::<Vec<&str>>().join("/"),
+        target.iter().collect::<Vec<&str>>().join("/"),
+        hart_name
+    ))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use hab_core;
+
+    #[test]
+    fn s3_key_fully_qualified_ident() {
+        let ident =
+            PackageIdent::from_str("bend-sinister/the-other-way/1.0.0/20180701122201").unwrap();
+        let target = PackageTarget::from_str("x86_64-linux").unwrap();
+
+        assert_eq!(
+            format!(
+                "{}/{}",
+                "bend-sinister/the-other-way/1.0.0/20180701122201/x86_64/linux",
+                "bend-sinister-the-other-way-1.0.0-20180701122201-x86_64-linux.hart"
+            ),
+            s3_key(&ident, &target).unwrap()
+        );
+    }
+
+    #[test]
+    fn s3_key_fuzzy_ident() {
+        let ident = PackageIdent::from_str("acme/not-enough").unwrap();
+        let target = PackageTarget::from_str("x86_64-linux").unwrap();
+
+        match s3_key(&ident, &target) {
+            Err(Error::HabitatCore(hab_core::Error::FullyQualifiedPackageIdentRequired(i))) => {
+                assert_eq!("acme/not-enough", i)
+            }
+            Err(e) => panic!("Wrong expected error, found={:?}", e),
+            Ok(s) => panic!("Should not have computed a result, returned={}", s),
+        }
+    }
 }

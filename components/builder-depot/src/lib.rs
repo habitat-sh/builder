@@ -71,11 +71,11 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use hab_core::package::{Identifiable, PackageArchive, PackageTarget};
+use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
 use iron::typemap;
 
 pub trait DepotUtil {
-    fn archive_name<T: Identifiable>(ident: &T, target: &PackageTarget) -> PathBuf;
+    fn archive_name(ident: &PackageIdent, target: &PackageTarget) -> PathBuf;
     fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive>;
     fn packages_path(&self) -> PathBuf;
 }
@@ -83,16 +83,11 @@ pub trait DepotUtil {
 impl DepotUtil for config::Config {
     // Return a formatted string representing the filename of an archive for the given package
     // identifier pieces.
-    fn archive_name<T: Identifiable>(ident: &T, target: &PackageTarget) -> PathBuf {
-        PathBuf::from(format!(
-            "{}-{}-{}-{}-{}-{}.hart",
-            ident.origin(),
-            ident.name(),
-            ident.version().unwrap(),
-            ident.release().unwrap(),
-            target.architecture,
-            target.platform
-        ))
+    fn archive_name(ident: &PackageIdent, target: &PackageTarget) -> PathBuf {
+        PathBuf::from(ident.archive_name_with_target(target).expect(&format!(
+            "Package ident should be fully qualified, ident={}",
+            &ident
+        )))
     }
 
     fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive> {
