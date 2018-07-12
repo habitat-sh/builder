@@ -109,6 +109,14 @@ impl Routable for PackageChannelAudit {
     }
 }
 
+impl Routable for PackageGroupChannelAudit {
+    type H = u64;
+
+    fn route_key(&self) -> Option<Self::H> {
+        Some(self.get_origin_id())
+    }
+}
+
 pub trait Pageable {
     fn get_range(&self) -> [u64; 2];
 

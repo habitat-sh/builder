@@ -26,6 +26,17 @@ enum PackageChannelOperation {
   Demote = 1;
 }
 
+message PackageGroupChannelAudit {
+  optional uint64 origin_id = 1;
+  optional uint64 channel_id = 2;
+  repeated uint64 package_ids = 3 [packed=true];
+  optional PackageChannelOperation operation = 4;
+  optional PackageChannelTrigger trigger = 5;
+  optional uint64 requester_id = 6;
+  optional string requester_name = 7;
+  optional uint64 group_id = 8;
+}
+
 message PackageChannelAudit {
   optional uint64 package_id = 1;
   optional uint64 channel_id = 2;
