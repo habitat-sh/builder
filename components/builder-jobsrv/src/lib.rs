@@ -38,6 +38,8 @@ extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate futures;
+extern crate grpcio;
 extern crate sha2;
 extern crate time;
 extern crate toml;

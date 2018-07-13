@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod grpcserver;
 mod handlers;
+mod jobservice;
+mod jobservice_grpc;
 pub mod log_archiver;
 mod log_directory;
 mod log_ingester;
@@ -27,6 +30,7 @@ use hab_net::app::prelude::*;
 use hab_net::conn::RouteClient;
 use protocol::jobsrv::*;
 
+use self::grpcserver::GrpcServer;
 use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;
 use self::log_ingester::LogIngester;
@@ -147,6 +151,7 @@ impl Dispatcher for JobSrv {
         config: Self::Config,
         router_pipe: Arc<String>,
     ) -> Result<<Self::State as AppState>::InitState> {
+        GrpcServer::start()?;
         let datastore = DataStore::new(&config.datastore)?;
         let mut graph = TargetGraph::new();
         let packages = datastore.get_job_graph_packages()?;
