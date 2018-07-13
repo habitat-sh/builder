@@ -17,7 +17,9 @@ use grpcio::{Environment, RpcContext, ServerBuilder, UnarySink};
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 
-use server::jobservice::{HelloRequest, HelloResponse};
+use server::jobservice::{
+    HelloRequest, HelloResponse, JobGraphPackageStats, JobGraphPackageStatsGet,
+};
 use server::jobservice_grpc::{create_job_service, JobService};
 
 #[derive(Clone)]
@@ -28,6 +30,18 @@ impl JobService for JobServiceImpl {
         let msg = format!("Hello {}", req.get_greeting());
         let mut resp = HelloResponse::new();
         resp.set_reply(msg);
+        let f = sink.success(resp)
+            .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
+        ctx.spawn(f)
+    }
+
+    fn get_job_graph_package_stats(
+        &self,
+        ctx: RpcContext,
+        req: JobGraphPackageStatsGet,
+        sink: UnarySink<JobGraphPackageStats>,
+    ) {
+        let resp = JobGraphPackageStats::new();
         let f = sink.success(resp)
             .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
         ctx.spawn(f)
