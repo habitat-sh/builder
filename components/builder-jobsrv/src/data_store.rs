@@ -387,7 +387,7 @@ impl DataStore {
         let conn = self.pool.get_shard(0)?;
 
         let rows = conn.query(
-            "SELECT * FROM upsert_graph_package_v1($1, $2, $3)",
+            "SELECT * FROM upsert_graph_package_v2($1, $2, $3)",
             &[&msg.get_ident(), &msg.get_deps(), &msg.get_target()],
         ).map_err(Error::JobGraphPackageInsert)?;
 
@@ -439,23 +439,23 @@ impl DataStore {
         let conn = self.pool.get_shard(0)?;
 
         let origin = msg.get_origin();
-        let rows = &conn.query("SELECT * FROM count_graph_packages_v1($1)", &[&origin])
+        let rows = &conn.query("SELECT * FROM count_graph_packages_v2($1)", &[&origin])
             .map_err(Error::JobGraphPackageStats)?;
         assert!(rows.len() == 1); // should never have more than one
 
-        let package_count: i64 = rows.get(0).get("count_graph_packages_v1");
+        let package_count: i64 = rows.get(0).get("count_graph_packages_v2");
 
-        let rows = &conn.query("SELECT * FROM count_group_projects_v1($1)", &[&origin])
+        let rows = &conn.query("SELECT * FROM count_group_projects_v2($1)", &[&origin])
             .map_err(Error::JobGraphPackageStats)?;
         assert!(rows.len() == 1); // should never have more than one
-        let build_count: i64 = rows.get(0).get("count_group_projects_v1");
+        let build_count: i64 = rows.get(0).get("count_group_projects_v2");
 
         let rows = &conn.query(
-            "SELECT * FROM count_unique_graph_packages_v1($1)",
+            "SELECT * FROM count_unique_graph_packages_v2($1)",
             &[&origin],
         ).map_err(Error::JobGraphPackageStats)?;
         assert!(rows.len() == 1); // should never have more than one
-        let up_count: i64 = rows.get(0).get("count_unique_graph_packages_v1");
+        let up_count: i64 = rows.get(0).get("count_unique_graph_packages_v2");
 
         let mut package_stats = jobsrv::JobGraphPackageStats::new();
         package_stats.set_plans(package_count as u64);
