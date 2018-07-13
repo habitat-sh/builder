@@ -32,6 +32,7 @@ extern crate lazy_static;
 extern crate linked_hash_map;
 #[macro_use]
 extern crate log;
+extern crate num_cpus;
 extern crate postgres;
 extern crate protobuf;
 extern crate r2d2;
@@ -39,6 +40,8 @@ extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate futures;
+extern crate grpcio;
 extern crate sha2;
 extern crate time;
 extern crate toml;

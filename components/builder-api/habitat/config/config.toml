@@ -22,6 +22,14 @@ host = "{{member.sys.ip}}"
 port = {{member.cfg.port}}
 {{~/eachAlive}}
 
+{{#eachAlive bind.jobsrv.members as |member| ~}}
+    {{#if @first ~}}
+    "[jobsrv]"
+      "host" : "{{member.sys.ip}}",
+      "port" : "{{member.cfg.port}}"
+    {{/if ~}}
+  {{/each ~}}
+
 [depot]
 path = "{{pkg.svc_data_path}}"
 log_dir = "{{pkg.svc_var_path}}"

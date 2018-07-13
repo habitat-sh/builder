@@ -24,6 +24,7 @@ habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 linked-hash-map = "*"
 log = "*"
+num_cpus = "*"
 protobuf = "*"
 postgres = { version = "*", features = ["with-chrono"] }
 chrono = { version = "*", features = ["serde"] }
@@ -36,6 +37,7 @@ time = "*"
 toml = { version = "*", default-features = false }
 diesel = "*"
 diesel_migrations = "*"
+grpcio = "0.3.0"
 
 [dependencies.clap]
 version = "*"

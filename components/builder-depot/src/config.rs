@@ -32,6 +32,7 @@ pub struct Config {
     pub http: HttpCfg,
     /// List of net addresses for routing servers to connect to
     pub routers: Vec<RouterAddr>,
+    pub jobsrv: JobSrvAddr,
     pub github: Option<GitHubCfg>,
     pub s3: S3Cfg,
     pub segment: SegmentCfg,
@@ -67,6 +68,7 @@ impl Default for Config {
         Config {
             http: HttpCfg::default(),
             routers: vec![RouterAddr::default()],
+            jobsrv: JobSrvAddr::default(),
             github: None,
             s3: S3Cfg::default(),
             segment: SegmentCfg::default(),

@@ -45,6 +45,7 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
+extern crate grpcio;
 extern crate tempfile;
 extern crate time;
 extern crate tokio_core;

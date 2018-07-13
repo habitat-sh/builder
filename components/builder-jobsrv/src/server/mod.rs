@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod grpcserver;
 mod handlers;
 pub mod log_archiver;
 mod log_directory;
@@ -28,6 +29,7 @@ use hab_net::conn::RouteClient;
 use protobuf::Message;
 use protocol::jobsrv::*;
 
+use self::grpcserver::GrpcServer;
 use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;
 use self::log_ingester::LogIngester;
@@ -165,6 +167,7 @@ impl Dispatcher for JobSrv {
         LogIngester::start(&config, state.log_dir.clone(), state.datastore.clone())?;
         let conn = RouteClient::new()?;
         conn.connect(&*router_pipe)?;
+        GrpcServer::start(&config, state.datastore.clone())?;
         WorkerMgr::start(&config, state.datastore.clone(), conn)?;
         ScheduleMgr::start(state.datastore.clone(), config.log_path, router_pipe)?;
         Ok(state)

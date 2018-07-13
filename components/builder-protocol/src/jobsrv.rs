@@ -28,6 +28,8 @@ use sharding::InstaId;
 use error::ProtocolError;
 pub use message::jobsrv::*;
 
+pub const DEFAULT_JOBSRV_GRPC_PORT: u16 = 5570;
+
 pub const GITHUB_PUSH_NOTIFY_ID: u64 = 23;
 
 impl Into<Job> for JobSpec {

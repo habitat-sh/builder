@@ -29,6 +29,7 @@ use hab_core::package::{
     ident, FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget,
 };
 use hab_net::privilege::FeatureFlags;
+use hab_net::socket::ToAddrString;
 use hab_net::{ErrCode, NetOk, NetResult};
 use http_gateway::conn::RouteBroker;
 use http_gateway::http::controller::*;
@@ -51,6 +52,7 @@ use protocol::jobsrv::{
     JobGroupAbort, JobGroupGet, JobGroupOriginGet, JobGroupOriginResponse, JobGroupSpec,
     JobGroupTrigger,
 };
+use protocol::message::jobsrv_grpc::JobServerClient;
 use protocol::originsrv::*;
 use protocol::sessionsrv::{Account, AccountGet, AccountOriginRemove};
 use regex::Regex;
@@ -68,6 +70,10 @@ use error::{Error, Result};
 use handlers;
 use metrics::Counter;
 use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
+
+use grpcio::{ChannelBuilder, EnvBuilder};
+
+use std::sync::Arc;
 
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginCreateReq {
@@ -960,19 +966,38 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 
 // This route is unreachable when jobsrv_enabled is false
 fn package_stats(req: &mut Request) -> IronResult<Response> {
-    let mut request = JobGraphPackageStatsGet::new();
-    match get_param(req, "origin") {
-        Some(origin) => request.set_origin(origin),
+    let origin = match get_param(req, "origin") {
+        Some(origin) => origin,
         None => return Ok(Response::with(status::BadRequest)),
-    }
+    };
 
-    match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request) {
-        Ok(stats) => {
-            let mut response = render_json(status::Ok, &stats);
+    let grpc_addr = {
+        let lock = req.get::<persistent::State<Config>>().unwrap();
+        let depot = lock.read().unwrap();
+        depot.jobsrv.to_addr_string()
+    };
+
+    let env = Arc::new(EnvBuilder::new().build());
+
+    println!("CONNECTING TO JOBSRV AT: {}", grpc_addr);
+    let ch = ChannelBuilder::new(env).connect(&grpc_addr);
+    let client = JobServerClient::new(ch);
+
+    let mut req = JobGraphPackageStatsGet::new();
+    req.set_origin(origin);;
+
+    match client.get_job_graph_package_stats(&req) {
+        Ok(reply) => {
+            println!("JobServiceClient received: {:?}", reply);
+            let mut response = render_json(status::Ok, &reply);
             dont_cache_response(&mut response);
             Ok(response)
         }
-        Err(err) => Ok(render_net_error(&err)),
+        Err(err) => {
+            warn!("Failed call JobGraphPackageStatsGet, err={:?}", err);
+            Ok(Response::with(status::BadRequest)) // TOOO: Fix
+                                                   // Ok(render_net_error(&err))
+        }
     }
 }
 

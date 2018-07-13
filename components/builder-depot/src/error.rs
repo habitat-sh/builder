@@ -19,6 +19,7 @@ use std::io;
 use std::result;
 
 use bldr_core;
+use grpcio;
 use hab_core;
 use hab_core::package::{self, Identifiable};
 use hab_net;
@@ -38,6 +39,7 @@ pub enum Error {
     HabitatCore(hab_core::Error),
     HabitatNet(hab_net::error::LibError),
     HeadObject(rusoto_s3::HeadObjectError),
+    Grpc(grpcio::Error),
     HTTP(hyper::status::StatusCode),
     InvalidPackageIdent(String),
     IO(io::Error),
@@ -76,6 +78,7 @@ impl fmt::Display for Error {
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::HabitatNet(ref e) => format!("{}", e),
             Error::HeadObject(ref e) => format!("{}", e),
+            Error::Grpc(ref e) => format!("{}", e),
             Error::HTTP(ref e) => format!("{}", e),
             Error::InvalidPackageIdent(ref e) => format!(
                 "Invalid package identifier: {:?}. A valid identifier is in the form \
@@ -138,6 +141,7 @@ impl error::Error for Error {
             Error::HabitatCore(ref err) => err.description(),
             Error::HabitatNet(ref err) => err.description(),
             Error::HeadObject(ref err) => err.description(),
+            Error::Grpc(ref err) => err.description(),
             Error::HTTP(_) => "Received an HTTP error",
             Error::InvalidPackageIdent(_) => {
                 "Package identifiers must be in origin/name format (example: acme/redis)"

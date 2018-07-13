@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod jobsrv;
+pub mod jobsrv_grpc;
 mod net;
 pub mod originsrv;
 pub mod routesrv;
@@ -391,7 +392,7 @@ impl fmt::Display for Txn {
 }
 
 /// Defines a contract for protocol messages to be persisted to a datastore.
-pub trait Persistable: protobuf::Message + protobuf::Message {
+pub trait Persistable: protobuf::Message {
     /// Type of the primary key
     type Key: fmt::Display;
 
