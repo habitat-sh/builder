@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Map, Record } from 'immutable';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 
-export const Project = Record({
-  id: undefined,
-  auto_build: undefined,
-  name: undefined,
-  origin_id: undefined,
-  origin_name: undefined,
-  owner_id: undefined,
-  package_name: undefined,
-  plan_path: undefined,
-  vcs_auth_token: undefined,
-  vcs_data: undefined,
-  vcs_type: undefined,
-  vcs_username: undefined,
-  settings: Map(),
-  visibility: undefined
-});
+@Component({
+  selector: 'hab-auto-build-settings',
+  template: require('./auto-build-settings.component.html')
+})
+export class AutoBuildSettingsComponent {
+  @Input() enabled: boolean = false;
+  @Output() toggled: EventEmitter<boolean> = new EventEmitter<boolean>();
+
+  change(evt) {
+    this.toggled.emit(this.enabled);
+  }
+}

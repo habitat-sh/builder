@@ -1,0 +1,14 @@
+<div class="auto-build-settings-component">
+  <h3>
+    <hab-icon symbol="loading"></hab-icon>
+    Automatic Dependency Rebuilds
+  </h3>
+  <p>
+    If turned on, Builder will generate a new release (.hart) for this package whenever one of its dependencies (including transitive dependencies) has been updated and promoted to the <code>stable</code> channel.
+  </p>
+  <section class="toggle">
+    <mat-slide-toggle [(ngModel)]="enabled" (change)="change($event)">
+      {{ enabled ? "On" : "Off" }}
+    </mat-slide-toggle>
+  </section>
+</div>
