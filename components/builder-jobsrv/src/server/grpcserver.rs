@@ -11,9 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use data_store::DataStore;
 use error::Result;
 use futures::Future;
-use grpcio::{Environment, RpcContext, ServerBuilder, UnarySink};
+use grpcio::{Environment, RpcContext, RpcStatus, RpcStatusCode, ServerBuilder, UnarySink};
+use protocol::jobsrv;
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 
@@ -23,7 +25,9 @@ use server::jobservice::{
 use server::jobservice_grpc::{create_job_service, JobService};
 
 #[derive(Clone)]
-struct JobServiceImpl;
+struct JobServiceImpl {
+    data_store: DataStore,
+}
 
 impl JobService for JobServiceImpl {
     fn say_hello(&self, ctx: RpcContext, req: HelloRequest, sink: UnarySink<HelloResponse>) {
@@ -35,29 +39,63 @@ impl JobService for JobServiceImpl {
         ctx.spawn(f)
     }
 
+    // TODO : Once we have the service proto properly wired up in
+    // builder-protocol, we can remove the duplicate messages in the
+    // function below
     fn get_job_graph_package_stats(
         &self,
         ctx: RpcContext,
         req: JobGraphPackageStatsGet,
         sink: UnarySink<JobGraphPackageStats>,
     ) {
-        let resp = JobGraphPackageStats::new();
-        let f = sink.success(resp)
-            .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
-        ctx.spawn(f)
+        debug!("Getting stats for origin: {}", req.get_origin());
+        let mut msg = jobsrv::JobGraphPackageStatsGet::new();
+        msg.set_origin(req.get_origin().to_string());
+
+        match self.data_store.get_job_graph_package_stats(&msg) {
+            Ok(package_stats) => {
+                debug!("Got package stats: {:?}", package_stats);
+
+                let mut resp = JobGraphPackageStats::new();
+                resp.set_plans(package_stats.get_plans());
+                resp.set_builds(package_stats.get_builds());
+                resp.set_unique_packages(package_stats.get_unique_packages());
+
+                let f = sink.success(resp)
+                    .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
+                ctx.spawn(f)
+            }
+            Err(err) => {
+                warn!(
+                    "Unable to retrieve package stats for {}, err: {:?}",
+                    msg.get_origin(),
+                    err
+                );
+                let f = sink.fail(RpcStatus::new(
+                    RpcStatusCode::NotFound,
+                    Some("jb:job-graph-package-stats-get:1".to_string()),
+                )).map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
+                ctx.spawn(f)
+            }
+        };
     }
 }
 
-pub struct GrpcServer {}
+pub struct GrpcServer {
+    data_store: DataStore,
+}
 
 impl GrpcServer {
-    pub fn new() -> Self {
-        GrpcServer {}
+    pub fn new(data_store: DataStore) -> Self {
+        GrpcServer {
+            data_store: data_store,
+        }
     }
-    pub fn start() -> Result<JoinHandle<()>> {
+
+    pub fn start(data_store: DataStore) -> Result<JoinHandle<()>> {
         println!("Starting GRPC Server...");
         let (tx, rx) = mpsc::sync_channel(1);
-        let mut grpc_server = Self::new();
+        let mut grpc_server = Self::new(data_store);
         let handle = thread::Builder::new()
             .name("grpcserver".to_string())
             .spawn(move || {
@@ -72,7 +110,10 @@ impl GrpcServer {
 
     fn run(&mut self, rz: mpsc::SyncSender<()>) -> Result<()> {
         let env = Arc::new(Environment::new(1));
-        let service = create_job_service(JobServiceImpl);
+        let instance = JobServiceImpl {
+            data_store: self.data_store.clone(),
+        };
+        let service = create_job_service(instance);
         let mut server = ServerBuilder::new(env)
             .register_service(service)
             .bind("127.0.0.1", 50051)

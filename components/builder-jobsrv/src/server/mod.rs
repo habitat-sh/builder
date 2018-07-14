@@ -151,7 +151,6 @@ impl Dispatcher for JobSrv {
         config: Self::Config,
         router_pipe: Arc<String>,
     ) -> Result<<Self::State as AppState>::InitState> {
-        GrpcServer::start()?;
         let datastore = DataStore::new(&config.datastore)?;
         let mut graph = TargetGraph::new();
         let packages = datastore.get_job_graph_packages()?;
@@ -174,6 +173,7 @@ impl Dispatcher for JobSrv {
         conn.connect(&*router_pipe)?;
         WorkerMgr::start(&config, state.datastore.clone(), conn)?;
         ScheduleMgr::start(state.datastore.clone(), config.log_path, router_pipe)?;
+        GrpcServer::start(state.datastore.clone())?;
         Ok(state)
     }
 
