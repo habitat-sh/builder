@@ -14,6 +14,7 @@
 
 //! A collection of handlers for the JobSrv dispatcher
 
+use std::collections::HashSet;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -294,12 +295,12 @@ pub fn job_group_cancel(
     Ok(())
 }
 
-fn is_project_linked(conn: &mut RouteConn, project_name: &str) -> bool {
+fn is_project_buildable(conn: &mut RouteConn, project_name: &str) -> bool {
     let mut project_get = originsrv::OriginProjectGet::new();
     project_get.set_name(String::from(project_name));
 
     match conn.route::<originsrv::OriginProjectGet, originsrv::OriginProject>(&project_get) {
-        Ok(_) => true,
+        Ok(project) => project.get_auto_build(),
         Err(err) => {
             if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
                 false
@@ -310,6 +311,74 @@ fn is_project_linked(conn: &mut RouteConn, project_name: &str) -> bool {
                 );
                 false
             }
+        }
+    }
+}
+
+fn populate_build_projects(
+    msg: &jobsrv::JobGroupSpec,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+    rdeps: &Vec<(String, String)>,
+    projects: &mut Vec<(String, String)>,
+) {
+    let mut excluded = HashSet::new();
+    let mut start_time;
+    let mut end_time;
+
+    for s in rdeps {
+        // Skip immediately if black-listed
+        if excluded.contains(&s.0) {
+            continue;
+        };
+
+        // If the project is not linked to Builder, or is not auto-buildable
+        // then we will skip it, as well as any later projects that depend on it
+        // TODO (SA): Move the project list creation/vetting to background thread
+        if !is_project_buildable(conn, &s.0) {
+            debug!(
+                "Project is not linked to Builder or not auto-buildable - not adding: {}",
+                &s.0
+            );
+            excluded.insert(s.0.clone());
+
+            let rdeps_opt = {
+                let target_graph = state.graph.read().unwrap();
+                let graph = target_graph.graph(msg.get_target()).unwrap(); // Unwrap OK
+                start_time = PreciseTime::now();
+                let ret = graph.rdeps(&s.0);
+                end_time = PreciseTime::now();
+                ret
+            };
+
+            match rdeps_opt {
+                Some(rdeps) => {
+                    debug!(
+                        "Graph rdeps: {} items ({} sec)\n",
+                        rdeps.len(),
+                        start_time.to(end_time)
+                    );
+
+                    for dep in rdeps {
+                        excluded.insert(dep.0.clone());
+                    }
+                }
+                None => {
+                    debug!("Graph rdeps: no entries found");
+                }
+            }
+
+            continue;
+        };
+
+        let origin = s.0.split("/").nth(0).unwrap();
+
+        // If the origin_only flag is true, make sure the origin matches
+        if !msg.get_origin_only() || origin == msg.get_origin() {
+            debug!("Adding to projects: {} ({})", s.0, s.1);
+            projects.push(s.clone());
+        } else {
+            debug!("Skipping non-origin project: {} ({})", s.0, s.1);
         }
     }
 }
@@ -359,6 +428,18 @@ pub fn job_group_create(
     };
     debug!("Resolved project name: {} sec\n", start_time.to(end_time));
 
+    // Bail if auto-build is false, and the project has not been manually kicked off
+    if !is_project_buildable(conn, &project_name) {
+        match msg.get_trigger() {
+            jobsrv::JobGroupTrigger::HabClient | jobsrv::JobGroupTrigger::BuilderUI => (),
+            _ => {
+                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-create:3");
+                conn.route_reply(req, &*err)?;
+                return Ok(());
+            }
+        }
+    }
+
     // Add the root package if needed
     if !msg.get_deps_only() || msg.get_package_only() {
         projects.push((project_name.clone(), project_ident.clone()));
@@ -383,24 +464,7 @@ pub fn job_group_create(
                     start_time.to(end_time)
                 );
 
-                for s in rdeps {
-                    // If the project is not linked to Builder, don't bother
-                    // TODO (SA): Move the project list creation/vetting to background thread
-                    if !is_project_linked(conn, &s.0) {
-                        debug!("Project is not linked to Builder - not adding: {}", &s.0);
-                        continue;
-                    };
-
-                    let origin = s.0.split("/").nth(0).unwrap();
-
-                    // If the origin_only flag is true, make sure the origin matches
-                    if !msg.get_origin_only() || origin == msg.get_origin() {
-                        debug!("Adding to projects: {} ({})", s.0, s.1);
-                        projects.push(s.clone());
-                    } else {
-                        debug!("Skipping non-origin project: {} ({})", s.0, s.1);
-                    }
-                }
+                populate_build_projects(&msg, conn, state, &rdeps, &mut projects);
             }
             None => {
                 debug!("Graph rdeps: no entries found");

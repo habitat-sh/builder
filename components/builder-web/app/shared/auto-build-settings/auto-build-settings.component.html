@@ -4,7 +4,7 @@
     Automatic Dependency Rebuilds
   </h3>
   <p>
-    If turned on, Builder will generate a new release (.hart) for this package whenever one of its dependencies (including transitive dependencies) has been updated and promoted to the <code>stable</code> channel.
+    If turned on, Builder will generate new builds for this package automatically - for example, whenever one of its dependencies (including transitive dependencies) has been re-built.
   </p>
   <section class="toggle">
     <mat-slide-toggle [(ngModel)]="enabled" (change)="change($event)">
