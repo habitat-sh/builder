@@ -20,8 +20,7 @@ use std::path::PathBuf;
 
 use github_api_client::GitHubCfg;
 use hab_core::config::ConfigFile;
-use hab_core::os::system::{Architecture, Platform};
-use hab_core::package::PackageTarget;
+use hab_core::package::target::{self, PackageTarget};
 use http_gateway::config::prelude::*;
 use segment_api_client::SegmentCfg;
 
@@ -48,7 +47,7 @@ pub struct Config {
     pub log_dir: PathBuf,
     /// Filepath to where the builder encryption keys can be found
     pub key_dir: PathBuf,
-    /// A list of package platform and architecture combinations which can be uploaded and hosted
+    /// A list of package targets which can be uploaded and hosted
     pub targets: Vec<PackageTarget>,
     /// Whether jobsrv is present or not
     pub jobsrv_enabled: bool,
@@ -77,10 +76,7 @@ impl Default for Config {
             non_core_builds_enabled: true,
             log_dir: PathBuf::from(env::temp_dir().to_string_lossy().into_owned()),
             key_dir: PathBuf::from("/hab/svc/builder-api/files"),
-            targets: vec![
-                PackageTarget::new(Platform::Linux, Architecture::X86_64),
-                PackageTarget::new(Platform::Windows, Architecture::X86_64),
-            ],
+            targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
             jobsrv_enabled: true,
             upstream_depot: None,
             upstream_origins: vec!["core".to_string()],
@@ -175,14 +171,7 @@ mod tests {
         jobsrv_enabled = false
         upstream_depot = "http://example.com"
         upstream_origins = ["foo", "bar"]
-
-        [[targets]]
-        platform = "linux"
-        architecture = "x86_64"
-
-        [[targets]]
-        platform = "windows"
-        architecture = "x86_64"
+        targets = ["x86_64-linux", "x86_64-windows"]
 
         [http]
         listen = "127.0.0.1"
@@ -224,10 +213,8 @@ mod tests {
         assert_eq!(config.http.port, 9000);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9001");
         assert_eq!(config.targets.len(), 2);
-        assert_eq!(config.targets[0].platform, Platform::Linux);
-        assert_eq!(config.targets[0].architecture, Architecture::X86_64);
-        assert_eq!(config.targets[1].platform, Platform::Windows);
-        assert_eq!(config.targets[1].architecture, Architecture::X86_64);
+        assert_eq!(config.targets[0], target::X86_64_LINUX);
+        assert_eq!(config.targets[1], target::X86_64_WINDOWS);
     }
 
     #[test]

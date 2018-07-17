@@ -865,7 +865,10 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         }
     }
 
-    let filename = file_path.join(Config::archive_name(&ident, &target_from_artifact));
+    let filename = file_path.join(Config::archive_name(
+        &(&ident).into(),
+        &target_from_artifact,
+    ));
     let temp_ident = ident.to_owned().into();
 
     match fs::rename(&temp_path, &filename) {
@@ -1250,7 +1253,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
         Ok(package) => {
             let dir = tempdir_in(depot.packages_path()).expect("Unable to create a tempdir!");
             let file_path = dir.path()
-                .join(Config::archive_name(package.get_ident(), &target));
+                .join(Config::archive_name(&(&package).into(), &target));
             let temp_ident = ident.to_owned().into();
             match s3handler.download(&file_path, &temp_ident, &target) {
                 Ok(archive) => download_response_for_archive(archive, dir),
