@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2086
 
 # This script takes as input a path to a file of idents, and a channel
 # and promotes all the packages listed in the file to the specified
@@ -22,7 +21,7 @@ select yn in "Yes" "No"; do
     esac
 done
 
-list=$(cat $1)
+list=$(cat "$1")
 for ident in $list; do
-  hab pkg promote $ident $2
+  hab pkg promote "$ident" "$2"
 done
