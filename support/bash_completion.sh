@@ -1,4 +1,3 @@
-# shellcheck disable=SC2086,SC2128
 # Copyright:: Copyright (c) 2015-2016 The Habitat Maintainers
 #
 # The terms of the Evaluation Agreement (Habitat) between Chef Software Inc.
@@ -22,72 +21,72 @@ _hab()
     cur=${COMP_WORDS[COMP_CWORD]}
     prev=${COMP_WORDS[COMP_CWORD-1]}
     len=${#COMP_WORDS[@]}
-    if [ $len -gt 2 ]
+    if [ "$len" -gt 2 ]
     then
         minus2=${COMP_WORDS[COMP_CWORD-2]}
     fi
 
-    if [ $COMP_CWORD -eq 1 ]; then
+    if [ "$COMP_CWORD" -eq 1 ]; then
         case $prev in
             hab)
                 COMPREPLY=( $( compgen -W "apply artifact config file help install origin pkg ring svc setup start studio sup user" -- "$cur" ) )
                 ;;
                    esac
-    elif [ $COMP_CWORD -eq 2 ]; then
+    elif [ "$COMP_CWORD" -eq 2 ]; then
         case "$prev" in
             artifact)
-                cmds=( "hash help sign upload verify" )
+                cmds="hash help sign upload verify"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             cli)
-                cmds=( "help setup" )
+                cmds="help setup"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             config)
-                cmds=( "apply help" )
+                cmds="apply help"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             file)
-                cmds=( "help upload" )
+                cmds="help upload"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             origin)
-                cmds=( "help key" )
+                cmds="help key"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             pkg)
-                cmds=( "binlink build exec export help install path" )
+                cmds="binlink build exec export help install path"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             ring)
-                cmds=( "help key" )
+                cmds="help key"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             svc)
-                cmds=( "help key" )
+                cmds="help key"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             studio)
-                cmds=( "build enter help new rm run version" )
+                cmds="build enter help new rm run version"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             sup)
-                cmds=( "bash config help sh start" )
+                cmds="bash config help sh start"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
             user)
-                cmds=( "help key" )
+                cmds="help key"
                 COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                 ;;
 
 
         esac
-    elif [ $COMP_CWORD -eq 3 ]; then
+    elif [ "$COMP_CWORD" -eq 3 ]; then
         case "$minus2" in
             origin)
                 case "$prev" in
                     key) #hab origin key
-                        cmds=( "download export generate help import upload" )
+                        cmds="download export generate help import upload"
                         COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                     ;;
                 esac
@@ -95,7 +94,7 @@ _hab()
             ring) # hab ring key
                 case "$prev" in
                     key)
-                        cmds=( "export generate help import" )
+                        cmds="export generate help import"
                         COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                     ;;
                 esac
@@ -103,7 +102,7 @@ _hab()
             svc) # hab svc key
                 case "$prev" in
                     key)
-                        cmds=( "generate help" )
+                        cmds="generate help"
                         COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                     ;;
                 esac
@@ -111,7 +110,7 @@ _hab()
             user) # hab user key
                 case "$prev" in
                     key)
-                        cmds=( "generate help" )
+                        cmds="generate help"
                         COMPREPLY=( $( compgen -W "$cmds" -- "$cur") )
                     ;;
                 esac
