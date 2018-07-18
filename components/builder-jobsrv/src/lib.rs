@@ -31,6 +31,7 @@ extern crate lazy_static;
 extern crate linked_hash_map;
 #[macro_use]
 extern crate log;
+extern crate num_cpus;
 extern crate postgres;
 extern crate protobuf;
 extern crate r2d2;

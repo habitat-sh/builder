@@ -86,6 +86,10 @@ pub struct NetCfg {
     pub log_ingestion_listen: IpAddr,
     /// Worker Log Ingestion socket's port
     pub log_ingestion_port: u16,
+    /// GRPC Server listen address
+    pub grpc_listen: IpAddr,
+    /// GRPC Server port
+    pub grpc_port: u16,
 }
 
 impl NetCfg {
@@ -120,6 +124,8 @@ impl Default for NetCfg {
             worker_heartbeat_port: 5567,
             log_ingestion_listen: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             log_ingestion_port: 5568,
+            grpc_listen: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            grpc_port: 5570,
         }
     }
 }
@@ -173,6 +179,8 @@ mod tests {
         worker_heartbeat_port = 9000
         log_ingestion_listen = "2.2.2.2"
         log_ingestion_port = 9999
+        grpc_listen = "3.3.3.3"
+        gprc_port = 1212
 
         [archive]
         backend = "s3"
@@ -202,10 +210,12 @@ mod tests {
             "1.1.1.1"
         );
         assert_eq!(&format!("{}", config.net.log_ingestion_listen), "2.2.2.2");
+        assert_eq!(&format!("{}", config.net.grpc_listen), "3.3.3.3");
 
         assert_eq!(config.net.worker_command_port, 9000);
         assert_eq!(config.net.worker_heartbeat_port, 9000);
         assert_eq!(config.net.log_ingestion_port, 9999);
+        assert_eq!(config.net.grpc_port, 1212);
         assert_eq!(config.datastore.port, 9000);
         assert_eq!(config.datastore.user, "test");
         assert_eq!(config.datastore.database, "test_jobsrv");

@@ -15,9 +15,13 @@ use data_store::DataStore;
 use error::Result;
 use futures::Future;
 use grpcio::{Environment, RpcContext, RpcStatus, RpcStatusCode, ServerBuilder, UnarySink};
+use num_cpus;
 use protocol::jobsrv;
+use std::net::IpAddr;
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
+
+use config::Config;
 
 use server::jobservice::{
     HelloRequest, HelloResponse, JobGraphPackageStats, JobGraphPackageStatsGet,
@@ -49,6 +53,7 @@ impl JobService for JobServiceImpl {
         sink: UnarySink<JobGraphPackageStats>,
     ) {
         debug!("Getting stats for origin: {}", req.get_origin());
+
         let mut msg = jobsrv::JobGraphPackageStatsGet::new();
         msg.set_origin(req.get_origin().to_string());
 
@@ -82,20 +87,23 @@ impl JobService for JobServiceImpl {
 }
 
 pub struct GrpcServer {
+    addr: IpAddr,
+    port: u16,
     data_store: DataStore,
 }
 
 impl GrpcServer {
-    pub fn new(data_store: DataStore) -> Self {
+    pub fn new(data_store: DataStore, addr: IpAddr, port: u16) -> Self {
         GrpcServer {
+            addr: addr,
+            port: port,
             data_store: data_store,
         }
     }
 
-    pub fn start(data_store: DataStore) -> Result<JoinHandle<()>> {
-        println!("Starting GRPC Server...");
+    pub fn start(cfg: &Config, data_store: DataStore) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(1);
-        let mut grpc_server = Self::new(data_store);
+        let mut grpc_server = Self::new(data_store, cfg.net.grpc_listen, cfg.net.grpc_port);
         let handle = thread::Builder::new()
             .name("grpcserver".to_string())
             .spawn(move || {
@@ -109,19 +117,24 @@ impl GrpcServer {
     }
 
     fn run(&mut self, rz: mpsc::SyncSender<()>) -> Result<()> {
-        let env = Arc::new(Environment::new(1));
+        // Default connection queues to number of cores available
+        // TODO: Make this configurable later if needed
+        let cq_count = num_cpus::get();
+        info!("Starting GRPC server with {} threads", cq_count);
+
+        let env = Arc::new(Environment::new(cq_count));
         let instance = JobServiceImpl {
             data_store: self.data_store.clone(),
         };
         let service = create_job_service(instance);
         let mut server = ServerBuilder::new(env)
             .register_service(service)
-            .bind("127.0.0.1", 50051)
+            .bind(self.addr.to_string(), self.port)
             .build()
             .unwrap();
         server.start();
         for &(ref host, port) in server.bind_addrs() {
-            info!("listening on {}:{}", host, port);
+            info!("Listening on {}:{}", host, port);
         }
         rz.send(()).unwrap();
 

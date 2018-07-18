@@ -171,9 +171,9 @@ impl Dispatcher for JobSrv {
         LogIngester::start(&config, state.log_dir.clone(), state.datastore.clone())?;
         let conn = RouteClient::new()?;
         conn.connect(&*router_pipe)?;
+        GrpcServer::start(&config, state.datastore.clone())?;
         WorkerMgr::start(&config, state.datastore.clone(), conn)?;
         ScheduleMgr::start(state.datastore.clone(), config.log_path, router_pipe)?;
-        GrpcServer::start(state.datastore.clone())?;
         Ok(state)
     }
 

@@ -22,6 +22,7 @@ habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 linked-hash-map = "*"
 log = "*"
+num_cpus = "*"
 protobuf = "1.4.*"
 postgres = { version = "*", features = ["with-chrono"] }
 chrono = { version = "*", features = ["serde"] }
