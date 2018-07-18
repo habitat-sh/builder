@@ -1093,7 +1093,11 @@ fn get_origin_schedule_status(req: &mut Request) -> IronResult<Response> {
     request.set_limit(limit);
 
     match route_message::<JobGroupOriginGet, JobGroupOriginResponse>(req, &request) {
-        Ok(jgor) => Ok(render_json(status::Ok, &jgor.get_job_groups())),
+        Ok(jgor) => {
+            let mut response = render_json(status::Ok, &jgor.get_job_groups());
+            dont_cache_response(&mut response);
+            Ok(response)
+        }
         Err(e) => Ok(render_net_error(&e)),
     }
 }
