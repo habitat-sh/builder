@@ -1,0 +1,14 @@
+<div class="auto-build-settings-component">
+  <h3>
+    <hab-icon symbol="loading"></hab-icon>
+    Automatic Dependency Rebuilds
+  </h3>
+  <p>
+    If turned on, Builder will generate new builds for this package automatically - for example, whenever one of its dependencies (including transitive dependencies) has been re-built.
+  </p>
+  <section class="toggle">
+    <mat-slide-toggle [(ngModel)]="enabled" (change)="change($event)">
+      {{ enabled ? "On" : "Off" }}
+    </mat-slide-toggle>
+  </section>
+</div>

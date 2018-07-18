@@ -195,7 +195,7 @@ impl DataStore {
         let project = opc.get_project();
 
         conn.execute(
-            "SELECT update_origin_project_v3($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+            "SELECT update_origin_project_v4($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
             &[
                 &(project.get_id() as i64),
                 &(project.get_origin_id() as i64),
@@ -206,6 +206,7 @@ impl DataStore {
                 &(project.get_owner_id() as i64),
                 &(project.get_vcs_installation_id() as i64),
                 &project.get_visibility().to_string(),
+                &project.get_auto_build(),
             ],
         ).map_err(SrvError::OriginProjectUpdate)?;
 
@@ -282,6 +283,7 @@ impl DataStore {
         project.set_plan_path(row.get("plan_path"));
         project.set_vcs_type(row.get("vcs_type"));
         project.set_vcs_data(row.get("vcs_data"));
+        project.set_auto_build(row.get("auto_build"));
 
         if let Some(Ok(install_id)) = row.get_opt::<&str, i64>("vcs_installation_id") {
             project.set_vcs_installation_id(install_id as u32);
@@ -309,7 +311,7 @@ impl DataStore {
             }
         };
         let rows = conn.query(
-            "SELECT * FROM insert_origin_project_v4($1, $2, $3, $4, $5, $6, $7, $8)",
+            "SELECT * FROM insert_origin_project_v5($1, $2, $3, $4, $5, $6, $7, $8, $9)",
             &[
                 &project.get_origin_name(),
                 &project.get_package_name(),
@@ -319,6 +321,7 @@ impl DataStore {
                 &(project.get_owner_id() as i64),
                 &install_id,
                 &project.get_visibility().to_string(),
+                &project.get_auto_build(),
             ],
         ).map_err(SrvError::OriginProjectCreate)?;
         let row = rows.get(0);

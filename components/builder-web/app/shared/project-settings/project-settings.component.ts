@@ -58,6 +58,8 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   private api: BuilderApiClient;
   private defaultPath = 'habitat/plan.sh';
   private _visibility: string;
+  private _autoBuild;
+
   private _doAfterViewChecked: Function[] = [];
 
   constructor(
@@ -95,6 +97,19 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       this.selectedPath = p.currentValue.plan_path;
       this.visibility = p.currentValue.visibility || this.visibility;
     }
+  }
+
+  get autoBuild() {
+
+    if (typeof this._autoBuild === 'undefined') {
+      this._autoBuild = !!this.store.getState().projects.current.auto_build;
+    }
+
+    return this._autoBuild;
+  }
+
+  set autoBuild(v: boolean) {
+    this._autoBuild = v;
   }
 
   get config() {
@@ -147,7 +162,8 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       'origin': this.origin,
       'plan_path': this.planField.value,
       'installation_id': this.selectedInstallation.get('installation_id'),
-      'repo_id': this.activeRepo.get('id')
+      'repo_id': this.activeRepo.get('id'),
+      'auto_build': this.autoBuild
     };
   }
 
@@ -189,6 +205,10 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   set visibility(v: string) {
     this._visibility = v;
+  }
+
+  autoBuildToggled(v: boolean) {
+    this.autoBuild = v;
   }
 
   connect() {

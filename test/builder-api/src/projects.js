@@ -9,7 +9,8 @@ const projectCreatePayload = {
   origin: 'neurosis',
   plan_path: 'plan.sh',
   installation_id: installationId,
-  repo_id: repoId
+  repo_id: repoId,
+  auto_build: true
 };
 
 let projectExpectations = function(res) {
@@ -21,9 +22,10 @@ let projectExpectations = function(res) {
   expect(res.body.plan_path).to.equal('plan.sh');
   expect(res.body.owner_id).to.equal(global.sessionBobo.id);
   expect(res.body.vcs_type).to.equal('git');
-  expect(res.body.vcs_data).to.equal('https://github.com/habitat-sh/testapp.git')
+  expect(res.body.vcs_data).to.equal('https://github.com/habitat-sh/testapp.git');
   expect(res.body.vcs_installation_id).to.equal(installationId.toString());
   expect(res.body.visibility).to.equal('public');
+  expect(res.body.auto_build).to.equal(true);
 };
 
 describe('Projects API', function() {

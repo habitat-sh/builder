@@ -715,6 +715,7 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
             project.set_plan_path(body.plan_path);
             project.set_vcs_type(String::from("git"));
             project.set_vcs_installation_id(body.installation_id);
+            project.set_auto_build(body.auto_build);
 
             match github.repo(&token, body.repo_id) {
                 Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
@@ -726,7 +727,14 @@ pub fn project_create(req: &mut Request) -> IronResult<Response> {
             }
             (token, body.repo_id)
         }
-        _ => return Ok(Response::with(status::UnprocessableEntity)),
+        Ok(None) => {
+            debug!("Project JSON returned None");
+            return Ok(Response::with(status::UnprocessableEntity));
+        }
+        Err(e) => {
+            debug!("Error parsing project JSON: {:?}", e);
+            return Ok(Response::with(status::UnprocessableEntity));
+        }
     };
 
     let origin = match route_message::<OriginGet, Origin>(req, &origin_get) {
@@ -856,6 +864,7 @@ pub fn project_update(req: &mut Request) -> IronResult<Response> {
                 }
             };
 
+            project.set_auto_build(body.auto_build);
             project.set_plan_path(body.plan_path);
             project.set_vcs_installation_id(body.installation_id);
             match github.repo(&token, body.repo_id) {

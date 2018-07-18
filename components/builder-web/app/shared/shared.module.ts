@@ -22,6 +22,7 @@ import {
   MatRadioGroup, MatRadioButton, MatSlideToggleModule, MatSlideToggle, MatTooltipModule, MatTabsModule,
   MatButtonModule
 } from '@angular/material';
+import { AutoBuildSettingsComponent } from './auto-build-settings/auto-build-settings.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { BreadcrumbsComponent } from './breadcrumbs/breadcrumbs.component';
 import { ChannelsComponent } from './channels/channels.component';
@@ -57,6 +58,7 @@ import { SignedInGuard } from './guards/signed-in.guard';
     RouterModule
   ],
   declarations: [
+    AutoBuildSettingsComponent,
     BreadcrumbsComponent,
     ChannelsComponent,
     CheckingInputComponent,

@@ -422,6 +422,7 @@ message OriginProject {
   optional string vcs_data = 9;
   optional uint32 vcs_installation_id = 12;
   optional OriginPackageVisibility visibility = 13;
+  optional bool auto_build = 14;
 }
 
 message OriginProjectCreate {

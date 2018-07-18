@@ -38,8 +38,8 @@
           <span>connected</span>
         </span>
         <span class="column actions">
-          <hab-icon symbol="cancel" (click)="disconnect()" title="Remove this connection"></hab-icon>
           <hab-icon symbol="settings" (click)="editConnection()" title="Edit this connection"></hab-icon>
+          <hab-icon symbol="cancel" (click)="disconnect()" title="Remove this connection"></hab-icon>
         </span>
       </li>
     </ul>
@@ -127,11 +127,15 @@
             [maxLength]="false" [isAvailable]="doesFileExist" [value]="selectedPath">
           </hab-checking-input>
         </div>
-        <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)">
-        </hab-visibility-selector>
+        <hr>
+        <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)"></hab-visibility-selector>
+        <hr>
         <hab-docker-export-settings #docker *ngIf="selectedInstallation" [origin]="origin" [package]="name" [integrations]="integrations"
           [current]="dockerSettings" [enabled]="dockerEnabled">
         </hab-docker-export-settings>
+        <hr>
+        <hab-auto-build-settings [enabled]="autoBuild" (toggled)="autoBuildToggled($event)"></hab-auto-build-settings>
+        <hr>
       </div>
       <div class="controls">
         <button *ngIf="!selectedInstallation" mat-raised-button color="primary" class="button" (click)="next()" [disabled]="!repoSelected">
