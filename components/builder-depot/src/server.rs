@@ -69,6 +69,13 @@ use handlers;
 use metrics::Counter;
 use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
 
+use grpcio::{ChannelBuilder, EnvBuilder};
+use jobservice;
+use jobservice_grpc::JobServiceClient;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+use std::sync::Arc;
+
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginCreateReq {
     name: String,
@@ -958,21 +965,45 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+impl Serialize for jobservice::JobGraphPackageStats {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut strukt = serializer.serialize_struct("job_graph_package_stats", 2)?;
+        strukt.serialize_field("plans", &self.get_plans())?;
+        strukt.serialize_field("builds", &self.get_builds())?;
+        strukt.serialize_field("unique_packages", &self.get_unique_packages())?;
+        strukt.end()
+    }
+}
+
 // This route is unreachable when jobsrv_enabled is false
 fn package_stats(req: &mut Request) -> IronResult<Response> {
-    let mut request = JobGraphPackageStatsGet::new();
-    match get_param(req, "origin") {
-        Some(origin) => request.set_origin(origin),
+    let origin = match get_param(req, "origin") {
+        Some(origin) => origin,
         None => return Ok(Response::with(status::BadRequest)),
-    }
+    };
 
-    match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request) {
-        Ok(stats) => {
-            let mut response = render_json(status::Ok, &stats);
+    let env = Arc::new(EnvBuilder::new().build());
+    let ch = ChannelBuilder::new(env).connect("localhost:5570");
+    let client = JobServiceClient::new(ch);
+
+    let mut req = jobservice::JobGraphPackageStatsGet::new();
+    req.set_origin(origin);;
+
+    match client.get_job_graph_package_stats(&req) {
+        Ok(reply) => {
+            println!("JobServiceClient received: {:?}", reply);
+            let mut response = render_json(status::Ok, &reply);
             dont_cache_response(&mut response);
             Ok(response)
         }
-        Err(err) => Ok(render_net_error(&err)),
+        Err(err) => {
+            warn!("Failed call JobGraphPackageStatsGet, err={:?}", err);
+            Ok(Response::with(status::BadRequest)) // TOOO: Fix
+                                                   // Ok(render_net_error(&err))
+        }
     }
 }
 

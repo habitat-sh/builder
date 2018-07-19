@@ -46,6 +46,7 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
+extern crate grpcio;
 extern crate tempfile;
 extern crate time;
 extern crate tokio_core;
@@ -60,6 +61,8 @@ pub mod backend;
 pub mod config;
 pub mod error;
 pub mod handlers;
+pub mod jobservice;
+pub mod jobservice_grpc;
 pub mod metrics;
 pub mod server;
 pub mod upstream;

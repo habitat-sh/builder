@@ -1122,6 +1122,7 @@ dependencies = [
  "env_logger 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "github-api-client 0.0.0",
+ "grpcio 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "habitat-builder-protocol 0.0.0",
  "habitat_core 0.0.0 (git+https://github.com/habitat-sh/core.git)",
  "habitat_depot_client 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
