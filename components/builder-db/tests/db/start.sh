@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2086
 #
 # Oh habitat, how you bring me back to my most hack-worthy roots. I love you for it.
 #
@@ -19,15 +18,15 @@ if [ ! -f /bin/hab ]; then
 fi
 
 mkdir -p /hab/svc/postgresql
-cp $DB_TEST_DIR/pg_hba.conf /hab/svc/postgresql
-cp $DB_TEST_DIR/user.toml /hab/svc/postgresql
+cp "$DB_TEST_DIR"/pg_hba.conf /hab/svc/postgresql
+cp "$DB_TEST_DIR"/user.toml /hab/svc/postgresql
 hab sup run core/postgresql &
 hab_pid=$!
 
 sudo_ppid=$(ps -p $$ -o 'ppid=')
-original_gpid=$(ps -p $sudo_ppid -o 'ppid=')
+original_gpid=$(ps -p "$sudo_ppid" -o 'ppid=')
 while true; do
-  current_gpid=$(ps -p $sudo_ppid -o 'ppid=')
+  current_gpid=$(ps -p "$sudo_ppid" -o 'ppid=')
   if [ "$original_gpid" != "$current_gpid" ]; then
     echo "Stopping core/postgresql"
     kill $hab_pid
