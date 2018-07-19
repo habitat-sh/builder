@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2068,SC2071,SC2073,SC2086
 
 # Downloads the latest builder bootstrap tarball from S3 and installs
 # the desired packages into /hab/cache/artifacts. All
@@ -25,6 +24,7 @@ set -euo pipefail
 #
 # Do *not* provide version or release information.
 declare -a services_to_install='()'
+# shellcheck disable=2071,2073
 if [ "$#" > 0 ]
 then
     # Bash 4 adds the command to this array; let's slice it off
@@ -40,7 +40,7 @@ log() {
 }
 
 find_if_exists() {
-    command -v ${1} || { log "Required utility '${1}' cannot be found!  Aborting."; exit 1; }
+    command -v "${1}" || { log "Required utility '${1}' cannot be found!  Aborting."; exit 1; }
 }
 
 # These are the key utilities this script uses. If any are not present
@@ -76,7 +76,7 @@ latest_archive=$(${awk} 'NR==1' LATEST)
 # Now that we know the latest tarball, let's download it, too.
 latest_package_url=${s3_root_url}/${latest_archive}
 log "Downloading ${latest_archive} from ${latest_package_url}"
-${curl} --remote-name ${s3_root_url}/${latest_archive} >&2
+${curl} --remote-name ${s3_root_url}/"${latest_archive}" >&2
 
 # Verify the tarball; the SHA256 checksum is the 2nd line of the
 # manifest file.
@@ -88,12 +88,12 @@ ${shasum} --algorithm 256 --check <<< "${checksum}  ${latest_archive}" >&2
 # Unpack the archive
 
 tmpdir=hab_bootstrap_$(date +%s)
-mkdir -p ${tmpdir}
+mkdir -p "${tmpdir}"
 
 ${tar} --extract \
        --verbose \
-       --file=${latest_archive} \
-       --directory=${tmpdir}
+       --file="${latest_archive}" \
+       --directory="${tmpdir}"
 
 # This is the hab binary from the bootstrap bundle. We'll use this to
 # install everything.
@@ -112,7 +112,7 @@ hab_bootstrap_bin=${tmpdir}/bin/hab
 # to retrieve them to verify the packages.
 log "Installing public origin keys"
 mkdir -p /hab/cache/keys
-cp ${tmpdir}/keys/* /hab/cache/keys
+cp "${tmpdir}"/keys/* /hab/cache/keys
 
 # When installing packages (even from a .hart file), we pull
 # dependencies from Builder, but we pull them *through the artifact
@@ -121,7 +121,7 @@ cp ${tmpdir}/keys/* /hab/cache/keys
 # artifacts, but that's a minor concern.
 log "Populating artifact cache"
 mkdir -p /hab/cache/artifacts
-cp ${tmpdir}/artifacts/* /hab/cache/artifacts
+cp "${tmpdir}"/artifacts/* /hab/cache/artifacts
 
 for pkg in "${sup_packages[@]}" "${helper_packages[@]}"
 do
@@ -129,16 +129,16 @@ do
     # Using a fake depot URL keeps us honest; this will fail loudly if
     # we need to go off the box to get *anything*
     HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
-                 ${hab_bootstrap_bin} pkg install ${tmpdir}/artifacts/core-${pkg_name}-*.hart
+                 ${hab_bootstrap_bin} pkg install "${tmpdir}"/artifacts/core-"${pkg_name}"-*.hart
 done
 
-for pkg in ${services_to_install[@]:-}
+for pkg in "${services_to_install[@]:-}"
 do
     pkg_name=${pkg##habitat/} # strip "core/" if it's there
     # Using a fake depot URL keeps us honest; this will fail loudly if
     # we need to go off the box to get *anything*
     HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
-                 ${hab_bootstrap_bin} pkg install ${tmpdir}/artifacts/habitat-${pkg_name}-*.hart
+                 ${hab_bootstrap_bin} pkg install "${tmpdir}"/artifacts/habitat-"${pkg_name}"-*.hart
 done
 
 # Now we ensure that the hab binary being used on the system is the
