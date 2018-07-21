@@ -9,19 +9,20 @@ workspace = "../../"
 [dependencies]
 clippy = { version = "*", optional = true }
 fnv = "*"
-protobuf = "1.4.*"
+protobuf = "2.0.*"
 serde = "*"
 serde_derive = "*"
 time = "*"
 regex = "*"
 lazy_static = "*"
-grpcio = "0.2.1"
+grpcio = "0.3.0"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"
 
 [build-dependencies]
 pkg-config = "0.3"
-protoc = "1.4"
-protoc-rust = "1.4"
-protoc-grpcio = "0.1.1"
+protoc = "2.0.*"
+protoc-rust = "2.0"
+protoc-grpcio = "0.2.0"
+protobuf-codegen = "2.0"
