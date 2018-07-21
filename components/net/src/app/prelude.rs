@@ -31,5 +31,6 @@ pub use super::start as app_start;
 pub use super::AppState;
 pub use conn::RouteConn;
 pub use error::{ErrCode, NetError, NetOk};
-pub use protobuf::MessageStatic;
-pub use protocol::{Message, Protocol};
+//pub use protobuf::Message;
+pub use protocol::Message;
+pub use protocol::Protocol;

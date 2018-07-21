@@ -23,26 +23,17 @@ use std::thread::{self, JoinHandle};
 
 use config::Config;
 
-use server::jobservice::{
-    HelloRequest, HelloResponse, JobGraphPackageStats, JobGraphPackageStatsGet,
-};
-use server::jobservice_grpc::{create_job_service, JobService};
+use protocol::message::jobsrv_grpc::{create_job_server, JobServer};
+
+use protocol::jobsrv::{JobGraphPackageStats, JobGraphPackageStatsGet};
+//use server::jobservice_grpc::{create_job_service, JobService};
 
 #[derive(Clone)]
-struct JobServiceImpl {
+struct JobServerImpl {
     data_store: DataStore,
 }
 
-impl JobService for JobServiceImpl {
-    fn say_hello(&self, ctx: RpcContext, req: HelloRequest, sink: UnarySink<HelloResponse>) {
-        let msg = format!("Hello {}", req.get_greeting());
-        let mut resp = HelloResponse::new();
-        resp.set_reply(msg);
-        let f = sink.success(resp)
-            .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
-        ctx.spawn(f)
-    }
-
+impl JobServer for JobServerImpl {
     // TODO : Once we have the service proto properly wired up in
     // builder-protocol, we can remove the duplicate messages in the
     // function below
@@ -123,10 +114,10 @@ impl GrpcServer {
         info!("Starting GRPC server with {} threads", cq_count);
 
         let env = Arc::new(Environment::new(cq_count));
-        let instance = JobServiceImpl {
+        let instance = JobServerImpl {
             data_store: self.data_store.clone(),
         };
-        let service = create_job_service(instance);
+        let service = create_job_server(instance);
         let mut server = ServerBuilder::new(env)
             .register_service(service)
             .bind(self.addr.to_string(), self.port)

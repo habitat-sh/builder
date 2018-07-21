@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod jobsrv;
+pub mod jobsrv_grpc;
 mod net;
 pub mod originsrv;
 pub mod routesrv;

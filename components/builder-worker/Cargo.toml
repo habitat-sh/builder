@@ -22,7 +22,7 @@ habitat-builder-protocol = { path = "../builder-protocol" }
 hyper = "0.10"
 lazy_static = "*"
 log = "*"
-protobuf = "*"
+protobuf = "2.0.*"
 retry = "*"
 serde = "*"
 serde_derive = "*"

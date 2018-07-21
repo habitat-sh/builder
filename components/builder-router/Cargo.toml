@@ -17,7 +17,7 @@ env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 habitat_net = { path = "../net" }
 log = "*"
-protobuf = "*"
+protobuf = "2.0.*"
 rand = "*"
 serde = "*"
 serde_derive = "*"

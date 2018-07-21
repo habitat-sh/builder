@@ -16,6 +16,7 @@ time = "*"
 regex = "*"
 lazy_static = "*"
 grpcio = "0.3.0"
+futures = "0.1.*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"

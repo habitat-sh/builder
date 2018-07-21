@@ -23,7 +23,7 @@ lazy_static = "*"
 linked-hash-map = "*"
 log = "*"
 num_cpus = "*"
-protobuf = "1.4.*"
+protobuf = "2.0.*"
 postgres = { version = "*", features = ["with-chrono"] }
 chrono = { version = "*", features = ["serde"] }
 rand = "*"
@@ -39,8 +39,8 @@ hyper = "0.10"
 diesel = "*"
 diesel_migrations = "*"
 
-futures = "0.*"
-grpcio = "0.2.1"
+futures = "0.1.*"
+grpcio = "0.3.0"
 
 [dependencies.clap]
 version = "*"

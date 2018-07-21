@@ -84,7 +84,7 @@ impl RouteClient {
     pub fn route<M, T>(&mut self, msg: &M) -> NetResult<T>
     where
         M: Routable,
-        T: protobuf::MessageStatic,
+        T: protobuf::Message,
     {
         self.msg_buf.reset();
         if let Err(e) = self.msg_buf.populate(msg) {
@@ -180,7 +180,7 @@ impl RouteConn {
     pub fn route<M, T>(&mut self, message: &M) -> NetResult<T>
     where
         M: Routable,
-        T: protobuf::MessageStatic,
+        T: protobuf::Message,
     {
         let mut conn = RouteClient::new().unwrap();
         conn.connect(&*self.req_queue).unwrap();

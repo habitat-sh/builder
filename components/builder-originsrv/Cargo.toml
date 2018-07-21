@@ -17,7 +17,7 @@ env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 log = "*"
-protobuf = "*"
+protobuf = "2.0.*"
 serde = "*"
 serde_derive = "*"
 toml = { version = "*", default-features = false }
