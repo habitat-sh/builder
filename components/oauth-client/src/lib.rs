@@ -31,4 +31,5 @@ pub mod github;
 pub mod gitlab;
 pub mod metrics;
 pub mod okta;
+pub mod a2;
 pub mod types;

@@ -26,6 +26,7 @@ use github::GitHub;
 use gitlab::GitLab;
 use metrics::Counter;
 use okta::Okta;
+use a2::A2;
 
 pub struct OAuth2Client {
     inner: reqwest::Client,
@@ -67,6 +68,7 @@ impl OAuth2Client {
             "gitlab" => Box::new(GitLab),
             "bitbucket" => Box::new(Bitbucket),
             "okta" => Box::new(Okta),
+            "chef-automate" => Box::new(A2),
             _ => panic!("Unknown OAuth provider: {}", config.provider),
         };
 
