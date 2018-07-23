@@ -1,6 +1,7 @@
 enum OAuthProviderType {
   ActiveDirectory = 'active-directory',
   AzureAD = 'azure-ad',
+  ChefAutomate = 'chef-automate',
   GitHub = 'github',
   GitLab = 'gitlab',
   Bitbucket = 'bitbucket',
@@ -48,6 +49,8 @@ export abstract class OAuthProvider {
         return new ActiveDirectoryProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.AzureAD:
         return new AzureADProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
+        case OAuthProviderType.ChefAutomate:
+        return new ChefAutomateProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.GitHub:
         return new GitHubProvider(clientID, authorizeUrl, redirectUrl, signupUrl, state);
       case OAuthProviderType.GitLab:
@@ -107,6 +110,29 @@ class AzureADProvider extends OAuthProvider {
         state: state,
         scope: 'openid',
         nonce: 0 // Ok since we're not using id_token
+      }
+    );
+  }
+}
+
+class ChefAutomateProvider extends OAuthProvider {
+  name: string = 'Chef Automate';
+
+  constructor(clientID: string, authorizeUrl: string, redirectUrl: string, signupUrl: string, state: string) {
+    super(
+      OAuthProviderType.ChefAutomate,
+      clientID,
+      authorizeUrl,
+      redirectUrl,
+      signupUrl,
+      true,
+      {
+        client_id: clientID,
+        redirect_uri: redirectUrl,
+        response_type: 'code',
+        state: state,
+        scope: 'openid profile email',
+        nonce: 0
       }
     );
   }
@@ -196,4 +222,3 @@ class OktaProvider extends OAuthProvider {
     );
   }
 }
-
