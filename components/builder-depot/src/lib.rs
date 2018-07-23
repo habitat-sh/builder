@@ -68,7 +68,7 @@ pub use self::config::Config;
 pub use self::error::{Error, Result};
 
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
@@ -91,7 +91,7 @@ impl DepotUtil for config::Config {
     }
 
     fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive> {
-        let file = match File::create(&filename) {
+        let mut file = match File::create(&filename) {
             Ok(f) => f,
             Err(e) => {
                 warn!(
@@ -101,8 +101,7 @@ impl DepotUtil for config::Config {
                 return Err(Error::IO(e));
             }
         };
-        let mut write = BufWriter::new(file);
-        if let Err(e) = write.write_all(body) {
+        if let Err(e) = file.write_all(body) {
             warn!("Unable to write archive for {:?}, err={:?}", filename, e);
             return Err(Error::IO(e));
         }
