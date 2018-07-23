@@ -40,7 +40,7 @@ unicase = "*"
 url = "*"
 walkdir = "*"
 uuid = { version = "*", features = ["v4"] }
-grpcio = "0.2.1"
+grpcio = "0.3.0"
 
 [dependencies.clap]
 version = "*"

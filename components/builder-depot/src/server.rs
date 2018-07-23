@@ -49,8 +49,9 @@ use protobuf;
 use protocol::jobsrv::{
     JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet, JobGroup,
     JobGroupAbort, JobGroupGet, JobGroupOriginGet, JobGroupOriginResponse, JobGroupSpec,
-    JobGroupTrigger,
+    JobGroupTrigger
 };
+use protocol::message::jobsrv_grpc::JobServerClient;
 use protocol::originsrv::*;
 use protocol::sessionsrv::{Account, AccountGet, AccountOriginRemove};
 use regex::Regex;
@@ -70,10 +71,7 @@ use metrics::Counter;
 use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
 
 use grpcio::{ChannelBuilder, EnvBuilder};
-use jobservice;
-use jobservice_grpc::JobServiceClient;
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
+
 use std::sync::Arc;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -965,19 +963,6 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-impl Serialize for jobservice::JobGraphPackageStats {
-    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut strukt = serializer.serialize_struct("job_graph_package_stats", 2)?;
-        strukt.serialize_field("plans", &self.get_plans())?;
-        strukt.serialize_field("builds", &self.get_builds())?;
-        strukt.serialize_field("unique_packages", &self.get_unique_packages())?;
-        strukt.end()
-    }
-}
-
 // This route is unreachable when jobsrv_enabled is false
 fn package_stats(req: &mut Request) -> IronResult<Response> {
     let origin = match get_param(req, "origin") {
@@ -987,9 +972,9 @@ fn package_stats(req: &mut Request) -> IronResult<Response> {
 
     let env = Arc::new(EnvBuilder::new().build());
     let ch = ChannelBuilder::new(env).connect("localhost:5570");
-    let client = JobServiceClient::new(ch);
+    let client = JobServerClient::new(ch);
 
-    let mut req = jobservice::JobGraphPackageStatsGet::new();
+    let mut req = JobGraphPackageStatsGet::new();
     req.set_origin(origin);;
 
     match client.get_job_graph_package_stats(&req) {
@@ -1002,7 +987,7 @@ fn package_stats(req: &mut Request) -> IronResult<Response> {
         Err(err) => {
             warn!("Failed call JobGraphPackageStatsGet, err={:?}", err);
             Ok(Response::with(status::BadRequest)) // TOOO: Fix
-                                                   // Ok(render_net_error(&err))
+            // Ok(render_net_error(&err))
         }
     }
 }
