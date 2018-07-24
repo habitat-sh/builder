@@ -34,9 +34,6 @@ struct JobServerImpl {
 }
 
 impl JobServer for JobServerImpl {
-    // TODO : Once we have the service proto properly wired up in
-    // builder-protocol, we can remove the duplicate messages in the
-    // function below
     fn get_job_graph_package_stats(
         &self,
         ctx: RpcContext,
@@ -51,13 +48,7 @@ impl JobServer for JobServerImpl {
         match self.data_store.get_job_graph_package_stats(&msg) {
             Ok(package_stats) => {
                 debug!("Got package stats: {:?}", package_stats);
-
-                let mut resp = JobGraphPackageStats::new();
-                resp.set_plans(package_stats.get_plans());
-                resp.set_builds(package_stats.get_builds());
-                resp.set_unique_packages(package_stats.get_unique_packages());
-
-                let f = sink.success(resp)
+                let f = sink.success(package_stats)
                     .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
                 ctx.spawn(f)
             }
