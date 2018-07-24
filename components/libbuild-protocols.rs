@@ -1,8 +1,10 @@
 mod protocols {
     extern crate pkg_config;
+    extern crate protobuf_codegen;
     extern crate protoc;
     extern crate protoc_rust;
 
+    use self::protobuf_codegen::Customize;
     use std::fs;
 
     pub fn generate_protocols() {
@@ -16,6 +18,7 @@ mod protocols {
                 .collect::<Vec<&str>>()
                 .as_slice(),
             includes: &["protocols"],
+            customize: Customize{..Default::default()}
         }).expect(
             "Failed to run protoc, please check that it is available on your PATH, and that the src/message folder is writable",
         );

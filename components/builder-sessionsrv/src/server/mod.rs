@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 use base64;
 use hab_net::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
+use protobuf::Message;
 use protocol::{message, sessionsrv as proto};
 
 use config::Config;
@@ -34,79 +35,79 @@ lazy_static! {
     static ref DISPATCH_TABLE: DispatchTable<SessionSrv> = {
         let mut map = DispatchTable::new();
         map.register(
-            proto::AccountGet::descriptor_static(None),
+            proto::AccountGet::descriptor_static(),
             handlers::account_get,
         );
         map.register(
-            proto::AccountGetId::descriptor_static(None),
+            proto::AccountGetId::descriptor_static(),
             handlers::account_get_id,
         );
         map.register(
-            proto::AccountCreate::descriptor_static(None),
+            proto::AccountCreate::descriptor_static(),
             handlers::account_create,
         );
         map.register(
-            proto::AccountUpdate::descriptor_static(None),
+            proto::AccountUpdate::descriptor_static(),
             handlers::account_update,
         );
         map.register(
-            proto::AccountFindOrCreate::descriptor_static(None),
+            proto::AccountFindOrCreate::descriptor_static(),
             handlers::account_find_or_create,
         );
         map.register(
-            proto::AccountTokenCreate::descriptor_static(None),
+            proto::AccountTokenCreate::descriptor_static(),
             handlers::account_token_create,
         );
         map.register(
-            proto::AccountTokenRevoke::descriptor_static(None),
+            proto::AccountTokenRevoke::descriptor_static(),
             handlers::account_token_revoke,
         );
         map.register(
-            proto::AccountTokensGet::descriptor_static(None),
+            proto::AccountTokensGet::descriptor_static(),
             handlers::account_tokens_get,
         );
         map.register(
-            proto::AccountTokenValidate::descriptor_static(None),
+            proto::AccountTokenValidate::descriptor_static(),
             handlers::account_token_validate,
         );
         map.register(
-            proto::SessionCreate::descriptor_static(None),
+            proto::SessionCreate::descriptor_static(),
             handlers::session_create,
         );
         map.register(
-            proto::SessionGet::descriptor_static(None),
+            proto::SessionGet::descriptor_static(),
             handlers::session_get,
         );
         map.register(
-            proto::AccountInvitationListRequest::descriptor_static(None),
+            proto::AccountInvitationListRequest::descriptor_static(),
             handlers::account_invitation_list,
         );
         map.register(
-            proto::AccountOriginInvitationCreate::descriptor_static(None),
+            proto::AccountOriginInvitationCreate::descriptor_static(),
             handlers::account_origin_invitation_create,
         );
         map.register(
-            proto::AccountOriginInvitationAcceptRequest::descriptor_static(None),
+            proto::AccountOriginInvitationAcceptRequest::descriptor_static(),
             handlers::account_origin_invitation_accept,
         );
         map.register(
-            proto::AccountOriginInvitationIgnoreRequest::descriptor_static(None),
+            proto::AccountOriginInvitationIgnoreRequest::descriptor_static(),
             handlers::account_origin_invitation_ignore,
         );
         map.register(
-            proto::AccountOriginInvitationRescindRequest::descriptor_static(None),
+            proto::AccountOriginInvitationRescindRequest::descriptor_static(),
             handlers::account_origin_invitation_rescind,
         );
         map.register(
-            proto::AccountOriginListRequest::descriptor_static(None),
+            proto::AccountOriginListRequest::descriptor_static(),
             handlers::account_origin_list_request,
         );
         map.register(
-            proto::AccountOriginCreate::descriptor_static(None),
+            proto::AccountOriginCreate::descriptor_static(),
             handlers::account_origin_create,
         );
         map.register(
-            proto::AccountOriginRemove::descriptor_static(None),
+            proto::AccountOriginRemove::descriptor_static(),
             handlers::account_origin_remove,
         );
         map

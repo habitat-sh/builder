@@ -15,7 +15,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use protobuf::core::ProtobufEnum;
+use protobuf::ProtobufEnum;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 

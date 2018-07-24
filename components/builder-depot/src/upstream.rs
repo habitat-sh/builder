@@ -256,7 +256,7 @@ impl UpstreamMgr {
             Some(ref depot_cli) => {
                 match depot_cli.show_package(ident, Some("stable"), None, Some(target)) {
                     Ok(mut package) => {
-                        let remote_pkg_ident: PackageIdent = package.take_ident().into();
+                        let remote_pkg_ident: PackageIdent = package.ident.into();
 
                         debug!("Got remote ident: {}", remote_pkg_ident);
 

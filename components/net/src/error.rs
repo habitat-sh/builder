@@ -17,7 +17,7 @@ use std::fmt;
 use std::io;
 use std::ops::Deref;
 
-use protobuf::{self, MessageStatic};
+use protobuf::{self, Message};
 pub use protocol::net::{ErrCode, NetOk};
 use protocol::{self, net};
 use zmq;
@@ -116,7 +116,7 @@ pub struct NetError(net::NetError);
 
 impl NetError {
     pub fn message_id() -> &'static str {
-        net::NetError::descriptor_static(None).name()
+        net::NetError::descriptor_static().name()
     }
 
     pub fn new<T>(code: ErrCode, msg: T) -> NetError
