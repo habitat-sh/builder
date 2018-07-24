@@ -11,7 +11,7 @@ core/rust core/gcc core/git core/pkg-config core/cmake core/make core/go)
 pkg_exports=(
   [port]=http.port
 )
-pkg_exposes=(port)sss
+pkg_exposes=(port)
 pkg_binds=(
   [router]="port"
 )
