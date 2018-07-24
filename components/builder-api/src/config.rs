@@ -34,6 +34,7 @@ pub struct Config {
     pub http: HttpCfg,
     /// List of net addresses for routing servers to connect to
     pub routers: Vec<RouterAddr>,
+    pub jobsrv: JobSrvAddr,
     pub oauth: OAuth2Cfg,
     pub github: GitHubCfg,
     pub segment: SegmentCfg,
@@ -56,6 +57,7 @@ impl Default for Config {
         Config {
             http: HttpCfg::default(),
             routers: vec![RouterAddr::default()],
+            jobsrv: JobSrvAddr::default(),
             oauth: OAuth2Cfg::default(),
             github: GitHubCfg::default(),
             s3: depot::config::S3Cfg::default(),
@@ -198,6 +200,8 @@ mod tests {
             config.oauth.client_secret,
             "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
         );
+
+        assert_eq!(config.jobsrv.port, 5570);
 
         assert_eq!(config.github.api_url, "https://api.github.com");
         assert_eq!(config.ui.root, Some("/some/path".to_string()));

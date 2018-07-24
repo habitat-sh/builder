@@ -16,4 +16,5 @@ pub use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 
 pub use super::GatewayCfg;
 pub use core::config::ConfigFile;
+pub use hab_net::app::config::JobSrvAddr;
 pub use hab_net::app::config::RouterAddr;

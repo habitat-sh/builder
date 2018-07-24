@@ -29,6 +29,7 @@ use hab_core::package::{
     ident, FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget,
 };
 use hab_net::privilege::FeatureFlags;
+use hab_net::socket::ToAddrString;
 use hab_net::{ErrCode, NetOk, NetResult};
 use http_gateway::conn::RouteBroker;
 use http_gateway::http::controller::*;
@@ -49,7 +50,7 @@ use protobuf;
 use protocol::jobsrv::{
     JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet, JobGroup,
     JobGroupAbort, JobGroupGet, JobGroupOriginGet, JobGroupOriginResponse, JobGroupSpec,
-    JobGroupTrigger
+    JobGroupTrigger,
 };
 use protocol::message::jobsrv_grpc::JobServerClient;
 use protocol::originsrv::*;
@@ -970,8 +971,16 @@ fn package_stats(req: &mut Request) -> IronResult<Response> {
         None => return Ok(Response::with(status::BadRequest)),
     };
 
+    let grpc_addr = {
+        let lock = req.get::<persistent::State<Config>>().unwrap();
+        let depot = lock.read().unwrap();
+        depot.jobsrv.to_addr_string()
+    };
+
     let env = Arc::new(EnvBuilder::new().build());
-    let ch = ChannelBuilder::new(env).connect("localhost:5570");
+
+    println!("CONNECTING TO JOBSRV AT: {}", grpc_addr);
+    let ch = ChannelBuilder::new(env).connect(&grpc_addr);
     let client = JobServerClient::new(ch);
 
     let mut req = JobGraphPackageStatsGet::new();
@@ -987,7 +996,7 @@ fn package_stats(req: &mut Request) -> IronResult<Response> {
         Err(err) => {
             warn!("Failed call JobGraphPackageStatsGet, err={:?}", err);
             Ok(Response::with(status::BadRequest)) // TOOO: Fix
-            // Ok(render_net_error(&err))
+                                                   // Ok(render_net_error(&err))
         }
     }
 }

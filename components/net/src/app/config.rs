@@ -18,6 +18,7 @@ use std::str::FromStr;
 
 pub use core::config::ConfigFile;
 use num_cpus;
+use protocol::jobsrv::DEFAULT_JOBSRV_GRPC_PORT;
 use protocol::routesrv::DEFAULT_ROUTER_PORT;
 use protocol::sharding::{ShardId, SHARD_COUNT};
 use toml;
@@ -50,6 +51,35 @@ impl ToAddrString for RouterAddr {
 }
 
 impl fmt::Display for RouterAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.host, self.port)
+    }
+}
+
+/// Configuration structure for connecting to a Job Server
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct JobSrvAddr {
+    pub host: IpAddr,
+    pub port: u16,
+}
+
+impl Default for JobSrvAddr {
+    fn default() -> Self {
+        JobSrvAddr {
+            host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            port: DEFAULT_JOBSRV_GRPC_PORT,
+        }
+    }
+}
+
+impl ToAddrString for JobSrvAddr {
+    fn to_addr_string(&self) -> String {
+        format!("{}:{}", self.host, self.port)
+    }
+}
+
+impl fmt::Display for JobSrvAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}:{}", self.host, self.port)
     }
