@@ -29,7 +29,7 @@ pub use conn::RouteBroker;
 pub fn route_message<M, R>(req: &mut Request, msg: &M) -> NetResult<R>
 where
     M: Routable,
-    R: protobuf::MessageStatic,
+    R: protobuf::Message,
 {
     req.extensions
         .get_mut::<XRouteClient>()

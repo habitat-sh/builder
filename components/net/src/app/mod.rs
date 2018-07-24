@@ -21,6 +21,7 @@
 //! extern crate lazy_static;
 //! #[macro_use]
 //! extern crate log;
+//! extern crate protobuf;
 //!
 //! use std::process;
 //! use habitat_net::app::prelude::*;
@@ -95,7 +96,6 @@
 //! mod handlers {
 //!     use habitat_net::app::prelude::*;
 //!     use protocol::sessionsrv::AccountGet;
-//!
 //!     use super::SrvState;
 //!     use error::SrvResult;
 //!
@@ -112,13 +112,13 @@
 //!
 //! use config::SrvConfig;
 //! use error::{SrvError, SrvResult};
-//!
+//! use protobuf::Message;
 //! lazy_static! {
 //!     static ref DISPATCH_TABLE: DispatchTable<MySrv> = {
 //!         let mut map = DispatchTable::new();
 //!         // Register each protocol message and map it to a handler function. For an example, we
 //!         // will use a sessionsrv protocol message for an example here
-//!         map.register(AccountGet::descriptor_static(None), handlers::account_get);
+//!         map.register(AccountGet::descriptor_static(), handlers::account_get);
 //!         map
 //!     };
 //! }

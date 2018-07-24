@@ -15,6 +15,7 @@
 mod handlers;
 
 use hab_net::app::prelude::*;
+use protobuf::Message;
 use protocol::originsrv::*;
 
 use config::Config;
@@ -25,260 +26,248 @@ lazy_static! {
     static ref DISPATCH_TABLE: DispatchTable<OriginSrv> = {
         let mut map = DispatchTable::new();
         map.register(
-            CheckOriginAccessRequest::descriptor_static(None),
+            CheckOriginAccessRequest::descriptor_static(),
             handlers::origin_check_access,
         );
         map.register(
-            CheckOriginOwnerRequest::descriptor_static(None),
+            CheckOriginOwnerRequest::descriptor_static(),
             handlers::origin_check_owner,
         );
+        map.register(OriginCreate::descriptor_static(), handlers::origin_create);
+        map.register(OriginUpdate::descriptor_static(), handlers::origin_update);
+        map.register(OriginGet::descriptor_static(), handlers::origin_get);
         map.register(
-            OriginCreate::descriptor_static(None),
-            handlers::origin_create,
-        );
-        map.register(
-            OriginUpdate::descriptor_static(None),
-            handlers::origin_update,
-        );
-        map.register(OriginGet::descriptor_static(None), handlers::origin_get);
-        map.register(
-            OriginIntegrationGetNames::descriptor_static(None),
+            OriginIntegrationGetNames::descriptor_static(),
             handlers::origin_integration_get_names,
         );
         map.register(
-            OriginIntegrationCreate::descriptor_static(None),
+            OriginIntegrationCreate::descriptor_static(),
             handlers::origin_integration_create,
         );
         map.register(
-            OriginIntegrationDelete::descriptor_static(None),
+            OriginIntegrationDelete::descriptor_static(),
             handlers::origin_integration_delete,
         );
         map.register(
-            OriginIntegrationGet::descriptor_static(None),
+            OriginIntegrationGet::descriptor_static(),
             handlers::origin_integration_get,
         );
         map.register(
-            OriginIntegrationRequest::descriptor_static(None),
+            OriginIntegrationRequest::descriptor_static(),
             handlers::origin_integration_request,
         );
         map.register(
-            OriginInvitationAcceptRequest::descriptor_static(None),
+            OriginInvitationAcceptRequest::descriptor_static(),
             handlers::origin_invitation_accept,
         );
         map.register(
-            OriginInvitationCreate::descriptor_static(None),
+            OriginInvitationCreate::descriptor_static(),
             handlers::origin_invitation_create,
         );
         map.register(
-            OriginInvitationIgnoreRequest::descriptor_static(None),
+            OriginInvitationIgnoreRequest::descriptor_static(),
             handlers::origin_invitation_ignore,
         );
         map.register(
-            OriginInvitationListRequest::descriptor_static(None),
+            OriginInvitationListRequest::descriptor_static(),
             handlers::origin_invitation_list,
         );
         map.register(
-            OriginInvitationRescindRequest::descriptor_static(None),
+            OriginInvitationRescindRequest::descriptor_static(),
             handlers::origin_invitation_rescind,
         );
         map.register(
-            OriginMemberListRequest::descriptor_static(None),
+            OriginMemberListRequest::descriptor_static(),
             handlers::origin_member_list,
         );
         map.register(
-            OriginPackageUpdate::descriptor_static(None),
+            OriginPackageUpdate::descriptor_static(),
             handlers::origin_package_update,
         );
         map.register(
-            OriginPrivateEncryptionKeyCreate::descriptor_static(None),
+            OriginPrivateEncryptionKeyCreate::descriptor_static(),
             handlers::origin_private_encryption_key_create,
         );
         map.register(
-            OriginPrivateEncryptionKeyGet::descriptor_static(None),
+            OriginPrivateEncryptionKeyGet::descriptor_static(),
             handlers::origin_private_encryption_key_get,
         );
         map.register(
-            OriginPublicEncryptionKeyCreate::descriptor_static(None),
+            OriginPublicEncryptionKeyCreate::descriptor_static(),
             handlers::origin_public_encryption_key_create,
         );
         map.register(
-            OriginPublicEncryptionKeyGet::descriptor_static(None),
+            OriginPublicEncryptionKeyGet::descriptor_static(),
             handlers::origin_public_encryption_key_get,
         );
         map.register(
-            OriginPublicEncryptionKeyLatestGet::descriptor_static(None),
+            OriginPublicEncryptionKeyLatestGet::descriptor_static(),
             handlers::origin_public_encryption_key_latest_get,
         );
         map.register(
-            OriginPublicEncryptionKeyListRequest::descriptor_static(None),
+            OriginPublicEncryptionKeyListRequest::descriptor_static(),
             handlers::origin_public_encryption_key_list,
         );
         map.register(
-            OriginPrivateSigningKeyCreate::descriptor_static(None),
+            OriginPrivateSigningKeyCreate::descriptor_static(),
             handlers::origin_secret_key_create,
         );
         map.register(
-            OriginPrivateSigningKeyGet::descriptor_static(None),
+            OriginPrivateSigningKeyGet::descriptor_static(),
             handlers::origin_secret_key_get,
         );
         map.register(
-            OriginPublicSigningKeyCreate::descriptor_static(None),
+            OriginPublicSigningKeyCreate::descriptor_static(),
             handlers::origin_public_key_create,
         );
         map.register(
-            OriginPublicSigningKeyGet::descriptor_static(None),
+            OriginPublicSigningKeyGet::descriptor_static(),
             handlers::origin_public_key_get,
         );
         map.register(
-            OriginPublicSigningKeyLatestGet::descriptor_static(None),
+            OriginPublicSigningKeyLatestGet::descriptor_static(),
             handlers::origin_public_key_latest_get,
         );
         map.register(
-            OriginPublicSigningKeyListRequest::descriptor_static(None),
+            OriginPublicSigningKeyListRequest::descriptor_static(),
             handlers::origin_public_key_list,
         );
         map.register(
-            OriginProjectCreate::descriptor_static(None),
+            OriginProjectCreate::descriptor_static(),
             handlers::project_create,
         );
         map.register(
-            OriginProjectDelete::descriptor_static(None),
+            OriginProjectDelete::descriptor_static(),
             handlers::project_delete,
         );
+        map.register(OriginProjectGet::descriptor_static(), handlers::project_get);
         map.register(
-            OriginProjectGet::descriptor_static(None),
-            handlers::project_get,
-        );
-        map.register(
-            OriginProjectListGet::descriptor_static(None),
+            OriginProjectListGet::descriptor_static(),
             handlers::project_list_get,
         );
         map.register(
-            OriginProjectUpdate::descriptor_static(None),
+            OriginProjectUpdate::descriptor_static(),
             handlers::project_update,
         );
         map.register(
-            OriginProjectIntegrationCreate::descriptor_static(None),
+            OriginProjectIntegrationCreate::descriptor_static(),
             handlers::project_integration_create,
         );
         map.register(
-            OriginProjectIntegrationDelete::descriptor_static(None),
+            OriginProjectIntegrationDelete::descriptor_static(),
             handlers::project_integration_delete,
         );
         map.register(
-            OriginProjectIntegrationGet::descriptor_static(None),
+            OriginProjectIntegrationGet::descriptor_static(),
             handlers::project_integration_get,
         );
         map.register(
-            OriginProjectIntegrationRequest::descriptor_static(None),
+            OriginProjectIntegrationRequest::descriptor_static(),
             handlers::origin_project_integration_request,
         );
         map.register(
-            OriginPackageCreate::descriptor_static(None),
+            OriginPackageCreate::descriptor_static(),
             handlers::origin_package_create,
         );
         map.register(
-            OriginPackageGet::descriptor_static(None),
+            OriginPackageGet::descriptor_static(),
             handlers::origin_package_get,
         );
         map.register(
-            OriginPackageLatestGet::descriptor_static(None),
+            OriginPackageLatestGet::descriptor_static(),
             handlers::origin_package_latest_get,
         );
         map.register(
-            OriginPackageListRequest::descriptor_static(None),
+            OriginPackageListRequest::descriptor_static(),
             handlers::origin_package_list,
         );
         map.register(
-            OriginPackagePlatformListRequest::descriptor_static(None),
+            OriginPackagePlatformListRequest::descriptor_static(),
             handlers::origin_package_platform_list,
         );
         map.register(
-            OriginPackageChannelListRequest::descriptor_static(None),
+            OriginPackageChannelListRequest::descriptor_static(),
             handlers::origin_package_channel_list,
         );
         map.register(
-            OriginPackageVersionListRequest::descriptor_static(None),
+            OriginPackageVersionListRequest::descriptor_static(),
             handlers::origin_package_version_list,
         );
         map.register(
-            OriginPackageDemote::descriptor_static(None),
+            OriginPackageDemote::descriptor_static(),
             handlers::origin_package_demote,
         );
         map.register(
-            OriginPackageGroupPromote::descriptor_static(None),
+            OriginPackageGroupPromote::descriptor_static(),
             handlers::origin_package_group_promote,
         );
         map.register(
-            OriginPackageGroupDemote::descriptor_static(None),
+            OriginPackageGroupDemote::descriptor_static(),
             handlers::origin_package_group_demote,
         );
         map.register(
-            OriginPackagePromote::descriptor_static(None),
+            OriginPackagePromote::descriptor_static(),
             handlers::origin_package_promote,
         );
         map.register(
-            OriginPackageUniqueListRequest::descriptor_static(None),
+            OriginPackageUniqueListRequest::descriptor_static(),
             handlers::origin_package_unique_list,
         );
         map.register(
-            OriginPackageSearchRequest::descriptor_static(None),
+            OriginPackageSearchRequest::descriptor_static(),
             handlers::origin_package_search,
         );
         map.register(
-            OriginSecretCreate::descriptor_static(None),
+            OriginSecretCreate::descriptor_static(),
             handlers::origin_secret_create,
         );
         map.register(
-            OriginSecretListGet::descriptor_static(None),
+            OriginSecretListGet::descriptor_static(),
             handlers::origin_secret_list,
         );
         map.register(
-            OriginSecretDelete::descriptor_static(None),
+            OriginSecretDelete::descriptor_static(),
             handlers::origin_secret_delete,
         );
         map.register(
-            OriginChannelCreate::descriptor_static(None),
+            OriginChannelCreate::descriptor_static(),
             handlers::origin_channel_create,
         );
         map.register(
-            OriginChannelDelete::descriptor_static(None),
+            OriginChannelDelete::descriptor_static(),
             handlers::origin_channel_delete,
         );
         map.register(
-            OriginChannelGet::descriptor_static(None),
+            OriginChannelGet::descriptor_static(),
             handlers::origin_channel_get,
         );
         map.register(
-            OriginChannelListRequest::descriptor_static(None),
+            OriginChannelListRequest::descriptor_static(),
             handlers::origin_channel_list,
         );
         map.register(
-            OriginChannelPackageGet::descriptor_static(None),
+            OriginChannelPackageGet::descriptor_static(),
             handlers::origin_channel_package_get,
         );
         map.register(
-            OriginChannelPackageLatestGet::descriptor_static(None),
+            OriginChannelPackageLatestGet::descriptor_static(),
             handlers::origin_channel_package_latest_get,
         );
         map.register(
-            OriginChannelPackageListRequest::descriptor_static(None),
+            OriginChannelPackageListRequest::descriptor_static(),
             handlers::origin_channel_package_list,
         );
         map.register(
-            OriginMemberRemove::descriptor_static(None),
+            OriginMemberRemove::descriptor_static(),
             handlers::origin_member_delete,
         );
+        map.register(MyOriginsRequest::descriptor_static(), handlers::my_origins);
         map.register(
-            MyOriginsRequest::descriptor_static(None),
-            handlers::my_origins,
-        );
-        map.register(
-            PackageChannelAudit::descriptor_static(None),
+            PackageChannelAudit::descriptor_static(),
             handlers::package_channel_audit,
         );
         map.register(
-            PackageGroupChannelAudit::descriptor_static(None),
+            PackageGroupChannelAudit::descriptor_static(),
             handlers::package_group_channel_audit,
         );
         map

@@ -18,6 +18,7 @@ pub mod originsrv;
 pub mod routesrv;
 pub mod sessionsrv;
 
+use std;
 use std::borrow::Cow;
 use std::fmt;
 use std::hash::Hasher;
@@ -121,7 +122,7 @@ pub struct Message {
 impl Message {
     pub fn build<T>(message: &T) -> Result<Self, ProtocolError>
     where
-        T: Routable + protobuf::MessageStatic,
+        T: Routable + protobuf::Message,
     {
         let mut request = Self::default();
         request.populate(message)?;
@@ -198,7 +199,7 @@ impl Message {
 
     pub fn parse<T>(&self) -> Result<T, ProtocolError>
     where
-        T: protobuf::MessageStatic,
+        T: protobuf::Message,
     {
         decode::<T>(&self.body)
     }
@@ -390,7 +391,7 @@ impl fmt::Display for Txn {
 }
 
 /// Defines a contract for protocol messages to be persisted to a datastore.
-pub trait Persistable: protobuf::Message + protobuf::MessageStatic {
+pub trait Persistable: protobuf::Message + protobuf::Message {
     /// Type of the primary key
     type Key: fmt::Display;
 
@@ -402,19 +403,22 @@ pub trait Persistable: protobuf::Message + protobuf::MessageStatic {
 }
 
 /// Defines a contract for protocol messages to be routed through `RouteSrv`.
-pub trait Routable: protobuf::MessageStatic {
+pub trait Routable: protobuf::Message {
     /// Type of the route key
     type H: RouteKey + fmt::Display;
 
-    fn protocol() -> net::Protocol {
-        match Self::descriptor_static(None).full_name().rsplit(".").last() {
+    fn protocol() -> net::Protocol
+    where
+        Self: std::marker::Sized,
+    {
+        match Self::descriptor_static().full_name().rsplit(".").last() {
             Some(name) => match net::Protocol::from_str(name) {
                 Ok(protocol) => protocol,
                 Err(err) => panic!("{}", err),
             },
             None => panic!(
                 "Malformed protobuf: unable to determine protocol, '{:?}'",
-                Self::descriptor_static(None).full_name()
+                Self::descriptor_static().full_name()
             ),
         }
     }
@@ -465,7 +469,7 @@ impl RouteKey for u64 {
 
 pub fn decode<T>(bytes: &[u8]) -> Result<T, ProtocolError>
 where
-    T: protobuf::MessageStatic,
+    T: protobuf::Message,
 {
     protobuf::parse_from_bytes::<T>(bytes).map_err(ProtocolError::Decode)
 }

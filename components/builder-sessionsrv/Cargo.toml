@@ -17,7 +17,6 @@ clippy = {version = "*", optional = true}
 bitflags = "*"
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
-hyper = "0.10"
 lazy_static = "*"
 log = "*"
 postgres = { version = "*", features = ["with-chrono"] }

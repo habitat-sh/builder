@@ -25,6 +25,7 @@ use time::PreciseTime;
 use bldr_core::target_graph::TargetGraph;
 use hab_net::app::prelude::*;
 use hab_net::conn::RouteClient;
+use protobuf::Message;
 use protocol::jobsrv::*;
 
 use self::log_archiver::LogArchiver;
@@ -39,47 +40,44 @@ use error::{Error, Result};
 lazy_static! {
     static ref DISPATCH_TABLE: DispatchTable<JobSrv> = {
         let mut map = DispatchTable::new();
-        map.register(JobSpec::descriptor_static(None), handlers::job_create);
-        map.register(JobGet::descriptor_static(None), handlers::job_get);
+        map.register(JobSpec::descriptor_static(), handlers::job_create);
+        map.register(JobGet::descriptor_static(), handlers::job_get);
         map.register(
-            ProjectJobsGet::descriptor_static(None),
+            ProjectJobsGet::descriptor_static(),
             handlers::project_jobs_get,
         );
-        map.register(JobLogGet::descriptor_static(None), handlers::job_log_get);
+        map.register(JobLogGet::descriptor_static(), handlers::job_log_get);
         map.register(
-            JobGroupSpec::descriptor_static(None),
+            JobGroupSpec::descriptor_static(),
             handlers::job_group_create,
         );
         map.register(
-            JobGroupAbort::descriptor_static(None),
+            JobGroupAbort::descriptor_static(),
             handlers::job_group_abort,
         );
         map.register(
-            JobGroupCancel::descriptor_static(None),
+            JobGroupCancel::descriptor_static(),
             handlers::job_group_cancel,
         );
+        map.register(JobGroupGet::descriptor_static(), handlers::job_group_get);
         map.register(
-            JobGroupGet::descriptor_static(None),
-            handlers::job_group_get,
-        );
-        map.register(
-            JobGroupOriginGet::descriptor_static(None),
+            JobGroupOriginGet::descriptor_static(),
             handlers::job_group_origin_get,
         );
         map.register(
-            JobGraphPackageCreate::descriptor_static(None),
+            JobGraphPackageCreate::descriptor_static(),
             handlers::job_graph_package_create,
         );
         map.register(
-            JobGraphPackagePreCreate::descriptor_static(None),
+            JobGraphPackagePreCreate::descriptor_static(),
             handlers::job_graph_package_precreate,
         );
         map.register(
-            JobGraphPackageStatsGet::descriptor_static(None),
+            JobGraphPackageStatsGet::descriptor_static(),
             handlers::job_graph_package_stats_get,
         );
         map.register(
-            JobGraphPackageReverseDependenciesGet::descriptor_static(None),
+            JobGraphPackageReverseDependenciesGet::descriptor_static(),
             handlers::job_graph_package_reverse_dependencies_get,
         );
         map
