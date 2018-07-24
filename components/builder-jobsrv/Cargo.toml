@@ -23,7 +23,7 @@ lazy_static = "*"
 linked-hash-map = "*"
 log = "*"
 num_cpus = "*"
-protobuf = "2.0.*"
+protobuf = "*"
 postgres = { version = "*", features = ["with-chrono"] }
 chrono = { version = "*", features = ["serde"] }
 rand = "*"

@@ -21,7 +21,7 @@ lazy_static = "*"
 log = "*"
 postgres = { version = "*", features = ["with-chrono"] }
 chrono = { version = "*", features = ["serde"] }
-protobuf = "2.0.*"
+protobuf = "*"
 r2d2 = "*"
 serde = "*"
 serde_derive = "*"

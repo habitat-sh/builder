@@ -11,7 +11,7 @@ habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 log = "*"
 num_cpus = "*"
-protobuf = "2.0.*"
+protobuf = "*"
 serde = "*"
 serde_derive = "*"
 time = "*"
