@@ -57,6 +57,7 @@ impl FromStr for OAuthProvider {
             "gitlab" => Ok(OAuthProvider::GitLab),
             "bitbucket" => Ok(OAuthProvider::Bitbucket),
             "okta" => Ok(OAuthProvider::Okta),
+            "chef-automate" => Ok(OAuthProvider::ChefAutomate),
             "none" => Ok(OAuthProvider::None),
             "" => Ok(OAuthProvider::None),
             _ => Err(Error::BadOAuthProvider),

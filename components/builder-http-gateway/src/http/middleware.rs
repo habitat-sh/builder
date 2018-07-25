@@ -308,7 +308,10 @@ pub fn session_create_oauth(
     match provider.parse::<OAuthProvider>() {
         Ok(p) => request.set_provider(p),
         Err(e) => {
-            warn!("Error parsing oauth provider: {:?}", e);
+            warn!(
+                "Error parsing oauth provider: provider={}, err={:?}",
+                provider, e
+            );
             let err = NetError::new(ErrCode::BUG, "session_create_oauth:1");
             return Err(IronError::new(err, Status::Forbidden));
         }
