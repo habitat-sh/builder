@@ -23,10 +23,10 @@ cp "$DB_TEST_DIR"/user.toml /hab/svc/postgresql
 hab sup run core/postgresql &
 hab_pid=$!
 
-sudo_ppid=$(ps -p $$ -o 'ppid=')
-original_gpid=$(ps -p "$sudo_ppid" -o 'ppid=')
+read -r sudo_ppid < <(ps -p $$ -o 'ppid=')
+read -r original_gpid < <(ps -p "$sudo_ppid" -o 'ppid=')
 while true; do
-  current_gpid=$(ps -p "$sudo_ppid" -o 'ppid=')
+  read -r current_gpid < <(ps -p "$sudo_ppid" -o 'ppid=')
   if [ "$original_gpid" != "$current_gpid" ]; then
     echo "Stopping core/postgresql"
     kill $hab_pid
