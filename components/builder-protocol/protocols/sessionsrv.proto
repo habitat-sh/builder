@@ -9,6 +9,7 @@ enum OAuthProvider {
   GitLab = 4;
   Okta = 5;
   ActiveDirectory = 6;
+  ChefAutomate = 7;
 }
 
 message Account {
