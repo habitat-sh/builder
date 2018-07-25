@@ -10,6 +10,7 @@
 # The gpid stuff below is because we need to track the parent process ID of the
 # sudo command that executes us.
 
+set -x
 service postgresql stop
 
 if [ ! -f /bin/hab ]; then
@@ -24,6 +25,7 @@ hab sup run core/postgresql &
 hab_pid=$!
 
 sudo_ppid=$(ps -p $$ -o 'ppid=')
+echo "sudo_ppid: #$sudo_ppid#"
 original_gpid=$(ps -p "$sudo_ppid" -o 'ppid=')
 while true; do
   current_gpid=$(ps -p "$sudo_ppid" -o 'ppid=')
