@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use std::collections::HashMap;
 use std::env;
 use std::io::Read;
@@ -23,7 +25,7 @@ use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers, UserAgent};
 use reqwest::mime;
 use reqwest::{Client, Proxy, Response, StatusCode};
 
-use jwt;
+use jwt::{self, Algorithm};
 use serde_json;
 
 use config::GitHubCfg;
@@ -124,7 +126,7 @@ impl GitHubClient {
     }
 
     pub fn app(&self) -> HubResult<App> {
-        let app_token = generate_app_token(&self.app_private_key, &self.app_id);
+        let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
         let url_path = format!("{}/app", self.api_url);
         let mut rep = self.http_get(&url_path, Some(app_token))?;
         let mut body = String::new();
@@ -139,7 +141,7 @@ impl GitHubClient {
     }
 
     pub fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
-        let app_token = generate_app_token(&self.app_private_key, &self.app_id);
+        let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
         let url_path = format!(
             "{}/installations/{}/access_tokens",
             self.api_url, install_id
@@ -266,19 +268,25 @@ struct RepositoryList {
     pub repositories: Vec<Repository>,
 }
 
-fn generate_app_token<T, U>(key_path: T, app_id: U) -> String
+fn generate_app_token<T, U>(key_path: T, app_id: U) -> HubResult<String>
 where
-    T: ToString,
+    T: AsRef<Path>,
     U: ToString,
 {
-    let mut payload = jwt::Payload::new();
-    let header = jwt::Header::new(jwt::Algorithm::RS256);
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let expiration = now + Duration::from_secs(10 * 10);
-    payload.insert("iat".to_string(), now.as_secs().to_string());
-    payload.insert("exp".to_string(), expiration.as_secs().to_string());
-    payload.insert("iss".to_string(), app_id.to_string());
-    jwt::encode(header, key_path.to_string(), payload)
+    let payload = json!({
+        "iat" : now.as_secs().to_string(),
+        "exp" : expiration.as_secs().to_string(),
+        "iss" : app_id.to_string()});
+
+    let header = json!({});
+    jwt::encode(
+        header,
+        &key_path.as_ref().to_path_buf(),
+        &payload,
+        Algorithm::RS256,
+    ).map_err(HubError::JWT)
 }
 
 #[cfg(test)]
