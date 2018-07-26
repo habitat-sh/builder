@@ -19,7 +19,7 @@ env_logger = "*"
 features = "*"
 git2 = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
-hyper = "0.10"
+hyper = "*"
 lazy_static = "*"
 log = "*"
 protobuf = "*"

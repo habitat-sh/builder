@@ -34,7 +34,7 @@ time = "*"
 toml = { version = "*", default-features = false }
 url = "*"
 
-hyper = "0.10"
+hyper = "*"
 diesel = "*"
 diesel_migrations = "*"
 

@@ -20,7 +20,7 @@ constant_time_eq = "*"
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
-hyper = "0.10"
+hyper = "*"
 iron = "*"
 log = "*"
 mount = "*"
