@@ -6,13 +6,13 @@ workspace = "../../"
 
 [dependencies]
 base64 = "*"
-frank_jwt = { git = "https://github.com/habitat-sh/frank_jwt", branch = "habitat" }
+frank_jwt = "*"
 reqwest = "*"
 log = "*"
 regex = "*"
-serde = ">= 1.0"
-serde_derive = ">= 1.0"
-serde_json = ">= 1.0"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
 time = "*"
 
 # For metrics library

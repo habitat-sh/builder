@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use std::collections::HashMap;
 use std::env;
 use std::io::Read;
@@ -23,7 +25,7 @@ use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers, UserAgent};
 use reqwest::mime;
 use reqwest::{Client, Proxy, Response, StatusCode};
 
-use jwt;
+use jwt::{self, Algorithm};
 use serde_json;
 
 use config::GitHubCfg;
@@ -269,17 +271,23 @@ struct RepositoryList {
 
 fn generate_app_token<T, U>(key_path: T, app_id: U) -> String
 where
-    T: ToString,
+    T: AsRef<Path>,
     U: ToString,
 {
-    let mut payload = jwt::Payload::new();
-    let header = jwt::Header::new(jwt::Algorithm::RS256);
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let expiration = now + Duration::from_secs(10 * 10);
-    payload.insert("iat".to_string(), now.as_secs().to_string());
-    payload.insert("exp".to_string(), expiration.as_secs().to_string());
-    payload.insert("iss".to_string(), app_id.to_string());
-    jwt::encode(header, key_path.to_string(), payload)
+    let payload = json!({
+        "iat" : now.as_secs().to_string(),
+        "exp" : expiration.as_secs().to_string(),
+        "iss" : app_id.to_string()});
+
+    let header = json!({});
+    jwt::encode(
+        header,
+        &key_path.as_ref().to_path_buf(),
+        &payload,
+        Algorithm::RS256,
+    ).unwrap() // Fix
 }
 
 #[cfg(test)]
