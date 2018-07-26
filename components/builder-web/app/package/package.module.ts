@@ -17,13 +17,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatTabsModule, MatButtonModule, MatRadioModule } from '@angular/material';
-import { BuildDetailComponent } from './build-detail/build-detail.component';
-import { BuildListComponent } from './build-list/build-list.component';
-import { BuildNoticeComponent } from './build-notice/build-notice.component';
-import { BuildStatusComponent } from './build-status/build-status.component';
-import { PackageBuildComponent } from './package-build/package-build.component';
+import { JobDetailComponent } from './job-detail/job-detail.component';
+import { JobListComponent } from './job-list/job-list.component';
+import { JobStatusComponent } from './job-status/job-status.component';
+import { PackageJobComponent } from './package-job/package-job.component';
 import { PackageComponent } from './package/package.component';
-import { PackageBuildsComponent } from './package-builds/package-builds.component';
+import { PackageJobsComponent } from './package-jobs/package-jobs.component';
 import { PackageDetailComponent } from './package-detail/package-detail.component';
 import { PackageLatestComponent } from './package-latest/package-latest.component';
 import { PackagePromoteComponent } from './package-promote/package-promote.component';
@@ -49,13 +48,12 @@ import { PackageRoutingModule } from './package-routing.module';
     ReactiveFormsModule
   ],
   declarations: [
-    BuildDetailComponent,
-    BuildListComponent,
-    BuildNoticeComponent,
-    BuildStatusComponent,
+    JobDetailComponent,
+    JobListComponent,
+    JobStatusComponent,
     PackageComponent,
-    PackageBuildComponent,
-    PackageBuildsComponent,
+    PackageJobComponent,
+    PackageJobsComponent,
     PackageLatestComponent,
     PackageDetailComponent,
     PackagePromoteComponent,

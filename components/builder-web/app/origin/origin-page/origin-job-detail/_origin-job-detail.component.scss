@@ -1,0 +1,76 @@
+.origin-job-detail-component {
+  .jobgroup-overview {
+    @include shadow-panel;
+
+    section.jobgroup-details {
+      margin-top: 0;
+      display: flex;
+      flex-wrap: wrap;
+      border-bottom: $default-border;
+    }
+
+    section.jobgroup-status {
+      display: flex;
+      flex-wrap: wrap;
+      margin-bottom: 0;
+    }
+  }
+
+  .jobgroup-overview-item-title {
+    margin-top: 0;
+  }
+  .jobgroup-overview-item {
+    width: 50%;
+  }
+  .jobgroup-status-icongroup {
+    width: 100%;
+  }
+
+  @include tablet-up {
+    .jobgroup-overview-item {
+      width: 33%;
+    }
+    .jobgroup-status-icongroup {
+      width: 66%;
+    }
+  }
+
+  .jobgroup-status-icons {
+    display: flex;
+  }
+  .jobgroup-status-count {
+    flex: 1;
+  }
+
+  .jobgroup-list {
+    .heading {
+      display: none;
+    }
+    .item > a {
+      cursor: default;
+      &:hover {
+        background: $white;
+      }
+    }
+    .jobgroup-list-name {
+      width: 70%;
+      flex: auto;
+    }
+    .jobgroup-list-icons {
+      width: 30%;
+      flex: auto;
+      text-align: right;
+    }
+
+    @include tablet-up {
+      .heading {
+        display: flex;
+      }
+      .jobgroup-list-name, .jobgroup-list-icons {
+        width: auto;
+        flex: 1;
+        text-align: left;
+      }
+    }
+  }
+}

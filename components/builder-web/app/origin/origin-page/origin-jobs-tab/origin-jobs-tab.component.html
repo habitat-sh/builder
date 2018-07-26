@@ -1,0 +1,7 @@
+<div class="origin-jobs-tab-component body">
+  <section class="content">
+    <hab-job-notice [job]="activeJob"></hab-job-notice>
+    <h3>Requested Jobs</h3>
+    <hab-origin-jobs-list [jobGroups]="jobGroups" (select)="onSelect($event)"></hab-origin-jobs-list>
+  </section>
+</div>

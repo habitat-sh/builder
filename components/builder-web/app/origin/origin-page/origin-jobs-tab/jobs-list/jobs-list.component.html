@@ -1,0 +1,26 @@
+<div class="jobs-list-component">
+  <ol class="nav-list">
+    <li class="heading">
+      <h4>Initiated By</h4>
+      <h4>Group ID</h4>
+      <h4>Created</h4>
+    </li>
+    <li class="none" *ngIf="!jobGroups || jobGroups.length === 0">
+      <span>There are no available build jobs for this package.</span>
+    </li>
+    <li class="item" *ngFor="let jobGroup of jobGroups" (click)="onClick(jobGroup)">
+      <a class="jobs-list-item">
+        <span class="column jobs-list-item-name">
+          <hab-icon [symbol]="'call-split'" class="jobs-list-split-icon"></hab-icon>
+          {{ jobGroup.project_name }}
+        </span>
+        <span class="column jobs-list-item-id">
+          {{ jobGroup.id }}
+        </span>
+        <span class="column jobs-list-item-date">
+          {{ dateFor(jobGroup.created_at) }}
+        </span>
+      </a>
+    </li>
+  </ol>
+</div>

@@ -14,7 +14,7 @@
 
 import { Component, Input } from '@angular/core';
 import { AppStore } from '../../app.store';
-import { releaseToDate } from '../../util';
+import { parseDate } from '../../util';
 import { demotePackage } from '../../actions/index';
 
 @Component({
@@ -62,6 +62,6 @@ export class PackageDetailComponent {
   }
 
   releaseToDate(release) {
-    return releaseToDate(release);
+    return parseDate(release);
   }
 }

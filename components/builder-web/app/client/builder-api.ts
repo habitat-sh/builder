@@ -288,7 +288,7 @@ export class BuilderApiClient {
     });
   }
 
-  public getBuild(id: string) {
+  public getJob(id: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/jobs/${id}`, {
         method: 'GET',
@@ -306,7 +306,7 @@ export class BuilderApiClient {
     });
   }
 
-  public getBuildLog(id: string, start = 0) {
+  public getJobLog(id: string, start = 0) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/jobs/${id}/log?start=${start}&color=true`, {
         method: 'GET',
@@ -324,9 +324,45 @@ export class BuilderApiClient {
     });
   }
 
-  public getBuilds(origin: string, name: string) {
+  public getJobs(origin: string, name: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${origin}/${name}/jobs`, {
+        method: 'GET',
+        headers: this.headers
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public getJobGroups(origin: string, limit: number) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/depot/pkgs/schedule/${origin}/status?limit=${limit}`, {
+        method: 'GET',
+        headers: this.headers
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public getJobGroup(id: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/depot/pkgs/schedule/${id}?include_projects=true`, {
         method: 'GET',
         headers: this.headers
       })

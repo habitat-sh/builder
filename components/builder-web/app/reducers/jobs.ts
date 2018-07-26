@@ -16,15 +16,15 @@ import { List, Record } from 'immutable';
 import * as actionTypes from '../actions/index';
 import initialState from '../initial-state';
 
-export default function builds(state = initialState['builds'], action) {
+export default function jobs(state = initialState['jobs'], action) {
   switch (action.type) {
 
-    case actionTypes.CLEAR_BUILD:
+    case actionTypes.CLEAR_JOB:
       return state
         .setIn(['selected', 'info'], Record({})())
         .setIn(['ui', 'selected', 'info', 'loading'], false);
 
-    case actionTypes.CLEAR_BUILD_LOG:
+    case actionTypes.CLEAR_JOB_LOG:
       state.get('selected').log.content.next([]);
 
       return state
@@ -36,15 +36,15 @@ export default function builds(state = initialState['builds'], action) {
         })
         .setIn(['ui', 'selected', 'log', 'loading'], false);
 
-    case actionTypes.CLEAR_BUILDS:
+    case actionTypes.CLEAR_JOBS:
       return state
         .setIn(['visible'], List())
         .setIn(['ui', 'loading'], false);
 
-    case actionTypes.POPULATE_BUILD:
+    case actionTypes.POPULATE_JOB:
       return state.setIn(['selected', 'info'], action.payload);
 
-    case actionTypes.POPULATE_BUILD_LOG:
+    case actionTypes.POPULATE_JOB_LOG:
 
       if (action.error) {
         return state.setIn(['selected', 'log'], {
@@ -73,22 +73,22 @@ export default function builds(state = initialState['builds'], action) {
         });
       }
 
-    case actionTypes.POPULATE_BUILDS:
+    case actionTypes.POPULATE_JOBS:
       return state.setIn(['visible'], List(action.payload));
 
-    case actionTypes.STREAM_BUILD_LOG:
+    case actionTypes.STREAM_JOB_LOG:
       return state.setIn(['selected', 'stream'], action.payload);
 
-    case actionTypes.SET_BUILD_LOADING:
+    case actionTypes.SET_JOB_LOADING:
       return state.setIn(['ui', 'selected', 'info', 'loading'], action.payload);
 
-    case actionTypes.SET_BUILDS_LOADING:
+    case actionTypes.SET_JOBS_LOADING:
       return state.setIn(['ui', 'loading'], action.payload);
 
-    case actionTypes.SET_BUILD_LOG_LOADING:
+    case actionTypes.SET_JOB_LOG_LOADING:
       return state.setIn(['ui', 'selected', 'log', 'loading'], action.payload);
 
-    case actionTypes.SET_BUILD_LOG_NOT_FOUND:
+    case actionTypes.SET_JOB_LOG_NOT_FOUND:
       return state.setIn(['ui', 'selected', 'log', 'notFound'], action.payload);
 
     default:

@@ -27,6 +27,12 @@ hab-icon {
     }
   }
 
+  @each $key, $color in $status-colors {
+    &.#{$key} {
+      color: #{$color};
+    }
+  }
+
   &.spinning {
     svg {
       transform-origin: 50%;
@@ -41,5 +47,13 @@ hab-icon {
     to {
       transform: rotate(360deg);
     }
+  }
+
+  &.icon-button {
+    background: $very-light-gray;
+    color: $hab-blue;
+    width: 1.5em;
+    padding: .3em .25em 0px;
+    cursor: pointer;
   }
 }

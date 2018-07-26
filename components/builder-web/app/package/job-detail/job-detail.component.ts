@@ -16,23 +16,23 @@ import { Component, HostListener, Input, OnChanges, OnDestroy, ElementRef, Simpl
 import { Subscription } from 'rxjs';
 import * as AnsiUp from 'ansi_up';
 import * as moment from 'moment';
-import { fetchBuildLog, streamBuildLog } from '../../actions/index';
-import { iconForBuildState } from '../../util';
+import { fetchJobLog, streamJobLog } from '../../actions/index';
+import { iconForJobState } from '../../util';
 import { AppStore } from '../../app.store';
 
 @Component({
-  selector: 'hab-build-detail',
-  template: require('./build-detail.component.html')
+  selector: 'hab-job-detail',
+  template: require('./job-detail.component.html')
 })
-export class BuildDetailComponent implements OnChanges, OnDestroy {
-  @Input() build;
+export class JobDetailComponent implements OnChanges, OnDestroy {
+  @Input() job;
   @Input() stream: boolean = false;
 
   followLog: boolean = false;
 
-  private buildSub: Function;
+  private jobSub: Function;
   private fetched: boolean = false;
-  private lastBuildState: string;
+  private lastJobState: string;
   private logSub: Subscription;
   private logHasContent: boolean = false;
 
@@ -42,10 +42,10 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    const build = changes['build'];
+    const job = changes['job'];
 
-    if (build && build.currentValue && build.currentValue.id) {
-      this.fetch(build.currentValue.id);
+    if (job && job.currentValue && job.currentValue.id) {
+      this.fetch(job.currentValue.id);
     }
   }
 
@@ -54,11 +54,11 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
       this.logSub.unsubscribe();
     }
 
-    if (this.buildSub) {
-      this.buildSub();
+    if (this.jobSub) {
+      this.jobSub();
     }
 
-    this.store.dispatch(streamBuildLog(false));
+    this.store.dispatch(streamJobLog(false));
   }
 
   @HostListener('window:scroll')
@@ -93,25 +93,25 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
     }
 
     function rectFor(selector) {
-      return document.querySelector(`.build-detail-component ${selector}`).getBoundingClientRect();
+      return document.querySelector(`.job-detail-component ${selector}`).getBoundingClientRect();
     }
 
     return props;
   }
 
-  get buildState() {
-    return this.lastBuildState;
+  get jobState() {
+    return this.lastJobState;
   }
 
   get statusIcon() {
-    if (this.buildState) {
-      return iconForBuildState(this.buildState);
+    if (this.jobState) {
+      return iconForJobState(this.jobState);
     }
   }
 
   get statusClass() {
-    if (this.buildState) {
-      return this.buildState.toLowerCase();
+    if (this.jobState) {
+      return this.jobState.toLowerCase();
     }
   }
 
@@ -123,14 +123,14 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
     }
   }
 
-  get buildsLink() {
-    return ['/pkgs', this.build.origin, this.build.name, 'builds'];
+  get jobsLink() {
+    return ['/pkgs', this.job.origin, this.job.name, 'jobs'];
   }
 
   get elapsed() {
-    if (this.build) {
-      let started = this.build.build_started_at;
-      let finished = this.build.build_finished_at;
+    if (this.job) {
+      let started = this.job.build_started_at;
+      let finished = this.job.build_finished_at;
       let e;
 
       if (started && finished) {
@@ -144,8 +144,8 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
   }
 
   get completed() {
-    if (this.build) {
-      let finished = this.build.build_finished_at;
+    if (this.job) {
+      let finished = this.job.build_finished_at;
       let f;
 
       if (finished) {
@@ -157,7 +157,7 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
   }
 
   get info() {
-    return this.store.getState().builds.selected.info;
+    return this.store.getState().jobs.selected.info;
   }
 
   get token() {
@@ -169,7 +169,7 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
   }
 
   get showPending() {
-    const log = this.store.getState().builds.ui.selected.log;
+    const log = this.store.getState().jobs.ui.selected.log;
     return !this.showLog && !log.loading && log.notFound;
   }
 
@@ -202,8 +202,8 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
 
   private fetch(id) {
     if (!this.fetched) {
-      this.store.dispatch(streamBuildLog(this.stream));
-      this.store.dispatch(fetchBuildLog(id, this.token, 0));
+      this.store.dispatch(streamJobLog(this.stream));
+      this.store.dispatch(fetchJobLog(id, this.token, 0));
       this.watchStatus();
       this.watchLogs();
       this.fetched = true;
@@ -211,18 +211,18 @@ export class BuildDetailComponent implements OnChanges, OnDestroy {
   }
 
   private watchStatus() {
-    this.buildSub = this.store.subscribe(state => {
-      let s = state.builds.selected.info.state;
+    this.jobSub = this.store.subscribe(state => {
+      let s = state.jobs.selected.info.state;
 
-      if (s && s !== this.lastBuildState) {
-        this.lastBuildState = s;
+      if (s && s !== this.lastJobState) {
+        this.lastJobState = s;
       }
     });
   }
 
   private watchLogs() {
     let pre = this.elementRef.nativeElement.querySelector('pre');
-    let content = this.store.getState().builds.selected.log.content;
+    let content = this.store.getState().jobs.selected.log.content;
 
     this.logSub = content.subscribe((lines) => {
 

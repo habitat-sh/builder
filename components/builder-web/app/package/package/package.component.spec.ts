@@ -50,7 +50,7 @@ describe('PackageComponent', () => {
 
   beforeEach(() => {
     MockAppStore.state = {
-      builds: {
+      jobs: {
         visible: []
       },
       features: {
@@ -83,7 +83,7 @@ describe('PackageComponent', () => {
         PackageComponent,
         MockComponent({ selector: 'hab-package-breadcrumbs', inputs: ['ident'] }),
         MockComponent({ selector: 'hab-package-sidebar', inputs: ['origin', 'name', 'building', 'buildable'] }),
-        MockComponent({ selector: 'hab-build-notice', inputs: ['build'] })
+        MockComponent({ selector: 'hab-job-notice', inputs: ['job'] })
       ],
       providers: [
         { provide: ActivatedRoute, useClass: MockRoute },
@@ -115,7 +115,7 @@ describe('PackageComponent', () => {
       it ('suppresses the Build Jobs and Settings tabs', () => {
         fixture.detectChanges();
 
-        expect(element.query(By.css('[routerlink="builds"]'))).toBeNull();
+        expect(element.query(By.css('[routerlink="jobs"]'))).toBeNull();
         expect(element.query(By.css('[routerlink="settings"]'))).toBeNull();
       });
     });
@@ -135,7 +135,7 @@ describe('PackageComponent', () => {
         it('exposes the Build Jobs and Settings tabs', () => {
           fixture.detectChanges();
 
-          expect(element.query(By.css('[routerlink="builds"]'))).not.toBeNull();
+          expect(element.query(By.css('[routerlink="jobs"]'))).not.toBeNull();
           expect(element.query(By.css('[routerlink="settings"]'))).not.toBeNull();
         });
       });

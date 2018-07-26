@@ -13,18 +13,18 @@
 // limitations under the License.
 
 import { Component, Input } from '@angular/core';
-import { iconForBuildState } from '../../util';
+import { iconForJobState } from '../../util';
 import { AppStore } from '../../app.store';
 
 @Component({
-  selector: 'hab-build-status',
+  selector: 'hab-job-status',
   template: `
-    <div class="build-status-component">
+    <div class="job-status-component">
       <hab-icon [symbol]="iconFor(state)" class="status {{ state | lowercase }}" *ngIf="state"></hab-icon>
     </div>
   `
 })
-export class BuildStatusComponent {
+export class JobStatusComponent {
   @Input() origin;
   @Input() name;
   @Input() version;
@@ -33,7 +33,7 @@ export class BuildStatusComponent {
   constructor(private store: AppStore) { }
 
   iconFor(state) {
-    return iconForBuildState(state);
+    return iconForJobState(state);
   }
 
   get id() {
@@ -45,7 +45,7 @@ export class BuildStatusComponent {
   }
 
   private first() {
-    return this.store.getState().builds.visible.find((b) => {
+    return this.store.getState().jobs.visible.find((b) => {
       if (b.origin === this.origin && b.name === this.name) {
         return this.version ? b.version === this.version : true;
       }

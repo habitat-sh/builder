@@ -18,11 +18,11 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { By } from '@angular/platform-browser';
 import { MockComponent } from 'ng2-mock-component';
 import { List } from 'immutable';
-import { BuildListComponent } from './build-list.component';
+import { JobListComponent } from './job-list.component';
 
-describe('BuildListComponent', () => {
-  let component: BuildListComponent,
-    fixture: ComponentFixture<BuildListComponent>,
+describe('JobListComponent', () => {
+  let component: JobListComponent,
+    fixture: ComponentFixture<JobListComponent>,
     element: DebugElement;
 
   beforeEach(() => {
@@ -32,21 +32,21 @@ describe('BuildListComponent', () => {
       ],
       declarations: [
         MockComponent({ selector: 'hab-icon', inputs: ['symbol'] }),
-        BuildListComponent
+        JobListComponent
       ]
     });
 
-    fixture = TestBed.createComponent(BuildListComponent);
+    fixture = TestBed.createComponent(JobListComponent);
     component = fixture.componentInstance;
     element = fixture.debugElement;
   });
 
-  describe('given a list of builds', () => {
+  describe('given a list of jobs', () => {
 
-    let builds;
+    let jobs;
 
     beforeEach(() => {
-      builds = [
+      jobs = [
         {
           'id': '123',
           'origin': 'core',
@@ -79,13 +79,13 @@ describe('BuildListComponent', () => {
         }
       ];
 
-      component.builds = List(builds);
+      component.jobs = List(jobs);
 
       fixture.detectChanges();
     });
 
     it('renders them', () => {
-      let items = element.queryAll(By.css('.build-list-component ol li.item'));
+      let items = element.queryAll(By.css('.job-list-component ol li.item'));
 
       expect(items.length).toBe(3);
       expect(items[0].query(By.css('.name')).nativeElement.textContent).toContain('1.0.0');
@@ -95,33 +95,33 @@ describe('BuildListComponent', () => {
       expect(items[2].query(By.css('.status')).nativeElement.getAttribute('class')).toContain('failed');
     });
 
-    describe('when a build item is clicked', () => {
+    describe('when a job item is clicked', () => {
 
-      it('emits an event containing the build', () => {
-        let items = element.queryAll(By.css('.build-list-component ol li.item'));
+      it('emits an event containing the job', () => {
+        let items = element.queryAll(By.css('.job-list-component ol li.item'));
 
         spyOn(component.select, 'emit');
         items[1].nativeElement.click();
 
-        expect(component.select.emit).toHaveBeenCalledWith(builds[1]);
+        expect(component.select.emit).toHaveBeenCalledWith(jobs[1]);
       });
     });
   });
 
-  describe('given an empty list of builds', () => {
+  describe('given an empty list of jobs', () => {
 
     beforeEach(() => {
-      component.builds = List();
+      component.jobs = List();
       fixture.detectChanges();
     });
 
     it('hides the list', () => {
-      let el = element.query(By.css('.build-list-component ol li.item'));
+      let el = element.query(By.css('.job-list-component ol li.item'));
       expect(el).toBeNull();
     });
 
     it('renders an appropriate message', () => {
-      let el = element.query(By.css('.build-list-component ol li.none'));
+      let el = element.query(By.css('.job-list-component ol li.none'));
       expect(el.nativeElement.textContent).toContain('There are no available build jobs for this package.');
     });
   });

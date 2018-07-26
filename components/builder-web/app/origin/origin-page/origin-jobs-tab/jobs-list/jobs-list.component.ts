@@ -12,10 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-@import "origin-page/origin-integrations-tab/origin-integrations-tab.component";
-@import "origin-page/origin-page.component";
-@import "origin-page/origin-members-tab/origin-members-tab.component";
-@import "origin-page/origin-keys-tab/origin-keys-tab.component";
-@import "origin-page/origin-jobs-tab/jobs-list/jobs-list.component";
-@import "origin-page/origin-job-detail/origin-job-detail.component";
-@import "origins-page/origins-page.component";
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { List } from 'immutable';
+import { parseDate, iconForJobState } from '../../../../util';
+
+@Component({
+  selector: 'hab-origin-jobs-list',
+  template: require('./jobs-list.component.html')
+})
+export class OriginJobsListComponent {
+  @Input() jobGroups = List();
+  @Output() select = new EventEmitter();
+
+  onClick(job) {
+    this.select.emit(job);
+  }
+
+  dateFor(timestamp) {
+    return parseDate(timestamp, 'YYYY-MM-DD HH:mm:ss');
+  }
+
+  iconFor(state) {
+    return iconForJobState(state);
+  }
+}

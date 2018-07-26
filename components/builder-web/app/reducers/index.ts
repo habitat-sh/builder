@@ -15,7 +15,8 @@
 import { combineReducers } from 'redux';
 import app from './app';
 import gitHub from './gitHub';
-import builds from './builds';
+import jobs from './jobs';
+import jobGroups from './jobGroups';
 import features from './features';
 import notifications from './notifications';
 import oauth from './oauth';
@@ -30,7 +31,8 @@ import ui from './ui';
 export default combineReducers({
   app,
   gitHub,
-  builds,
+  jobs,
+  jobGroups,
   features,
   notifications,
   oauth,
