@@ -18,8 +18,7 @@ use std::fmt;
 use std::io;
 
 use base64;
-use hab_http;
-use hyper;
+use reqwest;
 use serde_json;
 
 use types;
@@ -28,13 +27,10 @@ pub type HubResult<T> = Result<T, HubError>;
 
 #[derive(Debug)]
 pub enum HubError {
-    ApiClient(hab_http::Error),
-    ApiError(hyper::status::StatusCode, HashMap<String, String>),
+    ApiError(reqwest::StatusCode, HashMap<String, String>),
     AppAuth(types::AppAuthErr),
     ContentDecode(base64::DecodeError),
-    HttpClient(hyper::Error),
-    HttpClientParse(hyper::error::ParseError),
-    HttpResponse(hyper::status::StatusCode),
+    HttpClient(reqwest::Error),
     IO(io::Error),
     Serialization(serde_json::Error),
 }
@@ -42,7 +38,6 @@ pub enum HubError {
 impl fmt::Display for HubError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            HubError::ApiClient(ref e) => format!("{}", e),
             HubError::ApiError(ref code, ref response) => format!(
                 "Received a non-200 response, status={}, response={:?}",
                 code, response
@@ -50,8 +45,6 @@ impl fmt::Display for HubError {
             HubError::AppAuth(ref e) => format!("GitHub App Authentication error, {}", e),
             HubError::ContentDecode(ref e) => format!("{}", e),
             HubError::HttpClient(ref e) => format!("{}", e),
-            HubError::HttpClientParse(ref e) => format!("{}", e),
-            HubError::HttpResponse(ref e) => format!("{}", e),
             HubError::IO(ref e) => format!("{}", e),
             HubError::Serialization(ref e) => format!("{}", e),
         };
@@ -62,22 +55,13 @@ impl fmt::Display for HubError {
 impl error::Error for HubError {
     fn description(&self) -> &str {
         match *self {
-            HubError::ApiClient(ref err) => err.description(),
             HubError::ApiError(_, _) => "Response returned a non-200 status code.",
             HubError::AppAuth(_) => "GitHub App authorization error.",
             HubError::ContentDecode(ref err) => err.description(),
             HubError::HttpClient(ref err) => err.description(),
-            HubError::HttpClientParse(ref err) => err.description(),
-            HubError::HttpResponse(_) => "Non-200 HTTP response.",
             HubError::IO(ref err) => err.description(),
             HubError::Serialization(ref err) => err.description(),
         }
-    }
-}
-
-impl From<hyper::Error> for HubError {
-    fn from(err: hyper::Error) -> Self {
-        HubError::HttpClient(err)
     }
 }
 

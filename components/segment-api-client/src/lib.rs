@@ -13,10 +13,9 @@
 // limitations under the License.
 
 extern crate base64;
-extern crate habitat_http_client as hab_http;
-extern crate hyper;
-extern crate hyper_openssl;
+#[macro_use]
 extern crate log;
+extern crate reqwest;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;

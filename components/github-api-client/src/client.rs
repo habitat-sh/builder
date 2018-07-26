@@ -13,16 +13,16 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::env;
 use std::io::Read;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use builder_core::metrics::CounterMetric;
-use hab_http::ApiClient;
-use hyper::client::IntoUrl;
-use hyper::header::{qitem, Accept, Authorization, Bearer, UserAgent};
-use hyper::mime::{Mime, SubLevel, TopLevel};
-use hyper::status::StatusCode;
-use hyper::{self, Url};
+
+use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers, UserAgent};
+use reqwest::mime;
+use reqwest::{Client, Proxy, Response, StatusCode};
+
 use jwt;
 use serde_json;
 
@@ -71,6 +71,7 @@ impl AppToken {
 
 #[derive(Clone)]
 pub struct GitHubClient {
+    inner: Client,
     pub api_url: String,
     app_id: u32,
     app_private_key: String,
@@ -79,7 +80,42 @@ pub struct GitHubClient {
 
 impl GitHubClient {
     pub fn new(config: GitHubCfg) -> Self {
+        let mut headers = Headers::new();
+        headers.set(UserAgent::new(USER_AGENT));
+        headers.set(Accept(vec![
+            qitem(mime::APPLICATION_JSON),
+            qitem("application/vnd.github.v3+json".parse().unwrap()),
+            qitem(
+                "application/vnd.github.machine-man-preview+json"
+                    .parse()
+                    .unwrap(),
+            ),
+        ]));
+        let mut client = Client::builder();
+        client.default_headers(headers);
+
+        if let Ok(url) = env::var("HTTP_PROXY") {
+            debug!("Using HTTP_PROXY: {}", url);
+            match Proxy::http(&url) {
+                Ok(p) => {
+                    client.proxy(p);
+                }
+                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
+            }
+        }
+
+        if let Ok(url) = env::var("HTTPS_PROXY") {
+            debug!("Using HTTPS_PROXY: {}", url);
+            match Proxy::https(&url) {
+                Ok(p) => {
+                    client.proxy(p);
+                }
+                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
+            }
+        }
+
         GitHubClient {
+            inner: client.build().unwrap(),
             api_url: config.api_url,
             app_id: config.app_id,
             app_private_key: config.app_private_key,
@@ -89,14 +125,14 @@ impl GitHubClient {
 
     pub fn app(&self) -> HubResult<App> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id);
-        let url = Url::parse(&format!("{}/app", self.api_url)).map_err(HubError::HttpClientParse)?;
-        let mut rep = http_get(url, Some(app_token))?;
+        let url_path = format!("{}/app", self.api_url);
+        let mut rep = self.http_get(&url_path, Some(app_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
-        if rep.status != StatusCode::Ok {
+        if rep.status() != StatusCode::Ok {
             let err: HashMap<String, String> = serde_json::from_str(&body)?;
-            return Err(HubError::ApiError(rep.status, err));
+            return Err(HubError::ApiError(rep.status(), err));
         }
         let contents = serde_json::from_str::<App>(&body)?;
         Ok(contents)
@@ -104,13 +140,13 @@ impl GitHubClient {
 
     pub fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id);
-        let url = Url::parse(&format!(
+        let url_path = format!(
             "{}/installations/{}/access_tokens",
             self.api_url, install_id
-        )).map_err(HubError::HttpClientParse)?;
+        );
 
         Counter::InstallationToken.increment();
-        let mut rep = http_post(url, Some(app_token))?;
+        let mut rep = self.http_post(&url_path, Some(app_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
@@ -125,17 +161,14 @@ impl GitHubClient {
 
     /// Returns the contents of a file or directory in a repository.
     pub fn contents(&self, token: &AppToken, repo: u32, path: &str) -> HubResult<Option<Contents>> {
-        let url = Url::parse(&format!(
-            "{}/repositories/{}/contents/{}",
-            self.api_url, repo, path
-        )).map_err(HubError::HttpClientParse)?;
+        let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
 
         Counter::Api("contents").increment();
-        let mut rep = http_get(url, Some(&token.inner_token))?;
+        let mut rep = self.http_get(&url_path, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
-        match rep.status {
+        match rep.status() {
             StatusCode::NotFound => return Ok(None),
             StatusCode::Ok => (),
             status => {
@@ -153,13 +186,13 @@ impl GitHubClient {
     }
 
     pub fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
-        let url = Url::parse(&format!("{}/repositories/{}", self.api_url, repo)).unwrap();
+        let url_path = format!("{}/repositories/{}", self.api_url, repo);
         Counter::Api("repo").increment();
-        let mut rep = http_get(url, Some(&token.inner_token))?;
+        let mut rep = self.http_get(&url_path, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
-        match rep.status {
+        match rep.status() {
             StatusCode::NotFound => return Ok(None),
             StatusCode::Ok => (),
             status => {
@@ -176,18 +209,54 @@ impl GitHubClient {
     // auth and the response body seemed small. We don't even care what the
     // response is. For our purposes, just receiving a response is enough.
     pub fn meta(&self) -> HubResult<()> {
-        let url = Url::parse(&format!("{}/meta", self.api_url)).unwrap();
-        let mut rep = http_get(url, None::<String>)?;
+        let url_path = format!("{}/meta", self.api_url);
+        let mut rep = self.http_get(&url_path, None::<String>)?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
         debug!("GitHub response body, {}", body);
 
-        if rep.status != StatusCode::Ok {
+        if rep.status() != StatusCode::Ok {
             let err: HashMap<String, String> = serde_json::from_str(&body)?;
-            return Err(HubError::ApiError(rep.status, err));
+            return Err(HubError::ApiError(rep.status(), err));
         }
 
         Ok(())
+    }
+
+    fn http_get<U>(&self, url: &str, token: Option<U>) -> HubResult<Response>
+    where
+        U: ToString,
+    {
+        let mut headers = Headers::new();
+        if let Some(t) = token {
+            headers.set(Authorization(Bearer {
+                token: t.to_string(),
+            }))
+        };
+
+        self.inner
+            .get(url)
+            .headers(headers)
+            .send()
+            .map_err(HubError::HttpClient)
+    }
+
+    fn http_post<U>(&self, url: &str, token: Option<U>) -> HubResult<Response>
+    where
+        U: ToString,
+    {
+        let mut headers = Headers::new();
+        if let Some(t) = token {
+            headers.set(Authorization(Bearer {
+                token: t.to_string(),
+            }))
+        };
+
+        self.inner
+            .post(url)
+            .headers(headers)
+            .send()
+            .map_err(HubError::HttpClient)
     }
 }
 
@@ -210,92 +279,6 @@ where
     payload.insert("exp".to_string(), expiration.as_secs().to_string());
     payload.insert("iss".to_string(), app_id.to_string());
     jwt::encode(header, key_path.to_string(), payload)
-}
-
-fn http_get<T, U>(url: T, token: Option<U>) -> HubResult<hyper::client::response::Response>
-where
-    T: IntoUrl,
-    U: ToString,
-{
-    let u = url.into_url().map_err(HubError::HttpClientParse)?;
-    let endpoint = format!("{}://{}", u.scheme(), u.host_str().unwrap());
-    let mut path = u.path();
-
-    // ApiClient expects path to not have a leading slash, so if we detect one here (which is
-    // almost always the case), then strip it off before passing it on. Failure to do so results in
-    // URLs that look like https://api.github.com//meta, which obviously 404s.
-    if path.starts_with("/") && path.len() > 1 {
-        path = path.get(1..).unwrap();
-    }
-
-    let client = http_client(endpoint.as_str())?;
-    let req = client.get_with_custom_url(path, |url| {
-        if u.query().is_some() {
-            url.set_query(Some(u.query().unwrap()))
-        }
-    });
-
-    let req = req.header(Accept(vec![
-        qitem(Mime(TopLevel::Application, SubLevel::Json, vec![])),
-        qitem("application/vnd.github.v3+json".parse().unwrap()),
-        qitem(
-            "application/vnd.github.machine-man-preview+json"
-                .parse()
-                .unwrap(),
-        ),
-    ])).header(UserAgent(USER_AGENT.to_string()));
-    let req = match token {
-        Some(token) => req.header(Authorization(Bearer {
-            token: token.to_string(),
-        })),
-        None => req,
-    };
-    req.send().map_err(HubError::HttpClient)
-}
-
-fn http_post<T, U>(url: T, token: Option<U>) -> HubResult<hyper::client::response::Response>
-where
-    T: IntoUrl,
-    U: ToString,
-{
-    let u = url.into_url().map_err(HubError::HttpClientParse)?;
-    let endpoint = format!("{}://{}", u.scheme(), u.host_str().unwrap());
-    let mut path = u.path();
-
-    if path.starts_with("/") && path.len() > 1 {
-        path = path.get(1..).unwrap();
-    }
-
-    let client = http_client(endpoint.as_str())?;
-    let req = client.post_with_custom_url(path, |url| {
-        if u.query().is_some() {
-            url.set_query(Some(u.query().unwrap()))
-        }
-    });
-
-    let req = req.header(Accept(vec![
-        qitem(Mime(TopLevel::Application, SubLevel::Json, vec![])),
-        qitem("application/vnd.github.v3+json".parse().unwrap()),
-        qitem(
-            "application/vnd.github.machine-man-preview+json"
-                .parse()
-                .unwrap(),
-        ),
-    ])).header(UserAgent(USER_AGENT.to_string()));
-    let req = match token {
-        Some(token) => req.header(Authorization(Bearer {
-            token: token.to_string(),
-        })),
-        None => req,
-    };
-    req.send().map_err(HubError::HttpClient)
-}
-
-fn http_client<T>(url: T) -> HubResult<ApiClient>
-where
-    T: IntoUrl,
-{
-    ApiClient::new(url, "bldr", "0.0.0", None).map_err(HubError::ApiClient)
 }
 
 #[cfg(test)]
