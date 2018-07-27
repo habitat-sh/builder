@@ -19,7 +19,6 @@ pub use iron::{headers, status};
 use protobuf;
 use protocol::Routable;
 
-pub use super::headers::*;
 use super::middleware::XRouteClient;
 pub use super::middleware::*;
 pub use super::net_err_to_http;

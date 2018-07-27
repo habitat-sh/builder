@@ -18,7 +18,8 @@ use bldr_core;
 use bodyparser;
 use http_gateway::http::controller::*;
 use http_gateway::http::helpers::{self, check_origin_access};
-use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
+use iron::headers::ContentType;
+use iron::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::status::{self, Status};
 
 use persistent;

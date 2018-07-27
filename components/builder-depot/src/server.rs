@@ -38,10 +38,12 @@ use http_gateway::http::helpers::{
     visibility_for_optional_session,
 };
 use http_gateway::http::middleware::{SegmentCli, XRouteClient};
-use hyper::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
-use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
-use iron::headers::{ContentType, UserAgent};
+use iron::headers::{CacheControl, CacheDirective, ContentType, UserAgent};
+use iron::headers::{
+    Charset, ContentDisposition, DispositionParam, DispositionType, ETag, EntityTag,
+};
 use iron::middleware::BeforeMiddleware;
+use iron::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::request::Body;
 use iron::typemap;
 use persistent;
@@ -1881,7 +1883,9 @@ fn render_package(
 
     let body = serde_json::to_string(&pkg_json).unwrap();
     let mut response = Response::with((status::Ok, body));
-    response.headers.set(ETag(pkg.get_checksum().to_string()));
+    response
+        .headers
+        .set(ETag(EntityTag::new(false, pkg.get_checksum().to_string())));
     response.headers.set(ContentType(Mime(
         TopLevel::Application,
         SubLevel::Json,
@@ -2255,11 +2259,18 @@ fn ident_from_params(params: &Params) -> OriginPackageIdent {
 
 fn download_content_as_file(content: &[u8], filename: String) -> IronResult<Response> {
     let mut response = Response::with((status::Ok, content));
-    response.headers.set(ContentDisposition(format!(
-        "attachment; filename=\"{}\"",
-        filename
-    )));
-    response.headers.set(XFileName(filename));
+    response.headers.set(ContentDisposition {
+        disposition: DispositionType::Attachment,
+        parameters: vec![DispositionParam::Filename(
+            Charset::Iso_8859_1,           // The character set for the bytes of the filename
+            None,                          // The optional language tag (see `language-tag` crate)
+            filename.clone().into_bytes(), // the actual bytes of the filename
+        )],
+    });
+
+    response
+        .headers
+        .set_raw("X-Filename", vec![filename.into_bytes()]);
     dont_cache_response(&mut response);
     Ok(response)
 }
@@ -2620,7 +2631,9 @@ fn download_response_for_archive(
         )],
     };
     response.headers.set(disp);
-    response.headers.set(XFileName(archive.file_name()));
+    response
+        .headers
+        .set_raw("X-Filename", vec![archive.file_name().into_bytes()]);
     Ok(response)
 }
 
@@ -2658,10 +2671,10 @@ fn is_a_service(package: &OriginPackage) -> bool {
 }
 
 fn do_cache_response(response: &mut Response) {
-    response.headers.set(CacheControl(format!(
-        "public, max-age={}",
-        ONE_YEAR_IN_SECS
-    )));
+    response.headers.set(CacheControl(vec![
+        CacheDirective::Public,
+        CacheDirective::MaxAge(ONE_YEAR_IN_SECS as u32),
+    ]));
 }
 
 pub fn routes<M>(basic: Authenticated, worker: M, depot: &Config) -> Router

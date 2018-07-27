@@ -21,7 +21,7 @@ use hab_net::privilege::FeatureFlags;
 use hab_net::{ErrCode, NetError, NetOk, NetResult};
 use http::controller::*;
 
-use iron::headers::{Referer, UserAgent};
+use iron::headers::{CacheControl, CacheDirective, Referer, UserAgent};
 use iron::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::modifiers::Header;
 use iron::status::{self, Status};
@@ -47,9 +47,11 @@ use super::controller::route_message;
 use router::Router;
 
 pub fn dont_cache_response(response: &mut Response) {
-    response
-        .headers
-        .set(CacheControl(format!("private, no-cache, no-store")));
+    response.headers.set(CacheControl(vec![
+        CacheDirective::Private,
+        CacheDirective::NoCache,
+        CacheDirective::NoStore,
+    ]));
 }
 
 pub fn is_request_from_hab(req: &mut Request) -> bool {

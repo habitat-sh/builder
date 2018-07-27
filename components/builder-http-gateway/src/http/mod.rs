@@ -15,7 +15,6 @@
 //! A module containing the HTTP server and handlers for servicing client requests
 
 pub mod controller;
-pub mod headers;
 pub mod helpers;
 pub mod middleware;
 pub mod rendering;

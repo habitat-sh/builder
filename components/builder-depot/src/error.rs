@@ -37,7 +37,7 @@ pub enum Error {
     DepotClientError(depot_client::Error),
     HabitatCore(hab_core::Error),
     HabitatNet(hab_net::error::LibError),
-    HTTP(hyper::status::StatusCode),
+    HTTP(hyper::StatusCode),
     InvalidPackageIdent(String),
     IO(io::Error),
     IronResponse(iron::response::Response),
