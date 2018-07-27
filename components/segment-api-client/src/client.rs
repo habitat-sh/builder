@@ -12,26 +12,58 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use hab_http::ApiClient;
-use hyper::client::{IntoUrl, Response};
-use hyper::header::{qitem, Accept, Authorization, Basic, ContentType, Headers, UserAgent};
-use hyper::mime::{Mime, SubLevel, TopLevel};
-use serde_json;
+use std::env;
 
 use config::SegmentCfg;
 use error::{SegmentError, SegmentResult};
+use serde_json;
+
+use reqwest::header::{qitem, Accept, Authorization, Basic, ContentType, Headers, UserAgent};
+use reqwest::mime;
+use reqwest::Client;
+use reqwest::{Proxy, Response};
 
 const USER_AGENT: &'static str = "Habitat-Builder";
 
 #[derive(Clone, Debug)]
 pub struct SegmentClient {
+    inner: Client,
     pub url: String,
     pub write_key: String,
 }
 
 impl SegmentClient {
     pub fn new(config: SegmentCfg) -> Self {
+        let mut headers = Headers::new();
+        headers.set(UserAgent::new(USER_AGENT));
+        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
+        headers.set(ContentType(mime::APPLICATION_JSON));
+
+        let mut client = Client::builder();
+        client.default_headers(headers);
+
+        if let Ok(url) = env::var("HTTP_PROXY") {
+            debug!("Using HTTP_PROXY: {}", url);
+            match Proxy::http(&url) {
+                Ok(p) => {
+                    client.proxy(p);
+                }
+                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
+            }
+        }
+
+        if let Ok(url) = env::var("HTTPS_PROXY") {
+            debug!("Using HTTPS_PROXY: {}", url);
+            match Proxy::https(&url) {
+                Ok(p) => {
+                    client.proxy(p);
+                }
+                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
+            }
+        }
+
         SegmentClient {
+            inner: client.build().unwrap(),
             url: config.url,
             write_key: config.write_key,
         }
@@ -60,48 +92,20 @@ impl SegmentClient {
         )
     }
 
-    fn http_post<U>(&self, path: &str, token: U, body: String) -> SegmentResult<Response>
-    where
-        U: ToString,
-    {
-        let client = http_client(&self.url)?;
-        let url_path = format!("v1/{}", path);
-        let req = client
+    fn http_post(&self, path: &str, token: &str, body: String) -> SegmentResult<Response> {
+        let url_path = format!("{}/v1/{}", &self.url, path);
+
+        let mut headers = Headers::new();
+        headers.set(Authorization(Basic {
+            username: "".to_owned(),
+            password: Some(token.to_owned()),
+        }));
+
+        self.inner
             .post(&url_path)
-            .body(&body)
-            .headers(configure_headers(token));
-
-        req.send().map_err(SegmentError::HttpClient)
+            .headers(headers)
+            .body(body)
+            .send()
+            .map_err(SegmentError::HttpClient)
     }
-}
-
-fn http_client<T>(url: T) -> SegmentResult<ApiClient>
-where
-    T: IntoUrl,
-{
-    ApiClient::new(url, "bldr", "0.0.0", None).map_err(SegmentError::ApiClient)
-}
-
-fn configure_headers<U>(token: U) -> Headers
-where
-    U: ToString,
-{
-    let mut headers = Headers::new();
-    headers.set(Accept(vec![qitem(Mime(
-        TopLevel::Application,
-        SubLevel::Json,
-        vec![],
-    ))]));
-    headers.set(ContentType(Mime(
-        TopLevel::Application,
-        SubLevel::Json,
-        vec![],
-    )));
-    headers.set(UserAgent(USER_AGENT.to_string()));
-    headers.set(Authorization(Basic {
-        username: token.to_string(),
-        password: None,
-    }));
-
-    headers
 }

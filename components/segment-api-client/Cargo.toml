@@ -6,9 +6,7 @@ workspace = "../../"
 
 [dependencies]
 base64 = "*"
-habitat_http_client = { git = "https://github.com/habitat-sh/core.git" }
-hyper = "0.10"
-hyper-openssl = "0.2"
+reqwest = "*"
 log = "*"
 serde = "*"
 serde_derive = "*"

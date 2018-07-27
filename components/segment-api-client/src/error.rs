@@ -12,26 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
 use std::error;
 use std::fmt;
 use std::io;
 
-use base64;
-use hab_http;
-use hyper;
+use reqwest;
 use serde_json;
 
 pub type SegmentResult<T> = Result<T, SegmentError>;
 
 #[derive(Debug)]
 pub enum SegmentError {
-    ApiClient(hab_http::Error),
-    ApiError(hyper::status::StatusCode, HashMap<String, String>),
-    ContentDecode(base64::DecodeError),
-    HttpClient(hyper::Error),
-    HttpClientParse(hyper::error::ParseError),
-    HttpResponse(hyper::status::StatusCode),
+    HttpClient(reqwest::Error),
     IO(io::Error),
     Serialization(serde_json::Error),
 }
@@ -39,15 +31,7 @@ pub enum SegmentError {
 impl fmt::Display for SegmentError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            SegmentError::ApiClient(ref e) => format!("{}", e),
-            SegmentError::ApiError(ref code, ref response) => format!(
-                "Received a non-200 response, status={}, response={:?}",
-                code, response
-            ),
-            SegmentError::ContentDecode(ref e) => format!("{}", e),
             SegmentError::HttpClient(ref e) => format!("{}", e),
-            SegmentError::HttpClientParse(ref e) => format!("{}", e),
-            SegmentError::HttpResponse(ref e) => format!("{}", e),
             SegmentError::IO(ref e) => format!("{}", e),
             SegmentError::Serialization(ref e) => format!("{}", e),
         };
@@ -58,12 +42,7 @@ impl fmt::Display for SegmentError {
 impl error::Error for SegmentError {
     fn description(&self) -> &str {
         match *self {
-            SegmentError::ApiClient(ref err) => err.description(),
-            SegmentError::ApiError(_, _) => "Response returned a non-200 status code.",
-            SegmentError::ContentDecode(ref err) => err.description(),
             SegmentError::HttpClient(ref err) => err.description(),
-            SegmentError::HttpClientParse(ref err) => err.description(),
-            SegmentError::HttpResponse(_) => "Non-200 HTTP response.",
             SegmentError::IO(ref err) => err.description(),
             SegmentError::Serialization(ref err) => err.description(),
         }
