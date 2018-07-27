@@ -6,7 +6,7 @@ workspace = "../../"
 
 [dependencies]
 base64 = "*"
-frank_jwt = { git = "https://github.com/habitat-sh/frank_jwt", branch = "habitat" }
+frank_jwt = "*"
 reqwest = "*"
 log = "*"
 regex = "*"

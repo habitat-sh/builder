@@ -18,6 +18,7 @@ use std::fmt;
 use std::io;
 
 use base64;
+use jwt;
 use reqwest;
 use serde_json;
 
@@ -32,6 +33,7 @@ pub enum HubError {
     ContentDecode(base64::DecodeError),
     HttpClient(reqwest::Error),
     IO(io::Error),
+    JWT(jwt::Error),
     Serialization(serde_json::Error),
 }
 
@@ -46,6 +48,7 @@ impl fmt::Display for HubError {
             HubError::ContentDecode(ref e) => format!("{}", e),
             HubError::HttpClient(ref e) => format!("{}", e),
             HubError::IO(ref e) => format!("{}", e),
+            HubError::JWT(ref e) => format!("JWT generation error {:?}", e),
             HubError::Serialization(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
@@ -60,6 +63,7 @@ impl error::Error for HubError {
             HubError::ContentDecode(ref err) => err.description(),
             HubError::HttpClient(ref err) => err.description(),
             HubError::IO(ref err) => err.description(),
+            HubError::JWT(_) => "Unable to generate JWT token",
             HubError::Serialization(ref err) => err.description(),
         }
     }
