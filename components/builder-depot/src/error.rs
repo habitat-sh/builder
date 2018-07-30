@@ -37,11 +37,13 @@ pub enum Error {
     DepotClientError(depot_client::Error),
     HabitatCore(hab_core::Error),
     HabitatNet(hab_net::error::LibError),
+    HeadObject(rusoto_s3::HeadObjectError),
     HTTP(hyper::status::StatusCode),
     InvalidPackageIdent(String),
     IO(io::Error),
     IronResponse(iron::response::Response),
     ListBuckets(rusoto_s3::ListBucketsError),
+    ListObjects(rusoto_s3::ListObjectsError),
     MessageTypeNotFound,
     MultipartCompletion(rusoto_s3::CompleteMultipartUploadError),
     MultipartUploadReq(rusoto_s3::CreateMultipartUploadError),
@@ -73,6 +75,7 @@ impl fmt::Display for Error {
             Error::DepotClientError(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::HabitatNet(ref e) => format!("{}", e),
+            Error::HeadObject(ref e) => format!("{}", e),
             Error::HTTP(ref e) => format!("{}", e),
             Error::InvalidPackageIdent(ref e) => format!(
                 "Invalid package identifier: {:?}. A valid identifier is in the form \
@@ -84,6 +87,7 @@ impl fmt::Display for Error {
                 format!("HTTP Response {}", e.status.unwrap().to_string())
             }
             Error::ListBuckets(ref e) => format!("{}", e),
+            Error::ListObjects(ref e) => format!("{}", e),
             Error::MessageTypeNotFound => format!("Unable to find message for given type"),
             Error::MultipartCompletion(ref e) => format!("{}", e),
             Error::MultipartUploadReq(ref e) => format!("{}", e),
@@ -133,6 +137,7 @@ impl error::Error for Error {
             Error::DepotClientError(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),
             Error::HabitatNet(ref err) => err.description(),
+            Error::HeadObject(ref err) => err.description(),
             Error::HTTP(_) => "Received an HTTP error",
             Error::InvalidPackageIdent(_) => {
                 "Package identifiers must be in origin/name format (example: acme/redis)"
@@ -140,6 +145,7 @@ impl error::Error for Error {
             Error::IO(ref err) => err.description(),
             Error::IronResponse(_) => "HTTP Response",
             Error::ListBuckets(ref err) => err.description(),
+            Error::ListObjects(ref err) => err.description(),
             Error::MultipartCompletion(ref err) => err.description(),
             Error::MultipartUploadReq(ref err) => err.description(),
             Error::NetError(ref err) => err.description(),
