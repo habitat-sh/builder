@@ -24,6 +24,7 @@
 //!
 //! Currently the S3Handler must be configured with both an access key
 //! ID and a secret access key.
+use std::fmt::Display;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
@@ -35,11 +36,9 @@ use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
 use iron::typemap::Key;
 use metrics::Counter;
 use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
-use rusoto_s3::{
-    CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart, CreateBucketRequest,
-    CreateMultipartUploadRequest, GetObjectRequest, PutObjectRequest, S3, S3Client,
-    UploadPartRequest,
-};
+use rusoto_s3::{CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
+                CreateBucketRequest, CreateMultipartUploadRequest, GetObjectRequest,
+                HeadObjectRequest, PutObjectRequest, S3, S3Client, UploadPartRequest};
 use time::PreciseTime;
 
 use config::{S3Backend, S3Cfg};
@@ -103,6 +102,24 @@ impl S3Handler {
         }
     }
 
+    // This function checks whether an uploaded file
+    // exists in the configured s3 bucket. It should
+    // only get called from within an upload future.
+    fn object_exists(&self, object_key: &str) -> Result<()> {
+        let mut request = HeadObjectRequest::default();
+        request.bucket = self.bucket.clone();
+        request.key = object_key.to_string();
+
+        match self.client.head_object(&request).sync() {
+            Ok(object) => {
+                info!("Verified {} was written to minio!", object_key);
+                debug!("Head Object check returned: {:?}", object);
+                Ok(())
+            }
+            Err(e) => Err(Error::HeadObject(e)),
+        }
+    }
+
     pub fn create_bucket(&self) -> Result<()> {
         let mut request = CreateBucketRequest::default();
         request.bucket = self.bucket.clone();
@@ -121,20 +138,25 @@ impl S3Handler {
 
     pub fn upload(
         &self,
-        hart: &PathBuf,
+        hart_path: &PathBuf,
         ident: &PackageIdent,
         target: &PackageTarget,
     ) -> Result<()> {
         Counter::UploadRequests.increment();
         let key = s3_key(ident, target)?;
-        let file = File::open(hart)?;
-        let path_attr = &hart.clone().into_os_string().into_string().unwrap();
+        let file = File::open(hart_path)?;
+
         info!("S3Handler::upload request started for s3_key: {}", key);
+
         let size = file.metadata().unwrap().len() as usize;
+        let fqpi = hart_path.clone().into_os_string().into_string().unwrap();
+
         if size < MINLIMIT {
-            self.single_upload(key, file, &path_attr)
+            self.single_upload(&key, file, fqpi)
+                .and_then(move |_| self.object_exists(&key))
         } else {
-            self.multipart_upload(key, file, &path_attr)
+            self.multipart_upload(&key, file, fqpi)
+                .and_then(move |_| self.object_exists(&key))
         }
     }
 
@@ -169,16 +191,19 @@ impl S3Handler {
         }
     }
 
-    fn single_upload(&self, key: String, hart: File, path_attr: &str) -> Result<()> {
+    fn single_upload<P: Into<PathBuf>>(&self, key: &str, hart: File, path_attr: P) -> Result<()>
+    where
+        P: Display,
+    {
         Counter::SingleUploadRequests.increment();
         let start_time = PreciseTime::now();
         let mut reader = BufReader::new(hart);
         let mut object: Vec<u8> = Vec::new();
         let bucket = self.bucket.clone();
-        let _complete = reader.read_to_end(&mut object)?;
+        let _complete = reader.read_to_end(&mut object).map_err(Error::IO);
 
         let mut request = PutObjectRequest::default();
-        request.key = key;
+        request.key = key.to_string();
         request.bucket = bucket;
         request.body = Some(object);
 
@@ -187,25 +212,28 @@ impl S3Handler {
                 let end_time = PreciseTime::now();
                 info!(
                     "Upload completed for {} (in {} sec):",
-                    &path_attr,
+                    path_attr,
                     start_time.to(end_time)
                 );
                 Ok(())
             }
             Err(e) => {
                 Counter::UploadFailures.increment();
-                warn!("Upload failed for {}: ({:?})", &path_attr, e);
+                warn!("Upload failed for {}: ({:?})", path_attr, e);
                 Err(Error::PackageUpload(e))
             }
         }
     }
 
-    fn multipart_upload(&self, key: String, hart: File, path_attr: &str) -> Result<()> {
+    fn multipart_upload<P: Into<PathBuf>>(&self, key: &str, hart: File, path_attr: P) -> Result<()>
+    where
+        P: Display,
+    {
         Counter::MultipartUploadRequests.increment();
         let start_time = PreciseTime::now();
         let mut p: Vec<CompletedPart> = Vec::new();
         let mut mprequest = CreateMultipartUploadRequest::default();
-        mprequest.key = key.clone();
+        mprequest.key = key.to_string();
         mprequest.bucket = self.bucket.clone();
 
         match self.client.create_multipart_upload(&mprequest).sync() {
@@ -250,7 +278,7 @@ impl S3Handler {
                 }
 
                 let mut completion = CompleteMultipartUploadRequest {
-                    key: key,
+                    key: key.to_string(),
                     bucket: self.bucket.clone(),
                     multipart_upload: Some(CompletedMultipartUpload { parts: Some(p) }),
                     upload_id: output.upload_id.unwrap(),
@@ -262,13 +290,13 @@ impl S3Handler {
                         let end_time = PreciseTime::now();
                         info!(
                             "Upload completed for {} (in {} sec):",
-                            &path_attr,
+                            path_attr,
                             start_time.to(end_time)
                         );
                         Ok(())
                     }
                     Err(e) => {
-                        warn!("Upload failed for {}", &path_attr);
+                        warn!("Upload failed for {}", path_attr);
                         debug!("{:?}", e);
                         Err(Error::MultipartCompletion(e))
                     }
