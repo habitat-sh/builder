@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use backend::s3;
 use bldr_core::api_client::ApiClient;
 use bldr_core::logger::Logger;
 use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
@@ -70,6 +71,7 @@ impl Default for UpstreamClient {
 pub struct UpstreamMgr {
     config: Config,
     depot_client: Option<ApiClient>,
+    s3_handler: s3::S3Handler,
     upstream_mgr_sock: zmq::Socket,
     want_origins: HashSet<String>,
     logger: Logger,
@@ -77,7 +79,7 @@ pub struct UpstreamMgr {
 }
 
 impl UpstreamMgr {
-    pub fn new(cfg: &Config) -> Result<Self> {
+    pub fn new(cfg: &Config, s3_handler: s3::S3Handler) -> Result<Self> {
         let upstream_mgr_sock = (**DEFAULT_CONTEXT)
             .as_mut()
             .socket(zmq::DEALER)
@@ -104,6 +106,7 @@ impl UpstreamMgr {
         Ok(UpstreamMgr {
             config: cfg.clone(),
             depot_client: depot_client,
+            s3_handler: s3_handler,
             upstream_mgr_sock: upstream_mgr_sock,
             want_origins: want_origins,
             logger: logger,
@@ -111,8 +114,8 @@ impl UpstreamMgr {
         })
     }
 
-    pub fn start(cfg: &Config) -> Result<JoinHandle<()>> {
-        let mut manager = Self::new(cfg)?;
+    pub fn start(cfg: &Config, s3_handler: s3::S3Handler) -> Result<JoinHandle<()>> {
+        let mut manager = Self::new(cfg, s3_handler)?;
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new()
             .name("upstream-manager".to_string())
@@ -171,12 +174,12 @@ impl UpstreamMgr {
                 let mut upstream_request: UpstreamRequest =
                     parse_from_bytes(&self.msg).map_err(Error::Protobuf)?;
 
+                debug!("Upstream received message: {:?}", &upstream_request);
+
                 // we have to assume ownership of these values here to appease the borrow checker
                 // - otherwise it complains about immutable vs mutable borrows
                 let msg_ident = upstream_request.take_ident();
                 let target = upstream_request.take_target();
-
-                debug!("Upstream received message: {:?}", &upstream_request);
 
                 // We only care about the base ident
                 let ident =
@@ -268,6 +271,7 @@ impl UpstreamMgr {
                         if let Err(err) = download_package_from_upstream_depot(
                             &self.config,
                             depot_cli,
+                            &self.s3_handler,
                             opi,
                             "stable",
                             &target,
