@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=1083
 set -e
 
 export PGPASSWORD="{{cfg.datastore.password}}"

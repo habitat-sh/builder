@@ -235,7 +235,7 @@ generate_bldr_keys() {
   keys=( $(find /hab/cache/keys -name "bldr-*.pub") )
 
   if [ "${#keys[@]}" -gt 0 ]; then
-    KEY_NAME=$(echo $keys[0] | grep -Po "bldr-\d+")
+    KEY_NAME=$(echo "${keys[0]}" | grep -Po "bldr-\d+")
     echo "Re-using existing builder key: $KEY_NAME"
   else
     KEY_NAME=$(hab user key generate bldr | grep -Po "bldr-\d+")

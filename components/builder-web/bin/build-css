@@ -12,5 +12,5 @@ node-sass \
   --recursive=true \
   --output=assets \
   --output-style=compressed \
-  $@ \
+  "$@" \
   app/app.scss
