@@ -1,17 +1,15 @@
-#!/bin/sh
-# shellcheck disable=1083
+#!/bin/bash
 
-
-export HOME={{pkg.svc_data_path}}
-export RUST_LOG={{cfg.log_level}}
+export HOME="{{pkg.svc_data_path}}"
+export RUST_LOG="{{cfg.log_level}}"
 export RUST_BACKTRACE=1
-pkg_svc_run="bldr-api start -c {{pkg.svc_config_path}}/config.toml"
+pkg_svc_run=(bldr-api start -c "{{pkg.svc_config_path}}/config.toml")
 
 if [ "$(whoami)" = "root" ]; then
   exec chpst \
-    -U {{pkg.svc_user}}:{{pkg.svc_group}} \
-    -u {{pkg.svc_user}}:{{pkg.svc_group}} \
-    "${pkg_svc_run}" 2>&1
+    -U "{{pkg.svc_user}}:{{pkg.svc_group}}" \
+    -u "{{pkg.svc_user}}:{{pkg.svc_group}}" \
+    "${pkg_svc_run[@]}" 2>&1
 else
-  exec "${pkg_svc_run}" 2>&1
+  exec "${pkg_svc_run[@]}" 2>&1
 fi
