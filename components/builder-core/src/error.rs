@@ -14,6 +14,7 @@
 
 use std::error;
 use std::fmt;
+use std::io;
 use std::result;
 use std::string;
 
@@ -21,9 +22,14 @@ use base64;
 use chrono;
 use hab_core;
 use protocol;
+use reqwest;
+use serde_json;
 
 #[derive(Debug)]
 pub enum Error {
+    ApiError(reqwest::StatusCode, String),
+    HttpClient(reqwest::Error),
+    IO(io::Error),
     Base64Error(base64::DecodeError),
     ChronoError(chrono::format::ParseError),
     DecryptError(String),
@@ -31,8 +37,10 @@ pub enum Error {
     FromUtf8Error(string::FromUtf8Error),
     HabitatCore(hab_core::Error),
     Protocol(protocol::ProtocolError),
+    Serialization(serde_json::Error),
     TokenInvalid,
     TokenExpired,
+    BadResponse,
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -40,6 +48,12 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::ApiError(ref code, ref response) => format!(
+                "Received a non-200 response, status={}, response={:?}",
+                code, response
+            ),
+            Error::HttpClient(ref e) => format!("{}", e),
+            Error::IO(ref e) => format!("{}", e),
             Error::Base64Error(ref e) => format!("{}", e),
             Error::ChronoError(ref e) => format!("{}", e),
             Error::DecryptError(ref e) => format!("{}", e),
@@ -47,8 +61,10 @@ impl fmt::Display for Error {
             Error::FromUtf8Error(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
+            Error::Serialization(ref e) => format!("{}", e),
             Error::TokenInvalid => format!("Token is invalid"),
             Error::TokenExpired => format!("Token is expired"),
+            Error::BadResponse => format!("Response missing required fields"),
         };
         write!(f, "{}", msg)
     }
@@ -57,6 +73,9 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::ApiError(_, _) => "Response returned a non-200 status code.",
+            Error::HttpClient(ref err) => err.description(),
+            Error::IO(ref err) => err.description(),
             Error::Base64Error(ref e) => e.description(),
             Error::ChronoError(ref e) => e.description(),
             Error::DecryptError(_) => "Error decrypting integration",
@@ -64,8 +83,10 @@ impl error::Error for Error {
             Error::FromUtf8Error(ref e) => e.description(),
             Error::HabitatCore(ref err) => err.description(),
             Error::Protocol(ref err) => err.description(),
+            Error::Serialization(ref err) => err.description(),
             Error::TokenInvalid => "Token is invalid",
             Error::TokenExpired => "Token is expired",
+            Error::BadResponse => "Response missing required fields",
         }
     }
 }

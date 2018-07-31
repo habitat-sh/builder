@@ -18,7 +18,7 @@ use std::fmt;
 use std::io;
 use std::result;
 
-use depot_client;
+use bldr_core;
 use hab_core;
 use hab_core::package::{self, Identifiable};
 use hab_net;
@@ -34,7 +34,7 @@ pub enum Error {
     ChannelAlreadyExists(String),
     ChannelDoesNotExist(String),
     CreateBucketError(rusoto_s3::CreateBucketError),
-    DepotClientError(depot_client::Error),
+    DepotClientError(bldr_core::Error),
     HabitatCore(hab_core::Error),
     HabitatNet(hab_net::error::LibError),
     HTTP(hyper::status::StatusCode),

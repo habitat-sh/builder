@@ -23,6 +23,8 @@ serde_json = "*"
 time = "*"
 toml = { version = "*", default-features = false }
 walkdir = "*"
+reqwest = "*"
+hyper = "^0.11.9"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"

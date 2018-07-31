@@ -13,7 +13,6 @@ env_logger = "*"
 futures = "0.1.16"
 habitat-builder-protocol = { path = "../builder-protocol" }
 builder-http-gateway = { path = "../builder-http-gateway" }
-habitat_depot_client = { git = "https://github.com/habitat-sh/habitat.git" }
 hyper = "0.10"
 iron = "*"
 iron-test = "*"
