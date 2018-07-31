@@ -22,6 +22,11 @@ find . -type f \
   -and \! -path "*.sample" \
   -and \! -path "*.ps1" \
   -and \! -path "./test/builder-api/node_modules/*" \
+  -and \! -path "./components/builder-api/habitat/hooks/health_check" \
+  -and \! -path "./components/builder-api-proxy/habitat/hooks/health_check" \
+  -and \! -path "./components/builder-api-proxy/habitat/hooks/init" \
+  -and \! -path "./components/builder-minio/habitat/hooks/init" \
+  -and \! -path "./components/builder-minio/habitat/hooks/run" \
   -print \
   | xargs shellcheck --external-sources --exclude=1090,1091,2148,2034
 
