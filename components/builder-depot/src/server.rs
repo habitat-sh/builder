@@ -13,16 +13,16 @@
 // limitations under the License.
 
 use std::fs::{self, remove_file, File};
-use std::io::{self, BufWriter, Read, Write};
+use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::result;
 use std::str::{from_utf8, FromStr};
 
 use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
+use bldr_core::api_client::ApiClient;
 use bldr_core::helpers::transition_visibility;
 use bldr_core::metrics::CounterMetric;
 use bodyparser;
-use depot_client::{Client as DepotClient, DisplayProgress};
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
 use hab_core::package::{
@@ -2451,10 +2451,10 @@ fn process_upload_for_package_archive(
 // TBD: Move this to upstream module and refactor later
 pub fn download_package_from_upstream_depot(
     depot: &Config,
-    depot_cli: &DepotClient,
+    depot_cli: &ApiClient,
     ident: OriginPackageIdent,
-    channel: Option<String>,
-    target: Option<String>,
+    channel: &str,
+    target: &str,
 ) -> Result<OriginPackage> {
     let parent_path = depot.packages_path();
 
@@ -2466,34 +2466,7 @@ pub fn download_package_from_upstream_depot(
         }
     };
 
-    // This is pretty frustrating, but I'll explain why this seemingly useless struct
-    // is here. We want to pass None as the last parameter to fetch_package, because
-    // this is running on a server and there's no TTY, so we have no need for
-    // a progress bar. Passing None by itself doesn't work, because the compiler
-    // complains that it can't infer the type for None. Passing None::<DisplayProgress>
-    // doesn't work because the compiler complains that it doesn't know the size of
-    // that parameter. So in order to get this to compile, we need to create this 100%
-    // useless struct that implements the DisplayProgress trait, just so we can cast
-    // None to it when we call the function. If someone has a better way of doing this,
-    // fantastic. I will happily change this code and subscribe to your newsletter.
-    struct NoProgress {}
-    impl DisplayProgress for NoProgress {
-        fn size(&mut self, _size: u64) {}
-
-        fn finish(&mut self) {}
-    }
-
-    impl Write for NoProgress {
-        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
-            Ok(0)
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    match depot_cli.fetch_package(&ident, None, &parent_path, None::<NoProgress>, target) {
+    match depot_cli.fetch_package(&ident, target, &parent_path, None) {
         Ok(mut archive) => {
             let target_from_artifact = archive.target().map_err(Error::HabitatCore)?;
             if !depot.targets.contains(&target_from_artifact) {
@@ -2544,7 +2517,7 @@ pub fn download_package_from_upstream_depot(
             // require much refactoring of code, so at the moment, we're going to punt on the hard problem
             // here and just check to see if the channel is stable, and if so, do the right thing. If it's
             // not stable, we do nothing (though the odds of this happening are vanishingly small).
-            if channel.is_some() && channel.clone().unwrap().as_str() == "stable" {
+            if channel == "stable" {
                 let mut conn = RouteBroker::connect().unwrap();
                 let mut channel_get = OriginChannelGet::new();
                 channel_get.set_origin_name(ident.get_origin().to_string());
@@ -2570,12 +2543,10 @@ pub fn download_package_from_upstream_depot(
                     Err(e) => Err(Error::NetError(e)),
                 }
             } else {
-                if channel.is_some() {
-                    info!(
+                warn!(
                         "Installing packages from an upstream depot and the channel wasn't stable. Instead, it was {}",
-                        channel.unwrap()
+                        channel
                     );
-                }
 
                 match OriginPackage::from_archive(&mut archive) {
                     Ok(p) => Ok(p),

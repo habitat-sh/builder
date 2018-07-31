@@ -31,12 +31,18 @@ extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate reqwest;
+#[allow(unused_imports)]
+#[macro_use]
 extern crate serde_json;
 extern crate time;
 extern crate toml;
 extern crate walkdir;
+#[macro_use]
+extern crate hyper;
 
 pub mod access_token;
+pub mod api_client;
 pub mod build_config;
 pub mod data_structures;
 pub mod error;

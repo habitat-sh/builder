@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bldr_core::api_client::ApiClient;
 use bldr_core::logger::Logger;
 use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 use hab_net::socket::DEFAULT_CONTEXT;
@@ -31,7 +32,6 @@ use config::Config;
 use error::{Error, Result};
 use protocol::originsrv::{OriginPackageIdent, UpstreamRequest};
 
-use depot_client::Client as DepotClient;
 use server::download_package_from_upstream_depot;
 
 const UPSTREAM_MGR_ADDR: &'static str = "inproc://upstream";
@@ -69,7 +69,7 @@ impl Default for UpstreamClient {
 
 pub struct UpstreamMgr {
     config: Config,
-    depot_client: Option<DepotClient>,
+    depot_client: Option<ApiClient>,
     upstream_mgr_sock: zmq::Socket,
     want_origins: HashSet<String>,
     logger: Logger,
@@ -84,7 +84,7 @@ impl UpstreamMgr {
             .map_err(Error::Zmq)?;
 
         let depot_client = if let Some(ref upstream_depot) = cfg.upstream_depot {
-            Some(DepotClient::new(upstream_depot, "builder-upstream", "0.0.0", None).unwrap())
+            Some(ApiClient::new(upstream_depot))
         } else {
             None
         };
@@ -253,42 +253,40 @@ impl UpstreamMgr {
 
         match self.depot_client {
             // We only sync down stable packages from the upstream for now
-            Some(ref depot_cli) => {
-                match depot_cli.show_package(ident, Some("stable"), None, Some(target)) {
-                    Ok(mut package) => {
-                        let remote_pkg_ident: PackageIdent = package.ident.into();
+            Some(ref depot_cli) => match depot_cli.show_package(ident, "stable", target, None) {
+                Ok(mut package) => {
+                    let remote_pkg_ident: PackageIdent = package.ident.into();
 
-                        debug!("Got remote ident: {}", remote_pkg_ident);
+                    debug!("Got remote ident: {}", remote_pkg_ident);
 
-                        if local_ident.is_none() || remote_pkg_ident > local_ident.unwrap() {
-                            let opi: OriginPackageIdent =
-                                OriginPackageIdent::from(remote_pkg_ident.clone());
+                    if local_ident.is_none() || remote_pkg_ident > local_ident.unwrap() {
+                        let opi: OriginPackageIdent =
+                            OriginPackageIdent::from(remote_pkg_ident.clone());
 
-                            debug!("Downloading package {:?} from upstream", opi);
+                        debug!("Downloading package {:?} from upstream", opi);
 
-                            if let Err(err) = download_package_from_upstream_depot(
-                                &self.config,
-                                depot_cli,
-                                opi,
-                                Some("stable".to_string()),
-                                Some(target.to_string()),
-                            ) {
-                                warn!("Failed to download package from upstream, err {:?}", err);
-                                return Err(err);
-                            }
-                            return Ok(Some(remote_pkg_ident));
+                        if let Err(err) = download_package_from_upstream_depot(
+                            &self.config,
+                            depot_cli,
+                            opi,
+                            "stable",
+                            &target,
+                        ) {
+                            warn!("Failed to download package from upstream, err {:?}", err);
+                            return Err(err);
                         }
-                        Ok(None)
+                        return Ok(Some(remote_pkg_ident));
                     }
-                    Err(err) => {
-                        warn!(
-                            "Failed to get package metadata for {} from {:?}, err {:?}",
-                            ident, self.config.upstream_depot, err
-                        );
-                        Err(Error::DepotClientError(err))
-                    }
+                    Ok(None)
                 }
-            }
+                Err(err) => {
+                    warn!(
+                        "Failed to get package metadata for {} from {:?}, err {:?}",
+                        ident, self.config.upstream_depot, err
+                    );
+                    Err(Error::DepotClientError(err))
+                }
+            },
             _ => Ok(None),
         }
     }
