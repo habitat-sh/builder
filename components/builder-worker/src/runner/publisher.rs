@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bldr_core::api_client::ApiClient;
 use bldr_core::logger::Logger;
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::package::archive::PackageArchive;
 
 use super::{RETRIES, RETRY_WAIT};
-use depot_client;
 use error::{Error, Result};
-use hyper::status::StatusCode;
 use retry::retry;
-use {PRODUCT, VERSION};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct Publisher {
@@ -46,24 +44,21 @@ impl Publisher {
             self.url, self.channel_opt
         );
 
-        let client = depot_client::Client::new(&self.url, PRODUCT, VERSION, None).unwrap();
+        let client = ApiClient::new(&self.url);
         let ident = archive.ident().unwrap();
 
         match retry(
             RETRIES,
             RETRY_WAIT,
             || client.x_put_package(archive, auth_token),
-            |res| {
-                match *res {
-                Ok(_) |  // Conflict means package got uploaded earlier
-                Err(depot_client::Error::APIError(StatusCode::Conflict, _)) => true,
+            |res| match *res {
+                Ok(_) => true,
                 Err(_) => {
                     let msg = format!("Upload {}: {:?}", ident, res);
                     debug!("{}", msg);
                     logger.log(&msg);
                     false
                 }
-            }
             },
         ) {
             Ok(_) => (),
@@ -88,16 +83,13 @@ impl Publisher {
                     RETRIES,
                     RETRY_WAIT,
                     || client.create_channel(&ident.origin, &channel, auth_token),
-                    |res| {
-                        match *res {
-                            Ok(_) |  // Conflict means channel got created earlier
-                            Err(depot_client::Error::APIError(StatusCode::Conflict, _)) => true,
-                            Err(_) => {
-                                let msg = format!("Create channel {}: {:?}", channel, res);
-                                debug!("{}", msg);
-                                logger.log(&msg);
-                                false
-                            }
+                    |res| match *res {
+                        Ok(_) => true,
+                        Err(_) => {
+                            let msg = format!("Create channel {}: {:?}", channel, res);
+                            debug!("{}", msg);
+                            logger.log(&msg);
+                            false
                         }
                     },
                 ) {

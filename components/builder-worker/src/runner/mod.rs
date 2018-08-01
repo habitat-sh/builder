@@ -28,10 +28,10 @@ use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 
 use bldr_core;
+use bldr_core::api_client::ApiClient;
 use bldr_core::job::Job;
 use bldr_core::logger::Logger;
 use chrono::Utc;
-use depot_client;
 use hab_core::os::users;
 use hab_core::package::archive::PackageArchive;
 use hab_core::util::perm;
@@ -52,7 +52,6 @@ use error::{Error, Result};
 use network::NetworkNamespace;
 use retry::retry;
 use vcs::VCS;
-use {PRODUCT, VERSION};
 
 // TODO fn: copied from `components/common/src/ui.rs`. As this component doesn't currently depend
 // on habitat_common it didnt' seem worth it to add a dependency for only this constant. Probably
@@ -80,7 +79,7 @@ pub const RETRY_WAIT: u64 = 60000;
 
 pub struct Runner {
     config: Arc<Config>,
-    depot_cli: depot_client::Client,
+    depot_cli: ApiClient,
     workspace: Workspace,
     logger: Logger,
     bldr_token: String,
@@ -89,8 +88,7 @@ pub struct Runner {
 
 impl Runner {
     pub fn new(job: Job, config: Arc<Config>, net_ident: &str, cancel: Arc<AtomicBool>) -> Self {
-        let depot_cli =
-            depot_client::Client::new(&config.bldr_url, PRODUCT, VERSION, None).unwrap();
+        let depot_cli = ApiClient::new(&config.bldr_url);
 
         let log_path = config.log_path.clone();
         let mut logger = Logger::init(PathBuf::from(log_path), "builder-worker.log");

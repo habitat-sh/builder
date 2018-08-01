@@ -11,7 +11,6 @@ bodyparser = "*"
 builder_core = { path = "../builder-core" }
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
-habitat_depot_client = { git = "https://github.com/habitat-sh/habitat.git" }
 habitat_net = { path = "../net" }
 hyper = "0.10"
 iron = "*"
