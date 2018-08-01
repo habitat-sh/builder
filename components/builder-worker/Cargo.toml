@@ -19,7 +19,6 @@ env_logger = "*"
 features = "*"
 git2 = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
-hyper = "0.10"
 lazy_static = "*"
 log = "*"
 protobuf = "*"
@@ -49,6 +48,3 @@ path = "../builder-core"
 
 [dependencies.habitat_net]
 path = "../net"
-
-[dependencies.habitat_depot_client]
-git = "https://github.com/habitat-sh/habitat.git"

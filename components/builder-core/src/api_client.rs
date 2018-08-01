@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use rand::{thread_rng, Rng};
 use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers, UserAgent};
 use reqwest::mime;
-use reqwest::{Client, Proxy, Response, StatusCode};
+use reqwest::{Body, Client, Method, Proxy, Response, StatusCode};
 use serde_json;
 
 use error::{Error, Result};
@@ -121,7 +121,7 @@ impl ApiClient {
         let url_path = format!("{}/v1/{}", self.url, url);
         let mut query = HashMap::new();
         query.insert("target", target);
-        let mut resp = self.http_get(&url_path, token, query)?;
+        let mut resp = self.http_call(Method::Get, &url_path, None, token, query)?;
 
         let mut body = String::new();
         resp.read_to_string(&mut body).map_err(Error::IO)?;
@@ -147,28 +147,27 @@ impl ApiClient {
         P: AsRef<Path> + ?Sized,
         I: Identifiable,
     {
-        match self.download(ident, target, dst_path.as_ref(), token) {
+        let url = &package_download(ident);
+
+        let mut qparams = HashMap::new();
+        qparams.insert("target", target);
+
+        match self.download(url, qparams, dst_path.as_ref(), token) {
             Ok(file) => Ok(PackageArchive::new(PathBuf::from(file))),
             Err(e) => Err(e),
         }
     }
 
-    fn download<I>(
+    fn download(
         &self,
-        ident: &I,
-        target: &str,
+        url: &str,
+        qparams: HashMap<&str, &str>,
         dst_path: &Path,
         token: Option<&str>,
-    ) -> Result<PathBuf>
-    where
-        I: Identifiable,
-    {
-        let url = &package_download(ident);
-
+    ) -> Result<PathBuf> {
         let url_path = format!("{}/v1/{}", self.url, url);
-        let mut query = HashMap::new();
-        query.insert("target", target);
-        let mut resp = self.http_get(&url_path, token, query)?;
+
+        let mut resp = self.http_call(Method::Get, &url_path, None, token, qparams)?;
         debug!("Response: {:?}", resp);
 
         if resp.status() != StatusCode::Ok {
@@ -203,11 +202,90 @@ impl ApiClient {
         Ok(dst_file_path)
     }
 
-    fn http_get<U>(
+    pub fn x_put_package(&self, pa: &mut PackageArchive, token: &str) -> Result<()> {
+        let checksum = pa.checksum()?;
+        let ident = pa.ident()?;
+        let file = File::open(&pa.path).map_err(Error::IO)?;
+        let file_size = file.metadata().map_err(Error::IO)?.len();
+
+        let url_path = format!("{}/v1/{}", self.url, package_path(&ident));
+
+        let mut qparams: HashMap<&str, &str> = HashMap::new();
+        qparams.insert("checksum", &checksum);
+        qparams.insert("builder", "");
+
+        debug!("Reading from {}", &pa.path.display());
+
+        let body = Body::sized(file, file_size);
+
+        let resp = self.http_call(Method::Post, &url_path, Some(body), Some(token), qparams)?;
+
+        match resp.status() {
+            StatusCode::Created | StatusCode::Conflict => (), // Conflict means package already uploaded - return Ok
+            _ => return Err(err_from_response(resp)),
+        }
+
+        Ok(())
+    }
+
+    pub fn fetch_origin_secret_key<P>(
         &self,
+        origin: &str,
+        token: &str,
+        dst_path: P,
+    ) -> Result<PathBuf>
+    where
+        P: AsRef<Path>,
+    {
+        self.download(
+            &origin_secret_keys_latest(origin),
+            HashMap::new(),
+            dst_path.as_ref(),
+            Some(token),
+        )
+    }
+
+    pub fn create_channel(&self, origin: &str, channel: &str, token: &str) -> Result<()> {
+        let url_path = format!("{}/v1/depot/channels/{}/{}", self.url, origin, channel);
+        debug!("Creating channel, path: {:?}", url_path);
+
+        let resp = self.http_call(Method::Post, &url_path, None, Some(token), HashMap::new())?;
+
+        match resp.status() {
+            StatusCode::Created | StatusCode::Conflict => (), // Conflict means channel already created - return Ok
+            _ => return Err(err_from_response(resp)),
+        }
+
+        Ok(())
+    }
+
+    pub fn promote_package<I>(&self, ident: &I, channel: &str, token: &str) -> Result<()>
+    where
+        I: Identifiable,
+    {
+        let url_path = format!(
+            "{}/v1/{}",
+            self.url,
+            channel_package_promote(channel, ident)
+        );
+        debug!("Promoting package {}", ident);
+
+        let resp = self.http_call(Method::Put, &url_path, None, Some(token), HashMap::new())?;
+
+        if resp.status() != StatusCode::Ok {
+            return Err(err_from_response(resp));
+        };
+
+        Ok(())
+    }
+
+    fn http_call<U>(
+        &self,
+        method: Method,
         url: &str,
+        body: Option<Body>,
         token: Option<U>,
-        query: HashMap<&str, &str>,
+        qparams: HashMap<&str, &str>,
     ) -> Result<Response>
     where
         U: ToString,
@@ -217,14 +295,24 @@ impl ApiClient {
             headers.set(Authorization(Bearer {
                 token: t.to_string(),
             }))
-        };
+        }
 
-        self.inner
-            .get(url)
-            .headers(headers)
-            .query(&query)
-            .send()
-            .map_err(Error::HttpClient)
+        if body.is_some() {
+            self.inner
+                .request(method, url)
+                .headers(headers)
+                .query(&qparams)
+                .body(body.unwrap())
+                .send()
+                .map_err(Error::HttpClient)
+        } else {
+            self.inner
+                .request(method, url)
+                .headers(headers)
+                .query(&qparams)
+                .send()
+                .map_err(Error::HttpClient)
+        }
     }
 }
 
@@ -261,6 +349,24 @@ where
     I: Identifiable,
 {
     format!("depot/pkgs/{}", package)
+}
+
+fn origin_secret_keys_latest(origin: &str) -> String {
+    format!("depot/origins/{}/secret_keys/latest", origin)
+}
+
+fn channel_package_promote<I>(channel: &str, package: &I) -> String
+where
+    I: Identifiable,
+{
+    format!(
+        "depot/channels/{}/{}/pkgs/{}/{}/{}/promote",
+        package.origin(),
+        channel,
+        package.name(),
+        package.version().unwrap(),
+        package.release().unwrap()
+    )
 }
 
 fn err_from_response(mut response: Response) -> Error {

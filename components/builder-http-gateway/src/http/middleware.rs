@@ -15,7 +15,6 @@
 use base64;
 use bldr_core;
 use core::env;
-use depot_client::Client as DepotClient;
 use github_api_client::GitHubClient;
 use hab_net::conn::RouteClient;
 use hab_net::privilege::FeatureFlags;
@@ -96,12 +95,6 @@ pub struct GitHubCli;
 
 impl Key for GitHubCli {
     type Value = GitHubClient;
-}
-
-pub struct DepotCli;
-
-impl Key for DepotCli {
-    type Value = DepotClient;
 }
 
 pub struct SegmentCli;
