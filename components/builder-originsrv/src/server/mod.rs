@@ -281,8 +281,11 @@ pub struct ServerState {
 
 impl ServerState {
     fn new(cfg: Config, router_pipe: Arc<String>) -> SrvResult<Self> {
+        let datastore = DataStore::new(&cfg.datastore, router_pipe)?;
+        datastore.validate_shard_migration()?;
+
         Ok(ServerState {
-            datastore: DataStore::new(&cfg.datastore, cfg.app.shards.unwrap(), router_pipe)?,
+            datastore: datastore,
         })
     }
 }
@@ -331,6 +334,6 @@ pub fn migrate(config: Config) -> SrvResult<()> {
     let router_pipe = Arc::new(format!(
         "inproc://this.is.not.a.real.router.pipe.but.it.doesnt.matter"
     ));
-    let ds = DataStore::new(&config.datastore, config.app.shards.unwrap(), router_pipe)?;
+    let ds = DataStore::new(&config.datastore, router_pipe)?;
     ds.setup()
 }

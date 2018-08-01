@@ -146,6 +146,7 @@ impl Dispatcher for JobSrv {
         router_pipe: Arc<String>,
     ) -> Result<<Self::State as AppState>::InitState> {
         let datastore = DataStore::new(&config.datastore)?;
+        datastore.validate_shard_migration()?;
         let mut graph = TargetGraph::new();
         let packages = datastore.get_job_graph_packages()?;
         let start_time = PreciseTime::now();

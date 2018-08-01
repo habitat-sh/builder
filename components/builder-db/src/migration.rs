@@ -15,34 +15,52 @@
 use diesel::pg::PgConnection;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_query;
-use error::Result;
 
-pub fn shard_setup(conn: &PgConnection, shard_id: u32) -> Result<()> {
-    debug!("Migrating shard_{:?}", shard_id);
-    sql_query(format!("CREATE SCHEMA IF NOT EXISTS shard_{}", shard_id))
-        .execute(conn)
-        .unwrap();
-    sql_query(format!("SET SEARCH_PATH TO shard_{}", shard_id))
-        .execute(conn)
-        .unwrap();
-    // TED: We have to do this here because we rely on the shard id which isn't available in raw sql
-    sql_query(format!(
+use error::{Error, Result};
+use pool::Pool;
+
+pub fn setup_ids(conn: &PgConnection) -> Result<()> {
+    sql_query(
         r#"CREATE OR REPLACE FUNCTION next_id_v1(sequence_id regclass, OUT result bigint) AS $$
                 DECLARE
                     our_epoch bigint := 1409266191000;
                     seq_id bigint;
                     now_millis bigint;
-                    shard_id int := {};
                 BEGIN
                     SELECT nextval(sequence_id) % 1024 INTO seq_id;
                     SELECT FLOOR(EXTRACT(EPOCH FROM clock_timestamp()) * 1000) INTO now_millis;
                     result := (now_millis - our_epoch) << 23;
                     result := result | (seq_id << 13);
-                    result := result | (shard_id);
                 END;
                 $$ LANGUAGE PLPGSQL;"#,
-        shard_id
-    )).execute(conn)
+    ).execute(conn)
         .unwrap();
     Ok(())
+}
+
+pub fn validate_shard_migration(pool: &Pool) -> Result<()> {
+    let conn = pool.get()?;
+    match conn.query("SELECT shard_migration_complete FROM flags;", &[]) {
+        Ok(rows) => {
+            if rows.is_empty() {
+                return Err(Error::ShardMigrationIncomplete);
+            }
+
+            let row = rows.get(0);
+            let complete: bool = row.get("shard_migration_complete");
+
+            if complete {
+                Ok(())
+            } else {
+                Err(Error::ShardMigrationIncomplete)
+            }
+        }
+        Err(e) => {
+            error!(
+                "Error checking if the shard migration is complete. e = {:?}",
+                e
+            );
+            Err(Error::ShardMigrationIncomplete)
+        }
+    }
 }

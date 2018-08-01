@@ -17,33 +17,25 @@ use std::ops::{Deref, DerefMut};
 use std::thread;
 use std::time::Duration;
 
-use fnv::FnvHasher;
 use r2d2;
 use r2d2_postgres::{self, PostgresConnectionManager, TlsMode};
-use rand::{self, Rng};
 
 use config::DataStoreCfg;
 use error::{Error, Result};
-use protocol::{Routable, RouteKey, ShardId, SHARD_COUNT};
 
 #[derive(Clone)]
 pub struct Pool {
     inner: r2d2::Pool<PostgresConnectionManager>,
-    pub shards: Vec<ShardId>,
 }
 
 impl fmt::Debug for Pool {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Pool {{ inner: {:?}, shards: {:?} }}",
-            self.inner, self.shards
-        )
+        write!(f, "Pool {{ inner: {:?} }}", self.inner)
     }
 }
 
 impl Pool {
-    pub fn new(config: &DataStoreCfg, shards: Vec<ShardId>) -> Result<Pool> {
+    pub fn new(config: &DataStoreCfg) -> Result<Pool> {
         loop {
             let manager = PostgresConnectionManager::new(config, TlsMode::None)
                 .map_err(Error::PostgresConnect)?;
@@ -52,12 +44,7 @@ impl Pool {
                 .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
                 .build(manager)
             {
-                Ok(pool) => {
-                    return Ok(Pool {
-                        inner: pool,
-                        shards: shards,
-                    })
-                }
+                Ok(pool) => return Ok(Pool { inner: pool }),
                 Err(e) => error!(
                     "Error initializing connection pool to Postgres, will retry: {}",
                     e
@@ -67,46 +54,9 @@ impl Pool {
         }
     }
 
-    pub fn get_raw(
-        &self,
-    ) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>> {
+    pub fn get(&self) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>> {
         let conn = self.inner.get().map_err(Error::ConnectionTimeout)?;
         Ok(conn)
-    }
-
-    pub fn get_shard(
-        &self,
-        shard_id: u32,
-    ) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>> {
-        let conn = self.inner.get().map_err(Error::ConnectionTimeout)?;
-        debug!("Switching to shard {}", shard_id);
-
-        let schema_name = format!("shard_{}", shard_id);
-        let sql_search_path = format!("SET search_path TO {}", schema_name);
-        conn.execute(&sql_search_path, &[])
-            .map_err(Error::SchemaSwitch)?;
-        Ok(conn)
-    }
-
-    pub fn get<T: Routable>(
-        &self,
-        routable: &T,
-    ) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>> {
-        let optional_shard_id = routable
-            .route_key()
-            .map(|k| k.hash(&mut FnvHasher::default()));
-
-        let shard_id = match optional_shard_id {
-            Some(id) => (id % SHARD_COUNT as u64) as u32,
-            None => {
-                let mut rng = rand::thread_rng();
-                match rng.choose(&self.shards) {
-                    Some(shard) => *shard,
-                    None => 0,
-                }
-            }
-        };
-        self.get_shard(shard_id)
     }
 }
 

@@ -16,15 +16,16 @@
 
 embed_migrations!("src/migrations");
 
+use std::env;
 use std::io;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use db::config::{DataStoreCfg, ShardId};
+use db::config::DataStoreCfg;
 use db::diesel_pool::DieselPool;
-use db::migration::shard_setup;
+use db::migration::{self, setup_ids};
 use db::pool::Pool;
-use diesel::result::Error;
+use diesel::result::Error as Dre;
 use diesel::Connection;
 use postgres;
 use protobuf;
@@ -36,51 +37,44 @@ use error::{SrvError, SrvResult};
 pub struct DataStore {
     pub pool: Pool,
     pub diesel_pool: DieselPool,
-    pub shards: Vec<ShardId>,
 }
 
 impl DataStore {
-    pub fn new(cfg: &DataStoreCfg, shards: Vec<ShardId>) -> SrvResult<DataStore> {
-        let pool = Pool::new(&cfg, shards.clone())?;
+    pub fn new(cfg: &DataStoreCfg) -> SrvResult<DataStore> {
+        let pool = Pool::new(&cfg)?;
         let diesel_pool = DieselPool::new(&cfg)?;
-        Ok(DataStore {
-            pool,
-            diesel_pool,
-            shards,
-        })
+        Ok(DataStore { pool, diesel_pool })
     }
 
     // For testing only
-    pub fn from_pool(
-        pool: Pool,
-        diesel_pool: DieselPool,
-        shards: Vec<ShardId>,
-        _: Arc<String>,
-    ) -> SrvResult<DataStore> {
-        Ok(DataStore {
-            pool,
-            diesel_pool,
-            shards,
-        })
+    pub fn from_pool(pool: Pool, diesel_pool: DieselPool, _: Arc<String>) -> SrvResult<DataStore> {
+        Ok(DataStore { pool, diesel_pool })
     }
 
     pub fn setup(&self) -> SrvResult<()> {
         let conn = self.diesel_pool.get_raw()?;
-        for shard_id in self.shards.iter() {
-            let _ = conn.transaction::<_, Error, _>(|| {
-                shard_setup(&*conn, *shard_id).unwrap();
-                embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
-                Ok(())
-            });
-        }
+        let _ = conn.transaction::<_, Dre, _>(|| {
+            setup_ids(&*conn).unwrap();
+            embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
+            Ok(())
+        });
         Ok(())
+    }
+
+    /// Validate that the shard migration has happened.
+    pub fn validate_shard_migration(&self) -> SrvResult<()> {
+        if env::var_os("HAB_FUNC_TEST").is_some() {
+            Ok(())
+        } else {
+            migration::validate_shard_migration(&self.pool).map_err(SrvError::Db)
+        }
     }
 
     pub fn account_find_or_create(
         &self,
         msg: &sessionsrv::AccountFindOrCreate,
     ) -> SrvResult<sessionsrv::Account> {
-        let conn = self.pool.get(msg)?;
+        let conn = self.pool.get()?;
         let rows = conn.query(
             "SELECT * FROM select_or_insert_account_v1($1, $2)",
             &[&msg.get_name(), &msg.get_email()],
@@ -90,7 +84,7 @@ impl DataStore {
     }
 
     pub fn update_account(&self, account_update: &sessionsrv::AccountUpdate) -> SrvResult<()> {
-        let conn = self.pool.get(account_update)?;
+        let conn = self.pool.get()?;
         conn.execute(
             "SELECT update_account_v1($1, $2)",
             &[
@@ -105,7 +99,7 @@ impl DataStore {
         &self,
         account_create: &sessionsrv::AccountCreate,
     ) -> SrvResult<sessionsrv::Account> {
-        let conn = self.pool.get(account_create)?;
+        let conn = self.pool.get()?;
         let rows =
             conn.query(
                 "SELECT * FROM select_or_insert_account_v1($1, $2)",
@@ -120,7 +114,7 @@ impl DataStore {
         &self,
         account_get: &sessionsrv::AccountGet,
     ) -> SrvResult<Option<sessionsrv::Account>> {
-        let conn = self.pool.get(account_get)?;
+        let conn = self.pool.get()?;
         let rows =
             conn.query(
                 "SELECT * FROM get_account_by_name_v1($1)",
@@ -138,7 +132,7 @@ impl DataStore {
         &self,
         account_get_id: &sessionsrv::AccountGetId,
     ) -> SrvResult<Option<sessionsrv::Account>> {
-        let conn = self.pool.get(account_get_id)?;
+        let conn = self.pool.get()?;
         let rows =
             conn.query(
                 "SELECT * FROM get_account_by_id_v1($1)",
@@ -156,7 +150,7 @@ impl DataStore {
         &self,
         account_token_create: &sessionsrv::AccountTokenCreate,
     ) -> SrvResult<sessionsrv::AccountToken> {
-        let conn = self.pool.get(account_token_create)?;
+        let conn = self.pool.get()?;
         let rows =
             conn.query(
                 "SELECT * FROM insert_account_token_v1($1, $2)",
@@ -174,7 +168,7 @@ impl DataStore {
         &self,
         account_tokens_get: &sessionsrv::AccountTokensGet,
     ) -> SrvResult<sessionsrv::AccountTokens> {
-        let conn = self.pool.get(account_tokens_get)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query(
                 "SELECT * FROM get_account_tokens_v1($1)",
@@ -196,7 +190,7 @@ impl DataStore {
         &self,
         account_token_get: &sessionsrv::AccountTokenGet,
     ) -> SrvResult<sessionsrv::AccountToken> {
-        let conn = self.pool.get(account_token_get)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query(
                 "SELECT * FROM get_account_token_with_id_v1($1)",
@@ -214,7 +208,7 @@ impl DataStore {
         &self,
         account_token_revoke: &sessionsrv::AccountTokenRevoke,
     ) -> SrvResult<()> {
-        let conn = self.pool.get(account_token_revoke)?;
+        let conn = self.pool.get()?;
         conn.execute(
             "SELECT * FROM revoke_account_token_v1($1)",
             &[&(account_token_revoke.get_id() as i64)],
@@ -227,7 +221,7 @@ impl DataStore {
         &self,
         request: &sessionsrv::AccountOriginListRequest,
     ) -> SrvResult<sessionsrv::AccountOriginListResponse> {
-        let conn = self.pool.get(request)?;
+        let conn = self.pool.get()?;
         let rows =
             conn.query(
                 "SELECT * FROM get_account_origins_v1($1)",
@@ -250,7 +244,7 @@ impl DataStore {
         &self,
         request: &sessionsrv::AccountOriginInvitationAcceptRequest,
     ) -> SrvResult<()> {
-        let conn = self.pool.get(request)?;
+        let conn = self.pool.get()?;
         let tr = conn.transaction().map_err(SrvError::DbTransactionStart)?;
         tr.execute(
             "SELECT * FROM accept_account_invitation_v1($1, $2)",
@@ -264,7 +258,7 @@ impl DataStore {
         &self,
         request: &sessionsrv::AccountOriginInvitationIgnoreRequest,
     ) -> SrvResult<()> {
-        let conn = self.pool.get(request)?;
+        let conn = self.pool.get()?;
         let tr = conn.transaction().map_err(SrvError::DbTransactionStart)?;
         tr.execute(
             "SELECT * FROM ignore_account_invitation_v1($1, $2)",
@@ -281,7 +275,7 @@ impl DataStore {
         &self,
         request: &sessionsrv::AccountOriginInvitationRescindRequest,
     ) -> SrvResult<()> {
-        let conn = self.pool.get(request)?;
+        let conn = self.pool.get()?;
         let tr = conn.transaction().map_err(SrvError::DbTransactionStart)?;
         tr.execute(
             "SELECT * FROM rescind_account_invitation_v1($1, $2)",
@@ -295,7 +289,7 @@ impl DataStore {
     }
 
     pub fn create_origin(&self, request: &sessionsrv::AccountOriginCreate) -> SrvResult<()> {
-        let conn = self.pool.get(request)?;
+        let conn = self.pool.get()?;
         conn.execute(
             "SELECT * FROM insert_account_origin_v1($1, $2, $3, $4)",
             &[
@@ -309,7 +303,7 @@ impl DataStore {
     }
 
     pub fn delete_origin(&self, request: &sessionsrv::AccountOriginRemove) -> SrvResult<()> {
-        let conn = self.pool.get(request)?;
+        let conn = self.pool.get()?;
         conn.execute(
             "SELECT delete_account_origin_v1($1, $2)",
             &[
@@ -324,7 +318,7 @@ impl DataStore {
         &self,
         invitation_create: &sessionsrv::AccountOriginInvitationCreate,
     ) -> SrvResult<()> {
-        let conn = self.pool.get(invitation_create)?;
+        let conn = self.pool.get()?;
         let _rows =
             conn.query(
                 "SELECT * FROM insert_account_invitation_v1($1, $2, $3, $4, $5, $6)",
@@ -344,7 +338,7 @@ impl DataStore {
         &self,
         ailr: &sessionsrv::AccountInvitationListRequest,
     ) -> SrvResult<sessionsrv::AccountInvitationListResponse> {
-        let conn = self.pool.get(ailr)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query(
                 "SELECT * FROM get_invitations_for_account_v1($1)",

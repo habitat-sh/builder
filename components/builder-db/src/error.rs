@@ -41,6 +41,7 @@ pub enum Error {
     SchemaDrop(postgres::error::Error),
     SchemaSwitch(postgres::error::Error),
     SetSearchPath(postgres::error::Error),
+    ShardMigrationIncomplete,
     TransactionCreate(postgres::error::Error),
     TransactionCommit(postgres::error::Error),
 }
@@ -83,6 +84,9 @@ impl fmt::Display for Error {
             Error::SchemaDrop(ref e) => format!("Error dropping schema: {}", e),
             Error::SchemaSwitch(ref e) => format!("Error switching schema: {}", e),
             Error::SetSearchPath(ref e) => format!("Error setting local search path: {}", e),
+            Error::ShardMigrationIncomplete => {
+                format!("Shard migration hasn't been completed successfully")
+            }
             Error::TransactionCreate(ref e) => format!("Error creating transaction: {}", e),
             Error::TransactionCommit(ref e) => format!("Error committing transaction: {}", e),
         };
@@ -113,6 +117,7 @@ impl error::Error for Error {
             Error::SchemaDrop(_) => "Error dropping a schema",
             Error::SchemaSwitch(_) => "Error switching schema",
             Error::SetSearchPath(_) => "Error setting local search path",
+            Error::ShardMigrationIncomplete => "Shard migration hasn't been completed successfully",
             Error::TransactionCreate(_) => "Error creating a transaction",
             Error::TransactionCommit(_) => "Error committing a transaction",
         }
