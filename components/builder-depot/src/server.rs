@@ -2452,6 +2452,7 @@ fn process_upload_for_package_archive(
 pub fn download_package_from_upstream_depot(
     depot: &Config,
     depot_cli: &ApiClient,
+    s3_handler: &s3::S3Handler,
     ident: OriginPackageIdent,
     channel: &str,
     target: &str,
@@ -2476,6 +2477,14 @@ pub fn download_package_from_upstream_depot(
                 );
                 return Err(Error::UnsupportedPlatform(target_from_artifact.to_string()));
             };
+
+            let archive_path = parent_path.join(archive.file_name());
+
+            s3_handler.upload(
+                &archive_path,
+                &PackageIdent::from(&ident),
+                &target_from_artifact,
+            )?;
 
             let mut package_create = match OriginPackageCreate::from_archive(&mut archive) {
                 Ok(p) => p,
@@ -2923,7 +2932,7 @@ pub fn router(depot: Config) -> Result<Chain> {
         depot.s3.to_owned(),
     )));
 
-    UpstreamMgr::start(&depot)?;
+    UpstreamMgr::start(&depot, s3::S3Handler::new(depot.s3.to_owned()))?;
     let upstream_cli = UpstreamClient::default();
     chain.link(persistent::Read::<UpstreamCli>::both(upstream_cli));
 
