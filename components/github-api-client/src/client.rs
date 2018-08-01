@@ -276,8 +276,8 @@ where
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let expiration = now + Duration::from_secs(10 * 10);
     let payload = json!({
-        "iat" : now.as_secs().to_string(),
-        "exp" : expiration.as_secs().to_string(),
+        "iat" : now.as_secs(),
+        "exp" : expiration.as_secs(),
         "iss" : app_id.to_string()});
 
     let header = json!({});
