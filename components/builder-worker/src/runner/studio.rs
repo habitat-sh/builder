@@ -145,7 +145,8 @@ impl<'a> Studio<'a> {
         cmd.env(AUTH_TOKEN_ENVVAR, self.auth_token);
 
         debug!("spawning studio build command");
-        let mut child = cmd.spawn()
+        let mut child = cmd
+            .spawn()
             .map_err(|e| Error::StudioBuild(self.workspace.studio().to_path_buf(), e))?;
         streamer.consume_child(&mut child)?;
         let exit_status = child

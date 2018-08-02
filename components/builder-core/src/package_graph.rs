@@ -128,7 +128,8 @@ impl PackageGraph {
 
         // Temporarily remove edges
         let mut saved_nodes = Vec::new();
-        let neighbors: Vec<NodeIndex> = self.graph
+        let neighbors: Vec<NodeIndex> = self
+            .graph
             .neighbors_directed(pkg_node, Direction::Incoming)
             .collect();
         for n in neighbors {
@@ -195,7 +196,8 @@ impl PackageGraph {
             if skip_update {
                 false
             } else {
-                let neighbors: Vec<NodeIndex> = self.graph
+                let neighbors: Vec<NodeIndex> = self
+                    .graph
                     .neighbors_directed(pkg_node, Direction::Incoming)
                     .collect();
                 for n in neighbors {
@@ -268,7 +270,8 @@ impl PackageGraph {
     }
 
     pub fn search(&self, phrase: &str) -> Vec<String> {
-        let v: Vec<String> = self.package_names
+        let v: Vec<String> = self
+            .package_names
             .iter()
             .cloned()
             .filter(|s| s.contains(phrase))

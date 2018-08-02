@@ -39,7 +39,7 @@ matrix:
         - COMPONENTS=bin
         - AFFECTED_FILES="Cargo.lock"
         - AFFECTED_DIRS="$_RUST_HAB_BIN_COMPONENTS"
-      rust: 1.27.1
+      rust: 1.28.0
       sudo: false
       services:
         - docker
@@ -84,7 +84,7 @@ matrix:
         - COMPONENTS=lib
         - AFFECTED_FILES="Cargo.lock"
         - AFFECTED_DIRS="$_RUST_BLDR_LIB_COMPONENTS"
-      rust: 1.27.1
+      rust: 1.28.0
       sudo: required
       addons:
         apt:
@@ -126,7 +126,7 @@ matrix:
         - COMPONENTS=srv
         - AFFECTED_FILES="Cargo.lock .travis.yml .envrc .studiorc"
         - AFFECTED_DIRS=".secrets support $_RUST_BLDR_BIN_COMPONENTS $_RUST_BLDR_LIB_COMPONENTS"
-      rust: 1.27.1
+      rust: 1.28.0
       sudo: required
       addons:
         apt:

@@ -21,6 +21,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
+pub mod a2;
 pub mod active_directory;
 pub mod azure_ad;
 pub mod bitbucket;
@@ -31,5 +32,4 @@ pub mod github;
 pub mod gitlab;
 pub mod metrics;
 pub mod okta;
-pub mod a2;
 pub mod types;

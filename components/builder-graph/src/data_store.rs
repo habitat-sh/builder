@@ -57,7 +57,8 @@ impl DataStore {
 
         let conn = self.pool.get_shard(0)?;
 
-        let rows = &conn.query("SELECT * FROM get_graph_packages_v1()", &[])
+        let rows = &conn
+            .query("SELECT * FROM get_graph_packages_v1()", &[])
             .map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
@@ -76,7 +77,8 @@ impl DataStore {
     pub fn get_job_graph_package(&self, ident: &str) -> Result<jobsrv::JobGraphPackage> {
         let conn = self.pool.get_shard(0)?;
 
-        let rows = &conn.query("SELECT * FROM get_graph_package_v1($1)", &[&ident])
+        let rows = &conn
+            .query("SELECT * FROM get_graph_package_v1($1)", &[&ident])
             .map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {

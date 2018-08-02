@@ -136,7 +136,8 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
     let line = {
         let file = File::open(path)?;
         let file = BufReader::new(file);
-        match file.lines()
+        match file
+            .lines()
             .map(|l| l.unwrap())
             .find(|ref line| line.split(":").next().unwrap_or("") == entry)
         {
@@ -149,7 +150,8 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
             }
         }
     };
-    let start_id = line.split(":")
+    let start_id = line
+        .split(":")
         .nth(1)
         .ok_or(Error::FileEntryNotFound(
             String::from(entry),
@@ -159,7 +161,8 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
         .map_err(|_err| {
             Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())
         })?;
-    let range = line.split(":")
+    let range = line
+        .split(":")
         .nth(2)
         .ok_or(Error::FileEntryNotFound(
             String::from(entry),

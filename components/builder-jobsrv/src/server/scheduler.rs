@@ -166,7 +166,8 @@ impl ScheduleMgr {
         for group in groups.iter() {
             assert!(group.get_state() == jobsrv::JobGroupState::GroupQueued);
 
-            if !self.datastore
+            if !self
+                .datastore
                 .is_job_group_active(group.get_project_name())?
             {
                 debug!(
@@ -384,7 +385,8 @@ impl ScheduleMgr {
         let mut project_get = originsrv::OriginProjectGet::new();
         project_get.set_name(String::from(project_name));
 
-        let project = match self.route_conn
+        let project = match self
+            .route_conn
             .route::<originsrv::OriginProjectGet, originsrv::OriginProject>(&project_get)
         {
             Ok(project) => project,

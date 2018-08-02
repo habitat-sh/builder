@@ -87,7 +87,8 @@ impl VCS {
                         // because the subsequent git2 clone call
                         // doesn't use our Github client... maybe we
                         // should pull it in?
-                        let t = self.github_client
+                        let t = self
+                            .github_client
                             .app_installation_token(id)
                             .map_err(|e| Error::GithubAppAuthErr(e))?;
                         Counter::GitAuthenticatedClone.increment();

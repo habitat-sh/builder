@@ -82,7 +82,8 @@ impl Logger {
     pub fn log_group_job(&mut self, group: &JobGroup, job: &Job) {
         let suffix = if job.has_build_started_at() && job.has_build_finished_at() {
             let start = job.get_build_started_at().parse::<DateTime<Utc>>().unwrap();
-            let stop = job.get_build_finished_at()
+            let stop = job
+                .get_build_finished_at()
                 .parse::<DateTime<Utc>>()
                 .unwrap();
             let group_start = group.get_created_at().parse::<DateTime<Utc>>().unwrap();
@@ -92,7 +93,8 @@ impl Logger {
                 .to_std()
                 .unwrap()
                 .as_secs();
-            let duration = stop.signed_duration_since(start)
+            let duration = stop
+                .signed_duration_since(start)
                 .to_std()
                 .unwrap()
                 .as_secs();

@@ -18,6 +18,7 @@ use reqwest::{self, header};
 use std::env;
 use types::*;
 
+use a2::A2;
 use active_directory::ActiveDirectory;
 use azure_ad::AzureAD;
 use bitbucket::Bitbucket;
@@ -26,7 +27,6 @@ use github::GitHub;
 use gitlab::GitLab;
 use metrics::Counter;
 use okta::Okta;
-use a2::A2;
 
 pub struct OAuth2Client {
     inner: reqwest::Client,
