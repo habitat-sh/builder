@@ -129,8 +129,11 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
             Some(ref mut cli) => match mtyp {
                 MetricType::Counter => {
                     match mop {
-                        MetricOperation::Increment => cli.incr(mid.borrow(), &mtags)
-                            .unwrap_or_else(|e| warn!("Could not increment metric; {:?}", e)),
+                        MetricOperation::Increment => {
+                            let mid_str: &str = mid.borrow();
+                            cli.incr(mid_str, &mtags)
+                                .unwrap_or_else(|e| warn!("Could not increment metric; {:?}", e))
+                        }
                     };
                 }
             },
