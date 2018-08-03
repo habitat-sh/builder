@@ -27,81 +27,50 @@
 
 use std::fs::OpenOptions;
 use std::io::Read;
-use std::panic::{self, AssertUnwindSafe};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use aws_sdk_rust::aws::common::credentials::{DefaultCredentialsProvider, ParametersProvider};
-use aws_sdk_rust::aws::common::region::Region;
-use aws_sdk_rust::aws::s3::endpoint::{Endpoint, Signature};
-use aws_sdk_rust::aws::s3::object::{GetObjectRequest, PutObjectRequest};
-use aws_sdk_rust::aws::s3::s3client::S3Client;
-use extern_url;
-use hyper::client::Client as HyperClient;
+use futures::{Future, Stream};
+use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
+use rusoto_s3::{GetObjectRequest, PutObjectRequest, S3, S3Client};
 
 use super::LogArchiver;
 use config::ArchiveCfg;
 use error::{Error, Result};
-use VERSION;
 
 pub struct S3Archiver {
-    client: S3Client<DefaultCredentialsProvider, HyperClient>,
+    client: S3Client<StaticProvider, RequestDispatcher>,
     bucket: String,
 }
 
 impl S3Archiver {
     pub fn new(config: &ArchiveCfg) -> Result<S3Archiver> {
+        let key = config
+            .key
+            .as_ref()
+            .cloned()
+            .expect("S3 key must be configured");
+
+        let secret = config
+            .secret
+            .as_ref()
+            .cloned()
+            .expect("S3 secret must be configured");
+
+        let bucket = config
+            .bucket
+            .as_ref()
+            .cloned()
+            .expect("S3 bucket must be configured");
+
         let region = Region::from_str(config.region.as_str()).unwrap();
-        let param_provider = Some(
-            ParametersProvider::with_parameters(
-                config.key.as_ref().cloned().expect("Missing S3 key!"),
-                config
-                    .secret
-                    .as_ref()
-                    .cloned()
-                    .expect("Missing S3 secret!")
-                    .as_str(),
-                None,
-            ).unwrap(),
-        );
-        // If given an endpoint, don't use virtual buckets... if not,
-        // assume AWS and use virtual buckets.
-        //
-        // There may be a way to set Minio up to use virtual buckets,
-        // but I haven't been able to find it... if there is, then we
-        // can go ahead and make this a configuration parameter as well.
-        let use_virtual_buckets = !config.endpoint.is_some();
 
-        // Parameterize this if anyone ends up needing V2 signatures
-        let signature_type = Signature::V4;
-        let final_endpoint = match config.endpoint {
-            Some(ref url) => {
-                let url = extern_url::Url::parse(url.as_str()).expect("Invalid endpoint URL given");
-                Some(url)
-            }
-            None => None,
-        };
-        let user_agent = format!("Habitat-Builder/{}", VERSION);
-
-        let provider = DefaultCredentialsProvider::new(param_provider).unwrap();
-        let endpoint = Endpoint::new(
-            region,
-            signature_type,
-            final_endpoint,
-            None,
-            Some(user_agent),
-            Some(use_virtual_buckets),
-        );
-
-        let client = S3Client::new(provider, endpoint);
+        let cred_provider = StaticProvider::new_minimal(key, secret);
+        let client = S3Client::new(RequestDispatcher::default(), cred_provider, region);
 
         Ok(S3Archiver {
             client: client,
-            bucket: config
-                .bucket
-                .as_ref()
-                .cloned()
-                .expect("Missing Bucket Name!"),
+            bucket: bucket,
         })
     }
 
@@ -115,40 +84,19 @@ impl S3Archiver {
 impl LogArchiver for S3Archiver {
     fn archive(&self, job_id: u64, file_path: &PathBuf) -> Result<()> {
         let mut buffer = Vec::new();
-        let mut put_object = PutObjectRequest::default();
-        put_object.bucket = self.bucket.clone();
-        put_object.key = Self::key(job_id);
+        let mut request = PutObjectRequest::default();
+        request.bucket = self.bucket.clone();
+        request.key = Self::key(job_id);
 
         let mut file = OpenOptions::new().read(true).open(file_path)?;
         file.read_to_end(&mut buffer)?;
-        put_object.body = Some(buffer.as_slice());
+        request.body = Some(buffer.as_slice().to_vec());
 
-        // This panics if it can't resolve the URL (e.g.,
-        // there's a netsplit, your Minio goes down, S3 goes down (!)).
-        // We have to catch it, otherwise no more logs get captured!
-        //
-        // The code in the S3 library we're currently using isn't
-        // UnwindSafe, so we need to deal with that, too.
-        let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            self.client.put_object(&put_object, None)
-        }));
-
-        match result {
-            Ok(Ok(_)) => Ok(()), // normal result
-            Ok(Err(e)) => {
-                // This is a "normal", non-panicking error, e.g.,
-                // they're configured with a non-existent bucket.
-                Err(Error::JobLogArchive(job_id, e))
-            }
+        match self.client.put_object(&request).sync() {
+            Ok(_) => Ok(()),
             Err(e) => {
-                let source = match e.downcast_ref::<String>() {
-                    Some(string) => string.to_string(),
-                    None => format!("{:?}", e),
-                };
-                Err(Error::CaughtPanic(
-                    format!("Failure to archive log for job {}", job_id),
-                    source,
-                ))
+                warn!("Job log upload failed for {}: ({:?})", job_id, e);
+                Err(Error::JobLogArchive(job_id, e))
             }
         }
     }
@@ -158,29 +106,16 @@ impl LogArchiver for S3Archiver {
         request.bucket = self.bucket.clone();
         request.key = Self::key(job_id);
 
-        // As above when uploading a job file, we currently need to
-        // catch a potential panic if the object store cannot be reached
-        let result =
-            panic::catch_unwind(AssertUnwindSafe(|| self.client.get_object(&request, None)));
-
-        let body = match result {
-            Ok(Ok(response)) => response.body, // normal result
-            Ok(Err(e)) => {
-                // This is a "normal", non-panicking error, e.g.,
-                // they're configured with a non-existent bucket.
+        let payload = self.client.get_object(&request).sync();
+        let stream = match payload {
+            Ok(response) => response.body.expect("Downloaded object is not empty"),
+            Err(e) => {
+                warn!("Failed to retrieve job log for {} ({:?})", job_id, e);
                 return Err(Error::JobLogRetrieval(job_id, e));
             }
-            Err(e) => {
-                let source = match e.downcast_ref::<String>() {
-                    Some(string) => string.to_string(),
-                    None => format!("{:?}", e),
-                };
-                return Err(Error::CaughtPanic(
-                    format!("Failure to retrieve archived log for job {}", job_id),
-                    source,
-                ));
-            }
         };
+
+        let body = stream.concat2().wait().unwrap();
 
         let lines = String::from_utf8_lossy(body.as_slice())
             .lines()
