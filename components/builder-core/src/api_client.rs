@@ -18,6 +18,7 @@ use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
+use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers, UserAgent};
 use reqwest::mime;
@@ -184,7 +185,10 @@ impl ApiClient {
         let tmp_file_path = dst_path.join(format!(
             "{}.tmp-{}",
             file_name,
-            thread_rng().gen_ascii_chars().take(8).collect::<String>()
+            thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(8)
+                .collect::<String>()
         ));
 
         let dst_file_path = dst_path.join(file_name);
