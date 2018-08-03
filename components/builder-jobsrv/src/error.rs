@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use aws_sdk_rust;
 use db;
-use extern_url;
 use hab_core;
 use hab_net;
 use postgres;
 use protobuf;
 use protocol;
 use r2d2;
+use rusoto_s3;
 use std::error;
 use std::fmt;
 use std::io;
@@ -58,8 +57,8 @@ pub enum Error {
     JobGroupProjectSetState(postgres::error::Error),
     JobCreate(postgres::error::Error),
     JobGet(postgres::error::Error),
-    JobLogArchive(u64, aws_sdk_rust::aws::errors::s3::S3Error),
-    JobLogRetrieval(u64, aws_sdk_rust::aws::errors::s3::S3Error),
+    JobLogArchive(u64, rusoto_s3::PutObjectError),
+    JobLogRetrieval(u64, rusoto_s3::GetObjectError),
     JobMarkArchived(postgres::error::Error),
     JobPending(postgres::error::Error),
     JobReset(postgres::error::Error),
@@ -285,17 +284,5 @@ impl From<protocol::ProtocolError> for Error {
 impl From<zmq::Error> for Error {
     fn from(err: zmq::Error) -> Error {
         Error::Zmq(err)
-    }
-}
-
-impl From<extern_url::ParseError> for Error {
-    fn from(_err: extern_url::ParseError) -> Self {
-        Error::InvalidUrl
-    }
-}
-
-impl From<num::ParseIntError> for Error {
-    fn from(err: num::ParseIntError) -> Self {
-        Error::ParseVCSInstallationId(err)
     }
 }
