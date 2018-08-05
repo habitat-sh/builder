@@ -16,7 +16,6 @@ mod handlers;
 
 use std::path::PathBuf;
 
-use depot;
 use github_api_client::GitHubClient;
 use hab_net::privilege::FeatureFlags;
 use http_gateway;
@@ -28,7 +27,11 @@ use persistent;
 use segment_api_client::SegmentClient;
 use staticfile::Static;
 
+use backend::{s3, s3::S3Cli};
+use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
+
 use self::handlers::*;
+use super::depot;
 use super::github;
 use config::Config;
 
@@ -52,26 +55,41 @@ impl HttpGateway for ApiSrv {
         chain.link(persistent::Read::<SegmentCli>::both(SegmentClient::new(
             config.segment.clone(),
         )));
+
+        chain.link(persistent::Read::<S3Cli>::both(s3::S3Handler::new(
+            config.s3.to_owned(),
+        )));
+
+        chain.link(persistent::Read::<UpstreamCli>::both(
+            UpstreamClient::default(),
+        ));
+
+        chain.link_before(XRouteClient);
         chain.link_after(Cors);
     }
 
     fn mount(config: Arc<Self::Config>, chain: iron::Chain) -> Mount {
-        let mut depot_config = config.depot.clone();
-        depot_config.segment = config.segment.clone();
-        depot_config.s3 = config.s3.clone();
-        let depot_chain = depot::server::router(depot_config).unwrap();
         let mut mount = Mount::new();
+
         if let Some(ref path) = config.ui.root {
             debug!("Mounting UI at filepath {}", path);
             mount.mount("/", Static::new(path));
         }
         mount.mount("/v1", chain);
+
+        let mut depot_chain_v1 = iron::Chain::new(depot::server::router(config.clone()));
+        Self::add_middleware(config.clone(), &mut depot_chain_v1);
+        mount.mount("/v1", depot_chain_v1);
+
+        // TBD: Deprecate legacy depot API path
+        let mut depot_chain = iron::Chain::new(depot::server::router(config.clone()));
+        Self::add_middleware(config, &mut depot_chain);
         mount.mount("/v1/depot", depot_chain);
         mount
     }
 
     fn router(config: Arc<Self::Config>) -> Router {
-        let basic = Authenticated::new(config.depot.key_dir.clone());
+        let basic = Authenticated::new(config.key_dir.clone());
         let admin = Authenticated::new(PathBuf::new()).require(FeatureFlags::ADMIN);
 
         let mut r = Router::new();
@@ -222,5 +240,6 @@ impl HttpGateway for ApiSrv {
 }
 
 pub fn run(config: Config) -> AppResult<()> {
+    UpstreamMgr::start(&config, s3::S3Handler::new(config.s3.to_owned())).unwrap();
     http_gateway::start::<ApiSrv>(config)
 }
