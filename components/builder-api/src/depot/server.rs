@@ -17,6 +17,7 @@ use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::result;
 use std::str::{from_utf8, FromStr};
+use std::sync::Arc;
 
 use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
 use bldr_core::api_client::ApiClient;
@@ -37,7 +38,7 @@ use http_gateway::http::helpers::{
     get_param, get_session_id_and_name, trigger_from_request, validate_params,
     visibility_for_optional_session,
 };
-use http_gateway::http::middleware::{SegmentCli, XRouteClient};
+use http_gateway::http::middleware::SegmentCli;
 use hyper::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::headers::{ContentType, UserAgent};
@@ -55,19 +56,18 @@ use protocol::originsrv::*;
 use protocol::sessionsrv::{Account, AccountGet, AccountOriginRemove};
 use regex::Regex;
 use router::{Params, Router};
-use segment_api_client::SegmentClient;
 use serde_json;
 use tempfile::{tempdir_in, TempDir};
 use url;
 use uuid::Uuid;
 
-use super::DepotUtil;
+use super::super::DepotUtil;
 use backend::{s3, s3::S3Cli};
 use config::Config;
 use error::{Error, Result};
 use handlers;
 use metrics::Counter;
-use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
+use upstream::UpstreamCli;
 
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginCreateReq {
@@ -101,7 +101,8 @@ pub fn origin_update(req: &mut Request) -> IronResult<Response> {
 
     match req.get::<bodyparser::Struct<OriginUpdateReq>>() {
         Ok(Some(body)) => {
-            let dpv = match body.default_package_visibility
+            let dpv = match body
+                .default_package_visibility
                 .parse::<OriginPackageVisibility>()
             {
                 Ok(x) => x,
@@ -760,10 +761,8 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with(status::Forbidden));
     }
 
-    let lock = req.get::<persistent::State<Config>>()
-        .expect("depot not found");
+    let depot = req.get::<persistent::Read<Config>>().unwrap();
 
-    let depot = lock.read().expect("depot read lock is poisoned");
     let checksum_from_param = match helpers::extract_query_value("checksum", req) {
         Some(checksum) => checksum,
         None => return Ok(Response::with(status::BadRequest)),
@@ -909,7 +908,6 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
             return Ok(Response::with((status::UnprocessableEntity, "ds:up:6")));
         }
 
-        let config = depot.clone();
         let builder_flag = helpers::extract_query_value("builder", req);
 
         match process_upload_for_package_archive(
@@ -919,7 +917,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
             session_id,
             session_name,
             origin_package_found,
-            config,
+            &depot,
             builder_flag,
         ) {
             Ok(_) => {
@@ -992,8 +990,8 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
     }
 
     {
-        let lock = req.get::<persistent::State<Config>>().unwrap();
-        let depot = lock.read().unwrap();
+        let depot = req.get::<persistent::Read<Config>>().unwrap();
+
         if !depot.builds_enabled || (origin_name != "core" && !depot.non_core_builds_enabled) {
             return Ok(Response::with(status::Forbidden));
         }
@@ -1233,9 +1231,7 @@ fn package_channels(req: &mut Request) -> IronResult<Response> {
 }
 
 fn download_package(req: &mut Request) -> IronResult<Response> {
-    let lock = req.get::<persistent::State<Config>>()
-        .expect("depot not found");
-    let depot = lock.read().expect("depot read lock is poisoned");
+    let depot = req.get::<persistent::Read<Config>>().unwrap();
     let session_id = helpers::get_optional_session_id(req);
     let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
     let mut ident_req = OriginPackageGet::new();
@@ -1256,7 +1252,8 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
     match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
         Ok(package) => {
             let dir = tempdir_in(depot.packages_path()).expect("Unable to create a tempdir!");
-            let file_path = dir.path()
+            let file_path = dir
+                .path()
                 .join(Config::archive_name(&(&package).into(), &target));
             let temp_ident = ident.to_owned().into();
             match s3handler.download(&file_path, &temp_ident, &target) {
@@ -1286,7 +1283,8 @@ fn list_origin_keys(req: &mut Request) -> IronResult<Response> {
         req, &request,
     ) {
         Ok(list) => {
-            let list: Vec<OriginKeyIdent> = list.get_keys()
+            let list: Vec<OriginKeyIdent> = list
+                .get_keys()
                 .iter()
                 .map(|key| {
                     let mut ident = OriginKeyIdent::new();
@@ -1608,7 +1606,8 @@ fn list_channels(req: &mut Request) -> IronResult<Response> {
 
     match route_message::<OriginChannelListRequest, OriginChannelListResponse>(req, &request) {
         Ok(list) => {
-            let list: Vec<OriginChannelIdent> = list.get_channels()
+            let list: Vec<OriginChannelIdent> = list
+                .get_channels()
                 .iter()
                 .map(|channel| {
                     let mut ident = OriginChannelIdent::new();
@@ -2352,7 +2351,7 @@ fn process_upload_for_package_archive(
     owner_id: u64,
     owner_name: String,
     origin_package_found: bool,
-    config: Config,
+    config: &Config,
     builder_flag: Option<String>,
 ) -> NetResult<()> {
     // We need to do it this way instead of via route_message because this function can't be passed
@@ -2503,7 +2502,7 @@ pub fn download_package_from_upstream_depot(
                 BUILDER_ACCOUNT_ID,
                 BUILDER_ACCOUNT_NAME.to_string(),
                 false,
-                config,
+                &config,
                 None,
             ) {
                 return Err(Error::NetError(e));
@@ -2532,14 +2531,16 @@ pub fn download_package_from_upstream_depot(
                 channel_get.set_origin_name(ident.get_origin().to_string());
                 channel_get.set_name("stable".to_string());
 
-                let origin_channel = conn.route::<OriginChannelGet, OriginChannel>(&channel_get)
+                let origin_channel = conn
+                    .route::<OriginChannelGet, OriginChannel>(&channel_get)
                     .map_err(Error::NetError)?;
 
                 let mut package_get = OriginPackageGet::new();
                 package_get.set_ident(ident.clone());
                 package_get.set_visibilities(all_visibilities());
 
-                let origin_package = conn.route::<OriginPackageGet, OriginPackage>(&package_get)
+                let origin_package = conn
+                    .route::<OriginPackageGet, OriginPackage>(&package_get)
                     .map_err(Error::NetError)?;
 
                 let mut promote = OriginPackagePromote::new();
@@ -2644,12 +2645,11 @@ fn do_cache_response(response: &mut Response) {
     )));
 }
 
-pub fn routes<M>(basic: Authenticated, worker: M, depot: &Config) -> Router
+pub fn add_routes<M>(r: &mut Router, basic: Authenticated, worker: M, depot: Arc<Config>)
 where
     M: BeforeMiddleware + Clone,
 {
     let opt = basic.clone().optional();
-    let mut r = Router::new();
 
     if depot.jobsrv_enabled {
         r.get(
@@ -2913,31 +2913,14 @@ where
         XHandler::new(origin_member_delete).before(basic.clone()),
         "origin_member_delete",
     );
-
-    r
 }
 
-pub fn router(depot: Config) -> Result<Chain> {
+pub fn router(depot: Arc<Config>) -> Router {
     let basic = Authenticated::new(depot.key_dir.clone());
     let worker = Authenticated::new(depot.key_dir.clone()).require(FeatureFlags::BUILD_WORKER);
 
-    let router = routes(basic, worker, &depot);
-    let mut chain = Chain::new(router);
+    let mut r = Router::new();
+    add_routes(&mut r, basic, worker, depot);
 
-    chain.link(persistent::Read::<SegmentCli>::both(SegmentClient::new(
-        depot.segment.clone(),
-    )));
-
-    chain.link(persistent::Read::<S3Cli>::both(s3::S3Handler::new(
-        depot.s3.to_owned(),
-    )));
-
-    UpstreamMgr::start(&depot, s3::S3Handler::new(depot.s3.to_owned()))?;
-    let upstream_cli = UpstreamClient::default();
-    chain.link(persistent::Read::<UpstreamCli>::both(upstream_cli));
-
-    chain.link(persistent::State::<Config>::both(depot));
-    chain.link_before(XRouteClient);
-    chain.link_after(Cors);
-    Ok(chain)
+    r
 }

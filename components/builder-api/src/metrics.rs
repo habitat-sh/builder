@@ -20,6 +20,12 @@ use std::borrow::Cow;
 
 pub enum Counter {
     GitHubEvent,
+    SearchPackages,
+    UploadRequests,
+    SingleUploadRequests,
+    MultipartUploadRequests,
+    DownloadRequests,
+    UploadFailures,
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -28,6 +34,12 @@ impl metrics::Metric for Counter {
     fn id(&self) -> Cow<'static, str> {
         match *self {
             Counter::GitHubEvent => "github.event".into(),
+            Counter::SearchPackages => "search-packages".into(),
+            Counter::UploadRequests => "upload-packages".into(),
+            Counter::SingleUploadRequests => "upload-single".into(),
+            Counter::MultipartUploadRequests => "upload-multi".into(),
+            Counter::DownloadRequests => "download-packages".into(),
+            Counter::UploadFailures => "upload-failures".into(),
         }
     }
 }

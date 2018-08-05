@@ -18,8 +18,8 @@ use std::env;
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use std::option::IntoIter;
+use std::path::PathBuf;
 
-use depot;
 use github_api_client::config::GitHubCfg;
 use http_gateway::config::prelude::*;
 use oauth_client::config::OAuth2Cfg;
@@ -27,8 +27,9 @@ use segment_api_client::SegmentCfg;
 use typemap;
 
 use error::Error;
+use hab_core::package::target::{self, PackageTarget};
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub http: HttpCfg,
@@ -37,10 +38,8 @@ pub struct Config {
     pub oauth: OAuth2Cfg,
     pub github: GitHubCfg,
     pub segment: SegmentCfg,
-    pub s3: depot::config::S3Cfg,
+    pub s3: S3Cfg,
     pub ui: UiCfg,
-    /// Depot's configuration
-    pub depot: depot::config::Config,
     /// Whether to log events for funnel metrics
     pub events_enabled: bool,
     /// Whether to enable builds for non-core origins
@@ -49,6 +48,19 @@ pub struct Config {
     pub log_dir: String,
     /// Whether jobsrv is present or not
     pub jobsrv_enabled: bool,
+    /// Whether to schedule builds on package upload
+    pub builds_enabled: bool,
+    /// Filepath to location on disk to store entities
+    pub path: PathBuf,
+    /// Filepath to where the builder encryption keys can be found
+    pub key_dir: PathBuf,
+    /// A list of package targets which can be uploaded and hosted
+    pub targets: Vec<PackageTarget>,
+    /// Upstream depot to pull packages from if someone tries to install from this depot and they
+    /// aren't present. This is optional because e.g. public Builder doesn't have an upstream.
+    pub upstream_depot: Option<String>,
+    // Origins for which we pull from upstream (default: core)
+    pub upstream_origins: Vec<String>,
 }
 
 impl Default for Config {
@@ -58,20 +70,55 @@ impl Default for Config {
             routers: vec![RouterAddr::default()],
             oauth: OAuth2Cfg::default(),
             github: GitHubCfg::default(),
-            s3: depot::config::S3Cfg::default(),
+            s3: S3Cfg::default(),
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
-            depot: depot::config::Config::default(),
             events_enabled: false,
             non_core_builds_enabled: true,
             log_dir: env::temp_dir().to_string_lossy().into_owned(),
             jobsrv_enabled: true,
+            path: PathBuf::from("/hab/svc/builder-api/data"),
+            builds_enabled: true,
+            key_dir: PathBuf::from("/hab/svc/builder-api/files"),
+            targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
+            upstream_depot: None,
+            upstream_origins: vec!["core".to_string()],
         }
     }
 }
 
 impl ConfigFile for Config {
     type Error = Error;
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum S3Backend {
+    Aws,
+    Minio,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct S3Cfg {
+    // These are for using S3 as the artifact storage
+    pub key_id: String,
+    pub secret_key: String,
+    pub bucket_name: String,
+    pub backend: S3Backend,
+    pub endpoint: String,
+}
+
+impl Default for S3Cfg {
+    fn default() -> Self {
+        S3Cfg {
+            key_id: String::from("depot"),
+            secret_key: String::from("password"),
+            bucket_name: String::from("habitat-builder-artifact-store.default"),
+            backend: S3Backend::Minio,
+            endpoint: String::from("http://localhost:9000"),
+        }
+    }
 }
 
 impl GatewayCfg for Config {
@@ -97,7 +144,7 @@ impl typemap::Key for Config {
 }
 
 /// Public listening net address for HTTP requests
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct HttpCfg {
     pub listen: IpAddr,
@@ -126,7 +173,7 @@ impl ToSocketAddrs for HttpCfg {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct UiCfg {
     /// Path to UI files to host over HTTP. If not set the UI will be disabled.
@@ -143,6 +190,13 @@ mod tests {
         events_enabled = true
         non_core_builds_enabled = true
         jobsrv_enabled = false
+        path = "/hab/svc/hab-depot/data"
+        builds_enabled = true
+        log_dir = "/hab/svc/hab-depot/var/log"
+        key_dir = "/hab/svc/hab-depot/files"
+        upstream_depot = "http://example.com"
+        upstream_origins = ["foo", "bar"]
+        targets = ["x86_64-linux", "x86_64-windows"]
 
         [http]
         listen = "0:0:0:0:0:0:0:1"
@@ -151,19 +205,6 @@ mod tests {
 
         [ui]
         root = "/some/path"
-
-        [depot]
-        path = "/hab/svc/hab-depot/data"
-        events_enabled = true
-        log_dir = "/hab/svc/hab-depot/var/log"
-
-        [[targets]]
-        platform = "linux"
-        architecture = "x86_64"
-
-        [[targets]]
-        platform = "windows"
-        architecture = "x86_64"
 
         [[routers]]
         host = "172.18.0.2"
@@ -185,6 +226,24 @@ mod tests {
         "#;
 
         let config = Config::from_raw(&content).unwrap();
+        assert_eq!(config.path, PathBuf::from("/hab/svc/hab-depot/data"));
+        assert_eq!(config.builds_enabled, true);
+        assert_eq!(config.non_core_builds_enabled, true);
+        assert_eq!(config.log_dir, String::from("/hab/svc/hab-depot/var/log"));
+        assert_eq!(config.key_dir, PathBuf::from("/hab/svc/hab-depot/files"));
+        assert_eq!(
+            config.upstream_depot,
+            Some(String::from("http://example.com"))
+        );
+        assert_eq!(
+            config.upstream_origins,
+            vec!["foo".to_string(), "bar".to_string()]
+        );
+
+        assert_eq!(config.targets.len(), 2);
+        assert_eq!(config.targets[0], target::X86_64_LINUX);
+        assert_eq!(config.targets[1], target::X86_64_WINDOWS);
+
         assert_eq!(config.events_enabled, true);
         assert_eq!(config.jobsrv_enabled, false);
         assert_eq!(config.non_core_builds_enabled, true);
@@ -202,7 +261,7 @@ mod tests {
         assert_eq!(config.github.api_url, "https://api.github.com");
         assert_eq!(config.ui.root, Some("/some/path".to_string()));
         assert_eq!(config.segment.url, "https://api.segment.io");
-        assert_eq!(config.s3.backend, depot::config::S3Backend::Minio);
+        assert_eq!(config.s3.backend, S3Backend::Minio);
         assert_eq!(config.s3.key_id, "AWSKEYIDORSOMETHING");
         assert_eq!(
             config.s3.secret_key,

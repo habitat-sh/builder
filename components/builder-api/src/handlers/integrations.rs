@@ -30,18 +30,14 @@ use serde_json;
 use Config;
 
 pub fn encrypt(req: &mut Request, content: &str) -> Result<String, Status> {
-    let lock = req.get::<persistent::State<Config>>()
-        .expect("depot not found");
-    let depot = lock.read().expect("depot read lock is poisoned");
+    let depot = req.get::<persistent::Read<Config>>().unwrap();
 
     bldr_core::integrations::encrypt(&depot.key_dir, content.as_bytes())
         .map_err(|_| status::InternalServerError)
 }
 
 pub fn decrypt(req: &mut Request, content: &str) -> Result<String, Status> {
-    let lock = req.get::<persistent::State<Config>>()
-        .expect("depot not found");
-    let depot = lock.read().expect("depot read lock is poisoned");
+    let depot = req.get::<persistent::Read<Config>>().unwrap();
 
     let bytes = bldr_core::integrations::decrypt(&depot.key_dir, content)
         .map_err(|_| status::InternalServerError)?;
@@ -83,7 +79,8 @@ pub fn fetch_origin_integrations(req: &mut Request) -> IronResult<Response> {
     request.set_origin(params["origin"].clone());
     match route_message::<OriginIntegrationRequest, OriginIntegrationResponse>(req, &request) {
         Ok(oir) => {
-            let integrations_response: HashMap<String, Vec<String>> = oir.get_integrations()
+            let integrations_response: HashMap<String, Vec<String>> = oir
+                .get_integrations()
                 .iter()
                 .fold(HashMap::new(), |mut acc, ref i| {
                     acc.entry(i.get_integration().to_owned())
