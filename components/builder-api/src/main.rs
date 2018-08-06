@@ -79,7 +79,7 @@ fn config_from_args(matches: &clap::ArgMatches) -> Result<Config> {
         }
     }
     if let Some(path) = args.value_of("path") {
-        config.depot.path = PathBuf::from(path);
+        config.path = PathBuf::from(path);
     }
     Ok(config)
 }

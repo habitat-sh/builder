@@ -234,9 +234,8 @@ pub fn generate_access_token(req: &mut Request) -> IronResult<Response> {
 
     let mut request = AccountTokenCreate::new();
     let cfg = req.get::<persistent::Read<Config>>().unwrap();
-    let token =
-        bldr_core::access_token::generate_user_token(&cfg.depot.key_dir, account.get_id(), flags)
-            .unwrap();
+    let token = bldr_core::access_token::generate_user_token(&cfg.key_dir, account.get_id(), flags)
+        .unwrap();
 
     request.set_account_id(account.get_id());
     request.set_token(token);
@@ -556,13 +555,15 @@ pub fn job_show(req: &mut Request) -> IronResult<Response> {
 
 // This route is only available if jobsrv_enabled is true
 pub fn job_log(req: &mut Request) -> IronResult<Response> {
-    let start = req.get_ref::<Params>()
+    let start = req
+        .get_ref::<Params>()
         .unwrap()
         .find(&["start"])
         .and_then(FromValue::from_value)
         .unwrap_or(0);
 
-    let include_color = req.get_ref::<Params>()
+    let include_color = req
+        .get_ref::<Params>()
         .unwrap()
         .find(&["color"])
         .and_then(FromValue::from_value)
@@ -927,7 +928,7 @@ pub fn project_show(req: &mut Request) -> IronResult<Response> {
     };
 
     let cfg = req.get::<persistent::Read<Config>>().unwrap();
-    if !cfg.depot.non_core_builds_enabled {
+    if !cfg.non_core_builds_enabled {
         if origin != "core" {
             return Ok(Response::with(status::Forbidden));
         }

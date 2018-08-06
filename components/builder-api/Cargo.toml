@@ -36,6 +36,20 @@ staticfile = "*"
 toml = { version = "*", default-features = false }
 typemap = "*"
 unicase = "*"
+futures = "*"
+iron-test = "*"
+libc = "*"
+libarchive = "*"
+regex = "*"
+rusoto_core = "*"
+rusoto_s3 = "*"
+rust-crypto = "*"
+tempfile = "*"
+time = "*"
+tokio-core = "*"
+url = "*"
+walkdir = "*"
+uuid = { version = "*", features = ["v4"] }
 
 [dependencies.clap]
 version = "*"
@@ -59,9 +73,6 @@ git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
-
-[dependencies.habitat_depot]
-path = "../builder-depot"
 
 [dependencies.habitat_http_client]
 git = "https://github.com/habitat-sh/core.git"

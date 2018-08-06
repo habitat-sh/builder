@@ -33,7 +33,7 @@ use config::Config;
 use error::{Error, Result};
 use protocol::originsrv::{OriginPackageIdent, UpstreamRequest};
 
-use server::download_package_from_upstream_depot;
+use depot::server::download_package_from_upstream_depot;
 
 const UPSTREAM_MGR_ADDR: &'static str = "inproc://upstream";
 const DEFAULT_POLL_TIMEOUT_MS: u64 = 60_000; // 60 secs
