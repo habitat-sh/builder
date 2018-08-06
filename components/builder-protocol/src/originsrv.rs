@@ -1438,7 +1438,8 @@ mod tests {
         let a = vec!["4.0.2", "3.2.4", "3.2.3", "3.2.11", "3.2.10", "3.2.1"];
         let b = vec!["3.6.6", "3.6.5", "3.6.12", "3.6.10"];
 
-        let mut x = a.iter()
+        let mut x = a
+            .iter()
             .map(|z| {
                 let mut opv = OriginPackageVersion::new();
                 opv.set_origin("core".to_string());
@@ -1449,7 +1450,8 @@ mod tests {
             })
             .collect::<Vec<OriginPackageVersion>>();
 
-        let mut y = b.iter()
+        let mut y = b
+            .iter()
             .map(|z| {
                 let mut opv = OriginPackageVersion::new();
                 opv.set_origin("core".to_string());

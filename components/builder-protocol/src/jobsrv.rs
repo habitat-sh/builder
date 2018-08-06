@@ -615,7 +615,8 @@ mod tests {
 
         log.strip_ansi();
 
-        let stripped_lines: Vec<String> = log.get_content()
+        let stripped_lines: Vec<String> = log
+            .get_content()
             .into_iter()
             .map(|l| l.to_string())
             .collect();

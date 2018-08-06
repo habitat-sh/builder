@@ -42,7 +42,8 @@ fn get_account() {
 
     let mut ag = sessionsrv::AccountGet::new();
     ag.set_name(bobo.get_name().to_string());
-    let bobo2 = ds.get_account(&ag)
+    let bobo2 = ds
+        .get_account(&ag)
         .expect("Should run without error")
         .expect("Bobo should exist");
 
@@ -58,7 +59,8 @@ fn get_account_by_id() {
 
     let mut ag = sessionsrv::AccountGetId::new();
     ag.set_id(bobo.get_id());
-    let bobo2 = ds.get_account_by_id(&ag)
+    let bobo2 = ds
+        .get_account_by_id(&ag)
         .expect("Should run without error")
         .expect("Bobo should exist");
 
@@ -81,7 +83,8 @@ fn delete_origin() {
 
     let mut acclist = sessionsrv::AccountOriginListRequest::new();
     acclist.set_account_id(bobo.get_id());
-    let accounts1 = ds.get_origins_by_account(&acclist)
+    let accounts1 = ds
+        .get_origins_by_account(&acclist)
         .expect("failed to get origin by account");
 
     assert_eq!(1, accounts1.get_origins().len());
@@ -91,7 +94,8 @@ fn delete_origin() {
     aor.set_origin_id(1);
     ds.delete_origin(&aor).expect("could not delete origin");
 
-    let accounts2 = ds.get_origins_by_account(&acclist)
+    let accounts2 = ds
+        .get_origins_by_account(&acclist)
         .expect("failed to get origin by account");
 
     assert_eq!(0, accounts2.get_origins().len());

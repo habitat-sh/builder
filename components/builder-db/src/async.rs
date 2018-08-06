@@ -71,7 +71,8 @@ impl AsyncServer {
 
     pub fn schedule(&self, dispatch_key: &str) -> Result<()> {
         let has_key = {
-            let d = self.dispatch
+            let d = self
+                .dispatch
                 .read()
                 .expect("Async dispatch lock is poisoned");
             d.contains_key(dispatch_key)
@@ -82,7 +83,8 @@ impl AsyncServer {
         };
         if has_key && !is_scheduled {
             let function = {
-                let d = self.dispatch
+                let d = self
+                    .dispatch
                     .read()
                     .expect("Async dispatch lock is poisoned");
                 // Safe because we checked above
@@ -96,7 +98,8 @@ impl AsyncServer {
 
     pub fn register(&self, dispatch_key: DispatchKey, callback: EventFunction) {
         {
-            let mut d = self.dispatch
+            let mut d = self
+                .dispatch
                 .write()
                 .expect("Async dispatch lock is poisoned");
             d.insert(dispatch_key.clone(), callback.clone());
@@ -127,7 +130,8 @@ impl AsyncServer {
             Ok(EventOutcome::Finished) => {
                 debug!("Event finished {}", key);
                 let mut r = self.retry.write().expect("Async retry lock poisoned");
-                let mut f = self.failure_count
+                let mut f = self
+                    .failure_count
                     .write()
                     .expect("Async failure count lock poisoned");
                 f.remove(&key);
@@ -148,7 +152,8 @@ impl AsyncServer {
     fn retry_failed_event(&self, key: DispatchKey, event: EventFunction) {
         warn!("Scheduling retry of {:?}", key);
         let failure_count = {
-            let mut f = self.failure_count
+            let mut f = self
+                .failure_count
                 .write()
                 .expect("Async failure count lock poisoned");
             let value = f.entry(key.clone()).or_insert(0);

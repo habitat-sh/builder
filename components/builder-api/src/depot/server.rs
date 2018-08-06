@@ -762,7 +762,6 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     }
 
     let depot = req.get::<persistent::Read<Config>>().unwrap();
-
     let checksum_from_param = match helpers::extract_query_value("checksum", req) {
         Some(checksum) => checksum,
         None => return Ok(Response::with(status::BadRequest)),

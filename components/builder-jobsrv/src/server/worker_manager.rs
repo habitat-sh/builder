@@ -315,7 +315,8 @@ impl WorkerMgr {
         let jobs = self.datastore.get_dispatched_jobs()?;
 
         for mut job in jobs {
-            if self.workers
+            if self
+                .workers
                 .iter()
                 .find(|t| t.1.job_id == Some(job.get_id()))
                 .is_none()
@@ -342,7 +343,8 @@ impl WorkerMgr {
 
             // Find the worker processing this job
             // TODO (SA): Would be nice not doing an iterative search here
-            let worker_ident = match self.workers
+            let worker_ident = match self
+                .workers
                 .iter()
                 .find(|t| t.1.job_id == Some(job.get_id()))
             {
@@ -392,7 +394,8 @@ impl WorkerMgr {
     fn process_work(&mut self) -> Result<()> {
         loop {
             // Exit if we don't have any Ready workers
-            let worker_ident = match self.workers
+            let worker_ident = match self
+                .workers
                 .iter()
                 .find(|t| t.1.state == jobsrv::WorkerState::Ready)
             {
@@ -454,7 +457,8 @@ impl WorkerMgr {
         let origin = job.get_project().get_origin_name().to_string();
         integration_request.set_origin(origin);
 
-        match self.route_conn
+        match self
+            .route_conn
             .route::<OriginIntegrationRequest, OriginIntegrationResponse>(&integration_request)
         {
             Ok(oir) => {
@@ -494,7 +498,8 @@ impl WorkerMgr {
         req.set_origin(origin);
         req.set_name(name);
 
-        match self.route_conn
+        match self
+            .route_conn
             .route::<OriginProjectIntegrationRequest, OriginProjectIntegrationResponse>(&req)
         {
             Ok(opir) => {
@@ -521,7 +526,8 @@ impl WorkerMgr {
             Err(e) => return Err(Error::NetError(e)),
         };
 
-        match self.route_conn
+        match self
+            .route_conn
             .route::<OriginSecretListGet, OriginSecretList>(&secrets_request)
         {
             Ok(osl) => {
@@ -535,7 +541,8 @@ impl WorkerMgr {
                     db_pub_request.set_origin(origin_name.clone().to_string());
 
                     // fetch the private origin encryption key from the database
-                    let priv_key = match self.route_conn
+                    let priv_key = match self
+                        .route_conn
                         .route::<OriginPrivateEncryptionKeyGet, OriginPrivateEncryptionKey>(
                             &db_priv_request,
                         ) {
@@ -547,7 +554,8 @@ impl WorkerMgr {
                     };
 
                     // fetch the public origin encryption key from the database
-                    let (name, rev, pub_key) = match self.route_conn
+                    let (name, rev, pub_key) = match self
+                        .route_conn
                         .route::<OriginPublicEncryptionKeyLatestGet, OriginPublicEncryptionKey>(
                             &db_pub_request,
                         ) {

@@ -288,7 +288,8 @@ pub fn session_create_oauth(
     user: &OAuth2User,
     provider: &str,
 ) -> IronResult<Session> {
-    let conn = req.extensions
+    let conn = req
+        .extensions
         .get_mut::<XRouteClient>()
         .expect("no XRouteClient extension in request");
 
@@ -325,7 +326,8 @@ pub fn session_create_oauth(
 }
 
 pub fn session_create_short_circuit(req: &mut Request, token: &str) -> IronResult<Session> {
-    let conn = req.extensions
+    let conn = req
+        .extensions
         .get_mut::<XRouteClient>()
         .expect("no XRouteClient extension in request");
     let request = match token.as_ref() {

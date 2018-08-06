@@ -106,10 +106,11 @@ impl DataStore {
         account_create: &sessionsrv::AccountCreate,
     ) -> SrvResult<sessionsrv::Account> {
         let conn = self.pool.get(account_create)?;
-        let rows = conn.query(
-            "SELECT * FROM select_or_insert_account_v1($1, $2)",
-            &[&account_create.get_name(), &account_create.get_email()],
-        ).map_err(SrvError::AccountCreate)?;
+        let rows =
+            conn.query(
+                "SELECT * FROM select_or_insert_account_v1($1, $2)",
+                &[&account_create.get_name(), &account_create.get_email()],
+            ).map_err(SrvError::AccountCreate)?;
         let row = rows.get(0);
         let account = self.row_to_account(row);
         Ok(account)
@@ -120,10 +121,11 @@ impl DataStore {
         account_get: &sessionsrv::AccountGet,
     ) -> SrvResult<Option<sessionsrv::Account>> {
         let conn = self.pool.get(account_get)?;
-        let rows = conn.query(
-            "SELECT * FROM get_account_by_name_v1($1)",
-            &[&account_get.get_name()],
-        ).map_err(SrvError::AccountGet)?;
+        let rows =
+            conn.query(
+                "SELECT * FROM get_account_by_name_v1($1)",
+                &[&account_get.get_name()],
+            ).map_err(SrvError::AccountGet)?;
         if rows.len() != 0 {
             let row = rows.get(0);
             Ok(Some(self.row_to_account(row)))
@@ -137,10 +139,11 @@ impl DataStore {
         account_get_id: &sessionsrv::AccountGetId,
     ) -> SrvResult<Option<sessionsrv::Account>> {
         let conn = self.pool.get(account_get_id)?;
-        let rows = conn.query(
-            "SELECT * FROM get_account_by_id_v1($1)",
-            &[&(account_get_id.get_id() as i64)],
-        ).map_err(SrvError::AccountGetById)?;
+        let rows =
+            conn.query(
+                "SELECT * FROM get_account_by_id_v1($1)",
+                &[&(account_get_id.get_id() as i64)],
+            ).map_err(SrvError::AccountGetById)?;
         if rows.len() != 0 {
             let row = rows.get(0);
             Ok(Some(self.row_to_account(row)))
@@ -154,13 +157,14 @@ impl DataStore {
         account_token_create: &sessionsrv::AccountTokenCreate,
     ) -> SrvResult<sessionsrv::AccountToken> {
         let conn = self.pool.get(account_token_create)?;
-        let rows = conn.query(
-            "SELECT * FROM insert_account_token_v1($1, $2)",
-            &[
-                &(account_token_create.get_account_id() as i64),
-                &account_token_create.get_token(),
-            ],
-        ).map_err(SrvError::AccountTokenCreate)?;
+        let rows =
+            conn.query(
+                "SELECT * FROM insert_account_token_v1($1, $2)",
+                &[
+                    &(account_token_create.get_account_id() as i64),
+                    &account_token_create.get_token(),
+                ],
+            ).map_err(SrvError::AccountTokenCreate)?;
         let row = rows.get(0);
         let account = self.row_to_account_token(row);
         Ok(account)
@@ -171,10 +175,12 @@ impl DataStore {
         account_tokens_get: &sessionsrv::AccountTokensGet,
     ) -> SrvResult<sessionsrv::AccountTokens> {
         let conn = self.pool.get(account_tokens_get)?;
-        let rows = &conn.query(
-            "SELECT * FROM get_account_tokens_v1($1)",
-            &[&(account_tokens_get.get_account_id() as i64)],
-        ).map_err(SrvError::AccountTokensGet)?;
+        let rows = &conn
+            .query(
+                "SELECT * FROM get_account_tokens_v1($1)",
+                &[&(account_tokens_get.get_account_id() as i64)],
+            )
+            .map_err(SrvError::AccountTokensGet)?;
 
         let mut account_tokens = sessionsrv::AccountTokens::new();
         let mut tokens = protobuf::RepeatedField::new();
@@ -191,10 +197,12 @@ impl DataStore {
         account_token_get: &sessionsrv::AccountTokenGet,
     ) -> SrvResult<sessionsrv::AccountToken> {
         let conn = self.pool.get(account_token_get)?;
-        let rows = &conn.query(
-            "SELECT * FROM get_account_token_with_id_v1($1)",
-            &[&(account_token_get.get_id() as i64)],
-        ).map_err(SrvError::AccountTokensGet)?;
+        let rows = &conn
+            .query(
+                "SELECT * FROM get_account_token_with_id_v1($1)",
+                &[&(account_token_get.get_id() as i64)],
+            )
+            .map_err(SrvError::AccountTokensGet)?;
 
         assert!(rows.len() == 1);
         let row = rows.get(0);
@@ -220,10 +228,11 @@ impl DataStore {
         request: &sessionsrv::AccountOriginListRequest,
     ) -> SrvResult<sessionsrv::AccountOriginListResponse> {
         let conn = self.pool.get(request)?;
-        let rows = conn.query(
-            "SELECT * FROM get_account_origins_v1($1)",
-            &[&(request.get_account_id() as i64)],
-        ).map_err(SrvError::OriginAccountList)?;
+        let rows =
+            conn.query(
+                "SELECT * FROM get_account_origins_v1($1)",
+                &[&(request.get_account_id() as i64)],
+            ).map_err(SrvError::OriginAccountList)?;
         let mut response = sessionsrv::AccountOriginListResponse::new();
         response.set_account_id(request.get_account_id());
         let mut origins = protobuf::RepeatedField::new();
@@ -316,17 +325,18 @@ impl DataStore {
         invitation_create: &sessionsrv::AccountOriginInvitationCreate,
     ) -> SrvResult<()> {
         let conn = self.pool.get(invitation_create)?;
-        let _rows = conn.query(
-            "SELECT * FROM insert_account_invitation_v1($1, $2, $3, $4, $5, $6)",
-            &[
-                &(invitation_create.get_origin_id() as i64),
-                &invitation_create.get_origin_name(),
-                &(invitation_create.get_origin_invitation_id() as i64),
-                &(invitation_create.get_account_id() as i64),
-                &invitation_create.get_account_name(),
-                &(invitation_create.get_owner_id() as i64),
-            ],
-        ).map_err(SrvError::AccountOriginInvitationCreate)?;
+        let _rows =
+            conn.query(
+                "SELECT * FROM insert_account_invitation_v1($1, $2, $3, $4, $5, $6)",
+                &[
+                    &(invitation_create.get_origin_id() as i64),
+                    &invitation_create.get_origin_name(),
+                    &(invitation_create.get_origin_invitation_id() as i64),
+                    &(invitation_create.get_account_id() as i64),
+                    &invitation_create.get_account_name(),
+                    &(invitation_create.get_owner_id() as i64),
+                ],
+            ).map_err(SrvError::AccountOriginInvitationCreate)?;
         Ok(())
     }
 
@@ -335,10 +345,12 @@ impl DataStore {
         ailr: &sessionsrv::AccountInvitationListRequest,
     ) -> SrvResult<sessionsrv::AccountInvitationListResponse> {
         let conn = self.pool.get(ailr)?;
-        let rows = &conn.query(
-            "SELECT * FROM get_invitations_for_account_v1($1)",
-            &[&(ailr.get_account_id() as i64)],
-        ).map_err(SrvError::AccountOriginInvitationList)?;
+        let rows = &conn
+            .query(
+                "SELECT * FROM get_invitations_for_account_v1($1)",
+                &[&(ailr.get_account_id() as i64)],
+            )
+            .map_err(SrvError::AccountOriginInvitationList)?;
 
         let mut response = sessionsrv::AccountInvitationListResponse::new();
         response.set_account_id(ailr.get_account_id());

@@ -215,11 +215,13 @@ impl Server {
             }
         }
 
-        let interface = self.config
+        let interface = self
+            .config
             .network_interface
             .as_ref()
             .expect("network_interface is set");
-        let gateway = self.config
+        let gateway = self
+            .config
             .network_gateway
             .as_ref()
             .expect("network_gateway is set");
@@ -257,7 +259,8 @@ impl Server {
 
     fn enable_features_from_config(&self) {
         let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List)]);
-        let features_enabled = self.config
+        let features_enabled = self
+            .config
             .features_enabled
             .split(",")
             .map(|f| f.trim().to_uppercase());

@@ -27,7 +27,8 @@ impl Job {
     }
 
     pub fn origin(&self) -> &str {
-        let items = self.0
+        let items = self
+            .0
             .get_project()
             .get_name()
             .split("/")
@@ -59,7 +60,8 @@ impl DerefMut for Job {
 
 impl fmt::Debug for Job {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let integrations: Vec<originsrv::OriginIntegration> = self.0
+        let integrations: Vec<originsrv::OriginIntegration> = self
+            .0
             .get_integrations()
             .into_iter()
             .map(|i| {

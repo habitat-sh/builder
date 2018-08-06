@@ -176,7 +176,8 @@ impl JobStreamer {
             return Ok(());
         }
 
-        let mut target = self.target
+        let mut target = self
+            .target
             .lock()
             .expect("Stream target mutex is poisoned!");
         target.stream_line(self.id, format!("builder_log::end::{}", self.id))?;

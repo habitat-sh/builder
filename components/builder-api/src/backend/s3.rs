@@ -36,9 +36,11 @@ use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
 use iron::typemap::Key;
 use metrics::Counter;
 use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
-use rusoto_s3::{CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart,
-                CreateBucketRequest, CreateMultipartUploadRequest, GetObjectRequest,
-                HeadObjectRequest, PutObjectRequest, S3, S3Client, UploadPartRequest};
+use rusoto_s3::{
+    CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart, CreateBucketRequest,
+    CreateMultipartUploadRequest, GetObjectRequest, HeadObjectRequest, PutObjectRequest, S3,
+    S3Client, UploadPartRequest,
+};
 use time::PreciseTime;
 
 use config::{S3Backend, S3Cfg};

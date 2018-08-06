@@ -32,7 +32,8 @@ pub fn chown_recursive<P: AsRef<Path>>(path: P, uid: u32, gid: u32) -> Result<()
     debug!("building chown command, cmd={:?}", &cmd);
 
     debug!("spawning chown command");
-    let mut child = cmd.spawn()
+    let mut child = cmd
+        .spawn()
         .map_err(|e| Error::Chown(path.as_ref().to_path_buf(), uid, gid, e))?;
     let exit_status = child.wait().map_err(Error::ChownWait)?;
     debug!("completed chown command, status={:?}", exit_status);
@@ -218,20 +219,24 @@ pub fn docker_exporter_spec(workspace: &Workspace) -> DockerExporterSpec {
             .to_string(),
         registry_type: registry_type,
         registry_url: registry_url,
-        docker_hub_repo_name: opts.get("docker_hub_repo_name")
+        docker_hub_repo_name: opts
+            .get("docker_hub_repo_name")
             .expect("docker_hub_repo_name key is present")
             .as_str()
             .expect("docker_hub_repo_name value is a string")
             .to_string(),
-        latest_tag: opts.get("latest_tag")
+        latest_tag: opts
+            .get("latest_tag")
             .expect("latest_tag key is present")
             .as_bool()
             .expect("latest_tag value is a bool"),
-        version_tag: opts.get("version_tag")
+        version_tag: opts
+            .get("version_tag")
             .expect("version_tag key is present")
             .as_bool()
             .expect("version_tag value is a bool"),
-        version_release_tag: opts.get("version_release_tag")
+        version_release_tag: opts
+            .get("version_release_tag")
             .expect("version_release_tag key is present")
             .as_bool()
             .expect("version_release_tag value is a bool"),
