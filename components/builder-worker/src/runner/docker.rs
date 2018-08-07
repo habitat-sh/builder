@@ -59,15 +59,22 @@ pub struct DockerExporter<'a> {
     spec: DockerExporterSpec,
     workspace: &'a Workspace,
     bldr_url: &'a str,
+    auth_token: &'a String,
 }
 
 impl<'a> DockerExporter<'a> {
     /// Creates a new Docker exporter for a given `Workspace` and Builder URL.
-    pub fn new(spec: DockerExporterSpec, workspace: &'a Workspace, bldr_url: &'a str) -> Self {
+    pub fn new(
+        spec: DockerExporterSpec,
+        workspace: &'a Workspace,
+        bldr_url: &'a str,
+        auth_token: &'a String,
+    ) -> Self {
         DockerExporter {
             spec,
             workspace,
             bldr_url,
+            auth_token,
         }
     }
 
@@ -99,6 +106,8 @@ impl<'a> DockerExporter<'a> {
         cmd.arg(&self.bldr_url);
         cmd.arg("--url");
         cmd.arg(&self.bldr_url);
+        cmd.arg("--auth");
+        cmd.arg(&self.auth_token);
         // TODO fn: Due to the flag regrssion in 0.53.0, this flag does not exist and triggers an
         // export failure. For the moment we will remove this flag which may result in some
         // `:latest` tags not being pushed to remote repositories.
