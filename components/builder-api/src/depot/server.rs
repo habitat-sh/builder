@@ -428,6 +428,14 @@ pub fn origin_member_delete(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+fn check_forced(req: &mut Request) -> bool {
+    if let Some(flag) = helpers::extract_query_value("forced", req) {
+        flag == "true"
+    } else {
+        false
+    }
+}
+
 fn write_archive(filename: &PathBuf, body: &mut Body) -> Result<PackageArchive> {
     let file = File::create(&filename)?;
     let mut writer = BufWriter::new(file);
@@ -828,9 +836,20 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 
     // Return conflict only if we have BOTH package metadata and a valid
     // archive on disk.
+    let upload_forced = check_forced(req);
     let origin_package_found =
         match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
-            Ok(_) => return Ok(Response::with(status::Conflict)),
+            Ok(_) => {
+                if upload_forced {
+                    debug!(
+                        "Upload was forced, bypassing database validation: {}!",
+                        ident
+                    );
+                    true
+                } else {
+                    return Ok(Response::with(status::Conflict));
+                }
+            }
             Err(err) => {
                 if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
                     false
