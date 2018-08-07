@@ -15,15 +15,15 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
-use core::crypto::SigKeyPair;
+use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
+use hab_core::crypto::SigKeyPair;
 use hab_net::privilege::FeatureFlags;
 use hab_net::{ErrCode, NetError, NetOk, NetResult};
-use http::controller::*;
 
-use iron::headers::{Referer, UserAgent};
+use iron::headers::{ContentType, Referer, UserAgent};
 use iron::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::modifiers::Header;
+use iron::prelude::*;
 use iron::status::{self, Status};
 use protocol::jobsrv::{
     JobGroup, JobGroupGet, JobGroupProject, JobGroupProjectState, JobGroupTrigger,
@@ -43,7 +43,9 @@ use serde::Serialize;
 use serde_json;
 use urlencoded::UrlEncodedQuery;
 
-use super::controller::route_message;
+use headers::*;
+use middleware::{route_message, Authenticated};
+use net_err::net_err_to_http;
 use router::Router;
 
 pub fn dont_cache_response(response: &mut Response) {

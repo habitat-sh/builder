@@ -14,7 +14,6 @@ doc = false
 [dependencies]
 base64 = "*"
 bodyparser = "*"
-builder-http-gateway = { path = "../builder-http-gateway" }
 clippy = {version = "*", optional = true}
 constant_time_eq = "*"
 env_logger = "*"
@@ -24,6 +23,7 @@ hyper = "0.10"
 iron = "*"
 log = "*"
 mount = "*"
+num_cpus = "*"
 openssl = "*"
 params = "*"
 persistent = "*"
@@ -35,7 +35,7 @@ serde_json = "*"
 staticfile = "*"
 toml = { version = "*", default-features = false }
 typemap = "*"
-unicase = "*"
+unicase = "1"
 futures = "*"
 iron-test = "*"
 libc = "*"
@@ -48,6 +48,7 @@ tempfile = "*"
 time = "*"
 tokio-core = "*"
 url = "*"
+urlencoded = "*"
 walkdir = "*"
 uuid = { version = "*", features = ["v4"] }
 

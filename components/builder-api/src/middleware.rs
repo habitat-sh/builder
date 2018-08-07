@@ -14,30 +14,42 @@
 
 use base64;
 use bldr_core;
-use core::env;
 use github_api_client::GitHubClient;
+use hab_core::env;
 use hab_net::conn::RouteClient;
 use hab_net::privilege::FeatureFlags;
-use hab_net::{ErrCode, NetError};
+use hab_net::{ErrCode, NetError, NetResult};
 use iron::headers::{self, Authorization, Bearer};
 use iron::method::Method;
-use iron::middleware::{AfterMiddleware, AroundMiddleware, BeforeMiddleware};
+use iron::middleware::{AfterMiddleware, AroundMiddleware, BeforeMiddleware, Handler};
 use iron::prelude::*;
 use iron::status::Status;
 use iron::typemap::Key;
-use iron::Handler;
 use oauth_client::client::OAuth2Client;
 use oauth_client::types::OAuth2User;
+use protobuf;
 use protocol::message;
 use protocol::net::NetOk;
 use protocol::sessionsrv::*;
+use protocol::Routable;
 use segment_api_client::SegmentClient;
 use serde_json;
 use std::path::PathBuf;
 use unicase::UniCase;
 
-use super::net_err_to_http;
 use conn::RouteBroker;
+use net_err::net_err_to_http;
+
+pub fn route_message<M, R>(req: &mut Request, msg: &M) -> NetResult<R>
+where
+    M: Routable,
+    R: protobuf::Message,
+{
+    req.extensions
+        .get_mut::<XRouteClient>()
+        .expect("no XRouteClient extension in request")
+        .route::<M, R>(msg)
+}
 
 /// Wrapper around the standard `iron::Chain` to assist in adding middleware on a per-handler basis
 pub struct XHandler(Chain);

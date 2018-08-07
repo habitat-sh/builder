@@ -22,7 +22,6 @@ extern crate glob;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
 extern crate habitat_net as hab_net;
-extern crate iron;
 #[macro_use]
 extern crate log;
 extern crate petgraph;

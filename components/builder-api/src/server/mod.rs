@@ -15,34 +15,37 @@
 mod handlers;
 
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::thread;
 
-use github_api_client::GitHubClient;
-use hab_net::privilege::FeatureFlags;
-use http_gateway;
-use http_gateway::app::prelude::*;
-use iron;
+use iron::{self, Chain};
 use mount::Mount;
-use oauth_client::client::OAuth2Client;
 use persistent;
-use segment_api_client::SegmentClient;
+use router::Router;
 use staticfile::Static;
 
 use backend::{s3, s3::S3Cli};
+use github_api_client::GitHubClient;
+use hab_net::privilege::FeatureFlags;
+use hab_net::socket;
+use middleware::{Authenticated, Cors, GitHubCli, OAuthCli, SegmentCli, XHandler, XRouteClient};
+use oauth_client::client::OAuth2Client;
+use segment_api_client::SegmentClient;
 use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
 
 use self::handlers::*;
+use super::config::GatewayCfg;
+use super::conn::RouteBroker;
 use super::depot;
+use super::error::{Error, Result};
 use super::github;
 use config::Config;
 
 struct ApiSrv;
-impl HttpGateway for ApiSrv {
-    const APP_NAME: &'static str = "builder-api";
 
-    type Config = Config;
-
-    fn add_middleware(config: Arc<Self::Config>, chain: &mut iron::Chain) {
-        chain.link(persistent::Read::<Self::Config>::both(config.clone()));
+impl ApiSrv {
+    fn add_middleware(config: Arc<Config>, chain: &mut iron::Chain) {
+        chain.link(persistent::Read::<Config>::both(config.clone()));
 
         chain.link(persistent::Read::<OAuthCli>::both(OAuth2Client::new(
             config.oauth.clone(),
@@ -68,7 +71,7 @@ impl HttpGateway for ApiSrv {
         chain.link_after(Cors);
     }
 
-    fn mount(config: Arc<Self::Config>, chain: iron::Chain) -> Mount {
+    fn mount(config: Arc<Config>, chain: iron::Chain) -> Mount {
         let mut mount = Mount::new();
 
         if let Some(ref path) = config.ui.root {
@@ -84,7 +87,7 @@ impl HttpGateway for ApiSrv {
         mount
     }
 
-    fn router(config: Arc<Self::Config>) -> Router {
+    fn router(config: Arc<Config>) -> Router {
         let basic = Authenticated::new(config.key_dir.clone());
         let worker = Authenticated::new(config.key_dir.clone()).require(FeatureFlags::BUILD_WORKER);
         let admin = Authenticated::new(PathBuf::new()).require(FeatureFlags::ADMIN);
@@ -238,7 +241,33 @@ impl HttpGateway for ApiSrv {
     }
 }
 
-pub fn run(config: Config) -> AppResult<()> {
-    UpstreamMgr::start(&config, s3::S3Handler::new(config.s3.to_owned())).unwrap();
-    http_gateway::start::<ApiSrv>(config)
+pub fn run(config: Config) -> Result<()> {
+    let cfg = Arc::new(config);
+
+    let mut chain = Chain::new(ApiSrv::router(cfg.clone()));
+    ApiSrv::add_middleware(cfg.clone(), &mut chain);
+    chain.link_before(XRouteClient);
+    chain.link_after(Cors);
+
+    let mount = ApiSrv::mount(cfg.clone(), chain);
+    let mut server = iron::Iron::new(mount);
+    server.threads = cfg.handler_count();
+    let http_listen_addr = (cfg.listen_addr().clone(), cfg.listen_port());
+
+    thread::Builder::new()
+        .name("http-handler".to_string())
+        .spawn(move || server.http(http_listen_addr))
+        .unwrap();
+    info!(
+        "APISrv listening on {}:{}",
+        cfg.listen_addr(),
+        cfg.listen_port()
+    );
+
+    UpstreamMgr::start(&cfg, s3::S3Handler::new(cfg.s3.to_owned()))?;
+    RouteBroker::start(socket::srv_ident(), cfg.route_addrs()).map_err(Error::Connection)?;
+
+    info!("builder-api is ready to go.");
+
+    Ok(())
 }

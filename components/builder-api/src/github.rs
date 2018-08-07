@@ -21,7 +21,7 @@ use constant_time_eq::constant_time_eq;
 use github_api_client::{AppToken, GitHubClient};
 use hab_core::package::Plan;
 use hex;
-use http_gateway::http::controller::*;
+use iron::prelude::*;
 use iron::status;
 use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
@@ -36,6 +36,9 @@ use serde_json;
 use error::Error;
 use headers::*;
 use metrics::Counter;
+use middleware::route_message;
+use middleware::GitHubCli;
+use net_err::render_json;
 use types::*;
 
 pub enum GitHubEvent {

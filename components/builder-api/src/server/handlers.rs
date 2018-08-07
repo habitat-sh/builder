@@ -20,14 +20,15 @@ use bldr_core;
 use bldr_core::helpers::transition_visibility;
 use bodyparser;
 use hab_core::package::{Identifiable, Plan};
-use http_client::ApiClient;
-use http_gateway::http::controller::*;
-use http_gateway::http::helpers::{
+use hab_net::{ErrCode, NetError, NetOk};
+use helpers::{
     self, check_origin_access, get_param, get_session_user_name, trigger_from_request,
     validate_params,
 };
+use http_client::ApiClient;
 use hyper::header::{Accept, ContentType};
 use hyper::status::StatusCode;
+use iron::prelude::*;
 use iron::status;
 use oauth_client::error::Error as OAuthError;
 use params::{FromValue, Params};
@@ -50,6 +51,11 @@ use super::SegmentCli;
 use config::Config;
 use github;
 use headers::*;
+use middleware::{
+    route_message, session_create_oauth, session_create_short_circuit, Authenticated, GitHubCli,
+    OAuthCli,
+};
+use net_err::*;
 use types::*;
 
 // A default name for per-project integrations. Currently, there

@@ -15,10 +15,10 @@
 use backend::s3;
 use bldr_core::api_client::ApiClient;
 use bldr_core::logger::Logger;
+use conn::RouteBroker;
 use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 use hab_net::socket::DEFAULT_CONTEXT;
-use http_gateway::conn::RouteBroker;
-use http_gateway::http::helpers::all_visibilities;
+use helpers::all_visibilities;
 use iron::typemap::Key;
 use protobuf::{parse_from_bytes, Message};
 use protocol::originsrv::*;
