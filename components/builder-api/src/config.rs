@@ -54,57 +54,29 @@ pub trait GatewayCfg {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub http: HttpCfg,
-    /// List of net addresses for routing servers to connect to
-    pub routers: Vec<RouterAddr>,
-    pub oauth: OAuth2Cfg,
+    pub api: ApiCfg,
     pub github: GitHubCfg,
-    pub segment: SegmentCfg,
+    pub http: HttpCfg,
+    pub oauth: OAuth2Cfg,
+    pub routers: Vec<RouterAddr>,
     pub s3: S3Cfg,
+    pub segment: SegmentCfg,
     pub ui: UiCfg,
-    /// Whether to log events for funnel metrics
-    pub events_enabled: bool,
-    /// Whether to enable builds for non-core origins
-    pub non_core_builds_enabled: bool,
-    /// Where to record log events for funnel metrics
-    pub log_dir: String,
-    /// Whether jobsrv is present or not
-    pub jobsrv_enabled: bool,
-    /// Whether to schedule builds on package upload
-    pub builds_enabled: bool,
-    /// Filepath to location on disk to store entities
-    pub path: PathBuf,
-    /// Filepath to where the builder encryption keys can be found
-    pub key_dir: PathBuf,
-    /// A list of package targets which can be uploaded and hosted
-    pub targets: Vec<PackageTarget>,
-    /// Upstream depot to pull packages from if someone tries to install from this depot and they
-    /// aren't present. This is optional because e.g. public Builder doesn't have an upstream.
-    pub upstream_depot: Option<String>,
-    // Origins for which we pull from upstream (default: core)
-    pub upstream_origins: Vec<String>,
+    pub upstream: UpstreamCfg,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
-            http: HttpCfg::default(),
-            routers: vec![RouterAddr::default()],
-            oauth: OAuth2Cfg::default(),
+            api: ApiCfg::default(),
             github: GitHubCfg::default(),
+            http: HttpCfg::default(),
+            oauth: OAuth2Cfg::default(),
+            routers: vec![RouterAddr::default()],
             s3: S3Cfg::default(),
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
-            events_enabled: false,
-            non_core_builds_enabled: true,
-            log_dir: env::temp_dir().to_string_lossy().into_owned(),
-            jobsrv_enabled: true,
-            path: PathBuf::from("/hab/svc/builder-api/data"),
-            builds_enabled: true,
-            key_dir: PathBuf::from("/hab/svc/builder-api/files"),
-            targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
-            upstream_depot: None,
-            upstream_origins: vec!["core".to_string()],
+            upstream: UpstreamCfg::default(),
         }
     }
 }
@@ -139,6 +111,44 @@ impl Default for S3Cfg {
             bucket_name: String::from("habitat-builder-artifact-store.default"),
             backend: S3Backend::Minio,
             endpoint: String::from("http://localhost:9000"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct UpstreamCfg {
+    pub endpoint: String,
+    pub origins: Vec<String>,
+}
+
+impl Default for UpstreamCfg {
+    fn default() -> Self {
+        UpstreamCfg {
+            endpoint: String::from("http://localhost"),
+            origins: vec!["core".to_string()],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ApiCfg {
+    pub data_path: PathBuf,
+    pub log_path: PathBuf,
+    pub key_path: PathBuf,
+    pub targets: Vec<PackageTarget>,
+    pub features_enabled: String,
+}
+
+impl Default for ApiCfg {
+    fn default() -> Self {
+        ApiCfg {
+            data_path: PathBuf::from("/hab/svc/builder-api/data"),
+            log_path: env::temp_dir(),
+            key_path: PathBuf::from("/hab/svc/builder-api/files"),
+            targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
+            features_enabled: String::from("jobsrv"),
         }
     }
 }
@@ -209,16 +219,16 @@ mod tests {
     #[test]
     fn config_from_file() {
         let content = r#"
-        events_enabled = true
-        non_core_builds_enabled = true
-        jobsrv_enabled = false
-        path = "/hab/svc/hab-depot/data"
-        builds_enabled = true
-        log_dir = "/hab/svc/hab-depot/var/log"
-        key_dir = "/hab/svc/hab-depot/files"
-        upstream_depot = "http://example.com"
-        upstream_origins = ["foo", "bar"]
+        [api]
+        data_path = "/hab/svc/hab-depot/data"
+        log_path = "/hab/svc/hab-depot/var/log"
+        key_path = "/hab/svc/hab-depot/files"
         targets = ["x86_64-linux", "x86_64-windows"]
+        features_enabled = "foo, bar"
+
+        [upstream]
+        endpoint = "http://example.com"
+        origins = ["foo", "bar"]
 
         [http]
         listen = "0:0:0:0:0:0:0:1"
@@ -248,28 +258,33 @@ mod tests {
         "#;
 
         let config = Config::from_raw(&content).unwrap();
-        assert_eq!(config.path, PathBuf::from("/hab/svc/hab-depot/data"));
-        assert_eq!(config.builds_enabled, true);
-        assert_eq!(config.non_core_builds_enabled, true);
-        assert_eq!(config.log_dir, String::from("/hab/svc/hab-depot/var/log"));
-        assert_eq!(config.key_dir, PathBuf::from("/hab/svc/hab-depot/files"));
         assert_eq!(
-            config.upstream_depot,
-            Some(String::from("http://example.com"))
+            config.api.data_path,
+            PathBuf::from("/hab/svc/hab-depot/data")
         );
         assert_eq!(
-            config.upstream_origins,
+            config.api.log_path,
+            PathBuf::from("/hab/svc/hab-depot/var/log")
+        );
+        assert_eq!(
+            config.api.key_path,
+            PathBuf::from("/hab/svc/hab-depot/files")
+        );
+
+        assert_eq!(config.api.targets.len(), 2);
+        assert_eq!(config.api.targets[0], target::X86_64_LINUX);
+        assert_eq!(config.api.targets[1], target::X86_64_WINDOWS);
+
+        assert_eq!(&config.api.features_enabled, "foo, bar");
+
+        assert_eq!(&format!("{}", config.http.listen), "::1");
+
+        assert_eq!(config.upstream.endpoint, String::from("http://example.com"));
+        assert_eq!(
+            config.upstream.origins,
             vec!["foo".to_string(), "bar".to_string()]
         );
 
-        assert_eq!(config.targets.len(), 2);
-        assert_eq!(config.targets[0], target::X86_64_LINUX);
-        assert_eq!(config.targets[1], target::X86_64_WINDOWS);
-
-        assert_eq!(config.events_enabled, true);
-        assert_eq!(config.jobsrv_enabled, false);
-        assert_eq!(config.non_core_builds_enabled, true);
-        assert_eq!(&format!("{}", config.http.listen), "::1");
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9632");
@@ -281,8 +296,11 @@ mod tests {
         );
 
         assert_eq!(config.github.api_url, "https://api.github.com");
+
         assert_eq!(config.ui.root, Some("/some/path".to_string()));
+
         assert_eq!(config.segment.url, "https://api.segment.io");
+
         assert_eq!(config.s3.backend, S3Backend::Minio);
         assert_eq!(config.s3.key_id, "AWSKEYIDORSOMETHING");
         assert_eq!(
@@ -301,8 +319,6 @@ mod tests {
         "#;
 
         let config = Config::from_raw(&content).unwrap();
-        assert_eq!(config.events_enabled, false);
-        assert_eq!(config.non_core_builds_enabled, true);
         assert_eq!(config.http.port, 9000);
     }
 }

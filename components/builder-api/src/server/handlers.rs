@@ -240,8 +240,9 @@ pub fn generate_access_token(req: &mut Request) -> IronResult<Response> {
 
     let mut request = AccountTokenCreate::new();
     let cfg = req.get::<persistent::Read<Config>>().unwrap();
-    let token = bldr_core::access_token::generate_user_token(&cfg.key_dir, account.get_id(), flags)
-        .unwrap();
+    let token =
+        bldr_core::access_token::generate_user_token(&cfg.api.key_path, account.get_id(), flags)
+            .unwrap();
 
     request.set_account_id(account.get_id());
     request.set_token(token);
@@ -932,13 +933,6 @@ pub fn project_show(req: &mut Request) -> IronResult<Response> {
         Some(o) => o,
         None => return Ok(Response::with(status::BadRequest)),
     };
-
-    let cfg = req.get::<persistent::Read<Config>>().unwrap();
-    if !cfg.non_core_builds_enabled {
-        if origin != "core" {
-            return Ok(Response::with(status::Forbidden));
-        }
-    }
 
     let name = match get_param(req, "name") {
         Some(n) => n,
