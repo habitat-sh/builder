@@ -20,14 +20,36 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use std::option::IntoIter;
 use std::path::PathBuf;
 
+use hab_core::config::ConfigFile;
+use hab_net::app::config::RouterAddr;
+
 use github_api_client::config::GitHubCfg;
-use http_gateway::config::prelude::*;
+use num_cpus;
 use oauth_client::config::OAuth2Cfg;
 use segment_api_client::SegmentCfg;
 use typemap;
 
 use error::Error;
 use hab_core::package::target::{self, PackageTarget};
+
+pub trait GatewayCfg {
+    /// Default number of worker threads to simultaneously handle HTTP requests.
+    fn default_handler_count() -> usize {
+        num_cpus::get() * 8
+    }
+
+    /// Number of worker threads to simultaneously handle HTTP requests.
+    fn handler_count(&self) -> usize {
+        Self::default_handler_count()
+    }
+
+    fn listen_addr(&self) -> &IpAddr;
+
+    fn listen_port(&self) -> u16;
+
+    /// Return a list of router addresses
+    fn route_addrs(&self) -> &[RouterAddr];
+}
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]

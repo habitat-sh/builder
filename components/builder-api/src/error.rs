@@ -22,14 +22,18 @@ use bldr_core;
 use hab_core;
 use hab_core::package::{self, Identifiable};
 use hab_net;
+use hab_net::conn;
 use hyper;
 use iron;
 use protobuf;
+use protocol;
 use rusoto_s3;
 use zmq;
 
 #[derive(Debug)]
 pub enum Error {
+    Connection(conn::ConnErr),
+    Protocol(protocol::ProtocolError),
     BadPort(String),
     HabitatCore(hab_core::Error),
     HyperError(hyper::error::Error),
@@ -70,6 +74,8 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::Connection(ref e) => format!("{}", e),
+            Error::Protocol(ref e) => format!("{}", e),
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::HyperError(ref e) => format!("{}", e),
@@ -136,6 +142,8 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::Connection(ref err) => err.description(),
+            Error::Protocol(ref err) => err.description(),
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::HabitatCore(ref err) => err.description(),
             Error::HyperError(ref err) => err.description(),

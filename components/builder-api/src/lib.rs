@@ -18,7 +18,6 @@
 extern crate base64;
 extern crate bodyparser;
 extern crate builder_core as bldr_core;
-extern crate builder_http_gateway as http_gateway;
 extern crate constant_time_eq;
 extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
@@ -28,6 +27,7 @@ extern crate habitat_net as hab_net;
 extern crate hex;
 #[macro_use]
 extern crate hyper;
+#[macro_use]
 extern crate iron;
 #[macro_use]
 extern crate log;
@@ -39,6 +39,7 @@ extern crate persistent;
 extern crate protobuf;
 extern crate router;
 extern crate segment_api_client;
+extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
@@ -47,6 +48,7 @@ extern crate crypto;
 extern crate futures;
 extern crate iron_test;
 extern crate libc;
+extern crate num_cpus;
 extern crate regex;
 extern crate rusoto_core as rusoto;
 extern crate rusoto_s3;
@@ -55,19 +57,25 @@ extern crate tempfile;
 extern crate time;
 extern crate toml;
 extern crate typemap;
+extern crate unicase;
 extern crate url;
+extern crate urlencoded;
 extern crate uuid;
 extern crate walkdir;
 extern crate zmq;
 
 pub mod backend;
 pub mod config;
+pub mod conn;
 pub mod depot;
 pub mod error;
 pub mod github;
 pub mod handlers;
 pub mod headers;
+pub mod helpers;
 pub mod metrics;
+pub mod middleware;
+pub mod net_err;
 pub mod server;
 mod types;
 pub mod upstream;

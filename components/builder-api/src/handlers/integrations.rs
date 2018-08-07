@@ -16,9 +16,9 @@ use std::collections::HashMap;
 
 use bldr_core;
 use bodyparser;
-use http_gateway::http::controller::*;
-use http_gateway::http::helpers::{self, check_origin_access};
 use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
+use iron::headers::ContentType;
+use iron::prelude::*;
 use iron::status::{self, Status};
 
 use persistent;
@@ -26,6 +26,10 @@ use protocol::net::NetOk;
 use protocol::originsrv::*;
 use router::Router;
 use serde_json;
+
+use super::super::helpers::{check_origin_access, dont_cache_response};
+use super::super::middleware::route_message;
+use super::super::net_err::{render_json, render_net_error};
 
 use Config;
 
@@ -94,7 +98,7 @@ pub fn fetch_origin_integrations(req: &mut Request) -> IronResult<Response> {
                 SubLevel::Json,
                 vec![(Attr::Charset, Value::Utf8)],
             )));
-            helpers::dont_cache_response(&mut response);
+            dont_cache_response(&mut response);
             Ok(response)
         }
         Err(err) => Ok(render_net_error(&err)),
@@ -113,7 +117,7 @@ pub fn fetch_origin_integration_names(req: &mut Request) -> IronResult<Response>
     match route_message::<OriginIntegrationGetNames, OriginIntegrationNames>(req, &request) {
         Ok(integration) => {
             let mut response = render_json(status::Ok, &integration);
-            helpers::dont_cache_response(&mut response);
+            dont_cache_response(&mut response);
             Ok(response)
         }
         Err(err) => Ok(render_net_error(&err)),
@@ -212,7 +216,7 @@ pub fn get_origin_integration(req: &mut Request) -> IronResult<Response> {
                     });
 
                 let mut response = render_json(status::Ok, &sanitized);
-                helpers::dont_cache_response(&mut response);
+                dont_cache_response(&mut response);
                 Ok(response)
             }
             Err(st) => return Ok(Response::with(st)),

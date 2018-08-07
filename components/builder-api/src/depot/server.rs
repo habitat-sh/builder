@@ -24,27 +24,28 @@ use bldr_core::api_client::ApiClient;
 use bldr_core::helpers::transition_visibility;
 use bldr_core::metrics::CounterMetric;
 use bodyparser;
+use conn::RouteBroker;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
 use hab_core::package::{
     ident, FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget,
 };
 use hab_net::privilege::FeatureFlags;
-use hab_net::{ErrCode, NetOk, NetResult};
-use http_gateway::conn::RouteBroker;
-use http_gateway::http::controller::*;
-use http_gateway::http::helpers::{
+use hab_net::{ErrCode, NetError, NetOk, NetResult};
+use helpers::{
     self, all_visibilities, check_origin_access, check_origin_owner, dont_cache_response,
     get_param, get_session_id_and_name, trigger_from_request, validate_params,
     visibility_for_optional_session,
 };
-use http_gateway::http::middleware::SegmentCli;
 use hyper::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use iron::headers::{ContentType, UserAgent};
 use iron::middleware::BeforeMiddleware;
+use iron::prelude::*;
 use iron::request::Body;
 use iron::typemap;
+use iron::{headers, status};
+use middleware::SegmentCli;
 use persistent;
 use protobuf;
 use protocol::jobsrv::{
@@ -61,12 +62,16 @@ use tempfile::{tempdir_in, TempDir};
 use url;
 use uuid::Uuid;
 
+use super::super::headers::*;
 use super::super::DepotUtil;
+
 use backend::{s3, s3::S3Cli};
 use config::Config;
 use error::{Error, Result};
 use handlers;
 use metrics::Counter;
+use middleware::{route_message, Authenticated, XHandler};
+use net_err::{render_json, render_net_error};
 use upstream::UpstreamCli;
 
 #[derive(Clone, Serialize, Deserialize)]
