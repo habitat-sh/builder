@@ -15,22 +15,24 @@
 //! Configuration for a Habitat Builder-API service
 
 use std::env;
+use std::error;
+use std::fmt;
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use std::option::IntoIter;
 use std::path::PathBuf;
 
+use num_cpus;
+use typemap;
+
+use hab_core;
 use hab_core::config::ConfigFile;
+use hab_core::package::target::{self, PackageTarget};
 use hab_net::app::config::RouterAddr;
 
 use github_api_client::config::GitHubCfg;
-use num_cpus;
 use oauth_client::config::OAuth2Cfg;
 use segment_api_client::SegmentCfg;
-use typemap;
-
-use error::Error;
-use hab_core::package::target::{self, PackageTarget};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.
@@ -81,8 +83,29 @@ impl Default for Config {
     }
 }
 
+#[derive(Debug)]
+pub struct ConfigError(String);
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", *self)
+    }
+}
+
+impl error::Error for ConfigError {
+    fn description(&self) -> &str {
+        "Error reading config file"
+    }
+}
+
 impl ConfigFile for Config {
-    type Error = Error;
+    type Error = ConfigError;
+}
+
+impl From<hab_core::Error> for ConfigError {
+    fn from(err: hab_core::Error) -> ConfigError {
+        ConfigError(format!("{:?}", err))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]

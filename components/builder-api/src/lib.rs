@@ -19,7 +19,6 @@ extern crate actix_web;
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
-//extern crate bodyparser;
 extern crate builder_core as bldr_core;
 extern crate constant_time_eq;
 #[macro_use]
@@ -36,9 +35,7 @@ extern crate hex;
 extern crate log;
 extern crate oauth_client;
 extern crate openssl;
-//extern crate params;
 extern crate protobuf;
-//extern crate router;
 extern crate segment_api_client;
 extern crate serde;
 #[macro_use]
@@ -52,44 +49,20 @@ extern crate num_cpus;
 extern crate regex;
 extern crate rusoto_core as rusoto;
 extern crate rusoto_s3;
-//extern crate staticfile;
 extern crate tempfile;
 extern crate time;
 extern crate toml;
 extern crate typemap;
 extern crate unicase;
 extern crate url;
-//extern crate urlencoded;
 extern crate uuid;
 extern crate walkdir;
 extern crate zmq;
 
-pub mod backend;
 pub mod config;
-pub mod conn;
-// pub mod depot;
-pub mod error;
-//pub mod github;
-//pub mod handlers;
-//pub mod headers;
-//pub mod helpers;
-pub mod metrics;
-//pub mod middleware;
-//pub mod net_err;
 pub mod server;
-mod types;
-//pub mod upstream;
 
-pub use self::config::Config;
-pub use self::error::{Error, Result};
-
-features! {
-    pub mod feat {
-        const List = 0b00000001,
-        const Jobsrv = 0b00000010,
-        const Upstream = 0b00000100
-    }
-}
+/* TODO: Refactor and eliminate need for DepotUtil trait
 
 use std::fs::File;
 use std::io::Write;
@@ -135,3 +108,5 @@ impl DepotUtil for config::Config {
         Path::new(&self.api.data_path).join("pkgs")
     }
 }
+
+*/
