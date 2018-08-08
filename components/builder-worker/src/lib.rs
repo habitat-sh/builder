@@ -51,14 +51,14 @@ pub mod runner;
 pub mod server;
 pub mod vcs;
 
-pub use self::config::Config;
-pub use self::error::{Error, Result};
-
 features! {
     pub mod feat {
         const List = 0b00000001
     }
 }
+
+pub use self::config::Config;
+pub use self::error::{Error, Result};
 
 pub const PRODUCT: &'static str = "builder-worker";
 pub const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));

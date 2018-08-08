@@ -16,9 +16,13 @@
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate base64;
+#[macro_use]
+extern crate bitflags;
 extern crate bodyparser;
 extern crate builder_core as bldr_core;
 extern crate constant_time_eq;
+#[macro_use]
+extern crate features;
 extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
@@ -83,6 +87,14 @@ pub mod upstream;
 pub use self::config::Config;
 pub use self::error::{Error, Result};
 
+features! {
+    pub mod feat {
+        const List = 0b00000001,
+        const Jobsrv = 0b00000010,
+        const Upstream = 0b00000100
+    }
+}
+
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -124,6 +136,6 @@ impl DepotUtil for config::Config {
     }
 
     fn packages_path(&self) -> PathBuf {
-        Path::new(&self.path).join("pkgs")
+        Path::new(&self.api.data_path).join("pkgs")
     }
 }

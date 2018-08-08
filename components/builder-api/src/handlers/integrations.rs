@@ -36,14 +36,14 @@ use Config;
 pub fn encrypt(req: &mut Request, content: &str) -> Result<String, Status> {
     let depot = req.get::<persistent::Read<Config>>().unwrap();
 
-    bldr_core::integrations::encrypt(&depot.key_dir, content.as_bytes())
+    bldr_core::integrations::encrypt(&depot.api.key_path, content.as_bytes())
         .map_err(|_| status::InternalServerError)
 }
 
 pub fn decrypt(req: &mut Request, content: &str) -> Result<String, Status> {
     let depot = req.get::<persistent::Read<Config>>().unwrap();
 
-    let bytes = bldr_core::integrations::decrypt(&depot.key_dir, content)
+    let bytes = bldr_core::integrations::decrypt(&depot.api.key_path, content)
         .map_err(|_| status::InternalServerError)?;
     Ok(String::from_utf8(bytes).map_err(|_| status::InternalServerError)?)
 }

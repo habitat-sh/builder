@@ -1,7 +1,12 @@
-log_dir = "{{pkg.svc_var_path}}"
+[api]
+data_path = "{{pkg.svc_data_path}}"
+log_path = "{{pkg.svc_var_path}}"
+key_path = "{{pkg.svc_files_path}}"
+{{toToml cfg.api}}
 
-[ui]
-root = "{{pkg.svc_static_path}}"
+[github]
+app_private_key = "{{pkg.svc_files_path}}/builder-github-app.pem"
+{{toToml cfg.github}}
 
 [http]
 {{toToml cfg.http}}
@@ -9,24 +14,20 @@ root = "{{pkg.svc_static_path}}"
 [oauth]
 {{toToml cfg.oauth}}
 
-[github]
-app_private_key = "{{pkg.svc_files_path}}/builder-github-app.pem"
-{{toToml cfg.github}}
-
-[segment]
-{{toToml cfg.segment}}
-
 {{~#eachAlive bind.router.members as |member|}}
 [[routers]]
 host = "{{member.sys.ip}}"
 port = {{member.cfg.port}}
 {{~/eachAlive}}
 
-[depot]
-path = "{{pkg.svc_data_path}}"
-log_dir = "{{pkg.svc_var_path}}"
-key_dir = "{{pkg.svc_files_path}}"
-{{toToml cfg.depot}}
-
 [s3]
 {{toToml cfg.s3}}
+
+[segment]
+{{toToml cfg.segment}}
+
+[ui]
+root = "{{pkg.svc_static_path}}"
+
+[upstream]
+{{toToml cfg.upstream}}

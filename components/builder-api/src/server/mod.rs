@@ -14,6 +14,8 @@
 
 mod handlers;
 
+use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
@@ -40,6 +42,7 @@ use super::depot;
 use super::error::{Error, Result};
 use super::github;
 use config::Config;
+use feat;
 
 struct ApiSrv;
 
@@ -88,13 +91,14 @@ impl ApiSrv {
     }
 
     fn router(config: Arc<Config>) -> Router {
-        let basic = Authenticated::new(config.key_dir.clone());
-        let worker = Authenticated::new(config.key_dir.clone()).require(FeatureFlags::BUILD_WORKER);
+        let basic = Authenticated::new(config.api.key_path.clone());
+        let worker =
+            Authenticated::new(config.api.key_path.clone()).require(FeatureFlags::BUILD_WORKER);
         let admin = Authenticated::new(PathBuf::new()).require(FeatureFlags::ADMIN);
 
         let mut r = Router::new();
 
-        if config.jobsrv_enabled {
+        if feat::is_enabled(feat::Jobsrv) {
             r.post(
                 "/jobs/group/:id/promote/:channel",
                 XHandler::new(job_group_promote).before(basic.clone()),
@@ -235,13 +239,39 @@ impl ApiSrv {
             "admin_account",
         );
 
-        depot::server::add_routes(&mut r, basic, worker, config);
+        depot::server::add_routes(&mut r, basic, worker);
 
         r
     }
 }
 
+fn enable_features_from_config(config: &Config) {
+    let features: HashMap<_, _> = HashMap::from_iter(vec![
+        ("LIST", feat::List),
+        ("JOBSRV", feat::Jobsrv),
+        ("UPSTREAM", feat::Upstream),
+    ]);
+    let features_enabled = config
+        .api
+        .features_enabled
+        .split(",")
+        .map(|f| f.trim().to_uppercase());
+    for key in features_enabled {
+        if features.contains_key(key.as_str()) {
+            info!("Enabling feature: {}", key);
+            feat::enable(features.get(key.as_str()).unwrap().clone());
+        }
+    }
+
+    if feat::is_enabled(feat::List) {
+        println!("Listing possible feature flags: {:?}", features.keys());
+        println!("Enable features by populating 'features_enabled' in config");
+    }
+}
+
 pub fn run(config: Config) -> Result<()> {
+    enable_features_from_config(&config);
+
     let cfg = Arc::new(config);
 
     let mut chain = Chain::new(ApiSrv::router(cfg.clone()));

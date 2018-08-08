@@ -64,6 +64,7 @@ use uuid::Uuid;
 
 use super::super::headers::*;
 use super::super::DepotUtil;
+use feat;
 
 use backend::{s3, s3::S3Cli};
 use config::Config;
@@ -827,7 +828,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
         }
     };
 
-    if !depot.targets.contains(&target_from_artifact) {
+    if !depot.api.targets.contains(&target_from_artifact) {
         debug!(
             "Unsupported package platform or architecture {}.",
             target_from_artifact
@@ -881,8 +882,9 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     }
 
     // Check with scheduler to ensure we don't have circular deps, if configured
-    if depot.jobsrv_enabled {
+    if feat::is_enabled(feat::Jobsrv) {
         if let Err(r) = check_circular_deps(req, &ident, &target_from_artifact, &mut archive) {
+            warn!("Failed to check circular dependency, err={:?}", r);
             return Ok(r);
         }
     }
@@ -940,7 +942,6 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
             session_id,
             session_name,
             origin_package_found,
-            &depot,
             builder_flag,
         ) {
             Ok(_) => {
@@ -1012,13 +1013,6 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with(status::Forbidden));
     }
 
-    {
-        let depot = req.get::<persistent::Read<Config>>().unwrap();
-
-        if !depot.builds_enabled || (origin_name != "core" && !depot.non_core_builds_enabled) {
-            return Ok(Response::with(status::Forbidden));
-        }
-    }
     let package = match get_param(req, "pkg") {
         Some(pkg) => pkg,
         None => return Ok(Response::with(status::BadRequest)),
@@ -1265,7 +1259,7 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
     ident_req.set_ident(ident.clone());
 
     let target = target_from_req(req);
-    if !depot.targets.contains(&target) {
+    if !depot.api.targets.contains(&target) {
         return Ok(Response::with((
             status::NotImplemented,
             format!("Unsupported client platform ({}).", &target),
@@ -2374,7 +2368,6 @@ fn process_upload_for_package_archive(
     owner_id: u64,
     owner_name: String,
     origin_package_found: bool,
-    config: &Config,
     builder_flag: Option<String>,
 ) -> NetResult<()> {
     // We need to do it this way instead of via route_message because this function can't be passed
@@ -2437,31 +2430,26 @@ fn process_upload_for_package_archive(
 
         // Schedule re-build of dependent packages (if requested)
         // Don't schedule builds if the upload is being done by the builder
-        if config.builds_enabled
-            && (ident.get_origin() == "core" || config.non_core_builds_enabled)
-            && builder_flag.is_none()
-        {
-            if config.jobsrv_enabled {
-                let mut request = JobGroupSpec::new();
-                request.set_origin(ident.get_origin().to_string());
-                request.set_package(ident.get_name().to_string());
-                request.set_target(target.to_string());
-                request.set_deps_only(true);
-                request.set_origin_only(!config.non_core_builds_enabled);
-                request.set_package_only(false);
-                request.set_trigger(JobGroupTrigger::Upload);
-                request.set_requester_id(owner_id);
-                request.set_requester_name(owner_name);
+        if builder_flag.is_none() && feat::is_enabled(feat::Jobsrv) {
+            let mut request = JobGroupSpec::new();
+            request.set_origin(ident.get_origin().to_string());
+            request.set_package(ident.get_name().to_string());
+            request.set_target(target.to_string());
+            request.set_deps_only(true);
+            request.set_origin_only(false);
+            request.set_package_only(false);
+            request.set_trigger(JobGroupTrigger::Upload);
+            request.set_requester_id(owner_id);
+            request.set_requester_name(owner_name);
 
-                match conn.route::<JobGroupSpec, JobGroup>(&request) {
-                    Ok(group) => debug!(
-                        "Scheduled reverse dependecy build for {}, group id: {}, origin_only: {}",
-                        ident,
-                        group.get_id(),
-                        !config.non_core_builds_enabled
-                    ),
-                    Err(err) => warn!("Unable to schedule build, err: {:?}", err),
-                }
+            match conn.route::<JobGroupSpec, JobGroup>(&request) {
+                Ok(group) => debug!(
+                    "Scheduled reverse dependecy build for {}, group id: {}, origin_only: {}",
+                    ident,
+                    group.get_id(),
+                    false
+                ),
+                Err(err) => warn!("Unable to schedule build, err: {:?}", err),
             }
         }
     }
@@ -2492,7 +2480,7 @@ pub fn download_package_from_upstream_depot(
     match depot_cli.fetch_package(&ident, target, &parent_path, None) {
         Ok(mut archive) => {
             let target_from_artifact = archive.target().map_err(Error::HabitatCore)?;
-            if !depot.targets.contains(&target_from_artifact) {
+            if !depot.api.targets.contains(&target_from_artifact) {
                 debug!(
                     "Unsupported package platform or architecture {}.",
                     &target_from_artifact
@@ -2516,8 +2504,6 @@ pub fn download_package_from_upstream_depot(
                 }
             };
 
-            let config = depot.clone();
-
             if let Err(e) = process_upload_for_package_archive(
                 &ident,
                 &mut package_create,
@@ -2525,7 +2511,6 @@ pub fn download_package_from_upstream_depot(
                 BUILDER_ACCOUNT_ID,
                 BUILDER_ACCOUNT_NAME.to_string(),
                 false,
-                &config,
                 None,
             ) {
                 return Err(Error::NetError(e));
@@ -2668,13 +2653,13 @@ fn do_cache_response(response: &mut Response) {
     )));
 }
 
-pub fn add_routes<M>(r: &mut Router, basic: Authenticated, worker: M, depot: Arc<Config>)
+pub fn add_routes<M>(r: &mut Router, basic: Authenticated, worker: M)
 where
     M: BeforeMiddleware + Clone,
 {
     let opt = basic.clone().optional();
 
-    if depot.jobsrv_enabled {
+    if feat::is_enabled(feat::Jobsrv) {
         r.get(
             "/pkgs/origins/:origin/stats",
             package_stats,
@@ -2939,11 +2924,11 @@ where
 }
 
 pub fn router(depot: Arc<Config>) -> Router {
-    let basic = Authenticated::new(depot.key_dir.clone());
-    let worker = Authenticated::new(depot.key_dir.clone()).require(FeatureFlags::BUILD_WORKER);
+    let basic = Authenticated::new(depot.api.key_path.clone());
+    let worker = Authenticated::new(depot.api.key_path.clone()).require(FeatureFlags::BUILD_WORKER);
 
     let mut r = Router::new();
-    add_routes(&mut r, basic, worker, depot);
+    add_routes(&mut r, basic, worker);
 
     r
 }

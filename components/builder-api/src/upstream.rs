@@ -35,6 +35,8 @@ use protocol::originsrv::{OriginPackageIdent, UpstreamRequest};
 
 use depot::server::download_package_from_upstream_depot;
 
+use feat;
+
 const UPSTREAM_MGR_ADDR: &'static str = "inproc://upstream";
 const DEFAULT_POLL_TIMEOUT_MS: u64 = 60_000; // 60 secs
 
@@ -85,21 +87,23 @@ impl UpstreamMgr {
             .socket(zmq::DEALER)
             .map_err(Error::Zmq)?;
 
-        let depot_client = if let Some(ref upstream_depot) = cfg.upstream_depot {
-            Some(ApiClient::new(upstream_depot))
+        let depot_client = if feat::is_enabled(feat::Upstream) {
+            Some(ApiClient::new(&cfg.upstream.endpoint))
         } else {
             None
         };
 
-        let log_path = cfg.log_dir.clone();
+        let log_path = cfg.api.log_path.clone();
         let mut logger = Logger::init(PathBuf::from(log_path), "builder-upstream.log");
 
         let want_origins: HashSet<String> =
-            cfg.upstream_origins.iter().map(|s| s.to_owned()).collect();
+            cfg.upstream.origins.iter().map(|s| s.to_owned()).collect();
 
         let msg = format!(
-            "UPSTREAM {:?} (origins: {:?})",
-            cfg.upstream_depot, cfg.upstream_origins
+            "UPSTREAM enabled: {}, endpoint: {}, origins: {:?}",
+            feat::is_enabled(feat::Jobsrv),
+            cfg.upstream.endpoint,
+            cfg.upstream.origins,
         );
         logger.log_ident(&msg);
 
@@ -140,8 +144,9 @@ impl UpstreamMgr {
         rz.send(()).unwrap();
 
         info!(
-            "upstream-manager is ready to go (upstream_depot: {:?}).",
-            self.config.upstream_depot
+            "upstream-manager is ready to go (enabled: {}, upstream_depot: {}).",
+            feat::is_enabled(feat::Upstream),
+            self.config.upstream.endpoint
         );
 
         loop {
@@ -187,7 +192,7 @@ impl UpstreamMgr {
                 upstream_request.set_ident(OriginPackageIdent::from(ident.clone()));
                 upstream_request.set_target(target.clone());
 
-                if self.config.upstream_depot.is_some()
+                if feat::is_enabled(feat::Upstream)
                     && self.want_origins.contains(ident.origin())
                     && !requests.contains(&upstream_request)
                 {
@@ -285,8 +290,8 @@ impl UpstreamMgr {
                 }
                 Err(err) => {
                     warn!(
-                        "Failed to get package metadata for {} from {:?}, err {:?}",
-                        ident, self.config.upstream_depot, err
+                        "Failed to get package metadata for {} from {}, err {:?}",
+                        ident, self.config.upstream.endpoint, err
                     );
                     Err(Error::DepotClientError(err))
                 }

@@ -13,10 +13,12 @@ doc = false
 
 [dependencies]
 base64 = "*"
+bitflags = "1"
 bodyparser = "*"
 clippy = {version = "*", optional = true}
 constant_time_eq = "*"
 env_logger = "*"
+features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
 hyper = "0.10"
