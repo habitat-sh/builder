@@ -12,25 +12,23 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
+actix-web = "0.7"
 base64 = "*"
 bitflags = "1"
-bodyparser = "*"
 clippy = {version = "*", optional = true}
 constant_time_eq = "*"
 env_logger = "*"
+failure = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
 log = "*"
 num_cpus = "*"
 openssl = "*"
-params = "*"
 protobuf = "*"
-router = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-staticfile = "*"
 toml = { version = "*", default-features = false }
 typemap = "*"
 unicase = "1"
@@ -43,9 +41,7 @@ rusoto_s3 = "*"
 rust-crypto = "*"
 tempfile = "*"
 time = "*"
-tokio-core = "*"
 url = "*"
-urlencoded = "*"
 walkdir = "*"
 uuid = { version = "*", features = ["v4"] }
 

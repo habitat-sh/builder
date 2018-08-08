@@ -15,12 +15,15 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
+extern crate actix_web;
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
-extern crate bodyparser;
+//extern crate bodyparser;
 extern crate builder_core as bldr_core;
 extern crate constant_time_eq;
+#[macro_use]
+extern crate failure;
 #[macro_use]
 extern crate features;
 extern crate github_api_client;
@@ -30,13 +33,12 @@ extern crate habitat_http_client as http_client;
 extern crate habitat_net as hab_net;
 extern crate hex;
 #[macro_use]
-#[macro_use]
 extern crate log;
 extern crate oauth_client;
 extern crate openssl;
-extern crate params;
+//extern crate params;
 extern crate protobuf;
-extern crate router;
+//extern crate router;
 extern crate segment_api_client;
 extern crate serde;
 #[macro_use]
@@ -50,14 +52,14 @@ extern crate num_cpus;
 extern crate regex;
 extern crate rusoto_core as rusoto;
 extern crate rusoto_s3;
-extern crate staticfile;
+//extern crate staticfile;
 extern crate tempfile;
 extern crate time;
 extern crate toml;
 extern crate typemap;
 extern crate unicase;
 extern crate url;
-extern crate urlencoded;
+//extern crate urlencoded;
 extern crate uuid;
 extern crate walkdir;
 extern crate zmq;
