@@ -20,8 +20,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
-use router::Router;
-use staticfile::Static;
+//use router::Router;
+//use staticfile::Static;
+use actix_web::error;
+use actix_web::http;
+use actix_web::middleware::{Middleware, Response, Started};
+use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 
 //use backend::{s3, s3::S3Cli};
 use github_api_client::GitHubClient;
@@ -36,10 +40,15 @@ use segment_api_client::SegmentClient;
 use super::config::GatewayCfg;
 use super::conn::RouteBroker;
 //use super::depot;
-use super::error::{Error, Result};
+//use super::error::{Error, Result};
 //use super::github;
 use config::Config;
 use feat;
+
+// Application state
+struct AppState {
+    config: Config,
+}
 
 struct ApiSrv;
 
@@ -272,10 +281,23 @@ fn enable_features_from_config(config: &Config) {
     }
 }
 
+fn hello(req: &HttpRequest<AppState>) -> String {
+    "hello world!".to_string()
+}
+
 pub fn run(config: Config) -> Result<()> {
     enable_features_from_config(&config);
 
-    let cfg = Arc::new(config);
+    //let cfg = Arc::new(config);
+
+    server::new(move || {
+        App::with_state(AppState {
+            config: config.clone(),
+        }).prefix("/v1")
+            .resource("/hello", |r| r.f(hello))
+    }).bind("127.0.0.1:9636")
+        .unwrap()
+        .run();
 
     /*
     let mut chain = Chain::new(ApiSrv::router(cfg.clone()));
