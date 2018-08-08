@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod handlers;
+// mod handlers;
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -20,33 +20,31 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
-use iron::{self, Chain};
-use mount::Mount;
-use persistent;
 use router::Router;
 use staticfile::Static;
 
-use backend::{s3, s3::S3Cli};
+//use backend::{s3, s3::S3Cli};
 use github_api_client::GitHubClient;
 use hab_net::privilege::FeatureFlags;
 use hab_net::socket;
-use middleware::{Authenticated, Cors, GitHubCli, OAuthCli, SegmentCli, XHandler, XRouteClient};
+//use middleware::{Authenticated, Cors, GitHubCli, OAuthCli, SegmentCli, XHandler, XRouteClient};
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
-use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
+//use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
 
-use self::handlers::*;
+//use self::handlers::*;
 use super::config::GatewayCfg;
 use super::conn::RouteBroker;
-use super::depot;
+//use super::depot;
 use super::error::{Error, Result};
-use super::github;
+//use super::github;
 use config::Config;
 use feat;
 
 struct ApiSrv;
 
 impl ApiSrv {
+    /*
     fn add_middleware(config: Arc<Config>, chain: &mut iron::Chain) {
         chain.link(persistent::Read::<Config>::both(config.clone()));
 
@@ -73,7 +71,9 @@ impl ApiSrv {
         chain.link_before(XRouteClient);
         chain.link_after(Cors);
     }
+*/
 
+    /*
     fn mount(config: Arc<Config>, chain: iron::Chain) -> Mount {
         let mut mount = Mount::new();
 
@@ -89,7 +89,9 @@ impl ApiSrv {
         mount.mount("/v1/depot", depot_chain);
         mount
     }
+*/
 
+    /*
     fn router(config: Arc<Config>) -> Router {
         let basic = Authenticated::new(config.api.key_path.clone());
         let worker =
@@ -243,6 +245,7 @@ impl ApiSrv {
 
         r
     }
+*/
 }
 
 fn enable_features_from_config(config: &Config) {
@@ -274,6 +277,7 @@ pub fn run(config: Config) -> Result<()> {
 
     let cfg = Arc::new(config);
 
+    /*
     let mut chain = Chain::new(ApiSrv::router(cfg.clone()));
     ApiSrv::add_middleware(cfg.clone(), &mut chain);
     chain.link_before(XRouteClient);
@@ -296,6 +300,7 @@ pub fn run(config: Config) -> Result<()> {
 
     UpstreamMgr::start(&cfg, s3::S3Handler::new(cfg.s3.to_owned()))?;
     RouteBroker::start(socket::srv_ident(), cfg.route_addrs()).map_err(Error::Connection)?;
+*/
 
     info!("builder-api is ready to go.");
 

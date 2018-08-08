@@ -15,7 +15,6 @@
 use hab_net::app::config::RouterAddr;
 use hab_net::conn::{ConnErr, RouteClient, RECV_TIMEOUT_MS, SEND_TIMEOUT_MS};
 use hab_net::socket::{ToAddrString, DEFAULT_CONTEXT};
-use iron::typemap;
 use zmq;
 
 /// A messaging RouteBroker for proxying messages from clients to one or more `RouteSrv` and vice
@@ -80,8 +79,4 @@ impl RouteBroker {
         }
         zmq::proxy(&mut self.client_sock, &mut self.router_sock).map_err(ConnErr::Socket)
     }
-}
-
-impl typemap::Key for RouteBroker {
-    type Value = Self;
 }
