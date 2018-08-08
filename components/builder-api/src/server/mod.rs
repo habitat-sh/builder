@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // mod handlers;
+mod services;
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -26,6 +27,7 @@ use actix_web::error;
 use actix_web::http;
 use actix_web::middleware::{Middleware, Response, Started};
 use actix_web::{server, App, HttpRequest, HttpResponse, Result};
+use bitflags;
 
 //use backend::{s3, s3::S3Cli};
 use github_api_client::GitHubClient;
@@ -37,13 +39,20 @@ use segment_api_client::SegmentClient;
 //use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
 
 //use self::handlers::*;
+use self::services::route_broker::RouteBroker;
 use super::config::GatewayCfg;
-use super::conn::RouteBroker;
 //use super::depot;
 //use super::error::{Error, Result};
 //use super::github;
 use config::Config;
-use feat;
+
+features! {
+    pub mod feat {
+        const List = 0b00000001,
+        const Jobsrv = 0b00000010,
+        const Upstream = 0b00000100
+    }
+}
 
 // Application state
 struct AppState {
