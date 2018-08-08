@@ -33,7 +33,6 @@ use std::str::FromStr;
 use bldr_core::metrics::CounterMetric;
 use futures::{Future, Stream};
 use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
-use iron::typemap::Key;
 use metrics::Counter;
 use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
 use rusoto_s3::{
@@ -310,12 +309,6 @@ impl S3Handler {
             }
         }
     }
-}
-
-pub struct S3Cli;
-
-impl Key for S3Cli {
-    type Value = S3Handler;
 }
 
 // Helper function for programmatic creation of
