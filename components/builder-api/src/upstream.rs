@@ -101,7 +101,7 @@ impl UpstreamMgr {
 
         let msg = format!(
             "UPSTREAM enabled: {}, endpoint: {}, origins: {:?}",
-            feat::is_enabled(feat::Jobsrv),
+            feat::is_enabled(feat::Upstream),
             cfg.upstream.endpoint,
             cfg.upstream.origins,
         );
