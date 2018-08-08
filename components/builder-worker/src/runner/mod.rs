@@ -461,6 +461,7 @@ impl Runner {
                     util::docker_exporter_spec(&self.workspace),
                     &self.workspace,
                     &self.config.bldr_url,
+                    &self.bldr_token,
                 ).export(streamer)?;
 
                 if !status.success() {
