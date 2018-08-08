@@ -15,31 +15,42 @@
 use std::error;
 use std::ffi;
 use std::fmt;
+use std::fs;
 use std::io;
 use std::result;
 
 use bldr_core;
+use github_api_client::HubError;
 use hab_core;
 use hab_core::package::{self, Identifiable};
-use hab_net;
 use hab_net::conn;
-use hyper;
-use iron;
+use hab_net::{self, ErrCode};
+use oauth_client::error::Error as OAuthError;
+use serde_json;
+
+use actix_web;
+use actix_web::http::StatusCode;
+use actix_web::{HttpResponse, ResponseError};
 use protobuf;
 use protocol;
 use rusoto_s3;
 use zmq;
 
+// TODO: We've probably gone overboard with the number of errors we
+// are wrapping - review whether we need more than one error per module
 #[derive(Debug)]
 pub enum Error {
+    Authorization(String),
+    CircularDependency(String),
     Connection(conn::ConnErr),
+    Github(HubError),
+    InnerError(io::IntoInnerError<io::BufWriter<fs::File>>),
     Protocol(protocol::ProtocolError),
     BadPort(String),
     HabitatCore(hab_core::Error),
-    HyperError(hyper::error::Error),
-    HTTP(hyper::status::StatusCode),
     IO(io::Error),
     NetError(hab_net::NetError),
+    PayloadError(actix_web::error::PayloadError),
     Protobuf(protobuf::ProtobufError),
     UnknownGitHubEvent(String),
     Zmq(zmq::Error),
@@ -50,7 +61,6 @@ pub enum Error {
     HabitatNet(hab_net::error::LibError),
     HeadObject(rusoto_s3::HeadObjectError),
     InvalidPackageIdent(String),
-    IronResponse(iron::response::Response),
     ListBuckets(rusoto_s3::ListBucketsError),
     ListObjects(rusoto_s3::ListObjectsError),
     MessageTypeNotFound,
@@ -59,12 +69,14 @@ pub enum Error {
     NoXFilename,
     NoFilePart,
     NulError(ffi::NulError),
+    OAuth(OAuthError),
     ObjectError(rusoto_s3::ListObjectsError),
     PackageIsAlreadyInChannel(String, String),
     PackageUpload(rusoto_s3::PutObjectError),
     PackageDownload(rusoto_s3::GetObjectError),
     PartialUpload(rusoto_s3::UploadPartError),
     RemotePackageNotFound(package::PackageIdent),
+    SerdeJson(serde_json::Error),
     UnsupportedPlatform(String),
     WriteSyncFailed,
 }
@@ -74,14 +86,20 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::Authorization(ref e) => format!("Not authorized: {}", e),
+            Error::CircularDependency(ref e) => {
+                format!("Circular dependency detected for package upload: {}", e)
+            }
             Error::Connection(ref e) => format!("{}", e),
+            Error::Github(ref e) => format!("{}", e),
+            Error::InnerError(ref e) => format!("{}", e.error()),
+            Error::PayloadError(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::HabitatCore(ref e) => format!("{}", e),
-            Error::HyperError(ref e) => format!("{}", e),
-            Error::HTTP(ref e) => format!("{}", e),
             Error::IO(ref e) => format!("{}", e),
             Error::NetError(ref e) => format!("{}", e),
+            Error::OAuth(ref e) => format!("{}", e),
             Error::Protobuf(ref e) => format!("{}", e),
             Error::UnknownGitHubEvent(ref e) => {
                 format!("Unknown or unsupported GitHub event, {}", e)
@@ -98,9 +116,6 @@ impl fmt::Display for Error {
                  origin/name (example: acme/redis)",
                 e
             ),
-            Error::IronResponse(ref e) => {
-                format!("HTTP Response {}", e.status.unwrap().to_string())
-            }
             Error::ListBuckets(ref e) => format!("{}", e),
             Error::ListObjects(ref e) => format!("{}", e),
             Error::MessageTypeNotFound => format!("Unable to find message for given type"),
@@ -128,6 +143,7 @@ impl fmt::Display for Error {
                     format!("Cannot find a release of package in any sources: {}", pkg)
                 }
             }
+            Error::SerdeJson(ref e) => format!("{}", e),
             Error::UnsupportedPlatform(ref e) => {
                 format!("Unsupported platform or architecture: {}", e)
             }
@@ -142,14 +158,18 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::Authorization(_) => "User is not authorized to perform operation",
+            Error::CircularDependency(ref err) => "Circular dependency detected for package upload",
             Error::Connection(ref err) => err.description(),
+            Error::Github(ref err) => err.description(),
+            Error::InnerError(ref err) => err.error().description(),
+            Error::PayloadError(ref err) => "Http request stream error",
             Error::Protocol(ref err) => err.description(),
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::HabitatCore(ref err) => err.description(),
-            Error::HyperError(ref err) => err.description(),
-            Error::HTTP(_) => "Non-200 HTTP response.",
             Error::IO(ref err) => err.description(),
             Error::NetError(ref err) => err.description(),
+            Error::OAuth(ref err) => err.description(),
             Error::Protobuf(ref err) => err.description(),
             Error::UnknownGitHubEvent(_) => {
                 "Unknown or unsupported GitHub event received in request"
@@ -164,7 +184,6 @@ impl error::Error for Error {
             Error::InvalidPackageIdent(_) => {
                 "Package identifiers must be in origin/name format (example: acme/redis)"
             }
-            Error::IronResponse(_) => "HTTP Response",
             Error::ListBuckets(ref err) => err.description(),
             Error::ListObjects(ref err) => err.description(),
             Error::MultipartCompletion(ref err) => err.description(),
@@ -183,6 +202,7 @@ impl error::Error for Error {
                 "An invalid path was passed - we needed a filename, and this path does not have one"
             }
             Error::MessageTypeNotFound => "Unable to find message for given type",
+            Error::SerdeJson(ref err) => err.description(),
             Error::UnsupportedPlatform(_) => "Unsupported platform or architecture",
             Error::WriteSyncFailed => {
                 "Could not write to destination; bytes written was 0 on a non-0 buffer"
@@ -191,9 +211,93 @@ impl error::Error for Error {
     }
 }
 
+impl ResponseError for Error {
+    fn error_response(&self) -> HttpResponse {
+        match self {
+            Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
+            Error::InnerError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::PayloadError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            Error::SerdeJson(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            // TODO : Tackle the others...
+            _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+}
+
+impl Into<HttpResponse> for Error {
+    fn into(self) -> HttpResponse {
+        match self {
+            Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
+            Error::InnerError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::PayloadError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            Error::SerdeJson(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            // TODO : Tackle the others...
+            _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+}
+
+fn net_err_to_http(err: &hab_net::NetError) -> StatusCode {
+    match err.code() {
+        ErrCode::TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
+        ErrCode::REMOTE_REJECTED => StatusCode::NOT_ACCEPTABLE,
+        ErrCode::ENTITY_NOT_FOUND => StatusCode::NOT_FOUND,
+        ErrCode::ENTITY_CONFLICT => StatusCode::CONFLICT,
+
+        ErrCode::ACCESS_DENIED | ErrCode::SESSION_EXPIRED => StatusCode::UNAUTHORIZED,
+
+        ErrCode::BAD_REMOTE_REPLY | ErrCode::SECRET_KEY_FETCH | ErrCode::VCS_CLONE => {
+            StatusCode::BAD_GATEWAY
+        }
+
+        ErrCode::NO_SHARD | ErrCode::SOCK | ErrCode::REMOTE_UNAVAILABLE => {
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+
+        ErrCode::BAD_TOKEN => StatusCode::FORBIDDEN,
+        ErrCode::GROUP_NOT_COMPLETE => StatusCode::UNPROCESSABLE_ENTITY,
+        ErrCode::PARTIAL_JOB_GROUP_PROMOTE => StatusCode::PARTIAL_CONTENT,
+
+        ErrCode::BUG
+        | ErrCode::POST_PROCESSOR
+        | ErrCode::BUILD
+        | ErrCode::EXPORT
+        | ErrCode::SYS
+        | ErrCode::DATA_STORE
+        | ErrCode::WORKSPACE_SETUP
+        | ErrCode::SECRET_KEY_IMPORT
+        | ErrCode::INVALID_INTEGRATIONS
+        | ErrCode::REG_CONFLICT
+        | ErrCode::REG_NOT_FOUND => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+// From handlers - these make application level error handling cleaner
+// TODO :Moving forward, leverage these instead of map_errs all over the place
+
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error {
         Error::HabitatCore(err)
+    }
+}
+
+impl From<HubError> for Error {
+    fn from(err: HubError) -> Error {
+        Error::Github(err)
+    }
+}
+
+impl From<io::IntoInnerError<io::BufWriter<fs::File>>> for Error {
+    fn from(err: io::IntoInnerError<io::BufWriter<fs::File>>) -> Error {
+        Error::InnerError(err)
     }
 }
 
@@ -203,21 +307,39 @@ impl From<hab_net::NetError> for Error {
     }
 }
 
-impl From<hyper::error::Error> for Error {
-    fn from(err: hyper::error::Error) -> Self {
-        Error::HyperError(err)
-    }
-}
-
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::IO(err)
     }
 }
 
+impl From<OAuthError> for Error {
+    fn from(err: OAuthError) -> Error {
+        Error::OAuth(err)
+    }
+}
+
+impl From<actix_web::error::PayloadError> for Error {
+    fn from(err: actix_web::error::PayloadError) -> Error {
+        Error::PayloadError(err)
+    }
+}
+
 impl From<protobuf::ProtobufError> for Error {
     fn from(err: protobuf::ProtobufError) -> Error {
         Error::Protobuf(err)
+    }
+}
+
+impl From<protocol::ProtocolError> for Error {
+    fn from(err: protocol::ProtocolError) -> Error {
+        Error::Protocol(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Error {
+        Error::SerdeJson(err)
     }
 }
 

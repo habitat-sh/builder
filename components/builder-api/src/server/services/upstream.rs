@@ -31,9 +31,7 @@ use zmq;
 
 use config::Config;
 use error::{Error, Result};
-use protocol::originsrv::{OriginPackageIdent, UpstreamRequest};
-
-use depot::server::download_package_from_upstream_depot;
+use protocol::originsrv::*;
 
 use feat;
 
@@ -297,6 +295,132 @@ impl UpstreamMgr {
                 }
             },
             _ => Ok(None),
+        }
+    }
+}
+
+//
+// Helper functions
+//
+
+// This function is called from a background thread, so we can't pass the Request object into it.
+// TBD: Move this to upstream module and refactor later
+pub fn download_package_from_upstream_depot(
+    depot: &Config,
+    depot_cli: &ApiClient,
+    s3_handler: &s3::S3Handler,
+    ident: OriginPackageIdent,
+    channel: &str,
+    target: &str,
+) -> Result<OriginPackage> {
+    let parent_path = packages_path(&depot.api.data_path);
+
+    match fs::create_dir_all(parent_path.clone()) {
+        Ok(_) => {}
+        Err(e) => {
+            error!("Unable to create archive directory, err={:?}", e);
+            return Err(Error::IO(e));
+        }
+    };
+
+    match depot_cli.fetch_package(&ident, target, &parent_path, None) {
+        Ok(mut archive) => {
+            let target_from_artifact = archive.target().map_err(Error::HabitatCore)?;
+            if !depot.api.targets.contains(&target_from_artifact) {
+                debug!(
+                    "Unsupported package platform or architecture {}.",
+                    &target_from_artifact
+                );
+                return Err(Error::UnsupportedPlatform(target_from_artifact.to_string()));
+            };
+
+            let archive_path = parent_path.join(archive.file_name());
+
+            s3_handler.upload(
+                &archive_path,
+                &PackageIdent::from(&ident),
+                &target_from_artifact,
+            )?;
+
+            let mut package_create = match OriginPackageCreate::from_archive(&mut archive) {
+                Ok(p) => p,
+                Err(e) => {
+                    info!("Error building package from archive: {:#?}", e);
+                    return Err(Error::HabitatCore(e));
+                }
+            };
+
+            if let Err(e) = process_upload_for_package_archive(
+                &ident,
+                &mut package_create,
+                &target_from_artifact,
+                BUILDER_ACCOUNT_ID,
+                BUILDER_ACCOUNT_NAME.to_string(),
+                false,
+                None,
+            ) {
+                return Err(Error::NetError(e));
+            }
+
+            // We need to ensure that the new package is in the proper channels. Right now, this function
+            // is only called when we need to fetch packages from an upstream depot, whether that's
+            // in-band with a request, such as 'hab pkg install', or in a background thread. Either
+            // way, though, its purpose is to make packages on our local depot here mirror what
+            // they look like in the upstream.
+            //
+            // Given this, we need to ensure that packages fetched from this mechanism end up in
+            // the stable channel, since that's where 'hab pkg install' tries to install them from.
+            // It'd be a pretty jarring experience if someone did a 'hab pkg install' for
+            // core/tree, and it succeeded the first time when it fetched it from the upstream
+            // depot, and failed the second time from the local depot because it couldn't be found
+            // in the stable channel.
+            //
+            // Creating and promoting to channels without the use of the Request struct is messy and will
+            // require much refactoring of code, so at the moment, we're going to punt on the hard problem
+            // here and just check to see if the channel is stable, and if so, do the right thing. If it's
+            // not stable, we do nothing (though the odds of this happening are vanishingly small).
+            if channel == "stable" {
+                let mut conn = RouteBroker::connect().unwrap();
+                let mut channel_get = OriginChannelGet::new();
+                channel_get.set_origin_name(ident.get_origin().to_string());
+                channel_get.set_name("stable".to_string());
+
+                let origin_channel = conn
+                    .route::<OriginChannelGet, OriginChannel>(&channel_get)
+                    .map_err(Error::NetError)?;
+
+                let mut package_get = OriginPackageGet::new();
+                package_get.set_ident(ident.clone());
+                package_get.set_visibilities(all_visibilities());
+
+                let origin_package = conn
+                    .route::<OriginPackageGet, OriginPackage>(&package_get)
+                    .map_err(Error::NetError)?;
+
+                let mut promote = OriginPackagePromote::new();
+                promote.set_channel_id(origin_channel.get_id());
+                promote.set_package_id(origin_package.get_id());
+                promote.set_ident(ident);
+
+                match conn.route::<OriginPackagePromote, NetOk>(&promote) {
+                    Ok(_) => Ok(origin_package),
+                    Err(e) => Err(Error::NetError(e)),
+                }
+            } else {
+                warn!(
+                        "Installing packages from an upstream depot and the channel wasn't stable. Instead, it was {}",
+                        channel
+                    );
+
+                match OriginPackage::from_archive(&mut archive) {
+                    Ok(p) => Ok(p),
+                    Err(e) => Err(Error::HabitatCore(e)),
+                }
+            }
+        }
+        Err(e) => {
+            warn!("Failed to download {}. e = {:?}", ident, e);
+            Err(Error::DepotClientError(e))
         }
     }
 }

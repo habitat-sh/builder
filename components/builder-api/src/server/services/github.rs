@@ -21,16 +21,12 @@ use constant_time_eq::constant_time_eq;
 use github_api_client::{AppToken, GitHubClient};
 use hab_core::package::Plan;
 use hex;
-use iron::prelude::*;
-use iron::status;
 use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::sign::Signer;
-use persistent;
 use protocol::jobsrv::{JobGroup, JobGroupSpec, JobGroupTrigger};
 use protocol::originsrv::{OriginProject, OriginProjectGet};
 use protocol::sessionsrv::{Account, AccountGet};
-use router::Router;
 use serde_json;
 
 use error::Error;

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO: Move integrations into origins...
+
+/*
+
 use std::collections::HashMap;
 
 use bldr_core;
@@ -224,3 +228,5 @@ pub fn get_origin_integration(req: &mut Request) -> IronResult<Response> {
         Err(err) => Ok(render_net_error(&err)),
     }
 }
+
+*/
