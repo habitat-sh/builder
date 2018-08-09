@@ -23,8 +23,10 @@ use hab_core;
 use hab_core::package::{self, Identifiable};
 use hab_net;
 use hab_net::conn;
-//use hyper;
-//use iron;
+
+use actix_web::error as actix_err;
+use actix_web::http;
+use actix_web::HttpResponse;
 use protobuf;
 use protocol;
 use rusoto_s3;
@@ -187,6 +189,16 @@ impl error::Error for Error {
             Error::WriteSyncFailed => {
                 "Could not write to destination; bytes written was 0 on a non-0 buffer"
             }
+        }
+    }
+}
+
+impl actix_err::ResponseError for Error {
+    fn error_response(&self) -> HttpResponse {
+        match *self {
+            Error::InvalidPackageIdent(_) => HttpResponse::new(http::StatusCode::BAD_REQUEST),
+            Error::NetError(_) => HttpResponse::new(http::StatusCode::GATEWAY_TIMEOUT),
+            _ => HttpResponse::new(http::StatusCode::INTERNAL_SERVER_ERROR),
         }
     }
 }

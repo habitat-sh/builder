@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// mod handlers;
+mod error;
 mod services;
 
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ use std::thread;
 
 //use router::Router;
 //use staticfile::Static;
-use actix_web::error;
+use actix_web::error as actix_err;
 use actix_web::http;
 use actix_web::middleware::{Middleware, Response, Started};
 use actix_web::{server, App, HttpRequest, HttpResponse, Result};
