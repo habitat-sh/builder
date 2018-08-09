@@ -26,14 +26,16 @@
 //! ID and a secret access key.
 use std::fmt::Display;
 use std::fs::File;
+use std::io::Write;
 use std::io::{BufRead, BufReader, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use super::metrics::Counter;
 use bldr_core::metrics::CounterMetric;
-use futures::{Future, Stream};
 use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
-use metrics::Counter;
+
+use futures::{Future, Stream};
 use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
 use rusoto_s3::{
     CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart, CreateBucketRequest,
@@ -42,11 +44,8 @@ use rusoto_s3::{
 };
 use time::PreciseTime;
 
+use super::super::error::{Error, Result};
 use config::{S3Backend, S3Cfg};
-use Config;
-use DepotUtil;
-
-use error::{Error, Result};
 
 // This const is equal to 6MB which is slightly above
 // the minimum limit for a multipart upload request
@@ -145,7 +144,7 @@ impl S3Handler {
     ) -> Result<()> {
         Counter::UploadRequests.increment();
         let key = s3_key(ident, target)?;
-        let file = File::open(hart_path)?;
+        let file = File::open(hart_path).map_err(Error::IO)?;
 
         info!("S3Handler::upload request started for s3_key: {}", key);
 
@@ -183,7 +182,7 @@ impl S3Handler {
         };
 
         let file = body.expect("Downloaded pkg archive empty!").concat2();
-        match Config::write_archive(&loc, &file.wait().unwrap()) {
+        match write_archive(&loc, &file.wait().unwrap()) {
             Ok(result) => return Ok(result),
             Err(e) => {
                 warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
@@ -250,7 +249,7 @@ impl S3Handler {
                 loop {
                     let mut length;
                     {
-                        let buffer = reader.fill_buf()?;
+                        let buffer = reader.fill_buf().map_err(Error::IO)?;
                         length = buffer.len();
                         if length < MINLIMIT {
                             should_break = true;
@@ -316,7 +315,9 @@ impl S3Handler {
 fn s3_key(ident: &PackageIdent, target: &PackageTarget) -> Result<String> {
     // Calling this method first ensures that the ident is fully qualified and the correct errors
     // are returned in case of failure
-    let hart_name = ident.archive_name_with_target(target)?;
+    let hart_name = ident
+        .archive_name_with_target(target)
+        .map_err(Error::HabitatCore)?;
 
     Ok(format!(
         "{}/{}/{}",
@@ -324,6 +325,24 @@ fn s3_key(ident: &PackageIdent, target: &PackageTarget) -> Result<String> {
         target.iter().collect::<Vec<&str>>().join("/"),
         hart_name
     ))
+}
+
+fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive> {
+    let mut file = match File::create(&filename) {
+        Ok(f) => f,
+        Err(e) => {
+            warn!(
+                "Unable to create archive file for {:?}, err={:?}",
+                filename, e
+            );
+            return Err(Error::IO(e));
+        }
+    };
+    if let Err(e) = file.write_all(body) {
+        warn!("Unable to write archive for {:?}, err={:?}", filename, e);
+        return Err(Error::IO(e));
+    }
+    Ok(PackageArchive::new(filename))
 }
 
 #[cfg(test)]

@@ -26,6 +26,7 @@ extern crate env_logger;
 extern crate failure;
 #[macro_use]
 extern crate features;
+extern crate futures;
 extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
@@ -38,6 +39,7 @@ extern crate rusoto_core as rusoto;
 extern crate rusoto_s3;
 extern crate segment_api_client;
 extern crate serde;
+extern crate time;
 extern crate typemap;
 #[macro_use]
 extern crate serde_derive;
