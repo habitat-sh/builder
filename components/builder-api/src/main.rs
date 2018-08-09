@@ -18,17 +18,24 @@
 extern crate actix_web;
 #[macro_use]
 extern crate bitflags;
+extern crate builder_core as bldr_core;
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
 #[macro_use]
+extern crate failure;
+#[macro_use]
 extern crate features;
 extern crate github_api_client;
+extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
 extern crate habitat_net as hab_net;
 #[macro_use]
 extern crate log;
 extern crate num_cpus;
+extern crate protobuf;
+extern crate rusoto_core as rusoto;
+extern crate rusoto_s3;
 extern crate segment_api_client;
 extern crate serde;
 extern crate typemap;
