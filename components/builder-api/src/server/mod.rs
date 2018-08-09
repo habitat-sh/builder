@@ -17,34 +17,29 @@ pub mod services;
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
-//use router::Router;
-//use staticfile::Static;
 use actix_web::error as actix_err;
-use actix_web::http;
+use actix_web::http::{self, StatusCode};
 use actix_web::middleware::{Middleware, Response, Started};
 use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 use bitflags;
 
-//use backend::{s3, s3::S3Cli};
 use github_api_client::GitHubClient;
+use hab_net::conn::RouteClient;
 use hab_net::privilege::FeatureFlags;
 use hab_net::socket;
-//use middleware::{Authenticated, Cors, GitHubCli, OAuthCli, SegmentCli, XHandler, XRouteClient};
+
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
-//use upstream::{UpstreamCli, UpstreamClient, UpstreamMgr};
 
-//use self::handlers::*;
+use self::error::Error;
 use self::services::route_broker::RouteBroker;
-use super::config::GatewayCfg;
-//use super::depot;
-//use super::error::{Error, Result};
-//use super::github;
-use config::Config;
+use self::services::s3::S3Handler;
+// TODO: use services::upstream::{UpstreamClient, UpstreamMgr};
+
+use config::{Config, GatewayCfg};
 
 features! {
     pub mod feat {
@@ -55,61 +50,19 @@ features! {
 }
 
 // Application state
-struct AppState {
+pub struct AppState {
     config: Config,
+    packages: S3Handler,
+    router: RouteClient,
+    github: GitHubClient,
+    oauth: OAuth2Client,
+    segment: SegmentClient,
+    // TODO: upstream: UpstreamClient
 }
 
-struct ApiSrv;
+/*
+    TODO: Migrate these routes to the new framework...
 
-impl ApiSrv {
-    /*
-    fn add_middleware(config: Arc<Config>, chain: &mut iron::Chain) {
-        chain.link(persistent::Read::<Config>::both(config.clone()));
-
-        chain.link(persistent::Read::<OAuthCli>::both(OAuth2Client::new(
-            config.oauth.clone(),
-        )));
-
-        chain.link(persistent::Read::<GitHubCli>::both(GitHubClient::new(
-            config.github.clone(),
-        )));
-
-        chain.link(persistent::Read::<SegmentCli>::both(SegmentClient::new(
-            config.segment.clone(),
-        )));
-
-        chain.link(persistent::Read::<S3Cli>::both(s3::S3Handler::new(
-            config.s3.to_owned(),
-        )));
-
-        chain.link(persistent::Read::<UpstreamCli>::both(
-            UpstreamClient::default(),
-        ));
-
-        chain.link_before(XRouteClient);
-        chain.link_after(Cors);
-    }
-*/
-
-    /*
-    fn mount(config: Arc<Config>, chain: iron::Chain) -> Mount {
-        let mut mount = Mount::new();
-
-        if let Some(ref path) = config.ui.root {
-            debug!("Mounting UI at filepath {}", path);
-            mount.mount("/", Static::new(path));
-        }
-        mount.mount("/v1", chain);
-
-        // TBD: Deprecate legacy depot API path
-        let mut depot_chain = iron::Chain::new(depot::server::router(config.clone()));
-        Self::add_middleware(config, &mut depot_chain);
-        mount.mount("/v1/depot", depot_chain);
-        mount
-    }
-*/
-
-    /*
     fn router(config: Arc<Config>) -> Router {
         let basic = Authenticated::new(config.api.key_path.clone());
         let worker =
@@ -259,14 +212,16 @@ impl ApiSrv {
             "admin_account",
         );
 
+        // TODO : Don't forget about the depot routes :)
+        // Mount these in both the "v1" and "v1/depot" namespace..
+
         depot::server::add_routes(&mut r, basic, worker);
 
         r
     }
 */
-}
 
-fn enable_features_from_config(config: &Config) {
+fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![
         ("LIST", feat::List),
         ("JOBSRV", feat::Jobsrv),
@@ -290,50 +245,59 @@ fn enable_features_from_config(config: &Config) {
     }
 }
 
-fn hello(req: &HttpRequest<AppState>) -> String {
-    "hello world!".to_string()
+/// Endpoint for determining availability of builder-api components.
+///
+/// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
+pub fn status(_req: &HttpRequest<AppState>) -> HttpResponse {
+    HttpResponse::new(StatusCode::OK)
 }
 
 pub fn run(config: Config) -> Result<()> {
-    enable_features_from_config(&config);
+    enable_features(&config);
 
-    //let cfg = Arc::new(config);
-
-    server::new(move || {
-        App::with_state(AppState {
-            config: config.clone(),
-        }).prefix("/v1")
-            .resource("/hello", |r| r.f(hello))
-    }).bind("127.0.0.1:9636")
-        .unwrap()
-        .run();
-
-    /*
-    let mut chain = Chain::new(ApiSrv::router(cfg.clone()));
-    ApiSrv::add_middleware(cfg.clone(), &mut chain);
-    chain.link_before(XRouteClient);
-    chain.link_after(Cors);
-
-    let mount = ApiSrv::mount(cfg.clone(), chain);
-    let mut server = iron::Iron::new(mount);
-    server.threads = cfg.handler_count();
-    let http_listen_addr = (cfg.listen_addr().clone(), cfg.listen_port());
-
+    let c = config.clone();
     thread::Builder::new()
-        .name("http-handler".to_string())
-        .spawn(move || server.http(http_listen_addr))
+        .name("route-broker".to_string())
+        .spawn(move || {
+            RouteBroker::start(socket::srv_ident(), c.route_addrs())
+                .map_err(Error::Connection)
+                .unwrap();
+        })
         .unwrap();
+
+    // TODO: UpstreamMgr::start(&cfg, s3::S3Handler::new(cfg.s3.to_owned()))?;
+    // TODO: chain.link_after(Cors);
+
+    /* TODO:
+        if let Some(ref path) = config.ui.root {
+            debug!("Mounting UI at filepath {}", path);
+            mount.mount("/", Static::new(path));
+        }
+    */
+
+    let cfg = Arc::new(config.clone());
+
     info!(
-        "APISrv listening on {}:{}",
+        "builder-api listening on {}:{}",
         cfg.listen_addr(),
         cfg.listen_port()
     );
 
-    UpstreamMgr::start(&cfg, s3::S3Handler::new(cfg.s3.to_owned()))?;
-    RouteBroker::start(socket::srv_ident(), cfg.route_addrs()).map_err(Error::Connection)?;
-*/
-
-    info!("builder-api is ready to go.");
+    server::new(move || {
+        App::with_state(AppState {
+            config: config.clone(),
+            packages: S3Handler::new(config.s3.clone()),
+            router: RouteBroker::connect().unwrap(),
+            github: GitHubClient::new(config.github.clone()),
+            oauth: OAuth2Client::new(config.oauth.clone()),
+            segment: SegmentClient::new(config.segment.clone()),
+            // TODO: upstream: UpstreamClient::default()
+        }).prefix("/v1")
+            .resource("/status", |r| r.f(status))
+    }).workers(cfg.handler_count())
+        .bind(cfg.http.clone())
+        .unwrap()
+        .run();
 
     Ok(())
 }
