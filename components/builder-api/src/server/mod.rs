@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod error;
-mod services;
+pub mod error;
+pub mod services;
 
 use std::collections::HashMap;
 use std::iter::FromIterator;

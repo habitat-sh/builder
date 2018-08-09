@@ -755,6 +755,19 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+// Return a formatted string representing the filename of an archive for the given package
+// identifier pieces.
+fn archive_name(ident: &PackageIdent, target: &PackageTarget) -> PathBuf {
+    PathBuf::from(ident.archive_name_with_target(target).expect(&format!(
+        "Package ident should be fully qualified, ident={}",
+        &ident
+    )))
+}
+
+fn packages_path(data_path: &PathBuf) -> PathBuf {
+    Path::new(data_path).join("pkgs")
+}
+
 fn upload_package(req: &mut Request) -> IronResult<Response> {
     let ident = ident_from_req(req);
     let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
@@ -788,7 +801,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 
     // Find the path to folder where archive should be created, and
     // create the folder if necessary
-    let parent_path = depot.packages_path();
+    let parent_path = packages_path(&depot.api.data_path);
 
     match fs::create_dir_all(parent_path.clone()) {
         Ok(_) => {}
@@ -799,7 +812,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
     };
 
     // Create a temp file at the archive location
-    let dir = tempdir_in(depot.packages_path()).expect("Unable to create a tempdir!");
+    let dir = tempdir_in(packages_path(&depot.api.data_path)).expect("Unable to create a tempdir!");
     let file_path = dir.path();
     let temp_name = format!("{}.tmp", Uuid::new_v4());
     let temp_path = parent_path.join(file_path).join(temp_name);
@@ -1269,10 +1282,9 @@ fn download_package(req: &mut Request) -> IronResult<Response> {
 
     match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
         Ok(package) => {
-            let dir = tempdir_in(depot.packages_path()).expect("Unable to create a tempdir!");
-            let file_path = dir
-                .path()
-                .join(Config::archive_name(&(&package).into(), &target));
+            let dir = tempdir_in(packages_path(&depot.api.data_path))
+                .expect("Unable to create a tempdir!");
+            let file_path = dir.path().join(archive_name(&(&package).into(), &target));
             let temp_ident = ident.to_owned().into();
             match s3handler.download(&file_path, &temp_ident, &target) {
                 Ok(archive) => download_response_for_archive(archive, dir),
@@ -2468,7 +2480,7 @@ pub fn download_package_from_upstream_depot(
     channel: &str,
     target: &str,
 ) -> Result<OriginPackage> {
-    let parent_path = depot.packages_path();
+    let parent_path = packages_path(&depot.api.data_path);
 
     match fs::create_dir_all(parent_path.clone()) {
         Ok(_) => {}

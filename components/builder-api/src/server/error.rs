@@ -38,8 +38,6 @@ pub enum Error {
     Protocol(protocol::ProtocolError),
     BadPort(String),
     HabitatCore(hab_core::Error),
-    //    HyperError(hyper::error::Error),
-    //HTTP(hyper::status::StatusCode),
     IO(io::Error),
     NetError(hab_net::NetError),
     Protobuf(protobuf::ProtobufError),
@@ -52,7 +50,6 @@ pub enum Error {
     HabitatNet(hab_net::error::LibError),
     HeadObject(rusoto_s3::HeadObjectError),
     InvalidPackageIdent(String),
-    //IronResponse(iron::response::Response),
     ListBuckets(rusoto_s3::ListBucketsError),
     ListObjects(rusoto_s3::ListObjectsError),
     MessageTypeNotFound,
@@ -80,8 +77,6 @@ impl fmt::Display for Error {
             Error::Protocol(ref e) => format!("{}", e),
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::HabitatCore(ref e) => format!("{}", e),
-            //            Error::HyperError(ref e) => format!("{}", e),
-            //            Error::HTTP(ref e) => format!("{}", e),
             Error::IO(ref e) => format!("{}", e),
             Error::NetError(ref e) => format!("{}", e),
             Error::Protobuf(ref e) => format!("{}", e),
@@ -100,9 +95,6 @@ impl fmt::Display for Error {
                  origin/name (example: acme/redis)",
                 e
             ),
-            //            Error::IronResponse(ref e) => {
-            //     format!("HTTP Response {}", e.status.unwrap().to_string())
-            // }
             Error::ListBuckets(ref e) => format!("{}", e),
             Error::ListObjects(ref e) => format!("{}", e),
             Error::MessageTypeNotFound => format!("Unable to find message for given type"),
@@ -148,8 +140,6 @@ impl error::Error for Error {
             Error::Protocol(ref err) => err.description(),
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::HabitatCore(ref err) => err.description(),
-            //            Error::HyperError(ref err) => err.description(),
-            //            Error::HTTP(_) => "Non-200 HTTP response.",
             Error::IO(ref err) => err.description(),
             Error::NetError(ref err) => err.description(),
             Error::Protobuf(ref err) => err.description(),
@@ -166,7 +156,6 @@ impl error::Error for Error {
             Error::InvalidPackageIdent(_) => {
                 "Package identifiers must be in origin/name format (example: acme/redis)"
             }
-            //            Error::IronResponse(_) => "HTTP Response",
             Error::ListBuckets(ref err) => err.description(),
             Error::ListObjects(ref err) => err.description(),
             Error::MultipartCompletion(ref err) => err.description(),
@@ -203,6 +192,8 @@ impl actix_err::ResponseError for Error {
     }
 }
 
+/* TODO: Convert to use map_err, not From 
+
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error {
         Error::HabitatCore(err)
@@ -214,12 +205,6 @@ impl From<hab_net::NetError> for Error {
         Error::NetError(err)
     }
 }
-
-// impl From<hyper::error::Error> for Error {
-//     fn from(err: hyper::error::Error) -> Self {
-//         Error::HyperError(err)
-//     }
-// }
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
@@ -238,3 +223,5 @@ impl From<zmq::Error> for Error {
         Error::Zmq(err)
     }
 }
+
+*/
