@@ -12,33 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use base64;
-use bldr_core;
-use github_api_client::GitHubClient;
-use hab_core::env;
-use hab_net::conn::RouteClient;
-use hab_net::privilege::FeatureFlags;
-use hab_net::{ErrCode, NetError, NetResult};
-use iron::headers::{self, Authorization, Bearer};
-use iron::method::Method;
-use iron::middleware::{AfterMiddleware, AroundMiddleware, BeforeMiddleware, Handler};
-use iron::prelude::*;
-use iron::status::Status;
-use iron::typemap::Key;
-use oauth_client::client::OAuth2Client;
-use oauth_client::types::OAuth2User;
-use protobuf;
-use protocol::message;
-use protocol::net::NetOk;
-use protocol::sessionsrv::*;
-use protocol::Routable;
-use segment_api_client::SegmentClient;
-use serde_json;
-use std::path::PathBuf;
-use unicase::UniCase;
+use actix_web::middleware::{Middleware, Response, Started};
+use actix_web::{App, HttpRequest, HttpResponse, Result};
 
-use conn::RouteBroker;
-use net_err::net_err_to_http;
+use protobuf;
+
+use hab_net::conn::RouteClient;
+use hab_net::NetResult;
+use protocol::Routable;
+
+use super::super::services::route_broker::RouteBroker;
+use super::super::AppState;
+
+// Router client
+pub struct XRouteClient;
+
+impl<S> Middleware<S> for XRouteClient {
+    fn start(&self, req: &HttpRequest<S>) -> Result<Started> {
+        let conn = RouteBroker::connect().unwrap();
+        req.extensions_mut().insert::<RouteClient>(conn);
+        Ok(Started::Done)
+    }
+}
+
+pub fn route_message<M, R>(req: &HttpRequest<AppState>, msg: &M) -> NetResult<R>
+where
+    M: Routable,
+    R: protobuf::Message,
+{
+    req.extensions_mut()
+        .get_mut::<RouteClient>()
+        .expect("no XRouteClient extension in request")
+        .route::<M, R>(msg)
+}
+
+/* OLD 
 
 pub fn route_message<M, R>(req: &mut Request, msg: &M) -> NetResult<R>
 where
@@ -386,3 +394,5 @@ pub fn session_create_short_circuit(req: &mut Request, token: &str) -> IronResul
         }
     }
 }
+
+*/
