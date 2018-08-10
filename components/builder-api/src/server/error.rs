@@ -21,17 +21,19 @@ use std::result;
 use bldr_core;
 use hab_core;
 use hab_core::package::{self, Identifiable};
-use hab_net;
 use hab_net::conn;
+use hab_net::{self, ErrCode};
 
 use actix_web::error as actix_err;
-use actix_web::http;
+use actix_web::http::{self, StatusCode};
 use actix_web::HttpResponse;
 use protobuf;
 use protocol;
 use rusoto_s3;
 use zmq;
 
+// TODO: We've probably gone overboard with the number of errors we
+// are wrapping - review whether we need more than one error per module
 #[derive(Debug)]
 pub enum Error {
     Connection(conn::ConnErr),
@@ -182,13 +184,48 @@ impl error::Error for Error {
     }
 }
 
-impl actix_err::ResponseError for Error {
-    fn error_response(&self) -> HttpResponse {
-        match *self {
-            Error::InvalidPackageIdent(_) => HttpResponse::new(http::StatusCode::BAD_REQUEST),
-            Error::NetError(_) => HttpResponse::new(http::StatusCode::GATEWAY_TIMEOUT),
-            _ => HttpResponse::new(http::StatusCode::INTERNAL_SERVER_ERROR),
+impl Into<HttpResponse> for Error {
+    fn into(self) -> HttpResponse {
+        match self {
+            Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            // TODO : Tackle the others...
+            _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         }
+    }
+}
+
+fn net_err_to_http(err: &hab_net::NetError) -> StatusCode {
+    match err.code() {
+        ErrCode::TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
+        ErrCode::REMOTE_REJECTED => StatusCode::NOT_ACCEPTABLE,
+        ErrCode::ENTITY_NOT_FOUND => StatusCode::NOT_FOUND,
+        ErrCode::ENTITY_CONFLICT => StatusCode::CONFLICT,
+
+        ErrCode::ACCESS_DENIED | ErrCode::SESSION_EXPIRED => StatusCode::UNAUTHORIZED,
+
+        ErrCode::BAD_REMOTE_REPLY | ErrCode::SECRET_KEY_FETCH | ErrCode::VCS_CLONE => {
+            StatusCode::BAD_GATEWAY
+        }
+
+        ErrCode::NO_SHARD | ErrCode::SOCK | ErrCode::REMOTE_UNAVAILABLE => {
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+
+        ErrCode::BAD_TOKEN => StatusCode::FORBIDDEN,
+        ErrCode::GROUP_NOT_COMPLETE => StatusCode::UNPROCESSABLE_ENTITY,
+        ErrCode::PARTIAL_JOB_GROUP_PROMOTE => StatusCode::PARTIAL_CONTENT,
+
+        ErrCode::BUG
+        | ErrCode::POST_PROCESSOR
+        | ErrCode::BUILD
+        | ErrCode::EXPORT
+        | ErrCode::SYS
+        | ErrCode::DATA_STORE
+        | ErrCode::WORKSPACE_SETUP
+        | ErrCode::SECRET_KEY_IMPORT
+        | ErrCode::INVALID_INTEGRATIONS
+        | ErrCode::REG_CONFLICT
+        | ErrCode::REG_NOT_FOUND => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
