@@ -52,6 +52,11 @@ variable "release_channel" {
   default     = "stable"
 }
 
+variable "sup_release_channel" {
+  description = "Release channel in Builder to receive Supervisor package updates from"
+  default     = "builder-live"
+}
+
 variable "log_level" {
   description = "Logging level for the Habitat Supervisor"
   default     = "info"
