@@ -14,14 +14,13 @@
 
 use actix_web::http;
 use actix_web::FromRequest;
-use actix_web::ResponseError;
 use actix_web::{HttpRequest, HttpResponse, Path};
 
 use protocol::jobsrv::{JobGraphPackageStats, JobGraphPackageStatsGet};
 
-use super::super::error::Error;
-use super::super::framework::middleware::route_message;
-use super::super::AppState;
+use server::error::Error;
+use server::framework::middleware::route_message;
+use server::AppState;
 
 pub fn package_stats(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
@@ -34,7 +33,7 @@ pub fn package_stats(req: &HttpRequest<AppState>) -> HttpResponse {
         Ok(stats) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, "private, no-cache, no-store")
             .json(stats),
-        Err(err) => Error::NetError(err).error_response(),
+        Err(err) => Error::NetError(err).into(),
     }
 }
 

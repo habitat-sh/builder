@@ -19,6 +19,7 @@ extern crate actix_web;
 #[macro_use]
 extern crate bitflags;
 extern crate builder_core as bldr_core;
+extern crate habitat_builder_api as bldr_api;
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
