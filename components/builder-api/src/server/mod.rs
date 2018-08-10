@@ -13,6 +13,8 @@
 // limitations under the License.
 
 pub mod error;
+pub mod framework;
+pub mod resources;
 pub mod services;
 
 use std::collections::HashMap;
@@ -35,9 +37,12 @@ use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
 use self::error::Error;
+use self::framework::middleware::XRouteClient;
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
 // TODO: use services::upstream::{UpstreamClient, UpstreamMgr};
+
+use self::resources::pkgs::*;
 
 use config::{Config, GatewayCfg};
 
@@ -292,8 +297,10 @@ pub fn run(config: Config) -> Result<()> {
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
             // TODO: upstream: UpstreamClient::default()
-        }).prefix("/v1")
+        }).middleware(XRouteClient)
+            .prefix("/v1")
             .resource("/status", |r| r.f(status))
+            .resource("/pkgs/origins/{origin}/stats", |r| r.f(package_stats))
     }).workers(cfg.handler_count())
         .bind(cfg.http.clone())
         .unwrap()
