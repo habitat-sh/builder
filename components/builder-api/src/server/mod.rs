@@ -22,15 +22,13 @@ use std::iter::FromIterator;
 use std::sync::Arc;
 use std::thread;
 
-use actix_web::error as actix_err;
-use actix_web::http::{self, StatusCode};
-use actix_web::middleware::{Middleware, Response, Started};
+use actix_web::http::StatusCode;
+use actix_web::middleware::Logger;
 use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 use bitflags;
 
 use github_api_client::GitHubClient;
 use hab_net::conn::RouteClient;
-use hab_net::privilege::FeatureFlags;
 use hab_net::socket;
 
 use oauth_client::client::OAuth2Client;
@@ -42,6 +40,7 @@ use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
 // TODO: use services::upstream::{UpstreamClient, UpstreamMgr};
 
+use self::resources::authenticate::*;
 use self::resources::pkgs::*;
 
 use config::{Config, GatewayCfg};
@@ -297,9 +296,11 @@ pub fn run(config: Config) -> Result<()> {
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
             // TODO: upstream: UpstreamClient::default()
-        }).middleware(XRouteClient)
+        }).middleware(Logger::default())
+            .middleware(XRouteClient)
             .prefix("/v1")
             .resource("/status", |r| r.f(status))
+            .resource("/authenticate/{code}", |r| r.f(authenticate))
             .resource("/pkgs/origins/{origin}/stats", |r| r.f(package_stats))
     }).workers(cfg.handler_count())
         .bind(cfg.http.clone())
