@@ -18,11 +18,13 @@ use actix_web::{App, HttpRequest, HttpResponse, Result};
 use protobuf;
 
 use hab_net::conn::RouteClient;
-use hab_net::NetResult;
+use hab_net::{ErrCode, NetError, NetResult};
+use oauth_client::types::OAuth2User;
+use protocol::sessionsrv::{OAuthProvider, Session, SessionCreate, SessionType};
 use protocol::Routable;
 
-use super::super::services::route_broker::RouteBroker;
-use super::super::AppState;
+use server::services::route_broker::RouteBroker;
+use server::AppState;
 
 // Router client
 pub struct XRouteClient;
@@ -301,18 +303,14 @@ pub fn session_validate(
         }
     }
 }
+*/
 
 pub fn session_create_oauth(
-    req: &mut Request,
+    req: &HttpRequest<AppState>,
     token: &str,
     user: &OAuth2User,
     provider: &str,
-) -> IronResult<Session> {
-    let conn = req
-        .extensions
-        .get_mut::<XRouteClient>()
-        .expect("no XRouteClient extension in request");
-
+) -> NetResult<Session> {
     let mut request = SessionCreate::new();
     request.set_session_type(SessionType::User);
     request.set_token(token.to_owned());
@@ -326,8 +324,7 @@ pub fn session_create_oauth(
                 "Error parsing oauth provider: provider={}, err={:?}",
                 provider, e
             );
-            let err = NetError::new(ErrCode::BUG, "session_create_oauth:1");
-            return Err(IronError::new(err, Status::Forbidden));
+            return Err(NetError::new(ErrCode::BUG, "session_create_oauth:1"));
         }
     }
 
@@ -335,21 +332,13 @@ pub fn session_create_oauth(
         request.set_email(email.clone());
     }
 
-    match conn.route::<SessionCreate, Session>(&request) {
-        Ok(session) => Ok(session),
-        Err(err) => {
-            let body = itry!(serde_json::to_string(&err));
-            let status = net_err_to_http(err.get_code());
-            Err(IronError::new(err, (body, status)))
-        }
-    }
+    route_message::<SessionCreate, Session>(req, &request)
 }
 
-pub fn session_create_short_circuit(req: &mut Request, token: &str) -> IronResult<Session> {
-    let conn = req
-        .extensions
-        .get_mut::<XRouteClient>()
-        .expect("no XRouteClient extension in request");
+pub fn session_create_short_circuit(
+    req: &HttpRequest<AppState>,
+    token: &str,
+) -> NetResult<Session> {
     let request = match token.as_ref() {
         "bobo" => {
             let mut request = SessionCreate::new();
@@ -379,20 +368,12 @@ pub fn session_create_short_circuit(req: &mut Request, token: &str) -> IronResul
         }
         user => {
             error!("Unexpected short circuit token {:?}", user);
-            let err = NetError::new(ErrCode::BUG, "net:session-short-circuit:unknown-token");
-            let status = net_err_to_http(err.get_code());
-            let body = itry!(serde_json::to_string(&err));
-            return Err(IronError::new(err, (body, status)));
+            return Err(NetError::new(
+                ErrCode::BUG,
+                "net:session-short-circuit:unknown-token",
+            ));
         }
     };
-    match conn.route::<SessionCreate, Session>(&request) {
-        Ok(session) => return Ok(session),
-        Err(err) => {
-            let body = itry!(serde_json::to_string(&err));
-            let status = net_err_to_http(err.get_code());
-            return Err(IronError::new(err, (body, status)));
-        }
-    }
-}
 
-*/
+    route_message::<SessionCreate, Session>(req, &request)
+}
