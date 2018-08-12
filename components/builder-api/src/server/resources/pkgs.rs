@@ -29,7 +29,7 @@ pub fn package_stats(req: &HttpRequest<AppState>) -> HttpResponse {
     let mut request = JobGraphPackageStatsGet::new();
     request.set_origin(origin);
 
-    match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request) {
+    match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats, AppState>(req, &request) {
         Ok(stats) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, "private, no-cache, no-store")
             .json(stats),
