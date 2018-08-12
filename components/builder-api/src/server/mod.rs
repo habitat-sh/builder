@@ -57,7 +57,6 @@ features! {
 pub struct AppState {
     config: Config,
     packages: S3Handler,
-    router: RouteClient,
     github: GitHubClient,
     oauth: OAuth2Client,
     segment: SegmentClient,
@@ -272,7 +271,7 @@ pub fn run(config: Config) -> Result<()> {
     // TODO: UpstreamMgr::start(&cfg, s3::S3Handler::new(cfg.s3.to_owned()))?;
     // TODO: chain.link_after(Cors);
 
-    /* TODO:
+    /* TODO ? Do we need this ?:
         if let Some(ref path) = config.ui.root {
             debug!("Mounting UI at filepath {}", path);
             mount.mount("/", Static::new(path));
@@ -291,7 +290,6 @@ pub fn run(config: Config) -> Result<()> {
         App::with_state(AppState {
             config: config.clone(),
             packages: S3Handler::new(config.s3.clone()),
-            router: RouteBroker::connect().unwrap(),
             github: GitHubClient::new(config.github.clone()),
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),

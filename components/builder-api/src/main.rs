@@ -16,6 +16,7 @@
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate actix_web;
+extern crate base64;
 #[macro_use]
 extern crate bitflags;
 extern crate builder_core as bldr_core;

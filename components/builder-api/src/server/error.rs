@@ -24,9 +24,8 @@ use hab_core::package::{self, Identifiable};
 use hab_net::conn;
 use hab_net::{self, ErrCode};
 
-use actix_web::error as actix_err;
-use actix_web::http::{self, StatusCode};
-use actix_web::HttpResponse;
+use actix_web::http::StatusCode;
+use actix_web::{HttpResponse, ResponseError};
 use protobuf;
 use protocol;
 use rusoto_s3;
@@ -184,6 +183,16 @@ impl error::Error for Error {
     }
 }
 
+impl ResponseError for Error {
+    fn error_response(&self) -> HttpResponse {
+        match self {
+            Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            // TODO : Tackle the others...
+            _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+}
+
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {
@@ -229,7 +238,8 @@ fn net_err_to_http(err: &hab_net::NetError) -> StatusCode {
     }
 }
 
-/* TODO: Convert to use map_err, not From 
+// From handlers - these make application level error handling cleaner
+// TODO :Moving forward, leverage these instead of map_errs all over the place
 
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error {
@@ -260,5 +270,3 @@ impl From<zmq::Error> for Error {
         Error::Zmq(err)
     }
 }
-
-*/
