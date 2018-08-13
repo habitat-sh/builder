@@ -16,7 +16,7 @@ use actix_web::http;
 use actix_web::FromRequest;
 use actix_web::{HttpRequest, HttpResponse, Path};
 
-use protocol::jobsrv::{JobGraphPackageStats, JobGraphPackageStatsGet};
+use protocol::jobsrv::*;
 
 use server::error::Error;
 use server::framework::middleware::route_message;

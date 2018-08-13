@@ -29,7 +29,7 @@ EOT
 
 mkdir -p /hab/svc/builder-api
 cat <<EOT > /hab/svc/builder-api/user.toml
-log_level = "debug"
+log_level = "debug,tokio_core=error,tokio_reactor=error"
 
 [oauth]
 provider = "$OAUTH_PROVIDER"
