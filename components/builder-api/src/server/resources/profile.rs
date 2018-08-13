@@ -14,6 +14,8 @@
 
 //! A collection of handlers for the HTTP server's router
 
+/*
+
 use std::env;
 
 use bldr_core;
@@ -1153,3 +1155,5 @@ pub fn get_project_integration(req: &mut Request) -> IronResult<Response> {
         },
     }
 }
+
+*/

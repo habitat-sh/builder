@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+
 use std::fs::{self, remove_file, File};
 use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
@@ -22,6 +24,7 @@ use std::sync::Arc;
 use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
 use bldr_core::api_client::ApiClient;
 use bldr_core::helpers::transition_visibility;
+
 use bldr_core::metrics::CounterMetric;
 use bodyparser;
 use conn::RouteBroker;
@@ -39,12 +42,6 @@ use helpers::{
 };
 use hyper::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
-use iron::headers::{ContentType, UserAgent};
-use iron::middleware::BeforeMiddleware;
-use iron::prelude::*;
-use iron::request::Body;
-use iron::typemap;
-use iron::{headers, status};
 use middleware::SegmentCli;
 use persistent;
 use protobuf;
@@ -74,6 +71,7 @@ use metrics::Counter;
 use middleware::{route_message, Authenticated, XHandler};
 use net_err::{render_json, render_net_error};
 use upstream::UpstreamCli;
+
 
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginCreateReq {
@@ -2940,3 +2938,4 @@ pub fn router(depot: Arc<Config>) -> Router {
 
     r
 }
+*/

@@ -83,7 +83,7 @@ where
 // Authentication
 #[derive(Clone)]
 pub struct Authenticated {
-    key_path: PathBuf,
+    pub key_path: PathBuf,
 }
 
 impl<S> Middleware<S> for Authenticated {
