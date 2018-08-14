@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,74 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use actix_web::http::{self, StatusCode};
+use actix_web::FromRequest;
+use actix_web::{HttpRequest, HttpResponse, Json, Path};
+use protocol::originsrv::*;
+use protocol::sessionsrv::*;
+
+use hab_core::package::ident;
+
+use server::error::Error;
+use server::framework::middleware::route_message;
+use server::AppState;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OriginCreateReq {
+    name: String,
+    default_package_visibility: Option<String>,
+}
+
+pub fn origin_show(req: &HttpRequest<AppState>) -> HttpResponse {
+    let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+    debug!("origin_show called with: origin={}", origin);
+
+    let mut request = OriginGet::new();
+    request.set_name(origin);
+
+    match route_message::<OriginGet, Origin>(req, &request) {
+        Ok(origin) => HttpResponse::Ok()
+            .header(http::header::CACHE_CONTROL, "private, no-cache, no-store")
+            .json(origin),
+        Err(err) => Error::NetError(err).into(),
+    }
+}
+
+pub fn origin_create((body, req): (Json<OriginCreateReq>, HttpRequest<AppState>)) -> HttpResponse {
+    debug!("origin_create called, body = {:?}", body);
+    let mut request = OriginCreate::new();
+
+    let (account_id, account_name) = {
+        let extensions = req.extensions();
+        let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
+        (session.get_id(), session.get_name().to_owned())
+    };
+    debug!(
+        "Got session, account id = {}, account_name = {}",
+        account_id, account_name
+    );
+
+    request.set_owner_id(account_id);
+    request.set_owner_name(account_name);
+
+    if let Some(ref vis) = body.default_package_visibility {
+        match vis.parse::<OriginPackageVisibility>() {
+            Ok(vis) => request.set_default_package_visibility(vis),
+            Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        }
+    }
+    request.set_name(body.name.clone());
+
+    if !ident::is_valid_origin_name(request.get_name()) {
+        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    match route_message::<OriginCreate, Origin>(&req, &request) {
+        Ok(origin) => HttpResponse::Created().json(origin),
+        Err(err) => Error::NetError(err).into(),
+    }
+}
 
 /*
 
