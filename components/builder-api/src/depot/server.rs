@@ -1150,8 +1150,9 @@ fn get_schedule(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-// TODO (SA) This is an experiemental dev-only function for now
-// This route is unreachable when jobsrv_enabled is false
+// TODO (SA) This route is unreachable. Will be removed fully in
+// upcoming refactor.
+#[allow(dead_code)]
 fn abort_schedule(req: &mut Request) -> IronResult<Response> {
     let group_id = {
         let params = req.extensions.get::<Router>().unwrap();
@@ -2653,7 +2654,7 @@ fn do_cache_response(response: &mut Response) {
     )));
 }
 
-pub fn add_routes<M>(r: &mut Router, basic: Authenticated, worker: M)
+pub fn add_routes<M>(r: &mut Router, basic: Authenticated, _worker: M)
 where
     M: BeforeMiddleware + Clone,
 {
@@ -2675,11 +2676,6 @@ where
             "/pkgs/schedule/:origin/status",
             get_origin_schedule_status,
             "schedule_get_global",
-        );
-        r.delete(
-            "/pkgs/schedule/:groupid",
-            XHandler::new(abort_schedule).before(worker.clone()),
-            "schedule_abort",
         );
     }
 
