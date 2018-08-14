@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A collection of handlers for the HTTP server's router
+use actix_web::{HttpRequest, HttpResponse};
+use protocol::sessionsrv::*;
+
+use server::error::Error;
+use server::framework::middleware::route_message;
+use server::AppState;
+
+pub fn get_profile(req: &HttpRequest<AppState>) -> HttpResponse {
+    debug!("get_profile called");
+
+    let account_id = {
+        let extensions = req.extensions();
+        let session = extensions.get::<Session>().unwrap();
+        session.get_id()
+    };
+
+    let mut request = AccountGetId::new();
+    request.set_id(account_id);
+
+    match route_message::<AccountGetId, Account>(req, &request) {
+        Ok(account) => HttpResponse::Ok().json(account),
+        Err(err) => Error::NetError(err).into(),
+    }
+}
 
 /*
 

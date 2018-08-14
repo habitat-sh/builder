@@ -22,10 +22,10 @@ use std::iter::FromIterator;
 use std::sync::Arc;
 use std::thread;
 
-use actix_web::http::StatusCode;
+use actix_web::http::{self, StatusCode};
 use actix_web::middleware::Logger;
+use actix_web::FromRequest;
 use actix_web::{server, App, HttpRequest, HttpResponse, Result};
-//use bitflags;
 
 use github_api_client::GitHubClient;
 use hab_net::socket;
@@ -40,7 +40,9 @@ use self::services::s3::S3Handler;
 // TODO: use services::upstream::{UpstreamClient, UpstreamMgr};
 
 use self::resources::authenticate::*;
+use self::resources::origins::*;
 use self::resources::pkgs::*;
+use self::resources::profile::*;
 use self::resources::user::*;
 
 use config::{Config, GatewayCfg};
@@ -310,10 +312,23 @@ pub fn run(config: Config) -> Result<()> {
             .resource("/status", |r| r.get().f(status))
             .resource("/authenticate/{code}", |r| r.get().f(authenticate))
             .resource("/pkgs/origins/{origin}/stats", |r| r.get().f(package_stats))
+            .resource("/depot/origins/{origin}", |r| r.get().f(origin_show))
             // Authenticated resources
-            .resource("/user/origins", move |r| {
+            .resource("/profile", |r| {
+                r.middleware(Authenticated);
+                r.get().f(get_profile);
+            })
+            .resource("/user/invitations", |r| {
+                r.middleware(Authenticated);
+                r.get().f(list_account_invitations);
+            })
+            .resource("/user/origins", |r| {
                 r.middleware(Authenticated);
                 r.get().f(user_origins);
+            })
+            .resource("/depot/origins", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::POST).with(origin_create);
             })
     }).workers(cfg.handler_count())
         .bind(cfg.http.clone())

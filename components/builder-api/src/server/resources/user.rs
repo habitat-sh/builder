@@ -19,6 +19,26 @@ use server::error::Error;
 use server::framework::middleware::route_message;
 use server::AppState;
 
+pub fn list_account_invitations(req: &HttpRequest<AppState>) -> HttpResponse {
+    debug!("list_account_invitations called");
+    let mut request = AccountInvitationListRequest::new();
+
+    let account_id = {
+        let extensions = req.extensions();
+        let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
+        session.get_id()
+    };
+    debug!("Got session, account id = {}", account_id);
+    request.set_account_id(account_id);
+
+    match route_message::<AccountInvitationListRequest, AccountInvitationListResponse>(
+        req, &request,
+    ) {
+        Ok(invites) => HttpResponse::Ok().json(invites),
+        Err(err) => Error::NetError(err).into(),
+    }
+}
+
 pub fn user_origins(req: &HttpRequest<AppState>) -> HttpResponse {
     debug!("user_origins called");
     let mut request = AccountOriginListRequest::new();
