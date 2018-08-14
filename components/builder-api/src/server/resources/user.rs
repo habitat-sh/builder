@@ -23,13 +23,15 @@ pub fn user_origins(req: &HttpRequest<AppState>) -> HttpResponse {
     debug!("user_origins called");
     let mut request = AccountOriginListRequest::new();
 
-    let extensions = req.extensions();
-    let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
-    request.set_account_id(session.get_id());
+    let account_id = {
+        let extensions = req.extensions();
+        let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
+        session.get_id()
+    };
+    debug!("Got session, account id = {}", account_id);
+    request.set_account_id(account_id);
 
-    match route_message::<AccountOriginListRequest, AccountOriginListResponse, AppState>(
-        req, &request,
-    ) {
+    match route_message::<AccountOriginListRequest, AccountOriginListResponse>(req, &request) {
         Ok(origins) => HttpResponse::Ok().json(origins),
         Err(err) => Error::NetError(err).into(),
     }

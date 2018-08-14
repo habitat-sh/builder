@@ -13,11 +13,10 @@
 // limitations under the License.
 
 use std::env;
-use std::path::PathBuf;
 
 use actix_web::http;
 use actix_web::middleware::{Middleware, Started};
-use actix_web::{HttpRequest, Result};
+use actix_web::{HttpRequest, HttpResponse, Result};
 use base64;
 use protobuf;
 
@@ -29,8 +28,8 @@ use protocol;
 use protocol::sessionsrv::*;
 use protocol::Routable;
 
-use server;
 use server::services::route_broker::RouteBroker;
+use server::AppState;
 
 /* TO DO: Add custom Cors middleware 
 
@@ -69,7 +68,7 @@ impl<S> Middleware<S> for XRouteClient {
     }
 }
 
-pub fn route_message<M, R, S>(req: &HttpRequest<S>, msg: &M) -> NetResult<R>
+pub fn route_message<M, R>(req: &HttpRequest<AppState>, msg: &M) -> NetResult<R>
 where
     M: Routable,
     R: protobuf::Message,
@@ -81,82 +80,102 @@ where
 }
 
 // Authentication
-#[derive(Clone)]
-pub struct Authenticated {
-    pub key_path: PathBuf,
-}
+pub struct Authenticated;
 
-impl<S> Middleware<S> for Authenticated {
-    fn start(&self, req: &HttpRequest<S>) -> Result<Started> {
-        let token = req
-            .headers()
-            .get(http::header::AUTHORIZATION)
-            .unwrap()
-            .to_str()
-            .unwrap(); // unwrap Ok
-        let session = self
-            .authenticate(req, &token)
-            .map_err(|e| server::error::Error::NetError(e))?;
-        req.extensions_mut().insert::<Session>(session);
-        Ok(Started::Done)
+impl Middleware<AppState> for Authenticated {
+    fn start(&self, req: &HttpRequest<AppState>) -> Result<Started> {
+        auth_wrapper(req, false)
     }
 }
 
-impl Authenticated {
-    fn authenticate<S>(&self, req: &HttpRequest<S>, token: &str) -> NetResult<Session> {
-        // Test hook - always create a valid session
-        if env::var_os("HAB_FUNC_TEST").is_some() {
-            debug!(
-                "HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
-                env::var_os("HAB_FUNC_TEST")
-            );
-            return session_create_short_circuit(req, token);
-        };
+// Optional Authentication
+pub struct Optional;
 
-        // Check for a valid personal access token
-        if bldr_core::access_token::is_access_token(token) {
-            let session = bldr_core::access_token::validate_access_token(&self.key_path, token)
+impl Middleware<AppState> for Optional {
+    fn start(&self, req: &HttpRequest<AppState>) -> Result<Started> {
+        auth_wrapper(req, true)
+    }
+}
+
+fn auth_wrapper(req: &HttpRequest<AppState>, optional: bool) -> Result<Started> {
+    let hdr = match req.headers().get(http::header::AUTHORIZATION) {
+        Some(hdr) => hdr.to_str().unwrap(), // unwrap Ok
+        None => if optional {
+            return Ok(Started::Done);
+        } else {
+            return Ok(Started::Response(HttpResponse::Unauthorized().finish()));
+        },
+    };
+
+    let hdr_components: Vec<&str> = hdr.split_whitespace().collect();
+    if (hdr_components.len() != 2) || (hdr_components[0] != "Bearer") {
+        return Ok(Started::Response(HttpResponse::Unauthorized().finish()));
+    }
+    let token = hdr_components[1];
+
+    let session = match authenticate(req, &token) {
+        Ok(session) => session,
+        Err(_) => return Ok(Started::Response(HttpResponse::Unauthorized().finish())),
+    };
+
+    req.extensions_mut().insert::<Session>(session);
+    Ok(Started::Done)
+}
+
+fn authenticate(req: &HttpRequest<AppState>, token: &str) -> NetResult<Session> {
+    // Test hook - always create a valid session
+    if env::var_os("HAB_FUNC_TEST").is_some() {
+        debug!(
+            "HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
+            env::var_os("HAB_FUNC_TEST")
+        );
+        return session_create_short_circuit(req, token);
+    };
+
+    // Check for a valid personal access token
+    if bldr_core::access_token::is_access_token(token) {
+        let session =
+            bldr_core::access_token::validate_access_token(&req.state().config.api.key_path, token)
                 .map_err(|e| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
-            revocation_check(req, session.get_id(), token)
-                .map_err(|e| NetError::new(ErrCode::BAD_TOKEN, "net:auth:revoked-token"))?;
-            return Ok(session);
-        };
+        revocation_check(req, session.get_id(), token)
+            .map_err(|e| NetError::new(ErrCode::BAD_TOKEN, "net:auth:revoked-token"))?;
+        return Ok(session);
+    };
 
-        // Check for internal sessionsrv token
-        let decoded_token = match base64::decode(token) {
-            Ok(decoded_token) => decoded_token,
-            Err(e) => {
-                debug!("Failed to base64 decode token, err={:?}", e);
-                return Err(NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode:1"));
-            }
-        };
+    // Check for internal sessionsrv token
+    let decoded_token = match base64::decode(token) {
+        Ok(decoded_token) => decoded_token,
+        Err(e) => {
+            debug!("Failed to base64 decode token, err={:?}", e);
+            return Err(NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode:1"));
+        }
+    };
 
-        match protocol::message::decode(&decoded_token) {
-            Ok(session_token) => session_validate(req, session_token),
-            Err(e) => {
-                debug!("Failed to decode token, err={:?}", e);
-                Err(NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode:2"))
-            }
+    match protocol::message::decode(&decoded_token) {
+        Ok(session_token) => session_validate(req, session_token),
+        Err(e) => {
+            debug!("Failed to decode token, err={:?}", e);
+            Err(NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode:2"))
         }
     }
 }
 
-pub fn revocation_check<S>(req: &HttpRequest<S>, account_id: u64, token: &str) -> NetResult<()> {
+fn revocation_check(req: &HttpRequest<AppState>, account_id: u64, token: &str) -> NetResult<()> {
     let mut request = AccountTokenValidate::new();
     request.set_account_id(account_id);
     request.set_token(token.to_owned());
-    route_message::<AccountTokenValidate, NetOk, S>(req, &request)?;
+    route_message::<AccountTokenValidate, NetOk>(req, &request)?;
     Ok(())
 }
 
-pub fn session_validate<S>(req: &HttpRequest<S>, token: SessionToken) -> NetResult<Session> {
+fn session_validate(req: &HttpRequest<AppState>, token: SessionToken) -> NetResult<Session> {
     let mut request = SessionGet::new();
     request.set_token(token);
-    route_message::<SessionGet, Session, S>(req, &request)
+    route_message::<SessionGet, Session>(req, &request)
 }
 
-pub fn session_create_oauth<S>(
-    req: &HttpRequest<S>,
+pub fn session_create_oauth(
+    req: &HttpRequest<AppState>,
     token: &str,
     user: &OAuth2User,
     provider: &str,
@@ -182,10 +201,13 @@ pub fn session_create_oauth<S>(
         request.set_email(email.clone());
     }
 
-    route_message::<SessionCreate, Session, S>(req, &request)
+    route_message::<SessionCreate, Session>(req, &request)
 }
 
-pub fn session_create_short_circuit<S>(req: &HttpRequest<S>, token: &str) -> NetResult<Session> {
+pub fn session_create_short_circuit(
+    req: &HttpRequest<AppState>,
+    token: &str,
+) -> NetResult<Session> {
     let request = match token.as_ref() {
         "bobo" => {
             let mut request = SessionCreate::new();
@@ -222,5 +244,5 @@ pub fn session_create_short_circuit<S>(req: &HttpRequest<S>, token: &str) -> Net
         }
     };
 
-    route_message::<SessionCreate, Session, S>(req, &request)
+    route_message::<SessionCreate, Session>(req, &request)
 }

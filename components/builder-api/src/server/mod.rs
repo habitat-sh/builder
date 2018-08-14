@@ -63,6 +63,19 @@ pub struct AppState {
     // TODO: upstream: UpstreamClient
 }
 
+impl AppState {
+    pub fn new(config: &Config) -> AppState {
+        AppState {
+            config: config.clone(),
+            packages: S3Handler::new(config.s3.clone()),
+            github: GitHubClient::new(config.github.clone()),
+            oauth: OAuth2Client::new(config.oauth.clone()),
+            segment: SegmentClient::new(config.segment.clone()),
+            // TODO: upstream: UpstreamClient::default()
+        }
+    }
+}
+
 /*
     TODO: Migrate these routes to the new framework...
 
@@ -287,35 +300,21 @@ pub fn run(config: Config) -> Result<()> {
     );
 
     server::new(move || {
-        vec![
-            App::with_state(AppState {
-                config: config.clone(),
-                packages: S3Handler::new(config.s3.clone()),
-                github: GitHubClient::new(config.github.clone()),
-                oauth: OAuth2Client::new(config.oauth.clone()),
-                segment: SegmentClient::new(config.segment.clone()),
-                // TODO: upstream: UpstreamClient::default()
-            }).middleware(Logger::default())
-                .middleware(XRouteClient)
-                .prefix("/v1")
-                .resource("/status", |r| r.f(status))
-                .resource("/authenticate/{code}", |r| r.f(authenticate))
-                .resource("/pkgs/origins/{origin}/stats", |r| r.f(package_stats)),
-            App::with_state(AppState {
-                config: config.clone(),
-                packages: S3Handler::new(config.s3.clone()),
-                github: GitHubClient::new(config.github.clone()),
-                oauth: OAuth2Client::new(config.oauth.clone()),
-                segment: SegmentClient::new(config.segment.clone()),
-                // TODO: upstream: UpstreamClient::default()
-            }).middleware(Logger::default())
-                .middleware(XRouteClient)
-                .middleware(Authenticated {
-                    key_path: config.api.key_path.clone(),
-                })
-                .prefix("/v1")
-                .resource("/user/origins", |r| r.f(user_origins)),
-        ]
+        let app_state = AppState::new(&config);
+
+        App::with_state(app_state)
+            .middleware(Logger::default())
+            .middleware(XRouteClient)
+            .prefix("/v1")
+            // Unauthenticated resources
+            .resource("/status", |r| r.get().f(status))
+            .resource("/authenticate/{code}", |r| r.get().f(authenticate))
+            .resource("/pkgs/origins/{origin}/stats", |r| r.get().f(package_stats))
+            // Authenticated resources
+            .resource("/user/origins", move |r| {
+                r.middleware(Authenticated);
+                r.get().f(user_origins);
+            })
     }).workers(cfg.handler_count())
         .bind(cfg.http.clone())
         .unwrap()
