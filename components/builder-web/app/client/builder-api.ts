@@ -24,11 +24,13 @@ export enum ErrorCode {
 }
 export class BuilderApiClient {
   private headers;
+  private jsonHeaders;
   private urlPrefix: string = `${config['habitat_api_url']}/v1`;
   private store: AppStore;
 
   constructor(private token: string = '') {
     this.headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    this.jsonHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
     this.store = new AppStore();
   }
 
@@ -108,7 +110,7 @@ export class BuilderApiClient {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins`, {
         body: JSON.stringify(origin),
-        headers: this.headers,
+        headers: this.jsonHeaders,
         method: 'POST',
       })
         .then(response => this.handleUnauthorized(response, reject))
