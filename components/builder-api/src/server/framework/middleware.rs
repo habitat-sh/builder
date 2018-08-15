@@ -136,9 +136,9 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> NetResult<Session> 
     if bldr_core::access_token::is_access_token(token) {
         let session =
             bldr_core::access_token::validate_access_token(&req.state().config.api.key_path, token)
-                .map_err(|e| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
+                .map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
         revocation_check(req, session.get_id(), token)
-            .map_err(|e| NetError::new(ErrCode::BAD_TOKEN, "net:auth:revoked-token"))?;
+            .map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:revoked-token"))?;
         return Ok(session);
     };
 

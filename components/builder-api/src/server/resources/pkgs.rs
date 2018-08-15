@@ -19,6 +19,7 @@ use actix_web::{HttpRequest, HttpResponse, Path};
 use protocol::jobsrv::*;
 
 use server::error::Error;
+use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::AppState;
 
@@ -31,7 +32,7 @@ pub fn package_stats(req: &HttpRequest<AppState>) -> HttpResponse {
 
     match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request) {
         Ok(stats) => HttpResponse::Ok()
-            .header(http::header::CACHE_CONTROL, "private, no-cache, no-store")
+            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(stats),
         Err(err) => Error::NetError(err).into(),
     }

@@ -14,6 +14,7 @@
 
 pub mod error;
 pub mod framework;
+pub mod helpers;
 pub mod resources;
 pub mod services;
 
@@ -24,7 +25,6 @@ use std::thread;
 
 use actix_web::http::{self, StatusCode};
 use actix_web::middleware::Logger;
-use actix_web::FromRequest;
 use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 
 use github_api_client::GitHubClient;
@@ -308,27 +308,41 @@ pub fn run(config: Config) -> Result<()> {
             .middleware(Logger::default())
             .middleware(XRouteClient)
             .prefix("/v1")
+            //
             // Unauthenticated resources
+            //
             .resource("/status", |r| r.get().f(status))
             .resource("/authenticate/{code}", |r| r.get().f(authenticate))
             .resource("/pkgs/origins/{origin}/stats", |r| r.get().f(package_stats))
             .resource("/depot/origins/{origin}", |r| r.get().f(origin_show))
+            //
             // Authenticated resources
+            //
             .resource("/profile", |r| {
                 r.middleware(Authenticated);
                 r.get().f(get_profile);
             })
+            //
+            //  User resource
+            //
             .resource("/user/invitations", |r| {
                 r.middleware(Authenticated);
-                r.get().f(list_account_invitations);
+                r.get().f(list_account_invitations); 
             })
             .resource("/user/origins", |r| {
                 r.middleware(Authenticated);
                 r.get().f(user_origins);
             })
+            //
+            //  Origins resource
+            //
             .resource("/depot/origins", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::POST).with(origin_create);
+            })
+            .resource("/depot/origins/{origin}/keys", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::POST).f(generate_origin_keys);
             })
     }).workers(cfg.handler_count())
         .bind(cfg.http.clone())

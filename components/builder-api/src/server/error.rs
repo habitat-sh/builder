@@ -35,6 +35,7 @@ use zmq;
 // are wrapping - review whether we need more than one error per module
 #[derive(Debug)]
 pub enum Error {
+    Authorization(String),
     Connection(conn::ConnErr),
     Protocol(protocol::ProtocolError),
     BadPort(String),
@@ -74,6 +75,7 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::Authorization(ref e) => format!("Not authorized: {}", e),
             Error::Connection(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
@@ -137,6 +139,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::Authorization(_) => "User is not authorized to perform operation",
             Error::Connection(ref err) => err.description(),
             Error::Protocol(ref err) => err.description(),
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
@@ -186,6 +189,7 @@ impl error::Error for Error {
 impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
         match self {
+            Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
@@ -196,6 +200,7 @@ impl ResponseError for Error {
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {
+            Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),

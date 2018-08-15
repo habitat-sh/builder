@@ -12,46 +12,133 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::str::FromStr;
+// use std::collections::HashMap;
+// use std::str::FromStr;
 
-use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
+use actix_web::HttpRequest;
+// use serde::Serialize;
+// use serde_json;
+
+// use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::crypto::SigKeyPair;
 use hab_net::privilege::FeatureFlags;
-use hab_net::{ErrCode, NetError, NetOk, NetResult};
+use hab_net::NetResult;
 
-use iron::headers::{ContentType, Referer, UserAgent};
-use iron::mime::{Attr, Mime, SubLevel, TopLevel, Value};
-use iron::modifiers::Header;
-use iron::prelude::*;
-use iron::status::{self, Status};
-use protocol::jobsrv::{
-    JobGroup, JobGroupGet, JobGroupProject, JobGroupProjectState, JobGroupTrigger,
-};
-use protocol::originsrv::{
-    CheckOriginAccessRequest, CheckOriginAccessResponse, CheckOriginOwnerRequest,
-    CheckOriginOwnerResponse, Origin, OriginChannel, OriginChannelCreate, OriginChannelGet,
-    OriginGet, OriginPackage, OriginPackageChannelListRequest, OriginPackageChannelListResponse,
-    OriginPackageGet, OriginPackageGroupDemote, OriginPackageGroupPromote, OriginPackageIdent,
-    OriginPackagePlatformListRequest, OriginPackagePlatformListResponse, OriginPackageVisibility,
-    OriginPrivateSigningKey, OriginPrivateSigningKeyCreate, OriginPublicSigningKey,
-    OriginPublicSigningKeyCreate, PackageChannelOperation, PackageChannelTrigger,
-    PackageGroupChannelAudit,
-};
-use protocol::sessionsrv::{Account, AccountGetId};
-use serde::Serialize;
-use serde_json;
-use urlencoded::UrlEncodedQuery;
+// use protocol::jobsrv::*;
+use protocol::originsrv::*;
+use protocol::sessionsrv::*;
 
-use headers::*;
-use middleware::{route_message, Authenticated};
-use net_err::net_err_to_http;
-use router::Router;
+use server::error::{Error, Result};
+use server::framework::middleware::route_message;
+use server::AppState;
 
-pub fn dont_cache_response(response: &mut Response) {
-    response
-        .headers
-        .set(CacheControl(format!("private, no-cache, no-store")));
+//
+// TO DO - this module has become a big grab bag of stuff - needs to be
+// reviewed and broken up
+//
+
+pub fn check_origin_access<T>(req: &HttpRequest<AppState>, origin: &T) -> Result<u64>
+where
+    T: ToString,
+{
+    let account_id = {
+        let extensions = req.extensions();
+        match extensions.get::<Session>() {
+            Some(session) => {
+                let flags = FeatureFlags::from_bits(session.get_flags()).unwrap(); // unwrap Ok
+                if flags.contains(FeatureFlags::BUILD_WORKER) {
+                    return Ok(session.get_id());
+                }
+                session.get_id()
+            }
+            None => return Err(Error::Authorization(origin.to_string())),
+        }
+    };
+
+    let mut request = CheckOriginAccessRequest::new();
+    request.set_account_id(account_id);
+    request.set_origin_name(origin.to_string());
+
+    match route_message::<CheckOriginAccessRequest, CheckOriginAccessResponse>(req, &request) {
+        Ok(ref response) if response.get_has_access() => Ok(account_id),
+        _ => Err(Error::Authorization(origin.to_string())),
+    }
+}
+
+pub fn generate_origin_keys(
+    req: &HttpRequest<AppState>,
+    session_id: u64,
+    origin: Origin,
+) -> Result<()> {
+    let mut public_request = OriginPublicSigningKeyCreate::new();
+    let mut secret_request = OriginPrivateSigningKeyCreate::new();
+    public_request.set_owner_id(session_id);
+    secret_request.set_owner_id(session_id);
+    public_request.set_name(origin.get_name().to_string());
+    public_request.set_origin_id(origin.get_id());
+    secret_request.set_name(origin.get_name().to_string());
+    secret_request.set_origin_id(origin.get_id());
+
+    let pair = SigKeyPair::generate_pair_for_origin(origin.get_name())
+        .expect("failed to generate origin key pair");
+    public_request.set_revision(pair.rev.clone());
+    public_request.set_body(
+        pair.to_public_string()
+            .expect("no public key in generated pair")
+            .into_bytes(),
+    );
+    secret_request.set_revision(pair.rev.clone());
+    secret_request.set_body(
+        pair.to_secret_string()
+            .expect("no secret key in generated pair")
+            .into_bytes(),
+    );
+
+    route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(req, &public_request)?;
+    route_message::<OriginPrivateSigningKeyCreate, OriginPrivateSigningKey>(req, &secret_request)?;
+
+    Ok(())
+}
+
+pub fn get_origin<T>(req: &HttpRequest<AppState>, origin: T) -> NetResult<Origin>
+where
+    T: ToString,
+{
+    let mut request = OriginGet::new();
+    request.set_name(origin.to_string());
+    route_message::<OriginGet, Origin>(req, &request)
+}
+
+/*
+
+fn is_worker(req: &mut Request) -> bool {
+    match req.extensions.get::<Authenticated>() {
+        Some(session) => {
+            let flags = FeatureFlags::from_bits(session.get_flags()).unwrap();
+            flags.contains(FeatureFlags::BUILD_WORKER)
+        }
+        None => false,
+    }
+}
+
+fn get_session_id(req: &mut Request) -> u64 {
+    let session = req.extensions.get::<Authenticated>().unwrap();
+    session.get_id()
+}
+
+pub fn get_session_id_and_name(req: &mut Request) -> (u64, String) {
+    let (session_id, mut session_name) = {
+        let session = req.extensions.get::<Authenticated>().unwrap();
+        (session.get_id(), session.get_name().to_string())
+    };
+
+    // Sessions created via Personal Access Tokens only have ids, so we may need
+    // to get the username explicitly.
+    if session_name.is_empty() {
+        session_name = get_session_user_name(req, session_id)
+    }
+
+    (session_id, session_name)
 }
 
 pub fn is_request_from_hab(req: &mut Request) -> bool {
@@ -256,43 +343,11 @@ pub fn platforms_for_package_ident(
     }
 }
 
-pub fn get_origin<T>(req: &mut Request, origin: T) -> NetResult<Origin>
-where
-    T: ToString,
-{
-    let mut request = OriginGet::new();
-    request.set_name(origin.to_string());
-    route_message::<OriginGet, Origin>(req, &request)
-}
-
 pub fn get_param(req: &mut Request, name: &str) -> Option<String> {
     let params = req.extensions.get::<Router>().unwrap();
     match params.find(name) {
         Some(x) => Some(x.to_string()),
         None => None,
-    }
-}
-
-pub fn check_origin_access<T>(req: &mut Request, origin: T) -> IronResult<bool>
-where
-    T: ToString,
-{
-    if is_worker(req) {
-        return Ok(true);
-    }
-
-    let session_id = get_session_id(req);
-
-    let mut request = CheckOriginAccessRequest::new();
-    request.set_account_id(session_id);
-    request.set_origin_name(origin.to_string());
-    match route_message::<CheckOriginAccessRequest, CheckOriginAccessResponse>(req, &request) {
-        Ok(response) => Ok(response.get_has_access()),
-        Err(err) => {
-            let body = serde_json::to_string(&err).unwrap();
-            let status = net_err_to_http(err.get_code());
-            Err(IronError::new(err, (body, status)))
-        }
     }
 }
 
@@ -454,37 +509,6 @@ pub fn get_optional_oauth_token(req: &mut Request) -> Option<String> {
     }
 }
 
-pub fn generate_origin_keys(req: &mut Request, session_id: u64, origin: Origin) -> NetResult<()> {
-    let mut public_request = OriginPublicSigningKeyCreate::new();
-    let mut secret_request = OriginPrivateSigningKeyCreate::new();
-    public_request.set_owner_id(session_id);
-    secret_request.set_owner_id(session_id);
-    public_request.set_name(origin.get_name().to_string());
-    public_request.set_origin_id(origin.get_id());
-    secret_request.set_name(origin.get_name().to_string());
-    secret_request.set_origin_id(origin.get_id());
-
-    let pair = SigKeyPair::generate_pair_for_origin(origin.get_name())
-        .expect("failed to generate origin key pair");
-    public_request.set_revision(pair.rev.clone());
-    public_request.set_body(
-        pair.to_public_string()
-            .expect("no public key in generated pair")
-            .into_bytes(),
-    );
-    secret_request.set_revision(pair.rev.clone());
-    secret_request.set_body(
-        pair.to_secret_string()
-            .expect("no secret key in generated pair")
-            .into_bytes(),
-    );
-
-    route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(req, &public_request)?;
-    route_message::<OriginPrivateSigningKeyCreate, OriginPrivateSigningKey>(req, &secret_request)?;
-
-    Ok(())
-}
-
 pub fn trigger_from_request(req: &mut Request) -> JobGroupTrigger {
     let user_agent = &req.headers.get::<UserAgent>().unwrap().as_str();
     let referer = match req.headers.get::<Referer>() {
@@ -514,21 +538,6 @@ pub fn get_session_user_name(req: &mut Request, account_id: u64) -> String {
             "".to_string()
         }
     }
-}
-
-pub fn get_session_id_and_name(req: &mut Request) -> (u64, String) {
-    let (session_id, mut session_name) = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        (session.get_id(), session.get_name().to_string())
-    };
-
-    // Sessions created via Personal Access Tokens only have ids, so we may need
-    // to get the username explicitly.
-    if session_name.is_empty() {
-        session_name = get_session_user_name(req, session_id)
-    }
-
-    (session_id, session_name)
 }
 
 fn do_group_promotion_or_demotion(
@@ -597,17 +606,4 @@ fn do_group_promotion_or_demotion(
     Ok(package_ids)
 }
 
-fn is_worker(req: &mut Request) -> bool {
-    match req.extensions.get::<Authenticated>() {
-        Some(session) => {
-            let flags = FeatureFlags::from_bits(session.get_flags()).unwrap();
-            flags.contains(FeatureFlags::BUILD_WORKER)
-        }
-        None => false,
-    }
-}
-
-fn get_session_id(req: &mut Request) -> u64 {
-    let session = req.extensions.get::<Authenticated>().unwrap();
-    session.get_id()
-}
+*/
