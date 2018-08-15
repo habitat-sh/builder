@@ -339,11 +339,11 @@ pub fn run(config: Config) -> Result<()> {
             //
             .resource("/user/invitations", |r| {
                 r.middleware(Authenticated);
-                r.get().f(list_account_invitations); 
+                r.get().f(User::get_invitations); 
             })
             .resource("/user/origins", |r| {
                 r.middleware(Authenticated);
-                r.get().f(user_origins);
+                r.get().f(User::get_origins);
             })
             //
             //  Origins resource
