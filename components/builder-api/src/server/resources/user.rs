@@ -15,42 +15,47 @@
 use actix_web::{HttpRequest, HttpResponse};
 use protocol::sessionsrv::*;
 
-use server::error::Error;
+use server::error::{Error, Result};
 use server::framework::middleware::route_message;
+use server::helpers;
 use server::AppState;
 
-pub fn list_account_invitations(req: &HttpRequest<AppState>) -> HttpResponse {
-    debug!("list_account_invitations called");
-    let mut request = AccountInvitationListRequest::new();
+pub struct User {}
 
-    let account_id = {
-        let extensions = req.extensions();
-        let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
-        session.get_id()
-    };
-    request.set_account_id(account_id);
+impl User {
+    // Internal
+    fn do_get_invitations(req: &HttpRequest<AppState>) -> Result<AccountInvitationListResponse> {
+        let account_id = helpers::get_session_id(req);
 
-    match route_message::<AccountInvitationListRequest, AccountInvitationListResponse>(
-        req, &request,
-    ) {
-        Ok(invites) => HttpResponse::Ok().json(invites),
-        Err(err) => Error::NetError(err).into(),
+        let mut request = AccountInvitationListRequest::new();
+        request.set_account_id(account_id);
+
+        route_message::<AccountInvitationListRequest, AccountInvitationListResponse>(req, &request)
+            .map_err(|e| Error::NetError(e))
     }
-}
 
-pub fn user_origins(req: &HttpRequest<AppState>) -> HttpResponse {
-    debug!("user_origins called");
-    let mut request = AccountOriginListRequest::new();
+    fn do_get_origins(req: &HttpRequest<AppState>) -> Result<AccountOriginListResponse> {
+        let account_id = helpers::get_session_id(req);
 
-    let account_id = {
-        let extensions = req.extensions();
-        let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
-        session.get_id()
-    };
-    request.set_account_id(account_id);
+        let mut request = AccountOriginListRequest::new();
+        request.set_account_id(account_id);
 
-    match route_message::<AccountOriginListRequest, AccountOriginListResponse>(req, &request) {
-        Ok(origins) => HttpResponse::Ok().json(origins),
-        Err(err) => Error::NetError(err).into(),
+        route_message::<AccountOriginListRequest, AccountOriginListResponse>(req, &request)
+            .map_err(|e| Error::NetError(e))
+    }
+
+    // Route handlers
+    pub fn get_invitations(req: &HttpRequest<AppState>) -> HttpResponse {
+        match Self::do_get_invitations(req) {
+            Ok(invites) => HttpResponse::Ok().json(invites),
+            Err(err) => err.into(),
+        }
+    }
+
+    pub fn get_origins(req: &HttpRequest<AppState>) -> HttpResponse {
+        match Self::do_get_origins(req) {
+            Ok(origins) => HttpResponse::Ok().json(origins),
+            Err(err) => err.into(),
+        }
     }
 }
