@@ -28,7 +28,6 @@ pub fn list_account_invitations(req: &HttpRequest<AppState>) -> HttpResponse {
         let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
         session.get_id()
     };
-    debug!("Got session, account id = {}", account_id);
     request.set_account_id(account_id);
 
     match route_message::<AccountInvitationListRequest, AccountInvitationListResponse>(
@@ -48,7 +47,6 @@ pub fn user_origins(req: &HttpRequest<AppState>) -> HttpResponse {
         let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
         session.get_id()
     };
-    debug!("Got session, account id = {}", account_id);
     request.set_account_id(account_id);
 
     match route_message::<AccountOriginListRequest, AccountOriginListResponse>(req, &request) {

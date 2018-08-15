@@ -26,7 +26,7 @@ use server::AppState;
 
 pub fn authenticate(req: &HttpRequest<AppState>) -> HttpResponse {
     let code = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-    debug!("authenticate called with: code={}", code);
+    debug!("authenticate called, code = {}", code);
 
     if env::var_os("HAB_FUNC_TEST").is_some() {
         return match session_create_short_circuit(req, &code) {

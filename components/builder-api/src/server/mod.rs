@@ -311,12 +311,15 @@ pub fn run(config: Config) -> Result<()> {
             //
             // Unauthenticated resources
             //
-            .resource("/status", |r| r.get().f(status))
+            .resource("/status", |r| r.head().f(status))
             .resource("/authenticate/{code}", |r| r.get().f(authenticate))
-            .resource("/pkgs/origins/{origin}/stats", |r| r.get().f(package_stats))
+            .resource("/depot/pkgs/origins/{origin}/stats", |r| r.get().f(package_stats))
             .resource("/depot/origins/{origin}", |r| r.get().f(origin_show))
             //
             // Authenticated resources
+            //
+            //
+            // Profile resource
             //
             .resource("/profile", |r| {
                 r.middleware(Authenticated);

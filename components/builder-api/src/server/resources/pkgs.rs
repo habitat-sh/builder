@@ -25,7 +25,7 @@ use server::AppState;
 
 pub fn package_stats(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-    debug!("package_stats called with: origin={}", origin);
+    debug!("package_stats called, origin = {}", origin);
 
     let mut request = JobGraphPackageStatsGet::new();
     request.set_origin(origin);
