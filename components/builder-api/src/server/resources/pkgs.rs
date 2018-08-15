@@ -36,97 +36,106 @@ pub struct Pagination {
 
 const PAGINATION_RANGE_MAX: isize = 50;
 
-pub fn package_stats(req: &HttpRequest<AppState>) -> HttpResponse {
-    let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-    debug!("package_stats called, origin = {}", origin);
+pub struct Packages {}
 
-    let mut request = JobGraphPackageStatsGet::new();
-    request.set_origin(origin);
+impl Packages {
+    // Internal
 
-    match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request) {
-        Ok(stats) => HttpResponse::Ok()
+    // TODO : this needs to be re-designed to not fan out
+    fn postprocess_package_list(
+        req: &HttpRequest<AppState>,
+        oplr: &OriginPackageListResponse,
+        distinct: bool,
+    ) -> HttpResponse {
+        let mut results = Vec::new();
+
+        // The idea here is for every package we get back, pull its channels using the zmq API
+        // and accumulate those results. This avoids the N+1 HTTP requests that would be
+        // required to fetch channels for a list of packages in the UI. However, if our request
+        // has been marked as "distinct" then skip this step because it doesn't make sense in
+        // that case. Let's get platforms at the same time.
+        for package in oplr.get_idents().to_vec() {
+            let mut channels: Option<Vec<String>> = None;
+            let mut platforms: Option<Vec<String>> = None;
+
+            if !distinct {
+                channels = helpers::channels_for_package_ident(req, &package);
+                platforms = helpers::platforms_for_package_ident(req, &package);
+            }
+
+            let mut pkg_json = serde_json::to_value(package).unwrap();
+
+            if channels.is_some() {
+                pkg_json["channels"] = json!(channels);
+            }
+
+            if platforms.is_some() {
+                pkg_json["platforms"] = json!(platforms);
+            }
+
+            results.push(pkg_json);
+        }
+
+        let body = helpers::package_results_json(
+            &results,
+            oplr.get_count() as isize,
+            oplr.get_start() as isize,
+            oplr.get_stop() as isize,
+        );
+
+        let mut response = if oplr.get_count() as isize > (oplr.get_stop() as isize + 1) {
+            HttpResponse::PartialContent()
+        } else {
+            HttpResponse::Ok()
+        };
+
+        response
+            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(stats),
-        Err(err) => Error::NetError(err).into(),
-    }
-}
-
-// TODO : this needs to be re-designed to not fan out
-fn postprocess_package_list(
-    req: &HttpRequest<AppState>,
-    oplr: &OriginPackageListResponse,
-    distinct: bool,
-) -> HttpResponse {
-    let mut results = Vec::new();
-
-    // The idea here is for every package we get back, pull its channels using the zmq API
-    // and accumulate those results. This avoids the N+1 HTTP requests that would be
-    // required to fetch channels for a list of packages in the UI. However, if our request
-    // has been marked as "distinct" then skip this step because it doesn't make sense in
-    // that case. Let's get platforms at the same time.
-    for package in oplr.get_idents().to_vec() {
-        let mut channels: Option<Vec<String>> = None;
-        let mut platforms: Option<Vec<String>> = None;
-
-        if !distinct {
-            channels = helpers::channels_for_package_ident(req, &package);
-            platforms = helpers::platforms_for_package_ident(req, &package);
-        }
-
-        let mut pkg_json = serde_json::to_value(package).unwrap();
-
-        if channels.is_some() {
-            pkg_json["channels"] = json!(channels);
-        }
-
-        if platforms.is_some() {
-            pkg_json["platforms"] = json!(platforms);
-        }
-
-        results.push(pkg_json);
+            .body(body)
     }
 
-    let body = helpers::package_results_json(
-        &results,
-        oplr.get_count() as isize,
-        oplr.get_start() as isize,
-        oplr.get_stop() as isize,
-    );
+    // Route handlers
+    pub fn get_stats(req: &HttpRequest<AppState>) -> HttpResponse {
+        let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+        debug!("package_stats called, origin = {}", origin);
 
-    let mut response = if oplr.get_count() as isize > (oplr.get_stop() as isize + 1) {
-        HttpResponse::PartialContent()
-    } else {
-        HttpResponse::Ok()
-    };
+        let mut request = JobGraphPackageStatsGet::new();
+        request.set_origin(origin);
 
-    response
-        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-        .body(body)
-}
+        match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request) {
+            Ok(stats) => HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(stats),
+            Err(err) => Error::NetError(err).into(),
+        }
+    }
 
-pub fn package_list((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> HttpResponse {
-    let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
-    let opt_session_id = helpers::get_optional_session_id(&req);
+    pub fn get_packages(
+        (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+        let opt_session_id = helpers::get_optional_session_id(&req);
 
-    let (start, stop) = (
-        pagination.range,
-        pagination.range + PAGINATION_RANGE_MAX - 1,
-    );
+        let (start, stop) = (
+            pagination.range,
+            pagination.range + PAGINATION_RANGE_MAX - 1,
+        );
 
-    let mut request = OriginPackageListRequest::new();
-    request.set_start(start as u64);
-    request.set_stop(stop as u64);
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        &req,
-        opt_session_id,
-        &origin,
-    ));
-    request.set_distinct(pagination.distinct);
-    request.set_ident(OriginPackageIdent::from_str(origin.as_str()).unwrap());
+        let mut request = OriginPackageListRequest::new();
+        request.set_start(start as u64);
+        request.set_stop(stop as u64);
+        request.set_visibilities(helpers::visibility_for_optional_session(
+            &req,
+            opt_session_id,
+            &origin,
+        ));
+        request.set_distinct(pagination.distinct);
+        request.set_ident(OriginPackageIdent::from_str(origin.as_str()).unwrap());
 
-    match route_message::<OriginPackageListRequest, OriginPackageListResponse>(&req, &request) {
-        Ok(olpr) => postprocess_package_list(&req, &olpr, pagination.distinct),
-        Err(err) => Error::NetError(err).into(),
+        match route_message::<OriginPackageListRequest, OriginPackageListResponse>(&req, &request) {
+            Ok(olpr) => Self::postprocess_package_list(&req, &olpr, pagination.distinct),
+            Err(err) => Error::NetError(err).into(),
+        }
     }
 }
