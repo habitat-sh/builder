@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub const NO_CACHE: &str = "private, no-cache, no-store";
+pub const APPLICATION_JSON: &str = "application/json";
 
 /*
 header! { (CacheControl, "Cache-Control") => [String] }

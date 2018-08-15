@@ -34,7 +34,7 @@ use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
 use self::error::Error;
-use self::framework::middleware::{Authenticated, XRouteClient};
+use self::framework::middleware::{Authenticated, Optional, XRouteClient};
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
 // TODO: use services::upstream::{UpstreamClient, UpstreamMgr};
@@ -301,6 +301,8 @@ pub fn run(config: Config) -> Result<()> {
         cfg.listen_port()
     );
 
+    // TODO: Move registration of paths into each resource module
+
     server::new(move || {
         let app_state = AppState::new(&config);
 
@@ -318,6 +320,13 @@ pub fn run(config: Config) -> Result<()> {
             //
             // Authenticated resources
             //
+            //
+            // Pkgs resource
+            //
+            .resource("/depot/pkgs/{origin}", |r| {
+                r.middleware(Optional);
+                r.method(http::Method::GET).with(package_list);
+            })
             //
             // Profile resource
             //
