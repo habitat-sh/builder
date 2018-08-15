@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub const NO_CACHE: &str = "private, no-cache, no-store";
+
+/*
 header! { (CacheControl, "Cache-Control") => [String] }
 header! { (ContentDisposition, "Content-Disposition") => [String] }
 header! { (XFileName, "X-Filename") => [String] }
@@ -20,3 +23,4 @@ header! { (ETag, "ETag") => [String] }
 header! { (XGitHubDelivery, "X-GitHub-Delivery") => [String] }
 header! { (XGitHubEvent, "X-GitHub-Event") => [String] }
 header! { (XHubSignature, "X-Hub-Signature") => [String] }
+*/

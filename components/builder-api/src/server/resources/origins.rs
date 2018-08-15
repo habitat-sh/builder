@@ -21,7 +21,9 @@ use protocol::sessionsrv::*;
 use hab_core::package::ident;
 
 use server::error::Error;
+use server::framework::headers;
 use server::framework::middleware::route_message;
+use server::helpers::{self, check_origin_access};
 use server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -29,6 +31,11 @@ pub struct OriginCreateReq {
     name: String,
     default_package_visibility: Option<String>,
 }
+
+// TODO: wrap things up into an Origins struct
+// Enable using ? operator and Results consistently
+// Enable helper functions to become part of the resource object
+// etc..
 
 pub fn origin_show(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
@@ -39,13 +46,13 @@ pub fn origin_show(req: &HttpRequest<AppState>) -> HttpResponse {
 
     match route_message::<OriginGet, Origin>(req, &request) {
         Ok(origin) => HttpResponse::Ok()
-            .header(http::header::CACHE_CONTROL, "private, no-cache, no-store")
+            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(origin),
         Err(err) => Error::NetError(err).into(),
     }
 }
 
-pub fn origin_create((body, req): (Json<OriginCreateReq>, HttpRequest<AppState>)) -> HttpResponse {
+pub fn origin_create((req, body): (HttpRequest<AppState>, Json<OriginCreateReq>)) -> HttpResponse {
     debug!("origin_create called, body = {:?}", body);
     let mut request = OriginCreate::new();
 
@@ -76,6 +83,24 @@ pub fn origin_create((body, req): (Json<OriginCreateReq>, HttpRequest<AppState>)
 
     match route_message::<OriginCreate, Origin>(&req, &request) {
         Ok(origin) => HttpResponse::Created().json(origin),
+        Err(err) => Error::NetError(err).into(),
+    }
+}
+
+pub fn generate_origin_keys(req: &HttpRequest<AppState>) -> HttpResponse {
+    let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+    debug!("generate_origin_keys called, origin = {}", origin);
+
+    let account_id = match check_origin_access(req, &origin) {
+        Ok(id) => id,
+        Err(err) => return err.into(),
+    };
+
+    match helpers::get_origin(req, origin) {
+        Ok(origin) => match helpers::generate_origin_keys(req, account_id, origin) {
+            Ok(_) => HttpResponse::Created().finish(),
+            Err(err) => err.into(),
+        },
         Err(err) => Error::NetError(err).into(),
     }
 }
@@ -619,31 +644,6 @@ fn generate_origin_encryption_keys(
     )?;
 
     Ok(key)
-}
-
-fn generate_origin_keys(req: &mut Request) -> IronResult<Response> {
-    debug!("Generate Origin Keys {:?}", req);
-    let session_id = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        session.get_id()
-    };
-
-    match get_param(req, "origin") {
-        Some(origin) => {
-            if !check_origin_access(req, &origin).unwrap_or(false) {
-                return Ok(Response::with(status::Forbidden));
-            }
-
-            match helpers::get_origin(req, origin) {
-                Ok(origin) => match helpers::generate_origin_keys(req, session_id, origin) {
-                    Ok(_) => Ok(Response::with(status::Created)),
-                    Err(err) => Ok(render_net_error(&err)),
-                },
-                Err(err) => Ok(render_net_error(&err)),
-            }
-        }
-        None => Ok(Response::with(status::BadRequest)),
-    }
 }
 
 fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
