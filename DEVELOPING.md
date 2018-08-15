@@ -70,7 +70,7 @@ If you are not doing UI development you just need to navigate to `${APP_HOSTNAME
 
 If you are developing the UI:
 
-* Follow the instructions in the [Web UI README](https://github.com/habitat-sh/habitat/blob/master/components/builder-web/README.md) to get the Web UI running locally.
+* Follow the instructions in the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) to get the Web UI running locally.
 * Open up a browser and navigate to http://localhost:3000/#/pkgs - you should see the Habitat UI running locally.
 * In the studio, you will need to run
 * * `ui-dev-mode` to swap out the github application for development on `localhost:3000`
