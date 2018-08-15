@@ -109,10 +109,43 @@ where
     route_message::<OriginGet, Origin>(req, &request)
 }
 
+pub fn get_session_id(req: &HttpRequest<AppState>) -> u64 {
+    req.extensions().get::<Session>().unwrap().get_id()
+}
+
 pub fn get_optional_session_id(req: &HttpRequest<AppState>) -> Option<u64> {
     match req.extensions().get::<Session>() {
         Some(session) => Some(session.get_id()),
         None => None,
+    }
+}
+
+pub fn get_session_id_and_name(req: &HttpRequest<AppState>) -> (u64, String) {
+    let (session_id, mut session_name) = {
+        let extension = req.extensions();
+        let session = extension.get::<Session>().unwrap();
+        (session.get_id(), session.get_name().to_string())
+    };
+
+    // Sessions created via Personal Access Tokens only have ids, so we may need
+    // to get the username explicitly.
+    if session_name.is_empty() {
+        session_name = get_session_user_name(req, session_id)
+    }
+
+    (session_id, session_name)
+}
+
+pub fn get_session_user_name(req: &HttpRequest<AppState>, account_id: u64) -> String {
+    let mut msg = AccountGetId::new();
+    msg.set_id(account_id);
+
+    match route_message::<AccountGetId, Account>(req, &msg) {
+        Ok(account) => account.get_name().to_string(),
+        Err(err) => {
+            warn!("Failed to get account, err={:?}", err);
+            "".to_string()
+        }
     }
 }
 
@@ -246,26 +279,6 @@ fn is_worker(req: &mut Request) -> bool {
         }
         None => false,
     }
-}
-
-fn get_session_id(req: &mut Request) -> u64 {
-    let session = req.extensions.get::<Authenticated>().unwrap();
-    session.get_id()
-}
-
-pub fn get_session_id_and_name(req: &mut Request) -> (u64, String) {
-    let (session_id, mut session_name) = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        (session.get_id(), session.get_name().to_string())
-    };
-
-    // Sessions created via Personal Access Tokens only have ids, so we may need
-    // to get the username explicitly.
-    if session_name.is_empty() {
-        session_name = get_session_user_name(req, session_id)
-    }
-
-    (session_id, session_name)
 }
 
 pub fn is_request_from_hab(req: &mut Request) -> bool {
@@ -531,19 +544,6 @@ pub fn trigger_from_request(req: &mut Request) -> JobGroupTrigger {
         JobGroupTrigger::BuilderUI
     } else {
         JobGroupTrigger::Unknown
-    }
-}
-
-pub fn get_session_user_name(req: &mut Request, account_id: u64) -> String {
-    let mut msg = AccountGetId::new();
-    msg.set_id(account_id);
-
-    match route_message::<AccountGetId, Account>(req, &msg) {
-        Ok(account) => account.get_name().to_string(),
-        Err(err) => {
-            warn!("Failed to get account, err={:?}", err);
-            "".to_string()
-        }
     }
 }
 

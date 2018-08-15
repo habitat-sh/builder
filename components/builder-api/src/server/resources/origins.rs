@@ -16,14 +16,13 @@ use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{HttpRequest, HttpResponse, Json, Path};
 use protocol::originsrv::*;
-use protocol::sessionsrv::*;
 
 use hab_core::package::ident;
 
-use server::error::Error;
+use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
-use server::helpers::{self, check_origin_access};
+use server::helpers;
 use server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -32,72 +31,81 @@ pub struct OriginCreateReq {
     default_package_visibility: Option<String>,
 }
 
-// TODO: wrap things up into an Origins struct
-// Enable using ? operator and Results consistently
-// Enable helper functions to become part of the resource object
-// etc..
+pub struct Origins {}
 
-pub fn origin_show(req: &HttpRequest<AppState>) -> HttpResponse {
-    let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-    debug!("origin_show called, origin = {}", origin);
+impl Origins {
+    // Internal
+    fn do_get_origin(req: &HttpRequest<AppState>, origin: String) -> Result<Origin> {
+        let mut request = OriginGet::new();
+        request.set_name(origin);
 
-    let mut request = OriginGet::new();
-    request.set_name(origin);
-
-    match route_message::<OriginGet, Origin>(req, &request) {
-        Ok(origin) => HttpResponse::Ok()
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(origin),
-        Err(err) => Error::NetError(err).into(),
+        route_message::<OriginGet, Origin>(req, &request).map_err(|e| Error::NetError(e))
     }
-}
 
-pub fn origin_create((req, body): (HttpRequest<AppState>, Json<OriginCreateReq>)) -> HttpResponse {
-    debug!("origin_create called, body = {:?}", body);
-    let mut request = OriginCreate::new();
+    fn do_create_origin(
+        req: &HttpRequest<AppState>,
+        body: &Json<OriginCreateReq>,
+    ) -> Result<Origin> {
+        let mut request = OriginCreate::new();
 
-    let (account_id, account_name) = {
-        let extensions = req.extensions();
-        let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
-        (session.get_id(), session.get_name().to_owned())
-    };
+        let (account_id, account_name) = helpers::get_session_id_and_name(req);
+        request.set_owner_id(account_id);
+        request.set_owner_name(account_name);
+        request.set_name(body.name.clone());
 
-    request.set_owner_id(account_id);
-    request.set_owner_name(account_name);
+        if let Some(ref vis) = body.default_package_visibility {
+            let opv = vis.parse::<OriginPackageVisibility>()?;
+            request.set_default_package_visibility(opv);
+        }
 
-    if let Some(ref vis) = body.default_package_visibility {
-        match vis.parse::<OriginPackageVisibility>() {
-            Ok(vis) => request.set_default_package_visibility(vis),
-            Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        route_message::<OriginCreate, Origin>(&req, &request).map_err(|e| Error::NetError(e))
+    }
+
+    fn do_create_keys(req: &HttpRequest<AppState>, origin: String) -> Result<()> {
+        let account_id = helpers::check_origin_access(req, &origin)?;
+
+        match helpers::get_origin(req, origin) {
+            Ok(origin) => helpers::generate_origin_keys(req, account_id, origin),
+            Err(err) => Err(Error::NetError(err)),
         }
     }
-    request.set_name(body.name.clone());
 
-    if !ident::is_valid_origin_name(request.get_name()) {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+    // Route handlers
+    pub fn get_origin(req: &HttpRequest<AppState>) -> HttpResponse {
+        let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+        debug!("get_origin called, origin = {}", origin);
+
+        match Self::do_get_origin(req, origin) {
+            Ok(origin) => HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(origin),
+            Err(err) => err.into(),
+        }
     }
 
-    match route_message::<OriginCreate, Origin>(&req, &request) {
-        Ok(origin) => HttpResponse::Created().json(origin),
-        Err(err) => Error::NetError(err).into(),
+    pub fn create_origin(
+        (req, body): (HttpRequest<AppState>, Json<OriginCreateReq>),
+    ) -> HttpResponse {
+        debug!("origin_create called, body = {:?}", body);
+
+        if !ident::is_valid_origin_name(&body.name) {
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        match Self::do_create_origin(&req, &body) {
+            Ok(origin) => HttpResponse::Created().json(origin),
+            Err(err) => err.into(),
+        }
     }
-}
 
-pub fn generate_origin_keys(req: &HttpRequest<AppState>) -> HttpResponse {
-    let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-    debug!("generate_origin_keys called, origin = {}", origin);
+    pub fn create_keys(req: &HttpRequest<AppState>) -> HttpResponse {
+        let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+        debug!("generate_origin_keys called, origin = {}", origin);
 
-    let account_id = match check_origin_access(req, &origin) {
-        Ok(id) => id,
-        Err(err) => return err.into(),
-    };
-
-    match helpers::get_origin(req, origin) {
-        Ok(origin) => match helpers::generate_origin_keys(req, account_id, origin) {
+        match Self::do_create_keys(req, origin) {
             Ok(_) => HttpResponse::Created().finish(),
             Err(err) => err.into(),
-        },
-        Err(err) => Error::NetError(err).into(),
+        }
     }
 }
 

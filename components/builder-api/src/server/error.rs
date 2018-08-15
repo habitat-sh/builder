@@ -191,6 +191,7 @@ impl ResponseError for Error {
         match self {
             Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         }
@@ -202,6 +203,7 @@ impl Into<HttpResponse> for Error {
         match self {
             Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         }
@@ -267,6 +269,12 @@ impl From<io::Error> for Error {
 impl From<protobuf::ProtobufError> for Error {
     fn from(err: protobuf::ProtobufError) -> Error {
         Error::Protobuf(err)
+    }
+}
+
+impl From<protocol::ProtocolError> for Error {
+    fn from(err: protocol::ProtocolError) -> Error {
+        Error::Protocol(err)
     }
 }
 
