@@ -16,8 +16,8 @@
 // use std::str::FromStr;
 
 use actix_web::HttpRequest;
-// use serde::Serialize;
-// use serde_json;
+use serde::Serialize;
+use serde_json;
 
 // use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::crypto::SigKeyPair;
@@ -109,7 +109,134 @@ where
     route_message::<OriginGet, Origin>(req, &request)
 }
 
+pub fn get_optional_session_id(req: &HttpRequest<AppState>) -> Option<u64> {
+    match req.extensions().get::<Session>() {
+        Some(session) => Some(session.get_id()),
+        None => None,
+    }
+}
+
+pub fn visibility_for_optional_session(
+    req: &HttpRequest<AppState>,
+    optional_session_id: Option<u64>,
+    origin: &str,
+) -> Vec<OriginPackageVisibility> {
+    let mut v = Vec::new();
+    v.push(OriginPackageVisibility::Public);
+
+    if optional_session_id.is_some() && check_origin_access(req, &origin).is_ok() {
+        v.push(OriginPackageVisibility::Hidden);
+        v.push(OriginPackageVisibility::Private);
+    }
+
+    v
+}
+
+// Get channels for a package
+pub fn channels_for_package_ident(
+    req: &HttpRequest<AppState>,
+    package: &OriginPackageIdent,
+) -> Option<Vec<String>> {
+    let session_id = get_optional_session_id(req);
+
+    let mut opclr = OriginPackageChannelListRequest::new();
+    opclr.set_ident(package.clone());
+    opclr.set_visibilities(visibility_for_optional_session(
+        req,
+        session_id,
+        package.get_origin(),
+    ));
+
+    match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
+        req, &opclr,
+    ) {
+        Ok(channels) => {
+            let list: Vec<String> = channels
+                .get_channels()
+                .iter()
+                .map(|channel| channel.get_name().to_string())
+                .collect();
+
+            Some(list)
+        }
+        Err(_) => None,
+    }
+}
+
+// Get platforms for a package
+pub fn platforms_for_package_ident(
+    req: &HttpRequest<AppState>,
+    package: &OriginPackageIdent,
+) -> Option<Vec<String>> {
+    let session_id = get_optional_session_id(req);
+
+    let mut opplr = OriginPackagePlatformListRequest::new();
+    opplr.set_ident(package.clone());
+    opplr.set_visibilities(visibility_for_optional_session(
+        req,
+        session_id,
+        package.get_origin(),
+    ));
+
+    match route_message::<OriginPackagePlatformListRequest, OriginPackagePlatformListResponse>(
+        req, &opplr,
+    ) {
+        Ok(p) => Some(p.get_platforms().to_vec()),
+        Err(_) => None,
+    }
+}
+
+const PAGINATION_RANGE_DEFAULT: isize = 0;
+const PAGINATION_RANGE_MAX: isize = 50;
+
+#[derive(Serialize)]
+struct PaginatedResults<'a, T: 'a> {
+    range_start: isize,
+    range_end: isize,
+    total_count: isize,
+    data: &'a Vec<T>,
+}
+
+pub fn package_results_json<T: Serialize>(
+    packages: &Vec<T>,
+    count: isize,
+    start: isize,
+    end: isize,
+) -> String {
+    let results = PaginatedResults {
+        range_start: start,
+        range_end: end,
+        total_count: count,
+        data: packages,
+    };
+
+    serde_json::to_string(&results).unwrap()
+}
+
 /*
+
+// Returns a tuple representing the from and to values representing a paginated set.
+// The range (start, stop) values are zero-based.
+pub fn extract_pagination(req: &mut Request) -> Result<(isize, isize), Response> {
+    let range_from_param = match extract_query_value("range", req) {
+        Some(range) => range,
+        None => PAGINATION_RANGE_DEFAULT.to_string(),
+    };
+
+    let offset = {
+        match range_from_param.parse::<usize>() {
+            Ok(range) => range as isize,
+            Err(_) => return Err(Response::with(status::BadRequest)),
+        }
+    };
+
+    debug!(
+        "extract_pagination range: (start, end): ({}, {})",
+        offset,
+        (offset + PAGINATION_RANGE_MAX - 1)
+    );
+    Ok((offset, offset + PAGINATION_RANGE_MAX - 1))
+}
 
 fn is_worker(req: &mut Request) -> bool {
     match req.extensions.get::<Authenticated>() {
@@ -175,17 +302,6 @@ pub fn validate_params(
     Ok(res)
 }
 
-const PAGINATION_RANGE_DEFAULT: isize = 0;
-const PAGINATION_RANGE_MAX: isize = 50;
-
-#[derive(Serialize)]
-struct PaginatedResults<'a, T: 'a> {
-    range_start: isize,
-    range_end: isize,
-    total_count: isize,
-    data: &'a Vec<T>,
-}
-
 pub fn paginated_response<T>(
     body: &Vec<T>,
     count: isize,
@@ -209,45 +325,6 @@ where
     }
 }
 
-pub fn package_results_json<T: Serialize>(
-    packages: &Vec<T>,
-    count: isize,
-    start: isize,
-    end: isize,
-) -> String {
-    let results = PaginatedResults {
-        range_start: start,
-        range_end: end,
-        total_count: count,
-        data: packages,
-    };
-
-    serde_json::to_string(&results).unwrap()
-}
-
-// Returns a tuple representing the from and to values representing a paginated set.
-// The range (start, stop) values are zero-based.
-pub fn extract_pagination(req: &mut Request) -> Result<(isize, isize), Response> {
-    let range_from_param = match extract_query_value("range", req) {
-        Some(range) => range,
-        None => PAGINATION_RANGE_DEFAULT.to_string(),
-    };
-
-    let offset = {
-        match range_from_param.parse::<usize>() {
-            Ok(range) => range as isize,
-            Err(_) => return Err(Response::with(status::BadRequest)),
-        }
-    };
-
-    debug!(
-        "extract_pagination range: (start, end): ({}, {})",
-        offset,
-        (offset + PAGINATION_RANGE_MAX - 1)
-    );
-    Ok((offset, offset + PAGINATION_RANGE_MAX - 1))
-}
-
 pub fn extract_query_value(key: &str, req: &mut Request) -> Option<String> {
     match req.get_ref::<UrlEncodedQuery>() {
         Ok(ref map) => {
@@ -265,82 +342,12 @@ pub fn extract_query_value(key: &str, req: &mut Request) -> Option<String> {
     }
 }
 
-pub fn visibility_for_optional_session(
-    req: &mut Request,
-    optional_session_id: Option<u64>,
-    origin: &str,
-) -> Vec<OriginPackageVisibility> {
-    let mut v = Vec::new();
-    v.push(OriginPackageVisibility::Public);
-
-    if optional_session_id.is_some() && check_origin_access(req, origin).unwrap_or(false) {
-        v.push(OriginPackageVisibility::Hidden);
-        v.push(OriginPackageVisibility::Private);
-    }
-
-    v
-}
-
 pub fn all_visibilities() -> Vec<OriginPackageVisibility> {
     vec![
         OriginPackageVisibility::Public,
         OriginPackageVisibility::Private,
         OriginPackageVisibility::Hidden,
     ]
-}
-
-// Get channels for a package
-pub fn channels_for_package_ident(
-    req: &mut Request,
-    package: &OriginPackageIdent,
-) -> Option<Vec<String>> {
-    let session_id = get_optional_session_id(req);
-
-    let mut opclr = OriginPackageChannelListRequest::new();
-    opclr.set_ident(package.clone());
-    opclr.set_visibilities(visibility_for_optional_session(
-        req,
-        session_id,
-        package.get_origin(),
-    ));
-
-    match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
-        req, &opclr,
-    ) {
-        Ok(channels) => {
-            let list: Vec<String> = channels
-                .get_channels()
-                .iter()
-                .map(|channel| channel.get_name().to_string())
-                .collect();
-
-            Some(list)
-        }
-        Err(_) => None,
-    }
-}
-
-// Get platforms for a package
-pub fn platforms_for_package_ident(
-    req: &mut Request,
-    package: &OriginPackageIdent,
-) -> Option<Vec<String>> {
-    let session_id = get_optional_session_id(req);
-
-    let mut opplr = OriginPackagePlatformListRequest::new();
-    opplr.set_ident(package.clone());
-    opplr.set_visibilities(visibility_for_optional_session(
-        req,
-        session_id,
-        package.get_origin(),
-    ));
-
-    match route_message::<OriginPackagePlatformListRequest, OriginPackagePlatformListResponse>(
-        req, &opplr,
-    ) {
-        Ok(p) => Some(p.get_platforms().to_vec()),
-        Err(_) => None,
-    }
 }
 
 pub fn get_param(req: &mut Request, name: &str) -> Option<String> {
