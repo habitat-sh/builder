@@ -23,6 +23,7 @@ use hab_core;
 use hab_core::package::{self, Identifiable};
 use hab_net::conn;
 use hab_net::{self, ErrCode};
+use oauth_client::error::Error as OAuthError;
 
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
@@ -60,6 +61,7 @@ pub enum Error {
     NoXFilename,
     NoFilePart,
     NulError(ffi::NulError),
+    OAuth(OAuthError),
     ObjectError(rusoto_s3::ListObjectsError),
     PackageIsAlreadyInChannel(String, String),
     PackageUpload(rusoto_s3::PutObjectError),
@@ -82,6 +84,7 @@ impl fmt::Display for Error {
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::IO(ref e) => format!("{}", e),
             Error::NetError(ref e) => format!("{}", e),
+            Error::OAuth(ref e) => format!("{}", e),
             Error::Protobuf(ref e) => format!("{}", e),
             Error::UnknownGitHubEvent(ref e) => {
                 format!("Unknown or unsupported GitHub event, {}", e)
@@ -146,6 +149,7 @@ impl error::Error for Error {
             Error::HabitatCore(ref err) => err.description(),
             Error::IO(ref err) => err.description(),
             Error::NetError(ref err) => err.description(),
+            Error::OAuth(ref err) => err.description(),
             Error::Protobuf(ref err) => err.description(),
             Error::UnknownGitHubEvent(_) => {
                 "Unknown or unsupported GitHub event received in request"
@@ -191,6 +195,7 @@ impl ResponseError for Error {
         match self {
             Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
@@ -203,6 +208,7 @@ impl Into<HttpResponse> for Error {
         match self {
             Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
@@ -263,6 +269,12 @@ impl From<hab_net::NetError> for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::IO(err)
+    }
+}
+
+impl From<OAuthError> for Error {
+    fn from(err: OAuthError) -> Error {
+        Error::OAuth(err)
     }
 }
 

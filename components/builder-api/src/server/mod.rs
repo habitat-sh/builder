@@ -314,7 +314,7 @@ pub fn run(config: Config) -> Result<()> {
             // Unauthenticated resources
             //
             .resource("/status", |r| r.head().f(status))
-            .resource("/authenticate/{code}", |r| r.get().f(authenticate))
+            .resource("/authenticate/{code}", |r| r.get().f(Authenticate::authenticate))
             .resource("/depot/pkgs/origins/{origin}/stats", |r| r.get().f(Packages::get_stats))
             .resource("/depot/origins/{origin}", |r| r.get().f(Origins::get_origin))
             //

@@ -34,12 +34,12 @@ pub struct OriginCreateReq {
 pub struct Origins {}
 
 impl Origins {
-    // Internal
+    // Internal - these functions should return Result<..>
     fn do_get_origin(req: &HttpRequest<AppState>, origin: String) -> Result<Origin> {
         let mut request = OriginGet::new();
         request.set_name(origin);
 
-        route_message::<OriginGet, Origin>(req, &request).map_err(|e| Error::NetError(e))
+        route_message::<OriginGet, Origin>(req, &request)
     }
 
     fn do_create_origin(
@@ -58,7 +58,7 @@ impl Origins {
             request.set_default_package_visibility(opv);
         }
 
-        route_message::<OriginCreate, Origin>(&req, &request).map_err(|e| Error::NetError(e))
+        route_message::<OriginCreate, Origin>(&req, &request)
     }
 
     fn do_create_keys(req: &HttpRequest<AppState>, origin: String) -> Result<()> {
@@ -66,11 +66,11 @@ impl Origins {
 
         match helpers::get_origin(req, origin) {
             Ok(origin) => helpers::generate_origin_keys(req, account_id, origin),
-            Err(err) => Err(Error::NetError(err)),
+            Err(err) => Err(err),
         }
     }
 
-    // Route handlers
+    // Route handlers - these functions should return HttpResponse
     pub fn get_origin(req: &HttpRequest<AppState>) -> HttpResponse {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
         debug!("get_origin called, origin = {}", origin);

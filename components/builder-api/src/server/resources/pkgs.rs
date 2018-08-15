@@ -22,7 +22,7 @@ use serde_json;
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
-use server::error::Error;
+use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers;
@@ -39,7 +39,39 @@ const PAGINATION_RANGE_MAX: isize = 50;
 pub struct Packages {}
 
 impl Packages {
-    // Internal
+    // Internal - these functions should return Result<..>
+    fn do_get_stats(req: &HttpRequest<AppState>, origin: String) -> Result<JobGraphPackageStats> {
+        let mut request = JobGraphPackageStatsGet::new();
+        request.set_origin(origin);
+
+        route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request)
+    }
+
+    fn do_get_packages(
+        req: &HttpRequest<AppState>,
+        origin: String,
+        pagination: &Query<Pagination>,
+    ) -> Result<OriginPackageListResponse> {
+        let opt_session_id = helpers::get_optional_session_id(&req);
+
+        let (start, stop) = (
+            pagination.range,
+            pagination.range + PAGINATION_RANGE_MAX - 1,
+        );
+
+        let mut request = OriginPackageListRequest::new();
+        request.set_start(start as u64);
+        request.set_stop(stop as u64);
+        request.set_visibilities(helpers::visibility_for_optional_session(
+            &req,
+            opt_session_id,
+            &origin,
+        ));
+        request.set_distinct(pagination.distinct);
+        request.set_ident(OriginPackageIdent::from_str(origin.as_str()).unwrap());
+
+        route_message::<OriginPackageListRequest, OriginPackageListResponse>(&req, &request)
+    }
 
     // TODO : this needs to be re-designed to not fan out
     fn postprocess_package_list(
@@ -95,19 +127,15 @@ impl Packages {
             .body(body)
     }
 
-    // Route handlers
+    // Route handlers - these functions should return HttpResponse
     pub fn get_stats(req: &HttpRequest<AppState>) -> HttpResponse {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-        debug!("package_stats called, origin = {}", origin);
 
-        let mut request = JobGraphPackageStatsGet::new();
-        request.set_origin(origin);
-
-        match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request) {
+        match Self::do_get_stats(req, origin) {
             Ok(stats) => HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(stats),
-            Err(err) => Error::NetError(err).into(),
+            Err(err) => err.into(),
         }
     }
 
@@ -115,27 +143,10 @@ impl Packages {
         (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
     ) -> HttpResponse {
         let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
-        let opt_session_id = helpers::get_optional_session_id(&req);
 
-        let (start, stop) = (
-            pagination.range,
-            pagination.range + PAGINATION_RANGE_MAX - 1,
-        );
-
-        let mut request = OriginPackageListRequest::new();
-        request.set_start(start as u64);
-        request.set_stop(stop as u64);
-        request.set_visibilities(helpers::visibility_for_optional_session(
-            &req,
-            opt_session_id,
-            &origin,
-        ));
-        request.set_distinct(pagination.distinct);
-        request.set_ident(OriginPackageIdent::from_str(origin.as_str()).unwrap());
-
-        match route_message::<OriginPackageListRequest, OriginPackageListResponse>(&req, &request) {
+        match Self::do_get_packages(&req, origin, &pagination) {
             Ok(olpr) => Self::postprocess_package_list(&req, &olpr, pagination.distinct),
-            Err(err) => Error::NetError(err).into(),
+            Err(err) => err.into(),
         }
     }
 }

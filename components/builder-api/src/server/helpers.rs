@@ -22,7 +22,7 @@ use serde_json;
 // use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::crypto::SigKeyPair;
 use hab_net::privilege::FeatureFlags;
-use hab_net::NetResult;
+//use hab_net::NetResult;
 
 // use protocol::jobsrv::*;
 use protocol::originsrv::*;
@@ -100,7 +100,7 @@ pub fn generate_origin_keys(
     Ok(())
 }
 
-pub fn get_origin<T>(req: &HttpRequest<AppState>, origin: T) -> NetResult<Origin>
+pub fn get_origin<T>(req: &HttpRequest<AppState>, origin: T) -> Result<Origin>
 where
     T: ToString,
 {

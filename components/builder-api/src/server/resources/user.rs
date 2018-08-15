@@ -15,7 +15,7 @@
 use actix_web::{HttpRequest, HttpResponse};
 use protocol::sessionsrv::*;
 
-use server::error::{Error, Result};
+use server::error::Result;
 use server::framework::middleware::route_message;
 use server::helpers;
 use server::AppState;
@@ -23,7 +23,7 @@ use server::AppState;
 pub struct User {}
 
 impl User {
-    // Internal
+    // Internal - these functions should return Result<..>
     fn do_get_invitations(req: &HttpRequest<AppState>) -> Result<AccountInvitationListResponse> {
         let account_id = helpers::get_session_id(req);
 
@@ -31,7 +31,6 @@ impl User {
         request.set_account_id(account_id);
 
         route_message::<AccountInvitationListRequest, AccountInvitationListResponse>(req, &request)
-            .map_err(|e| Error::NetError(e))
     }
 
     fn do_get_origins(req: &HttpRequest<AppState>) -> Result<AccountOriginListResponse> {
@@ -41,10 +40,9 @@ impl User {
         request.set_account_id(account_id);
 
         route_message::<AccountOriginListRequest, AccountOriginListResponse>(req, &request)
-            .map_err(|e| Error::NetError(e))
     }
 
-    // Route handlers
+    // Route handlers - these functions should return HttpResponse
     pub fn get_invitations(req: &HttpRequest<AppState>) -> HttpResponse {
         match Self::do_get_invitations(req) {
             Ok(invites) => HttpResponse::Ok().json(invites),
