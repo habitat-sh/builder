@@ -161,7 +161,7 @@ Then, issue the following command:
 hab config apply builder-api.default $(date +%s) upstream.toml
 ```
 
-_Note: the config can also be added directly to the builder-api `user.toml` by modifying the `support/config.sh` file._
+_Note: the config can also be added directly to the builder-api `user.toml` by modifying the `support/builder/config.sh` file._
 
 After the config is successfully applied, the services should be configured to use the upstream.
 
