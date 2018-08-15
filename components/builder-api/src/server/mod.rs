@@ -315,7 +315,7 @@ pub fn run(config: Config) -> Result<()> {
             //
             .resource("/status", |r| r.head().f(status))
             .resource("/authenticate/{code}", |r| r.get().f(authenticate))
-            .resource("/depot/pkgs/origins/{origin}/stats", |r| r.get().f(package_stats))
+            .resource("/depot/pkgs/origins/{origin}/stats", |r| r.get().f(Packages::get_stats))
             .resource("/depot/origins/{origin}", |r| r.get().f(Origins::get_origin))
             //
             // Authenticated resources
@@ -325,7 +325,7 @@ pub fn run(config: Config) -> Result<()> {
             //
             .resource("/depot/pkgs/{origin}", |r| {
                 r.middleware(Optional);
-                r.method(http::Method::GET).with(package_list);
+                r.method(http::Method::GET).with(Packages::get_packages);
             })
             //
             // Profile resource
