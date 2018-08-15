@@ -34,16 +34,7 @@ pub struct Pagination {
     distinct: bool,
 }
 
-const PAGINATION_RANGE_DEFAULT: isize = 0;
 const PAGINATION_RANGE_MAX: isize = 50;
-
-#[derive(Serialize)]
-struct PaginatedResults<'a, T: 'a> {
-    range_start: isize,
-    range_end: isize,
-    total_count: isize,
-    data: &'a Vec<T>,
-}
 
 pub fn package_stats(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok

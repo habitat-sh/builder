@@ -5,7 +5,6 @@
 // is made available under an open source license such as the Apache 2.0 License.
 
 use std::cmp::{Eq, Ordering, PartialOrd};
-use std::error;
 use std::fmt;
 use std::result;
 use std::str::FromStr;
@@ -22,28 +21,6 @@ use message::jobsrv::JobGroupTrigger;
 pub use message::originsrv::*;
 use message::Routable;
 use sharding::InstaId;
-
-#[derive(Debug)]
-pub enum Error {
-    BadOriginPackageVisibility,
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let msg = match *self {
-            Error::BadOriginPackageVisibility => "Bad Origin Package Visibility",
-        };
-        write!(f, "{}", msg)
-    }
-}
-
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::BadOriginPackageVisibility => "Origin package visibility cannot be parsed",
-        }
-    }
-}
 
 impl fmt::Display for PackageChannelTrigger {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -198,14 +175,14 @@ impl Serialize for OriginPackageVisibility {
 }
 
 impl FromStr for OriginPackageVisibility {
-    type Err = Error;
+    type Err = ProtocolError;
 
     fn from_str(value: &str) -> result::Result<Self, Self::Err> {
         match value.to_lowercase().as_ref() {
             "public" => Ok(OriginPackageVisibility::Public),
             "private" => Ok(OriginPackageVisibility::Private),
             "hidden" => Ok(OriginPackageVisibility::Hidden),
-            _ => Err(Error::BadOriginPackageVisibility),
+            _ => Err(ProtocolError::BadOriginPackageVisibility(value.to_string())),
         }
     }
 }

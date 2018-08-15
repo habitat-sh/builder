@@ -316,7 +316,7 @@ pub fn run(config: Config) -> Result<()> {
             .resource("/status", |r| r.head().f(status))
             .resource("/authenticate/{code}", |r| r.get().f(authenticate))
             .resource("/depot/pkgs/origins/{origin}/stats", |r| r.get().f(package_stats))
-            .resource("/depot/origins/{origin}", |r| r.get().f(origin_show))
+            .resource("/depot/origins/{origin}", |r| r.get().f(Origins::get_origin))
             //
             // Authenticated resources
             //
@@ -332,7 +332,7 @@ pub fn run(config: Config) -> Result<()> {
             //
             .resource("/profile", |r| {
                 r.middleware(Authenticated);
-                r.get().f(get_profile);
+                r.get().f(Profile::get_profile);
             })
             //
             //  User resource
@@ -350,11 +350,11 @@ pub fn run(config: Config) -> Result<()> {
             //
             .resource("/depot/origins", |r| {
                 r.middleware(Authenticated);
-                r.method(http::Method::POST).with(origin_create);
+                r.method(http::Method::POST).with(Origins::create_origin);
             })
             .resource("/depot/origins/{origin}/keys", |r| {
                 r.middleware(Authenticated);
-                r.method(http::Method::POST).f(generate_origin_keys);
+                r.method(http::Method::POST).f(Origins::create_keys);
             })
     }).workers(cfg.handler_count())
         .bind(cfg.http.clone())
