@@ -21,6 +21,7 @@ test/builder-api/node_modules
 test/builder-api/services.log
 tmp/
 pkgs/
+upstream.toml
 
 #### Generated Files
 components/builder-protocol/src/message

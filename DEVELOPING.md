@@ -110,22 +110,15 @@ Note: your GH app must have access to a repo containing a plan file. Forking `ha
 
 ### Install dependencies in your local Builder env
 
-You may use the `load_package` helper to specify a pacakge to upload. Ex:
+You may use the `load_package` helper to specify a package to upload. Ex:
 
 ```
 load_package /hab/cache/artifacts/core-*.hart
 ```
 
-If you are missing packages you can install them from the upstream Builder service. Ex:
+If you are missing packages, see [Setting up an upstream source](#setting-up-an-upstream-source) below.
 
-```
-hab pkg install core/elasticseach
-load_package /hab/cache/artifacts/core-elasticsearch*.hart
-```
-
-*NOTE*: By default, an automated fetch from the https://bldr.habitat.sh upstream is configured so that 'core' and 'habitat' origin packages are automatically retrieved from the upstream. Make sure you have those origins created. The upstream fetch happens in the background. To trigger a fetch for a non-existent package, you can do a local 'hab pkg search' for that package - it will initially fail with a 'Not Found', but will trigger a background fetch. If you run into any issues, check the upstream log file in the '/hab/svc/builder-api/var' directory.
-
-### Option A: From the Web UI
+#### Option A: From the Web UI
 * Navigate to http://${APP_HOSTNAME}/#/pkgs
 * If you are not already logged in, log in.
 * Click on "My origins"
@@ -136,7 +129,7 @@ load_package /hab/cache/artifacts/core-elasticsearch*.hart
 * Click on "Build Jobs" and "View the output" to see the job in progress
 * The job should complete successfully! Congrats, you have a working build!
 
-### Option B: From the Command Line
+#### Option B: From the Command Line
 
 Issue the following command (replace `core/nginx` with your origin and package names):
 
@@ -149,3 +142,35 @@ This should create a build job, and then dispatch it to the build worker.
 You can view the build progress in the web UI or by viewing `/hab/svc/builder-worker/data/876066265100378112/log_pipe-876066265100378112.log`. Replace `876066265100378112` with the group ID output by the `start` command.
 
 Note: you will need to upload additional packages to the core origin for the `core/nginx` build to succeed. Follow the same procedure as for `core/hab-backline`. Currently `core/gcc` and `core/libedit` are required.
+
+### Setting up a package upstream
+
+It is possible to configure the on-premise builder to point to another Builder depot, such as the hosted Builder, as an 'upstream'. This allows new packages from the upstream to get created in the on-premise instance automatically.
+
+In order to do so, create a file called `upstream.toml` with the following content:
+```
+[api]
+features_enabled = "jobsrv, upstream"
+
+[upstream]
+endpoint = "https://bldr.habitat.sh"
+```
+
+Then, issue the following command:
+```
+hab config apply builder-api.default $(date +%s) upstream.toml
+```
+
+_Note: the config can also be added directly to the builder-api `user.toml` by modifying the `support/config.sh` file._
+
+After the config is successfully applied, the services should be configured to use the upstream.
+
+Now, you can test out that the upstream works by trying to install a package that you know exists in the upstream (in the _stable_ channel), but not in the local on-premise builder.
+
+```
+hab pkg install -u http://localhost -z <auth-token> <package>
+```
+
+Initially, you will get a `Package Not Found` error.  Wait for a bit (the package will get synchronized in the background) and try again - this time the install should succeed!
+
+*NOTE*: It is important to understand how the upstream cache is working. Packages that are requested (either via a `hab pkg install`, or even searching or browsing packages in the Web UI) in the local on-premise depot that have newer (or existing) versions in the upstream in the *stable* channel are marked for retrieval in the background. It is only after the background retrieval of the package succeeds that the package then becomes available in the local instance. If there is any failure to retrieve or submit the package, the next retrieval attempt will be triggered only by another request for that package. This functionality is new, and will be refined over time.
