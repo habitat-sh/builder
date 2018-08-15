@@ -22,12 +22,13 @@ use protobuf;
 
 use bldr_core;
 use hab_net::conn::RouteClient;
-use hab_net::{ErrCode, NetError, NetOk, NetResult};
+use hab_net::{ErrCode, NetError, NetOk};
 use oauth_client::types::OAuth2User;
 use protocol;
 use protocol::sessionsrv::*;
 use protocol::Routable;
 
+use server::error;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
@@ -68,7 +69,7 @@ impl<S> Middleware<S> for XRouteClient {
     }
 }
 
-pub fn route_message<M, R>(req: &HttpRequest<AppState>, msg: &M) -> NetResult<R>
+pub fn route_message<M, R>(req: &HttpRequest<AppState>, msg: &M) -> error::Result<R>
 where
     M: Routable,
     R: protobuf::Message,
@@ -77,6 +78,7 @@ where
         .get_mut::<RouteClient>()
         .expect("no XRouteClient extension in request")
         .route::<M, R>(msg)
+        .map_err(|e| error::Error::NetError(e))
 }
 
 // Authentication
@@ -122,7 +124,7 @@ fn auth_wrapper(req: &HttpRequest<AppState>, optional: bool) -> Result<Started> 
     Ok(Started::Done)
 }
 
-fn authenticate(req: &HttpRequest<AppState>, token: &str) -> NetResult<Session> {
+fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Session> {
     // Test hook - always create a valid session
     if env::var_os("HAB_FUNC_TEST").is_some() {
         debug!(
@@ -147,7 +149,10 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> NetResult<Session> 
         Ok(decoded_token) => decoded_token,
         Err(e) => {
             debug!("Failed to base64 decode token, err={:?}", e);
-            return Err(NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode:1"));
+            return Err(error::Error::NetError(NetError::new(
+                ErrCode::BAD_TOKEN,
+                "net:auth:decode:1",
+            )));
         }
     };
 
@@ -155,12 +160,19 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> NetResult<Session> 
         Ok(session_token) => session_validate(req, session_token),
         Err(e) => {
             debug!("Failed to decode token, err={:?}", e);
-            Err(NetError::new(ErrCode::BAD_TOKEN, "net:auth:decode:2"))
+            Err(error::Error::NetError(NetError::new(
+                ErrCode::BAD_TOKEN,
+                "net:auth:decode:2",
+            )))
         }
     }
 }
 
-fn revocation_check(req: &HttpRequest<AppState>, account_id: u64, token: &str) -> NetResult<()> {
+fn revocation_check(
+    req: &HttpRequest<AppState>,
+    account_id: u64,
+    token: &str,
+) -> error::Result<()> {
     let mut request = AccountTokenValidate::new();
     request.set_account_id(account_id);
     request.set_token(token.to_owned());
@@ -168,7 +180,7 @@ fn revocation_check(req: &HttpRequest<AppState>, account_id: u64, token: &str) -
     Ok(())
 }
 
-fn session_validate(req: &HttpRequest<AppState>, token: SessionToken) -> NetResult<Session> {
+fn session_validate(req: &HttpRequest<AppState>, token: SessionToken) -> error::Result<Session> {
     let mut request = SessionGet::new();
     request.set_token(token);
     route_message::<SessionGet, Session>(req, &request)
@@ -179,7 +191,7 @@ pub fn session_create_oauth(
     token: &str,
     user: &OAuth2User,
     provider: &str,
-) -> NetResult<Session> {
+) -> error::Result<Session> {
     let mut request = SessionCreate::new();
     request.set_session_type(SessionType::User);
     request.set_token(token.to_owned());
@@ -193,7 +205,10 @@ pub fn session_create_oauth(
                 "Error parsing oauth provider: provider={}, err={:?}",
                 provider, e
             );
-            return Err(NetError::new(ErrCode::BUG, "session_create_oauth:1"));
+            return Err(error::Error::NetError(NetError::new(
+                ErrCode::BUG,
+                "session_create_oauth:1",
+            )));
         }
     }
 
@@ -207,7 +222,7 @@ pub fn session_create_oauth(
 pub fn session_create_short_circuit(
     req: &HttpRequest<AppState>,
     token: &str,
-) -> NetResult<Session> {
+) -> error::Result<Session> {
     let request = match token.as_ref() {
         "bobo" => {
             let mut request = SessionCreate::new();
@@ -237,10 +252,10 @@ pub fn session_create_short_circuit(
         }
         user => {
             error!("Unexpected short circuit token {:?}", user);
-            return Err(NetError::new(
+            return Err(error::Error::NetError(NetError::new(
                 ErrCode::BUG,
                 "net:session-short-circuit:unknown-token",
-            ));
+            )));
         }
     };
 

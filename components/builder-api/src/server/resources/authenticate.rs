@@ -19,45 +19,49 @@ use actix_web::{HttpRequest, HttpResponse, Path};
 
 use hab_net::{ErrCode, NetError};
 use oauth_client::error::Error as OAuthError;
-use server::framework::middleware::{session_create_oauth, session_create_short_circuit};
 
-use server::error::Error;
+use protocol::sessionsrv::*;
+
+use server::error::{Error, Result};
+use server::framework::middleware::{session_create_oauth, session_create_short_circuit};
 use server::AppState;
 
-pub fn authenticate(req: &HttpRequest<AppState>) -> HttpResponse {
-    let code = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-    debug!("authenticate called, code = {}", code);
+pub struct Authenticate {}
 
-    if env::var_os("HAB_FUNC_TEST").is_some() {
-        return match session_create_short_circuit(req, &code) {
-            Ok(session) => HttpResponse::Ok().json(session),
-            Err(err) => Error::NetError(err).into(),
-        };
+impl Authenticate {
+    // Internal - these functions should return Result<..>
+    fn do_authenticate(req: &HttpRequest<AppState>, code: String) -> Result<Session> {
+        if env::var_os("HAB_FUNC_TEST").is_some() {
+            return session_create_short_circuit(req, &code);
+        }
+
+        let oauth = &req.state().oauth;
+        let (token, user) = oauth.authenticate(&code)?;
+        let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
+
+        let id_str = session.get_id().to_string();
+        if let Err(e) = req.state().segment.identify(&id_str) {
+            warn!("Error identifying a user in segment, {}", e);
+        }
+
+        Ok(session)
     }
 
-    let oauth = &req.state().oauth;
+    // Route handlers - these functions should return HttpResponse
+    pub fn authenticate(req: &HttpRequest<AppState>) -> HttpResponse {
+        let code = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+        debug!("authenticate called, code = {}", code);
 
-    match oauth.authenticate(&code) {
-        Ok((token, user)) => {
-            let session = match session_create_oauth(req, &token, &user, &oauth.config.provider) {
-                Ok(session) => session,
-                Err(err) => return Error::NetError(err).into(),
-            };
-
-            let id_str = session.get_id().to_string();
-            if let Err(e) = req.state().segment.identify(&id_str) {
-                warn!("Error identifying a user in segment, {}", e);
+        match Self::do_authenticate(req, code) {
+            Ok(session) => HttpResponse::Ok().json(session),
+            Err(Error::OAuth(OAuthError::HttpResponse(code, response))) => {
+                let msg = format!("{}-{}", code, response);
+                Error::NetError(NetError::new(ErrCode::ACCESS_DENIED, msg)).into()
             }
-
-            HttpResponse::Ok().json(session)
-        }
-        Err(OAuthError::HttpResponse(code, response)) => {
-            let msg = format!("{}-{}", code, response);
-            Error::NetError(NetError::new(ErrCode::ACCESS_DENIED, msg)).into()
-        }
-        Err(e) => {
-            warn!("Oauth client error, {:?}", e);
-            Error::NetError(NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1")).into()
+            Err(e) => {
+                warn!("Oauth client error, {:?}", e);
+                Error::NetError(NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1")).into()
+            }
         }
     }
 }

@@ -15,7 +15,7 @@
 use actix_web::{HttpRequest, HttpResponse};
 use protocol::sessionsrv::*;
 
-use server::error::{Error, Result};
+use server::error::Result;
 use server::framework::middleware::route_message;
 use server::helpers;
 use server::AppState;
@@ -23,16 +23,16 @@ use server::AppState;
 pub struct Profile {}
 
 impl Profile {
-    // Internal
+    // Internal - these functions should return Result<..>
     fn do_get_profile(req: &HttpRequest<AppState>) -> Result<Account> {
         let account_id = helpers::get_session_id(req);
         let mut request = AccountGetId::new();
         request.set_id(account_id);
 
-        route_message::<AccountGetId, Account>(req, &request).map_err(|e| Error::NetError(e))
+        route_message::<AccountGetId, Account>(req, &request)
     }
 
-    // Route handlers
+    // Route handlers - these functions should return HttpResponse
     pub fn get_profile(req: &HttpRequest<AppState>) -> HttpResponse {
         match Self::do_get_profile(req) {
             Ok(account) => HttpResponse::Ok().json(account),
