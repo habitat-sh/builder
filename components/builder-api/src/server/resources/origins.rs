@@ -39,7 +39,7 @@ pub struct OriginCreateReq {
 
 pub fn origin_show(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-    debug!("origin_show called with: origin={}", origin);
+    debug!("origin_show called, origin = {}", origin);
 
     let mut request = OriginGet::new();
     request.set_name(origin);
@@ -61,10 +61,6 @@ pub fn origin_create((req, body): (HttpRequest<AppState>, Json<OriginCreateReq>)
         let session = extensions.get::<Session>().unwrap(); // Unwrap Ok
         (session.get_id(), session.get_name().to_owned())
     };
-    debug!(
-        "Got session, account id = {}, account_name = {}",
-        account_id, account_name
-    );
 
     request.set_owner_id(account_id);
     request.set_owner_name(account_name);
@@ -1056,24 +1052,6 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
                 Ok(Response::with((status::UnprocessableEntity, "ds:up:6")))
             }
         }
-    }
-}
-
-// This route is unreachable when jobsrv_enabled is false
-fn package_stats(req: &mut Request) -> IronResult<Response> {
-    let mut request = JobGraphPackageStatsGet::new();
-    match get_param(req, "origin") {
-        Some(origin) => request.set_origin(origin),
-        None => return Ok(Response::with(status::BadRequest)),
-    }
-
-    match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(req, &request) {
-        Ok(stats) => {
-            let mut response = render_json(status::Ok, &stats);
-            dont_cache_response(&mut response);
-            Ok(response)
-        }
-        Err(err) => Ok(render_net_error(&err)),
     }
 }
 

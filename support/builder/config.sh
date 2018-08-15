@@ -46,7 +46,7 @@ EOT
 
 mkdir -p /hab/svc/builder-api-proxy
 cat <<EOT > /hab/svc/builder-api-proxy/user.toml
-log_level = "debug"
+log_level = "info"
 enable_builder = true
 
 app_url = "http://${APP_HOSTNAME}"
@@ -74,7 +74,7 @@ EOT
 
 mkdir -p /hab/svc/builder-jobsrv
 cat <<EOT > /hab/svc/builder-jobsrv/user.toml
-log_level = "debug"
+log_level = "info"
 
 [datastore]
 password = "$PGPASSWORD"
@@ -86,7 +86,7 @@ EOT
 
 mkdir -p /hab/svc/builder-originsrv
 cat <<EOT > /hab/svc/builder-originsrv/user.toml
-log_level = "debug"
+log_level = "info"
 
 [app]
 shards = [
@@ -227,7 +227,7 @@ EOT
 
 mkdir -p /hab/svc/builder-sessionsrv
 cat <<EOT > /hab/svc/builder-sessionsrv/user.toml
-log_level = "debug"
+log_level = "info"
 
 [app]
 shards = [
@@ -368,11 +368,10 @@ EOT
 
 mkdir -p /hab/svc/builder-worker
 cat <<EOT > /hab/svc/builder-worker/user.toml
-log_level = "error"
+log_level = "info"
 
 key_dir = "/hab/svc/builder-worker/files"
 auto_publish = true
-log_level = "debug"
 airlock_enabled = false
 data_path = "/hab/svc/builder-worker/data"
 bldr_url = "http://localhost:9636"
