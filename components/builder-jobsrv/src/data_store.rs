@@ -16,13 +16,14 @@
 
 embed_migrations!("src/migrations");
 
+use std::env;
 use std::io;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use db::config::{DataStoreCfg, ShardId};
+use db::config::DataStoreCfg;
 use db::diesel_pool::DieselPool;
-use db::migration::shard_setup;
+use db::migration::{self, setup_ids};
 use db::pool::Pool;
 use diesel::result::Error as Dre;
 use diesel::Connection;
@@ -49,7 +50,7 @@ impl DataStore {
     /// * Can fail if the pool cannot be created
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
     pub fn new(cfg: &DataStoreCfg) -> Result<DataStore> {
-        let pool = Pool::new(cfg, vec![0])?;
+        let pool = Pool::new(cfg)?;
         let diesel_pool = DieselPool::new(&cfg)?;
         Ok(DataStore { pool, diesel_pool })
     }
@@ -70,13 +71,21 @@ impl DataStore {
     /// access.
     pub fn setup(&self) -> Result<()> {
         let conn = self.diesel_pool.get_raw()?;
-        let shard_id: ShardId = 0;
         let _ = conn.transaction::<_, Dre, _>(|| {
-            shard_setup(&*conn, shard_id).unwrap();
+            setup_ids(&*conn).unwrap();
             embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
             Ok(())
         });
         Ok(())
+    }
+
+    /// Validate that the shard migration has happened.
+    pub fn validate_shard_migration(&self) -> Result<()> {
+        if env::var_os("HAB_FUNC_TEST").is_some() {
+            Ok(())
+        } else {
+            migration::validate_shard_migration(&self.pool).map_err(Error::Db)
+        }
     }
 
     /// Create a new job. Sets the state to Pending.
@@ -87,7 +96,7 @@ impl DataStore {
     /// * If the job cannot be created
     /// * If the job has an unknown VCS type
     pub fn create_job(&self, job: &jobsrv::Job) -> Result<jobsrv::Job> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let channel = if job.has_channel() {
             Some(job.get_channel())
@@ -134,7 +143,7 @@ impl DataStore {
     /// * If a connection cannot be gotten from the pool
     /// * If the job cannot be selected from the database
     pub fn get_job(&self, get_job: &jobsrv::JobGet) -> Result<Option<jobsrv::Job>> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query(
                 "SELECT * FROM get_job_v1($1)",
@@ -159,7 +168,7 @@ impl DataStore {
         &self,
         project: &jobsrv::ProjectJobsGet,
     ) -> Result<jobsrv::ProjectJobsGetResponse> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query(
                 "SELECT * FROM get_jobs_for_project_v2($1, $2, $3)",
@@ -194,7 +203,7 @@ impl DataStore {
     /// * If the pending jobs cannot be selected from the database
     /// * If the row returned cannot be translated into a Job
     pub fn next_pending_job(&self, worker: &str) -> Result<Option<jobsrv::Job>> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query("SELECT * FROM next_pending_job_v1($1)", &[&worker])
             .map_err(Error::JobPending)?;
@@ -217,7 +226,7 @@ impl DataStore {
     /// * If the row returned cannot be translated into a Job
     pub fn get_cancel_pending_jobs(&self) -> Result<Vec<jobsrv::Job>> {
         let mut jobs = Vec::new();
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query("SELECT * FROM get_cancel_pending_jobs_v1()", &[])
             .map_err(Error::JobPending)?;
@@ -237,7 +246,7 @@ impl DataStore {
     /// * If the row returned cannot be translated into a Job
     pub fn get_dispatched_jobs(&self) -> Result<Vec<jobsrv::Job>> {
         let mut jobs = Vec::new();
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query("SELECT * FROM get_dispatched_jobs_v1()", &[])
             .map_err(Error::JobGet)?;
@@ -257,7 +266,7 @@ impl DataStore {
     /// * If a connection cannot be gotten from the pool
     /// * If the job cannot be updated in the database
     pub fn update_job(&self, job: &jobsrv::Job) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let job_id = job.get_id() as i64;
         let job_state = job.get_state().to_string();
 
@@ -316,7 +325,7 @@ impl DataStore {
     /// and mechanism for retrieval are dependent on the configured archiving
     /// mechanism.
     pub fn mark_as_archived(&self, job_id: u64) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         conn.execute("SELECT mark_as_archived_v1($1)", &[&(job_id as i64)])
             .map_err(Error::JobMarkArchived)?;
         Ok(())
@@ -337,7 +346,7 @@ impl DataStore {
     /// * If the pool has no connections available
     /// * If the busy worker cannot be created
     pub fn upsert_busy_worker(&self, bw: &jobsrv::BusyWorker) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         conn.execute(
             "SELECT FROM upsert_busy_worker_v1($1, $2, $3)",
@@ -357,7 +366,7 @@ impl DataStore {
     /// * If the pool has no connections available
     /// * If the busy worker cannot be created
     pub fn delete_busy_worker(&self, bw: &jobsrv::BusyWorker) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         conn.execute(
             "SELECT FROM delete_busy_worker_v1($1, $2)",
@@ -374,7 +383,7 @@ impl DataStore {
     /// * If the pool has no connections available
     /// * If the busy workers cannot be created
     pub fn get_busy_workers(&self) -> Result<Vec<jobsrv::BusyWorker>> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows = conn
             .query("SELECT * FROM get_busy_workers_v1()", &[])
@@ -393,7 +402,7 @@ impl DataStore {
         &self,
         msg: &jobsrv::JobGraphPackageCreate,
     ) -> Result<jobsrv::JobGraphPackage> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows =
             conn.query(
@@ -408,7 +417,7 @@ impl DataStore {
     pub fn get_job_graph_packages(&self) -> Result<RepeatedField<jobsrv::JobGraphPackage>> {
         let mut packages = RepeatedField::new();
 
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows = &conn
             .query("SELECT * FROM get_graph_packages_v1()", &[])
@@ -428,7 +437,7 @@ impl DataStore {
     }
 
     pub fn get_job_graph_package(&self, ident: &str) -> Result<jobsrv::JobGraphPackage> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows = &conn
             .query("SELECT * FROM get_graph_package_v1($1)", &[&ident])
@@ -448,7 +457,7 @@ impl DataStore {
         &self,
         msg: &jobsrv::JobGraphPackageStatsGet,
     ) -> Result<jobsrv::JobGraphPackageStats> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let origin = msg.get_origin();
         let rows = &conn
@@ -482,7 +491,7 @@ impl DataStore {
     }
 
     pub fn is_job_group_active(&self, project_name: &str) -> Result<bool> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows = &conn
             .query("SELECT * FROM check_active_group_v1($1)", &[&project_name])
@@ -493,7 +502,7 @@ impl DataStore {
     }
 
     pub fn get_queued_job_group(&self, project_name: &str) -> Result<Option<jobsrv::JobGroup>> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows = &conn
             .query("SELECT * FROM get_queued_group_v1($1)", &[&project_name])
@@ -526,7 +535,7 @@ impl DataStore {
     pub fn get_queued_job_groups(&self) -> Result<RepeatedField<jobsrv::JobGroup>> {
         let mut groups = RepeatedField::new();
 
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows = &conn
             .query("SELECT * FROM get_queued_groups_v1()", &[])
@@ -545,7 +554,7 @@ impl DataStore {
         msg: &jobsrv::JobGroupSpec,
         project_tuples: Vec<(String, String)>,
     ) -> Result<jobsrv::JobGroup> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         assert!(!project_tuples.is_empty());
 
@@ -579,7 +588,7 @@ impl DataStore {
     }
 
     pub fn cancel_job_group(&self, group_id: u64) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         conn.query("SELECT cancel_group_v1($1)", &[&(group_id as i64)])
             .map_err(Error::JobGroupCancel)?;
 
@@ -587,7 +596,7 @@ impl DataStore {
     }
 
     pub fn create_audit_entry(&self, msg: &jobsrv::JobGroupAudit) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         conn.query(
             "SELECT add_audit_entry_v1($1, $2, $3, $4, $5)",
             &[
@@ -609,7 +618,7 @@ impl DataStore {
         let origin = msg.get_origin();
         let limit = msg.get_limit();
 
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query(
                 "SELECT * FROM get_job_groups_for_origin_v2($1, $2)",
@@ -633,7 +642,7 @@ impl DataStore {
         let group_id = msg.get_group_id();
         let include_projects = msg.get_include_projects();
 
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query("SELECT * FROM get_group_v1($1)", &[&(group_id as i64)])
             .map_err(Error::JobGroupGet)?;
@@ -667,7 +676,7 @@ impl DataStore {
     // TODO (SA): This is an experimental dev-only function for now
     pub fn abort_job_group(&self, msg: &jobsrv::JobGroupAbort) -> Result<()> {
         let group_id = msg.get_group_id();
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         conn.query("SELECT abort_group_v1($1)", &[&(group_id as i64)])
             .map_err(Error::JobGroupGet)?;
 
@@ -757,7 +766,7 @@ impl DataStore {
         group_id: u64,
         group_state: jobsrv::JobGroupState,
     ) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let state = group_state.to_string();
         conn.execute(
             "SELECT set_group_state_v1($1, $2)",
@@ -772,7 +781,7 @@ impl DataStore {
         project_name: &str,
         project_state: jobsrv::JobGroupProjectState,
     ) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let state = project_state.to_string();
         conn.execute(
             "SELECT set_group_project_name_state_v1($1, $2, $3)",
@@ -782,7 +791,7 @@ impl DataStore {
     }
 
     pub fn set_job_group_job_state(&self, job: &jobsrv::Job) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let rows = &conn
             .query(
                 "SELECT * FROM find_group_project_v1($1, $2)",
@@ -831,7 +840,7 @@ impl DataStore {
     pub fn pending_job_groups(&self, count: i32) -> Result<Vec<jobsrv::JobGroup>> {
         let mut groups = Vec::new();
 
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
         let group_rows = &conn
             .query("SELECT * FROM pending_groups_v1($1)", &[&count])
             .map_err(Error::JobGroupPending)?;
@@ -856,7 +865,7 @@ impl DataStore {
 
     pub fn sync_jobs(&self) -> Result<Vec<jobsrv::Job>> {
         let mut jobs = Vec::new();
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows = &conn
             .query("SELECT * FROM sync_jobs_v2()", &[])
@@ -875,7 +884,7 @@ impl DataStore {
     }
 
     pub fn set_job_sync(&self, job_id: u64) -> Result<()> {
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         conn.query("SELECT * FROM set_jobs_sync_v2($1)", &[&(job_id as i64)])
             .map_err(Error::SyncJobs)?;

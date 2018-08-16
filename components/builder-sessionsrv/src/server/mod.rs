@@ -200,8 +200,11 @@ pub struct ServerState {
 
 impl ServerState {
     fn new(cfg: Config) -> SrvResult<Self> {
+        let datastore = DataStore::new(&cfg.datastore)?;
+        datastore.validate_shard_migration()?;
+
         Ok(ServerState {
-            datastore: DataStore::new(&cfg.datastore, cfg.app.shards.unwrap())?,
+            datastore: datastore,
             sessions: Arc::new(Box::new(RwLock::new(HashSet::default()))),
             tokens: Arc::new(Box::new(RwLock::new(HashMap::new()))), // TBD: Handle multiple tokens / account
         })
@@ -255,7 +258,7 @@ pub fn run(config: Config) -> AppResult<(), SrvError> {
 }
 
 pub fn migrate(config: Config) -> SrvResult<()> {
-    let ds = DataStore::new(&config.datastore, config.app.shards.unwrap())?;
+    let ds = DataStore::new(&config.datastore)?;
     ds.setup()
 }
 
