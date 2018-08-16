@@ -18,14 +18,18 @@ pub mod helpers;
 pub mod resources;
 pub mod services;
 
+use futures::{future::ok, future::result, Future};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::Arc;
 use std::thread;
+use std::time;
 
 use actix_web::http::{self, StatusCode};
 use actix_web::middleware::Logger;
-use actix_web::{server, App, HttpRequest, HttpResponse, Result};
+use actix_web::AsyncResponder;
+use actix_web::{self, FromRequest};
+use actix_web::{server, App, HttpRequest, HttpResponse, Path, Result};
 
 use github_api_client::GitHubClient;
 use hab_net::socket;
@@ -173,20 +177,12 @@ impl AppState {
             );
         }
 
-        r.get("/status", status, "status");
-        r.get("/authenticate/:code", authenticate, "authenticate");
         r.post("/notify", notify, "notify");
         r.patch(
             "/profile",
             XHandler::new(update_profile).before(basic.clone()),
             "update_profile",
         );
-        r.get(
-            "/profile",
-            XHandler::new(get_profile).before(basic.clone()),
-            "get_profile",
-        );
-
         r.get(
             "/profile/access-tokens",
             XHandler::new(get_access_tokens).before(basic.clone()),
@@ -203,16 +199,6 @@ impl AppState {
             "revoke_access_token",
         );
 
-        r.get(
-            "/user/invitations",
-            XHandler::new(list_account_invitations).before(basic.clone()),
-            "user_invitations",
-        );
-        r.get(
-            "/user/origins",
-            XHandler::new(list_user_origins).before(basic.clone()),
-            "user_origins",
-        );
         r.post(
             "/ext/integrations/:registry_type/credentials/validate",
             XHandler::new(validate_registry_credentials).before(basic.clone()),
@@ -270,6 +256,20 @@ pub fn status(_req: &HttpRequest<AppState>) -> HttpResponse {
     HttpResponse::new(StatusCode::OK)
 }
 
+// FOR PERF TEST - TO BE REMOVED
+pub fn nasty(req: &HttpRequest<AppState>) -> HttpResponse {
+    let t = Path::<String>::extract(req).unwrap().into_inner();
+    thread::sleep(time::Duration::from_secs(t.parse::<u64>().unwrap()));
+    HttpResponse::new(StatusCode::OK)
+}
+
+// FOR PERF TEST - TO BE REMOVED
+pub fn nasty_async(
+    req: &HttpRequest<AppState>,
+) -> Box<Future<Item = HttpResponse, Error = actix_web::error::Error>> {
+    ok(nasty(req).into()).responder()
+}
+
 pub fn run(config: Config) -> Result<()> {
     enable_features(&config);
 
@@ -313,7 +313,9 @@ pub fn run(config: Config) -> Result<()> {
             //
             // Unauthenticated resources
             //
-            .resource("/status", |r| r.head().f(status))
+            .resource("/status", |r| { r.get().f(status); r.head().f(status)})
+            .resource("/nasty/{time}", |r| r.get().f(nasty)) // TO BE REMOVED
+            .resource("/anasty/{time}", |r| r.get().f(nasty_async)) // TO BE REMOVED
             .resource("/authenticate/{code}", |r| r.get().f(Authenticate::authenticate))
             .resource("/depot/pkgs/origins/{origin}/stats", |r| r.get().f(Packages::get_stats))
             .resource("/depot/origins/{origin}", |r| r.get().f(Origins::get_origin))
@@ -339,7 +341,7 @@ pub fn run(config: Config) -> Result<()> {
             //
             .resource("/user/invitations", |r| {
                 r.middleware(Authenticated);
-                r.get().f(User::get_invitations); 
+                r.get().f(User::get_invitations);
             })
             .resource("/user/origins", |r| {
                 r.middleware(Authenticated);
