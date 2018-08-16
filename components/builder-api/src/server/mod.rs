@@ -18,17 +18,13 @@ pub mod helpers;
 pub mod resources;
 pub mod services;
 
-use futures::{future::ok, future::result, Future};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::Arc;
 use std::thread;
-use std::time;
 
 use actix_web::http::{self, StatusCode};
 use actix_web::middleware::Logger;
-use actix_web::AsyncResponder;
-use actix_web::{self, FromRequest};
 use actix_web::{server, App, HttpRequest, HttpResponse, Path, Result};
 
 use github_api_client::GitHubClient;
@@ -178,42 +174,11 @@ impl AppState {
         }
 
         r.post("/notify", notify, "notify");
-        r.patch(
-            "/profile",
-            XHandler::new(update_profile).before(basic.clone()),
-            "update_profile",
-        );
-        r.get(
-            "/profile/access-tokens",
-            XHandler::new(get_access_tokens).before(basic.clone()),
-            "get_access_tokens",
-        );
-        r.post(
-            "/profile/access-tokens",
-            XHandler::new(generate_access_token).before(basic.clone()),
-            "generate_access_token",
-        );
-        r.delete(
-            "/profile/access-tokens/:id",
-            XHandler::new(revoke_access_token).before(basic.clone()),
-            "revoke_access_token",
-        );
 
         r.post(
             "/ext/integrations/:registry_type/credentials/validate",
             XHandler::new(validate_registry_credentials).before(basic.clone()),
             "ext_credentials_registry",
-        );
-
-        r.post(
-            "/admin/search",
-            XHandler::new(search).before(admin.clone()),
-            "admin_search",
-        );
-        r.get(
-            "/admin/accounts/:id",
-            XHandler::new(account_show).before(admin.clone()),
-            "admin_account",
         );
 
         // TODO : Don't forget about the depot routes :)
@@ -254,20 +219,6 @@ fn enable_features(config: &Config) {
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
 pub fn status(_req: &HttpRequest<AppState>) -> HttpResponse {
     HttpResponse::new(StatusCode::OK)
-}
-
-// FOR PERF TEST - TO BE REMOVED
-pub fn nasty(req: &HttpRequest<AppState>) -> HttpResponse {
-    let t = Path::<String>::extract(req).unwrap().into_inner();
-    thread::sleep(time::Duration::from_secs(t.parse::<u64>().unwrap()));
-    HttpResponse::new(StatusCode::OK)
-}
-
-// FOR PERF TEST - TO BE REMOVED
-pub fn nasty_async(
-    req: &HttpRequest<AppState>,
-) -> Box<Future<Item = HttpResponse, Error = actix_web::error::Error>> {
-    ok(nasty(req).into()).responder()
 }
 
 pub fn run(config: Config) -> Result<()> {
@@ -314,8 +265,6 @@ pub fn run(config: Config) -> Result<()> {
             // Unauthenticated resources
             //
             .resource("/status", |r| { r.get().f(status); r.head().f(status)})
-            .resource("/nasty/{time}", |r| r.get().f(nasty)) // TO BE REMOVED
-            .resource("/anasty/{time}", |r| r.get().f(nasty_async)) // TO BE REMOVED
             .resource("/authenticate/{code}", |r| r.get().f(Authenticate::authenticate))
             .resource("/depot/pkgs/origins/{origin}/stats", |r| r.get().f(Packages::get_stats))
             .resource("/depot/origins/{origin}", |r| r.get().f(Origins::get_origin))
@@ -335,6 +284,16 @@ pub fn run(config: Config) -> Result<()> {
             .resource("/profile", |r| {
                 r.middleware(Authenticated);
                 r.get().f(Profile::get_profile);
+                r.method(http::Method::PATCH).with(Profile::update_profile);
+            })
+            .resource("/profile/access-tokens", |r| {
+                r.middleware(Authenticated);
+                r.get().f(Profile::get_access_tokens);
+                r.post().f(Profile::generate_access_token);
+            })
+            .resource("/profile/access-tokens/{id}", |r| {
+                r.middleware(Authenticated);
+                r.delete().f(Profile::revoke_access_token);
             })
             //
             //  User resource

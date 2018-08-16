@@ -36,11 +36,6 @@ pub struct ProjectUpdateReq {
     pub auto_build: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct UserUpdateReq {
-    pub email: String,
-}
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GroupPromoteReq {
     pub idents: Vec<String>,

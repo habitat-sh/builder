@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{HttpRequest, HttpResponse};
+use actix_web::http::StatusCode;
+use actix_web::{FromRequest, HttpRequest, HttpResponse, Json, Path};
+
+use bldr_core;
+use hab_net::NetOk;
 use protocol::sessionsrv::*;
 
 use server::error::Result;
 use server::framework::middleware::route_message;
 use server::helpers;
 use server::AppState;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserUpdateReq {
+    pub email: String,
+}
 
 pub struct Profile {}
 
@@ -32,10 +41,86 @@ impl Profile {
         route_message::<AccountGetId, Account>(req, &request)
     }
 
+    fn do_generate_access_token(req: &HttpRequest<AppState>) -> Result<AccountToken> {
+        let (session_id, flags) = {
+            let extension = req.extensions();
+            let session = extension.get::<Session>().unwrap();
+            (session.get_id(), session.get_flags())
+        };
+
+        let mut request = AccountGetId::new();
+        request.set_id(session_id);
+
+        let account = route_message::<AccountGetId, Account>(req, &request)?;
+
+        let mut request = AccountTokenCreate::new();
+        let token = bldr_core::access_token::generate_user_token(
+            &req.state().config.api.key_path,
+            account.get_id(),
+            flags,
+        ).unwrap();
+
+        request.set_account_id(account.get_id());
+        request.set_token(token);
+
+        route_message::<AccountTokenCreate, AccountToken>(req, &request)
+    }
+
     // Route handlers - these functions should return HttpResponse
     pub fn get_profile(req: &HttpRequest<AppState>) -> HttpResponse {
         match Self::do_get_profile(req) {
             Ok(account) => HttpResponse::Ok().json(account),
+            Err(err) => err.into(),
+        }
+    }
+
+    pub fn get_access_tokens(req: &HttpRequest<AppState>) -> HttpResponse {
+        let account_id = helpers::get_session_id(req);
+
+        let mut request = AccountTokensGet::new();
+        request.set_account_id(account_id);
+
+        match route_message::<AccountTokensGet, AccountTokens>(req, &request) {
+            Ok(account_tokens) => HttpResponse::Ok().json(account_tokens),
+            Err(err) => err.into(),
+        }
+    }
+
+    pub fn generate_access_token(req: &HttpRequest<AppState>) -> HttpResponse {
+        match Self::do_generate_access_token(req) {
+            Ok(account_token) => HttpResponse::Ok().json(account_token),
+            Err(err) => err.into(),
+        }
+    }
+
+    pub fn revoke_access_token(req: &HttpRequest<AppState>) -> HttpResponse {
+        let token_id_str = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+        let token_id = match token_id_str.parse::<u64>() {
+            Ok(id) => id,
+            Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        };
+
+        let mut request = AccountTokenRevoke::new();
+        request.set_id(token_id);
+
+        match route_message::<AccountTokenRevoke, NetOk>(req, &request) {
+            Ok(_) => HttpResponse::Ok().finish(),
+            Err(err) => err.into(),
+        }
+    }
+
+    pub fn update_profile(
+        (req, body): (HttpRequest<AppState>, Json<UserUpdateReq>),
+    ) -> HttpResponse {
+        debug!("update_profile called, body = {:?}", &body);
+
+        let account_id = helpers::get_session_id(&req);
+        let mut request = AccountUpdate::new();
+        request.set_id(account_id);
+        request.set_email(body.email.to_owned());
+
+        match route_message::<AccountUpdate, NetOk>(&req, &request) {
+            Ok(_) => HttpResponse::Ok().finish(),
             Err(err) => err.into(),
         }
     }
@@ -153,153 +238,6 @@ fn search_account(req: &mut Request, key: String, value: String) -> IronResult<R
             }
         }
         _ => Ok(Response::with(status::UnprocessableEntity)),
-    }
-}
-
-pub fn authenticate(req: &mut Request) -> IronResult<Response> {
-    let code = match get_param(req, "code") {
-        Some(c) => c,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    if env::var_os("HAB_FUNC_TEST").is_some() {
-        let session = { session_create_short_circuit(req, &code)? };
-        return Ok(render_json(status::Ok, &session));
-    }
-
-    let oauth = req.get::<persistent::Read<OAuthCli>>().unwrap();
-    let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
-
-    match oauth.authenticate(&code) {
-        Ok((token, user)) => {
-            let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
-            let id_str = session.get_id().to_string();
-            if let Err(e) = segment.identify(&id_str) {
-                warn!("Error identifying a user in segment, {}", e);
-            }
-
-            Ok(render_json(status::Ok, &session))
-        }
-        Err(OAuthError::HttpResponse(code, response)) => {
-            let msg = format!("{}-{}", code, response);
-            let err = NetError::new(ErrCode::ACCESS_DENIED, msg);
-            Ok(render_net_error(&err))
-        }
-        Err(e) => {
-            warn!("Oauth client error, {:?}", e);
-            let err = NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1");
-            Ok(render_net_error(&err))
-        }
-    }
-}
-
-pub fn update_profile(req: &mut Request) -> IronResult<Response> {
-    let session_id = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        session.get_id()
-    };
-
-    let body = match req.get::<bodyparser::Struct<UserUpdateReq>>() {
-        Ok(Some(body)) => {
-            if body.email.len() <= 0 {
-                return Ok(Response::with((
-                    status::UnprocessableEntity,
-                    "Missing value for field: `email`",
-                )));
-            }
-
-            body
-        }
-        _ => return Ok(Response::with(status::UnprocessableEntity)),
-    };
-
-    let mut request = AccountUpdate::new();
-    request.set_id(session_id);
-    request.set_email(body.email);
-
-    match route_message::<AccountUpdate, NetOk>(req, &request) {
-        Ok(_) => Ok(Response::with(status::Ok)),
-        Err(err) => return Ok(render_net_error(&err)),
-    }
-}
-
-pub fn get_profile(req: &mut Request) -> IronResult<Response> {
-    let session_id = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        session.get_id()
-    };
-
-    let mut request = AccountGetId::new();
-    request.set_id(session_id);
-
-    match route_message::<AccountGetId, Account>(req, &request) {
-        Ok(account) => Ok(render_json(status::Ok, &account)),
-        Err(err) => return Ok(render_net_error(&err)),
-    }
-}
-
-pub fn get_access_tokens(req: &mut Request) -> IronResult<Response> {
-    let session_id = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        session.get_id()
-    };
-
-    let mut request = AccountTokensGet::new();
-    request.set_account_id(session_id);
-
-    match route_message::<AccountTokensGet, AccountTokens>(req, &request) {
-        Ok(account_tokens) => Ok(render_json(status::Ok, &account_tokens)),
-        Err(err) => return Ok(render_net_error(&err)),
-    }
-}
-
-pub fn generate_access_token(req: &mut Request) -> IronResult<Response> {
-    let (session_id, flags) = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        (session.get_id(), session.get_flags())
-    };
-
-    let mut request = AccountGetId::new();
-    request.set_id(session_id);
-
-    let account = match route_message::<AccountGetId, Account>(req, &request) {
-        Ok(account) => account,
-        Err(err) => return Ok(render_net_error(&err)),
-    };
-
-    let mut request = AccountTokenCreate::new();
-    let cfg = req.get::<persistent::Read<Config>>().unwrap();
-    let token =
-        bldr_core::access_token::generate_user_token(&cfg.api.key_path, account.get_id(), flags)
-            .unwrap();
-
-    request.set_account_id(account.get_id());
-    request.set_token(token);
-
-    match route_message::<AccountTokenCreate, AccountToken>(req, &request) {
-        Ok(account_token) => Ok(render_json(status::Ok, &account_token)),
-        Err(err) => return Ok(render_net_error(&err)),
-    }
-}
-
-pub fn revoke_access_token(req: &mut Request) -> IronResult<Response> {
-    let token_id = match get_param(req, "id") {
-        Some(id) => match id.parse::<u64>() {
-            Ok(n) => n,
-            Err(e) => {
-                debug!("Bad id param. e = {:?}", e);
-                return Ok(Response::with(status::BadRequest));
-            }
-        },
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let mut request = AccountTokenRevoke::new();
-    request.set_id(token_id);
-
-    match route_message::<AccountTokenRevoke, NetOk>(req, &request) {
-        Ok(_) => Ok(Response::with(status::Ok)),
-        Err(err) => return Ok(render_net_error(&err)),
     }
 }
 
