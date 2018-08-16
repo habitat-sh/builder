@@ -31,7 +31,7 @@ execute_sql() {
   local sql="$1"
   local server="$2"
 
-  hab pkg exec core/postgresql psql -t -U hab -h 127.0.0.1 -p 5433 -c "$sql" "builder_$server"
+  hab pkg exec core/postgresql psql -t -U hab -h 127.0.0.1 -p 5432 -c "$sql" "builder_$server"
 }
 
 process_shards() {
@@ -65,13 +65,18 @@ process_shards() {
   do
     current_schema="shard_$shard"
     # ordering by table_name descending gets us the "origins" table first, which is a pre-req for all the other tables due to foreign key constraints
-    tables=$(execute_sql "SELECT table_name FROM information_schema.tables WHERE table_schema='$current_schema' AND table_type='BASE TABLE' ORDER BY table_name DESC;" "$server")
+    if [ "$server" == "originsrv" ]; then
+      tables="origins origin_secrets origin_secret_keys origin_public_keys origin_public_encryption_keys origin_projects origin_integrations origin_project_integrations origin_private_encryption_keys origin_packages origin_members origin_invitations origin_channels origin_channel_packages audit_package_group audit_package audit"
+    else
+      tables=$(execute_sql "SELECT table_name FROM information_schema.tables WHERE table_schema='$current_schema' AND table_type='BASE TABLE' ORDER BY table_name DESC;" "$server")
+    fi
+
     echo "current schema = $current_schema"
 
     for table in $tables
     do
       # migrations will run automatically for the public schema, so we don't need to transfer any data there.
-      if [ "$table" == "__diesel_schema_migrations" ]; then
+      if [ "$table" == "__diesel_schema_migrations" ] || [ "$table" == "builder_db_migrations" ]; then
         continue
       fi
 
