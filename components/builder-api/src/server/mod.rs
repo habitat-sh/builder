@@ -25,7 +25,7 @@ use std::thread;
 
 use actix_web::http::{self, StatusCode};
 use actix_web::middleware::Logger;
-use actix_web::{server, App, HttpRequest, HttpResponse, Path, Result};
+use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 
 use github_api_client::GitHubClient;
 use hab_net::socket;
@@ -77,118 +77,6 @@ impl AppState {
         }
     }
 }
-
-/*
-    TODO: Migrate these routes to the new framework...
-
-    fn router(config: Arc<Config>) -> Router {
-        let basic = Authenticated::new(config.api.key_path.clone());
-        let worker =
-            Authenticated::new(config.api.key_path.clone()).require(FeatureFlags::BUILD_WORKER);
-        let admin = Authenticated::new(PathBuf::new()).require(FeatureFlags::ADMIN);
-
-        let mut r = Router::new();
-
-        if feat::is_enabled(feat::Jobsrv) {
-            r.post(
-                "/jobs/group/:id/promote/:channel",
-                XHandler::new(job_group_promote).before(basic.clone()),
-                "job_group_promote",
-            );
-            r.post(
-                "/jobs/group/:id/demote/:channel",
-                XHandler::new(job_group_demote).before(basic.clone()),
-                "job_group_demote",
-            );
-            r.post(
-                "/jobs/group/:id/cancel",
-                XHandler::new(job_group_cancel).before(basic.clone()),
-                "job_group_cancel",
-            );
-            r.get("/rdeps/:origin/:name", rdeps_show, "rdeps");
-            r.get(
-                "/jobs/:id",
-                XHandler::new(job_show).before(basic.clone()),
-                "job",
-            );
-            r.get(
-                "/jobs/:id/log",
-                XHandler::new(job_log).before(basic.clone()),
-                "job_log",
-            );
-            r.post(
-                "/projects",
-                XHandler::new(project_create).before(basic.clone()),
-                "projects",
-            );
-            r.get(
-                "/projects/:origin/:name",
-                XHandler::new(project_show).before(basic.clone()),
-                "project",
-            );
-            r.get(
-                "/projects/:origin",
-                XHandler::new(project_list).before(basic.clone()),
-                "project_list",
-            );
-            r.get(
-                "/projects/:origin/:name/jobs",
-                XHandler::new(project_jobs).before(basic.clone()),
-                "project_jobs",
-            );
-            r.put(
-                "/projects/:origin/:name",
-                XHandler::new(project_update).before(basic.clone()),
-                "edit_project",
-            );
-            r.delete(
-                "/projects/:origin/:name",
-                XHandler::new(project_delete).before(basic.clone()),
-                "delete_project",
-            );
-            r.patch(
-                "/projects/:origin/:name/:visibility",
-                XHandler::new(project_privacy_toggle).before(basic.clone()),
-                "project_privacy_toggle",
-            );
-            r.get(
-                "/projects/:origin/:name/integrations/:integration/default",
-                XHandler::new(get_project_integration).before(basic.clone()),
-                "project_integration_get",
-            );
-            r.put(
-                "/projects/:origin/:name/integrations/:integration/default",
-                XHandler::new(create_project_integration).before(basic.clone()),
-                "project_integration_put",
-            );
-            r.delete(
-                "/projects/:origin/:name/integrations/:integration/default",
-                XHandler::new(delete_project_integration).before(basic.clone()),
-                "project_integration_delete",
-            );
-            r.get(
-                "/ext/installations/:install_id/repos/:repo_id/contents/:path",
-                XHandler::new(github::repo_file_content).before(basic.clone()),
-                "ext_repo_content",
-            );
-        }
-
-        r.post("/notify", notify, "notify");
-
-        r.post(
-            "/ext/integrations/:registry_type/credentials/validate",
-            XHandler::new(validate_registry_credentials).before(basic.clone()),
-            "ext_credentials_registry",
-        );
-
-        // TODO : Don't forget about the depot routes :)
-        // Mount these in both the "v1" and "v1/depot" namespace..
-
-        depot::server::add_routes(&mut r, basic, worker);
-
-        r
-    }
-*/
 
 fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![
@@ -324,3 +212,389 @@ pub fn run(config: Config) -> Result<()> {
 
     Ok(())
 }
+
+// TODO:
+
+// ORIGIN HANDLERS: "/depot/origins/..."
+
+/*
+
+   r.post(
+        "/origins",
+        XHandler::new(origin_create).before(basic.clone()),
+        "origin_create",
+    );
+    r.put(
+        "/origins/:name",
+        XHandler::new(origin_update).before(basic.clone()),
+        "origin_update",
+    );
+    r.get("/origins/:origin", origin_show, "origin");
+    r.get("/origins/:origin/keys", list_origin_keys, "origin_keys");
+    r.get(
+        "/origins/:origin/keys/latest",
+        download_latest_origin_key,
+        "origin_key_latest",
+    );
+    r.get(
+        "/origins/:origin/keys/:revision",
+        download_origin_key,
+        "origin_key",
+    );
+    r.get(
+        "/origins/:origin/encryption_key",
+        XHandler::new(download_latest_origin_encryption_key).before(basic.clone()),
+        "origin_encryption_key_download",
+    );
+    r.post(
+        "/origins/:origin/keys",
+        XHandler::new(generate_origin_keys).before(basic.clone()),
+        "origin_key_generate",
+    );
+    r.post(
+        "/origins/:origin/keys/:revision",
+        XHandler::new(upload_origin_key).before(basic.clone()),
+        "origin_key_create",
+    );
+    r.post(
+        "/origins/:origin/secret_keys/:revision",
+        XHandler::new(upload_origin_secret_key).before(basic.clone()),
+        "origin_secret_key_create",
+    );
+    r.post(
+        "/origins/:origin/secret",
+        XHandler::new(create_origin_secret).before(basic.clone()),
+        "origin_secret_create",
+    );
+    r.get(
+        "/origins/:origin/secret",
+        XHandler::new(list_origin_secrets).before(basic.clone()),
+        "origin_secret_list",
+    );
+    r.delete(
+        "/origins/:origin/secret/:secret",
+        XHandler::new(delete_origin_secret).before(basic.clone()),
+        "origin_secret_delete",
+    );
+    r.get(
+        "/origins/:origin/secret_keys/latest",
+        XHandler::new(download_latest_origin_secret_key).before(basic.clone()),
+        "origin_secret_key_latest",
+    );
+    r.get(
+        "/origins/:origin/integrations/:integration/names",
+        XHandler::new(handlers::integrations::fetch_origin_integration_names).before(basic.clone()),
+        "origin_integration_get_names",
+    );
+    r.put(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::create_origin_integration).before(basic.clone()),
+        "origin_integration_put",
+    );
+    r.delete(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::delete_origin_integration).before(basic.clone()),
+        "origin_integration_delete",
+    );
+    r.get(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::get_origin_integration).before(basic.clone()),
+        "origin_integration_get",
+    );
+    r.get(
+        "/origins/:origin/integrations",
+        XHandler::new(handlers::integrations::fetch_origin_integrations).before(basic.clone()),
+        "origin_integrations",
+    );
+    r.post(
+        "/origins/:origin/users/:username/invitations",
+        XHandler::new(invite_to_origin).before(basic.clone()),
+        "origin_invitation_create",
+    );
+    r.put(
+        "/origins/:origin/invitations/:invitation_id",
+        XHandler::new(accept_invitation).before(basic.clone()),
+        "origin_invitation_accept",
+    );
+    r.put(
+        "/origins/:origin/invitations/:invitation_id/ignore",
+        XHandler::new(ignore_invitation).before(basic.clone()),
+        "origin_invitation_ignore",
+    );
+    r.delete(
+        "/origins/:origin/invitations/:invitation_id",
+        XHandler::new(rescind_invitation).before(basic.clone()),
+        "origin_invitation_rescind",
+    );
+    r.get(
+        "/origins/:origin/invitations",
+        XHandler::new(list_origin_invitations).before(basic.clone()),
+        "origin_invitations",
+    );
+    r.get(
+        "/origins/:origin/users",
+        XHandler::new(list_origin_members).before(basic.clone()),
+        "origin_users",
+    );
+    r.delete(
+        "/origins/:origin/users/:username",
+        XHandler::new(origin_member_delete).before(basic.clone()),
+        "origin_member_delete",
+    );
+}
+*/
+
+// PACKAGES HANLDERS "/depot/pkgs/..."
+
+/*
+    r.get(
+        "/pkgs/search/:query",
+        XHandler::new(search_packages).before(opt.clone()),
+        "package_search",
+    );
+    r.get(
+        "/pkgs/:origin",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages",
+    );
+    r.get(
+        "/:origin/pkgs",
+        XHandler::new(list_unique_packages).before(opt.clone()),
+        "packages_unique",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages_pkg",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/versions",
+        XHandler::new(list_package_versions).before(opt.clone()),
+        "package_pkg_versions",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "package_pkg_latest",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages_version",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "package_version_latest",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release",
+        XHandler::new(show_package).before(opt.clone()),
+        "package",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release/channels",
+        XHandler::new(package_channels).before(opt.clone()),
+        "package_channels",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release/download",
+        XHandler::new(download_package).before(opt.clone()),
+        "package_download",
+    );
+    r.post(
+        "/pkgs/:origin/:pkg/:version/:release",
+        XHandler::new(upload_package).before(basic.clone()),
+        "package_upload",
+    );
+    r.patch(
+        "/pkgs/:origin/:pkg/:version/:release/:visibility",
+        XHandler::new(package_privacy_toggle).before(basic.clone()),
+        "package_privacy_toggle",
+    );
+
+    if feat::is_enabled(feat::Jobsrv) {
+        r.get(
+            "/pkgs/origins/:origin/stats",
+            package_stats,
+            "package_stats",
+        );
+        r.post(
+            "/pkgs/schedule/:origin/:pkg",
+            XHandler::new(schedule).before(basic.clone()),
+            "schedule",
+        );
+        r.get("/pkgs/schedule/:groupid", get_schedule, "schedule_get");
+        r.get(
+            "/pkgs/schedule/:origin/status",
+            get_origin_schedule_status,
+            "schedule_get_global",
+        );
+
+    }    
+*/
+
+// CHANNELS HANDLERS "/depot/channels/..."
+
+/*
+
+    r.get("/channels/:origin", list_channels, "channels");
+    r.get(
+        "/channels/:origin/:channel/pkgs",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages_pkg",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_package_latest",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages_version",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_packages_version_latest",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_package_release",
+    );
+    r.put(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release/promote",
+        XHandler::new(promote_package).before(basic.clone()),
+        "channel_package_promote",
+    );
+    r.put(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release/demote",
+        XHandler::new(demote_package).before(basic.clone()),
+        "channel_package_demote",
+    );
+    r.post(
+        "/channels/:origin/:channel",
+        XHandler::new(create_channel).before(basic.clone()),
+        "channel_create",
+    );
+    r.delete(
+        "/channels/:origin/:channel",
+        XHandler::new(delete_channel).before(basic.clone()),
+        "channel_delete",
+    );
+*/
+
+// PROJECTS HANLDERS - "/projects/..."
+
+/*
+
+            r.post(
+                "/projects",
+                XHandler::new(project_create).before(basic.clone()),
+                "projects",
+            );
+            r.get(
+                "/projects/:origin/:name",
+                XHandler::new(project_show).before(basic.clone()),
+                "project",
+            );
+            r.get(
+                "/projects/:origin",
+                XHandler::new(project_list).before(basic.clone()),
+                "project_list",
+            );
+            r.get(
+                "/projects/:origin/:name/jobs",
+                XHandler::new(project_jobs).before(basic.clone()),
+                "project_jobs",
+            );
+            r.put(
+                "/projects/:origin/:name",
+                XHandler::new(project_update).before(basic.clone()),
+                "edit_project",
+            );
+            r.delete(
+                "/projects/:origin/:name",
+                XHandler::new(project_delete).before(basic.clone()),
+                "delete_project",
+            );
+            r.patch(
+                "/projects/:origin/:name/:visibility",
+                XHandler::new(project_privacy_toggle).before(basic.clone()),
+                "project_privacy_toggle",
+            );
+            r.get(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(get_project_integration).before(basic.clone()),
+                "project_integration_get",
+            );
+            r.put(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(create_project_integration).before(basic.clone()),
+                "project_integration_put",
+            );
+            r.delete(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(delete_project_integration).before(basic.clone()),
+                "project_integration_delete",
+            );
+            
+*/
+
+// JOBS HANDLERS - "/v1/jobs/..."
+
+/*
+
+        if feat::is_enabled(feat::Jobsrv) {
+            r.post(
+                "/jobs/group/:id/promote/:channel",
+                XHandler::new(job_group_promote).before(basic.clone()),
+                "job_group_promote",
+            );
+            r.post(
+                "/jobs/group/:id/demote/:channel",
+                XHandler::new(job_group_demote).before(basic.clone()),
+                "job_group_demote",
+            );
+            r.post(
+                "/jobs/group/:id/cancel",
+                XHandler::new(job_group_cancel).before(basic.clone()),
+                "job_group_cancel",
+            );
+            r.get("/rdeps/:origin/:name", rdeps_show, "rdeps");
+            r.get(
+                "/jobs/:id",
+                XHandler::new(job_show).before(basic.clone()),
+                "job",
+            );
+            r.get(
+                "/jobs/:id/log",
+                XHandler::new(job_log).before(basic.clone()),
+                "job_log",
+            );
+*/
+
+// OTHER HANDLERS
+
+/*
+        r.post("/notify", notify, "notify");
+
+-            r.get(
+-                "/ext/installations/:install_id/repos/:repo_id/contents/:path",
+-                XHandler::new(github::repo_file_content).before(basic.clone()),
+-                "ext_repo_content",
+-            );
+
+        r.post(
+            "/ext/integrations/:registry_type/credentials/validate",
+            XHandler::new(validate_registry_credentials).before(basic.clone()),
+            "ext_credentials_registry",
+        );
+*/
