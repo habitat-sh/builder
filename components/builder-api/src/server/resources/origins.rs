@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO: Origins is still huge ... should it break down further into
+// sub-resources?
+
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{HttpRequest, HttpResponse, Json, Path};
+use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
 use protocol::originsrv::*;
 
 use hab_core::package::ident;
 
 use server::error::{Error, Result};
 use server::framework::headers;
-use server::framework::middleware::route_message;
+use server::framework::middleware::{route_message, Authenticated};
 use server::helpers;
 use server::AppState;
 
@@ -107,7 +110,149 @@ impl Origins {
             Err(err) => err.into(),
         }
     }
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app.resource("/depot/origins/{origin}", |r| {
+            r.get().f(Origins::get_origin)
+        }).resource("/depot/origins", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::POST).with(Origins::create_origin);
+            })
+            .resource("/depot/origins/{origin}/keys", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::POST).f(Origins::create_keys);
+            })
+    }
 }
+
+// TODO: ORIGIN HANDLERS: "/depot/origins/..."
+
+/*
+   r.post(
+        "/origins",
+        XHandler::new(origin_create).before(basic.clone()),
+        "origin_create",
+    );
+    r.put(
+        "/origins/:name",
+        XHandler::new(origin_update).before(basic.clone()),
+        "origin_update",
+    );
+    r.get("/origins/:origin", origin_show, "origin");
+    r.get("/origins/:origin/keys", list_origin_keys, "origin_keys");
+    r.get(
+        "/origins/:origin/keys/latest",
+        download_latest_origin_key,
+        "origin_key_latest",
+    );
+    r.get(
+        "/origins/:origin/keys/:revision",
+        download_origin_key,
+        "origin_key",
+    );
+    r.get(
+        "/origins/:origin/encryption_key",
+        XHandler::new(download_latest_origin_encryption_key).before(basic.clone()),
+        "origin_encryption_key_download",
+    );
+    r.post(
+        "/origins/:origin/keys",
+        XHandler::new(generate_origin_keys).before(basic.clone()),
+        "origin_key_generate",
+    );
+    r.post(
+        "/origins/:origin/keys/:revision",
+        XHandler::new(upload_origin_key).before(basic.clone()),
+        "origin_key_create",
+    );
+    r.post(
+        "/origins/:origin/secret_keys/:revision",
+        XHandler::new(upload_origin_secret_key).before(basic.clone()),
+        "origin_secret_key_create",
+    );
+    r.post(
+        "/origins/:origin/secret",
+        XHandler::new(create_origin_secret).before(basic.clone()),
+        "origin_secret_create",
+    );
+    r.get(
+        "/origins/:origin/secret",
+        XHandler::new(list_origin_secrets).before(basic.clone()),
+        "origin_secret_list",
+    );
+    r.delete(
+        "/origins/:origin/secret/:secret",
+        XHandler::new(delete_origin_secret).before(basic.clone()),
+        "origin_secret_delete",
+    );
+    r.get(
+        "/origins/:origin/secret_keys/latest",
+        XHandler::new(download_latest_origin_secret_key).before(basic.clone()),
+        "origin_secret_key_latest",
+    );
+    r.get(
+        "/origins/:origin/integrations/:integration/names",
+        XHandler::new(handlers::integrations::fetch_origin_integration_names).before(basic.clone()),
+        "origin_integration_get_names",
+    );
+    r.put(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::create_origin_integration).before(basic.clone()),
+        "origin_integration_put",
+    );
+    r.delete(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::delete_origin_integration).before(basic.clone()),
+        "origin_integration_delete",
+    );
+    r.get(
+        "/origins/:origin/integrations/:integration/:name",
+        XHandler::new(handlers::integrations::get_origin_integration).before(basic.clone()),
+        "origin_integration_get",
+    );
+    r.get(
+        "/origins/:origin/integrations",
+        XHandler::new(handlers::integrations::fetch_origin_integrations).before(basic.clone()),
+        "origin_integrations",
+    );
+    r.post(
+        "/origins/:origin/users/:username/invitations",
+        XHandler::new(invite_to_origin).before(basic.clone()),
+        "origin_invitation_create",
+    );
+    r.put(
+        "/origins/:origin/invitations/:invitation_id",
+        XHandler::new(accept_invitation).before(basic.clone()),
+        "origin_invitation_accept",
+    );
+    r.put(
+        "/origins/:origin/invitations/:invitation_id/ignore",
+        XHandler::new(ignore_invitation).before(basic.clone()),
+        "origin_invitation_ignore",
+    );
+    r.delete(
+        "/origins/:origin/invitations/:invitation_id",
+        XHandler::new(rescind_invitation).before(basic.clone()),
+        "origin_invitation_rescind",
+    );
+    r.get(
+        "/origins/:origin/invitations",
+        XHandler::new(list_origin_invitations).before(basic.clone()),
+        "origin_invitations",
+    );
+    r.get(
+        "/origins/:origin/users",
+        XHandler::new(list_origin_members).before(basic.clone()),
+        "origin_users",
+    );
+    r.delete(
+        "/origins/:origin/users/:username",
+        XHandler::new(origin_member_delete).before(basic.clone()),
+        "origin_member_delete",
+    );
+}
+*/
 
 /*
 

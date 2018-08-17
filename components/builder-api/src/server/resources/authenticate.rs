@@ -15,7 +15,7 @@
 use std::env;
 
 use actix_web::FromRequest;
-use actix_web::{HttpRequest, HttpResponse, Path};
+use actix_web::{App, HttpRequest, HttpResponse, Path};
 
 use hab_net::{ErrCode, NetError};
 use oauth_client::error::Error as OAuthError;
@@ -63,6 +63,13 @@ impl Authenticate {
                 Error::NetError(NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1")).into()
             }
         }
+    }
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app.resource("/authenticate/{code}", |r| {
+            r.get().f(Authenticate::authenticate)
+        })
     }
 }
 

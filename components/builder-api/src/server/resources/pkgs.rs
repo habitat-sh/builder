@@ -16,7 +16,7 @@ use std::str::FromStr;
 
 use actix_web::http;
 use actix_web::FromRequest;
-use actix_web::{HttpRequest, HttpResponse, Path, Query};
+use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
 use serde_json;
 
 use protocol::jobsrv::*;
@@ -24,7 +24,7 @@ use protocol::originsrv::*;
 
 use server::error::{Error, Result};
 use server::framework::headers;
-use server::framework::middleware::route_message;
+use server::framework::middleware::{route_message, Authenticated, Optional};
 use server::helpers;
 use server::AppState;
 
@@ -149,11 +149,109 @@ impl Packages {
             Err(err) => err.into(),
         }
     }
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app.resource("/depot/pkgs/origins/{origin}/stats", |r| {
+            r.get().f(Packages::get_stats)
+        }).resource("/depot/pkgs/{origin}", |r| {
+            r.middleware(Optional);
+            r.method(http::Method::GET).with(Packages::get_packages);
+        })
+    }
 }
 
+// TODO: PACKAGES HANLDERS "/depot/pkgs/..."
+
 /*
+    r.get(
+        "/pkgs/search/:query",
+        XHandler::new(search_packages).before(opt.clone()),
+        "package_search",
+    );
+    r.get(
+        "/pkgs/:origin",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages",
+    );
+    r.get(
+        "/:origin/pkgs",
+        XHandler::new(list_unique_packages).before(opt.clone()),
+        "packages_unique",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages_pkg",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/versions",
+        XHandler::new(list_package_versions).before(opt.clone()),
+        "package_pkg_versions",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "package_pkg_latest",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version",
+        XHandler::new(list_packages).before(opt.clone()),
+        "packages_version",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "package_version_latest",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release",
+        XHandler::new(show_package).before(opt.clone()),
+        "package",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release/channels",
+        XHandler::new(package_channels).before(opt.clone()),
+        "package_channels",
+    );
+    r.get(
+        "/pkgs/:origin/:pkg/:version/:release/download",
+        XHandler::new(download_package).before(opt.clone()),
+        "package_download",
+    );
+    r.post(
+        "/pkgs/:origin/:pkg/:version/:release",
+        XHandler::new(upload_package).before(basic.clone()),
+        "package_upload",
+    );
+    r.patch(
+        "/pkgs/:origin/:pkg/:version/:release/:visibility",
+        XHandler::new(package_privacy_toggle).before(basic.clone()),
+        "package_privacy_toggle",
+    );
 
+    if feat::is_enabled(feat::Jobsrv) {
+        r.get(
+            "/pkgs/origins/:origin/stats",
+            package_stats,
+            "package_stats",
+        );
+        r.post(
+            "/pkgs/schedule/:origin/:pkg",
+            XHandler::new(schedule).before(basic.clone()),
+            "schedule",
+        );
+        r.get("/pkgs/schedule/:groupid", get_schedule, "schedule_get");
+        r.get(
+            "/pkgs/schedule/:origin/status",
+            get_origin_schedule_status,
+            "schedule_get_global",
+        );
 
+    }    
+*/
+
+/*
 fn download_package(req: &mut Request) -> IronResult<Response> {
     let depot = req.get::<persistent::Read<Config>>().unwrap();
     let session_id = helpers::get_optional_session_id(req);

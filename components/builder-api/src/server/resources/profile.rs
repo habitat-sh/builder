@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::StatusCode;
-use actix_web::{FromRequest, HttpRequest, HttpResponse, Json, Path};
+use actix_web::http::{self, StatusCode};
+use actix_web::{App, FromRequest, HttpRequest, HttpResponse, Json, Path};
 
 use bldr_core;
 use hab_net::NetOk;
 use protocol::sessionsrv::*;
 
 use server::error::Result;
-use server::framework::middleware::route_message;
+use server::framework::middleware::{route_message, Authenticated};
 use server::helpers;
 use server::AppState;
 
@@ -123,5 +123,22 @@ impl Profile {
             Ok(_) => HttpResponse::Ok().finish(),
             Err(err) => err.into(),
         }
+    }
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app.resource("/profile", |r| {
+            r.middleware(Authenticated);
+            r.get().f(Profile::get_profile);
+            r.method(http::Method::PATCH).with(Profile::update_profile);
+        }).resource("/profile/access-tokens", |r| {
+                r.middleware(Authenticated);
+                r.get().f(Profile::get_access_tokens);
+                r.post().f(Profile::generate_access_token);
+            })
+            .resource("/profile/access-tokens/{id}", |r| {
+                r.middleware(Authenticated);
+                r.delete().f(Profile::revoke_access_token);
+            })
     }
 }
