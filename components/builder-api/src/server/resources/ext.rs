@@ -14,7 +14,7 @@
 
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{HttpRequest, HttpResponse, Json, Path};
+use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
 use protocol::originsrv::*;
 
 use hab_core::package::ident;
@@ -24,6 +24,35 @@ use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers;
 use server::AppState;
+
+pub struct Ext;
+
+impl Ext {
+    // Internal - these functions should return Result<..>
+
+    // Route handlers - these functions should return HttpResponse
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app
+    }
+}
+
+/*
+// TODO: EXT HANDLERS
+
+-            r.get(
+-                "/ext/installations/:install_id/repos/:repo_id/contents/:path",
+-                XHandler::new(github::repo_file_content).before(basic.clone()),
+-                "ext_repo_content",
+-            );
+
+        r.post(
+            "/ext/integrations/:registry_type/credentials/validate",
+            XHandler::new(validate_registry_credentials).before(basic.clone()),
+            "ext_credentials_registry",
+        );
+*/
 
 /*
 

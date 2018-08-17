@@ -14,7 +14,7 @@
 
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{HttpRequest, HttpResponse, Json, Path};
+use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
 use protocol::originsrv::*;
 
 use hab_core::package::ident;
@@ -24,6 +24,21 @@ use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers;
 use server::AppState;
+
+pub struct Notify;
+
+impl Notify {
+    // Internal - these functions should return Result<..>
+
+    // Route handlers - these functions should return HttpResponse
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app
+    }
+}
+
+// r.post("/notify", notify, "notify");
 
 /*
 pub fn notify(req: &mut Request) -> IronResult<Response> {

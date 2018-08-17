@@ -14,7 +14,7 @@
 
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{HttpRequest, HttpResponse, Json, Path};
+use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
 use protocol::originsrv::*;
 
 use hab_core::package::ident;
@@ -24,6 +24,76 @@ use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers;
 use server::AppState;
+
+pub struct Channels;
+
+impl Channels {
+    // Internal - these functions should return Result<..>
+
+    // Route handlers - these functions should return HttpResponse
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app
+    }
+}
+
+// TODO: CHANNELS HANDLERS "/depot/channels/..."
+
+/*
+
+    r.get("/channels/:origin", list_channels, "channels");
+    r.get(
+        "/channels/:origin/:channel/pkgs",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages_pkg",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_package_latest",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version",
+        XHandler::new(list_packages).before(opt.clone()),
+        "channel_packages_version",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/latest",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_packages_version_latest",
+    );
+    r.get(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release",
+        XHandler::new(show_package).before(opt.clone()),
+        "channel_package_release",
+    );
+    r.put(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release/promote",
+        XHandler::new(promote_package).before(basic.clone()),
+        "channel_package_promote",
+    );
+    r.put(
+        "/channels/:origin/:channel/pkgs/:pkg/:version/:release/demote",
+        XHandler::new(demote_package).before(basic.clone()),
+        "channel_package_demote",
+    );
+    r.post(
+        "/channels/:origin/:channel",
+        XHandler::new(create_channel).before(basic.clone()),
+        "channel_create",
+    );
+    r.delete(
+        "/channels/:origin/:channel",
+        XHandler::new(delete_channel).before(basic.clone()),
+        "channel_delete",
+    );
+*/
 
 /*
 

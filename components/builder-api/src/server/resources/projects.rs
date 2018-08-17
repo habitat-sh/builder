@@ -14,7 +14,7 @@
 
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{HttpRequest, HttpResponse, Json, Path};
+use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
 use protocol::originsrv::*;
 
 use hab_core::package::ident;
@@ -45,6 +45,76 @@ pub struct ProjectUpdateReq {
     pub repo_id: u32,
     pub auto_build: bool,
 }
+
+pub struct Projects;
+
+impl Projects {
+    // Internal - these functions should return Result<..>
+
+    // Route handlers - these functions should return HttpResponse
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app
+    }
+}
+
+// PROJECTS HANLDERS - "/projects/..."
+
+/*
+
+            r.post(
+                "/projects",
+                XHandler::new(project_create).before(basic.clone()),
+                "projects",
+            );
+            r.get(
+                "/projects/:origin/:name",
+                XHandler::new(project_show).before(basic.clone()),
+                "project",
+            );
+            r.get(
+                "/projects/:origin",
+                XHandler::new(project_list).before(basic.clone()),
+                "project_list",
+            );
+            r.get(
+                "/projects/:origin/:name/jobs",
+                XHandler::new(project_jobs).before(basic.clone()),
+                "project_jobs",
+            );
+            r.put(
+                "/projects/:origin/:name",
+                XHandler::new(project_update).before(basic.clone()),
+                "edit_project",
+            );
+            r.delete(
+                "/projects/:origin/:name",
+                XHandler::new(project_delete).before(basic.clone()),
+                "delete_project",
+            );
+            r.patch(
+                "/projects/:origin/:name/:visibility",
+                XHandler::new(project_privacy_toggle).before(basic.clone()),
+                "project_privacy_toggle",
+            );
+            r.get(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(get_project_integration).before(basic.clone()),
+                "project_integration_get",
+            );
+            r.put(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(create_project_integration).before(basic.clone()),
+                "project_integration_put",
+            );
+            r.delete(
+                "/projects/:origin/:name/integrations/:integration/default",
+                XHandler::new(delete_project_integration).before(basic.clone()),
+                "project_integration_delete",
+            );
+
+*/
 
 /*
 

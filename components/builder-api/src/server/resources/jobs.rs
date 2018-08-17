@@ -14,7 +14,7 @@
 
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{HttpRequest, HttpResponse, Json, Path};
+use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
 use protocol::originsrv::*;
 
 use hab_core::package::ident;
@@ -34,6 +34,52 @@ pub struct GroupPromoteReq {
 pub struct GroupDemoteReq {
     pub idents: Vec<String>,
 }
+
+pub struct Jobs;
+
+impl Jobs {
+    // Internal - these functions should return Result<..>
+
+    // Route handlers - these functions should return HttpResponse
+
+    // Route registration
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app
+    }
+}
+
+// JOBS HANDLERS - "/v1/jobs/..."
+
+/*
+
+        if feat::is_enabled(feat::Jobsrv) {
+            r.post(
+                "/jobs/group/:id/promote/:channel",
+                XHandler::new(job_group_promote).before(basic.clone()),
+                "job_group_promote",
+            );
+            r.post(
+                "/jobs/group/:id/demote/:channel",
+                XHandler::new(job_group_demote).before(basic.clone()),
+                "job_group_demote",
+            );
+            r.post(
+                "/jobs/group/:id/cancel",
+                XHandler::new(job_group_cancel).before(basic.clone()),
+                "job_group_cancel",
+            );
+            r.get("/rdeps/:origin/:name", rdeps_show, "rdeps");
+            r.get(
+                "/jobs/:id",
+                XHandler::new(job_show).before(basic.clone()),
+                "job",
+            );
+            r.get(
+                "/jobs/:id/log",
+                XHandler::new(job_log).before(basic.clone()),
+                "job_log",
+            );
+*/
 
 /*
 
