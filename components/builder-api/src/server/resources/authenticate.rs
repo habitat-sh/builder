@@ -29,7 +29,9 @@ use server::AppState;
 pub struct Authenticate {}
 
 impl Authenticate {
+    //
     // Internal - these functions should return Result<..>
+    //
     fn do_authenticate(req: &HttpRequest<AppState>, code: String) -> Result<Session> {
         if env::var_os("HAB_FUNC_TEST").is_some() {
             return session_create_short_circuit(req, &code);
@@ -47,8 +49,10 @@ impl Authenticate {
         Ok(session)
     }
 
+    //
     // Route handlers - these functions should return HttpResponse
-    pub fn authenticate(req: &HttpRequest<AppState>) -> HttpResponse {
+    //
+    fn authenticate(req: &HttpRequest<AppState>) -> HttpResponse {
         let code = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
         debug!("authenticate called, code = {}", code);
 
@@ -65,11 +69,11 @@ impl Authenticate {
         }
     }
 
+    //
     // Route registration
+    //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.resource("/authenticate/{code}", |r| {
-            r.get().f(Authenticate::authenticate)
-        })
+        app.resource("/authenticate/{code}", |r| r.get().f(Self::authenticate))
     }
 }
 

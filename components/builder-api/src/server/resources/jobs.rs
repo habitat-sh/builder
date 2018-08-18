@@ -17,18 +17,20 @@ use std::str::FromStr;
 
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
+use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
+use serde_json;
 
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::package::ident;
+use hab_core::package::Identifiable;
 use hab_net::{ErrCode, NetError, NetOk};
 
 use server::error::{Error, Result};
 use server::framework::headers;
-use server::framework::middleware::route_message;
+use server::framework::middleware::{route_message, Authenticated};
 use server::helpers;
 use server::AppState;
 
@@ -42,10 +44,18 @@ pub struct GroupDemoteReq {
     pub idents: Vec<String>,
 }
 
+#[derive(Deserialize)]
+pub struct JobLogPagination {
+    start: u64,
+    color: bool,
+}
+
 pub struct Jobs;
 
 impl Jobs {
+    //
     // Internal - these functions should return Result<..>
+    //
     fn do_group_promotion_or_demotion(
         req: &HttpRequest<AppState>,
         channel: &str,
@@ -114,7 +124,7 @@ impl Jobs {
     fn promote_or_demote_job_group(
         req: &HttpRequest<AppState>,
         group_id: u64,
-        idents: Option<Vec<String>>,
+        idents: &Vec<String>,
         channel: &str,
         promote: bool,
     ) -> Result<()> {
@@ -140,8 +150,8 @@ impl Jobs {
         let mut origin_map = HashMap::new();
 
         let mut ident_map = HashMap::new();
-        let has_idents = if idents.is_some() {
-            for ident in idents.unwrap().iter() {
+        let has_idents = if idents.len() > 0 {
+            for ident in idents.iter() {
                 ident_map.insert(ident.clone(), 1);
             }
             true
@@ -233,298 +243,216 @@ impl Jobs {
         Ok(())
     }
 
+    // TODO: this should be redesigned to not have fan-out, and also to return
+    // a Job instead of a String
+    fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
+        let mut request = JobGet::new();
+        request.set_id(job_id);
+
+        match route_message::<JobGet, Job>(req, &request) {
+            Ok(job) => {
+                debug!("job = {:?}", &job);
+
+                helpers::check_origin_access(req, &job.get_project().get_origin_name())?;
+
+                if job.get_package_ident().fully_qualified() {
+                    let channels =
+                        helpers::channels_for_package_ident(req, job.get_package_ident());
+                    let platforms =
+                        helpers::platforms_for_package_ident(req, job.get_package_ident());
+                    let mut job_json = serde_json::to_value(job).unwrap();
+
+                    if channels.is_some() {
+                        job_json["channels"] = json!(channels);
+                    }
+
+                    if platforms.is_some() {
+                        job_json["platforms"] = json!(platforms);
+                    }
+
+                    Ok(serde_json::to_string(&job_json).unwrap())
+                } else {
+                    Ok(serde_json::to_string(&job).unwrap())
+                }
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Result<JobLog> {
+        let mut job_get = JobGet::new();
+        let mut request = JobLogGet::new();
+        request.set_start(start);
+        request.set_id(job_id);
+        job_get.set_id(job_id);
+
+        // Before fetching the logs, we need to check and see if the logs we want to fetch are for
+        // a job that's building a private package, and if so, do we have the right to see said
+        // package.
+        match route_message::<JobGet, Job>(&req, &job_get) {
+            Ok(job) => {
+                // It's not sufficient to check the project that's on the job itself, since that
+                // project is reconstructed from information available in the jobsrv database and does
+                // not contain things like visibility settings. We need to fetch the project from
+                // originsrv.
+                let mut project_get = OriginProjectGet::new();
+                project_get.set_name(job.get_project().get_name().to_string());
+
+                let project = route_message::<OriginProjectGet, OriginProject>(&req, &project_get)?;
+
+                if vec![
+                    OriginPackageVisibility::Private,
+                    OriginPackageVisibility::Hidden,
+                ].contains(&project.get_visibility())
+                {
+                    helpers::check_origin_access(req, &project.get_origin_name())?;
+                }
+
+                route_message::<JobLogGet, JobLog>(req, &request)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn do_cancel_job_group(req: &HttpRequest<AppState>, group_id: u64) -> Result<NetOk> {
+        let (session_id, session_name) = helpers::get_session_id_and_name(req);
+
+        let mut jgg = JobGroupGet::new();
+        jgg.set_group_id(group_id);
+        jgg.set_include_projects(true);
+
+        let group = route_message::<JobGroupGet, JobGroup>(req, &jgg)?;
+
+        let name_split: Vec<&str> = group.get_project_name().split("/").collect();
+        assert!(name_split.len() == 2);
+
+        helpers::check_origin_access(req, &name_split[0])?;
+
+        let mut jgc = JobGroupCancel::new();
+        jgc.set_group_id(group_id);
+        jgc.set_trigger(helpers::trigger_from_request(req));
+        jgc.set_requester_id(session_id);
+        jgc.set_requester_name(session_name);
+
+        route_message::<JobGroupCancel, NetOk>(req, &jgc)
+    }
+
+    //
     // Route handlers - these functions should return HttpResponse
+    //
+    fn get_rdeps(req: &HttpRequest<AppState>) -> HttpResponse {
+        let (origin, name) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
-    // Route registration
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app
-    }
-}
+        let mut rdeps_get = JobGraphPackageReverseDependenciesGet::new();
+        rdeps_get.set_origin(origin);
+        rdeps_get.set_name(name);
 
-// JOBS HANDLERS - "/v1/jobs/..."
+        // TODO (SA): The rdeps API needs to be extended to support a target param.
+        // For now, hard code a default value
+        rdeps_get.set_target("x86_64-linux".to_string());
 
-/*
-
-        if feat::is_enabled(feat::Jobsrv) {
-            r.post(
-                "/jobs/group/:id/promote/:channel",
-                XHandler::new(job_group_promote).before(basic.clone()),
-                "job_group_promote",
-            );
-            r.post(
-                "/jobs/group/:id/demote/:channel",
-                XHandler::new(job_group_demote).before(basic.clone()),
-                "job_group_demote",
-            );
-            r.post(
-                "/jobs/group/:id/cancel",
-                XHandler::new(job_group_cancel).before(basic.clone()),
-                "job_group_cancel",
-            );
-            r.get("/rdeps/:origin/:name", rdeps_show, "rdeps");
-            r.get(
-                "/jobs/:id",
-                XHandler::new(job_show).before(basic.clone()),
-                "job",
-            );
-            r.get(
-                "/jobs/:id/log",
-                XHandler::new(job_log).before(basic.clone()),
-                "job_log",
-            );
-*/
-
-/*
-
-// This route is only available if jobsrv_enabled is true
-pub fn rdeps_show(req: &mut Request) -> IronResult<Response> {
-    let mut rdeps_get = JobGraphPackageReverseDependenciesGet::new();
-    match get_param(req, "origin") {
-        Some(origin) => rdeps_get.set_origin(origin),
-        None => return Ok(Response::with(status::BadRequest)),
-    }
-    match get_param(req, "name") {
-        Some(name) => rdeps_get.set_name(name),
-        None => return Ok(Response::with(status::BadRequest)),
+        match route_message::<
+            JobGraphPackageReverseDependenciesGet,
+            JobGraphPackageReverseDependencies,
+        >(req, &rdeps_get)
+        {
+            Ok(rdeps) => HttpResponse::Ok().json(rdeps),
+            Err(err) => err.into(),
+        }
     }
 
-    // TODO (SA): The rdeps API needs to be extended to support a target param.
-    // For now, hard code a default value
-    rdeps_get.set_target("x86_64-linux".to_string());
+    fn get_job(req: &HttpRequest<AppState>) -> HttpResponse {
+        let id_str = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
-    match route_message::<JobGraphPackageReverseDependenciesGet, JobGraphPackageReverseDependencies>(
-        req, &rdeps_get,
-    ) {
-        Ok(rdeps) => Ok(render_json(status::Ok, &rdeps)),
-        Err(err) => return Ok(render_net_error(&err)),
-    }
-}
-
-// This route is only available if jobsrv_enabled is true
-pub fn job_show(req: &mut Request) -> IronResult<Response> {
-    let mut request = JobGet::new();
-    match get_param(req, "id") {
-        Some(id) => match id.parse::<u64>() {
-            Ok(i) => request.set_id(i),
+        let job_id = match id_str.parse::<u64>() {
+            Ok(id) => id,
             Err(e) => {
                 debug!("Error finding id. e = {:?}", e);
-                return Ok(Response::with(status::BadRequest));
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
             }
-        },
-        None => return Ok(Response::with(status::BadRequest)),
-    }
+        };
 
-    match route_message::<JobGet, Job>(req, &request) {
-        Ok(job) => {
-            debug!("job = {:?}", &job);
-
-            if !check_origin_access(req, job.get_project().get_origin_name()).unwrap_or(false) {
-                return Ok(Response::with(status::Forbidden));
-            }
-
-            if job.get_package_ident().fully_qualified() {
-                let channels = helpers::channels_for_package_ident(req, job.get_package_ident());
-                let platforms = helpers::platforms_for_package_ident(req, job.get_package_ident());
-                let mut job_json = serde_json::to_value(job).unwrap();
-
-                if channels.is_some() {
-                    job_json["channels"] = json!(channels);
-                }
-
-                if platforms.is_some() {
-                    job_json["platforms"] = json!(platforms);
-                }
-
-                Ok(render_json(status::Ok, &job_json))
-            } else {
-                Ok(render_json(status::Ok, &job))
-            }
+        match Self::do_get_job(req, job_id) {
+            Ok(body) => HttpResponse::Ok()
+                .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                .body(body),
+            Err(err) => err.into(),
         }
-        Err(err) => Ok(render_net_error(&err)),
-    }
-}
-
-// This route is only available if jobsrv_enabled is true
-pub fn job_log(req: &mut Request) -> IronResult<Response> {
-    let start = req
-        .get_ref::<Params>()
-        .unwrap()
-        .find(&["start"])
-        .and_then(FromValue::from_value)
-        .unwrap_or(0);
-
-    let include_color = req
-        .get_ref::<Params>()
-        .unwrap()
-        .find(&["color"])
-        .and_then(FromValue::from_value)
-        .unwrap_or(false);
-
-    let mut job_get = JobGet::new();
-    let mut request = JobLogGet::new();
-    request.set_start(start);
-
-    match get_param(req, "id") {
-        Some(id) => match id.parse::<u64>() {
-            Ok(i) => {
-                request.set_id(i);
-                job_get.set_id(i);
-            }
-            Err(e) => {
-                debug!("Error parsing id. e = {:?}", e);
-                return Ok(Response::with(status::BadRequest));
-            }
-        },
-        None => return Ok(Response::with(status::BadRequest)),
     }
 
-    // Before fetching the logs, we need to check and see if the logs we want to fetch are for
-    // a job that's building a private package, and if so, do we have the right to see said
-    // package.
-    match route_message::<JobGet, Job>(req, &job_get) {
-        Ok(job) => {
-            // It's not sufficient to check the project that's on the job itself, since that
-            // project is reconstructed from information available in the jobsrv database and does
-            // not contain things like visibility settings. We need to fetch the project from
-            // originsrv.
-            let mut project_get = OriginProjectGet::new();
-            project_get.set_name(job.get_project().get_name().to_string());
+    fn get_job_log(
+        (pagination, req): (Query<JobLogPagination>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let job_id = Path::<u64>::extract(&req).unwrap().into_inner(); // Unwrap Ok ?
 
-            let project = match route_message::<OriginProjectGet, OriginProject>(req, &project_get)
-            {
-                Ok(p) => p,
-                Err(err) => return Ok(render_net_error(&err)),
-            };
-
-            if vec![
-                OriginPackageVisibility::Private,
-                OriginPackageVisibility::Hidden,
-            ].contains(&project.get_visibility())
-            {
-                if !check_origin_access(req, project.get_origin_name()).unwrap_or(false) {
-                    return Ok(Response::with(status::Forbidden));
+        match Self::do_get_job_log(&req, job_id, pagination.start) {
+            Ok(mut job_log) => {
+                if !pagination.color {
+                    job_log.strip_ansi();
                 }
+                HttpResponse::Ok().json(job_log)
             }
-
-            match route_message::<JobLogGet, JobLog>(req, &request) {
-                Ok(mut log) => {
-                    if !include_color {
-                        log.strip_ansi();
-                    }
-                    Ok(render_json(status::Ok, &log))
-                }
-                Err(err) => Ok(render_net_error(&err)),
-            }
+            Err(err) => err.into(),
         }
-        Err(e) => return Ok(render_net_error(&e)),
     }
-}
 
+    fn promote_job_group(
+        (req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>),
+    ) -> HttpResponse {
+        let (group_id, channel) = Path::<(u64, String)>::extract(&req).unwrap().into_inner(); // Unwrap Ok ?
 
-// This route is only available if jobsrv_enabled is true
-pub fn job_group_promote(req: &mut Request) -> IronResult<Response> {
-    job_group_promote_or_demote(req, true)
-}
-
-// This route is only available if jobsrv_enabled is true
-pub fn job_group_demote(req: &mut Request) -> IronResult<Response> {
-    job_group_promote_or_demote(req, false)
-}
-
-// This route is only available if jobsrv_enabled is true
-fn job_group_promote_or_demote(req: &mut Request, promote: bool) -> IronResult<Response> {
-    let group_id = match get_param(req, "id") {
-        Some(id) => match id.parse::<u64>() {
-            Ok(g) => g,
-            Err(e) => {
-                debug!("Error finding group. e = {:?}", e);
-                return Ok(Response::with(status::BadRequest));
-            }
-        },
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let channel = match get_param(req, "channel") {
-        Some(c) => c,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let idents = if promote {
-        match req.get::<bodyparser::Struct<GroupPromoteReq>>() {
-            Ok(Some(gpr)) => Some(gpr.idents),
-            Ok(None) => None,
-            Err(err) => {
-                debug!("Error decoding json struct: {:?}", err);
-                return Ok(Response::with(status::BadRequest));
-            }
+        match Self::promote_or_demote_job_group(&req, group_id, &body.idents, &channel, true) {
+            Ok(_) => HttpResponse::NoContent().finish(),
+            Err(err) => err.into(),
         }
-    } else {
-        match req.get::<bodyparser::Struct<GroupDemoteReq>>() {
-            Ok(Some(gpr)) => Some(gpr.idents),
-            Ok(None) => None,
-            Err(err) => {
-                debug!("Error decoding json struct: {:?}", err);
-                return Ok(Response::with(status::BadRequest));
-            }
+    }
+
+    fn demote_job_group(
+        (req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>),
+    ) -> HttpResponse {
+        let (group_id, channel) = Path::<(u64, String)>::extract(&req).unwrap().into_inner(); // Unwrap Ok ?
+
+        match Self::promote_or_demote_job_group(&req, group_id, &body.idents, &channel, false) {
+            Ok(_) => HttpResponse::NoContent().finish(),
+            Err(err) => err.into(),
         }
-    };
+    }
 
-    match helpers::promote_or_demote_job_group(req, group_id, idents, &channel, promote) {
-        Ok(_) => Ok(Response::with(status::NoContent)),
-        Err(err) => Ok(render_net_error(&err)),
+    fn cancel_job_group(req: &HttpRequest<AppState>) -> HttpResponse {
+        let group_id = Path::<u64>::extract(&req).unwrap().into_inner(); // Unwrap Ok ?
+
+        match Self::do_cancel_job_group(req, group_id) {
+            Ok(_) => HttpResponse::NoContent().finish(),
+            Err(err) => err.into(),
+        }
+    }
+
+    //
+    // Route registration
+    //
+    pub fn register(app: App<AppState>) -> App<AppState> {
+        app.resource("/jobs/group/:id/promote/:channel", |r| {
+            r.middleware(Authenticated);
+            r.method(http::Method::POST).with(Self::promote_job_group);
+        }).resource("/jobs/group/:id/demote/:channel", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::POST).with(Self::demote_job_group);
+            })
+            .resource("/jobs/group/:id/cancel", |r| {
+                r.middleware(Authenticated);
+                r.post().f(Self::cancel_job_group);
+            })
+            .resource("/rdeps/:origin/:name", |r| {
+                // Not authenticated
+                r.get().f(Self::get_rdeps);
+            })
+            .resource("/jobs/:id", |r| {
+                r.middleware(Authenticated);
+                r.get().f(Self::get_job);
+            })
+            .resource("/jobs/:id/log", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::GET).with(Self::get_job_log);
+            })
     }
 }
-
-// This route is only available if jobsrv_enabled is true
-pub fn job_group_cancel(req: &mut Request) -> IronResult<Response> {
-    let (session_id, mut session_name) = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        (session.get_id(), session.get_name().to_string())
-    };
-
-    // Sessions created via Personal Access Tokens only have ids, so we may need
-    // to get the username explicitly.
-    if session_name.is_empty() {
-        session_name = get_session_user_name(req, session_id)
-    }
-
-    let group_id = match get_param(req, "id") {
-        Some(id) => match id.parse::<u64>() {
-            Ok(g) => g,
-            Err(e) => {
-                debug!("Error finding group. e = {:?}", e);
-                return Ok(Response::with(status::BadRequest));
-            }
-        },
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let mut jgg = JobGroupGet::new();
-    jgg.set_group_id(group_id);
-    jgg.set_include_projects(true);
-
-    let group = match route_message::<JobGroupGet, JobGroup>(req, &jgg) {
-        Ok(group) => group,
-        Err(err) => return Ok(render_net_error(&err)),
-    };
-
-    let name_split: Vec<&str> = group.get_project_name().split("/").collect();
-    assert!(name_split.len() == 2);
-
-    if !check_origin_access(req, &name_split[0]).unwrap_or(false) {
-        return Ok(Response::with(status::Forbidden));
-    }
-
-    let mut jgc = JobGroupCancel::new();
-    jgc.set_group_id(group_id);
-    jgc.set_trigger(trigger_from_request(req));
-    jgc.set_requester_id(session_id);
-    jgc.set_requester_name(session_name);
-
-    match route_message::<JobGroupCancel, NetOk>(req, &jgc) {
-        Ok(_) => Ok(Response::with(status::NoContent)),
-        Err(err) => Ok(render_net_error(&err)),
-    }
-}
-
-*/

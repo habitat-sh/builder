@@ -128,7 +128,7 @@ impl Packages {
     }
 
     // Route handlers - these functions should return HttpResponse
-    pub fn get_stats(req: &HttpRequest<AppState>) -> HttpResponse {
+    fn get_stats(req: &HttpRequest<AppState>) -> HttpResponse {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         match Self::do_get_stats(req, origin) {
@@ -139,9 +139,7 @@ impl Packages {
         }
     }
 
-    pub fn get_packages(
-        (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
-    ) -> HttpResponse {
+    fn get_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> HttpResponse {
         let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
         match Self::do_get_packages(&req, origin, &pagination) {
@@ -150,13 +148,15 @@ impl Packages {
         }
     }
 
+    //
     // Route registration
+    //
     pub fn register(app: App<AppState>) -> App<AppState> {
         app.resource("/depot/pkgs/origins/{origin}/stats", |r| {
-            r.get().f(Packages::get_stats)
+            r.get().f(Self::get_stats)
         }).resource("/depot/pkgs/{origin}", |r| {
             r.middleware(Optional);
-            r.method(http::Method::GET).with(Packages::get_packages);
+            r.method(http::Method::GET).with(Self::get_packages);
         })
     }
 }

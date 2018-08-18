@@ -37,7 +37,9 @@ pub struct OriginCreateReq {
 pub struct Origins {}
 
 impl Origins {
+    //
     // Internal - these functions should return Result<..>
+    //
     fn do_get_origin(req: &HttpRequest<AppState>, origin: String) -> Result<Origin> {
         let mut request = OriginGet::new();
         request.set_name(origin);
@@ -73,8 +75,10 @@ impl Origins {
         }
     }
 
+    //
     // Route handlers - these functions should return HttpResponse
-    pub fn get_origin(req: &HttpRequest<AppState>) -> HttpResponse {
+    //
+    fn get_origin(req: &HttpRequest<AppState>) -> HttpResponse {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
         debug!("get_origin called, origin = {}", origin);
 
@@ -86,9 +90,7 @@ impl Origins {
         }
     }
 
-    pub fn create_origin(
-        (req, body): (HttpRequest<AppState>, Json<OriginCreateReq>),
-    ) -> HttpResponse {
+    fn create_origin((req, body): (HttpRequest<AppState>, Json<OriginCreateReq>)) -> HttpResponse {
         debug!("origin_create called, body = {:?}", body);
 
         if !ident::is_valid_origin_name(&body.name) {
@@ -101,7 +103,7 @@ impl Origins {
         }
     }
 
-    pub fn create_keys(req: &HttpRequest<AppState>) -> HttpResponse {
+    fn create_keys(req: &HttpRequest<AppState>) -> HttpResponse {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
         debug!("generate_origin_keys called, origin = {}", origin);
 
@@ -111,17 +113,19 @@ impl Origins {
         }
     }
 
+    //
     // Route registration
+    //
     pub fn register(app: App<AppState>) -> App<AppState> {
         app.resource("/depot/origins/{origin}", |r| {
             r.get().f(Origins::get_origin)
         }).resource("/depot/origins", |r| {
                 r.middleware(Authenticated);
-                r.method(http::Method::POST).with(Origins::create_origin);
+                r.method(http::Method::POST).with(Self::create_origin);
             })
             .resource("/depot/origins/{origin}/keys", |r| {
                 r.middleware(Authenticated);
-                r.method(http::Method::POST).f(Origins::create_keys);
+                r.method(http::Method::POST).f(Self::create_keys);
             })
     }
 }
