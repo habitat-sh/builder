@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Should integrations have it's own path?
+// TODO: Move integrations into origins...
 
 /*
 

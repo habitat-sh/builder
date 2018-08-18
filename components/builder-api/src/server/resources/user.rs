@@ -23,7 +23,9 @@ use server::AppState;
 pub struct User {}
 
 impl User {
+    //
     // Internal - these functions should return Result<..>
+    //
     fn do_get_invitations(req: &HttpRequest<AppState>) -> Result<AccountInvitationListResponse> {
         let account_id = helpers::get_session_id(req);
 
@@ -42,7 +44,9 @@ impl User {
         route_message::<AccountOriginListRequest, AccountOriginListResponse>(req, &request)
     }
 
+    //
     // Route handlers - these functions should return HttpResponse
+    //
     fn get_invitations(req: &HttpRequest<AppState>) -> HttpResponse {
         match Self::do_get_invitations(req) {
             Ok(invites) => HttpResponse::Ok().json(invites),
@@ -57,14 +61,16 @@ impl User {
         }
     }
 
+    //
     // Route registration
+    //
     pub fn register(app: App<AppState>) -> App<AppState> {
         app.resource("/user/invitations", |r| {
             r.middleware(Authenticated);
-            r.get().f(User::get_invitations);
+            r.get().f(Self::get_invitations);
         }).resource("/user/origins", |r| {
             r.middleware(Authenticated);
-            r.get().f(User::get_origins);
+            r.get().f(Self::get_origins);
         })
     }
 }

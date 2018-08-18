@@ -32,7 +32,9 @@ pub struct UserUpdateReq {
 pub struct Profile {}
 
 impl Profile {
+    //
     // Internal - these functions should return Result<..>
+    //
     fn do_get_profile(req: &HttpRequest<AppState>) -> Result<Account> {
         let account_id = helpers::get_session_id(req);
         let mut request = AccountGetId::new();
@@ -66,15 +68,17 @@ impl Profile {
         route_message::<AccountTokenCreate, AccountToken>(req, &request)
     }
 
+    //
     // Route handlers - these functions should return HttpResponse
-    pub fn get_profile(req: &HttpRequest<AppState>) -> HttpResponse {
+    //
+    fn get_profile(req: &HttpRequest<AppState>) -> HttpResponse {
         match Self::do_get_profile(req) {
             Ok(account) => HttpResponse::Ok().json(account),
             Err(err) => err.into(),
         }
     }
 
-    pub fn get_access_tokens(req: &HttpRequest<AppState>) -> HttpResponse {
+    fn get_access_tokens(req: &HttpRequest<AppState>) -> HttpResponse {
         let account_id = helpers::get_session_id(req);
 
         let mut request = AccountTokensGet::new();
@@ -86,14 +90,14 @@ impl Profile {
         }
     }
 
-    pub fn generate_access_token(req: &HttpRequest<AppState>) -> HttpResponse {
+    fn generate_access_token(req: &HttpRequest<AppState>) -> HttpResponse {
         match Self::do_generate_access_token(req) {
             Ok(account_token) => HttpResponse::Ok().json(account_token),
             Err(err) => err.into(),
         }
     }
 
-    pub fn revoke_access_token(req: &HttpRequest<AppState>) -> HttpResponse {
+    fn revoke_access_token(req: &HttpRequest<AppState>) -> HttpResponse {
         let token_id_str = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
         let token_id = match token_id_str.parse::<u64>() {
             Ok(id) => id,
@@ -109,9 +113,7 @@ impl Profile {
         }
     }
 
-    pub fn update_profile(
-        (req, body): (HttpRequest<AppState>, Json<UserUpdateReq>),
-    ) -> HttpResponse {
+    fn update_profile((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> HttpResponse {
         debug!("update_profile called, body = {:?}", &body);
 
         let account_id = helpers::get_session_id(&req);
@@ -125,20 +127,22 @@ impl Profile {
         }
     }
 
+    //
     // Route registration
+    //
     pub fn register(app: App<AppState>) -> App<AppState> {
         app.resource("/profile", |r| {
             r.middleware(Authenticated);
-            r.get().f(Profile::get_profile);
+            r.get().f(Self::get_profile);
             r.method(http::Method::PATCH).with(Profile::update_profile);
         }).resource("/profile/access-tokens", |r| {
                 r.middleware(Authenticated);
-                r.get().f(Profile::get_access_tokens);
-                r.post().f(Profile::generate_access_token);
+                r.get().f(Self::get_access_tokens);
+                r.post().f(Self::generate_access_token);
             })
             .resource("/profile/access-tokens/{id}", |r| {
                 r.middleware(Authenticated);
-                r.delete().f(Profile::revoke_access_token);
+                r.delete().f(Self::revoke_access_token);
             })
     }
 }
