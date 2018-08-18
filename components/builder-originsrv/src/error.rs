@@ -114,7 +114,6 @@ pub enum SrvError {
     SyncInvitations(postgres::error::Error),
     SyncInvitationsUpdate(postgres::error::Error),
     Protobuf(protobuf::ProtobufError),
-    UnknownOriginPackageVisibility(protocol::originsrv::Error),
     VisibilityCascade(postgres::error::Error),
 }
 
@@ -367,7 +366,6 @@ impl fmt::Display for SrvError {
             }
             SrvError::OriginUpdate(ref e) => format!("Error updating origin, {}", e),
             SrvError::Protobuf(ref e) => format!("{}", e),
-            SrvError::UnknownOriginPackageVisibility(ref e) => format!("{}", e),
             SrvError::VisibilityCascade(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
@@ -464,7 +462,6 @@ impl error::Error for SrvError {
             SrvError::SyncInvitations(ref err) => err.description(),
             SrvError::SyncInvitationsUpdate(ref err) => err.description(),
             SrvError::Protobuf(ref err) => err.description(),
-            SrvError::UnknownOriginPackageVisibility(ref err) => err.description(),
             SrvError::VisibilityCascade(ref err) => err.description(),
         }
     }

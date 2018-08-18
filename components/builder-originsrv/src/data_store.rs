@@ -228,9 +228,7 @@ impl DataStore {
         for row in rows.iter() {
             let id: i64 = row.get("id");
             let pv: String = row.get("visibility");
-            let vis: originsrv::OriginPackageVisibility = pv
-                .parse()
-                .map_err(SrvError::UnknownOriginPackageVisibility)?;
+            let vis: originsrv::OriginPackageVisibility = pv.parse()?;
             let new_vis = transition_visibility(project.get_visibility(), vis);
             map.entry(new_vis).or_insert(Vec::new()).push(id);
         }
@@ -298,9 +296,7 @@ impl DataStore {
         }
 
         let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility = pv
-            .parse()
-            .map_err(SrvError::UnknownOriginPackageVisibility)?;
+        let pv2: originsrv::OriginPackageVisibility = pv.parse()?;
         project.set_visibility(pv2);
 
         Ok(project)
@@ -1043,9 +1039,7 @@ impl DataStore {
         origin.set_name(row.get("name"));
 
         let dpv: String = row.get("default_package_visibility");
-        let new_dpv: originsrv::OriginPackageVisibility = dpv
-            .parse()
-            .map_err(SrvError::UnknownOriginPackageVisibility)?;
+        let new_dpv: originsrv::OriginPackageVisibility = dpv.parse()?;
         origin.set_default_package_visibility(new_dpv);
         let ooid: i64 = row.get("owner_id");
         origin.set_owner_id(ooid as u64);
@@ -1130,9 +1124,7 @@ impl DataStore {
             origin.set_name(row.get("name"));
             let ooid: i64 = row.get("owner_id");
             let dpv: String = row.get("default_package_visibility");
-            let new_dpv: originsrv::OriginPackageVisibility = dpv
-                .parse()
-                .map_err(SrvError::UnknownOriginPackageVisibility)?;
+            let new_dpv: originsrv::OriginPackageVisibility = dpv.parse()?;
             origin.set_default_package_visibility(new_dpv);
             origin.set_owner_id(ooid as u64);
             let private_key_name: Option<String> = row.get("private_key_name");
@@ -1629,9 +1621,7 @@ impl DataStore {
         package.set_tdeps(self.into_idents(row.get("tdeps")));
 
         let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility = pv
-            .parse()
-            .map_err(SrvError::UnknownOriginPackageVisibility)?;
+        let pv2: originsrv::OriginPackageVisibility = pv.parse()?;
         package.set_visibility(pv2);
 
         Ok(package)
