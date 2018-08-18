@@ -12,19 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// use std::collections::HashMap;
-// use std::str::FromStr;
-
+use actix_web::http::header;
 use actix_web::HttpRequest;
 use serde::Serialize;
 use serde_json;
 
-// use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::crypto::SigKeyPair;
 use hab_net::privilege::FeatureFlags;
-//use hab_net::NetResult;
+//use hab_net::{ErrCode, NetError, NetOk};
 
-// use protocol::jobsrv::*;
+use protocol::jobsrv::*;
 use protocol::originsrv::*;
 use protocol::sessionsrv::*;
 
@@ -36,6 +33,121 @@ use server::AppState;
 // TO DO - this module has become a big grab bag of stuff - needs to be
 // reviewed and broken up
 //
+
+/* TODO - this needs to be re-factored / re-thought
+
+pub fn validate_params(
+    req: &HttpRequest,
+    expected_params: &[&str],
+) -> Result<HashMap<String, String>, Status> {
+    let mut res = HashMap::new();
+    // Get the expected params
+    {
+        let params = req.extensions.get::<Router>().unwrap();
+
+        if expected_params.iter().any(|p| params.find(p).is_none()) {
+            return Err(status::BadRequest);
+        }
+
+        for p in expected_params {
+            res.insert(p.to_string(), params.find(p).unwrap().to_string());
+        }
+    }
+    // Check that we have origin access
+    {
+        if !check_origin_access(req, &res["origin"]).unwrap_or(false) {
+            debug!("Failed origin access check, origin: {}", &res["origin"]);
+            return Err(status::Forbidden);
+        }
+    }
+    Ok(res)
+}
+*/
+
+/* DEPRECATED - Use Actix extractor instead
+pub fn extract_query_value(key: &str, req: &HttpRequest) -> Option<String> {
+    match req.get_ref::<UrlEncodedQuery>() {
+        Ok(ref map) => {
+            for (k, v) in map.iter() {
+                if key == *k {
+                    if v.len() < 1 {
+                        return None;
+                    }
+                    return Some(v[0].clone());
+                }
+            }
+            None
+        }
+        Err(_) => None,
+    }
+}
+*/
+
+/* DEPRECATED - use Actix-web extractor instead
+pub fn get_param(req: &HttpRequest, name: &str) -> Option<String> {
+    let params = req.extensions.get::<Router>().unwrap();
+    match params.find(name) {
+        Some(x) => Some(x.to_string()),
+        None => None,
+    }
+}
+*/
+
+/*
+
+// Returns a tuple representing the from and to values representing a paginated set.
+// The range (start, stop) values are zero-based.
+
+// DEPRECATED - Use Actix-web extractor instead
+
+pub fn extract_pagination(req: &HttpRequest) -> Result<(isize, isize), Response> {
+    let range_from_param = match extract_query_value("range", req) {
+        Some(range) => range,
+        None => PAGINATION_RANGE_DEFAULT.to_string(),
+    };
+
+    let offset = {
+        match range_from_param.parse::<usize>() {
+            Ok(range) => range as isize,
+            Err(_) => return Err(Response::with(status::BadRequest)),
+        }
+    };
+
+    debug!(
+        "extract_pagination range: (start, end): ({}, {})",
+        offset,
+        (offset + PAGINATION_RANGE_MAX - 1)
+    );
+    Ok((offset, offset + PAGINATION_RANGE_MAX - 1))
+}
+
+*/
+
+/* DEPRECATED - Use Actix-web extractor instead
+
+pub fn paginated_response<T>(
+    body: &Vec<T>,
+    count: isize,
+    start: isize,
+    end: isize,
+) -> IronResult<Response>
+where
+    T: Serialize,
+{
+    let body = package_results_json(body, count, start, end);
+    let headers = Header(ContentType(Mime(
+        TopLevel::Application,
+        SubLevel::Json,
+        vec![(Attr::Charset, Value::Utf8)],
+    )));
+
+    if count > end + 1 {
+        Ok(Response::with((status::PartialContent, body, headers)))
+    } else {
+        Ok(Response::with((status::Ok, body, headers)))
+    }
+}
+*/
 
 pub fn check_origin_access<T>(req: &HttpRequest<AppState>, origin: &T) -> Result<u64>
 where
@@ -246,33 +358,8 @@ pub fn package_results_json<T: Serialize>(
     serde_json::to_string(&results).unwrap()
 }
 
-/*
-
-// Returns a tuple representing the from and to values representing a paginated set.
-// The range (start, stop) values are zero-based.
-pub fn extract_pagination(req: &mut Request) -> Result<(isize, isize), Response> {
-    let range_from_param = match extract_query_value("range", req) {
-        Some(range) => range,
-        None => PAGINATION_RANGE_DEFAULT.to_string(),
-    };
-
-    let offset = {
-        match range_from_param.parse::<usize>() {
-            Ok(range) => range as isize,
-            Err(_) => return Err(Response::with(status::BadRequest)),
-        }
-    };
-
-    debug!(
-        "extract_pagination range: (start, end): ({}, {})",
-        offset,
-        (offset + PAGINATION_RANGE_MAX - 1)
-    );
-    Ok((offset, offset + PAGINATION_RANGE_MAX - 1))
-}
-
-fn is_worker(req: &mut Request) -> bool {
-    match req.extensions.get::<Authenticated>() {
+fn is_worker(req: &HttpRequest) -> bool {
+    match req.extensions().get::<Session>() {
         Some(session) => {
             let flags = FeatureFlags::from_bits(session.get_flags()).unwrap();
             flags.contains(FeatureFlags::BUILD_WORKER)
@@ -281,77 +368,13 @@ fn is_worker(req: &mut Request) -> bool {
     }
 }
 
-pub fn is_request_from_hab(req: &mut Request) -> bool {
-    match req.headers.get::<UserAgent>() {
-        Some(ref agent) => agent.as_str().starts_with("hab/"),
+pub fn is_request_from_hab(req: &HttpRequest<AppState>) -> bool {
+    match req.headers().get(header::USER_AGENT) {
+        Some(ref agent) => match agent.to_str() {
+            Ok(ref s) => s.starts_with("hab/"),
+            Err(_) => false,
+        },
         None => false,
-    }
-}
-
-pub fn validate_params(
-    req: &mut Request,
-    expected_params: &[&str],
-) -> Result<HashMap<String, String>, Status> {
-    let mut res = HashMap::new();
-    // Get the expected params
-    {
-        let params = req.extensions.get::<Router>().unwrap();
-
-        if expected_params.iter().any(|p| params.find(p).is_none()) {
-            return Err(status::BadRequest);
-        }
-
-        for p in expected_params {
-            res.insert(p.to_string(), params.find(p).unwrap().to_string());
-        }
-    }
-    // Check that we have origin access
-    {
-        if !check_origin_access(req, &res["origin"]).unwrap_or(false) {
-            debug!("Failed origin access check, origin: {}", &res["origin"]);
-            return Err(status::Forbidden);
-        }
-    }
-    Ok(res)
-}
-
-pub fn paginated_response<T>(
-    body: &Vec<T>,
-    count: isize,
-    start: isize,
-    end: isize,
-) -> IronResult<Response>
-where
-    T: Serialize,
-{
-    let body = package_results_json(body, count, start, end);
-    let headers = Header(ContentType(Mime(
-        TopLevel::Application,
-        SubLevel::Json,
-        vec![(Attr::Charset, Value::Utf8)],
-    )));
-
-    if count > end + 1 {
-        Ok(Response::with((status::PartialContent, body, headers)))
-    } else {
-        Ok(Response::with((status::Ok, body, headers)))
-    }
-}
-
-pub fn extract_query_value(key: &str, req: &mut Request) -> Option<String> {
-    match req.get_ref::<UrlEncodedQuery>() {
-        Ok(ref map) => {
-            for (k, v) in map.iter() {
-                if key == *k {
-                    if v.len() < 1 {
-                        return None;
-                    }
-                    return Some(v[0].clone());
-                }
-            }
-            None
-        }
-        Err(_) => None,
     }
 }
 
@@ -363,15 +386,11 @@ pub fn all_visibilities() -> Vec<OriginPackageVisibility> {
     ]
 }
 
-pub fn get_param(req: &mut Request, name: &str) -> Option<String> {
-    let params = req.extensions.get::<Router>().unwrap();
-    match params.find(name) {
-        Some(x) => Some(x.to_string()),
-        None => None,
-    }
-}
-
-pub fn check_origin_owner<T>(req: &mut Request, account_id: u64, origin: T) -> IronResult<bool>
+pub fn check_origin_owner<T>(
+    req: &HttpRequest<AppState>,
+    account_id: u64,
+    origin: T,
+) -> Result<bool>
 where
     T: ToString,
 {
@@ -380,237 +399,48 @@ where
     request.set_origin_name(origin.to_string());
     match route_message::<CheckOriginOwnerRequest, CheckOriginOwnerResponse>(req, &request) {
         Ok(response) => Ok(response.get_is_owner()),
-        Err(err) => {
-            let body = serde_json::to_string(&err).unwrap();
-            let status = net_err_to_http(err.get_code());
-            Err(IronError::new(err, (body, status)))
-        }
+        Err(err) => Err(err),
     }
 }
 
-pub fn create_channel(req: &mut Request, origin: &str, channel: &str) -> NetResult<OriginChannel> {
+pub fn create_channel(
+    req: &HttpRequest<AppState>,
+    origin: &str,
+    channel: &str,
+) -> Result<OriginChannel> {
     let mut origin = get_origin(req, origin)?;
     let mut request = OriginChannelCreate::new();
 
-    {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        request.set_owner_id(session.get_id());
-    }
-
+    request.set_owner_id(get_session_id(req));
     request.set_origin_name(origin.take_name());
     request.set_origin_id(origin.get_id());
     request.set_name(channel.to_string());
+
     route_message::<OriginChannelCreate, OriginChannel>(req, &request)
 }
 
-pub fn promote_or_demote_job_group(
-    req: &mut Request,
-    group_id: u64,
-    idents: Option<Vec<String>>,
-    channel: &str,
-    promote: bool,
-) -> NetResult<NetOk> {
-    let mut group_get = JobGroupGet::new();
-    group_get.set_group_id(group_id);
-    group_get.set_include_projects(true);
-    let group = route_message::<JobGroupGet, JobGroup>(req, &group_get)?;
-
-    // This only makes sense if the group is complete. If the group isn't complete, return now and
-    // let the user know. Check the completion state by checking the individual project states,
-    // as if this is called by the scheduler it needs to promote/demote the group before marking it
-    // Complete.
-    if group.get_projects().iter().any(|&ref p| {
-        p.get_state() == JobGroupProjectState::NotStarted
-            || p.get_state() == JobGroupProjectState::InProgress
-    }) {
-        return Err(NetError::new(
-            ErrCode::GROUP_NOT_COMPLETE,
-            "hg:promote-or-demote-job-group:0",
-        ));
-    }
-
-    let mut origin_map = HashMap::new();
-
-    let mut ident_map = HashMap::new();
-    let has_idents = if idents.is_some() {
-        for ident in idents.unwrap().iter() {
-            ident_map.insert(ident.clone(), 1);
-        }
-        true
-    } else {
-        false
-    };
-
-    // We can't assume that every project in the group belongs to the same origin. It's entirely
-    // possible that there are multiple origins present within the group. Because of this, there's
-    // no way to atomically commit the entire promotion/demotion at once. It's possible origin
-    // shards can be on different machines, so for now, the best we can do is partition the projects
-    // by origin, and commit each origin at once. Ultimately, it'd be nice to have a way to
-    // atomically commit the entire promotion/demotion at once, but that would require a cross-shard
-    // tool that we don't currently have.
-    for project in group.get_projects().into_iter() {
-        if project.get_state() == JobGroupProjectState::Success {
-            let ident_str = project.get_ident();
-            if has_idents && !ident_map.contains_key(ident_str) {
-                continue;
-            }
-
-            let ident = OriginPackageIdent::from_str(ident_str).unwrap();
-            let project_list = origin_map
-                .entry(ident.get_origin().to_string())
-                .or_insert(Vec::new());
-            project_list.push(project);
-        }
-    }
-
-    let jgt = trigger_from_request(req);
-    let trigger = PackageChannelTrigger::from(jgt);
-
-    for (origin, projects) in origin_map.iter() {
-        match do_group_promotion_or_demotion(req, channel, projects.to_vec(), &origin, promote) {
-            Ok(package_ids) => {
-                let mut pgca = PackageGroupChannelAudit::new();
-
-                let mut channel_get = OriginChannelGet::new();
-                channel_get.set_origin_name(origin.clone());
-                channel_get.set_name(channel.to_string());
-                match route_message::<OriginChannelGet, OriginChannel>(req, &channel_get) {
-                    Ok(origin_channel) => pgca.set_channel_id(origin_channel.get_id()),
-                    Err(err) => return Err(err),
-                }
-
-                let mut origin_get = OriginGet::new();
-                origin_get.set_name(origin.clone());
-                match route_message::<OriginGet, Origin>(req, &origin_get) {
-                    Ok(origin_origin) => pgca.set_origin_id(origin_origin.get_id()),
-                    Err(err) => return Err(err),
-                }
-
-                pgca.set_package_ids(package_ids);
-
-                if promote {
-                    pgca.set_operation(PackageChannelOperation::Promote);
-                } else {
-                    pgca.set_operation(PackageChannelOperation::Demote);
-                }
-
-                let (session_id, session_name) = get_session_id_and_name(req);
-
-                pgca.set_trigger(trigger);
-                pgca.set_requester_id(session_id);
-                pgca.set_requester_name(session_name);
-                pgca.set_group_id(group_id);
-
-                route_message::<PackageGroupChannelAudit, NetOk>(req, &pgca)?;
-            }
-            Err(e) => {
-                if e.get_code() != ErrCode::ACCESS_DENIED {
-                    warn!("Failed to promote or demote group, err: {:?}", e);
-                    return Err(e);
-                }
-            }
-        }
-    }
-
-    Ok(NetOk::new())
-}
-
-pub fn get_optional_session_id(req: &mut Request) -> Option<u64> {
-    match req.extensions.get::<Authenticated>() {
-        Some(session) => Some(session.get_id()),
-        None => None,
-    }
-}
-
-pub fn get_optional_oauth_token(req: &mut Request) -> Option<String> {
-    match req.extensions.get::<Authenticated>() {
-        Some(session) => Some(session.get_oauth_token().to_owned()),
-        None => None,
-    }
-}
-
-pub fn trigger_from_request(req: &mut Request) -> JobGroupTrigger {
-    let user_agent = &req.headers.get::<UserAgent>().unwrap().as_str();
-    let referer = match req.headers.get::<Referer>() {
-        Some(s) => s.as_str(),
-        None => "",
-    };
-
+pub fn trigger_from_request(req: &HttpRequest<AppState>) -> JobGroupTrigger {
     // TODO: the search strings should be configurable.
-    if user_agent.starts_with("hab/") {
-        JobGroupTrigger::HabClient
-    // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
-    } else if referer.contains("http") {
-        JobGroupTrigger::BuilderUI
-    } else {
-        JobGroupTrigger::Unknown
+    match req.headers().get(header::USER_AGENT) {
+        Some(ref agent) => match agent.to_str() {
+            Ok(s) => if s.starts_with("hab/") {
+                return JobGroupTrigger::HabClient;
+            },
+            Err(_) => (),
+        },
+        None => (),
     }
+
+    match req.headers().get(header::REFERER) {
+        Some(ref referer) => match referer.to_str() {
+            // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
+            Ok(s) => if s.contains("http") {
+                return JobGroupTrigger::BuilderUI;
+            },
+            Err(_) => (),
+        },
+        None => (),
+    }
+
+    JobGroupTrigger::Unknown
 }
-
-fn do_group_promotion_or_demotion(
-    req: &mut Request,
-    channel: &str,
-    projects: Vec<&JobGroupProject>,
-    origin: &str,
-    promote: bool,
-) -> NetResult<Vec<u64>> {
-    if !check_origin_access(req, origin).unwrap_or(false) {
-        return Err(NetError::new(
-            ErrCode::ACCESS_DENIED,
-            "hg:promote-or-demote-job-group:1",
-        ));
-    }
-
-    let mut ocg = OriginChannelGet::new();
-    ocg.set_origin_name(origin.to_string());
-    ocg.set_name(channel.to_string());
-
-    let channel = match route_message::<OriginChannelGet, OriginChannel>(req, &ocg) {
-        Ok(channel) => channel,
-        Err(e) => {
-            if e.get_code() == ErrCode::ENTITY_NOT_FOUND {
-                if channel != STABLE_CHANNEL || channel != UNSTABLE_CHANNEL {
-                    create_channel(req, &origin, channel)?
-                } else {
-                    info!("Unable to retrieve default channel, err: {:?}", e);
-                    return Err(e);
-                }
-            } else {
-                info!("Unable to retrieve channel, err: {:?}", e);
-                return Err(e);
-            }
-        }
-    };
-
-    let mut package_ids = Vec::new();
-
-    for project in projects {
-        let opi = OriginPackageIdent::from_str(project.get_ident()).unwrap();
-        let mut opg = OriginPackageGet::new();
-        opg.set_ident(opi);
-        opg.set_visibilities(all_visibilities());
-
-        let op = route_message::<OriginPackageGet, OriginPackage>(req, &opg)?;
-        package_ids.push(op.get_id());
-    }
-
-    if promote {
-        let mut opgp = OriginPackageGroupPromote::new();
-        opgp.set_channel_id(channel.get_id());
-        opgp.set_package_ids(package_ids.clone());
-        opgp.set_origin(origin.to_string());
-
-        route_message::<OriginPackageGroupPromote, NetOk>(req, &opgp)?;
-    } else {
-        let mut opgp = OriginPackageGroupDemote::new();
-        opgp.set_channel_id(channel.get_id());
-        opgp.set_package_ids(package_ids.clone());
-        opgp.set_origin(origin.to_string());
-
-        route_message::<OriginPackageGroupDemote, NetOk>(req, &opgp)?;
-    }
-
-    Ok(package_ids)
-}
-
-*/
