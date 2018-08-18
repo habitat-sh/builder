@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+use std::str::FromStr;
+
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
+
+use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
+use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::package::ident;
+use hab_net::{ErrCode, NetError, NetOk};
 
 use server::error::{Error, Result};
 use server::framework::headers;
@@ -39,6 +46,192 @@ pub struct Jobs;
 
 impl Jobs {
     // Internal - these functions should return Result<..>
+    fn do_group_promotion_or_demotion(
+        req: &HttpRequest<AppState>,
+        channel: &str,
+        projects: Vec<&JobGroupProject>,
+        origin: &str,
+        promote: bool,
+    ) -> Result<Vec<u64>> {
+        helpers::check_origin_access(req, &origin)?;
+
+        let mut ocg = OriginChannelGet::new();
+        ocg.set_origin_name(origin.to_string());
+        ocg.set_name(channel.to_string());
+
+        let channel = match route_message::<OriginChannelGet, OriginChannel>(req, &ocg) {
+            Ok(channel) => channel,
+            Err(Error::NetError(e)) => {
+                if e.get_code() == ErrCode::ENTITY_NOT_FOUND {
+                    if channel != STABLE_CHANNEL || channel != UNSTABLE_CHANNEL {
+                        helpers::create_channel(req, &origin, channel)?
+                    } else {
+                        info!("Unable to retrieve default channel, err: {:?}", e);
+                        return Err(Error::NetError(e));
+                    }
+                } else {
+                    info!("Unable to retrieve channel, err: {:?}", e);
+                    return Err(Error::NetError(e));
+                }
+            }
+            Err(e) => {
+                info!("Unable to retrieve channel, err: {:?}", e);
+                return Err(e);
+            }
+        };
+
+        let mut package_ids = Vec::new();
+
+        for project in projects {
+            let opi = OriginPackageIdent::from_str(project.get_ident()).unwrap();
+            let mut opg = OriginPackageGet::new();
+            opg.set_ident(opi);
+            opg.set_visibilities(helpers::all_visibilities());
+
+            let op = route_message::<OriginPackageGet, OriginPackage>(req, &opg)?;
+            package_ids.push(op.get_id());
+        }
+
+        if promote {
+            let mut opgp = OriginPackageGroupPromote::new();
+            opgp.set_channel_id(channel.get_id());
+            opgp.set_package_ids(package_ids.clone());
+            opgp.set_origin(origin.to_string());
+
+            route_message::<OriginPackageGroupPromote, NetOk>(req, &opgp)?;
+        } else {
+            let mut opgp = OriginPackageGroupDemote::new();
+            opgp.set_channel_id(channel.get_id());
+            opgp.set_package_ids(package_ids.clone());
+            opgp.set_origin(origin.to_string());
+
+            route_message::<OriginPackageGroupDemote, NetOk>(req, &opgp)?;
+        }
+
+        Ok(package_ids)
+    }
+
+    fn promote_or_demote_job_group(
+        req: &HttpRequest<AppState>,
+        group_id: u64,
+        idents: Option<Vec<String>>,
+        channel: &str,
+        promote: bool,
+    ) -> Result<()> {
+        let mut group_get = JobGroupGet::new();
+        group_get.set_group_id(group_id);
+        group_get.set_include_projects(true);
+        let group = route_message::<JobGroupGet, JobGroup>(req, &group_get)?;
+
+        // This only makes sense if the group is complete. If the group isn't complete, return now and
+        // let the user know. Check the completion state by checking the individual project states,
+        // as if this is called by the scheduler it needs to promote/demote the group before marking it
+        // Complete.
+        if group.get_projects().iter().any(|&ref p| {
+            p.get_state() == JobGroupProjectState::NotStarted
+                || p.get_state() == JobGroupProjectState::InProgress
+        }) {
+            return Err(Error::NetError(NetError::new(
+                ErrCode::GROUP_NOT_COMPLETE,
+                "hg:promote-or-demote-job-group:0",
+            )));
+        }
+
+        let mut origin_map = HashMap::new();
+
+        let mut ident_map = HashMap::new();
+        let has_idents = if idents.is_some() {
+            for ident in idents.unwrap().iter() {
+                ident_map.insert(ident.clone(), 1);
+            }
+            true
+        } else {
+            false
+        };
+
+        // We can't assume that every project in the group belongs to the same origin. It's entirely
+        // possible that there are multiple origins present within the group. Because of this, there's
+        // no way to atomically commit the entire promotion/demotion at once. It's possible origin
+        // shards can be on different machines, so for now, the best we can do is partition the projects
+        // by origin, and commit each origin at once. Ultimately, it'd be nice to have a way to
+        // atomically commit the entire promotion/demotion at once, but that would require a cross-shard
+        // tool that we don't currently have.
+        for project in group.get_projects().into_iter() {
+            if project.get_state() == JobGroupProjectState::Success {
+                let ident_str = project.get_ident();
+                if has_idents && !ident_map.contains_key(ident_str) {
+                    continue;
+                }
+
+                let ident = OriginPackageIdent::from_str(ident_str).unwrap();
+                let project_list = origin_map
+                    .entry(ident.get_origin().to_string())
+                    .or_insert(Vec::new());
+                project_list.push(project);
+            }
+        }
+
+        let jgt = helpers::trigger_from_request(req);
+        let trigger = PackageChannelTrigger::from(jgt);
+
+        for (origin, projects) in origin_map.iter() {
+            match Self::do_group_promotion_or_demotion(
+                req,
+                channel,
+                projects.to_vec(),
+                &origin,
+                promote,
+            ) {
+                Ok(package_ids) => {
+                    let mut pgca = PackageGroupChannelAudit::new();
+
+                    let mut channel_get = OriginChannelGet::new();
+                    channel_get.set_origin_name(origin.clone());
+                    channel_get.set_name(channel.to_string());
+                    match route_message::<OriginChannelGet, OriginChannel>(req, &channel_get) {
+                        Ok(origin_channel) => pgca.set_channel_id(origin_channel.get_id()),
+                        Err(err) => return Err(err),
+                    }
+
+                    let mut origin_get = OriginGet::new();
+                    origin_get.set_name(origin.clone());
+                    match route_message::<OriginGet, Origin>(req, &origin_get) {
+                        Ok(origin_origin) => pgca.set_origin_id(origin_origin.get_id()),
+                        Err(err) => return Err(err),
+                    }
+
+                    pgca.set_package_ids(package_ids);
+
+                    if promote {
+                        pgca.set_operation(PackageChannelOperation::Promote);
+                    } else {
+                        pgca.set_operation(PackageChannelOperation::Demote);
+                    }
+
+                    let (session_id, session_name) = helpers::get_session_id_and_name(req);
+
+                    pgca.set_trigger(trigger);
+                    pgca.set_requester_id(session_id);
+                    pgca.set_requester_name(session_name);
+                    pgca.set_group_id(group_id);
+
+                    route_message::<PackageGroupChannelAudit, NetOk>(req, &pgca)?;
+                }
+                Err(Error::NetError(e)) => {
+                    if e.get_code() != ErrCode::ACCESS_DENIED {
+                        warn!("Failed to promote or demote group, err: {:?}", e);
+                        return Err(Error::NetError(e));
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to promote or demote group, err: {:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+
+        Ok(())
+    }
 
     // Route handlers - these functions should return HttpResponse
 
