@@ -19,11 +19,13 @@ use std::io;
 use std::result;
 
 use bldr_core;
+use github_api_client::HubError;
 use hab_core;
 use hab_core::package::{self, Identifiable};
 use hab_net::conn;
 use hab_net::{self, ErrCode};
 use oauth_client::error::Error as OAuthError;
+use serde_json;
 
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
@@ -38,6 +40,7 @@ use zmq;
 pub enum Error {
     Authorization(String),
     Connection(conn::ConnErr),
+    Github(HubError),
     Protocol(protocol::ProtocolError),
     BadPort(String),
     HabitatCore(hab_core::Error),
@@ -68,6 +71,7 @@ pub enum Error {
     PackageDownload(rusoto_s3::GetObjectError),
     PartialUpload(rusoto_s3::UploadPartError),
     RemotePackageNotFound(package::PackageIdent),
+    SerdeJson(serde_json::Error),
     UnsupportedPlatform(String),
     WriteSyncFailed,
 }
@@ -79,6 +83,7 @@ impl fmt::Display for Error {
         let msg = match *self {
             Error::Authorization(ref e) => format!("Not authorized: {}", e),
             Error::Connection(ref e) => format!("{}", e),
+            Error::Github(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::HabitatCore(ref e) => format!("{}", e),
@@ -128,6 +133,7 @@ impl fmt::Display for Error {
                     format!("Cannot find a release of package in any sources: {}", pkg)
                 }
             }
+            Error::SerdeJson(ref e) => format!("{}", e),
             Error::UnsupportedPlatform(ref e) => {
                 format!("Unsupported platform or architecture: {}", e)
             }
@@ -144,6 +150,7 @@ impl error::Error for Error {
         match *self {
             Error::Authorization(_) => "User is not authorized to perform operation",
             Error::Connection(ref err) => err.description(),
+            Error::Github(ref err) => err.description(),
             Error::Protocol(ref err) => err.description(),
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::HabitatCore(ref err) => err.description(),
@@ -182,6 +189,7 @@ impl error::Error for Error {
                 "An invalid path was passed - we needed a filename, and this path does not have one"
             }
             Error::MessageTypeNotFound => "Unable to find message for given type",
+            Error::SerdeJson(ref err) => err.description(),
             Error::UnsupportedPlatform(_) => "Unsupported platform or architecture",
             Error::WriteSyncFailed => {
                 "Could not write to destination; bytes written was 0 on a non-0 buffer"
@@ -197,6 +205,7 @@ impl ResponseError for Error {
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            Error::SerdeJson(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         }
@@ -210,6 +219,7 @@ impl Into<HttpResponse> for Error {
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            Error::SerdeJson(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         }
@@ -260,6 +270,12 @@ impl From<hab_core::Error> for Error {
     }
 }
 
+impl From<HubError> for Error {
+    fn from(err: HubError) -> Error {
+        Error::Github(err)
+    }
+}
+
 impl From<hab_net::NetError> for Error {
     fn from(err: hab_net::NetError) -> Self {
         Error::NetError(err)
@@ -287,6 +303,12 @@ impl From<protobuf::ProtobufError> for Error {
 impl From<protocol::ProtocolError> for Error {
     fn from(err: protocol::ProtocolError) -> Error {
         Error::Protocol(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Error {
+        Error::SerdeJson(err)
     }
 }
 
