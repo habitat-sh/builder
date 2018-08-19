@@ -34,7 +34,7 @@ use server::AppState;
 // reviewed and broken up
 //
 
-/* TODO - this needs to be re-factored / re-thought
+/* DEPRECATED - use Actix-web extractor instead
 
 pub fn validate_params(
     req: &HttpRequest,
@@ -121,32 +121,6 @@ pub fn extract_pagination(req: &HttpRequest) -> Result<(isize, isize), Response>
     Ok((offset, offset + PAGINATION_RANGE_MAX - 1))
 }
 
-*/
-
-/* DEPRECATED - Use Actix-web extractor instead
-
-pub fn paginated_response<T>(
-    body: &Vec<T>,
-    count: isize,
-    start: isize,
-    end: isize,
-) -> IronResult<Response>
-where
-    T: Serialize,
-{
-    let body = package_results_json(body, count, start, end);
-    let headers = Header(ContentType(Mime(
-        TopLevel::Application,
-        SubLevel::Json,
-        vec![(Attr::Charset, Value::Utf8)],
-    )));
-
-    if count > end + 1 {
-        Ok(Response::with((status::PartialContent, body, headers)))
-    } else {
-        Ok(Response::with((status::Ok, body, headers)))
-    }
-}
 */
 
 pub fn check_origin_access<T>(req: &HttpRequest<AppState>, origin: &T) -> Result<u64>
