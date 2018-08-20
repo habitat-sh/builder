@@ -37,10 +37,12 @@ extern crate habitat_net as hab_net;
 extern crate log;
 extern crate num_cpus;
 extern crate protobuf;
+extern crate regex;
 extern crate rusoto_core as rusoto;
 extern crate rusoto_s3;
 extern crate segment_api_client;
 extern crate serde;
+extern crate tempfile;
 extern crate time;
 extern crate typemap;
 #[macro_use]

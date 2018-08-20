@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::{self, PathBuf};
 use std::str::FromStr;
 
-use actix_web::http;
+use actix_web::http::header::{
+    Charset, ContentDisposition, DispositionParam, DispositionType, ExtendedValue,
+};
+use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
 use serde_json;
+use tempfile::{tempdir_in, TempDir};
+
+use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
 
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
@@ -34,12 +41,21 @@ pub struct Pagination {
     distinct: bool,
 }
 
+#[derive(Deserialize)]
+pub struct Target {
+    target: Option<String>,
+}
+
+const ONE_YEAR_IN_SECS: usize = 31536000;
+
 const PAGINATION_RANGE_MAX: isize = 50;
 
 pub struct Packages {}
 
 impl Packages {
+    //
     // Internal - these functions should return Result<..>
+    //
     fn do_get_stats(req: &HttpRequest<AppState>, origin: String) -> Result<JobGraphPackageStats> {
         let mut request = JobGraphPackageStatsGet::new();
         request.set_origin(origin);
@@ -127,7 +143,9 @@ impl Packages {
             .body(body)
     }
 
+    //
     // Route handlers - these functions should return HttpResponse
+    //
     fn get_stats(req: &HttpRequest<AppState>) -> HttpResponse {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
@@ -148,6 +166,62 @@ impl Packages {
         }
     }
 
+    fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
+        let (origin, name, version, release) = Path::<(String, String, String, String)>::extract(
+            &req,
+        ).unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let session_id = helpers::get_optional_session_id(&req);
+        let mut ident_req = OriginPackageGet::new();
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin.to_string());
+        ident.set_name(name.to_string());
+        ident.set_version(version.to_string());
+        ident.set_release(release.to_string());
+
+        let mut vis =
+            helpers::visibility_for_optional_session(&req, session_id, &ident.get_origin());
+        vis.push(OriginPackageVisibility::Hidden);
+        ident_req.set_visibilities(vis);
+        ident_req.set_ident(ident.clone());
+
+        // TODO: Deprecate target from headers
+        let target = match qtarget.target.clone() {
+            Some(t) => {
+                debug!("Query requested target = {}", t);
+                PackageTarget::from_str(&t).unwrap() // Unwrap Ok ?
+            }
+            None => helpers::target_from_headers(&req),
+        };
+
+        if !req.state().config.api.targets.contains(&target) {
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        match route_message::<OriginPackageGet, OriginPackage>(&req, &ident_req) {
+            Ok(package) => {
+                let dir = tempdir_in(packages_path(&req.state().config.api.data_path))
+                    .expect("Unable to create a tempdir!");
+                let file_path = dir.path().join(archive_name(&(&package).into(), &target));
+                let temp_ident = ident.to_owned().into();
+                match req
+                    .state()
+                    .packages
+                    .download(&file_path, &temp_ident, &target)
+                {
+                    Ok(archive) => download_response_for_archive(archive, dir),
+                    Err(e) => {
+                        warn!("Failed to download package, err={:?}", e);
+                        return HttpResponse::new(StatusCode::NOT_FOUND);
+                    }
+                }
+            }
+            Err(err) => err.into(),
+        }
+    }
+
     //
     // Route registration
     //
@@ -155,11 +229,72 @@ impl Packages {
         app.resource("/depot/pkgs/origins/{origin}/stats", |r| {
             r.get().f(Self::get_stats)
         }).resource("/depot/pkgs/{origin}", |r| {
-            r.middleware(Optional);
-            r.method(http::Method::GET).with(Self::get_packages);
-        })
+                r.middleware(Optional);
+                r.method(http::Method::GET).with(Self::get_packages);
+            })
+            .resource("/pkgs/:origin/:pkg/:version/:release/download", |r| {
+                r.middleware(Optional);
+                r.method(http::Method::GET).with(Self::download_package);
+            })
     }
 }
+
+fn packages_path(data_path: &PathBuf) -> PathBuf {
+    path::Path::new(data_path).join("pkgs")
+}
+
+// Return a formatted string representing the filename of an archive for the given package
+// identifier pieces.
+fn archive_name(ident: &PackageIdent, target: &PackageTarget) -> PathBuf {
+    PathBuf::from(ident.archive_name_with_target(target).expect(&format!(
+        "Package ident should be fully qualified, ident={}",
+        &ident
+    )))
+}
+
+fn download_response_for_archive(archive: PackageArchive, tempdir: TempDir) -> HttpResponse {
+    let body = format!("{}", archive.path.to_string_lossy());
+    let filename = archive.file_name().as_bytes().to_vec();
+
+    // Yo. This is some serious iron black magic. This is how we can get
+    // appropriate timing of the .drop of the tempdir to fire AFTER the
+    // response is finished being written
+
+    // TODO
+    // response.extensions.insert::<TempDownloadPath>(tempdir);
+
+    HttpResponse::Ok()
+        .header(
+            http::header::CONTENT_DISPOSITION,
+            ContentDisposition {
+                disposition: DispositionType::Attachment,
+                parameters: vec![DispositionParam::Filename(
+                    Charset::Iso_8859_1, // The character set for the bytes of the filename
+                    None,                // The optional language tag (see `language-tag` crate)
+                    filename,            // the actual bytes of the filename
+                )],
+            },
+        )
+        .header(
+            http::header::HeaderName::from_static(headers::XFILENAME),
+            archive.file_name(),
+        )
+        .header(
+            http::header::CACHE_CONTROL,
+            format!("public, max-age={}", ONE_YEAR_IN_SECS),
+        )
+        .body(body)
+}
+
+/* 
+
+fn do_cache_response(response: &mut Response) {
+    response.headers.set(CacheControl(format!(
+        "public, max-age={}",
+        ONE_YEAR_IN_SECS
+    )));
+}
+*/
 
 // TODO: PACKAGES HANLDERS "/depot/pkgs/..."
 
@@ -252,57 +387,8 @@ impl Packages {
 */
 
 /*
-fn download_package(req: &mut Request) -> IronResult<Response> {
-    let depot = req.get::<persistent::Read<Config>>().unwrap();
-    let session_id = helpers::get_optional_session_id(req);
-    let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
-    let mut ident_req = OriginPackageGet::new();
-    let ident = ident_from_req(req);
-    let mut vis = visibility_for_optional_session(req, session_id, &ident.get_origin());
-    vis.push(OriginPackageVisibility::Hidden);
-    ident_req.set_visibilities(vis);
-    ident_req.set_ident(ident.clone());
 
-    let target = target_from_req(req);
-    if !depot.api.targets.contains(&target) {
-        return Ok(Response::with((
-            status::NotImplemented,
-            format!("Unsupported client platform ({}).", &target),
-        )));
-    }
-
-    match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
-        Ok(package) => {
-            let dir = tempdir_in(packages_path(&depot.api.data_path))
-                .expect("Unable to create a tempdir!");
-            let file_path = dir.path().join(archive_name(&(&package).into(), &target));
-            let temp_ident = ident.to_owned().into();
-            match s3handler.download(&file_path, &temp_ident, &target) {
-                Ok(archive) => download_response_for_archive(archive, dir),
-                Err(e) => {
-                    warn!("Failed to download package, err={:?}", e);
-                    Ok(Response::with(status::NotFound))
-                }
-            }
-        }
-        Err(err) => Ok(render_net_error(&err)),
-    }
-}
-
-// Return a formatted string representing the filename of an archive for the given package
-// identifier pieces.
-fn archive_name(ident: &PackageIdent, target: &PackageTarget) -> PathBuf {
-    PathBuf::from(ident.archive_name_with_target(target).expect(&format!(
-        "Package ident should be fully qualified, ident={}",
-        &ident
-    )))
-}
-
-fn packages_path(data_path: &PathBuf) -> PathBuf {
-    Path::new(data_path).join("pkgs")
-}
-
-fn upload_package(req: &mut Request) -> IronResult<Response> {
+fn upload_package(req: &HttpRequest<AppState>) -> HttpResponse {
     let ident = ident_from_req(req);
     let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
 
@@ -528,7 +614,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
 }
 
 // This route is unreachable when jobsrv_enabled is false
-fn schedule(req: &mut Request) -> IronResult<Response> {
+fn schedule(req: &HttpRequest<AppState>) -> HttpResponse {
     let (session_id, session_name) = get_session_id_and_name(req);
 
     let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
@@ -622,7 +708,7 @@ fn schedule(req: &mut Request) -> IronResult<Response> {
 }
 
 // This route is unreachable when jobsrv_enabled is false
-fn get_origin_schedule_status(req: &mut Request) -> IronResult<Response> {
+fn get_origin_schedule_status(req: &HttpRequest<AppState>) -> HttpResponse {
     let mut request = JobGroupOriginGet::new();
 
     match get_param(req, "origin") {
@@ -648,7 +734,7 @@ fn get_origin_schedule_status(req: &mut Request) -> IronResult<Response> {
 
 
 // This route is unreachable when jobsrv_enabled is false
-fn get_schedule(req: &mut Request) -> IronResult<Response> {
+fn get_schedule(req: &HttpRequest<AppState>) -> HttpResponse {
     let group_id = {
         let group_id_str = match get_param(req, "groupid") {
             Some(s) => s,
@@ -681,7 +767,7 @@ fn get_schedule(req: &mut Request) -> IronResult<Response> {
 }
 
 
-fn package_channels(req: &mut Request) -> IronResult<Response> {
+fn package_channels(req: &HttpRequest<AppState>) -> HttpResponse {
     let session_id = helpers::get_optional_session_id(req);
     let mut request = OriginPackageChannelListRequest::new();
     let ident = ident_from_req(req);
@@ -745,7 +831,7 @@ fn write_archive(filename: &PathBuf, body: &mut Body) -> Result<PackageArchive> 
 
 
 fn check_circular_deps(
-    req: &mut Request,
+    req: &HttpRequest<AppState>,
     ident: &OriginPackageIdent,
     target: &PackageTarget,
     archive: &mut PackageArchive,
@@ -1001,30 +1087,5 @@ pub fn download_package_from_upstream_depot(
         }
     }
 }
-
-fn download_response_for_archive(
-    archive: PackageArchive,
-    tempdir: TempDir,
-) -> IronResult<Response> {
-    let mut response = Response::with((status::Ok, archive.path.clone()));
-    // Yo. This is some serious iron black magic. This is how we can get
-    // appropriate timing of the .drop of the tempdir to fire AFTER the
-    // response is finished being written
-    response.extensions.insert::<TempDownloadPath>(tempdir);
-    do_cache_response(&mut response);
-    let disp = ContentDisposition {
-        disposition: DispositionType::Attachment,
-        parameters: vec![DispositionParam::Filename(
-            Charset::Iso_8859_1,
-            None,
-            archive.file_name().as_bytes().to_vec(),
-        )],
-    };
-    response.headers.set(disp);
-    response.headers.set(XFileName(archive.file_name()));
-    Ok(response)
-}
-
-
 
 */

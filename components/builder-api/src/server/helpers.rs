@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::str::FromStr;
+
 use actix_web::http::header;
 use actix_web::HttpRequest;
+use regex::Regex;
 use serde::Serialize;
 use serde_json;
 
 use hab_core::crypto::SigKeyPair;
+use hab_core::package::PackageTarget;
 use hab_net::privilege::FeatureFlags;
 //use hab_net::{ErrCode, NetError, NetOk};
 
@@ -122,6 +126,45 @@ pub fn extract_pagination(req: &HttpRequest) -> Result<(isize, isize), Response>
 }
 
 */
+
+pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
+    let user_agent_header = match req.headers().get(header::USER_AGENT) {
+        Some(s) => s,
+        None => return PackageTarget::from_str("x86_64-linux").unwrap(),
+    };
+
+    let user_agent = match user_agent_header.to_str() {
+        Ok(ref s) => s.to_string(),
+        Err(_) => return PackageTarget::from_str("x86_64-linux").unwrap(),
+    };
+
+    debug!("Parsing target from UserAgent header: {}", &user_agent);
+
+    let user_agent_regex =
+        Regex::new(r"(?P<client>[^\s]+)\s?(\((?P<target>\w+-\w+); (?P<kernel>.*)\))?").unwrap();
+
+    let target = match user_agent_regex.captures(&user_agent) {
+        Some(user_agent_capture) => {
+            if let Some(target_match) = user_agent_capture.name("target") {
+                target_match.as_str().to_string()
+            } else {
+                return PackageTarget::from_str("x86_64-linux").unwrap();
+            }
+        }
+        None => return PackageTarget::from_str("x86_64-linux").unwrap(),
+    };
+
+    // All of our tooling that depends on this function to return a target will have a user
+    // agent that includes the platform, or will specify a target in the query.
+    // Therefore, if we can't find a valid target, it's safe to assume that some other kind of HTTP
+    // tool is being used, e.g. curl, with looser constraints. For those kinds of cases,
+    // let's default it to Linux instead of returning a bad request if we can't properly parse
+    // the inbound target.
+    match PackageTarget::from_str(&target) {
+        Ok(t) => t,
+        Err(_) => PackageTarget::from_str("x86_64-linux").unwrap(),
+    }
+}
 
 pub fn check_origin_access<T>(req: &HttpRequest<AppState>, origin: &T) -> Result<u64>
 where
