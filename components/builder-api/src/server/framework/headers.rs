@@ -15,6 +15,8 @@
 pub const NO_CACHE: &str = "private, no-cache, no-store";
 pub const APPLICATION_JSON: &str = "application/json";
 
+pub const XFILENAME: &str = "x-filename"; // must be lowercase
+
 /*
 header! { (CacheControl, "Cache-Control") => [String] }
 header! { (ContentDisposition, "Content-Disposition") => [String] }
