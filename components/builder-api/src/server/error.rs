@@ -15,6 +15,7 @@
 use std::error;
 use std::ffi;
 use std::fmt;
+use std::fs;
 use std::io;
 use std::result;
 
@@ -27,6 +28,7 @@ use hab_net::{self, ErrCode};
 use oauth_client::error::Error as OAuthError;
 use serde_json;
 
+use actix_web;
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
 use protobuf;
@@ -39,13 +41,16 @@ use zmq;
 #[derive(Debug)]
 pub enum Error {
     Authorization(String),
+    CircularDependency(String),
     Connection(conn::ConnErr),
     Github(HubError),
+    InnerError(io::IntoInnerError<io::BufWriter<fs::File>>),
     Protocol(protocol::ProtocolError),
     BadPort(String),
     HabitatCore(hab_core::Error),
     IO(io::Error),
     NetError(hab_net::NetError),
+    PayloadError(actix_web::error::PayloadError),
     Protobuf(protobuf::ProtobufError),
     UnknownGitHubEvent(String),
     Zmq(zmq::Error),
@@ -82,8 +87,13 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             Error::Authorization(ref e) => format!("Not authorized: {}", e),
+            Error::CircularDependency(ref e) => {
+                format!("Circular dependency detected for package upload: {}", e)
+            }
             Error::Connection(ref e) => format!("{}", e),
             Error::Github(ref e) => format!("{}", e),
+            Error::InnerError(ref e) => format!("{}", e.error()),
+            Error::PayloadError(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::HabitatCore(ref e) => format!("{}", e),
@@ -149,8 +159,11 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Authorization(_) => "User is not authorized to perform operation",
+            Error::CircularDependency(ref err) => "Circular dependency detected for package upload",
             Error::Connection(ref err) => err.description(),
             Error::Github(ref err) => err.description(),
+            Error::InnerError(ref err) => err.error().description(),
+            Error::PayloadError(ref err) => "Http request stream error",
             Error::Protocol(ref err) => err.description(),
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::HabitatCore(ref err) => err.description(),
@@ -202,8 +215,11 @@ impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
         match self {
             Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
+            Error::InnerError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::PayloadError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::SerdeJson(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             // TODO : Tackle the others...
@@ -216,8 +232,11 @@ impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {
             Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
+            Error::InnerError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::PayloadError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::SerdeJson(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             // TODO : Tackle the others...
@@ -276,6 +295,12 @@ impl From<HubError> for Error {
     }
 }
 
+impl From<io::IntoInnerError<io::BufWriter<fs::File>>> for Error {
+    fn from(err: io::IntoInnerError<io::BufWriter<fs::File>>) -> Error {
+        Error::InnerError(err)
+    }
+}
+
 impl From<hab_net::NetError> for Error {
     fn from(err: hab_net::NetError) -> Self {
         Error::NetError(err)
@@ -291,6 +316,12 @@ impl From<io::Error> for Error {
 impl From<OAuthError> for Error {
     fn from(err: OAuthError) -> Error {
         Error::OAuth(err)
+    }
+}
+
+impl From<actix_web::error::PayloadError> for Error {
+    fn from(err: actix_web::error::PayloadError) -> Error {
+        Error::PayloadError(err)
     }
 }
 

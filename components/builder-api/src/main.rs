@@ -20,6 +20,7 @@ extern crate base64;
 #[macro_use]
 extern crate bitflags;
 extern crate builder_core as bldr_core;
+extern crate bytes;
 extern crate habitat_builder_api as bldr_api;
 #[macro_use]
 extern crate clap;
@@ -50,6 +51,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
 extern crate oauth_client;
+extern crate uuid;
 extern crate zmq;
 
 use std::fmt;

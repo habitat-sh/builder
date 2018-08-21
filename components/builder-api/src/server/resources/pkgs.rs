@@ -12,27 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs::{self, remove_file, File};
+use std::io::{BufWriter, Write};
 use std::path::{self, PathBuf};
 use std::str::FromStr;
 
-use actix_web::http::header::{
-    Charset, ContentDisposition, DispositionParam, DispositionType, ExtendedValue,
-};
+use actix_web::http::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
+use actix_web::{App, AsyncResponder, HttpMessage, HttpRequest, HttpResponse, Path, Query};
+use bytes::Bytes;
+use futures::{future::ok as fut_ok, Future, Stream};
+use protobuf;
 use serde_json;
 use tempfile::{tempdir_in, TempDir};
+use uuid::Uuid;
 
-use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
+use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
+use hab_net::{ErrCode, NetError, NetOk, NetResult};
 
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use server::error::{Error, Result};
+use server::feat;
 use server::framework::headers;
 use server::framework::middleware::{route_message, Authenticated, Optional};
 use server::helpers;
+use server::services::route_broker::RouteBroker;
 use server::AppState;
 
 #[derive(Deserialize)]
@@ -44,6 +51,13 @@ pub struct Pagination {
 #[derive(Deserialize)]
 pub struct Target {
     target: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Upload {
+    checksum: String,
+    builder: Option<String>,
+    forced: bool,
 }
 
 const ONE_YEAR_IN_SECS: usize = 31536000;
@@ -144,6 +158,262 @@ impl Packages {
     }
 
     //
+    //  Async helpers
+    //
+    fn do_upload_package_start(
+        req: &HttpRequest<AppState>,
+        qupload: &Query<Upload>,
+        ident: &OriginPackageIdent,
+    ) -> Result<(PathBuf, BufWriter<File>)> {
+        helpers::check_origin_access(req, &ident.get_origin())?;
+
+        // Return if we find existing package metadata (unless forced flag specified)
+        let mut ident_req = OriginPackageGet::new();
+        ident_req.set_ident(ident.clone());
+        ident_req.set_visibilities(helpers::all_visibilities());
+
+        if qupload.forced {
+            debug!(
+                "Upload was forced (bypassing existing package check) for: {}",
+                ident
+            );
+        } else {
+            match route_message::<OriginPackageGet, OriginPackage>(&req, &ident_req) {
+                Ok(_) => {
+                    return Err(Error::NetError(NetError::new(
+                        ErrCode::ENTITY_CONFLICT,
+                        "ds:up:0",
+                    )))
+                }
+                Err(Error::NetError(ref err)) if err.get_code() == ErrCode::ENTITY_NOT_FOUND => (),
+                Err(err) => return Err(err),
+            }
+        }
+
+        debug!("UPLOADING {}, params={:?}", ident, qupload);
+
+        // Find the path to folder where archive should be created, and
+        // create the folder if necessary
+        let parent_path = packages_path(&req.state().config.api.data_path);
+        fs::create_dir_all(parent_path.clone())?;
+
+        // Create a temp file at the archive location
+        let file_path = packages_path(&req.state().config.api.data_path);
+
+        let temp_name = format!("{}.tmp", Uuid::new_v4());
+        let temp_path = parent_path.join(file_path).join(temp_name);
+
+        let file = File::create(&temp_path)?;
+        let writer = BufWriter::new(file);
+
+        Ok((temp_path, writer))
+    }
+
+    // TODO: Break this up further, convert S3 upload to async
+    fn do_upload_package_finish(
+        req: HttpRequest<AppState>,
+        qupload: Query<Upload>,
+        ident: OriginPackageIdent,
+        temp_path: PathBuf,
+    ) -> HttpResponse {
+        let mut archive = PackageArchive::new(&temp_path);
+
+        debug!("Package Archive: {:#?}", archive);
+
+        let target_from_artifact = match archive.target() {
+            Ok(target) => target,
+            Err(e) => {
+                info!("Could not read the target for {:#?}: {:#?}", archive, e);
+                return HttpResponse::with_body(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    format!("ds:up:1, err={:?}", e),
+                );
+            }
+        };
+
+        if !req
+            .state()
+            .config
+            .api
+            .targets
+            .contains(&target_from_artifact)
+        {
+            debug!(
+                "Unsupported package platform or architecture {}.",
+                target_from_artifact
+            );
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        };
+
+        let mut ident_req = OriginPackageGet::new();
+        ident_req.set_ident(ident.clone());
+        ident_req.set_visibilities(helpers::all_visibilities());
+
+        let checksum_from_artifact = match archive.checksum() {
+            Ok(cksum) => cksum,
+            Err(e) => {
+                debug!("Could not compute a checksum for {:#?}: {:#?}", archive, e);
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:2");
+            }
+        };
+
+        if qupload.checksum != checksum_from_artifact {
+            debug!(
+                "Checksums did not match: from_param={:?}, from_artifact={:?}",
+                qupload.checksum, checksum_from_artifact
+            );
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:3");
+        }
+
+        // Check with scheduler to ensure we don't have circular deps, if configured
+        if feat::is_enabled(feat::Jobsrv) {
+            if let Err(e) = check_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
+                debug!("Failed circular dependency check, err={:?}", e);
+                return e.into();
+            }
+        }
+
+        let file_path = packages_path(&req.state().config.api.data_path);
+        let filename = file_path.join(archive_name(&(&ident).into(), &target_from_artifact));
+        let temp_ident = ident.to_owned().into();
+
+        match fs::rename(&temp_path, &filename) {
+            Ok(_) => {}
+            Err(e) => {
+                warn!(
+                    "Unable to rename temp archive {:?} to {:?}, err={:?}",
+                    temp_path, filename, e
+                );
+                return Error::IO(e).into();
+            }
+        }
+
+        // TODO: Make S3 upload async
+        if let Err(err) = req
+            .state()
+            .packages
+            .upload(&filename, &temp_ident, &target_from_artifact)
+        {
+            warn!("Unable to upload archive to s3!");
+            return err.into();
+        }
+
+        debug!("File added to Depot: {:?}", &filename);
+
+        let mut archive = PackageArchive::new(filename.clone());
+        let mut package = match OriginPackageCreate::from_archive(&mut archive) {
+            Ok(package) => package,
+            Err(e) => {
+                debug!("Error building package from archive: {:#?}", e);
+                return Error::HabitatCore(e).into();
+            }
+        };
+
+        if !ident.satisfies(package.get_ident()) {
+            debug!(
+                "Ident mismatch, expected={:?}, got={:?}",
+                ident,
+                package.get_ident()
+            );
+
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:6");
+        }
+
+        let (session_id, session_name) = helpers::get_session_id_and_name(&req);
+
+        match process_upload_for_package_archive(&ident, &mut package, session_id) {
+            Ok(_) => {
+                // Schedule re-build of dependent packages (if requested)
+                // Don't schedule builds if the upload is being done by the builder
+                if qupload.builder.is_none() && feat::is_enabled(feat::Jobsrv) {
+                    let mut request = JobGroupSpec::new();
+                    request.set_origin(ident.get_origin().to_string());
+                    request.set_package(ident.get_name().to_string());
+                    request.set_target(target_from_artifact.to_string());
+                    request.set_deps_only(true);
+                    request.set_origin_only(false);
+                    request.set_package_only(false);
+                    request.set_trigger(JobGroupTrigger::Upload);
+                    request.set_requester_id(session_id);
+                    request.set_requester_name(session_name);
+
+                    match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
+                        Ok(group) => debug!(
+                            "Scheduled reverse dependecy build for {}, group id: {}",
+                            ident,
+                            group.get_id()
+                        ),
+                        Err(err) => warn!("Unable to schedule build, err: {:?}", err),
+                    }
+                }
+
+                match remove_file(&filename) {
+                    Ok(_) => debug!(
+                        "Successfully removed cached file after upload. {:?}",
+                        &filename
+                    ),
+                    Err(e) => warn!(
+                        "Failed to remove cached file after upload: {:?}, {}",
+                        &filename, e
+                    ),
+                }
+
+                //let base_url = req.uri();
+                HttpResponse::Created()
+                    // TODO: Request URI does not have scheme/host - do we need this?
+                    // .header(
+                    //     http::header::LOCATION,
+                    //     format!(
+                    //         "{}://{}/{}",
+                    //         base_url.scheme().unwrap(),
+                    //         base_url.host().unwrap(),
+                    //         format!("v1/pkgs/{}/download", package.get_ident())
+                    //     ),
+                    // )
+                    .finish()
+            }
+            Err(err) => {
+                debug!(
+                    "Ident mismatch, expected={:?}, got={:?}",
+                    ident,
+                    package.get_ident()
+                );
+                Error::NetError(err).into()
+            }
+        }
+    }
+
+    fn do_upload_package_async(
+        req: HttpRequest<AppState>,
+        qupload: Query<Upload>,
+        ident: OriginPackageIdent,
+        temp_path: PathBuf,
+        writer: BufWriter<File>,
+    ) -> Box<Future<Item = HttpResponse, Error = Error>> {
+        req.payload()
+        // `Future::from_err` acts like `?` in that it coerces the error type from
+        // the future into the final error type
+        .from_err()
+        // `fold` will asynchronously read each chunk of the request body and
+        // call supplied closure, then it resolves to result of closure
+        .fold(writer, write_archive_async)
+        // `Future::and_then` can be used to merge an asynchronous workflow with a
+        // synchronous workflow
+        .and_then(|writer| {
+            match writer.into_inner() {
+                Ok(f) => {
+                    f.sync_all()?;
+                    Ok(Self::do_upload_package_finish(req, qupload, ident, temp_path))
+                },
+                Err(err) => {
+                    Err(Error::InnerError(err))
+                }
+            }
+        })
+        .responder()
+    }
+
+    //
     // Route handlers - these functions should return HttpResponse
     //
     fn get_stats(req: &HttpRequest<AppState>) -> HttpResponse {
@@ -166,6 +436,7 @@ impl Packages {
         }
     }
 
+    // TODO : Convert to async
     fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
         let (origin, name, version, release) = Path::<(String, String, String, String)>::extract(
             &req,
@@ -222,6 +493,39 @@ impl Packages {
         }
     }
 
+    fn upload_package(
+        (qupload, req): (Query<Upload>, HttpRequest<AppState>),
+    ) -> Box<Future<Item = HttpResponse, Error = Error>> {
+        let (origin, name, version, release) = Path::<(String, String, String, String)>::extract(
+            &req,
+        ).unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin);
+        ident.set_name(name);
+        ident.set_version(version);
+        ident.set_release(release);
+
+        if !ident.valid() || !ident.fully_qualified() {
+            info!(
+                "Invalid or not fully qualified package identifier: {}",
+                ident
+            );
+            return Box::new(fut_ok(HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)));
+        }
+
+        match Self::do_upload_package_start(&req, &qupload, &ident) {
+            Ok((temp_path, writer)) => {
+                Self::do_upload_package_async(req, qupload, ident, temp_path, writer)
+            }
+            Err(err) => {
+                warn!("Failed to upload package, err={:?}", err);
+                Box::new(fut_ok(err.into()))
+            }
+        }
+    }
+
     //
     // Route registration
     //
@@ -232,9 +536,16 @@ impl Packages {
                 r.middleware(Optional);
                 r.method(http::Method::GET).with(Self::get_packages);
             })
-            .resource("/pkgs/:origin/:pkg/:version/:release/download", |r| {
-                r.middleware(Optional);
-                r.method(http::Method::GET).with(Self::download_package);
+            .resource(
+                "/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
+                |r| {
+                    r.middleware(Optional);
+                    r.method(http::Method::GET).with(Self::download_package);
+                },
+            )
+            .resource("/depot/pkgs/{origin}/{pkg}/{version}/{release}", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::POST).with(Self::upload_package);
             })
     }
 }
@@ -284,6 +595,125 @@ fn download_response_for_archive(archive: PackageArchive, tempdir: TempDir) -> H
             format!("public, max-age={}", ONE_YEAR_IN_SECS),
         )
         .body(body)
+}
+
+fn write_archive_async(mut writer: BufWriter<File>, chunk: Bytes) -> Result<BufWriter<File>> {
+    debug!("Writing file upload chunk, size: {}", chunk.len());
+    match writer.write(&chunk) {
+        Ok(_) => (),
+        Err(err) => {
+            warn!("Error writing file upload chunk to temp file: {:?}", err);
+            return Err(Error::IO(err));
+        }
+    }
+    Ok(writer)
+}
+
+fn check_circular_deps(
+    req: &HttpRequest<AppState>,
+    ident: &OriginPackageIdent,
+    target: &PackageTarget,
+    archive: &mut PackageArchive,
+) -> Result<()> {
+    let mut pcr_req = JobGraphPackagePreCreate::new();
+    pcr_req.set_ident(format!("{}", ident));
+    pcr_req.set_target(target.to_string());
+
+    let mut pcr_deps = protobuf::RepeatedField::new();
+    let deps_from_artifact = match archive.deps() {
+        Ok(deps) => deps,
+        Err(e) => {
+            debug!("Could not get deps from {:#?}: {:#?}", archive, e);
+            return Err(Error::HabitatCore(e));
+        }
+    };
+
+    for ident in deps_from_artifact {
+        let dep_str = format!("{}", ident);
+        pcr_deps.push(dep_str);
+    }
+    pcr_req.set_deps(pcr_deps);
+
+    match route_message::<JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
+        Ok(_) => Ok(()),
+        Err(Error::NetError(err)) => {
+            if err.get_code() == ErrCode::ENTITY_CONFLICT {
+                warn!(
+                    "Failed package circular dependency check: {}, err: {:?}",
+                    ident, err
+                );
+                return Err(Error::CircularDependency(ident.to_string()));
+            }
+            return Err(Error::NetError(err));
+        }
+        Err(err) => return Err(err),
+    }
+}
+
+fn process_upload_for_package_archive(
+    ident: &OriginPackageIdent,
+    package: &mut OriginPackageCreate,
+    owner_id: u64,
+) -> NetResult<()> {
+    // We need to do it this way instead of via route_message because this function can't be passed
+    // a Request struct, because it's sometimes called from a background thread, and Request
+    // structs are not cloneable.
+    let mut conn = RouteBroker::connect().unwrap();
+
+    package.set_owner_id(owner_id);
+
+    // Let's make sure this origin actually exists. Yes, I know we have a helper function for this
+    // but it requires the Request struct, which is not available here.
+    let mut request = OriginGet::new();
+    request.set_name(ident.get_origin().to_string());
+    match conn.route::<OriginGet, Origin>(&request) {
+        Ok(origin) => package.set_origin_id(origin.get_id()),
+        Err(err) => return Err(err),
+    }
+
+    // Zero this out initially
+    package.clear_visibility();
+
+    // First, try to fetch visibility settings from a project, if one exists
+    let mut project_get = OriginProjectGet::new();
+    let project_name = format!("{}/{}", ident.get_origin(), ident.get_name());
+    project_get.set_name(project_name);
+
+    match conn.route::<OriginProjectGet, OriginProject>(&project_get) {
+        Ok(proj) => {
+            if proj.has_visibility() {
+                package.set_visibility(proj.get_visibility());
+            }
+        }
+        Err(_) => {
+            // There's no project for this package. No worries - we'll check the origin
+            let mut origin_get = OriginGet::new();
+            origin_get.set_name(ident.get_origin().to_string());
+
+            match conn.route::<OriginGet, Origin>(&origin_get) {
+                Ok(o) => {
+                    if o.has_default_package_visibility() {
+                        package.set_visibility(o.get_default_package_visibility());
+                    }
+                }
+                Err(err) => return Err(err),
+            }
+        }
+    }
+
+    // If, after checking both the project and the origin, there's still no visibility set
+    // (this is highly unlikely), then just make it public.
+    if !package.has_visibility() {
+        package.set_visibility(OriginPackageVisibility::Public);
+    }
+
+    // Re-create origin package as needed (eg, checksum update)
+    if let Err(err) = conn.route::<OriginPackageCreate, OriginPackage>(&package) {
+        debug!("Failed to create origin package, err: {:?}", err);
+        return Err(err);
+    }
+
+    Ok(())
 }
 
 /* 
@@ -354,11 +784,6 @@ fn do_cache_response(response: &mut Response) {
         XHandler::new(download_package).before(opt.clone()),
         "package_download",
     );
-    r.post(
-        "/pkgs/:origin/:pkg/:version/:release",
-        XHandler::new(upload_package).before(basic.clone()),
-        "package_upload",
-    );
     r.patch(
         "/pkgs/:origin/:pkg/:version/:release/:visibility",
         XHandler::new(package_privacy_toggle).before(basic.clone()),
@@ -387,231 +812,6 @@ fn do_cache_response(response: &mut Response) {
 */
 
 /*
-
-fn upload_package(req: &HttpRequest<AppState>) -> HttpResponse {
-    let ident = ident_from_req(req);
-    let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
-
-    let (session_id, session_name) = get_session_id_and_name(req);
-
-    if !ident.valid() || !ident.fully_qualified() {
-        info!(
-            "Invalid or not fully qualified package identifier: {}",
-            ident
-        );
-        return Ok(Response::with(status::BadRequest));
-    }
-
-    if !check_origin_access(req, &ident.get_origin()).unwrap_or(false) {
-        debug!("Failed origin access check, ident: {}", ident);
-
-        return Ok(Response::with(status::Forbidden));
-    }
-
-    let depot = req.get::<persistent::Read<Config>>().unwrap();
-    let checksum_from_param = match helpers::extract_query_value("checksum", req) {
-        Some(checksum) => checksum,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    debug!(
-        "UPLOADING checksum={}, ident={}",
-        checksum_from_param, ident
-    );
-
-    // Find the path to folder where archive should be created, and
-    // create the folder if necessary
-    let parent_path = packages_path(&depot.api.data_path);
-
-    match fs::create_dir_all(parent_path.clone()) {
-        Ok(_) => {}
-        Err(e) => {
-            error!("Unable to create archive directory, err={:?}", e);
-            return Ok(Response::with(status::InternalServerError));
-        }
-    };
-
-    // Create a temp file at the archive location
-    let dir = tempdir_in(packages_path(&depot.api.data_path)).expect("Unable to create a tempdir!");
-    let file_path = dir.path();
-    let temp_name = format!("{}.tmp", Uuid::new_v4());
-    let temp_path = parent_path.join(file_path).join(temp_name);
-
-    let mut archive = match write_archive(&temp_path, &mut req.body) {
-        Ok(a) => a,
-        Err(e) => {
-            warn!("Error writing archive to disk: {:?}", &e);
-            return Ok(Response::with((
-                status::InternalServerError,
-                format!("ds:up:7, err={:?}", e),
-            )));
-        }
-    };
-
-    debug!("Package Archive: {:#?}", archive);
-
-    let target_from_artifact = match archive.target() {
-        Ok(target) => target,
-        Err(e) => {
-            info!("Could not read the target for {:#?}: {:#?}", archive, e);
-            return Ok(Response::with((
-                status::UnprocessableEntity,
-                format!("ds:up:1, err={:?}", e),
-            )));
-        }
-    };
-
-    if !depot.api.targets.contains(&target_from_artifact) {
-        debug!(
-            "Unsupported package platform or architecture {}.",
-            target_from_artifact
-        );
-        return Ok(Response::with(status::NotImplemented));
-    };
-
-    let mut ident_req = OriginPackageGet::new();
-    ident_req.set_ident(ident.clone());
-    ident_req.set_visibilities(all_visibilities());
-
-    // Return conflict only if we have BOTH package metadata and a valid
-    // archive on disk.
-    let upload_forced = check_forced(req);
-    let origin_package_found =
-        match route_message::<OriginPackageGet, OriginPackage>(req, &ident_req) {
-            Ok(_) => {
-                if upload_forced {
-                    debug!(
-                        "Upload was forced, bypassing database validation: {}!",
-                        ident
-                    );
-                    true
-                } else {
-                    return Ok(Response::with(status::Conflict));
-                }
-            }
-            Err(err) => {
-                if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
-                    false
-                } else {
-                    return Ok(render_net_error(&err));
-                }
-            }
-        };
-
-    let checksum_from_artifact = match archive.checksum() {
-        Ok(cksum) => cksum,
-        Err(e) => {
-            info!("Could not compute a checksum for {:#?}: {:#?}", archive, e);
-            return Ok(Response::with((status::UnprocessableEntity, "ds:up:2")));
-        }
-    };
-
-    if checksum_from_param != checksum_from_artifact {
-        info!(
-            "Checksums did not match: from_param={:?}, from_artifact={:?}",
-            checksum_from_param, checksum_from_artifact
-        );
-        return Ok(Response::with((status::UnprocessableEntity, "ds:up:3")));
-    }
-
-    // Check with scheduler to ensure we don't have circular deps, if configured
-    if feat::is_enabled(feat::Jobsrv) {
-        if let Err(r) = check_circular_deps(req, &ident, &target_from_artifact, &mut archive) {
-            warn!("Failed to check circular dependency, err={:?}", r);
-            return Ok(r);
-        }
-    }
-
-    let filename = file_path.join(Config::archive_name(
-        &(&ident).into(),
-        &target_from_artifact,
-    ));
-    let temp_ident = ident.to_owned().into();
-
-    match fs::rename(&temp_path, &filename) {
-        Ok(_) => {}
-        Err(e) => {
-            error!(
-                "Unable to rename temp archive {:?} to {:?}, err={:?}",
-                temp_path, filename, e
-            );
-            return Ok(Response::with(status::InternalServerError));
-        }
-    }
-
-    if s3handler
-        .upload(&filename, &temp_ident, &target_from_artifact)
-        .is_err()
-    {
-        error!("Unable to upload archive to s3!");
-        return Ok(Response::with(status::InternalServerError));
-    } else {
-        info!("File added to Depot: {:?}", &filename);
-        let mut archive = PackageArchive::new(filename.clone());
-        let mut package = match OriginPackageCreate::from_archive(&mut archive) {
-            Ok(package) => package,
-            Err(e) => {
-                info!("Error building package from archive: {:#?}", e);
-                return Ok(Response::with((status::UnprocessableEntity, "ds:up:5")));
-            }
-        };
-
-        if !ident.satisfies(package.get_ident()) {
-            info!(
-                "Ident mismatch, expected={:?}, got={:?}",
-                ident,
-                package.get_ident()
-            );
-
-            return Ok(Response::with((status::UnprocessableEntity, "ds:up:6")));
-        }
-
-        let builder_flag = helpers::extract_query_value("builder", req);
-
-        match process_upload_for_package_archive(
-            &ident,
-            &mut package,
-            &target_from_artifact,
-            session_id,
-            session_name,
-            origin_package_found,
-            builder_flag,
-        ) {
-            Ok(_) => {
-                let mut response = Response::with((
-                    status::Created,
-                    format!("/pkgs/{}/download", package.get_ident()),
-                ));
-                let mut base_url: url::Url = req.url.clone().into();
-                base_url.set_path(&format!("pkgs/{}/download", package.get_ident()));
-                response
-                    .headers
-                    .set(headers::Location(format!("{}", base_url)));
-
-                match remove_file(&filename) {
-                    Ok(_) => debug!(
-                        "Successfully removed cached file after upload. {:?}",
-                        &filename
-                    ),
-                    Err(e) => error!(
-                        "Failed to remove cached file after upload: {:?}, {}",
-                        &filename, e
-                    ),
-                }
-
-                Ok(response)
-            }
-            Err(_) => {
-                info!(
-                    "Ident mismatch, expected={:?}, got={:?}",
-                    ident,
-                    package.get_ident()
-                );
-                Ok(Response::with((status::UnprocessableEntity, "ds:up:6")))
-            }
-        }
-    }
-}
 
 // This route is unreachable when jobsrv_enabled is false
 fn schedule(req: &HttpRequest<AppState>) -> HttpResponse {
@@ -802,169 +1002,6 @@ fn package_channels(req: &HttpRequest<AppState>) -> HttpResponse {
 }
 
 
-fn write_archive(filename: &PathBuf, body: &mut Body) -> Result<PackageArchive> {
-    let file = File::create(&filename)?;
-    let mut writer = BufWriter::new(file);
-    let mut written: i64 = 0;
-    let mut buf = [0u8; 100000]; // Our byte buffer
-
-    loop {
-        let len = body.read(&mut buf)?; // Raise IO errors
-        match len {
-            0 => {
-                // 0 == EOF, so stop writing and finish progress
-                break;
-            }
-            _ => {
-                // Write the buffer to the BufWriter on the Heap
-                let bytes_written = writer.write(&buf[0..len])?;
-                if bytes_written == 0 {
-                    return Err(Error::WriteSyncFailed);
-                }
-                written = written + (bytes_written as i64);
-            }
-        };
-    }
-
-    Ok(PackageArchive::new(filename))
-}
-
-
-fn check_circular_deps(
-    req: &HttpRequest<AppState>,
-    ident: &OriginPackageIdent,
-    target: &PackageTarget,
-    archive: &mut PackageArchive,
-) -> result::Result<(), Response> {
-    let mut pcr_req = JobGraphPackagePreCreate::new();
-    pcr_req.set_ident(format!("{}", ident));
-    pcr_req.set_target(target.to_string());
-
-    let mut pcr_deps = protobuf::RepeatedField::new();
-    let deps_from_artifact = match archive.deps() {
-        Ok(deps) => deps,
-        Err(e) => {
-            info!("Could not get deps from {:#?}: {:#?}", archive, e);
-            return Err(Response::with((status::UnprocessableEntity, "ds:up:4")));
-        }
-    };
-
-    for ident in deps_from_artifact {
-        let dep_str = format!("{}", ident);
-        pcr_deps.push(dep_str);
-    }
-    pcr_req.set_deps(pcr_deps);
-
-    match route_message::<JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            if err.get_code() == ErrCode::ENTITY_CONFLICT {
-                warn!(
-                    "Failed package circular dependency check: {}, err: {:?}",
-                    ident, err
-                );
-                return Err(Response::with(status::FailedDependency));
-            }
-            return Err(render_net_error(&err));
-        }
-    }
-}
-
-fn process_upload_for_package_archive(
-    ident: &OriginPackageIdent,
-    package: &mut OriginPackageCreate,
-    target: &PackageTarget,
-    owner_id: u64,
-    owner_name: String,
-    origin_package_found: bool,
-    builder_flag: Option<String>,
-) -> NetResult<()> {
-    // We need to do it this way instead of via route_message because this function can't be passed
-    // a Request struct, because it's sometimes called from a background thread, and Request
-    // structs are not cloneable.
-    let mut conn = RouteBroker::connect().unwrap();
-
-    package.set_owner_id(owner_id);
-
-    // Let's make sure this origin actually exists. Yes, I know we have a helper function for this
-    // but it requires the Request struct, which is not available here.
-    let mut request = OriginGet::new();
-    request.set_name(ident.get_origin().to_string());
-    match conn.route::<OriginGet, Origin>(&request) {
-        Ok(origin) => package.set_origin_id(origin.get_id()),
-        Err(err) => return Err(err),
-    }
-
-    // Zero this out initially
-    package.clear_visibility();
-
-    // First, try to fetch visibility settings from a project, if one exists
-    let mut project_get = OriginProjectGet::new();
-    let project_name = format!("{}/{}", ident.get_origin(), ident.get_name());
-    project_get.set_name(project_name);
-
-    match conn.route::<OriginProjectGet, OriginProject>(&project_get) {
-        Ok(proj) => {
-            if proj.has_visibility() {
-                package.set_visibility(proj.get_visibility());
-            }
-        }
-        Err(_) => {
-            // There's no project for this package. No worries - we'll check the origin
-            let mut origin_get = OriginGet::new();
-            origin_get.set_name(ident.get_origin().to_string());
-
-            match conn.route::<OriginGet, Origin>(&origin_get) {
-                Ok(o) => {
-                    if o.has_default_package_visibility() {
-                        package.set_visibility(o.get_default_package_visibility());
-                    }
-                }
-                Err(err) => return Err(err),
-            }
-        }
-    }
-
-    // If, after checking both the project and the origin, there's still no visibility set
-    // (this is highly unlikely), then just make it public.
-    if !package.has_visibility() {
-        package.set_visibility(OriginPackageVisibility::Public);
-    }
-
-    // Don't re-create the origin package if it already exists
-    if !origin_package_found {
-        if let Err(err) = conn.route::<OriginPackageCreate, OriginPackage>(&package) {
-            return Err(err);
-        }
-
-        // Schedule re-build of dependent packages (if requested)
-        // Don't schedule builds if the upload is being done by the builder
-        if builder_flag.is_none() && feat::is_enabled(feat::Jobsrv) {
-            let mut request = JobGroupSpec::new();
-            request.set_origin(ident.get_origin().to_string());
-            request.set_package(ident.get_name().to_string());
-            request.set_target(target.to_string());
-            request.set_deps_only(true);
-            request.set_origin_only(false);
-            request.set_package_only(false);
-            request.set_trigger(JobGroupTrigger::Upload);
-            request.set_requester_id(owner_id);
-            request.set_requester_name(owner_name);
-
-            match conn.route::<JobGroupSpec, JobGroup>(&request) {
-                Ok(group) => debug!(
-                    "Scheduled reverse dependecy build for {}, group id: {}, origin_only: {}",
-                    ident,
-                    group.get_id(),
-                    false
-                ),
-                Err(err) => warn!("Unable to schedule build, err: {:?}", err),
-            }
-        }
-    }
-
-    Ok(())
-}
 
 // This function is called from a background thread, so we can't pass the Request object into it.
 // TBD: Move this to upstream module and refactor later

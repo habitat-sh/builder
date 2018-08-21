@@ -13,6 +13,7 @@ doc = false
 
 [dependencies]
 actix-web = "0.7"
+bytes = "*"
 base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
@@ -32,7 +33,7 @@ serde_json = "*"
 toml = { version = "*", default-features = false }
 typemap = "*"
 unicase = "1"
-futures = "*"
+futures = "0.1"
 libc = "*"
 libarchive = "*"
 regex = "*"

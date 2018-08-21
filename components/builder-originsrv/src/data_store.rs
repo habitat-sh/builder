@@ -1145,7 +1145,7 @@ impl DataStore {
         let ident = opc.get_ident();
 
         let rows = conn.query(
-            "SELECT * FROM insert_origin_package_v3($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+            "SELECT * FROM insert_origin_package_v4($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
             &[
                 &(opc.get_origin_id() as i64),
                 &(opc.get_owner_id() as i64),
