@@ -20,6 +20,7 @@ extern crate base64;
 #[macro_use]
 extern crate bitflags;
 extern crate builder_core as bldr_core;
+extern crate bytes;
 extern crate constant_time_eq;
 #[macro_use]
 extern crate failure;

@@ -20,6 +20,8 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
 use protocol::originsrv::*;
 
+use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
+use hab_core::crypto::BoxKeyPair;
 use hab_core::package::ident;
 
 use server::error::{Error, Result};
@@ -113,6 +115,61 @@ impl Origins {
         }
     }
 
+    fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
+        let (origin, revision) = Path::<(String, String)>::extract(&req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+        let account_id = match helpers::check_origin_access(&req, &origin) {
+            Ok(id) => id,
+            Err(err) => return err.into(),
+        };
+
+        let mut request = OriginPublicSigningKeyCreate::new();
+        request.set_owner_id(account_id);
+        request.set_revision(revision);
+
+        match helpers::get_origin(&req, &origin) {
+            Ok(mut origin) => {
+                request.set_name(origin.take_name());
+                request.set_origin_id(origin.get_id());
+            }
+            Err(err) => return err.into(),
+        };
+
+        match parse_key_str(&body) {
+            Ok((PairType::Public, _, _)) => {
+                debug!("Received a valid public key");
+            }
+            Ok(_) => {
+                debug!("Received a secret key instead of a public key");
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+            Err(e) => {
+                debug!("Invalid public key content: {}", e);
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        request.set_body(body.into_bytes());
+        request.set_owner_id(0);
+        match route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(&req, &request)
+        {
+            Ok(_) => {
+                // TODO ?
+                //let mut base_url: url::Url = req.url.clone().into();
+                //base_url.set_path(&format!("key/{}-{}", &origin, &request.get_revision()));
+
+                HttpResponse::Created().body(format!(
+                    "/origins/{}/keys/{}",
+                    &origin,
+                    &request.get_revision()
+                ))
+                // .header(http::header::LOCATION, format!("{}", base_url))
+            }
+            Err(err) => err.into(),
+        }
+    }
+
     //
     // Route registration
     //
@@ -126,6 +183,10 @@ impl Origins {
             .resource("/depot/origins/{origin}/keys", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::POST).f(Self::create_keys);
+            })
+            .resource("/depot/origins/{origin}/keys/{revision}", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::POST).with(Self::upload_origin_key);
             })
     }
 }
@@ -164,11 +225,6 @@ impl Origins {
         "/origins/:origin/keys",
         XHandler::new(generate_origin_keys).before(basic.clone()),
         "origin_key_generate",
-    );
-    r.post(
-        "/origins/:origin/keys/:revision",
-        XHandler::new(upload_origin_key).before(basic.clone()),
-        "origin_key_create",
     );
     r.post(
         "/origins/:origin/secret_keys/:revision",
@@ -631,14 +687,6 @@ pub fn origin_member_delete(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn check_forced(req: &mut Request) -> bool {
-    if let Some(flag) = helpers::extract_query_value("forced", req) {
-        flag == "true"
-    } else {
-        false
-    }
-}
-
 fn download_latest_origin_encryption_key(req: &mut Request) -> IronResult<Response> {
     let params = match validate_params(req, &["origin"]) {
         Ok(p) => p,
@@ -723,85 +771,6 @@ fn generate_origin_encryption_keys(
     )?;
 
     Ok(key)
-}
-
-fn upload_origin_key(req: &mut Request) -> IronResult<Response> {
-    debug!("Upload Origin Public Key {:?}", req);
-
-    let account_id = {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        session.get_id()
-    };
-
-    let mut request = OriginPublicSigningKeyCreate::new();
-    request.set_owner_id(account_id);
-
-    let origin = match get_param(req, "origin") {
-        Some(origin) => {
-            if !check_origin_access(req, &origin).unwrap_or(false) {
-                return Ok(Response::with(status::Forbidden));
-            }
-
-            match helpers::get_origin(req, &origin) {
-                Ok(mut origin) => {
-                    request.set_name(origin.take_name());
-                    request.set_origin_id(origin.get_id());
-                }
-                Err(err) => return Ok(render_net_error(&err)),
-            }
-            origin
-        }
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    match get_param(req, "revision") {
-        Some(revision) => request.set_revision(revision),
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let mut key_content = Vec::new();
-    if let Err(e) = req.body.read_to_end(&mut key_content) {
-        debug!("Can't read key content {}", e);
-        return Ok(Response::with(status::BadRequest));
-    }
-
-    match String::from_utf8(key_content.clone()) {
-        Ok(content) => match parse_key_str(&content) {
-            Ok((PairType::Public, _, _)) => {
-                debug!("Received a valid public key");
-            }
-            Ok(_) => {
-                debug!("Received a secret key instead of a public key");
-                return Ok(Response::with(status::BadRequest));
-            }
-            Err(e) => {
-                debug!("Invalid public key content: {}", e);
-                return Ok(Response::with(status::BadRequest));
-            }
-        },
-        Err(e) => {
-            debug!("Can't parse public key upload content: {}", e);
-            return Ok(Response::with(status::BadRequest));
-        }
-    }
-
-    request.set_body(key_content);
-    request.set_owner_id(0);
-    match route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(req, &request) {
-        Ok(_) => {
-            let mut response = Response::with((
-                status::Created,
-                format!("/origins/{}/keys/{}", &origin, &request.get_revision()),
-            ));
-            let mut base_url: url::Url = req.url.clone().into();
-            base_url.set_path(&format!("key/{}-{}", &origin, &request.get_revision()));
-            response
-                .headers
-                .set(headers::Location(format!("{}", base_url)));
-            Ok(response)
-        }
-        Err(err) => Ok(render_net_error(&err)),
-    }
 }
 
 fn download_latest_origin_secret_key(req: &mut Request) -> IronResult<Response> {
