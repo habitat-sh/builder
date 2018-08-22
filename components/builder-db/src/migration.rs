@@ -40,13 +40,31 @@ pub fn setup_ids(conn: &PgConnection) -> Result<()> {
 
 pub fn validate_shard_migration(pool: &Pool) -> Result<()> {
     let conn = pool.get()?;
+
     match conn.query("SELECT shard_migration_complete FROM flags;", &[]) {
-        Ok(rows) => {
-            if rows.is_empty() {
-                return Err(Error::ShardMigrationIncomplete);
+        Ok(flag_rows) => {
+            if flag_rows.is_empty() {
+                match conn.query("SELECT n.nspname FROM pg_catalog.pg_namespace n WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema' AND n.nspname LIKE 'shard_%';", &[]) {
+                    Ok(rows) => {
+                        // No rows here means there are no shards, so it must be a brand new database
+                        if rows.is_empty() {
+                            conn.execute("INSERT INTO flags (shard_migration_complete) VALUES('t');", &[]).unwrap();
+                            return Ok(());
+                        } else {
+                            return Err(Error::ShardMigrationIncomplete);
+                        }
+                    }
+                    Err(e) => {
+                        error!(
+                            "Error checking if shards exist. e = {:?}",
+                            e
+                        );
+                        return Err(Error::ShardMigrationIncomplete);
+                    }
+                }
             }
 
-            let row = rows.get(0);
+            let row = flag_rows.get(0);
             let complete: bool = row.get("shard_migration_complete");
 
             if complete {
