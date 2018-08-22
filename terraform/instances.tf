@@ -113,7 +113,7 @@ resource "aws_instance" "api" {
 
 resource "aws_instance" "datastore" {
   ami           = "${lookup(var.aws_ami, var.aws_region)}"
-  instance_type = "t2.medium"
+  instance_type = "c4.8xlarge"
   key_name      = "${var.aws_key_pair}"
   subnet_id     = "${var.public_subnet_id}"
   count         = 1
