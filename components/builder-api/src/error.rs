@@ -25,6 +25,7 @@ use hab_net;
 use hab_net::conn;
 use hyper;
 use iron;
+use memcache;
 use protobuf;
 use protocol;
 use rusoto_s3;
@@ -43,6 +44,7 @@ pub enum Error {
     Protobuf(protobuf::ProtobufError),
     UnknownGitHubEvent(String),
     Zmq(zmq::Error),
+    Memcache(memcache::MemcacheError),
     ChannelAlreadyExists(String),
     ChannelDoesNotExist(String),
     CreateBucketError(rusoto_s3::CreateBucketError),
@@ -87,6 +89,7 @@ impl fmt::Display for Error {
                 format!("Unknown or unsupported GitHub event, {}", e)
             }
             Error::Zmq(ref e) => format!("{}", e),
+            Error::Memcache(ref e) => format!("{}", e),
             Error::ChannelAlreadyExists(ref e) => format!("{} already exists.", e),
             Error::ChannelDoesNotExist(ref e) => format!("{} does not exist.", e),
             Error::CreateBucketError(ref e) => format!("{}", e),
@@ -155,6 +158,7 @@ impl error::Error for Error {
                 "Unknown or unsupported GitHub event received in request"
             }
             Error::Zmq(ref err) => err.description(),
+            Error::Memcache(ref err) => err.description(),
             Error::ChannelAlreadyExists(_) => "Channel already exists.",
             Error::ChannelDoesNotExist(_) => "Channel does not exist.",
             Error::CreateBucketError(ref err) => err.description(),
@@ -224,5 +228,11 @@ impl From<protobuf::ProtobufError> for Error {
 impl From<zmq::Error> for Error {
     fn from(err: zmq::Error) -> Error {
         Error::Zmq(err)
+    }
+}
+
+impl From<memcache::MemcacheError> for Error {
+    fn from(err: memcache::MemcacheError) -> Error {
+        Error::Memcache(err)
     }
 }

@@ -142,6 +142,7 @@ _start-builder() {
     start-builder sessionsrv
     start-builder worker
     start-builder minio
+    start-builder memcached
     configure-minio
     sleep 2
     generate_bldr_keys
@@ -205,7 +206,7 @@ start-cache() {
 }
 
 declare -A svc_params=(
-  [api]="        -s at-once --bind router:builder-router.default"
+  [api]="        -s at-once --bind router:builder-router.default --bind memcached:builder-memcached.default"
   [api-proxy]="             --bind http:builder-api.default"
   [jobsrv]="     -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
   [originsrv]="  -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
@@ -213,6 +214,7 @@ declare -A svc_params=(
   [sessionsrv]=" -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
   [worker]="     -s at-once --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default"
   [minio]="      -s at-once"
+  [memcached]="  -s at-once"
 )
 
 _stop-builder() {

@@ -25,6 +25,7 @@ use bldr_core::helpers::transition_visibility;
 use bldr_core::metrics::CounterMetric;
 use bodyparser;
 use conn::RouteBroker;
+use depot::memcached::MemCache;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
 use hab_core::package::{
@@ -758,7 +759,6 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
 fn upload_package(req: &mut Request) -> IronResult<Response> {
     let ident = ident_from_req(req);
     let s3handler = req.get::<persistent::Read<S3Cli>>().unwrap();
-
     let (session_id, session_name) = get_session_id_and_name(req);
 
     if !ident.valid() || !ident.fully_qualified() {
@@ -965,7 +965,7 @@ fn upload_package(req: &mut Request) -> IronResult<Response> {
                         &filename, e
                     ),
                 }
-
+                MemCache::new(depot).set_package(package.get_ident().into(), "unstable");
                 Ok(response)
             }
             Err(_) => {
@@ -1425,6 +1425,7 @@ fn package_privacy_toggle(req: &mut Request) -> IronResult<Response> {
         Some(v) => v,
         None => return Ok(Response::with(status::BadRequest)),
     };
+    let config = req.get::<persistent::Read<Config>>().unwrap();
 
     // users aren't allowed to set packages to hidden manually
     if visibility.to_lowercase() == "hidden" {
@@ -1451,7 +1452,7 @@ fn package_privacy_toggle(req: &mut Request) -> IronResult<Response> {
     }
 
     let mut opg = OriginPackageGet::new();
-    opg.set_ident(ident);
+    opg.set_ident(ident.clone());
     opg.set_visibilities(all_visibilities());
 
     match route_message::<OriginPackageGet, OriginPackage>(req, &opg) {
@@ -1702,27 +1703,50 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
     let mut ident = ident_from_req(req);
     let qualified = ident.fully_qualified();
     let target = target_from_req(req);
+    let config = req.get::<persistent::Read<Config>>().unwrap();
 
     if let Some(channel) = channel {
         if !qualified {
-            let mut request = OriginChannelPackageLatestGet::new();
-            request.set_name(channel.clone());
-            request.set_target(target.to_string());
-            request.set_visibilities(visibility_for_optional_session(
-                req,
-                session_id,
-                &ident.get_origin(),
-            ));
-            request.set_ident(ident.clone());
-
-            match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(req, &request)
+            match MemCache::new(config.clone()).get_package(ident.clone().into(), channel.as_str())
             {
-                Ok(id) => ident = id.into(),
-                Err(err) => {
-                    // Notify upstream with a non-fully qualified ident to handle checking
-                    // of a package that does not exist in the on-premise depot
-                    notify_upstream(req, &ident, &target);
-                    return Ok(render_net_error(&err));
+                Some(i) => {
+                    ident = {
+                        debug!("Fetching package from cache: {:?}", i);
+                        PackageIdent::from_str(&i).unwrap().into()
+                    }
+                }
+                None => {
+                    debug!(
+                        "Cache Miss on channel {:?} for {:?}",
+                        channel,
+                        ident.to_string()
+                    );
+                    let mut request = OriginChannelPackageLatestGet::new();
+                    request.set_name(channel.clone());
+                    request.set_target(target.to_string());
+                    request.set_visibilities(visibility_for_optional_session(
+                        req,
+                        session_id,
+                        &ident.get_origin(),
+                    ));
+                    request.set_ident(ident.clone());
+
+                    match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(
+                        req, &request,
+                    ) {
+                        Ok(id) => {
+                            ident = {
+                                MemCache::new(config).set_package(id.clone().into(), &channel);
+                                id.into()
+                            }
+                        }
+                        Err(err) => {
+                            // Notify upstream with a non-fully qualified ident to handle checking
+                            // of a package that does not exist in the on-premise depot
+                            notify_upstream(req, &ident, &target);
+                            return Ok(render_net_error(&err));
+                        }
+                    }
                 }
             }
         }
@@ -1744,23 +1768,34 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
             Err(err) => Ok(render_net_error(&err)),
         }
     } else {
-        if !qualified {
-            let mut request = OriginPackageLatestGet::new();
-            request.set_target(target.to_string());
-            request.set_visibilities(visibility_for_optional_session(
-                req,
-                session_id,
-                &ident.get_origin(),
-            ));
-            request.set_ident(ident.clone());
+        match MemCache::new(config).get_package(ident.clone().into(), "unstable") {
+            Some(i) => {
+                ident = {
+                    debug!("Fetching package from cache: {:?}", i);
+                    PackageIdent::from_str(&i).unwrap().into()
+                }
+            }
+            None => {
+                if !qualified {
+                    let mut request = OriginPackageLatestGet::new();
+                    request.set_target(target.to_string());
+                    request.set_visibilities(visibility_for_optional_session(
+                        req,
+                        session_id,
+                        &ident.get_origin(),
+                    ));
+                    request.set_ident(ident.clone());
 
-            match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request) {
-                Ok(id) => ident = id.into(),
-                Err(err) => {
-                    // Notify upstream with a non-fully qualified ident to handle checking
-                    // of a package that does not exist in the on-premise depot
-                    notify_upstream(req, &ident, &target);
-                    return Ok(render_net_error(&err));
+                    match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request)
+                    {
+                        Ok(id) => ident = id.into(),
+                        Err(err) => {
+                            // Notify upstream with a non-fully qualified ident to handle checking
+                            // of a package that does not exist in the on-premise depot
+                            notify_upstream(req, &ident, &target);
+                            return Ok(render_net_error(&err));
+                        }
+                    }
                 }
             }
         }
@@ -1942,6 +1977,8 @@ fn promote_package(req: &mut Request) -> IronResult<Response> {
         return Ok(render_net_error(&err));
     }
 
+    let config = req.get::<persistent::Read<Config>>().unwrap();
+
     let mut origin_get = OriginGet::new();
     origin_get.set_name(ident.get_origin().to_string());
 
@@ -1981,16 +2018,19 @@ fn promote_package(req: &mut Request) -> IronResult<Response> {
 
     match route_message::<OriginPackagePromote, NetOk>(req, &promote) {
         Ok(_) => match route_message::<OriginPackagePromote, NetOk>(req, &promote) {
-            Ok(_) => match audit_package_rank_change(
-                req,
-                package.get_id(),
-                origin_channel.get_id(),
-                PackageChannelOperation::Promote,
-                origin_id,
-            ) {
-                Ok(_) => Ok(Response::with(status::Ok)),
-                Err(err) => return Ok(render_net_error(&err)),
-            },
+            Ok(_) => {
+                MemCache::new(config).set_package(ident.into(), &channel);
+                match audit_package_rank_change(
+                    req,
+                    package.get_id(),
+                    origin_channel.get_id(),
+                    PackageChannelOperation::Promote,
+                    origin_id,
+                ) {
+                    Ok(_) => Ok(Response::with(status::Ok)),
+                    Err(err) => return Ok(render_net_error(&err)),
+                }
+            }
             Err(err) => return Ok(render_net_error(&err)),
         },
         Err(err) => Ok(render_net_error(&err)),
@@ -2029,6 +2069,8 @@ fn demote_package(req: &mut Request) -> IronResult<Response> {
         return Ok(Response::with(status::Forbidden));
     }
 
+    let config = req.get::<persistent::Read<Config>>().unwrap();
+
     let mut origin_get = OriginGet::new();
     origin_get.set_name(ident.get_origin().to_string());
 
@@ -2039,7 +2081,7 @@ fn demote_package(req: &mut Request) -> IronResult<Response> {
 
     let mut channel_req = OriginChannelGet::new();
     channel_req.set_origin_name(ident.get_origin().to_string());
-    channel_req.set_name(channel);
+    channel_req.set_name(channel.clone());
     match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
         Ok(origin_channel) => {
             let mut request = OriginPackageGet::new();
@@ -2052,16 +2094,19 @@ fn demote_package(req: &mut Request) -> IronResult<Response> {
                     demote.set_package_id(package.get_id());
                     demote.set_ident(ident.clone());
                     match route_message::<OriginPackageDemote, NetOk>(req, &demote) {
-                        Ok(_) => match audit_package_rank_change(
-                            req,
-                            package.get_id(),
-                            origin_channel.get_id(),
-                            PackageChannelOperation::Demote,
-                            origin_id,
-                        ) {
-                            Ok(_) => Ok(Response::with(status::Ok)),
-                            Err(err) => return Ok(render_net_error(&err)),
-                        },
+                        Ok(_) => {
+                            MemCache::new(config).delete_package(ident.into(), &channel);
+                            match audit_package_rank_change(
+                                req,
+                                package.get_id(),
+                                origin_channel.get_id(),
+                                PackageChannelOperation::Demote,
+                                origin_id,
+                            ) {
+                                Ok(_) => Ok(Response::with(status::Ok)),
+                                Err(err) => return Ok(render_net_error(&err)),
+                            }
+                        }
                         Err(err) => return Ok(render_net_error(&err)),
                     }
                 }
