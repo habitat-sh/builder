@@ -15,7 +15,8 @@
 use std::env;
 
 use actix_web::http;
-use actix_web::middleware::{Middleware, Started};
+use actix_web::http::header;
+use actix_web::middleware::{Middleware, Response, Started};
 use actix_web::{HttpRequest, HttpResponse, Result};
 use base64;
 use protobuf;
@@ -32,31 +33,33 @@ use server::error;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
-/* TO DO: Add custom Cors middleware 
-
+// Cors
 pub struct Cors;
 
-impl AfterMiddleware for Cors {
-    fn after(&self, _req: &mut Request, mut res: Response) -> IronResult<Response> {
-        res.headers.set(headers::AccessControlAllowOrigin::Any);
-        res.headers.set(headers::AccessControlAllowHeaders(vec![
-            UniCase("authorization".to_string()),
-            UniCase("range".to_string()),
-        ]));
-        res.headers.set(headers::AccessControlAllowMethods(vec![
-            Method::Put,
-            Method::Delete,
-            Method::Patch,
-        ]));
-        res.headers
-            .set(headers::AccessControlExposeHeaders(vec![UniCase(
-                "content-disposition".to_string(),
-            )]));
-        Ok(res)
+impl<S> Middleware<S> for Cors {
+    fn response(&self, _: &HttpRequest<S>, mut resp: HttpResponse) -> Result<Response> {
+        {
+            let h = resp.headers_mut();
+            h.insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                header::HeaderValue::from_static("*"),
+            );
+            h.insert(
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                header::HeaderValue::from_static("Authorization"),
+            );
+            h.insert(
+                header::ACCESS_CONTROL_ALLOW_METHODS,
+                header::HeaderValue::from_static("DELETE, PATCH, POST, PUT"),
+            );
+            h.insert(
+                header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                header::HeaderValue::from_static("Content-Disposition"),
+            );
+        }
+        Ok(Response::Done(resp))
     }
 }
-
-*/
 
 // Router client
 pub struct XRouteClient;
@@ -81,47 +84,31 @@ where
         .map_err(|e| error::Error::NetError(e))
 }
 
-// Authentication
-pub struct Authenticated;
+// Optional Authentication - this middleware does not enforce authentication,
+// but will insert a Session if a valid Bearer token is received
+pub struct Authentication;
 
-impl Middleware<AppState> for Authenticated {
+impl Middleware<AppState> for Authentication {
     fn start(&self, req: &HttpRequest<AppState>) -> Result<Started> {
-        auth_wrapper(req, false)
-    }
-}
+        let hdr = match req.headers().get(http::header::AUTHORIZATION) {
+            Some(hdr) => hdr.to_str().unwrap(), // unwrap Ok
+            None => return Ok(Started::Done),
+        };
 
-// Optional Authentication
-pub struct Optional;
-
-impl Middleware<AppState> for Optional {
-    fn start(&self, req: &HttpRequest<AppState>) -> Result<Started> {
-        auth_wrapper(req, true)
-    }
-}
-
-fn auth_wrapper(req: &HttpRequest<AppState>, optional: bool) -> Result<Started> {
-    let hdr = match req.headers().get(http::header::AUTHORIZATION) {
-        Some(hdr) => hdr.to_str().unwrap(), // unwrap Ok
-        None => if optional {
-            return Ok(Started::Done);
-        } else {
+        let hdr_components: Vec<&str> = hdr.split_whitespace().collect();
+        if (hdr_components.len() != 2) || (hdr_components[0] != "Bearer") {
             return Ok(Started::Response(HttpResponse::Unauthorized().finish()));
-        },
-    };
+        }
+        let token = hdr_components[1];
 
-    let hdr_components: Vec<&str> = hdr.split_whitespace().collect();
-    if (hdr_components.len() != 2) || (hdr_components[0] != "Bearer") {
-        return Ok(Started::Response(HttpResponse::Unauthorized().finish()));
+        let session = match authenticate(req, &token) {
+            Ok(session) => session,
+            Err(_) => return Ok(Started::Response(HttpResponse::Unauthorized().finish())),
+        };
+
+        req.extensions_mut().insert::<Session>(session);
+        Ok(Started::Done)
     }
-    let token = hdr_components[1];
-
-    let session = match authenticate(req, &token) {
-        Ok(session) => session,
-        Err(_) => return Ok(Started::Response(HttpResponse::Unauthorized().finish())),
-    };
-
-    req.extensions_mut().insert::<Session>(session);
-    Ok(Started::Done)
 }
 
 fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Session> {

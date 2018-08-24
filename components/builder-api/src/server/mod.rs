@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod authorize;
 pub mod error;
 pub mod framework;
 pub mod helpers;
@@ -34,10 +35,10 @@ use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
 use self::error::Error;
-use self::framework::middleware::XRouteClient;
+use self::framework::middleware::{Authentication, Cors, XRouteClient};
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
-// TODO: use services::upstream::{UpstreamClient, UpstreamMgr};
+use self::services::upstream::{UpstreamClient, UpstreamMgr};
 
 use self::resources::authenticate::Authenticate;
 use self::resources::channels::Channels;
@@ -67,7 +68,7 @@ pub struct AppState {
     github: GitHubClient,
     oauth: OAuth2Client,
     segment: SegmentClient,
-    // TODO: upstream: UpstreamClient
+    upstream: UpstreamClient,
 }
 
 impl AppState {
@@ -78,7 +79,7 @@ impl AppState {
             github: GitHubClient::new(config.github.clone()),
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
-            // TODO: upstream: UpstreamClient::default()
+            upstream: UpstreamClient::default(),
         }
     }
 }
@@ -127,8 +128,7 @@ pub fn run(config: Config) -> Result<()> {
         })
         .unwrap();
 
-    // TODO: UpstreamMgr::start(&cfg, s3::S3Handler::new(cfg.s3.to_owned()))?;
-    // TODO: chain.link_after(Cors);
+    UpstreamMgr::start(&config, S3Handler::new(config.s3.to_owned()))?;
 
     let cfg = Arc::new(config.clone());
 
@@ -141,26 +141,26 @@ pub fn run(config: Config) -> Result<()> {
     server::new(move || {
         let app_state = AppState::new(&config);
 
-        let mut app = App::with_state(app_state)
+        App::with_state(app_state)
             .middleware(Logger::default())
             .middleware(XRouteClient)
+            .middleware(Authentication)
+            .middleware(Cors)
             .prefix("/v1")
+            .configure(Authenticate::register)
+            .configure(Channels::register)
+            .configure(Ext::register)
+            .configure(Jobs::register)
+            .configure(Notify::register)
+            .configure(Origins::register)
+            .configure(Packages::register)
+            .configure(Profile::register)
+            .configure(Projects::register)
+            .configure(User::register)
             .resource("/status", |r| {
                 r.get().f(status);
                 r.head().f(status)
-            });
-
-        app = Authenticate::register(app);
-        app = Channels::register(app);
-        app = Ext::register(app);
-        app = Jobs::register(app);
-        app = Notify::register(app);
-        app = Origins::register(app);
-        app = Packages::register(app);
-        app = Profile::register(app);
-        app = Projects::register(app);
-        app = User::register(app);
-        app
+            })
     }).workers(cfg.handler_count())
         .bind(cfg.http.clone())
         .unwrap()

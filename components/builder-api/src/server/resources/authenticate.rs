@@ -14,6 +14,7 @@
 
 use std::env;
 
+use actix_web::http::Method;
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path};
 
@@ -30,49 +31,49 @@ pub struct Authenticate {}
 
 impl Authenticate {
     //
-    // Internal - these functions should return Result<..>
-    //
-    fn do_authenticate(req: &HttpRequest<AppState>, code: String) -> Result<Session> {
-        if env::var_os("HAB_FUNC_TEST").is_some() {
-            return session_create_short_circuit(req, &code);
-        }
-
-        let oauth = &req.state().oauth;
-        let (token, user) = oauth.authenticate(&code)?;
-        let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
-
-        let id_str = session.get_id().to_string();
-        if let Err(e) = req.state().segment.identify(&id_str) {
-            warn!("Error identifying a user in segment, {}", e);
-        }
-
-        Ok(session)
-    }
-
-    //
-    // Route handlers - these functions should return HttpResponse
-    //
-    fn authenticate(req: &HttpRequest<AppState>) -> HttpResponse {
-        let code = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
-        debug!("authenticate called, code = {}", code);
-
-        match Self::do_authenticate(req, code) {
-            Ok(session) => HttpResponse::Ok().json(session),
-            Err(Error::OAuth(OAuthError::HttpResponse(code, response))) => {
-                let msg = format!("{}-{}", code, response);
-                Error::NetError(NetError::new(ErrCode::ACCESS_DENIED, msg)).into()
-            }
-            Err(e) => {
-                warn!("Oauth client error, {:?}", e);
-                Error::NetError(NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1")).into()
-            }
-        }
-    }
-
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.resource("/authenticate/{code}", |r| r.get().f(Self::authenticate))
+        app.route("/authenticate/{code}", Method::GET, authenticate)
     }
+}
+
+//
+// Route handlers - these functions can return any Responder trait
+//
+fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
+    let code = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+    debug!("authenticate called, code = {}", code);
+
+    match do_authenticate(&req, code) {
+        Ok(session) => HttpResponse::Ok().json(session),
+        Err(Error::OAuth(OAuthError::HttpResponse(code, response))) => {
+            let msg = format!("{}-{}", code, response);
+            Error::NetError(NetError::new(ErrCode::ACCESS_DENIED, msg)).into()
+        }
+        Err(e) => {
+            warn!("Oauth client error, {:?}", e);
+            Error::NetError(NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1")).into()
+        }
+    }
+}
+
+//
+// Internal - these functions should return Result<..>
+//
+fn do_authenticate(req: &HttpRequest<AppState>, code: String) -> Result<Session> {
+    if env::var_os("HAB_FUNC_TEST").is_some() {
+        return session_create_short_circuit(req, &code);
+    }
+
+    let oauth = &req.state().oauth;
+    let (token, user) = oauth.authenticate(&code)?;
+    let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
+
+    let id_str = session.get_id().to_string();
+    if let Err(e) = req.state().segment.identify(&id_str) {
+        warn!("Error identifying a user in segment, {}", e);
+    }
+
+    Ok(session)
 }

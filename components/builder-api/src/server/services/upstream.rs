@@ -12,39 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use backend::s3;
-use bldr_core::api_client::ApiClient;
-use bldr_core::logger::Logger;
-use conn::RouteBroker;
-use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
-use hab_net::socket::DEFAULT_CONTEXT;
-use helpers::all_visibilities;
-use iron::typemap::Key;
-use protobuf::{parse_from_bytes, Message};
-use protocol::originsrv::*;
 use std::collections::{HashSet, VecDeque};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
+
+use bldr_core::logger::Logger;
+use bldr_core::{self, api_client::ApiClient};
+use hab_core::package::FromArchive;
+use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
+use hab_net::socket::DEFAULT_CONTEXT;
+use hab_net::NetOk;
+
+use protobuf::{parse_from_bytes, Message};
+use protocol::originsrv::*;
 use zmq;
 
 use config::Config;
-use error::{Error, Result};
-use protocol::originsrv::*;
-
-use feat;
+use server::error::{Error, Result};
+use server::feat;
+use server::helpers::all_visibilities;
+use server::resources::pkgs::process_upload_for_package_archive;
+use server::services::route_broker::RouteBroker;
+use server::services::s3;
 
 const UPSTREAM_MGR_ADDR: &'static str = "inproc://upstream";
 const DEFAULT_POLL_TIMEOUT_MS: u64 = 60_000; // 60 secs
 
 pub struct UpstreamClient;
-
-pub struct UpstreamCli;
-
-impl Key for UpstreamCli {
-    type Value = UpstreamClient;
-}
 
 impl UpstreamClient {
     pub fn refresh(&self, ident: &OriginPackageIdent, target: &PackageTarget) -> Result<()> {
@@ -259,7 +256,7 @@ impl UpstreamMgr {
 
         match self.depot_client {
             // We only sync down stable packages from the upstream for now
-            Some(ref depot_cli) => match depot_cli.show_package(ident, "stable", target, None) {
+            Some(ref api_client) => match api_client.show_package(ident, "stable", target, None) {
                 Ok(mut package) => {
                     let remote_pkg_ident: PackageIdent = package.ident.into();
 
@@ -273,7 +270,7 @@ impl UpstreamMgr {
 
                         if let Err(err) = download_package_from_upstream_depot(
                             &self.config,
-                            depot_cli,
+                            api_client,
                             &self.s3_handler,
                             opi,
                             "stable",
@@ -291,7 +288,7 @@ impl UpstreamMgr {
                         "Failed to get package metadata for {} from {}, err {:?}",
                         ident, self.config.upstream.endpoint, err
                     );
-                    Err(Error::DepotClientError(err))
+                    Err(Error::BuilderCore(err))
                 }
             },
             _ => Ok(None),
@@ -306,14 +303,14 @@ impl UpstreamMgr {
 // This function is called from a background thread, so we can't pass the Request object into it.
 // TBD: Move this to upstream module and refactor later
 pub fn download_package_from_upstream_depot(
-    depot: &Config,
-    depot_cli: &ApiClient,
+    cfg: &Config,
+    api_client: &ApiClient,
     s3_handler: &s3::S3Handler,
     ident: OriginPackageIdent,
     channel: &str,
     target: &str,
 ) -> Result<OriginPackage> {
-    let parent_path = packages_path(&depot.api.data_path);
+    let parent_path = &cfg.api.data_path;
 
     match fs::create_dir_all(parent_path.clone()) {
         Ok(_) => {}
@@ -323,10 +320,10 @@ pub fn download_package_from_upstream_depot(
         }
     };
 
-    match depot_cli.fetch_package(&ident, target, &parent_path, None) {
+    match api_client.fetch_package(&ident, target, &parent_path, None) {
         Ok(mut archive) => {
             let target_from_artifact = archive.target().map_err(Error::HabitatCore)?;
-            if !depot.api.targets.contains(&target_from_artifact) {
+            if !cfg.api.targets.contains(&target_from_artifact) {
                 debug!(
                     "Unsupported package platform or architecture {}.",
                     &target_from_artifact
@@ -353,11 +350,7 @@ pub fn download_package_from_upstream_depot(
             if let Err(e) = process_upload_for_package_archive(
                 &ident,
                 &mut package_create,
-                &target_from_artifact,
-                BUILDER_ACCOUNT_ID,
-                BUILDER_ACCOUNT_NAME.to_string(),
-                false,
-                None,
+                bldr_core::access_token::BUILDER_ACCOUNT_ID,
             ) {
                 return Err(Error::NetError(e));
             }
@@ -420,7 +413,7 @@ pub fn download_package_from_upstream_depot(
         }
         Err(e) => {
             warn!("Failed to download {}. e = {:?}", ident, e);
-            Err(Error::DepotClientError(e))
+            Err(Error::BuilderCore(e))
         }
     }
 }

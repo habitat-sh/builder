@@ -29,20 +29,16 @@ pub struct Ext;
 
 impl Ext {
     //
-    // Internal - these functions should return Result<..>
-    //
-
-    //
-    // Route handlers - these functions should return HttpResponse
-    //
-
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
         app
     }
 }
+
+//
+// Route handlers - these functions can return any Responder trait
+//
 
 /*
 // TODO: EXT HANDLERS

@@ -23,7 +23,6 @@ use std::option::IntoIter;
 use std::path::PathBuf;
 
 use num_cpus;
-use typemap;
 
 use hab_core;
 use hab_core::config::ConfigFile;
@@ -192,10 +191,6 @@ impl GatewayCfg for Config {
     fn route_addrs(&self) -> &[RouterAddr] {
         self.routers.as_slice()
     }
-}
-
-impl typemap::Key for Config {
-    type Value = Self;
 }
 
 /// Public listening net address for HTTP requests

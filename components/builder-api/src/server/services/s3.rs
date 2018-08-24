@@ -28,7 +28,7 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufRead, BufReader, Read};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use super::metrics::Counter;
@@ -84,6 +84,7 @@ impl S3Handler {
     // This function checks whether or not the
     // configured bucket exists in the configured
     // backend.
+    #[allow(dead_code)]
     fn bucket_exists(&self) -> Result<bool> {
         let artifactbucket = self.bucket.to_owned();
         match self.client.list_buckets().sync() {
@@ -120,6 +121,7 @@ impl S3Handler {
         }
     }
 
+    #[allow(dead_code)]
     pub fn create_bucket(&self) -> Result<()> {
         let mut request = CreateBucketRequest::default();
         request.bucket = self.bucket.clone();
