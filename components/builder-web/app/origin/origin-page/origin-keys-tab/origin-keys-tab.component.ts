@@ -16,7 +16,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MatDialog } from '@angular/material';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs/Subscription';
+import { Subscription } from 'rxjs';
 import { AppStore } from '../../../app.store';
 import { BuilderApiClient } from '../../../client/builder-api';
 import { GenerateKeysConfirmDialog } from './dialog/generate-keys-confirm/generate-keys-confirm.dialog';

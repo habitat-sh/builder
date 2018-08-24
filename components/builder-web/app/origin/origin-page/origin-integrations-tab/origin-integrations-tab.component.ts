@@ -16,7 +16,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MatDialog } from '@angular/material';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs/Subscription';
+import { Subscription } from 'rxjs';
 import { AppStore } from '../../../app.store';
 import { deleteIntegration, fetchIntegration, setIntegration } from '../../../actions';
 import { IntegrationCredentialsFormDialog } from '../integration-credentials-form/integration-credentials-form.dialog';

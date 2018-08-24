@@ -20,7 +20,7 @@ import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
-import { Observable } from 'rxjs';
+import { of } from 'rxjs';
 import { List } from 'immutable';
 import { MockComponent } from 'ng2-mock-component';
 import * as actions from '../../actions/index';
@@ -39,7 +39,7 @@ class MockAppStore {
 
 class MockRoute {
   get params() {
-    return Observable.of({});
+    return of({});
   }
 }
 

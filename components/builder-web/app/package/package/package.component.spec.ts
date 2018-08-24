@@ -18,7 +18,7 @@ import { Component, DebugElement } from '@angular/core';
 import { MatTabsModule } from '@angular/material';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
-import { Observable } from 'rxjs';
+import { of } from 'rxjs';
 import { MockComponent } from 'ng2-mock-component';
 import * as actions from '../../actions/index';
 import { AppStore } from '../../app.store';
@@ -35,12 +35,12 @@ class MockAppStore {
 }
 
 class MockRoute {
-  params = Observable.of({
+  params = of({
     origin: 'core',
     name: 'nginx'
   });
 
-  snapshot = Observable.of([]);
+  snapshot = of([]);
 }
 
 describe('PackageComponent', () => {

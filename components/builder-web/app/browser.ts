@@ -9,7 +9,7 @@ export class Browser {
 
   static get currentHostname() {
     return location.hostname;
-  };
+  }
 
   static getCookie(key) {
     return cookies.get(key);

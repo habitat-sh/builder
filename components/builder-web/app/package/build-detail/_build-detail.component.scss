@@ -129,7 +129,7 @@
     font-family: $monospace-font-family;
     font-size: $monospace-font-size;
     padding: $default-padding;
-    background: $dark-blue;
+    background: darken($dark-blue, 4%);
     border-radius: $default-radius;
     color: $medium-gray;
     overflow: auto;

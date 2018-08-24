@@ -5,8 +5,9 @@ pkg_description="HTTP Proxy service fronting the Habitat Builder API service"
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=("Apache-2.0")
 pkg_deps=(core/nginx core/curl core/coreutils)
+
 pkg_build_deps=(
-  core/node8
+  core/node/$(cat "$PLAN_CONTEXT/../../builder-web/.nvmrc")
   core/gcc
   core/git
   core/tar
