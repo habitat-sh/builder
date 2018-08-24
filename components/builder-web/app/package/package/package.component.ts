@@ -14,7 +14,7 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs/Subscription';
+import { Subscription } from 'rxjs';
 import { List } from 'immutable';
 import { PackageBuildComponent } from '../package-build/package-build.component';
 import { PackageBuildsComponent } from '../package-builds/package-builds.component';

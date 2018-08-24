@@ -1,9 +1,17 @@
 <div class="checking-input-component">
   <div class="input-wrapper">
-    <hab-icon [symbol]="symbolForState(control)" [class.spinning]="control.pending" [class.invalid]="control.dirty && !control.pending && !control.valid"
+    <hab-icon
+      [symbol]="symbolForState(control)"
+      [class.spinning]="control.pending"
+      [class.invalid]="control.dirty && !control.pending && !control.valid"
       [class.valid]="!control.pending && control.valid">
     </hab-icon>
-    <input type="text" [class.loading]="control.pending" autocomplete="off" autofocus="{{autofocus}}" id="{{id}}" [formControl]="form.controls[name]"
+    <input type="text"
+      [class.loading]="control.pending"
+      [formControl]="form.controls[name]"
+      id="{{id}}"
+      autocomplete="off"
+      autofocus="{{autofocus}}"
       placeholder="{{placeholder}}">
   </div>
   <div class="validation-message" *ngIf="control.dirty && !control.pending ">

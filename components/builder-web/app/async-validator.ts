@@ -13,9 +13,8 @@
 // limitations under the License.
 
 import { Observable } from 'rxjs';
-import { Observer } from 'rxjs/Observer';
-import 'rxjs/add/operator/debounceTime';
-import 'rxjs/add/operator/distinctUntilChanged';
+import { Observer } from 'rxjs';
+import { debounceTime, distinctUntilChanged, map } from 'rxjs/operators';
 import { FormControl } from '@angular/forms';
 
 // Wraps an async validator with a static `debounce` method, so you can debounce
@@ -31,27 +30,41 @@ import { FormControl } from '@angular/forms';
 //
 // Taken from http://stackoverflow.com/a/36076946.
 export class AsyncValidator {
-  private validate;
+  private validate: Function;
 
-  constructor(validator: (control: FormControl) => any, debounceTime = 300) {
-    let source: any = new Observable((observer: Observer<FormControl>) => {
+  constructor(validator: (control: FormControl) => any, time = 300) {
+
+    let source: Observable<FormControl> = new Observable((observer: Observer<FormControl>) => {
       this.validate = (control) => observer.next(control);
     });
 
-    source.debounceTime(debounceTime)
-      .distinctUntilChanged(null, (x) => x.control.value)
-      .map(x => { return { promise: validator(x.control), resolver: x.promiseResolver }; })
+    source
+      .pipe(
+        debounceTime(time),
+        distinctUntilChanged(null, (x: any) => x.control.value),
+        map((x: any) => {
+          return {
+            promise: validator(x.control),
+            resolver: x.promiseResolver
+          };
+        })
+      )
       .subscribe(
-      (x) => x.promise.then(resultValue => x.resolver(resultValue),
-        (e) => { console.log('async validator error: %s', e); }));
+        (x) => x.promise.then(
+          resultValue => x.resolver(resultValue),
+          e => console.log('async validator error: %s', e)
+        )
+      );
   }
 
   private getValidator() {
     return (control) => {
       let promiseResolver;
+
       let p = new Promise((resolve) => {
         promiseResolver = resolve;
       });
+
       this.validate({ control: control, promiseResolver: promiseResolver });
       return p;
     };

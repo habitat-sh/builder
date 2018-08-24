@@ -15,7 +15,7 @@
 import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs/Subscription';
+import { Subscription } from 'rxjs';
 import { AppStore } from '../../app.store';
 import { fetchPackage } from '../../actions/index';
 import { fetchPackageChannels } from '../../actions/packages';

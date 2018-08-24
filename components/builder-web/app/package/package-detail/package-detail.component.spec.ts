@@ -15,7 +15,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { DebugElement } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { Observable } from 'rxjs';
+import { of } from 'rxjs';
 import { MockComponent } from 'ng2-mock-component';
 import { Package } from '../../records/Package';
 import { AppStore } from '../../app.store';
@@ -36,7 +36,7 @@ class MockAppStore {
 }
 
 class MockRoute {
-  params = Observable.of({
+  params = of({
     origin: 'core',
     name: 'nginx'
   });

@@ -17,7 +17,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { Component, DebugElement } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
-import { Observable } from 'rxjs';
+import { of } from 'rxjs';
 import { MockComponent } from 'ng2-mock-component';
 import { AppStore } from '../../app.store';
 import { Package } from '../../records/Package';
@@ -39,7 +39,7 @@ class MockAppStore {
 
 class MockRoute {
   parent = {
-    params: Observable.of({
+    params: of({
       origin: 'core',
       name: 'nginx'
     })

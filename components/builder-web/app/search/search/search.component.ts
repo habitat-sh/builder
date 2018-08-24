@@ -18,9 +18,8 @@ import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AppStore } from '../../app.store';
 import { filterPackagesBy, setPackagesSearchQuery } from '../../actions/index';
-import { Subscription } from 'rxjs/Subscription';
-
-// ›
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 
 @Component({
   template: require('./search.component.html')
@@ -57,7 +56,12 @@ export class SearchComponent implements OnInit, OnDestroy {
       this.fetchPackages();
     });
 
-    this.searchBox.valueChanges.debounceTime(400).distinctUntilChanged().subscribe(query => {
+    this.searchBox.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged()
+      )
+      .subscribe(query => {
       if (!query.trim()) {
         this.router.navigate(['/pkgs']);
       }

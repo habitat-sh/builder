@@ -15,9 +15,9 @@
 import { NgModule } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LocationStrategy, HashLocationStrategy } from '@angular/common';
-import { MatButtonModule, MatIconModule, MatRadioModule, MatTabsModule, MAT_PLACEHOLDER_GLOBAL_OPTIONS } from '@angular/material';
+import { MatButtonModule, MatIconModule, MatRadioModule, MatTabsModule, MAT_LABEL_GLOBAL_OPTIONS } from '@angular/material';
 import { BrowserModule } from '@angular/platform-browser';
-import { HttpModule } from '@angular/http';
+import { HttpClientModule } from '@angular/common/http';
 import { routing } from './routes';
 import { AppStore } from './app.store';
 import { AppComponent } from './app.component';
@@ -41,7 +41,7 @@ import { SharedModule } from './shared/shared.module';
     MatTabsModule,
     BrowserModule,
     FormsModule,
-    HttpModule,
+    HttpClientModule,
     MatButtonModule,
     OriginModule,
     PackageModule,
@@ -63,12 +63,9 @@ import { SharedModule } from './shared/shared.module';
   ],
   providers: [
     { provide: LocationStrategy, useClass: HashLocationStrategy, },
-    { provide: MAT_PLACEHOLDER_GLOBAL_OPTIONS, useValue: { float: 'always' } },
+    { provide: MAT_LABEL_GLOBAL_OPTIONS, useValue: { float: 'always' } },
     AppStore
   ],
   bootstrap: [AppComponent]
 })
-
-export class AppModule {
-
-}
+export class AppModule {}
