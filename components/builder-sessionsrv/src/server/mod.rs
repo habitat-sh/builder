@@ -78,38 +78,6 @@ lazy_static! {
             proto::SessionGet::descriptor_static(),
             handlers::session_get,
         );
-        map.register(
-            proto::AccountInvitationListRequest::descriptor_static(),
-            handlers::account_invitation_list,
-        );
-        map.register(
-            proto::AccountOriginInvitationCreate::descriptor_static(),
-            handlers::account_origin_invitation_create,
-        );
-        map.register(
-            proto::AccountOriginInvitationAcceptRequest::descriptor_static(),
-            handlers::account_origin_invitation_accept,
-        );
-        map.register(
-            proto::AccountOriginInvitationIgnoreRequest::descriptor_static(),
-            handlers::account_origin_invitation_ignore,
-        );
-        map.register(
-            proto::AccountOriginInvitationRescindRequest::descriptor_static(),
-            handlers::account_origin_invitation_rescind,
-        );
-        map.register(
-            proto::AccountOriginListRequest::descriptor_static(),
-            handlers::account_origin_list_request,
-        );
-        map.register(
-            proto::AccountOriginCreate::descriptor_static(),
-            handlers::account_origin_create,
-        );
-        map.register(
-            proto::AccountOriginRemove::descriptor_static(),
-            handlers::account_origin_remove,
-        );
         map
     };
     static ref SESSION_DURATION: Duration = { Duration::from_secs(1 * 24 * 60 * 60) };
@@ -201,7 +169,6 @@ pub struct ServerState {
 impl ServerState {
     fn new(cfg: Config) -> SrvResult<Self> {
         let datastore = DataStore::new(&cfg.datastore)?;
-        datastore.validate_shard_migration()?;
 
         Ok(ServerState {
             datastore: datastore,

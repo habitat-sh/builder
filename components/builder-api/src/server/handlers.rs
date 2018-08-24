@@ -40,9 +40,8 @@ use protocol::jobsrv::{
 use protocol::jobsrv::{JobGraphPackageReverseDependencies, JobGraphPackageReverseDependenciesGet};
 use protocol::originsrv::*;
 use protocol::sessionsrv::{
-    Account, AccountGet, AccountGetId, AccountInvitationListRequest, AccountInvitationListResponse,
-    AccountOriginListRequest, AccountOriginListResponse, AccountToken, AccountTokenCreate,
-    AccountTokenRevoke, AccountTokens, AccountTokensGet, AccountUpdate,
+    Account, AccountGet, AccountGetId, AccountToken, AccountTokenCreate, AccountTokenRevoke,
+    AccountTokens, AccountTokensGet, AccountUpdate,
 };
 use router::Router;
 use serde_json;
@@ -665,13 +664,13 @@ pub fn list_account_invitations(req: &mut Request) -> IronResult<Response> {
 }
 
 pub fn list_user_origins(req: &mut Request) -> IronResult<Response> {
-    let mut request = AccountOriginListRequest::new();
+    let mut my_origins = MyOriginsRequest::new();
     {
         let session = req.extensions.get::<Authenticated>().unwrap();
-        request.set_account_id(session.get_id());
+        my_origins.set_account_id(session.get_id());
     }
-    match route_message::<AccountOriginListRequest, AccountOriginListResponse>(req, &request) {
-        Ok(invites) => Ok(render_json(status::Ok, &invites)),
+    match route_message::<MyOriginsRequest, MyOriginsResponse>(req, &my_origins) {
+        Ok(response) => Ok(render_json(status::Ok, &response.get_origins().to_vec())),
         Err(err) => Ok(render_net_error(&err)),
     }
 }

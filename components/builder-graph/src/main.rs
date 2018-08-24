@@ -335,7 +335,7 @@ fn do_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str
             }
 
             for dep in package.get_deps() {
-                if dep.starts_with(filter) {
+                if dep.to_string().starts_with(filter) {
                     println!("{}", dep)
                 }
             }
@@ -366,8 +366,8 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
 
             println!("Dependecy version updates:");
             for dep in package.get_deps() {
-                if dep.starts_with(filter) {
-                    let dep_name = short_name(dep);
+                if dep.to_string().starts_with(filter) {
+                    let dep_name = short_name(&dep.to_string());
                     let dep_latest = resolve_name(graph, &dep_name);
                     deps_map.insert(dep_name, dep_latest.clone());
                     new_deps.push(dep_latest.clone());
@@ -396,17 +396,17 @@ fn check_package(
 ) {
     match datastore.get_job_graph_package(ident) {
         Ok(package) => for dep in package.get_deps() {
-            if dep.starts_with(filter) {
-                let name = short_name(dep);
+            if dep.to_string().starts_with(filter) {
+                let name = short_name(&dep.to_string());
                 {
-                    let entry = deps_map.entry(name).or_insert(dep.clone());
-                    if *entry != *dep {
+                    let entry = deps_map.entry(name).or_insert(dep.to_string());
+                    if *entry != dep.to_string() {
                         println!("Conflict: {}", ident);
                         println!("  {}", *entry);
                         println!("  {}", dep);
                     }
                 }
-                check_package(datastore, deps_map, dep, filter);
+                check_package(datastore, deps_map, &dep.to_string(), filter);
             }
         },
         Err(_) => println!("No matching package found for {}", ident),

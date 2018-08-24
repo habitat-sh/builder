@@ -16,14 +16,13 @@
 
 embed_migrations!("src/migrations");
 
-use std::env;
 use std::io;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use db::config::DataStoreCfg;
 use db::diesel_pool::DieselPool;
-use db::migration::{self, setup_ids};
+use db::migration::setup_ids;
 use db::pool::Pool;
 use diesel::result::Error as Dre;
 use diesel::Connection;
@@ -34,6 +33,7 @@ use protobuf::{ProtobufEnum, RepeatedField};
 use protocol::net::{ErrCode, NetError};
 use protocol::originsrv::Pageable;
 use protocol::{jobsrv, originsrv};
+use std::str::FromStr;
 
 use error::{Error, Result};
 
@@ -77,15 +77,6 @@ impl DataStore {
             Ok(())
         });
         Ok(())
-    }
-
-    /// Validate that the shard migration has happened.
-    pub fn validate_shard_migration(&self) -> Result<()> {
-        if env::var_os("HAB_FUNC_TEST").is_some() {
-            Ok(())
-        } else {
-            migration::validate_shard_migration(&self.pool).map_err(Error::Db)
-        }
     }
 
     /// Create a new job. Sets the state to Pending.
@@ -331,7 +322,7 @@ impl DataStore {
         Ok(())
     }
 
-    fn last_index<P: Pageable>(&self, list_request: &P, rows: &Rows) -> u64 {
+    fn last_index<P: originsrv::Pageable>(&self, list_request: &P, rows: &Rows) -> u64 {
         if rows.len() == 0 {
             list_request.get_range()[1]
         } else {
@@ -398,29 +389,16 @@ impl DataStore {
         return Ok(workers);
     }
 
-    pub fn create_job_graph_package(
-        &self,
-        msg: &jobsrv::JobGraphPackageCreate,
-    ) -> Result<jobsrv::JobGraphPackage> {
-        let conn = self.pool.get()?;
-
-        let rows =
-            conn.query(
-                "SELECT * FROM upsert_graph_package_v2($1, $2, $3)",
-                &[&msg.get_ident(), &msg.get_deps(), &msg.get_target()],
-            ).map_err(Error::JobGraphPackageInsert)?;
-
-        let row = rows.get(0);
-        self.row_to_job_graph_package(&row)
-    }
-
-    pub fn get_job_graph_packages(&self) -> Result<RepeatedField<jobsrv::JobGraphPackage>> {
+    pub fn get_job_graph_packages(&self) -> Result<RepeatedField<originsrv::OriginPackage>> {
         let mut packages = RepeatedField::new();
 
         let conn = self.pool.get()?;
 
         let rows = &conn
-            .query("SELECT * FROM get_graph_packages_v1()", &[])
+            .query(
+                "SELECT * FROM get_all_origin_packages_for_ident_v1($1)",
+                &[&String::from("")],
+            )
             .map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
@@ -429,18 +407,21 @@ impl DataStore {
         }
 
         for row in rows {
-            let package = self.row_to_job_graph_package(&row)?;
+            let package = self.row_to_origin_package(&row)?;
             packages.push(package);
         }
 
         Ok(packages)
     }
 
-    pub fn get_job_graph_package(&self, ident: &str) -> Result<jobsrv::JobGraphPackage> {
+    pub fn get_job_graph_package(&self, ident: &str) -> Result<originsrv::OriginPackage> {
         let conn = self.pool.get()?;
 
         let rows = &conn
-            .query("SELECT * FROM get_graph_package_v1($1)", &[&ident])
+            .query(
+                "SELECT * FROM get_origin_package_v4($1, $2)",
+                &[&ident, &String::from("public,private,hidden")],
+            )
             .map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
@@ -449,7 +430,7 @@ impl DataStore {
         }
 
         assert!(rows.len() == 1);
-        let package = self.row_to_job_graph_package(&rows.get(0))?;
+        let package = self.row_to_origin_package(&rows.get(0))?;
         Ok(package)
     }
 
@@ -461,11 +442,11 @@ impl DataStore {
 
         let origin = msg.get_origin();
         let rows = &conn
-            .query("SELECT * FROM count_graph_packages_v2($1)", &[&origin])
+            .query("SELECT * FROM count_origin_packages_v1($1)", &[&origin])
             .map_err(Error::JobGraphPackageStats)?;
         assert!(rows.len() == 1); // should never have more than one
 
-        let package_count: i64 = rows.get(0).get("count_graph_packages_v2");
+        let package_count: i64 = rows.get(0).get("count_origin_packages_v1");
 
         let rows = &conn
             .query("SELECT * FROM count_group_projects_v2($1)", &[&origin])
@@ -475,12 +456,12 @@ impl DataStore {
 
         let rows = &conn
             .query(
-                "SELECT * FROM count_unique_graph_packages_v2($1)",
+                "SELECT * FROM count_unique_origin_packages_v1($1)",
                 &[&origin],
             )
             .map_err(Error::JobGraphPackageStats)?;
         assert!(rows.len() == 1); // should never have more than one
-        let up_count: i64 = rows.get(0).get("count_unique_graph_packages_v2");
+        let up_count: i64 = rows.get(0).get("count_unique_origin_packages_v1");
 
         let mut package_stats = jobsrv::JobGraphPackageStats::new();
         package_stats.set_plans(package_count as u64);
@@ -598,7 +579,7 @@ impl DataStore {
     pub fn create_audit_entry(&self, msg: &jobsrv::JobGroupAudit) -> Result<()> {
         let conn = self.pool.get()?;
         conn.query(
-            "SELECT add_audit_entry_v1($1, $2, $3, $4, $5)",
+            "SELECT add_audit_jobs_entry_v1($1, $2, $3, $4, $5)",
             &[
                 &(msg.get_group_id() as i64),
                 &(msg.get_operation() as i16),
@@ -683,30 +664,51 @@ impl DataStore {
         Ok(())
     }
 
-    fn row_to_job_graph_package(
-        &self,
-        row: &postgres::rows::Row,
-    ) -> Result<jobsrv::JobGraphPackage> {
-        let mut package = jobsrv::JobGraphPackage::new();
-
-        let name: String = row.get("ident");
-        package.set_ident(name);
-
-        if let Some(Ok(target)) = row.get_opt::<&str, String>("target") {
-            package.set_target(target);
+    fn row_to_origin_package(&self, row: &postgres::rows::Row) -> Result<originsrv::OriginPackage> {
+        let mut package = originsrv::OriginPackage::new();
+        let id: i64 = row.get("id");
+        package.set_id(id as u64);
+        let origin_id: i64 = row.get("origin_id");
+        package.set_origin_id(origin_id as u64);
+        let owner_id: i64 = row.get("owner_id");
+        package.set_owner_id(owner_id as u64);
+        let ident: String = row.get("ident");
+        package.set_ident(originsrv::OriginPackageIdent::from_str(ident.as_str()).unwrap());
+        package.set_checksum(row.get("checksum"));
+        package.set_manifest(row.get("manifest"));
+        package.set_config(row.get("config"));
+        package.set_target(row.get("target"));
+        let expose: String = row.get("exposes");
+        let mut exposes: Vec<u32> = Vec::new();
+        for ex in expose.split(":") {
+            match ex.parse::<u32>() {
+                Ok(e) => exposes.push(e),
+                Err(_) => {}
+            }
         }
+        package.set_exposes(exposes);
+        package.set_deps(self.into_idents(row.get("deps")));
+        package.set_tdeps(self.into_idents(row.get("tdeps")));
 
-        let deps: Vec<String> = row.get("deps");
-
-        let mut pb_deps = RepeatedField::new();
-
-        for dep in deps {
-            pb_deps.push(dep);
-        }
-
-        package.set_deps(pb_deps);
+        let pv: String = row.get("visibility");
+        let pv2: originsrv::OriginPackageVisibility =
+            pv.parse().map_err(Error::UnknownOriginPackageVisibility)?;
+        package.set_visibility(pv2);
 
         Ok(package)
+    }
+
+    fn into_idents(
+        &self,
+        column: String,
+    ) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
+        let mut idents = protobuf::RepeatedField::new();
+        for ident in column.split(":") {
+            if !ident.is_empty() {
+                idents.push(originsrv::OriginPackageIdent::from_str(ident).unwrap());
+            }
+        }
+        idents
     }
 
     fn row_to_job_group(&self, row: &postgres::rows::Row) -> Result<jobsrv::JobGroup> {

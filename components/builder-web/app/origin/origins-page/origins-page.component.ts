@@ -48,7 +48,10 @@ export class OriginsPageComponent implements OnInit {
 
   get origins() {
     const mine = this.store.getState().origins.mine;
-    const invites = this.store.getState().origins.myInvitations;
+    const invites = this.store.getState().origins.myInvitations.map(i => {
+      i['isInvite'] = true;
+      return i;
+    });
     return mine.concat(invites).sortBy(item => item.name || item.origin_name);
   }
 
@@ -62,7 +65,7 @@ export class OriginsPageComponent implements OnInit {
 
   accept(item) {
     this.store.dispatch(acceptOriginInvitation(
-      item.origin_invitation_id, item.origin_name, this.token
+      item.id, item.origin_name, this.token
     ));
   }
 
@@ -76,7 +79,7 @@ export class OriginsPageComponent implements OnInit {
 
     this.confirm(data, () => {
       this.store.dispatch(ignoreOriginInvitation(
-        item.origin_invitation_id, item.origin_name, this.token
+        item.id, item.origin_name, this.token
       ));
     });
   }
@@ -97,7 +100,7 @@ export class OriginsPageComponent implements OnInit {
   }
 
   isInvitation(item) {
-    return !!item.origin_invitation_id;
+    return !!item.isInvite;
   }
 
   private confirm(data, then) {

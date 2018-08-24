@@ -22,7 +22,6 @@ clean_test_artifacts() {
   sql=
 
   for origin in "${origins[@]}"; do
-    sql+="SET SEARCH_PATH TO shard_$(op shard "$origin");"
     sql+="DELETE FROM origin_channel_packages WHERE channel_id IN (SELECT id FROM origin_channels WHERE origin_id=(SELECT id FROM origins WHERE name='$origin'));"
 
     for table in "${origin_id_tables[@]}"; do
@@ -45,8 +44,6 @@ clean_test_artifacts() {
   sql=
 
   for user in "${users[@]}"; do
-    sql+="SET SEARCH_PATH TO shard_$(op shard "$user");"
-
     for table in "${account_tables[@]}"; do
       sql+="DELETE FROM $table WHERE account_id=(SELECT id FROM accounts WHERE name='$user');"
     done
@@ -60,9 +57,7 @@ clean_test_artifacts() {
   sql=
 
   for origin in "${origins[@]}"; do
-    sql+="SET SEARCH_PATH TO shard_0;"
     sql+="DELETE FROM busy_workers WHERE job_id IN (SELECT id FROM jobs WHERE project_name LIKE '$origin%');"
-    sql+="DELETE FROM graph_packages WHERE ident LIKE '$origin%';"
     sql+="DELETE FROM group_projects WHERE project_name LIKE '$origin%';"
     sql+="DELETE FROM groups WHERE project_name LIKE '$origin%';"
     sql+="DELETE FROM jobs WHERE project_name LIKE '$origin%';"

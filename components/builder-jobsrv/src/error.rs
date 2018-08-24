@@ -79,6 +79,7 @@ pub enum Error {
     UnknownJobGraphPackage,
     UnknownJobGroupProjectState,
     UnknownJobState(protocol::ProtocolError),
+    UnknownOriginPackageVisibility(protocol::originsrv::Error),
     Zmq(zmq::Error),
 }
 
@@ -176,6 +177,7 @@ impl fmt::Display for Error {
             Error::UnknownJobGroupProjectState => format!("Unknown Project State"),
             Error::UnknownVCS => format!("Unknown VCS"),
             Error::UnknownJobState(ref e) => format!("{}", e),
+            Error::UnknownOriginPackageVisibility(ref e) => format!("{}", e),
             Error::Zmq(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
@@ -233,6 +235,7 @@ impl error::Error for Error {
             Error::UnknownJobGroupState => "Unknown Group State",
             Error::UnknownJobGraphPackage => "Unknown Package",
             Error::UnknownJobGroupProjectState => "Unknown Project State",
+            Error::UnknownOriginPackageVisibility(ref err) => err.description(),
             Error::UnknownVCS => "Unknown VCS",
             Error::Zmq(ref err) => err.description(),
         }

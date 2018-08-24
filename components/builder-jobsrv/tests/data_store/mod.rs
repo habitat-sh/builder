@@ -376,31 +376,6 @@ fn set_job_group_state() {
 }
 
 #[test]
-fn create_graph_package() {
-    let mut msg = jobsrv::JobGraphPackageCreate::new();
-    msg.set_ident(String::from("Foo/Bar/123/456"));
-    msg.set_target(String::from("quantum"));
-
-    let mut deps = RepeatedField::new();
-    deps.push(String::from("Foo/Baz/321/654"));
-    msg.set_deps(deps);
-
-    let ds = datastore_test!(DataStore);
-    let package = ds
-        .create_job_graph_package(&msg)
-        .expect("Failed to create a graph package");
-
-    assert_eq!(package.get_ident(), "Foo/Bar/123/456");
-    assert_eq!(package.get_target(), "quantum");
-
-    let packages = ds
-        .get_job_graph_packages()
-        .expect("Failed to get graph packages");
-    assert_eq!(packages.len(), 1);
-    assert_eq!(packages.last().unwrap().get_ident(), "Foo/Bar/123/456");
-}
-
-#[test]
 fn get_graph_stats() {
     let ds = datastore_test!(DataStore);
 

@@ -297,9 +297,7 @@ impl ScheduleMgr {
                 let deps = package.get_deps();
 
                 for dep in deps {
-                    let parts: Vec<&str> = dep.split("/").collect();
-                    assert!(parts.len() >= 2);
-                    let name = format!("{}/{}", parts[0], parts[1]);
+                    let name = format!("{}/{}", dep.get_origin(), dep.get_name());
 
                     if !self.check_dispatchable(group, &name) {
                         check_status = false;
@@ -361,9 +359,7 @@ impl ScheduleMgr {
             let deps = package.get_deps();
 
             for dep in deps {
-                let parts: Vec<&str> = dep.split("/").collect();
-                assert!(parts.len() >= 2);
-                let name = format!("{}/{}", parts[0], parts[1]);
+                let name = format!("{}/{}", dep.get_origin(), dep.get_name());
 
                 if skipped.contains_key(&name) {
                     debug!("Skipping project {:?}", project.get_name());

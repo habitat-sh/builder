@@ -18,8 +18,10 @@ use config::Config;
 use db::pool::Pool;
 use error::{Error, Result};
 use postgres;
+use protobuf;
 use protobuf::RepeatedField;
-use protocol::jobsrv;
+use protocol::originsrv;
+use std::str::FromStr;
 
 // DataStore inherits Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Debug, Clone)]
@@ -35,7 +37,7 @@ impl DataStore {
     /// * Can fail if the pool cannot be created
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
     pub fn new(config: &Config) -> Result<DataStore> {
-        let pool = Pool::new(&config.datastore, vec![0])?;
+        let pool = Pool::new(&config.datastore)?;
         Ok(DataStore { pool: pool })
     }
 
@@ -52,10 +54,10 @@ impl DataStore {
         Ok(())
     }
 
-    pub fn get_job_graph_packages(&self) -> Result<RepeatedField<jobsrv::JobGraphPackage>> {
+    pub fn get_job_graph_packages(&self) -> Result<RepeatedField<originsrv::OriginPackage>> {
         let mut packages = RepeatedField::new();
 
-        let conn = self.pool.get_shard(0)?;
+        let conn = self.pool.get()?;
 
         let rows = &conn
             .query("SELECT * FROM get_graph_packages_v1()", &[])
@@ -67,15 +69,15 @@ impl DataStore {
         }
 
         for row in rows {
-            let package = self.row_to_job_graph_package(&row)?;
+            let package = self.row_to_origin_package(&row)?;
             packages.push(package);
         }
 
         Ok(packages)
     }
 
-    pub fn get_job_graph_package(&self, ident: &str) -> Result<jobsrv::JobGraphPackage> {
-        let conn = self.pool.get_shard(0)?;
+    pub fn get_job_graph_package(&self, ident: &str) -> Result<originsrv::OriginPackage> {
+        let conn = self.pool.get()?;
 
         let rows = &conn
             .query("SELECT * FROM get_graph_package_v1($1)", &[&ident])
@@ -87,33 +89,53 @@ impl DataStore {
         }
 
         assert!(rows.len() == 1);
-        let package = self.row_to_job_graph_package(&rows.get(0))?;
+        let package = self.row_to_origin_package(&rows.get(0))?;
         Ok(package)
     }
 
-    fn row_to_job_graph_package(
-        &self,
-        row: &postgres::rows::Row,
-    ) -> Result<jobsrv::JobGraphPackage> {
-        let mut package = jobsrv::JobGraphPackage::new();
-
-        let name: String = row.get("ident");
-        package.set_ident(name);
-
-        if let Some(Ok(target)) = row.get_opt::<&str, String>("target") {
-            package.set_target(target);
+    fn row_to_origin_package(&self, row: &postgres::rows::Row) -> Result<originsrv::OriginPackage> {
+        let mut package = originsrv::OriginPackage::new();
+        let id: i64 = row.get("id");
+        package.set_id(id as u64);
+        let origin_id: i64 = row.get("origin_id");
+        package.set_origin_id(origin_id as u64);
+        let owner_id: i64 = row.get("owner_id");
+        package.set_owner_id(owner_id as u64);
+        let ident: String = row.get("ident");
+        package.set_ident(originsrv::OriginPackageIdent::from_str(ident.as_str()).unwrap());
+        package.set_checksum(row.get("checksum"));
+        package.set_manifest(row.get("manifest"));
+        package.set_config(row.get("config"));
+        package.set_target(row.get("target"));
+        let expose: String = row.get("exposes");
+        let mut exposes: Vec<u32> = Vec::new();
+        for ex in expose.split(":") {
+            match ex.parse::<u32>() {
+                Ok(e) => exposes.push(e),
+                Err(_) => {}
+            }
         }
+        package.set_exposes(exposes);
+        package.set_deps(self.into_idents(row.get("deps")));
+        package.set_tdeps(self.into_idents(row.get("tdeps")));
 
-        let deps: Vec<String> = row.get("deps");
-
-        let mut pb_deps = RepeatedField::new();
-
-        for dep in deps {
-            pb_deps.push(dep);
-        }
-
-        package.set_deps(pb_deps);
+        let pv: String = row.get("visibility");
+        let pv2: originsrv::OriginPackageVisibility = pv.parse().unwrap();
+        package.set_visibility(pv2);
 
         Ok(package)
+    }
+
+    fn into_idents(
+        &self,
+        column: String,
+    ) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
+        let mut idents = protobuf::RepeatedField::new();
+        for ident in column.split(":") {
+            if !ident.is_empty() {
+                idents.push(originsrv::OriginPackageIdent::from_str(ident).unwrap());
+            }
+        }
+        idents
     }
 }

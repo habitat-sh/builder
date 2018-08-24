@@ -304,7 +304,7 @@ pub fn origin_invitation_accept(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginInvitationAcceptRequest>()?;
-    match state.datastore.accept_origin_invitation(conn, &msg) {
+    match state.datastore.accept_origin_invitation(&msg) {
         Ok(()) => conn.route_reply(req, &NetOk::new())?,
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-invitation-accept:1");
@@ -321,7 +321,7 @@ pub fn origin_invitation_ignore(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginInvitationIgnoreRequest>()?;
-    match state.datastore.ignore_origin_invitation(conn, &msg) {
+    match state.datastore.ignore_origin_invitation(&msg) {
         Ok(()) => conn.route_reply(req, &NetOk::new())?,
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-invitation-ignore:1");
@@ -338,7 +338,7 @@ pub fn origin_invitation_rescind(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::OriginInvitationRescindRequest>()?;
-    match state.datastore.rescind_origin_invitation(conn, &msg) {
+    match state.datastore.rescind_origin_invitation(&msg) {
         Ok(()) => conn.route_reply(req, &NetOk::new())?,
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-invitation-rescind:1");
@@ -386,6 +386,23 @@ pub fn origin_invitation_list(
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-invitation-list:1");
             error!("{}, {}", err, e);
+            conn.route_reply(req, &*err)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn account_invitation_list(
+    req: &mut Message,
+    conn: &mut RouteConn,
+    state: &mut ServerState,
+) -> SrvResult<()> {
+    let msg = req.parse::<proto::AccountInvitationListRequest>()?;
+    match state.datastore.list_origin_invitations_for_account(&msg) {
+        Ok(response) => conn.route_reply(req, &response)?,
+        Err(e) => {
+            let err = NetError::new(ErrCode::DATA_STORE, "vt:account-invitation-list:1");
+            error!("{}, {}", e, err);
             conn.route_reply(req, &*err)?;
         }
     }

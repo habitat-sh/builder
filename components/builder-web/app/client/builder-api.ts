@@ -438,7 +438,7 @@ export class BuilderApiClient {
         .then(response => {
           response.json().then(data => {
             if (response.ok) {
-              resolve(data['origins']);
+              resolve(data.map(o => o.name));
             } else {
               reject(new Error(response.statusText));
             }
