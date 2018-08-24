@@ -127,6 +127,7 @@ pub fn extract_pagination(req: &HttpRequest) -> Result<(isize, isize), Response>
 
 */
 
+// TODO: Deprecate getting target from User Agent header
 pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
     let user_agent_header = match req.headers().get(header::USER_AGENT) {
         Some(s) => s,

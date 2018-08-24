@@ -448,6 +448,87 @@ impl Packages {
         .responder()
     }
 
+    fn do_get_package(
+        req: &HttpRequest<AppState>,
+        qtarget: &Query<Target>,
+        mut ident: OriginPackageIdent,
+    ) -> Result<OriginPackage> {
+        let session_id = helpers::get_optional_session_id(&req);
+
+        // TODO: Deprecate target from headers
+        let target = match qtarget.target.clone() {
+            Some(t) => {
+                debug!("Query requested target = {}", t);
+                PackageTarget::from_str(&t).unwrap() // Unwrap Ok ?
+            }
+            None => helpers::target_from_headers(req),
+        };
+
+        // Fully qualify the ident if needed
+        // TODO: Have the OriginPackageLatestGet call just return the package
+        // metadata, thus saving us a second call to actually retrieve the package
+        if !ident.fully_qualified() {
+            let mut request = OriginPackageLatestGet::new();
+            request.set_ident(ident.clone());
+            request.set_target(target.to_string());
+            request.set_visibilities(helpers::visibility_for_optional_session(
+                req,
+                session_id,
+                &ident.get_origin(),
+            ));
+
+            ident = match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request)
+            {
+                Ok(id) => id.into(),
+                Err(err) => {
+                    // Notify upstream with a non-fully qualified ident to handle checking
+                    // of a package that does not exist in the on-premise depot
+
+                    // TODO: notify_upstream(req, &ident, &target);
+                    return Err(err);
+                }
+            }
+        }
+
+        let mut request = OriginPackageGet::new();
+        request.set_visibilities(helpers::visibility_for_optional_session(
+            req,
+            session_id,
+            &ident.get_origin(),
+        ));
+        request.set_ident(ident.clone());
+
+        // Notify upstream with a fully qualified ident
+        // TODO: notify_upstream(req, &ident, &target);
+
+        route_message::<OriginPackageGet, OriginPackage>(req, &request)
+    }
+
+    // TODO: this needs to be re-designed to not fan out
+    fn postprocess_package(
+        req: &HttpRequest<AppState>,
+        pkg: &OriginPackage,
+        should_cache: bool,
+    ) -> HttpResponse {
+        let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
+        let channels = helpers::channels_for_package_ident(req, pkg.get_ident());
+        pkg_json["channels"] = json!(channels);
+        pkg_json["is_a_service"] = json!(is_a_service(pkg));
+
+        let body = serde_json::to_string(&pkg_json).unwrap();
+        let cache_control = if should_cache {
+            format!("public, max-age={}", ONE_YEAR_IN_SECS)
+        } else {
+            headers::NO_CACHE.to_string()
+        };
+
+        HttpResponse::Ok()
+            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+            .header(http::header::ETAG, pkg.get_checksum().to_string())
+            .header(http::header::CACHE_CONTROL, cache_control)
+            .body(body)
+    }
+
     //
     // Route handlers - these functions should return HttpResponse
     //
@@ -505,6 +586,59 @@ impl Packages {
 
         match Self::do_get_packages(&req, ident, &pagination) {
             Ok(olpr) => Self::postprocess_package_list(&req, &olpr, pagination.distinct),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_latest_package_for_origin_package(
+        (qtarget, req): (Query<Target>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let (origin, pkg) = Path::<(String, String)>::extract(&req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin);
+        ident.set_name(pkg);
+
+        match Self::do_get_package(&req, &qtarget, ident) {
+            Ok(package) => Self::postprocess_package(&req, &package, false),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_latest_package_for_origin_package_version(
+        (qtarget, req): (Query<Target>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let (origin, pkg, version) = Path::<(String, String, String)>::extract(&req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin);
+        ident.set_name(pkg);
+        ident.set_version(version);
+
+        match Self::do_get_package(&req, &qtarget, ident) {
+            Ok(package) => Self::postprocess_package(&req, &package, false),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_latest_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
+        let (origin, pkg, version, release) = Path::<(String, String, String, String)>::extract(
+            &req,
+        ).unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin);
+        ident.set_name(pkg);
+        ident.set_version(version);
+        ident.set_release(release);
+
+        match Self::do_get_package(&req, &qtarget, ident) {
+            Ok(package) => Self::postprocess_package(&req, &package, true),
             Err(err) => err.into(),
         }
     }
@@ -764,6 +898,34 @@ impl Packages {
         }
     }
 
+    fn list_package_versions(req: &HttpRequest<AppState>) -> HttpResponse {
+        let (origin, name) = Path::<(String, String)>::extract(&req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let session_id = helpers::get_optional_session_id(req);
+
+        let mut request = OriginPackageVersionListRequest::new();
+        request.set_visibilities(helpers::visibility_for_optional_session(
+            req, session_id, &origin,
+        ));
+        request.set_origin(origin);
+        request.set_name(name);
+
+        match route_message::<OriginPackageVersionListRequest, OriginPackageVersionListResponse>(
+            req, &request,
+        ) {
+            Ok(packages) => {
+                let body = serde_json::to_string(&packages.get_versions().to_vec()).unwrap();
+                HttpResponse::Ok()
+                    .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .body(body)
+            }
+            Err(err) => err.into(),
+        }
+    }
+
     //
     // Route registration
     //
@@ -785,6 +947,20 @@ impl Packages {
                 r.method(http::Method::GET)
                     .with(Self::get_packages_for_origin_package_version);
             })
+            .resource("/depot/pkgs/{origin}/{pkg}/latest", |r| {
+                r.middleware(Optional);
+                r.method(http::Method::GET)
+                    .with(Self::get_latest_package_for_origin_package);
+            })
+            .resource("/depot/pkgs/{origin}/{pkg}/{version}/latest", |r| {
+                r.middleware(Optional);
+                r.method(http::Method::GET)
+                    .with(Self::get_latest_package_for_origin_package_version);
+            })
+            .resource("/depot/pkgs/{origin}/{pkg}/{version}/{release}", |r| {
+                r.middleware(Optional);
+                r.method(http::Method::GET).with(Self::get_latest_package);
+            })
             .resource(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
                 |r| {
@@ -795,6 +971,10 @@ impl Packages {
             .resource("/depot/pkgs/{origin}/{pkg}/{version}/{release}", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::POST).with(Self::upload_package);
+            })
+            .resource("/depot/pkgs/{origin}/{pkg}/versions", |r| {
+                r.middleware(Optional);
+                r.get().f(Self::list_package_versions);
             })
             .resource("/pkgs/schedule/{origin}/{pkg}", |r| {
                 r.middleware(Authenticated);
@@ -817,38 +997,12 @@ impl Packages {
 // TODO: PACKAGES HANLDERS "/depot/pkgs/..."
 /*
     r.get(
-        "/pkgs/search/:query",
+        "/depot/pkgs/search/:query",
         XHandler::new(search_packages).before(opt.clone()),
         "package_search",
     );
-    r.get(
-        "/:origin/pkgs",
-        XHandler::new(list_unique_packages).before(opt.clone()),
-        "packages_unique",
-    );
-    r.get(
-        "/pkgs/:origin/:pkg/versions",
-        XHandler::new(list_package_versions).before(opt.clone()),
-        "package_pkg_versions",
-    );
-    r.get(
-        "/pkgs/:origin/:pkg/latest",
-        XHandler::new(show_package).before(opt.clone()),
-        "package_pkg_latest",
-    );
-    r.get(
-        "/pkgs/:origin/:pkg/:version/latest",
-        XHandler::new(show_package).before(opt.clone()),
-        "package_version_latest",
-    );
-    r.get(
-        "/pkgs/:origin/:pkg/:version/:release",
-        XHandler::new(show_package).before(opt.clone()),
-        "package",
-    );
-
     r.patch(
-        "/pkgs/:origin/:pkg/:version/:release/:visibility",
+        "/depot/pkgs/:origin/:pkg/:version/:release/:visibility",
         XHandler::new(package_privacy_toggle).before(basic.clone()),
         "package_privacy_toggle",
     );
@@ -1018,4 +1172,13 @@ fn process_upload_for_package_archive(
     }
 
     Ok(())
+}
+
+fn is_a_service(package: &OriginPackage) -> bool {
+    let m = package.get_manifest();
+
+    // TODO: This is a temporary workaround until we plumb in a better solution for
+    // determining whether a package is a service from the DB instead of needing
+    // to crack the archive file to look for a SVC_USER file
+    m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
 }
