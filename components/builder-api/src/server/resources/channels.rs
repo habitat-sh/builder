@@ -225,7 +225,6 @@ impl Channels {
         channel: String,
     ) -> Result<OriginPackage> {
         let session_id = helpers::get_optional_session_id(&req);
-
         // TODO: Deprecate target from headers
         let target = match qtarget.target.clone() {
             Some(t) => {
@@ -487,51 +486,55 @@ impl Channels {
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.resource("/channels/{origin}", |r| {
+        app.resource("/depot/channels/{origin}", |r| {
             r.method(http::Method::GET).with(Self::get_channels);
-        }).resource("/channels/{origin}/{channel}", |r| {
+        }).resource("/depot/channels/{origin}/{channel}", |r| {
                 r.post().f(Self::create_channel);
-            })
-            .resource("/channels/{origin}/{channel}", |r| {
                 r.delete().f(Self::delete_channel);
             })
             .resource(
-                "/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/promote",
+                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/promote",
                 |r| {
                     r.put().f(Self::promote_package);
                 },
             )
             .resource(
-                "/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/demote",
+                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/demote",
                 |r| {
                     r.put().f(Self::demote_package);
                 },
             )
-            .resource("/channels/{origin}/{channel}/pkgs/{pkg}", |r| {
+            .resource("/depot/channels/{origin}/{channel}/pkgs/{pkg}", |r| {
                 r.method(http::Method::GET)
                     .with(Self::get_packages_for_origin_channel_package);
             })
-            .resource("/channels/{origin}/{channel}/pkgs", |r| {
+            .resource("/depot/channels/{origin}/{channel}/pkgs", |r| {
                 r.method(http::Method::GET)
                     .with(Self::get_packages_for_origin_channel);
             })
-            .resource("/channels/{origin}/{channel}/pkgs/{pkg}/{version}", |r| {
-                r.method(http::Method::GET)
-                    .with(Self::get_packages_for_origin_channel_package_version);
-            })
-            .resource("/channels/{origin}/{channel}/pkgs/{pkg}/latest", |r| {
-                r.method(http::Method::GET)
-                    .with(Self::get_latest_package_for_origin_channel_package);
-            })
             .resource(
-                "/channels/{origin}/{channel}/pkgs/{pkg}/{version}/latest",
+                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/latest",
+                |r| {
+                    r.method(http::Method::GET)
+                        .with(Self::get_latest_package_for_origin_channel_package);
+                },
+            )
+            .resource(
+                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}",
+                |r| {
+                    r.method(http::Method::GET)
+                        .with(Self::get_packages_for_origin_channel_package_version);
+                },
+            )
+            .resource(
+                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/latest",
                 |r| {
                     r.method(http::Method::GET)
                         .with(Self::get_latest_package_for_origin_channel_package_version);
                 },
             )
             .resource(
-                "/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}",
+                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}",
                 |r| {
                     r.method(http::Method::GET)
                         .with(Self::get_package_fully_qualified);
