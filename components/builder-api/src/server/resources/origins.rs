@@ -311,6 +311,11 @@ impl Origins {
         XHandler::new(origin_member_delete).before(basic.clone()),
         "origin_member_delete",
     );
+    r.get(
+        "/:origin/pkgs",
+        XHandler::new(list_unique_packages).before(opt.clone()),
+        "packages_unique",
+    );
 }
 */
 
@@ -989,42 +994,6 @@ fn list_unique_packages(req: &mut Request) -> IronResult<Response> {
             } else {
                 Response::with((status::Ok, body))
             };
-
-            response.headers.set(ContentType(Mime(
-                TopLevel::Application,
-                SubLevel::Json,
-                vec![(Attr::Charset, Value::Utf8)],
-            )));
-            dont_cache_response(&mut response);
-            Ok(response)
-        }
-        Err(err) => return Ok(render_net_error(&err)),
-    }
-}
-
-fn list_package_versions(req: &mut Request) -> IronResult<Response> {
-    let session_id = helpers::get_optional_session_id(req);
-    let origin = match get_param(req, "origin") {
-        Some(origin) => origin,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let name = match get_param(req, "pkg") {
-        Some(pkg) => pkg,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let mut request = OriginPackageVersionListRequest::new();
-    request.set_visibilities(visibility_for_optional_session(req, session_id, &origin));
-    request.set_origin(origin);
-    request.set_name(name);
-
-    match route_message::<OriginPackageVersionListRequest, OriginPackageVersionListResponse>(
-        req, &request,
-    ) {
-        Ok(packages) => {
-            let body = serde_json::to_string(&packages.get_versions().to_vec()).unwrap();
-            let mut response = Response::with((status::Ok, body));
 
             response.headers.set(ContentType(Mime(
                 TopLevel::Application,
