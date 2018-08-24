@@ -531,48 +531,48 @@ impl Projects {
         app.resource("/projects", |r| {
             r.middleware(Authenticated);
             r.method(http::Method::POST).with(Self::create_project);
-        }).resource("/projects/:origin/:name", |r| {
+        }).resource("/projects/{origin}/{name}", |r| {
                 r.middleware(Authenticated);
                 r.get().f(Self::get_project);
             })
-            .resource("/projects/:origin", |r| {
+            .resource("/projects/{origin}", |r| {
                 r.middleware(Authenticated);
                 r.get().f(Self::get_projects);
             })
-            .resource("/projects/:origin/:name/jobs", |r| {
+            .resource("/projects/{origin}/{name}/jobs", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::GET).with(Self::get_jobs);
             })
-            .resource("/projects/:origin/:name", |r| {
+            .resource("/projects/{origin}/{name}", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::PUT).with(Self::update_project);
             })
-            .resource("/projects/:origin/:name", |r| {
+            .resource("/projects/{origin}/{name}", |r| {
                 r.middleware(Authenticated);
                 r.delete().f(Self::delete_project);
             })
             .resource(
-                "/projects/:origin/:name/integrations/:integration/default",
+                "/projects/{origin}/{name}/integrations/{integration}/default",
                 |r| {
                     r.middleware(Authenticated);
                     r.get().f(Self::get_integration);
                 },
             )
             .resource(
-                "/projects/:origin/:name/integrations/:integration/default",
+                "/projects/{origin}/{name}/integrations/{integration}/default",
                 |r| {
                     r.middleware(Authenticated);
                     r.method(http::Method::PUT).with(Self::create_integration);
                 },
             )
             .resource(
-                "/projects/:origin/:name/integrations/:integration/default",
+                "/projects/{origin}/{name}/integrations/{integration}/default",
                 |r| {
                     r.middleware(Authenticated);
                     r.delete().f(Self::delete_integration);
                 },
             )
-            .resource("/projects/:origin/:name/:visibility", |r| {
+            .resource("/projects/{origin}/{name}/{visibility}", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::PATCH).f(Self::toggle_privacy);
             })
