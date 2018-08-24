@@ -27,7 +27,7 @@ use hab_net::{ErrCode, NetError, NetOk};
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::{route_message, Authenticated};
-use server::helpers;
+use server::helpers::{self, Pagination};
 use server::AppState;
 
 // A default name for per-project integrations. Currently, there
@@ -50,13 +50,6 @@ pub struct ProjectUpdateReq {
     pub repo_id: u32,
     pub auto_build: bool,
 }
-
-#[derive(Deserialize)]
-pub struct Pagination {
-    range: isize,
-}
-
-const PAGINATION_RANGE_MAX: isize = 50;
 
 pub struct Projects;
 
@@ -350,8 +343,11 @@ impl Projects {
             return HttpResponse::new(StatusCode::UNAUTHORIZED);
         }
 
-        jobs_get.set_start(pagination.range as u64);
-        jobs_get.set_stop((pagination.range + PAGINATION_RANGE_MAX) as u64);
+        let (start, stop) = helpers::extract_pagination(&pagination);
+
+        jobs_get.set_name(format!("{}/{}", origin, name));
+        jobs_get.set_start(start as u64);
+        jobs_get.set_stop(stop as u64);
 
         match route_message::<ProjectJobsGet, ProjectJobsGetResponse>(&req, &jobs_get) {
             Ok(response) => {

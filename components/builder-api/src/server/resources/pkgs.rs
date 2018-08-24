@@ -38,25 +38,11 @@ use server::error::{Error, Result};
 use server::feat;
 use server::framework::headers;
 use server::framework::middleware::{route_message, Authenticated, Optional};
-use server::helpers;
+use server::helpers::{self, Pagination, Target};
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
 // Query param containers
-#[derive(Deserialize)]
-pub struct Pagination {
-    #[serde(default)]
-    range: isize,
-    #[serde(default)]
-    distinct: bool,
-}
-
-#[derive(Deserialize)]
-pub struct Target {
-    #[serde(default)]
-    target: Option<String>,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct Upload {
     #[serde(default)]
@@ -95,10 +81,6 @@ pub struct OriginScheduleStatus {
     limit: String,
 }
 
-const ONE_YEAR_IN_SECS: usize = 31536000;
-
-const PAGINATION_RANGE_MAX: isize = 50;
-
 pub struct Packages {}
 
 impl Packages {
@@ -119,10 +101,7 @@ impl Packages {
     ) -> Result<OriginPackageListResponse> {
         let opt_session_id = helpers::get_optional_session_id(&req);
 
-        let (start, stop) = (
-            pagination.range,
-            pagination.range + PAGINATION_RANGE_MAX - 1,
-        );
+        let (start, stop) = helpers::extract_pagination(pagination);
 
         let mut request = OriginPackageListRequest::new();
         request.set_start(start as u64);
@@ -139,7 +118,8 @@ impl Packages {
     }
 
     // TODO : this needs to be re-designed to not fan out
-    fn postprocess_package_list(
+    // Common functionality for pkgs and channel routes
+    pub fn postprocess_package_list(
         req: &HttpRequest<AppState>,
         oplr: &OriginPackageListResponse,
         distinct: bool,
@@ -505,7 +485,8 @@ impl Packages {
     }
 
     // TODO: this needs to be re-designed to not fan out
-    fn postprocess_package(
+    // Common functionality for pkgs and channel routes
+    pub fn postprocess_package(
         req: &HttpRequest<AppState>,
         pkg: &OriginPackage,
         should_cache: bool,
@@ -516,16 +497,11 @@ impl Packages {
         pkg_json["is_a_service"] = json!(is_a_service(pkg));
 
         let body = serde_json::to_string(&pkg_json).unwrap();
-        let cache_control = if should_cache {
-            format!("public, max-age={}", ONE_YEAR_IN_SECS)
-        } else {
-            headers::NO_CACHE.to_string()
-        };
 
         HttpResponse::Ok()
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::ETAG, pkg.get_checksum().to_string())
-            .header(http::header::CACHE_CONTROL, cache_control)
+            .header(http::header::CACHE_CONTROL, headers::cache(should_cache))
             .body(body)
     }
 
@@ -1048,10 +1024,7 @@ fn download_response_for_archive(archive: PackageArchive, tempdir: TempDir) -> H
             http::header::HeaderName::from_static(headers::XFILENAME),
             archive.file_name(),
         )
-        .header(
-            http::header::CACHE_CONTROL,
-            format!("public, max-age={}", ONE_YEAR_IN_SECS),
-        )
+        .header(http::header::CACHE_CONTROL, headers::cache(true))
         .body(body)
 }
 

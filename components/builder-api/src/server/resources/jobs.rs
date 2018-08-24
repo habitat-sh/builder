@@ -24,7 +24,6 @@ use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
-use hab_core::package::ident;
 use hab_core::package::Identifiable;
 use hab_net::{ErrCode, NetError, NetOk};
 

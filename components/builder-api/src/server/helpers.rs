@@ -15,7 +15,7 @@
 use std::str::FromStr;
 
 use actix_web::http::header;
-use actix_web::HttpRequest;
+use actix_web::{HttpRequest, Query};
 use regex::Regex;
 use serde::Serialize;
 use serde_json;
@@ -37,6 +37,56 @@ use server::AppState;
 // TO DO - this module has become a big grab bag of stuff - needs to be
 // reviewed and broken up
 //
+
+pub const ONE_YEAR_IN_SECS: usize = 31536000;
+
+pub const PAGINATION_RANGE_MAX: isize = 50;
+pub const PAGINATION_RANGE_DEFAULT: isize = 0;
+
+#[derive(Deserialize)]
+pub struct Target {
+    #[serde(default)]
+    pub target: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct Pagination {
+    #[serde(default)]
+    pub range: isize,
+    #[serde(default)]
+    pub distinct: bool,
+}
+
+#[derive(Serialize)]
+pub struct PaginatedResults<'a, T: 'a> {
+    range_start: isize,
+    range_end: isize,
+    total_count: isize,
+    data: &'a Vec<T>,
+}
+
+pub fn package_results_json<T: Serialize>(
+    packages: &Vec<T>,
+    count: isize,
+    start: isize,
+    end: isize,
+) -> String {
+    let results = PaginatedResults {
+        range_start: start,
+        range_end: end,
+        total_count: count,
+        data: packages,
+    };
+
+    serde_json::to_string(&results).unwrap()
+}
+
+pub fn extract_pagination(pagination: &Query<Pagination>) -> (isize, isize) {
+    (
+        pagination.range,
+        pagination.range + PAGINATION_RANGE_MAX - 1,
+    )
+}
 
 /* DEPRECATED - use Actix-web extractor instead
 
@@ -347,33 +397,6 @@ pub fn platforms_for_package_ident(
         Ok(p) => Some(p.get_platforms().to_vec()),
         Err(_) => None,
     }
-}
-
-const PAGINATION_RANGE_DEFAULT: isize = 0;
-const PAGINATION_RANGE_MAX: isize = 50;
-
-#[derive(Serialize)]
-struct PaginatedResults<'a, T: 'a> {
-    range_start: isize,
-    range_end: isize,
-    total_count: isize,
-    data: &'a Vec<T>,
-}
-
-pub fn package_results_json<T: Serialize>(
-    packages: &Vec<T>,
-    count: isize,
-    start: isize,
-    end: isize,
-) -> String {
-    let results = PaginatedResults {
-        range_start: start,
-        range_end: end,
-        total_count: count,
-        data: packages,
-    };
-
-    serde_json::to_string(&results).unwrap()
 }
 
 fn is_worker(req: &HttpRequest) -> bool {
