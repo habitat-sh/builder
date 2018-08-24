@@ -431,26 +431,26 @@ impl Jobs {
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.resource("/jobs/group/:id/promote/:channel", |r| {
+        app.resource("/jobs/group/{id}/promote/{channel}", |r| {
             r.middleware(Authenticated);
             r.method(http::Method::POST).with(Self::promote_job_group);
-        }).resource("/jobs/group/:id/demote/:channel", |r| {
+        }).resource("/jobs/group/{id}/demote/{channel}", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::POST).with(Self::demote_job_group);
             })
-            .resource("/jobs/group/:id/cancel", |r| {
+            .resource("/jobs/group/{id}/cancel", |r| {
                 r.middleware(Authenticated);
                 r.post().f(Self::cancel_job_group);
             })
-            .resource("/rdeps/:origin/:name", |r| {
+            .resource("/rdeps/{origin}/{name}", |r| {
                 // Not authenticated
                 r.get().f(Self::get_rdeps);
             })
-            .resource("/jobs/:id", |r| {
+            .resource("/jobs/{id}", |r| {
                 r.middleware(Authenticated);
                 r.get().f(Self::get_job);
             })
-            .resource("/jobs/:id/log", |r| {
+            .resource("/jobs/{id}/log", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::GET).with(Self::get_job_log);
             })
