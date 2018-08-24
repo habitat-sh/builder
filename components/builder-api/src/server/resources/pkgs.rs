@@ -42,22 +42,57 @@ use server::helpers;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
+// Query param containers
 #[derive(Deserialize)]
 pub struct Pagination {
+    #[serde(default)]
     range: isize,
+    #[serde(default)]
     distinct: bool,
 }
 
 #[derive(Deserialize)]
 pub struct Target {
+    #[serde(default)]
     target: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Upload {
+    #[serde(default)]
     checksum: String,
+    #[serde(default)]
     builder: Option<String>,
+    #[serde(default)]
     forced: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Schedule {
+    #[serde(default = "default_target")]
+    target: String,
+    #[serde(default)]
+    deps_only: Option<String>,
+    #[serde(default)]
+    origin_only: Option<String>,
+    #[serde(default)]
+    package_only: Option<String>,
+}
+
+fn default_target() -> String {
+    "x86_64-linux".to_string()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetSchedule {
+    #[serde(default)]
+    include_projects: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OriginScheduleStatus {
+    #[serde(default)]
+    limit: String,
 }
 
 const ONE_YEAR_IN_SECS: usize = 31536000;
@@ -79,7 +114,7 @@ impl Packages {
 
     fn do_get_packages(
         req: &HttpRequest<AppState>,
-        origin: String,
+        ident: OriginPackageIdent,
         pagination: &Query<Pagination>,
     ) -> Result<OriginPackageListResponse> {
         let opt_session_id = helpers::get_optional_session_id(&req);
@@ -95,10 +130,10 @@ impl Packages {
         request.set_visibilities(helpers::visibility_for_optional_session(
             &req,
             opt_session_id,
-            &origin,
+            &ident.get_origin(),
         ));
         request.set_distinct(pagination.distinct);
-        request.set_ident(OriginPackageIdent::from_str(origin.as_str()).unwrap());
+        request.set_ident(ident);
 
         route_message::<OriginPackageListRequest, OriginPackageListResponse>(&req, &request)
     }
@@ -427,10 +462,48 @@ impl Packages {
         }
     }
 
-    fn get_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> HttpResponse {
+    fn get_packages_for_origin(
+        (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
+    ) -> HttpResponse {
         let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+        let ident = OriginPackageIdent::from_str(origin.as_str()).unwrap();
 
-        match Self::do_get_packages(&req, origin, &pagination) {
+        match Self::do_get_packages(&req, ident, &pagination) {
+            Ok(olpr) => Self::postprocess_package_list(&req, &olpr, pagination.distinct),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_packages_for_origin_package(
+        (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let (origin, pkg) = Path::<(String, String)>::extract(&req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin);
+        ident.set_name(pkg);
+
+        match Self::do_get_packages(&req, ident, &pagination) {
+            Ok(olpr) => Self::postprocess_package_list(&req, &olpr, pagination.distinct),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_packages_for_origin_package_version(
+        (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let (origin, pkg, version) = Path::<(String, String, String)>::extract(&req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin);
+        ident.set_name(pkg);
+        ident.set_version(version);
+
+        match Self::do_get_packages(&req, ident, &pagination) {
             Ok(olpr) => Self::postprocess_package_list(&req, &olpr, pagination.distinct),
             Err(err) => err.into(),
         }
@@ -526,6 +599,171 @@ impl Packages {
         }
     }
 
+    // TODO REVIEW: should this path be under jobs instead?
+    fn schedule_job_group(
+        (qschedule, req): (Query<Schedule>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let (origin_name, package) = Path::<(String, String)>::extract(&req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        if helpers::check_origin_access(&req, &origin_name).is_err() {
+            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+        }
+
+        let (session_id, session_name) = helpers::get_session_id_and_name(&req);
+
+        // We only support building for Linux x64 only currently
+        if qschedule.target != "x86_64-linux" {
+            info!("Rejecting build with target: {}", qschedule.target);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        let mut secret_key_request = OriginPrivateSigningKeyGet::new();
+        let origin = match helpers::get_origin(&req, &origin_name) {
+            Ok(origin) => {
+                secret_key_request.set_owner_id(origin.get_owner_id());
+                secret_key_request.set_origin(origin_name.clone());
+                origin
+            }
+            Err(err) => return err.into(),
+        };
+
+        let account_name = session_name.clone();
+        let need_keys = match route_message::<OriginPrivateSigningKeyGet, OriginPrivateSigningKey>(
+            &req,
+            &secret_key_request,
+        ) {
+            Ok(key) => {
+                let mut pub_key_request = OriginPublicSigningKeyGet::new();
+                pub_key_request.set_origin(origin_name.clone());
+                pub_key_request.set_revision(key.get_revision().to_string());
+                route_message::<OriginPublicSigningKeyGet, OriginPublicSigningKey>(
+                    &req,
+                    &pub_key_request,
+                ).is_err()
+            }
+            Err(_) => true,
+        };
+
+        if need_keys {
+            if let Err(err) = helpers::generate_origin_keys(&req, session_id, origin) {
+                return err.into();
+            }
+        }
+
+        let mut request = JobGroupSpec::new();
+        request.set_origin(origin_name);
+        request.set_package(package);
+        request.set_target(qschedule.target.clone());
+        request.set_deps_only(qschedule.deps_only.is_some());
+        request.set_origin_only(qschedule.origin_only.is_some());
+        request.set_package_only(qschedule.package_only.is_some());
+        request.set_trigger(helpers::trigger_from_request(&req));
+        request.set_requester_id(session_id);
+        request.set_requester_name(session_name);
+
+        match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
+            Ok(group) => {
+                let msg = format!("Scheduled job group for {}", group.get_project_name());
+
+                // We don't really want to abort anything just because a call to segment failed. Let's
+                // just log it and move on.
+                if let Err(e) = req.state().segment.track(&account_name, &msg) {
+                    warn!("Error tracking scheduling of job group in segment, {}", e);
+                }
+
+                HttpResponse::Ok()
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .json(group)
+            }
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_schedule(
+        (qgetschedule, req): (Query<GetSchedule>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let group_id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+        let group_id = match group_id_str.parse::<u64>() {
+            Ok(id) => id,
+            Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        };
+
+        let mut request = JobGroupGet::new();
+        request.set_group_id(group_id);
+        request.set_include_projects(qgetschedule.include_projects);
+
+        match route_message::<JobGroupGet, JobGroup>(&req, &request) {
+            Ok(group) => HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(group),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_origin_schedule_status(
+        (qoss, req): (Query<OriginScheduleStatus>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+        let limit = qoss.limit.parse::<u32>().unwrap_or(10);
+
+        let mut request = JobGroupOriginGet::new();
+        request.set_origin(origin);
+        request.set_limit(limit);
+
+        match route_message::<JobGroupOriginGet, JobGroupOriginResponse>(&req, &request) {
+            Ok(jgor) => HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(jgor),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_package_channels(req: &HttpRequest<AppState>) -> HttpResponse {
+        let (origin, name, version, release) = Path::<(String, String, String, String)>::extract(
+            &req,
+        ).unwrap()
+            .into_inner(); // Unwrap Ok
+
+        let session_id = helpers::get_optional_session_id(req);
+        let mut request = OriginPackageChannelListRequest::new();
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin);
+        ident.set_name(name);
+        ident.set_version(version);
+        ident.set_release(release);
+
+        if !ident.fully_qualified() {
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        request.set_visibilities(helpers::visibility_for_optional_session(
+            req,
+            session_id,
+            &ident.get_origin(),
+        ));
+        request.set_ident(ident);
+
+        match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
+            req, &request,
+        ) {
+            Ok(channels) => {
+                let list: Vec<String> = channels
+                    .get_channels()
+                    .iter()
+                    .map(|channel| channel.get_name().to_string())
+                    .collect();
+                let body = serde_json::to_string(&list).unwrap();
+                HttpResponse::Ok()
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .body(body)
+            }
+            Err(err) => err.into(),
+        }
+    }
+
     //
     // Route registration
     //
@@ -534,7 +772,18 @@ impl Packages {
             r.get().f(Self::get_stats)
         }).resource("/depot/pkgs/{origin}", |r| {
                 r.middleware(Optional);
-                r.method(http::Method::GET).with(Self::get_packages);
+                r.method(http::Method::GET)
+                    .with(Self::get_packages_for_origin);
+            })
+            .resource("/depot/pkgs/{origin}/{pkg}", |r| {
+                r.middleware(Optional);
+                r.method(http::Method::GET)
+                    .with(Self::get_packages_for_origin_package);
+            })
+            .resource("/depot/pkgs/{origin}/{pkg}/{version}", |r| {
+                r.middleware(Optional);
+                r.method(http::Method::GET)
+                    .with(Self::get_packages_for_origin_package_version);
             })
             .resource(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
@@ -546,6 +795,21 @@ impl Packages {
             .resource("/depot/pkgs/{origin}/{pkg}/{version}/{release}", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::POST).with(Self::upload_package);
+            })
+            .resource("/pkgs/schedule/{origin}/{pkg}", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::POST).with(Self::schedule_job_group);
+            })
+            .resource("/pkgs/schedule/{groupid}", |r| {
+                r.method(http::Method::GET).with(Self::get_schedule);
+            })
+            .resource("/pkgs/schedule/{origin}/status", |r| {
+                r.method(http::Method::GET)
+                    .with(Self::get_origin_schedule_status);
+            })
+            .resource("/pkgs/{origin}/{pkg}/{version}/{release}/channels", |r| {
+                r.middleware(Optional);
+                r.get().f(Self::get_package_channels);
             })
     }
 }
@@ -716,16 +980,6 @@ fn process_upload_for_package_archive(
     Ok(())
 }
 
-/* 
-
-fn do_cache_response(response: &mut Response) {
-    response.headers.set(CacheControl(format!(
-        "public, max-age={}",
-        ONE_YEAR_IN_SECS
-    )));
-}
-*/
-
 // TODO: PACKAGES HANLDERS "/depot/pkgs/..."
 
 /*
@@ -735,19 +989,9 @@ fn do_cache_response(response: &mut Response) {
         "package_search",
     );
     r.get(
-        "/pkgs/:origin",
-        XHandler::new(list_packages).before(opt.clone()),
-        "packages",
-    );
-    r.get(
         "/:origin/pkgs",
         XHandler::new(list_unique_packages).before(opt.clone()),
         "packages_unique",
-    );
-    r.get(
-        "/pkgs/:origin/:pkg",
-        XHandler::new(list_packages).before(opt.clone()),
-        "packages_pkg",
     );
     r.get(
         "/pkgs/:origin/:pkg/versions",
@@ -760,11 +1004,6 @@ fn do_cache_response(response: &mut Response) {
         "package_pkg_latest",
     );
     r.get(
-        "/pkgs/:origin/:pkg/:version",
-        XHandler::new(list_packages).before(opt.clone()),
-        "packages_version",
-    );
-    r.get(
         "/pkgs/:origin/:pkg/:version/latest",
         XHandler::new(show_package).before(opt.clone()),
         "package_version_latest",
@@ -774,233 +1013,16 @@ fn do_cache_response(response: &mut Response) {
         XHandler::new(show_package).before(opt.clone()),
         "package",
     );
-    r.get(
-        "/pkgs/:origin/:pkg/:version/:release/channels",
-        XHandler::new(package_channels).before(opt.clone()),
-        "package_channels",
-    );
-    r.get(
-        "/pkgs/:origin/:pkg/:version/:release/download",
-        XHandler::new(download_package).before(opt.clone()),
-        "package_download",
-    );
+
     r.patch(
         "/pkgs/:origin/:pkg/:version/:release/:visibility",
         XHandler::new(package_privacy_toggle).before(basic.clone()),
         "package_privacy_toggle",
     );
 
-    if feat::is_enabled(feat::Jobsrv) {
-        r.get(
-            "/pkgs/origins/:origin/stats",
-            package_stats,
-            "package_stats",
-        );
-        r.post(
-            "/pkgs/schedule/:origin/:pkg",
-            XHandler::new(schedule).before(basic.clone()),
-            "schedule",
-        );
-        r.get("/pkgs/schedule/:groupid", get_schedule, "schedule_get");
-        r.get(
-            "/pkgs/schedule/:origin/status",
-            get_origin_schedule_status,
-            "schedule_get_global",
-        );
-
-    }    
 */
 
 /*
-
-// This route is unreachable when jobsrv_enabled is false
-fn schedule(req: &HttpRequest<AppState>) -> HttpResponse {
-    let (session_id, session_name) = get_session_id_and_name(req);
-
-    let segment = req.get::<persistent::Read<SegmentCli>>().unwrap();
-    let origin_name = match get_param(req, "origin") {
-        Some(origin) => origin,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    if !check_origin_access(req, &origin_name).unwrap_or(false) {
-        debug!("Failed origin access check, origin: {}", &origin_name);
-        return Ok(Response::with(status::Forbidden));
-    }
-
-    let package = match get_param(req, "pkg") {
-        Some(pkg) => pkg,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-    let target = match helpers::extract_query_value("target", req) {
-        Some(target) => target,
-        None => String::from("x86_64-linux"),
-    };
-    let deps_only = helpers::extract_query_value("deps_only", req).is_some();
-    let origin_only = helpers::extract_query_value("origin_only", req).is_some();
-    let package_only = helpers::extract_query_value("package_only", req).is_some();
-
-    // We only support building for Linux x64 only currently
-    if target != "x86_64-linux" {
-        info!("Rejecting build with target: {}", target);
-        return Ok(Response::with(status::BadRequest));
-    }
-
-    let mut secret_key_request = OriginPrivateSigningKeyGet::new();
-    let origin = match helpers::get_origin(req, &origin_name) {
-        Ok(origin) => {
-            secret_key_request.set_owner_id(origin.get_owner_id());
-            secret_key_request.set_origin(origin_name.clone());
-            origin
-        }
-        Err(err) => return Ok(render_net_error(&err)),
-    };
-    let account_name = session_name.clone();
-    let need_keys = match route_message::<OriginPrivateSigningKeyGet, OriginPrivateSigningKey>(
-        req,
-        &secret_key_request,
-    ) {
-        Ok(key) => {
-            let mut pub_key_request = OriginPublicSigningKeyGet::new();
-            pub_key_request.set_origin(origin_name.clone());
-            pub_key_request.set_revision(key.get_revision().to_string());
-            route_message::<OriginPublicSigningKeyGet, OriginPublicSigningKey>(
-                req,
-                &pub_key_request,
-            ).is_err()
-        }
-        Err(_) => true,
-    };
-
-    if need_keys {
-        if let Err(err) = helpers::generate_origin_keys(req, session_id, origin) {
-            return Ok(render_net_error(&err));
-        }
-    }
-
-    let mut request = JobGroupSpec::new();
-    request.set_origin(origin_name);
-    request.set_package(package);
-    request.set_target(target);
-    request.set_deps_only(deps_only);
-    request.set_origin_only(origin_only);
-    request.set_package_only(package_only);
-    request.set_trigger(trigger_from_request(req));
-    request.set_requester_id(session_id);
-    request.set_requester_name(session_name);
-
-    match route_message::<JobGroupSpec, JobGroup>(req, &request) {
-        Ok(group) => {
-            let msg = format!("Scheduled job group for {}", group.get_project_name());
-
-            // We don't really want to abort anything just because a call to segment failed. Let's
-            // just log it and move on.
-            if let Err(e) = segment.track(&account_name, &msg) {
-                warn!("Error tracking scheduling of job group in segment, {}", e);
-            }
-
-            let mut response = render_json(status::Ok, &group);
-            dont_cache_response(&mut response);
-            Ok(response)
-        }
-        Err(err) => Ok(render_net_error(&err)),
-    }
-}
-
-// This route is unreachable when jobsrv_enabled is false
-fn get_origin_schedule_status(req: &HttpRequest<AppState>) -> HttpResponse {
-    let mut request = JobGroupOriginGet::new();
-
-    match get_param(req, "origin") {
-        Some(origin) => request.set_origin(origin),
-        None => return Ok(Response::with(status::BadRequest)),
-    }
-
-    let limit = match helpers::extract_query_value("limit", req) {
-        Some(limit) => limit.parse::<u32>().unwrap_or(10),
-        None => 10,
-    };
-    request.set_limit(limit);
-
-    match route_message::<JobGroupOriginGet, JobGroupOriginResponse>(req, &request) {
-        Ok(jgor) => {
-            let mut response = render_json(status::Ok, &jgor.get_job_groups());
-            dont_cache_response(&mut response);
-            Ok(response)
-        }
-        Err(e) => Ok(render_net_error(&e)),
-    }
-}
-
-
-// This route is unreachable when jobsrv_enabled is false
-fn get_schedule(req: &HttpRequest<AppState>) -> HttpResponse {
-    let group_id = {
-        let group_id_str = match get_param(req, "groupid") {
-            Some(s) => s,
-            None => return Ok(Response::with(status::BadRequest)),
-        };
-
-        match group_id_str.parse::<u64>() {
-            Ok(id) => id,
-            Err(_) => return Ok(Response::with(status::BadRequest)),
-        }
-    };
-
-    let include_projects = match helpers::extract_query_value("include_projects", req) {
-        Some(val) => val.parse::<bool>().unwrap_or(true),
-        None => true,
-    };
-
-    let mut request = JobGroupGet::new();
-    request.set_group_id(group_id);
-    request.set_include_projects(include_projects);
-
-    match route_message::<JobGroupGet, JobGroup>(req, &request) {
-        Ok(group) => {
-            let mut response = render_json(status::Ok, &group);
-            dont_cache_response(&mut response);
-            Ok(response)
-        }
-        Err(err) => Ok(render_net_error(&err)),
-    }
-}
-
-
-fn package_channels(req: &HttpRequest<AppState>) -> HttpResponse {
-    let session_id = helpers::get_optional_session_id(req);
-    let mut request = OriginPackageChannelListRequest::new();
-    let ident = ident_from_req(req);
-
-    if !ident.fully_qualified() {
-        return Ok(Response::with(status::BadRequest));
-    }
-
-    request.set_visibilities(visibility_for_optional_session(
-        req,
-        session_id,
-        &ident.get_origin(),
-    ));
-    request.set_ident(ident);
-
-    match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
-        req, &request,
-    ) {
-        Ok(channels) => {
-            let list: Vec<String> = channels
-                .get_channels()
-                .iter()
-                .map(|channel| channel.get_name().to_string())
-                .collect();
-            let body = serde_json::to_string(&list).unwrap();
-            let mut response = Response::with((status::Ok, body));
-            dont_cache_response(&mut response);
-            Ok(response)
-        }
-        Err(e) => Ok(render_net_error(&e)),
-    }
-}
-
 
 
 // This function is called from a background thread, so we can't pass the Request object into it.
