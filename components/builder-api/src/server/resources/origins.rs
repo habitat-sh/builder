@@ -1007,60 +1007,6 @@ fn list_unique_packages(req: &HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
-fn package_privacy_toggle(req: &HttpRequest<AppState>) -> HttpResponse {
-    let origin = match get_param(req, "origin") {
-        Some(o) => o,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-    let visibility = match get_param(req, "visibility") {
-        Some(v) => v,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    // users aren't allowed to set packages to hidden manually
-    if visibility.to_lowercase() == "hidden" {
-        return Ok(Response::with(status::BadRequest));
-    }
-
-    let ident = ident_from_req(req);
-
-    if !ident.valid() || !ident.fully_qualified() {
-        info!(
-            "Invalid or not fully qualified package identifier: {}",
-            ident
-        );
-        return Ok(Response::with(status::BadRequest));
-    }
-
-    let opv: OriginPackageVisibility = match visibility.parse() {
-        Ok(o) => o,
-        Err(_) => return Ok(Response::with(status::BadRequest)),
-    };
-
-    if !check_origin_access(req, &origin).unwrap_or(false) {
-        return Ok(Response::with(status::Forbidden));
-    }
-
-    let mut opg = OriginPackageGet::new();
-    opg.set_ident(ident);
-    opg.set_visibilities(all_visibilities());
-
-    match route_message::<OriginPackageGet, OriginPackage>(req, &opg) {
-        Ok(mut package) => {
-            let real_visibility = transition_visibility(opv, package.get_visibility());
-            let mut opu = OriginPackageUpdate::new();
-            package.set_visibility(real_visibility);
-            opu.set_pkg(package);
-
-            match route_message::<OriginPackageUpdate, NetOk>(req, &opu) {
-                Ok(_) => Ok(Response::with(status::Ok)),
-                Err(e) => Ok(render_net_error(&e)),
-            }
-        }
-        Err(e) => Ok(render_net_error(&e)),
-    }
-}
-
 fn list_packages(req: &HttpRequest<AppState>) -> HttpResponse {
     let session_id = helpers::get_optional_session_id(req);
     let mut distinct = false;

@@ -30,6 +30,7 @@ use tempfile::tempdir_in;
 use url;
 use uuid::Uuid;
 
+use bldr_core::helpers::transition_visibility;
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError, NetOk, NetResult};
@@ -1001,6 +1002,57 @@ impl Packages {
         }
     }
 
+    fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
+        let (origin, name, version, release, visibility) =
+            Path::<(String, String, String, String, String)>::extract(&req)
+                .unwrap()
+                .into_inner(); // Unwrap Ok
+
+        if helpers::check_origin_access(&req, &origin).is_err() {
+            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+        }
+
+        // users aren't allowed to set packages to hidden manually
+        if visibility.to_lowercase() == "hidden" {
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        let mut ident = OriginPackageIdent::new();
+        ident.set_origin(origin);
+        ident.set_name(name);
+        ident.set_version(version);
+        ident.set_release(release);
+
+        if !ident.valid() {
+            info!("Invalid package identifier: {}", ident);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        let opv: OriginPackageVisibility = match visibility.parse() {
+            Ok(o) => o,
+            Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        };
+
+        let mut opg = OriginPackageGet::new();
+        opg.set_ident(ident);
+        opg.set_visibilities(helpers::all_visibilities());
+
+        match route_message::<OriginPackageGet, OriginPackage>(&req, &opg) {
+            Ok(mut package) => {
+                let real_visibility = transition_visibility(opv, package.get_visibility());
+                let mut opu = OriginPackageUpdate::new();
+                package.set_visibility(real_visibility);
+                opu.set_pkg(package);
+
+                match route_message::<OriginPackageUpdate, NetOk>(&req, &opu) {
+                    Ok(_) => HttpResponse::Ok().finish(),
+                    Err(e) => e.into(),
+                }
+            }
+            Err(e) => e.into(),
+        }
+    }
+
     //
     // Route registration
     //
@@ -1043,6 +1095,14 @@ impl Packages {
                     r.method(http::Method::GET).with(Self::download_package);
                 },
             )
+            .resource(
+                "/depot/pkgs/{origin}/{pkg}/{version}/{release}/{visibility}",
+                |r| {
+                    r.middleware(Authenticated);
+                    r.method(http::Method::PATCH)
+                        .with(Self::package_privacy_toggle);
+                },
+            )
             .resource("/depot/pkgs/{origin}/{pkg}/{version}/{release}", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::POST).with(Self::upload_package);
@@ -1075,11 +1135,7 @@ impl Packages {
 
 // TODO: PACKAGES HANLDERS "/depot/pkgs/..."
 /*
-    r.patch(
-        "/depot/pkgs/:origin/:pkg/:version/:release/:visibility",
-        XHandler::new(package_privacy_toggle).before(basic.clone()),
-        "package_privacy_toggle",
-    );
+
 */
 
 fn packages_path(data_path: &PathBuf) -> PathBuf {
