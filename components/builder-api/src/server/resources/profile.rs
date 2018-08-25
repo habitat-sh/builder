@@ -114,8 +114,6 @@ impl Profile {
     }
 
     fn update_profile((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> HttpResponse {
-        debug!("update_profile called, body = {:?}", &body);
-
         let account_id = helpers::get_session_id(&req);
         let mut request = AccountUpdate::new();
         request.set_id(account_id);

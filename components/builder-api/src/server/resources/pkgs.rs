@@ -1133,11 +1133,6 @@ impl Packages {
     }
 }
 
-// TODO: PACKAGES HANLDERS "/depot/pkgs/..."
-/*
-
-*/
-
 fn packages_path(data_path: &PathBuf) -> PathBuf {
     path::Path::new(data_path).join("pkgs")
 }
@@ -1313,3 +1308,10 @@ fn is_a_service(package: &OriginPackage) -> bool {
     // to crack the archive file to look for a SVC_USER file
     m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
 }
+
+/*
+fn notify_upstream(req: &HttpRequest<AppState>, ident: &OriginPackageIdent, target: &PackageTarget) {
+    let upstream_cli = req.get::<persistent::Read<UpstreamCli>>().unwrap();
+    upstream_cli.refresh(ident, target).unwrap();
+}
+*/
