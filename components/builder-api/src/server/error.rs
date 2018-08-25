@@ -18,6 +18,7 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::result;
+use std::string;
 
 use bldr_core;
 use github_api_client::HubError;
@@ -57,7 +58,7 @@ pub enum Error {
     ChannelAlreadyExists(String),
     ChannelDoesNotExist(String),
     CreateBucketError(rusoto_s3::CreateBucketError),
-    DepotClientError(bldr_core::Error),
+    BuilderCore(bldr_core::Error),
     HabitatNet(hab_net::error::LibError),
     HeadObject(rusoto_s3::HeadObjectError),
     InvalidPackageIdent(String),
@@ -78,6 +79,7 @@ pub enum Error {
     RemotePackageNotFound(package::PackageIdent),
     SerdeJson(serde_json::Error),
     UnsupportedPlatform(String),
+    Utf8(string::FromUtf8Error),
     WriteSyncFailed,
 }
 
@@ -108,7 +110,7 @@ impl fmt::Display for Error {
             Error::ChannelAlreadyExists(ref e) => format!("{} already exists.", e),
             Error::ChannelDoesNotExist(ref e) => format!("{} does not exist.", e),
             Error::CreateBucketError(ref e) => format!("{}", e),
-            Error::DepotClientError(ref e) => format!("{}", e),
+            Error::BuilderCore(ref e) => format!("{}", e),
             Error::HabitatNet(ref e) => format!("{}", e),
             Error::HeadObject(ref e) => format!("{}", e),
             Error::InvalidPackageIdent(ref e) => format!(
@@ -147,6 +149,7 @@ impl fmt::Display for Error {
             Error::UnsupportedPlatform(ref e) => {
                 format!("Unsupported platform or architecture: {}", e)
             }
+            Error::Utf8(ref e) => format!("{}", e),
             Error::WriteSyncFailed => {
                 format!("Could not write to destination; perhaps the disk is full?")
             }
@@ -178,7 +181,7 @@ impl error::Error for Error {
             Error::ChannelAlreadyExists(_) => "Channel already exists.",
             Error::ChannelDoesNotExist(_) => "Channel does not exist.",
             Error::CreateBucketError(ref err) => err.description(),
-            Error::DepotClientError(ref err) => err.description(),
+            Error::BuilderCore(ref err) => err.description(),
             Error::HabitatNet(ref err) => err.description(),
             Error::HeadObject(ref err) => err.description(),
             Error::InvalidPackageIdent(_) => {
@@ -204,6 +207,7 @@ impl error::Error for Error {
             Error::MessageTypeNotFound => "Unable to find message for given type",
             Error::SerdeJson(ref err) => err.description(),
             Error::UnsupportedPlatform(_) => "Unsupported platform or architecture",
+            Error::Utf8(ref err) => err.description(),
             Error::WriteSyncFailed => {
                 "Could not write to destination; bytes written was 0 on a non-0 buffer"
             }
@@ -289,6 +293,12 @@ impl From<hab_core::Error> for Error {
     }
 }
 
+impl From<bldr_core::Error> for Error {
+    fn from(err: bldr_core::Error) -> Error {
+        Error::BuilderCore(err)
+    }
+}
+
 impl From<HubError> for Error {
     fn from(err: HubError) -> Error {
         Error::Github(err)
@@ -340,6 +350,12 @@ impl From<protocol::ProtocolError> for Error {
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Error {
         Error::SerdeJson(err)
+    }
+}
+
+impl From<string::FromUtf8Error> for Error {
+    fn from(err: string::FromUtf8Error) -> Error {
+        Error::Utf8(err)
     }
 }
 

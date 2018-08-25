@@ -15,7 +15,8 @@
 // TODO: Origins is still huge ... should it break down further into
 // sub-resources?
 
-use std::str::{from_utf8, FromStr};
+use std::collections::HashMap;
+use std::str::from_utf8;
 
 use actix_web::http::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use actix_web::http::{self, StatusCode};
@@ -26,10 +27,11 @@ use bytes::Bytes;
 use futures::future::Future;
 use serde_json;
 
+use bldr_core;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
 use hab_core::package::ident;
-use hab_net::{ErrCode, NetError, NetOk, NetResult};
+use hab_net::{ErrCode, NetOk};
 
 use protocol::originsrv::*;
 use protocol::sessionsrv::*;
@@ -37,7 +39,7 @@ use protocol::sessionsrv::*;
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::{route_message, Authenticated, Optional};
-use server::helpers::{self, Pagination, Target};
+use server::helpers::{self, Pagination};
 use server::AppState;
 
 // Query param containers
@@ -789,7 +791,8 @@ impl Origins {
             Err(err) => err.into(),
         }
     }
-    pub fn origin_member_delete(req: &HttpRequest<AppState>) -> HttpResponse {
+
+    fn origin_member_delete(req: &HttpRequest<AppState>) -> HttpResponse {
         let (origin, user) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
         let (account_id, account_name) = helpers::get_session_id_and_name(req);
 
@@ -826,6 +829,153 @@ impl Origins {
 
         match route_message::<OriginMemberRemove, NetOk>(req, &origin_request) {
             Ok(_) => HttpResponse::NoContent().finish(),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn fetch_origin_integrations(req: &HttpRequest<AppState>) -> HttpResponse {
+        let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+
+        if helpers::check_origin_access(&req, &origin).is_err() {
+            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+        }
+
+        let mut request = OriginIntegrationRequest::new();
+        request.set_origin(origin);
+        match route_message::<OriginIntegrationRequest, OriginIntegrationResponse>(req, &request) {
+            Ok(oir) => {
+                let integrations_response: HashMap<String, Vec<String>> = oir
+                    .get_integrations()
+                    .iter()
+                    .fold(HashMap::new(), |mut acc, ref i| {
+                        acc.entry(i.get_integration().to_owned())
+                            .or_insert(Vec::new())
+                            .push(i.get_name().to_owned());
+                        acc
+                    });
+                HttpResponse::Ok()
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .json(integrations_response)
+            }
+            Err(err) => err.into(),
+        }
+    }
+
+    fn fetch_origin_integration_names(req: &HttpRequest<AppState>) -> HttpResponse {
+        let (origin, integration) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
+
+        if helpers::check_origin_access(&req, &origin).is_err() {
+            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+        }
+
+        let mut request = OriginIntegrationGetNames::new();
+        request.set_origin(origin);
+        request.set_integration(integration);
+        match route_message::<OriginIntegrationGetNames, OriginIntegrationNames>(req, &request) {
+            Ok(integration) => HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(integration),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn create_origin_integration_async(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+        req.body()
+            .from_err()
+            .and_then(move |bytes: Bytes| Ok(Self::create_origin_integration(&req, &bytes)))
+            .responder()
+    }
+
+    fn create_origin_integration(req: &HttpRequest<AppState>, body: &Bytes) -> HttpResponse {
+        let (origin, integration, name) = Path::<(String, String, String)>::extract(req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        if helpers::check_origin_access(&req, &origin).is_err() {
+            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+        }
+
+        let mut oi = OriginIntegration::new();
+        oi.set_origin(origin);
+        oi.set_integration(integration);
+        oi.set_name(name);
+
+        match encrypt(req, &body) {
+            Ok(encrypted) => oi.set_body(encrypted),
+            Err(err) => return err.into(),
+        }
+
+        let mut request = OriginIntegrationCreate::new();
+        request.set_integration(oi);
+
+        match route_message::<OriginIntegrationCreate, NetOk>(req, &request) {
+            Ok(_) => HttpResponse::NoContent().finish(),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn delete_origin_integration(req: &HttpRequest<AppState>) -> HttpResponse {
+        let (origin, integration, name) = Path::<(String, String, String)>::extract(req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        if helpers::check_origin_access(&req, &origin).is_err() {
+            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+        }
+
+        let mut oi = OriginIntegration::new();
+        oi.set_origin(origin);
+        oi.set_integration(integration);
+        oi.set_name(name);
+
+        let mut request = OriginIntegrationDelete::new();
+        request.set_integration(oi);
+
+        match route_message::<OriginIntegrationDelete, NetOk>(req, &request) {
+            Ok(_) => HttpResponse::NoContent().finish(),
+            Err(err) => err.into(),
+        }
+    }
+
+    fn get_origin_integration(req: &HttpRequest<AppState>) -> HttpResponse {
+        let (origin, integration, name) = Path::<(String, String, String)>::extract(req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
+
+        if helpers::check_origin_access(&req, &origin).is_err() {
+            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+        }
+
+        let mut oi = OriginIntegration::new();
+        oi.set_origin(origin);
+        oi.set_integration(integration);
+        oi.set_name(name);
+
+        let mut request = OriginIntegrationGet::new();
+        request.set_integration(oi);
+
+        match route_message::<OriginIntegrationGet, OriginIntegration>(req, &request) {
+            Ok(integration) => match decrypt(req, integration.get_body()) {
+                Ok(decrypted) => {
+                    let val = serde_json::from_str(&decrypted).unwrap();
+                    let mut map: serde_json::Map<String, serde_json::Value> =
+                        serde_json::from_value(val).unwrap();
+
+                    map.remove("password");
+
+                    let sanitized = json!({
+                        "origin": integration.get_origin().to_string(),
+                        "integration": integration.get_integration().to_string(),
+                        "name": integration.get_name().to_string(),
+                        "body": serde_json::to_value(map).unwrap()
+                    });
+
+                    HttpResponse::Ok()
+                        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                        .json(sanitized)
+                }
+                Err(err) => err.into(),
+            },
             Err(err) => err.into(),
         }
     }
@@ -910,6 +1060,11 @@ impl Origins {
                 r.method(http::Method::GET)
                     .f(Self::download_latest_origin_encryption_key);
             })
+            .resource("/depot/origins/{origin}/integrations", |r| {
+                r.middleware(Authenticated);
+                r.method(http::Method::GET)
+                    .f(Self::fetch_origin_integrations);
+            })
             .resource("/depot/origins/{origin}/{secret}", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::DELETE).f(Self::delete_origin_secret);
@@ -924,6 +1079,25 @@ impl Origins {
                 r.method(http::Method::POST)
                     .with(Self::upload_origin_secret_key_async);
             })
+            .resource(
+                "/depot/origins/{origin}/integrations/{integration}/names",
+                |r| {
+                    r.middleware(Authenticated);
+                    r.method(http::Method::GET)
+                        .f(Self::fetch_origin_integration_names);
+                },
+            )
+            .resource(
+                "/depot/origins/{origin}/integrations/{integration}/{name}",
+                |r| {
+                    r.middleware(Authenticated);
+                    r.method(http::Method::GET).f(Self::get_origin_integration);
+                    r.method(http::Method::DELETE)
+                        .f(Self::delete_origin_integration);
+                    r.method(http::Method::POST)
+                        .with(Self::create_origin_integration_async);
+                },
+            )
     }
 }
 
@@ -996,33 +1170,12 @@ fn generate_origin_encryption_keys(
     Ok(key)
 }
 
-// TODO: ORIGIN HANDLERS: "/depot/origins/..."
-
-/*
-    r.get(
-        "/origins/:origin/integrations/:integration/names",
-        XHandler::new(handlers::integrations::fetch_origin_integration_names).before(basic.clone()),
-        "origin_integration_get_names",
-    );
-    r.put(
-        "/origins/:origin/integrations/:integration/:name",
-        XHandler::new(handlers::integrations::create_origin_integration).before(basic.clone()),
-        "origin_integration_put",
-    );
-    r.delete(
-        "/origins/:origin/integrations/:integration/:name",
-        XHandler::new(handlers::integrations::delete_origin_integration).before(basic.clone()),
-        "origin_integration_delete",
-    );
-    r.get(
-        "/origins/:origin/integrations/:integration/:name",
-        XHandler::new(handlers::integrations::get_origin_integration).before(basic.clone()),
-        "origin_integration_get",
-    );
-    r.get(
-        "/origins/:origin/integrations",
-        XHandler::new(handlers::integrations::fetch_origin_integrations).before(basic.clone()),
-        "origin_integrations",
-    );
+fn encrypt(req: &HttpRequest<AppState>, content: &Bytes) -> Result<String> {
+    bldr_core::integrations::encrypt(&req.state().config.api.key_path, content)
+        .map_err(Error::BuilderCore)
 }
-*/
+
+fn decrypt(req: &HttpRequest<AppState>, content: &str) -> Result<String> {
+    let bytes = bldr_core::integrations::decrypt(&req.state().config.api.key_path, content)?;
+    Ok(String::from_utf8(bytes)?)
+}

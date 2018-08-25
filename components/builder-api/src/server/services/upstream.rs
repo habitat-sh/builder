@@ -291,7 +291,7 @@ impl UpstreamMgr {
                         "Failed to get package metadata for {} from {}, err {:?}",
                         ident, self.config.upstream.endpoint, err
                     );
-                    Err(Error::DepotClientError(err))
+                    Err(Error::BuilderCore(err))
                 }
             },
             _ => Ok(None),
@@ -420,7 +420,7 @@ pub fn download_package_from_upstream_depot(
         }
         Err(e) => {
             warn!("Failed to download {}. e = {:?}", ident, e);
-            Err(Error::DepotClientError(e))
+            Err(Error::BuilderCore(e))
         }
     }
 }
