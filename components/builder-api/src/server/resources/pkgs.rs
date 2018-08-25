@@ -13,19 +13,20 @@
 // limitations under the License.
 
 use std::fs::{self, remove_file, File};
-use std::io::{BufWriter, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{self, PathBuf};
 use std::str::FromStr;
 
 use actix_web::http::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{App, AsyncResponder, HttpMessage, HttpRequest, HttpResponse, Path, Query};
+use actix_web::{error, App, AsyncResponder, HttpMessage, HttpRequest, HttpResponse, Path, Query};
 use bytes::Bytes;
+use futures::sync::mpsc;
 use futures::{future::ok as fut_ok, Future, Stream};
 use protobuf;
 use serde_json;
-use tempfile::{tempdir_in, TempDir};
+use tempfile::tempdir_in;
 use uuid::Uuid;
 
 use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
@@ -658,6 +659,7 @@ impl Packages {
             Ok(package) => {
                 let dir = tempdir_in(packages_path(&req.state().config.api.data_path))
                     .expect("Unable to create a tempdir!");
+                //let dir = packages_path(&req.state().config.api.data_path);
                 let file_path = dir.path().join(archive_name(&(&package).into(), &target));
                 let temp_ident = ident.to_owned().into();
                 match req
@@ -665,7 +667,7 @@ impl Packages {
                     .packages
                     .download(&file_path, &temp_ident, &target)
                 {
-                    Ok(archive) => download_response_for_archive(archive, dir),
+                    Ok(archive) => download_response_for_archive(archive, file_path),
                     Err(e) => {
                         warn!("Failed to download package, err={:?}", e);
                         return HttpResponse::new(StatusCode::NOT_FOUND);
@@ -997,16 +999,20 @@ fn archive_name(ident: &PackageIdent, target: &PackageTarget) -> PathBuf {
     )))
 }
 
-fn download_response_for_archive(archive: PackageArchive, tempdir: TempDir) -> HttpResponse {
-    let body = format!("{}", archive.path.to_string_lossy());
+fn download_response_for_archive(archive: PackageArchive, file_path: PathBuf) -> HttpResponse {
     let filename = archive.file_name().as_bytes().to_vec();
+    let file = match File::open(&file_path) {
+        Ok(f) => f,
+        Err(err) => {
+            warn!("Unable to open file: {:?}", file_path);
+            return Error::IO(err).into();
+        }
+    };
+    let reader = BufReader::new(file);
+    let bytes: Vec<u8> = reader.bytes().map(|r| r.unwrap()).collect();
 
-    // Yo. This is some serious iron black magic. This is how we can get
-    // appropriate timing of the .drop of the tempdir to fire AFTER the
-    // response is finished being written
-
-    // TODO
-    // response.extensions.insert::<TempDownloadPath>(tempdir);
+    let (tx, rx_body) = mpsc::unbounded();
+    let _ = tx.unbounded_send(Bytes::from(bytes));
 
     HttpResponse::Ok()
         .header(
@@ -1025,7 +1031,7 @@ fn download_response_for_archive(archive: PackageArchive, tempdir: TempDir) -> H
             archive.file_name(),
         )
         .header(http::header::CACHE_CONTROL, headers::cache(true))
-        .body(body)
+        .streaming(rx_body.map_err(|e| error::ErrorBadRequest("bad request")))
 }
 
 fn write_archive_async(mut writer: BufWriter<File>, chunk: Bytes) -> Result<BufWriter<File>> {
