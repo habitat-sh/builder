@@ -399,7 +399,7 @@ struct OriginSecretPayload {
 
 const ONE_YEAR_IN_SECS: usize = 31536000;
 
-pub fn origin_update(req: &mut Request) -> IronResult<Response> {
+pub fn origin_update(req: &HttpRequest<AppState>) -> HttpResponse {
     let mut request = OriginUpdate::new();
     match get_param(req, "name") {
         Some(origin) => request.set_name(origin),
@@ -433,7 +433,7 @@ pub fn origin_update(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn rescind_invitation(req: &mut Request) -> IronResult<Response> {
+pub fn rescind_invitation(req: &HttpRequest<AppState>) -> HttpResponse {
     let mut request = OriginInvitationRescindRequest::new();
     {
         let session = req.extensions.get::<Authenticated>().unwrap();
@@ -465,7 +465,7 @@ pub fn rescind_invitation(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn ignore_invitation(req: &mut Request) -> IronResult<Response> {
+pub fn ignore_invitation(req: &HttpRequest<AppState>) -> HttpResponse {
     let mut request = OriginInvitationIgnoreRequest::new();
     {
         let session = req.extensions.get::<Authenticated>().unwrap();
@@ -497,7 +497,7 @@ pub fn ignore_invitation(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn accept_invitation(req: &mut Request) -> IronResult<Response> {
+pub fn accept_invitation(req: &HttpRequest<AppState>) -> HttpResponse {
     let mut request = OriginInvitationAcceptRequest::new();
     request.set_ignore(false);
     {
@@ -529,7 +529,7 @@ pub fn accept_invitation(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn invite_to_origin(req: &mut Request) -> IronResult<Response> {
+pub fn invite_to_origin(req: &HttpRequest<AppState>) -> HttpResponse {
     let account_id = {
         let session = req.extensions.get::<Authenticated>().unwrap();
         session.get_id()
@@ -589,7 +589,7 @@ pub fn invite_to_origin(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn list_origin_invitations(req: &mut Request) -> IronResult<Response> {
+pub fn list_origin_invitations(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin_name = match get_param(req, "origin") {
         Some(origin) => origin,
         None => return Ok(Response::with(status::BadRequest)),
@@ -616,7 +616,7 @@ pub fn list_origin_invitations(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn list_origin_members(req: &mut Request) -> IronResult<Response> {
+pub fn list_origin_members(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin_name = match get_param(req, "origin") {
         Some(origin) => origin,
         None => return Ok(Response::with(status::BadRequest)),
@@ -641,7 +641,7 @@ pub fn list_origin_members(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn origin_member_delete(req: &mut Request) -> IronResult<Response> {
+pub fn origin_member_delete(req: &HttpRequest<AppState>) -> HttpResponse {
     let session = req.extensions.get::<Authenticated>().unwrap().clone();
     let origin = match get_param(req, "origin") {
         Some(origin) => origin,
@@ -692,7 +692,7 @@ pub fn origin_member_delete(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn download_latest_origin_encryption_key(req: &mut Request) -> IronResult<Response> {
+fn download_latest_origin_encryption_key(req: &HttpRequest<AppState>) -> HttpResponse {
     let params = match validate_params(req, &["origin"]) {
         Ok(p) => p,
         Err(st) => return Ok(Response::with(st)),
@@ -731,7 +731,7 @@ fn download_latest_origin_encryption_key(req: &mut Request) -> IronResult<Respon
 
 fn generate_origin_encryption_keys(
     origin: &Origin,
-    req: &mut Request,
+    req: &HttpRequest<AppState>,
 ) -> Result<OriginPublicEncryptionKey> {
     debug!("Generate Origin Encryption Keys {:?} for {:?}", req, origin);
 
@@ -778,7 +778,7 @@ fn generate_origin_encryption_keys(
     Ok(key)
 }
 
-fn download_latest_origin_secret_key(req: &mut Request) -> IronResult<Response> {
+fn download_latest_origin_secret_key(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin = match get_param(req, "origin") {
         Some(origin) => origin,
         None => return Ok(Response::with(status::BadRequest)),
@@ -806,7 +806,7 @@ fn download_latest_origin_secret_key(req: &mut Request) -> IronResult<Response> 
     download_content_as_file(key.get_body(), xfilename)
 }
 
-fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
+fn upload_origin_secret_key(req: &HttpRequest<AppState>) -> HttpResponse {
     debug!("Upload Origin Secret Key {:?}", req);
 
     let account_id = {
@@ -875,7 +875,7 @@ fn upload_origin_secret_key(req: &mut Request) -> IronResult<Response> {
 }
 
 // This function should not require authentication (session/auth token)
-fn download_origin_key(req: &mut Request) -> IronResult<Response> {
+fn download_origin_key(req: &HttpRequest<AppState>) -> HttpResponse {
     let mut request = OriginPublicSigningKeyGet::new();
     match get_param(req, "origin") {
         Some(origin) => request.set_origin(origin),
@@ -895,7 +895,7 @@ fn download_origin_key(req: &mut Request) -> IronResult<Response> {
 }
 
 // This function should not require authentication (session/auth token)
-fn download_latest_origin_key(req: &mut Request) -> IronResult<Response> {
+fn download_latest_origin_key(req: &HttpRequest<AppState>) -> HttpResponse {
     let mut request = OriginPublicSigningKeyLatestGet::new();
     match get_param(req, "origin") {
         Some(origin) => request.set_origin(origin),
@@ -913,7 +913,7 @@ fn download_latest_origin_key(req: &mut Request) -> IronResult<Response> {
 }
 
 
-fn list_origin_keys(req: &mut Request) -> IronResult<Response> {
+fn list_origin_keys(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin_name = match get_param(req, "origin") {
         Some(origin) => origin,
         None => return Ok(Response::with(status::BadRequest)),
@@ -952,7 +952,7 @@ fn list_origin_keys(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn list_unique_packages(req: &mut Request) -> IronResult<Response> {
+fn list_unique_packages(req: &HttpRequest<AppState>) -> HttpResponse {
     let session_id = helpers::get_optional_session_id(req);
     let mut request = OriginPackageUniqueListRequest::new();
     let (start, stop) = match helpers::extract_pagination(req) {
@@ -1007,7 +1007,7 @@ fn list_unique_packages(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn package_privacy_toggle(req: &mut Request) -> IronResult<Response> {
+fn package_privacy_toggle(req: &HttpRequest<AppState>) -> HttpResponse {
     let origin = match get_param(req, "origin") {
         Some(o) => o,
         None => return Ok(Response::with(status::BadRequest)),
@@ -1061,7 +1061,7 @@ fn package_privacy_toggle(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn list_packages(req: &mut Request) -> IronResult<Response> {
+fn list_packages(req: &HttpRequest<AppState>) -> HttpResponse {
     let session_id = helpers::get_optional_session_id(req);
     let mut distinct = false;
     let (start, stop) = match helpers::extract_pagination(req) {
@@ -1192,7 +1192,7 @@ fn list_packages(req: &mut Request) -> IronResult<Response> {
 }
 
 
-fn show_package(req: &mut Request) -> IronResult<Response> {
+fn show_package(req: &HttpRequest<AppState>) -> HttpResponse {
     let session_id = helpers::get_optional_session_id(req);
     let channel = get_param(req, "channel");
 
@@ -1280,114 +1280,11 @@ fn show_package(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn search_packages(req: &mut Request) -> IronResult<Response> {
-    Counter::SearchPackages.increment();
-
-    let session_id = helpers::get_optional_session_id(req);
-    let mut request = OriginPackageSearchRequest::new();
-    let (start, stop) = match helpers::extract_pagination(req) {
-        Ok(range) => range,
-        Err(response) => return Ok(response),
-    };
-    request.set_start(start as u64);
-    request.set_stop(stop as u64);
-
-    if session_id.is_some() {
-        let mut my_origins = MyOriginsRequest::new();
-        my_origins.set_account_id(session_id.unwrap());
-
-        match route_message::<MyOriginsRequest, MyOriginsResponse>(req, &my_origins) {
-            Ok(response) => request.set_my_origins(protobuf::RepeatedField::from_vec(
-                response.get_origins().to_vec(),
-            )),
-            Err(e) => {
-                debug!(
-                    "Error fetching origins for account id {}, {}",
-                    session_id.unwrap(),
-                    e
-                );
-                return Ok(Response::with(status::BadRequest));
-            }
-        }
-    }
-
-    // First, try to parse the query like it's a PackageIdent, since it seems reasonable to expect
-    // that many people will try searching using that kind of string, e.g. core/redis.  If that
-    // works, set the origin appropriately and do a regular search.  If that doesn't work, do a
-    // search across all origins, similar to how the "distinct" search works now, but returning all
-    // the details instead of just names.
-    let query = match get_param(req, "query") {
-        Some(q) => q,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let decoded_query = match url::percent_encoding::percent_decode(query.as_bytes()).decode_utf8()
-    {
-        Ok(q) => q.to_string(),
-        Err(_) => return Ok(Response::with(status::BadRequest)),
-    };
-
-    match PackageIdent::from_str(decoded_query.as_ref()) {
-        Ok(ident) => {
-            request.set_origin(ident.origin().to_string());
-            request.set_query(ident.name().to_string());
-        }
-        Err(_) => {
-            request.set_query(decoded_query);
-        }
-    }
-
-    debug!("search_packages called with: {}", request.get_query());
-
-    // Setting distinct to true makes this query ignore any origin set, because it's going to
-    // search both the origin name and the package name for the query string provided. This is
-    // likely sub-optimal for performance but it makes things work right now and we should probably
-    // switch to some kind of full-text search engine in the future anyway.
-    // Also, to get this behavior, you need to ensure that "distinct" is a URL parameter in your
-    // request, e.g. blah?distinct=true
-    if helpers::extract_query_value("distinct", req).is_some() {
-        request.set_distinct(true);
-    }
-
-    match route_message::<OriginPackageSearchRequest, OriginPackageListResponse>(req, &request) {
-        Ok(packages) => {
-            debug!(
-                "search_packages start: {}, stop: {}, total count: {}",
-                packages.get_start(),
-                packages.get_stop(),
-                packages.get_count()
-            );
-            let body = helpers::package_results_json(
-                &packages.get_idents().to_vec(),
-                packages.get_count() as isize,
-                packages.get_start() as isize,
-                packages.get_stop() as isize,
-            );
-
-            let mut response = if packages.get_count() as isize > (packages.get_stop() as isize + 1)
-            {
-                Response::with((status::PartialContent, body))
-            } else {
-                Response::with((status::Ok, body))
-            };
-
-            response.headers.set(ContentType(Mime(
-                TopLevel::Application,
-                SubLevel::Json,
-                vec![(Attr::Charset, Value::Utf8)],
-            )));
-            dont_cache_response(&mut response);
-            Ok(response)
-        }
-        Err(err) => return Ok(render_net_error(&err)),
-    }
-}
-
 fn render_package(
-    req: &mut Request,
+    req: &HttpRequest<AppState>,
     pkg: &OriginPackage,
     should_cache: bool,
-) -> IronResult<Response> {
+) -> HttpResponse {
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
     let channels = helpers::channels_for_package_ident(req, pkg.get_ident());
     pkg_json["channels"] = json!(channels);
@@ -1414,7 +1311,7 @@ fn render_package(
 
 
 
-pub fn create_origin_secret(req: &mut Request) -> IronResult<Response> {
+pub fn create_origin_secret(req: &HttpRequest<AppState>) -> HttpResponse {
     let params = match validate_params(req, &["origin"]) {
         Ok(p) => p,
         Err(st) => return Ok(Response::with(st)),
@@ -1550,7 +1447,7 @@ pub fn create_origin_secret(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn list_origin_secrets(req: &mut Request) -> IronResult<Response> {
+pub fn list_origin_secrets(req: &HttpRequest<AppState>) -> HttpResponse {
     let params = match validate_params(req, &["origin"]) {
         Ok(p) => p,
         Err(st) => return Ok(Response::with(st)),
@@ -1572,7 +1469,7 @@ pub fn list_origin_secrets(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn delete_origin_secret(req: &mut Request) -> IronResult<Response> {
+fn delete_origin_secret(req: &HttpRequest<AppState>) -> HttpResponse {
     let params = match validate_params(req, &["origin", "secret"]) {
         Ok(p) => p,
         Err(st) => return Ok(Response::with(st)),
@@ -1590,7 +1487,7 @@ fn delete_origin_secret(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn ident_from_req(req: &mut Request) -> OriginPackageIdent {
+fn ident_from_req(req: &HttpRequest<AppState>) -> OriginPackageIdent {
     let params = req.extensions.get::<Router>().unwrap();
     ident_from_params(&params)
 }
@@ -1612,7 +1509,7 @@ fn ident_from_params(params: &Params) -> OriginPackageIdent {
     ident
 }
 
-fn download_content_as_file(content: &[u8], filename: String) -> IronResult<Response> {
+fn download_content_as_file(content: &[u8], filename: String) -> HttpResponse {
     let mut response = Response::with((status::Ok, content));
     response.headers.set(ContentDisposition(format!(
         "attachment; filename=\"{}\"",
@@ -1623,7 +1520,7 @@ fn download_content_as_file(content: &[u8], filename: String) -> IronResult<Resp
     Ok(response)
 }
 
-fn target_from_req(req: &mut Request) -> PackageTarget {
+fn target_from_req(req: &HttpRequest<AppState>) -> PackageTarget {
     // A target in a query param over-rides the user agent platform
     let target = match helpers::extract_query_value("target", req) {
         Some(t) => {
@@ -1665,7 +1562,7 @@ fn target_from_req(req: &mut Request) -> PackageTarget {
 }
 
 
-fn notify_upstream(req: &mut Request, ident: &OriginPackageIdent, target: &PackageTarget) {
+fn notify_upstream(req: &HttpRequest<AppState>, ident: &OriginPackageIdent, target: &PackageTarget) {
     let upstream_cli = req.get::<persistent::Read<UpstreamCli>>().unwrap();
     upstream_cli.refresh(ident, target).unwrap();
 }

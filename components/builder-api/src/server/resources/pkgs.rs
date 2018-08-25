@@ -27,8 +27,10 @@ use futures::{future::ok as fut_ok, Future, Stream};
 use protobuf;
 use serde_json;
 use tempfile::tempdir_in;
+use url;
 use uuid::Uuid;
 
+use bldr_core::metrics::CounterMetric;
 use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError, NetOk, NetResult};
 
@@ -40,6 +42,7 @@ use server::feat;
 use server::framework::headers;
 use server::framework::middleware::{route_message, Authenticated, Optional};
 use server::helpers::{self, Pagination, Target};
+use server::services::metrics::Counter;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
@@ -904,6 +907,100 @@ impl Packages {
         }
     }
 
+    fn search_packages(
+        (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
+    ) -> HttpResponse {
+        Counter::SearchPackages.increment();
+
+        let query = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+        let session_id = helpers::get_optional_session_id(&req);
+        let (start, stop) = helpers::extract_pagination(&pagination);
+
+        let mut request = OriginPackageSearchRequest::new();
+        request.set_start(start as u64);
+        request.set_stop(stop as u64);
+
+        if session_id.is_some() {
+            let mut my_origins = MyOriginsRequest::new();
+            my_origins.set_account_id(session_id.unwrap());
+
+            match route_message::<MyOriginsRequest, MyOriginsResponse>(&req, &my_origins) {
+                Ok(response) => request.set_my_origins(protobuf::RepeatedField::from_vec(
+                    response.get_origins().to_vec(),
+                )),
+                Err(e) => {
+                    debug!(
+                        "Error fetching origins for account id {}, {}",
+                        session_id.unwrap(),
+                        e
+                    );
+                    return e.into();
+                }
+            }
+        }
+
+        // First, try to parse the query like it's a PackageIdent, since it seems reasonable to expect
+        // that many people will try searching using that kind of string, e.g. core/redis.  If that
+        // works, set the origin appropriately and do a regular search.  If that doesn't work, do a
+        // search across all origins, similar to how the "distinct" search works now, but returning all
+        // the details instead of just names.
+        let decoded_query =
+            match url::percent_encoding::percent_decode(query.as_bytes()).decode_utf8() {
+                Ok(q) => q.to_string(),
+                Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+            };
+
+        match PackageIdent::from_str(decoded_query.as_ref()) {
+            Ok(ident) => {
+                request.set_origin(ident.origin().to_string());
+                request.set_query(ident.name().to_string());
+            }
+            Err(_) => {
+                request.set_query(decoded_query);
+            }
+        }
+
+        debug!("search_packages called with: {}", request.get_query());
+
+        // Setting distinct to true makes this query ignore any origin set, because it's going to
+        // search both the origin name and the package name for the query string provided. This is
+        // likely sub-optimal for performance but it makes things work right now and we should probably
+        // switch to some kind of full-text search engine in the future anyway.
+        // Also, to get this behavior, you need to ensure that "distinct" is a URL parameter in your
+        // request, e.g. blah?distinct=true
+        request.set_distinct(pagination.distinct);
+
+        match route_message::<OriginPackageSearchRequest, OriginPackageListResponse>(&req, &request)
+        {
+            Ok(packages) => {
+                debug!(
+                    "search_packages start: {}, stop: {}, total count: {}",
+                    packages.get_start(),
+                    packages.get_stop(),
+                    packages.get_count()
+                );
+                let body = helpers::package_results_json(
+                    &packages.get_idents().to_vec(),
+                    packages.get_count() as isize,
+                    packages.get_start() as isize,
+                    packages.get_stop() as isize,
+                );
+
+                let status = if packages.get_count() as isize > (packages.get_stop() as isize + 1) {
+                    StatusCode::PARTIAL_CONTENT
+                } else {
+                    StatusCode::OK
+                };
+
+                HttpResponse::build(status)
+                    .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .body(body)
+            }
+            Err(err) => err.into(),
+        }
+    }
+
     //
     // Route registration
     //
@@ -954,6 +1051,10 @@ impl Packages {
                 r.middleware(Optional);
                 r.get().f(Self::list_package_versions);
             })
+            .resource("/depot/pkgs/search/{query}", |r| {
+                r.middleware(Optional);
+                r.method(http::Method::POST).with(Self::search_packages);
+            })
             .resource("/pkgs/schedule/{origin}/{pkg}", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::POST).with(Self::schedule_job_group);
@@ -974,11 +1075,6 @@ impl Packages {
 
 // TODO: PACKAGES HANLDERS "/depot/pkgs/..."
 /*
-    r.get(
-        "/depot/pkgs/search/:query",
-        XHandler::new(search_packages).before(opt.clone()),
-        "package_search",
-    );
     r.patch(
         "/depot/pkgs/:origin/:pkg/:version/:release/:visibility",
         XHandler::new(package_privacy_toggle).before(basic.clone()),
