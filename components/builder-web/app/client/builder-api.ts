@@ -149,7 +149,7 @@ export class BuilderApiClient {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects`, {
         body: JSON.stringify(project),
-        headers: this.headers,
+        headers: this.jsonHeaders,
         method: 'POST',
       })
         .then(response => this.handleUnauthorized(response, reject))
@@ -186,7 +186,7 @@ export class BuilderApiClient {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${projectId}`, {
         body: JSON.stringify(project),
-        headers: this.headers,
+        headers: this.jsonHeaders,
         method: 'PUT',
       })
         .then(response => this.handleUnauthorized(response, reject))
@@ -523,7 +523,7 @@ export class BuilderApiClient {
   public saveProfile(profile: any) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/profile`, {
-        headers: this.headers,
+        headers: this.jsonHeaders,
         method: 'PATCH',
         body: JSON.stringify(profile)
       })
@@ -617,7 +617,7 @@ export class BuilderApiClient {
   public setIntegration(originName: string, credentials, type: string, name: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${originName}/integrations/${type}/${name}`, {
-        headers: this.headers,
+        headers: this.jsonHeaders,
         method: 'PUT',
         body: JSON.stringify(credentials)
       })
@@ -654,7 +654,7 @@ export class BuilderApiClient {
   public setProjectIntegrationSettings(origin: string, name: string, integration: string, settings: any) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${origin}/${name}/integrations/${integration}/default`, {
-        headers: this.headers,
+        headers: this.jsonHeaders,
         method: 'PUT',
         body: JSON.stringify(settings)
       })
@@ -730,7 +730,7 @@ export class BuilderApiClient {
   public updateOrigin(origin: any) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin.name}`, {
-        headers: this.headers,
+        headers: this.jsonHeaders,
         method: 'PUT',
         body: JSON.stringify(origin)
       })
@@ -789,7 +789,7 @@ export class BuilderApiClient {
 
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/ext/integrations/${type}/credentials/validate`, {
-        headers: this.headers,
+        headers: this.jsonHeaders,
         method: 'POST',
         body: JSON.stringify(creds)
       })
