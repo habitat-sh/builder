@@ -235,7 +235,7 @@ impl ResponseError for Error {
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {
-            Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::Authorization(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Error::InnerError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),

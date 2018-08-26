@@ -36,18 +36,27 @@ const DEFAULT_PROJECT_INTEGRATION: &'static str = "default";
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProjectCreateReq {
+    #[serde(default)]
     pub origin: String,
+    #[serde(default)]
     pub plan_path: String,
+    #[serde(default)]
     pub installation_id: u32,
+    #[serde(default)]
     pub repo_id: u32,
+    #[serde(default)]
     pub auto_build: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProjectUpdateReq {
+    #[serde(default)]
     pub plan_path: String,
+    #[serde(default)]
     pub installation_id: u32,
+    #[serde(default)]
     pub repo_id: u32,
+    #[serde(default)]
     pub auto_build: bool,
 }
 
@@ -57,99 +66,6 @@ impl Projects {
     //
     // Internal - these functions should return Result<..>
     //
-
-    fn do_create_project(
-        req: HttpRequest<AppState>,
-        body: Json<ProjectCreateReq>,
-    ) -> Result<OriginProject> {
-        let mut request = OriginProjectCreate::new();
-        let mut project = OriginProject::new();
-        let mut origin_get = OriginGet::new();
-
-        helpers::check_origin_access(&req, &body.origin)?;
-        let account_id = helpers::get_session_id(&req);
-
-        debug!(
-                "GITHUB-CALL builder_api::server::handlers::project_create: Getting app_installation_token; repo_id={} installation_id={}",
-                body.repo_id,
-                body.installation_id
-            );
-
-        let token = req
-            .state()
-            .github
-            .app_installation_token(body.installation_id)?;
-
-        origin_get.set_name(body.origin.clone());
-        project.set_plan_path(body.plan_path.clone());
-        project.set_vcs_type(String::from("git"));
-        project.set_vcs_installation_id(body.installation_id);
-        project.set_auto_build(body.auto_build);
-
-        match req.state().github.repo(&token, body.repo_id) {
-            Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
-            Ok(None) => {
-                return Err(Error::NetError(NetError::new(
-                    ErrCode::ENTITY_NOT_FOUND,
-                    "rg:pc:1",
-                )))
-            }
-            Err(e) => {
-                warn!("Error finding github repo. e = {:?}", e);
-                return Err(Error::Github(e));
-            }
-        }
-
-        let origin = route_message::<OriginGet, Origin>(&req, &origin_get)?;
-
-        match req
-            .state()
-            .github
-            .contents(&token, body.repo_id, &project.get_plan_path())
-        {
-            Ok(Some(contents)) => match contents.decode() {
-                Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
-                    Ok(plan) => {
-                        project.set_origin_name(String::from(origin.get_name()));
-                        project.set_origin_id(origin.get_id());
-                        project.set_package_name(String::from(plan.name.trim_matches('"')));
-                    }
-                    Err(e) => {
-                        debug!("Error matching Plan. e = {:?}", e);
-                        return Err(Error::NetError(NetError::new(
-                            ErrCode::ENTITY_NOT_FOUND,
-                            "rg:pc:3",
-                        )));
-                    }
-                },
-                Err(e) => {
-                    warn!("Base64 decode failure: {:?}", e);
-                    return Err(Error::NetError(NetError::new(
-                        ErrCode::ENTITY_NOT_FOUND,
-                        "rg:pc:4",
-                    )));
-                }
-            },
-            Ok(None) => {
-                return Err(Error::NetError(NetError::new(
-                    ErrCode::ENTITY_NOT_FOUND,
-                    "rg:pc:5",
-                )))
-            }
-            Err(e) => {
-                warn!("Error fetching contents from GH. e = {:?}", e);
-                return Err(Error::NetError(NetError::new(
-                    ErrCode::ENTITY_NOT_FOUND,
-                    "rg:pc:2",
-                )));
-            }
-        }
-
-        project.set_owner_id(account_id);
-        project.set_visibility(origin.get_default_package_visibility());
-        request.set_project(project);
-        route_message::<OriginProjectCreate, OriginProject>(&req, &request)
-    }
 
     fn do_update_project(
         req: HttpRequest<AppState>,
@@ -259,7 +175,91 @@ impl Projects {
     fn create_project(
         (req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>),
     ) -> HttpResponse {
-        match Self::do_create_project(req, body) {
+        let mut request = OriginProjectCreate::new();
+        let mut project = OriginProject::new();
+        let mut origin_get = OriginGet::new();
+
+        if (body.origin.len() <= 0) || (body.plan_path.len() <= 0) {
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        let account_id = match helpers::check_origin_access(&req, &body.origin) {
+            Ok(id) => id,
+            Err(err) => return err.into(),
+        };
+
+        debug!(
+                "GITHUB-CALL builder_api::server::handlers::project_create: Getting app_installation_token; repo_id={} installation_id={}",
+                body.repo_id,
+                body.installation_id
+            );
+
+        let token = match req
+            .state()
+            .github
+            .app_installation_token(body.installation_id)
+        {
+            Ok(token) => token,
+            Err(err) => {
+                warn!("Error authenticating github app installation, {}", err);
+                return HttpResponse::new(StatusCode::FORBIDDEN);
+            }
+        };
+
+        origin_get.set_name(body.origin.clone());
+        project.set_plan_path(body.plan_path.clone());
+        project.set_vcs_type(String::from("git"));
+        project.set_vcs_installation_id(body.installation_id);
+        project.set_auto_build(body.auto_build);
+
+        match req.state().github.repo(&token, body.repo_id) {
+            Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
+            Ok(None) => return HttpResponse::with_body(StatusCode::NOT_FOUND, "rg:pc:2"),
+            Err(e) => {
+                warn!("Error finding github repo. e = {:?}", e);
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:1");
+            }
+        }
+
+        let origin = match route_message::<OriginGet, Origin>(&req, &origin_get) {
+            Ok(response) => response,
+            Err(err) => return err.into(),
+        };
+
+        match req
+            .state()
+            .github
+            .contents(&token, body.repo_id, &project.get_plan_path())
+        {
+            Ok(Some(contents)) => match contents.decode() {
+                Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
+                    Ok(plan) => {
+                        project.set_origin_name(String::from(origin.get_name()));
+                        project.set_origin_id(origin.get_id());
+                        project.set_package_name(String::from(plan.name.trim_matches('"')));
+                    }
+                    Err(e) => {
+                        debug!("Error matching Plan. e = {:?}", e);
+                        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:3");
+                    }
+                },
+                Err(e) => {
+                    warn!("Base64 decode failure: {:?}", e);
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:4");
+                }
+            },
+            Ok(None) => return HttpResponse::with_body(StatusCode::NOT_FOUND, "rg:pc:5"),
+            Err(e) => {
+                warn!("Error fetching contents from GH. e = {:?}", e);
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:6");
+            }
+        }
+
+        project.set_owner_id(account_id);
+        project.set_visibility(origin.get_default_package_visibility());
+        request.set_project(project);
+
+        match route_message::<OriginProjectCreate, OriginProject>(&req, &request) {
             Ok(project) => HttpResponse::Ok().json(project),
             Err(err) => err.into(),
         }
@@ -274,7 +274,7 @@ impl Projects {
         project_get.set_name(format!("{}/{}", &origin, &name));
 
         if helpers::check_origin_access(req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         match route_message::<OriginProjectGet, OriginProject>(req, &project_get) {
@@ -290,7 +290,7 @@ impl Projects {
         let session_id = helpers::get_session_id(req);
 
         if helpers::check_origin_access(req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut project_del = OriginProjectDelete::new();
@@ -321,7 +321,7 @@ impl Projects {
         let mut projects_get = OriginProjectListGet::new();
 
         if helpers::check_origin_access(req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         projects_get.set_origin(origin);
@@ -340,7 +340,7 @@ impl Projects {
         let mut jobs_get = ProjectJobsGet::new();
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let (start, stop) = helpers::extract_pagination(&pagination);
@@ -408,7 +408,7 @@ impl Projects {
             .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut opi = OriginProjectIntegration::new();
@@ -433,7 +433,7 @@ impl Projects {
             .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginProjectIntegrationDelete::new();
@@ -453,7 +453,7 @@ impl Projects {
             .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut opi = OriginProjectIntegration::new();
@@ -487,12 +487,12 @@ impl Projects {
             .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         // users aren't allowed to set projects to hidden manually
         if visibility.to_lowercase() == "hidden" {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let opv: OriginPackageVisibility = match visibility.parse() {

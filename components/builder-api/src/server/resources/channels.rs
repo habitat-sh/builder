@@ -25,7 +25,7 @@ use protocol::originsrv::*;
 
 use server::error::{Error, Result};
 use server::framework::headers;
-use server::framework::middleware::route_message;
+use server::framework::middleware::{route_message, Authenticated, Optional};
 use server::helpers::{self, Pagination, Target};
 use server::AppState;
 
@@ -489,32 +489,38 @@ impl Channels {
         app.resource("/depot/channels/{origin}", |r| {
             r.method(http::Method::GET).with(Self::get_channels);
         }).resource("/depot/channels/{origin}/{channel}", |r| {
+                r.middleware(Authenticated);
                 r.post().f(Self::create_channel);
                 r.delete().f(Self::delete_channel);
             })
             .resource(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/promote",
                 |r| {
+                    r.middleware(Authenticated);
                     r.put().f(Self::promote_package);
                 },
             )
             .resource(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/demote",
                 |r| {
+                    r.middleware(Authenticated);
                     r.put().f(Self::demote_package);
                 },
             )
             .resource("/depot/channels/{origin}/{channel}/pkgs/{pkg}", |r| {
+                r.middleware(Optional);
                 r.method(http::Method::GET)
                     .with(Self::get_packages_for_origin_channel_package);
             })
             .resource("/depot/channels/{origin}/{channel}/pkgs", |r| {
+                r.middleware(Optional);
                 r.method(http::Method::GET)
                     .with(Self::get_packages_for_origin_channel);
             })
             .resource(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/latest",
                 |r| {
+                    r.middleware(Optional);
                     r.method(http::Method::GET)
                         .with(Self::get_latest_package_for_origin_channel_package);
                 },
@@ -522,6 +528,7 @@ impl Channels {
             .resource(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}",
                 |r| {
+                    r.middleware(Optional);
                     r.method(http::Method::GET)
                         .with(Self::get_packages_for_origin_channel_package_version);
                 },
@@ -529,6 +536,7 @@ impl Channels {
             .resource(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/latest",
                 |r| {
+                    r.middleware(Optional);
                     r.method(http::Method::GET)
                         .with(Self::get_latest_package_for_origin_channel_package_version);
                 },
@@ -536,6 +544,7 @@ impl Channels {
             .resource(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}",
                 |r| {
+                    r.middleware(Optional);
                     r.method(http::Method::GET)
                         .with(Self::get_package_fully_qualified);
                 },

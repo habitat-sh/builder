@@ -20,7 +20,9 @@ use std::str::FromStr;
 use actix_web::http::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
 use actix_web::http::{self, StatusCode};
 use actix_web::FromRequest;
-use actix_web::{error, App, AsyncResponder, HttpMessage, HttpRequest, HttpResponse, Path, Query};
+use actix_web::{
+    error, pred, App, AsyncResponder, HttpMessage, HttpRequest, HttpResponse, Path, Query,
+};
 use bytes::Bytes;
 use futures::sync::mpsc;
 use futures::{future::ok as fut_ok, Future, Stream};
@@ -724,7 +726,7 @@ impl Packages {
             .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin_name).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let (session_id, session_name) = helpers::get_session_id_and_name(&req);
@@ -1009,7 +1011,7 @@ impl Packages {
                 .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         // users aren't allowed to set packages to hidden manually
@@ -1085,6 +1087,10 @@ impl Packages {
                     .with(Self::get_latest_package_for_origin_package_version);
             })
             .resource("/depot/pkgs/{origin}/{pkg}/{version}/{release}", |r| {
+                r.middleware(Authenticated);
+                r.route().filter(pred::Post()).with(Self::upload_package);
+            })
+            .resource("/depot/pkgs/{origin}/{pkg}/{version}/{release}", |r| {
                 r.middleware(Optional);
                 r.method(http::Method::GET).with(Self::get_latest_package);
             })
@@ -1103,10 +1109,6 @@ impl Packages {
                         .with(Self::package_privacy_toggle);
                 },
             )
-            .resource("/depot/pkgs/{origin}/{pkg}/{version}/{release}", |r| {
-                r.middleware(Authenticated);
-                r.method(http::Method::POST).with(Self::upload_package);
-            })
             .resource("/depot/pkgs/{origin}/{pkg}/versions", |r| {
                 r.middleware(Optional);
                 r.get().f(Self::list_package_versions);

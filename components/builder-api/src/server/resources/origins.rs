@@ -109,10 +109,10 @@ impl Origins {
     //
     // Route handlers - these functions should return HttpResponse
     //
-    fn get_origin(req: &HttpRequest<AppState>) -> HttpResponse {
-        let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+    fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
+        let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
-        match Self::do_get_origin(req, origin) {
+        match Self::do_get_origin(&req, origin) {
             Ok(origin) => HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(origin),
@@ -135,7 +135,7 @@ impl Origins {
         let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginUpdate::new();
@@ -262,15 +262,17 @@ impl Origins {
         }
     }
 
-    fn download_origin_key(req: &HttpRequest<AppState>) -> HttpResponse {
-        let (origin, revision) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
+    fn download_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
+        let (origin, revision) = Path::<(String, String)>::extract(&req)
+            .unwrap()
+            .into_inner(); // Unwrap Ok
 
         let mut request = OriginPublicSigningKeyGet::new();
         request.set_origin(origin);
         request.set_revision(revision);
 
         let key = match route_message::<OriginPublicSigningKeyGet, OriginPublicSigningKey>(
-            req, &request,
+            &req, &request,
         ) {
             Ok(key) => key,
             Err(err) => return err.into(),
@@ -301,7 +303,7 @@ impl Origins {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginSecretListGet::new();
@@ -325,7 +327,7 @@ impl Origins {
         let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         // get metadata from secret payload
@@ -430,7 +432,7 @@ impl Origins {
         let (origin, secret) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginSecretDelete::new();
@@ -505,7 +507,7 @@ impl Origins {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginPrivateSigningKeyGet::new();
@@ -579,7 +581,7 @@ impl Origins {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginPublicEncryptionKeyLatestGet::new();
@@ -664,10 +666,7 @@ impl Origins {
     fn accept_invitation(req: &HttpRequest<AppState>) -> HttpResponse {
         let (origin, invitation) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
-        let account_id = match helpers::check_origin_access(&req, &origin) {
-            Ok(id) => id,
-            Err(err) => return err.into(),
-        };
+        let account_id = helpers::get_session_id(req);
 
         let mut request = OriginInvitationAcceptRequest::new();
         request.set_ignore(false);
@@ -753,7 +752,7 @@ impl Origins {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginInvitationListRequest::new();
@@ -776,7 +775,7 @@ impl Origins {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginMemberListRequest::new();
@@ -797,7 +796,7 @@ impl Origins {
         let (account_id, account_name) = helpers::get_session_id_and_name(req);
 
         if !helpers::check_origin_owner(req, account_id, &origin).unwrap_or(false) {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         // Do not allow the owner to be removed which would orphan the origin
@@ -837,7 +836,7 @@ impl Origins {
         let origin = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginIntegrationRequest::new();
@@ -865,7 +864,7 @@ impl Origins {
         let (origin, integration) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut request = OriginIntegrationGetNames::new();
@@ -892,7 +891,7 @@ impl Origins {
             .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut oi = OriginIntegration::new();
@@ -920,7 +919,7 @@ impl Origins {
             .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut oi = OriginIntegration::new();
@@ -943,7 +942,7 @@ impl Origins {
             .into_inner(); // Unwrap Ok
 
         if helpers::check_origin_access(&req, &origin).is_err() {
-            return HttpResponse::new(StatusCode::UNAUTHORIZED);
+            return HttpResponse::new(StatusCode::FORBIDDEN);
         }
 
         let mut oi = OriginIntegration::new();
@@ -988,12 +987,14 @@ impl Origins {
             r.middleware(Optional);
             r.method(http::Method::GET).with(Self::list_unique_packages)
         }).resource("/depot/origins/{origin}", |r| {
-                r.get().f(Origins::get_origin)
-            })
-            .resource("/depot/origins/{origin}", |r| {
                 r.middleware(Authenticated);
-                r.method(http::Method::PUT).with(Self::update_origin)
+                r.route().filter(pred::Put()).with(Self::update_origin)
             })
+            .route(
+                "/depot/origins/{origin}",
+                http::Method::GET,
+                Self::get_origin,
+            )
             .resource("/depot/origins", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::POST).with(Self::create_origin);
@@ -1043,12 +1044,14 @@ impl Origins {
                 Self::list_origin_keys,
             )
             .resource("/depot/origins/{origin}/keys/{revision}", |r| {
-                r.method(http::Method::GET).f(Self::download_origin_key);
-            })
-            .resource("/depot/origins/{origin}/keys/{revision}", |r| {
                 r.middleware(Authenticated);
-                r.method(http::Method::POST).with(Self::upload_origin_key);
+                r.route().filter(pred::Post()).with(Self::upload_origin_key);
             })
+            .route(
+                "/depot/origins/{origin}/keys/{revision}",
+                http::Method::GET,
+                Self::download_origin_key,
+            )
             .resource("/depot/origins/{origin}/secret", |r| {
                 r.middleware(Authenticated);
                 r.method(http::Method::GET).f(Self::list_origin_secrets);
@@ -1094,7 +1097,7 @@ impl Origins {
                     r.method(http::Method::GET).f(Self::get_origin_integration);
                     r.method(http::Method::DELETE)
                         .f(Self::delete_origin_integration);
-                    r.method(http::Method::POST)
+                    r.method(http::Method::PUT)
                         .with(Self::create_origin_integration_async);
                 },
             )
