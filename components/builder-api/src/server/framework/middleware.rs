@@ -81,6 +81,7 @@ where
         .map_err(|e| error::Error::NetError(e))
 }
 
+/*
 // Authentication
 pub struct Authenticated;
 
@@ -89,6 +90,7 @@ impl Middleware<AppState> for Authenticated {
         auth_wrapper(req, false)
     }
 }
+*/
 
 // Optional Authentication
 pub struct Optional;

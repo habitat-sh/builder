@@ -41,7 +41,8 @@ use zmq;
 // are wrapping - review whether we need more than one error per module
 #[derive(Debug)]
 pub enum Error {
-    Authorization(String),
+    Authentication,
+    Authorization,
     CircularDependency(String),
     Connection(conn::ConnErr),
     Github(HubError),
@@ -88,7 +89,8 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            Error::Authorization(ref e) => format!("Not authorized: {}", e),
+            Error::Authentication => "User is not authenticated".to_string(),
+            Error::Authorization => "User is not authorized to perform operation".to_string(),
             Error::CircularDependency(ref e) => {
                 format!("Circular dependency detected for package upload: {}", e)
             }
@@ -161,12 +163,13 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::Authorization(_) => "User is not authorized to perform operation",
+            Error::Authentication => "User is not authenticated",
+            Error::Authorization => "User is not authorized to perform operation",
             Error::CircularDependency(ref err) => "Circular dependency detected for package upload",
             Error::Connection(ref err) => err.description(),
             Error::Github(ref err) => err.description(),
             Error::InnerError(ref err) => err.error().description(),
-            Error::PayloadError(ref err) => "Http request stream error",
+            Error::PayloadError(_) => "Http request stream error",
             Error::Protocol(ref err) => err.description(),
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::HabitatCore(ref err) => err.description(),
@@ -218,7 +221,9 @@ impl error::Error for Error {
 impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
         match self {
-            Error::Authorization(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
+            Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Error::InnerError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
@@ -226,6 +231,7 @@ impl ResponseError for Error {
             Error::PayloadError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::SerdeJson(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         }
@@ -235,7 +241,9 @@ impl ResponseError for Error {
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {
-            Error::Authorization(_) => HttpResponse::new(StatusCode::FORBIDDEN),
+            Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
+            Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Error::InnerError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
@@ -243,6 +251,7 @@ impl Into<HttpResponse> for Error {
             Error::PayloadError(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::Protocol(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
             Error::SerdeJson(_) => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+
             // TODO : Tackle the others...
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         }

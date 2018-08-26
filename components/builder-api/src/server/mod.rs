@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod authorize;
 pub mod error;
 pub mod framework;
 pub mod helpers;
@@ -34,7 +35,7 @@ use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
 use self::error::Error;
-use self::framework::middleware::XRouteClient;
+use self::framework::middleware::{Optional, XRouteClient};
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
 // TODO: use services::upstream::{UpstreamClient, UpstreamMgr};
@@ -144,6 +145,7 @@ pub fn run(config: Config) -> Result<()> {
         let mut app = App::with_state(app_state)
             .middleware(Logger::default())
             .middleware(XRouteClient)
+            .middleware(Optional)
             .prefix("/v1")
             .resource("/status", |r| {
                 r.get().f(status);
