@@ -1,4 +1,4 @@
-<div class="build-detail-component">
+<div class="job-detail-component">
   <section class="back">
     <a [routerLink]="['../']">
       <hab-icon symbol="chevron-left"></hab-icon>
@@ -7,9 +7,9 @@
   </section>
   <div class="summary">
     <div class="status {{ statusClass }}">
-      <div *ngIf="buildState">
-        <hab-icon [symbol]="statusIcon" [class]="statusClass" [title]="buildState | titlecase"></hab-icon>
-        Build {{ buildState }}
+      <div *ngIf="jobState">
+        <hab-icon [symbol]="statusIcon" [class]="statusClass" [title]="jobState | titlecase"></hab-icon>
+        Build {{ jobState }}
       </div>
     </div>
     <div class="detail">

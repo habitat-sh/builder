@@ -10,6 +10,12 @@
       #packages="routerLinkActive"
       [active]="packages.isActive">Packages</a>
     <a mat-tab-link
+      routerLink="jobs"
+      routerLinkActive
+      #jobs="routerLinkActive"
+      [active]="jobs.isActive"
+      *ngIf="builderEnabled && memberOfOrigin">Build Jobs</a>
+    <a mat-tab-link
       routerLink="keys"
       routerLinkActive
       #keys="routerLinkActive"

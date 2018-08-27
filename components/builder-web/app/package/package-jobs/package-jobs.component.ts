@@ -19,9 +19,9 @@ import { Subscription } from 'rxjs';
 import { AppStore } from '../../app.store';
 
 @Component({
-  template: require('./package-builds.component.html')
+  template: require('./package-jobs.component.html')
 })
-export class PackageBuildsComponent implements OnDestroy {
+export class PackageJobsComponent implements OnDestroy {
   origin: string;
   name: string;
 
@@ -47,11 +47,11 @@ export class PackageBuildsComponent implements OnDestroy {
     }
   }
 
-  get builds() {
-    return this.store.getState().builds.visible;
+  get jobs() {
+    return this.store.getState().jobs.visible;
   }
 
-  onSelect(build) {
-    this.router.navigate(['pkgs', this.origin, this.name, 'builds', build.id]);
+  onSelect(job) {
+    this.router.navigate(['pkgs', this.origin, this.name, 'jobs', job.id]);
   }
 }

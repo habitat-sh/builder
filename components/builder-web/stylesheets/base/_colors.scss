@@ -47,11 +47,14 @@ $disabled: $medium-gray;
 
 $status-colors: (
   complete: $success,
+  success: $success,
   dispatched: $active,
   processing: $active,
   pending: $pending,
+  failure: $error,
   failed: $error,
-  rejected: $error
+  rejected: $error,
+  cancelled: $disabled
 );
 
 $form-colors: (

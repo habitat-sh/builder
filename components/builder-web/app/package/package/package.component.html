@@ -24,7 +24,7 @@
   <a
     mat-tab-link
     *ngIf="builderEnabled && isOriginMember"
-    routerLink="builds"
+    routerLink="jobs"
     routerLinkActive
     #jobs="routerLinkActive"
     [active]="jobs.isActive">
@@ -42,7 +42,7 @@
 </nav>
 <div class="body">
   <div class="content" [class.full]="useFullWidth">
-    <hab-build-notice [build]="activeBuild" *ngIf="showActiveBuild"></hab-build-notice>
+    <hab-job-notice [job]="activeJob" *ngIf="showActiveJob"></hab-job-notice>
     <router-outlet (activate)="onRouteActivate($event)"></router-outlet>
   </div>
   <aside *ngIf="showSidebar">

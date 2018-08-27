@@ -38,7 +38,19 @@ export default Record({
       })()
     })()
   })(),
-  builds: Record({
+  jobGroups: Record({
+    visible: List(),
+    selected: Record({
+      id: undefined,
+      created_at: undefined,
+      project_name: undefined,
+      projects: List(),
+      projects_by_state: Record({})(),
+      state: undefined
+    })()
+  })(),
+  jobs: Record({
+    groups: List(),
     visible: List(),
     selected: Record({
       info: Record({

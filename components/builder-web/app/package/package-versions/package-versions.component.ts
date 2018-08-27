@@ -17,7 +17,7 @@ import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AppStore } from '../../app.store';
-import { packageString, releaseToDate } from '../../util';
+import { packageString, parseDate } from '../../util';
 import { demotePackage, fetchPackageVersions, filterPackagesBy } from '../../actions/index';
 
 @Component({
@@ -106,7 +106,7 @@ export class PackageVersionsComponent implements OnDestroy {
   }
 
   releaseToDate(release) {
-    return releaseToDate(release);
+    return parseDate(release);
   }
 
   osIconFor(pkg) {

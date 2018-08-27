@@ -15,8 +15,8 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 import { PackageComponent } from './package/package.component';
-import { PackageBuildComponent } from './package-build/package-build.component';
-import { PackageBuildsComponent } from './package-builds/package-builds.component';
+import { PackageJobComponent } from './package-job/package-job.component';
+import { PackageJobsComponent } from './package-jobs/package-jobs.component';
 import { PackageLatestComponent } from './package-latest/package-latest.component';
 import { PackageSettingsComponent } from './package-settings/package-settings.component';
 import { PackageReleaseComponent } from './package-release/package-release.component';
@@ -39,13 +39,13 @@ const routes: Routes = [
         component: PackageLatestComponent
       },
       {
-        path: 'builds',
-        component: PackageBuildsComponent,
+        path: 'jobs',
+        component: PackageJobsComponent,
         canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
       },
       {
-        path: 'builds/:id',
-        component: PackageBuildComponent,
+        path: 'jobs/:id',
+        component: PackageJobComponent,
         canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
       },
       {

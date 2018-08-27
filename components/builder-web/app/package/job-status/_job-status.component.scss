@@ -1,6 +1,6 @@
-.build-status-component {
+.job-status-component {
   display: inline-block;
-  
+
   hab-icon {
     @include icon-size(16);
     right: 52px;
@@ -10,7 +10,7 @@
         color: #{$color};
       }
     }
-    
+
     &.dispatched, &.processing {
       @extend hab-icon.spinning;
     }

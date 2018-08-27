@@ -1,0 +1,41 @@
+.jobs-list-component {
+  .heading {
+    display: none;
+  }
+
+  .jobs-list-item {
+    flex-wrap: wrap;
+
+    .column {
+      flex: none;
+    }
+  }
+
+  .jobs-list-item-name { width: 100%; }
+  .jobs-list-item-id { width: 50%; }
+  .jobs-list-item-date {
+    text-align: right;
+    width: 50%;
+  }
+
+  @include tablet-up {
+    .heading {
+      display: flex;
+    }
+    .jobs-list-item {
+      flex-wrap: nowrap;
+
+      .column {
+        flex: 1;
+      }
+    }
+    .jobs-list-item-name, .jobs-list-item-id,
+    .jobs-list-item-length, .jobs-list-item-date {
+      width: auto;
+      text-align: left;
+    }
+    .jobs-list-split-icon {
+      display: none;
+    }
+  }
+}

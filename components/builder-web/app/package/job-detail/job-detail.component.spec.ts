@@ -21,12 +21,12 @@ import { Record } from 'immutable';
 import { MockComponent } from 'ng2-mock-component';
 import { AppStore } from '../../app.store';
 import * as actions from '../../actions/index';
-import { BuildDetailComponent } from './build-detail.component';
+import { JobDetailComponent } from './job-detail.component';
 
 class MockAppStore {
   getState() {
     return {
-      builds: {
+      jobs: {
         selected: Record({
           info: {
             id: '123'
@@ -48,9 +48,9 @@ class MockAppStore {
   dispatch() { }
 }
 
-describe('BuildDetailComponent', () => {
-  let fixture: ComponentFixture<BuildDetailComponent>;
-  let component: BuildDetailComponent;
+describe('JobDetailComponent', () => {
+  let fixture: ComponentFixture<JobDetailComponent>;
+  let component: JobDetailComponent;
   let element: DebugElement;
   let store: AppStore;
 
@@ -61,7 +61,7 @@ describe('BuildDetailComponent', () => {
         RouterTestingModule
       ],
       declarations: [
-        BuildDetailComponent,
+        JobDetailComponent,
         MockComponent({ selector: 'hab-package-breadcrumbs', inputs: ['ident'] }),
         MockComponent({ selector: 'hab-icon', inputs: ['symbol'] })
       ],
@@ -70,7 +70,7 @@ describe('BuildDetailComponent', () => {
       ]
     });
 
-    fixture = TestBed.createComponent(BuildDetailComponent);
+    fixture = TestBed.createComponent(JobDetailComponent);
     component = fixture.componentInstance;
     element = fixture.debugElement;
     store = TestBed.get(AppStore);
@@ -79,7 +79,7 @@ describe('BuildDetailComponent', () => {
   describe('on init', () => {
 
     beforeEach(() => {
-      component.build = {
+      component.job = {
         origin: 'core',
         name: 'nginx',
         id: '123'
@@ -91,12 +91,12 @@ describe('BuildDetailComponent', () => {
 
   describe('on changes', () => {
 
-    describe('when a build is provided', () => {
+    describe('when a job is provided', () => {
       let changes;
 
       beforeEach(() => {
         changes = {
-          build: {
+          job: {
             currentValue: {
               id: '123'
             }
@@ -104,12 +104,12 @@ describe('BuildDetailComponent', () => {
         };
       });
 
-      it('fetches the specified build log', () => {
-        spyOn(actions, 'fetchBuildLog');
+      it('fetches the specified job log', () => {
+        spyOn(actions, 'fetchJobLog');
         component.ngOnChanges(changes);
 
-        expect(actions.fetchBuildLog).toHaveBeenCalledWith(
-          store.getState().builds.selected.info.id,
+        expect(actions.fetchJobLog).toHaveBeenCalledWith(
+          store.getState().jobs.selected.info.id,
           store.getState().session.token,
           0
         );
@@ -120,10 +120,10 @@ describe('BuildDetailComponent', () => {
         describe('by default', () => {
 
           it('is set to false', () => {
-            spyOn(actions, 'streamBuildLog');
+            spyOn(actions, 'streamJobLog');
             component.ngOnChanges(changes);
 
-            expect(actions.streamBuildLog).toHaveBeenCalledWith(false);
+            expect(actions.streamJobLog).toHaveBeenCalledWith(false);
           });
         });
 
@@ -134,10 +134,10 @@ describe('BuildDetailComponent', () => {
           });
 
           it('is set to true', () => {
-            spyOn(actions, 'streamBuildLog');
+            spyOn(actions, 'streamJobLog');
             component.ngOnChanges(changes);
 
-            expect(actions.streamBuildLog).toHaveBeenCalledWith(true);
+            expect(actions.streamJobLog).toHaveBeenCalledWith(true);
           });
         });
       });
@@ -184,18 +184,18 @@ describe('BuildDetailComponent', () => {
   describe('on destroy', () => {
 
     it('terminates log streaming', () => {
-      spyOn(actions, 'streamBuildLog');
+      spyOn(actions, 'streamJobLog');
       component.ngOnDestroy();
 
-      expect(actions.streamBuildLog).toHaveBeenCalledWith(false);
+      expect(actions.streamJobLog).toHaveBeenCalledWith(false);
     });
   });
 
-  xit('shows the selected build status', () => {
+  xit('shows the selected job status', () => {
 
   });
 
-  xit('shows the selected build log', () => {
+  xit('shows the selected job log', () => {
 
   });
 });

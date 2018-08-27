@@ -16,13 +16,13 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { List } from 'immutable';
-import { PackageBuildComponent } from '../package-build/package-build.component';
-import { PackageBuildsComponent } from '../package-builds/package-builds.component';
+import { PackageJobComponent } from '../package-job/package-job.component';
+import { PackageJobsComponent } from '../package-jobs/package-jobs.component';
 import { PackageLatestComponent } from '../package-latest/package-latest.component';
 import { PackageReleaseComponent } from '../package-release/package-release.component';
 import { PackageVersionsComponent } from '../package-versions/package-versions.component';
 import { AppStore } from '../../app.store';
-import { fetchBuilds, fetchIntegrations, fetchLatestInChannel, fetchOrigin, fetchProject } from '../../actions/index';
+import { fetchJobs, fetchIntegrations, fetchLatestInChannel, fetchOrigin, fetchProject } from '../../actions/index';
 
 @Component({
   template: require('./package.component.html')
@@ -31,7 +31,7 @@ export class PackageComponent implements OnInit, OnDestroy {
   origin: string;
   name: string;
   showSidebar: boolean = false;
-  showActiveBuild: boolean = false;
+  showActiveJob: boolean = false;
   useFullWidth: boolean = true;
 
   private sub: Subscription;
@@ -51,7 +51,7 @@ export class PackageComponent implements OnInit, OnDestroy {
     // indicate when it completes.
     this.poll = window.setInterval(() => {
       if (this.building) {
-        this.fetchBuilds();
+        this.fetchJobs();
       }
     }, 10000);
   }
@@ -91,21 +91,21 @@ export class PackageComponent implements OnInit, OnDestroy {
     return false;
   }
 
-  get activeBuilds(): List<any> {
+  get activeJobs(): List<any> {
     const activeStates = ['Dispatched', 'Pending', 'Processing'];
 
-    return this.store.getState().builds.visible.filter((b) => {
+    return this.store.getState().jobs.visible.filter((b) => {
       return activeStates.indexOf(b.state.toString()) !== -1;
     });
   }
 
-  get activeBuild() {
-    let active = this.activeBuilds.last();
+  get activeJob() {
+    let active = this.activeJobs.last();
     return active;
   }
 
   get building(): boolean {
-    return this.activeBuilds.size > 0;
+    return this.activeJobs.size > 0;
   }
 
   get token() {
@@ -114,27 +114,27 @@ export class PackageComponent implements OnInit, OnDestroy {
 
   onRouteActivate(routedComponent) {
     this.showSidebar = false;
-    this.showActiveBuild = false;
+    this.showActiveJob = false;
 
     [
-      PackageBuildsComponent,
+      PackageJobsComponent,
       PackageLatestComponent,
       PackageReleaseComponent,
       PackageVersionsComponent
     ].forEach((c) => {
       if (routedComponent instanceof c) {
         this.showSidebar = true;
-        this.showActiveBuild = true;
+        this.showActiveJob = true;
       }
     });
 
-    if (routedComponent instanceof PackageBuildComponent) {
+    if (routedComponent instanceof PackageJobComponent) {
       this.useFullWidth = true;
     }
 
     this.fetchLatestStable();
     this.fetchProject();
-    this.fetchBuilds();
+    this.fetchJobs();
   }
 
   private fetchLatestStable() {
@@ -148,9 +148,9 @@ export class PackageComponent implements OnInit, OnDestroy {
     }
   }
 
-  private fetchBuilds() {
+  private fetchJobs() {
     if (this.token) {
-      this.store.dispatch(fetchBuilds(this.origin, this.name, this.token));
+      this.store.dispatch(fetchJobs(this.origin, this.name, this.token));
     }
   }
 }

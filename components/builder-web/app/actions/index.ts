@@ -13,25 +13,32 @@
 // limitations under the License.
 
 export {
-  CLEAR_BUILD_LOG,
-  CLEAR_BUILD,
-  CLEAR_BUILDS,
-  clearBuild,
-  clearBuilds,
-  fetchBuild,
-  fetchBuildLog,
-  fetchBuilds,
-  POPULATE_BUILD_LOG,
-  POPULATE_BUILD,
-  POPULATE_BUILDS,
-  STREAM_BUILD_LOG,
-  SET_BUILD_LOADING,
-  SET_BUILDS_LOADING,
-  SET_BUILD_LOG_LOADING,
-  SET_BUILD_LOG_NOT_FOUND,
-  streamBuildLog,
+  CLEAR_JOB_LOG,
+  CLEAR_JOB,
+  CLEAR_JOBS,
+  clearJob,
+  clearJobs,
+  fetchJob,
+  fetchJobLog,
+  fetchJobs,
+  POPULATE_JOB_LOG,
+  POPULATE_JOB,
+  POPULATE_JOBS,
+  STREAM_JOB_LOG,
+  SET_JOB_LOADING,
+  SET_JOBS_LOADING,
+  SET_JOB_LOG_LOADING,
+  SET_JOB_LOG_NOT_FOUND,
+  streamJobLog,
   submitJob
-} from './builds';
+} from './jobs';
+
+export {
+  fetchJobGroups,
+  fetchJobGroup,
+  POPULATE_JOB_GROUPS,
+  POPULATE_JOB_GROUP
+} from './jobGroups';
 
 export {
   LOAD_FEATURES,

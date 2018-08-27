@@ -24,9 +24,9 @@ export function duration(s) {
 }
 
 // Parse a release and return a formatted date
-export function releaseToDate(release) {
+export function parseDate(release, output = 'YYYY-MM-DD') {
   let m = moment.utc(release, 'YYYYMMDDHHmmss');
-  return m.isValid() ? m.format('YYYY-MM-DD') : null;
+  return m.isValid() ? m.format(output) : null;
 }
 
 // Pretty-printed time
@@ -119,13 +119,16 @@ export function targetToPlatform(target: string = ''): string {
 }
 
 // Return a build state's proper icon symbol
-export function iconForBuildState(state) {
+export function iconForJobState(state) {
   return {
     complete: 'check',
+    success: 'check',
     dispatched: 'loading',
     failed: 'alert',
+    failure: 'alert',
     pending: 'pending',
     processing: 'loading',
-    rejected: 'alert'
+    rejected: 'alert',
+    cancelled: 'no'
   }[state.toLowerCase()];
 }

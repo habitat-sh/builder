@@ -12,25 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, Input } from '@angular/core';
-import { iconForBuildState } from '../../util';
-import { AppStore } from '../../app.store';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { List } from 'immutable';
+import * as moment from 'moment';
+import { iconForJobState } from '../../util';
 
 @Component({
-  selector: 'hab-build-notice',
-  template: require('./build-notice.component.html')
+  selector: 'hab-job-list',
+  template: require('./job-list.component.html')
 })
-export class BuildNoticeComponent {
+export class JobListComponent {
+  @Input() jobs = List();
+  @Output() select = new EventEmitter();
 
-  @Input() build: any;
-
-  constructor(private store: AppStore) { }
-
-  get status() {
-    return this.build.state.toLowerCase();
+  onClick(job) {
+    this.select.emit(job);
   }
 
-  get symbol() {
-    return iconForBuildState(this.status);
+  dateFor(timestamp) {
+    return moment(timestamp, 'YYYY-MM-DDTHH:mm:ss').format('YYYY-MM-DD');
+  }
+
+  iconFor(state) {
+    return iconForJobState(state);
   }
 }

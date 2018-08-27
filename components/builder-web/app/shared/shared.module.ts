@@ -41,6 +41,7 @@ import { SimpleConfirmDialog } from './dialog/simple-confirm/simple-confirm.dial
 import { BuilderEnabledGuard } from './guards/builder-enabled.guard';
 import { OriginMemberGuard } from './guards/origin-member.guard';
 import { SignedInGuard } from './guards/signed-in.guard';
+import { JobNoticeComponent } from './job-notice/job-notice.component';
 
 @NgModule({
   imports: [
@@ -72,6 +73,7 @@ import { SignedInGuard } from './guards/signed-in.guard';
     PlatformIconComponent,
     VisibilitySelectorComponent,
     SimpleConfirmDialog,
+    JobNoticeComponent,
     KeysPipe
   ],
   entryComponents: [
@@ -97,6 +99,7 @@ import { SignedInGuard } from './guards/signed-in.guard';
     PlatformIconComponent,
     KeysPipe,
     SimpleConfirmDialog,
+    JobNoticeComponent
   ],
   providers: [
     BuilderEnabledGuard,

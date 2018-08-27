@@ -2,13 +2,13 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { fetchBuild } from '../../actions/index';
+import { fetchJob } from '../../actions/index';
 import { AppStore } from '../../app.store';
 
 @Component({
-  template: require('./package-build.component.html')
+  template: require('./package-job.component.html')
 })
-export class PackageBuildComponent implements OnInit, OnDestroy {
+export class PackageJobComponent implements OnInit, OnDestroy {
   private sub: Subscription;
 
   constructor(
@@ -19,7 +19,7 @@ export class PackageBuildComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.sub = this.route.params.subscribe((p) => {
-      this.store.dispatch(fetchBuild(p.id, this.token));
+      this.store.dispatch(fetchJob(p.id, this.token));
 
       const origin = this.route.parent.snapshot.params['origin'];
       const name = this.route.parent.snapshot.params['name'];
@@ -33,12 +33,12 @@ export class PackageBuildComponent implements OnInit, OnDestroy {
     }
   }
 
-  get build() {
-    return this.store.getState().builds.selected.info;
+  get job() {
+    return this.store.getState().jobs.selected.info;
   }
 
   get info() {
-    return this.store.getState().builds.selected.info;
+    return this.store.getState().jobs.selected.info;
   }
 
   get token() {
