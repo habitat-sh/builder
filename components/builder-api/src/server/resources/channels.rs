@@ -57,24 +57,14 @@ impl Channels {
                 delete_channel,
             )
             .route(
-                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/promote",
-                Method::PUT,
-                promote_package,
-            )
-            .route(
-                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/demote",
-                Method::PUT,
-                demote_package,
+                "/depot/channels/{origin}/{channel}/pkgs",
+                Method::GET,
+                get_packages_for_origin_channel,
             )
             .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}",
                 Method::GET,
                 get_packages_for_origin_channel_package,
-            )
-            .route(
-                "/depot/channels/{origin}/{channel}/pkgs",
-                Method::GET,
-                get_packages_for_origin_channel,
             )
             .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/latest",
@@ -95,6 +85,16 @@ impl Channels {
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}",
                 Method::GET,
                 get_package_fully_qualified,
+            )
+            .route(
+                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/promote",
+                Method::PUT,
+                promote_package,
+            )
+            .route(
+                "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/demote",
+                Method::PUT,
+                demote_package,
             )
     }
 }
@@ -140,6 +140,7 @@ fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner();
+
     match helpers::create_channel(&req, &origin, &channel) {
         Ok(origin_channel) => HttpResponse::Created().json(&origin_channel),
         Err(err) => err.into(),
@@ -177,21 +178,24 @@ fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, channel) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner();
+    let (origin, channel, pkg, version, release) =
+        Path::<(String, String, String, String, String)>::extract(&req)
+            .unwrap()
+            .into_inner();
 
-    match do_promote_package(&req, origin, channel) {
+    match do_promote_package(&req, origin, channel, pkg, version, release) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => err.into(),
     }
 }
 
 fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, channel) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner();
-    match do_demote_package(&req, origin, channel) {
+    let (origin, channel, pkg, version, release) =
+        Path::<(String, String, String, String, String)>::extract(&req)
+            .unwrap()
+            .into_inner();
+
+    match do_demote_package(&req, origin, channel, pkg, version, release) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => err.into(),
     }
@@ -306,25 +310,39 @@ fn get_package_fully_qualified(
 //
 // Internal - these functions should return Result<..>
 //
-fn do_promote_package(req: &HttpRequest<AppState>, origin: String, channel: String) -> Result<()> {
-    let ident = OriginPackageIdent::new();
-
+fn do_promote_package(
+    req: &HttpRequest<AppState>,
+    origin: String,
+    channel: String,
+    pkg: String,
+    version: String,
+    release: String,
+) -> Result<()> {
     let session_id = authorize_session(req, Some(&origin))?;
+
+    let mut ident = OriginPackageIdent::new();
+    ident.set_origin(origin);
+    ident.set_name(pkg);
+    ident.set_version(version);
+    ident.set_release(release);
 
     let mut origin_get = OriginGet::new();
     origin_get.set_name(ident.get_origin().to_string());
 
-    let origin_id = route_message::<OriginGet, Origin>(req, &origin_get)?;
+    let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
+        Ok(o) => o.get_id(),
+        Err(err) => return Err(err),
+    };
 
     let mut channel_req = OriginChannelGet::new();
     channel_req.set_origin_name(ident.get_origin().to_string());
     channel_req.set_name(channel.to_string());
 
-    let origin_channel = match route_message::<OriginChannelGet, OriginPackage>(req, &channel_req) {
+    let origin_channel = match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
         Ok(c) => c,
         Err(e) => {
             warn!("Error retrieving channel: {:?}", &e);
-            return Err(e.into());
+            return Err(e);
         }
     };
 
@@ -335,8 +353,8 @@ fn do_promote_package(req: &HttpRequest<AppState>, origin: String, channel: Stri
     let package = match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
         Ok(p) => p,
         Err(e) => {
-            error!("Error retrieving package {:?}", &e);
-            return Err(e.into());
+            warn!("Error retrieving package {:?}", &e);
+            return Err(e);
         }
     };
 
@@ -351,36 +369,42 @@ fn do_promote_package(req: &HttpRequest<AppState>, origin: String, channel: Stri
             package.get_id(),
             origin_channel.get_id(),
             PackageChannelOperation::Promote,
-            origin_id.get_id(),
+            origin_id,
             session_id,
         ) {
             Ok(_) => return Ok(()),
-            Err(err) => return Err(err.into()),
+            Err(err) => return Err(err),
         },
-        Err(err) => return Err(err.into()),
+        Err(err) => return Err(err),
     }
 }
 
-fn do_demote_package(req: &HttpRequest<AppState>, origin: String, channel: String) -> Result<()> {
-    let ident = OriginPackageIdent::new();
-    if channel == "unstable" {
-        return Err(Error::NetError(NetError::new(
-            ErrCode::ACCESS_DENIED,
-            "core-demote-package-from-unstable:0",
-        )));
-    }
-
+fn do_demote_package(
+    req: &HttpRequest<AppState>,
+    origin: String,
+    channel: String,
+    pkg: String,
+    version: String,
+    release: String,
+) -> Result<()> {
     let session_id = authorize_session(req, Some(&origin))?;
+
+    let mut ident = OriginPackageIdent::new();
+    ident.set_origin(origin);
+    ident.set_name(pkg);
+    ident.set_version(version);
+    ident.set_release(release);
+
+    if channel == "unstable" {
+        return Err(Error::Authorization);
+    }
 
     let mut origin_get = OriginGet::new();
     origin_get.set_name(ident.get_origin().to_string());
 
     let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Error retrieving channel: {:?}", &e);
-            return Err(e.into());
-        }
+        Ok(o) => o.get_id(),
+        Err(e) => return Err(e),
     };
 
     let mut channel_req = OriginChannelGet::new();
@@ -404,7 +428,7 @@ fn do_demote_package(req: &HttpRequest<AppState>, origin: String, channel: Strin
                             package.get_id(),
                             origin_channel.get_id(),
                             PackageChannelOperation::Demote,
-                            origin_id.get_id(),
+                            origin_id,
                             session_id,
                         ) {
                             Ok(_) => return Ok(()),

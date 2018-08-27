@@ -361,18 +361,13 @@ fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpRespon
     request.set_body(body.into_bytes());
     request.set_owner_id(0);
     match route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(&req, &request) {
-        Ok(_) => {
-            // TODO ?
-            //let mut base_url: url::Url = req.url.clone().into();
-            //base_url.set_path(&format!("key/{}-{}", &origin, &request.get_revision()));
-
-            HttpResponse::Created().body(format!(
+        Ok(_) => HttpResponse::Created()
+            .header(http::header::LOCATION, format!("{}", req.uri()))
+            .body(format!(
                 "/origins/{}/keys/{}",
                 &origin,
                 &request.get_revision()
-            ))
-            // .header(http::header::LOCATION, format!("{}", base_url))
-        }
+            )),
         Err(err) => err.into(),
     }
 }

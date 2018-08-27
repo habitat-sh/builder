@@ -14,6 +14,7 @@
 
 use std::env;
 
+use actix_web::http::Method;
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path};
 
@@ -52,11 +53,11 @@ impl Authenticate {
     //
     // Route handlers - these functions should return HttpResponse
     //
-    fn authenticate(req: &HttpRequest<AppState>) -> HttpResponse {
-        let code = Path::<String>::extract(req).unwrap().into_inner(); // Unwrap Ok
+    fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
+        let code = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
         debug!("authenticate called, code = {}", code);
 
-        match Self::do_authenticate(req, code) {
+        match Self::do_authenticate(&req, code) {
             Ok(session) => HttpResponse::Ok().json(session),
             Err(Error::OAuth(OAuthError::HttpResponse(code, response))) => {
                 let msg = format!("{}-{}", code, response);
@@ -73,6 +74,6 @@ impl Authenticate {
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.resource("/authenticate/{code}", |r| r.get().f(Self::authenticate))
+        app.route("/authenticate/{code}", Method::GET, Self::authenticate)
     }
 }

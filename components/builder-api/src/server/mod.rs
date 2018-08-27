@@ -142,27 +142,25 @@ pub fn run(config: Config) -> Result<()> {
     server::new(move || {
         let app_state = AppState::new(&config);
 
-        let mut app = App::with_state(app_state)
+        App::with_state(app_state)
             .middleware(Logger::default())
             .middleware(XRouteClient)
             .middleware(Optional)
             .prefix("/v1")
+            .configure(Authenticate::register)
+            .configure(Channels::register)
+            .configure(Ext::register)
+            .configure(Jobs::register)
+            .configure(Notify::register)
+            .configure(Origins::register)
+            .configure(Packages::register)
+            .configure(Profile::register)
+            .configure(Projects::register)
+            .configure(User::register)
             .resource("/status", |r| {
                 r.get().f(status);
                 r.head().f(status)
-            });
-
-        app = Authenticate::register(app);
-        app = Channels::register(app);
-        app = Ext::register(app);
-        app = Jobs::register(app);
-        app = Notify::register(app);
-        app = Origins::register(app);
-        app = Packages::register(app);
-        app = Profile::register(app);
-        app = Projects::register(app);
-        app = User::register(app);
-        app
+            })
     }).workers(cfg.handler_count())
         .bind(cfg.http.clone())
         .unwrap()

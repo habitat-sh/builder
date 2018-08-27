@@ -94,16 +94,28 @@ impl Packages {
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route(
-            "/depot/pkgs/origins/{origin}/stats",
-            Method::GET,
-            get_package_stats,
-        ).route("/depot/pkgs/{origin}", Method::GET, get_packages_for_origin)
+        app.route("/depot/pkgs/{origin}", Method::GET, get_packages_for_origin)
             .route("/depot/pkgs/search/{query}", Method::GET, search_packages)
+            .route("/depot/pkgs/schedule/{groupid}", Method::GET, get_schedule)
             .route(
                 "/depot/pkgs/{origin}/{pkg}",
                 Method::GET,
                 get_packages_for_origin_package,
+            )
+            .route(
+                "/depot/pkgs/origins/{origin}/stats",
+                Method::GET,
+                get_package_stats,
+            )
+            .route(
+                "/depot/pkgs/schedule/{origin}/status",
+                Method::GET,
+                get_origin_schedule_status,
+            )
+            .route(
+                "/depot/pkgs/schedule/{origin}/{pkg}",
+                Method::POST,
+                schedule_job_group,
             )
             .route(
                 "/depot/pkgs/{origin}/{pkg}/latest",
@@ -141,25 +153,14 @@ impl Packages {
                 download_package,
             )
             .route(
-                "/depot/pkgs/{origin}/{pkg}/{version}/{release}/{visibility}",
-                Method::PATCH,
-                package_privacy_toggle,
-            )
-            .route(
-                "/depot/pkgs/schedule/{origin}/status",
-                Method::GET,
-                get_origin_schedule_status,
-            )
-            .route(
-                "/depot/pkgs/schedule/{origin}/{pkg}",
-                Method::POST,
-                schedule_job_group,
-            )
-            .route("/depot/pkgs/schedule/{groupid}", Method::GET, get_schedule)
-            .route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/channels",
                 Method::GET,
                 get_package_channels,
+            )
+            .route(
+                "/depot/pkgs/{origin}/{pkg}/{version}/{release}/{visibility}",
+                Method::PATCH,
+                package_privacy_toggle,
             )
     }
 }
@@ -175,6 +176,13 @@ pub fn postprocess_package_list(
     oplr: &OriginPackageListResponse,
     distinct: bool,
 ) -> HttpResponse {
+    debug!(
+        "postprocessing package list, start: {}, stop: {}, total_count: {}",
+        oplr.get_start(),
+        oplr.get_stop(),
+        oplr.get_count()
+    );
+
     let mut results = Vec::new();
 
     // The idea here is for every package we get back, pull its channels using the zmq API
@@ -454,19 +462,9 @@ fn do_upload_package_finish(
                 ),
             }
 
-            //let base_url = req.uri();
             HttpResponse::Created()
-                    // TODO: Request URI does not have scheme/host - do we need this?
-                    // .header(
-                    //     http::header::LOCATION,
-                    //     format!(
-                    //         "{}://{}/{}",
-                    //         base_url.scheme().unwrap(),
-                    //         base_url.host().unwrap(),
-                    //         format!("v1/pkgs/{}/download", package.get_ident())
-                    //     ),
-                    // )
-                    .body(format!("/pkgs/{}/download", package.get_ident()))
+                .header(http::header::LOCATION, format!("{}", req.uri()))
+                .body(format!("/pkgs/{}/download", package.get_ident()))
         }
         Err(err) => {
             debug!(
@@ -811,7 +809,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
     // We only support building for Linux x64 only currently
     if qschedule.target != "x86_64-linux" {
         info!("Rejecting build with target: {}", qschedule.target);
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
     let mut secret_key_request = OriginPrivateSigningKeyGet::new();
@@ -879,7 +877,7 @@ fn get_schedule((qgetschedule, req): (Query<GetSchedule>, HttpRequest<AppState>)
     let group_id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
     let group_id = match group_id_str.parse::<u64>() {
         Ok(id) => id,
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
     };
 
     let mut request = JobGroupGet::new();
