@@ -25,6 +25,7 @@ use server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {
+    #[serde(default)]
     pub email: String,
 }
 
@@ -142,6 +143,10 @@ fn update_profile((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> 
         Ok(id) => id,
         Err(err) => return err.into(),
     };
+
+    if body.email.len() <= 0 {
+        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+    }
 
     let mut request = AccountUpdate::new();
     request.set_id(account_id);

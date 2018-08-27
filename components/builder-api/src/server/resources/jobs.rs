@@ -104,7 +104,7 @@ fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
         Ok(id) => id,
         Err(e) => {
             debug!("Error finding id. e = {:?}", e);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
         }
     };
 

@@ -99,7 +99,7 @@ impl Packages {
             Method::GET,
             get_package_stats,
         ).route("/depot/pkgs/{origin}", Method::GET, get_packages_for_origin)
-            .route("/depot/pkgs/search/{query}", Method::POST, search_packages)
+            .route("/depot/pkgs/search/{query}", Method::GET, search_packages)
             .route(
                 "/depot/pkgs/{origin}/{pkg}",
                 Method::GET,
@@ -145,19 +145,19 @@ impl Packages {
                 Method::PATCH,
                 package_privacy_toggle,
             )
-            .route("/pkgs/schedule/{groupid}", Method::GET, get_schedule)
             .route(
-                "/pkgs/schedule/{origin}/status",
+                "/depot/pkgs/schedule/{origin}/status",
                 Method::GET,
                 get_origin_schedule_status,
             )
             .route(
-                "/pkgs/schedule/{origin}/{pkg}",
+                "/depot/pkgs/schedule/{origin}/{pkg}",
                 Method::POST,
                 schedule_job_group,
             )
+            .route("/depot/pkgs/schedule/{groupid}", Method::GET, get_schedule)
             .route(
-                "/pkgs/{origin}/{pkg}/{version}/{release}/channels",
+                "/depot/pkgs/{origin}/{pkg}/{version}/{release}/channels",
                 Method::GET,
                 get_package_channels,
             )
@@ -466,7 +466,7 @@ fn do_upload_package_finish(
                     //         format!("v1/pkgs/{}/download", package.get_ident())
                     //     ),
                     // )
-                    .finish()
+                    .body(format!("/pkgs/{}/download", package.get_ident()))
         }
         Err(err) => {
             debug!(

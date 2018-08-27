@@ -422,6 +422,15 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
         return err.into();
     }
 
+    if body.len() <= 0 {
+        return HttpResponse::new(StatusCode::BAD_REQUEST);
+    }
+
+    let _: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
+    };
+
     let mut opi = OriginProjectIntegration::new();
     opi.set_origin(origin.clone());
     opi.set_name(name.clone());
@@ -502,12 +511,12 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
 
     // users aren't allowed to set projects to hidden manually
     if visibility.to_lowercase() == "hidden" {
-        return HttpResponse::new(StatusCode::FORBIDDEN);
+        return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
     let opv: OriginPackageVisibility = match visibility.parse() {
         Ok(o) => o,
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
     };
 
     let mut project_get = OriginProjectGet::new();
