@@ -12,18 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::{self, StatusCode};
+use actix_web::http::{Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
-use protocol::originsrv::*;
 
-use hab_core::package::ident;
+use http_client::ApiClient;
+use hyper;
+use hyper::header::{Accept, ContentType};
 
+use serde_json;
 use server::error::{Error, Result};
-use server::framework::headers;
-use server::framework::middleware::route_message;
-use server::helpers;
+use server::services::github;
 use server::AppState;
+
+const PRODUCT: &'static str = "builder-api";
+const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+
+#[derive(Deserialize, Serialize)]
+pub struct Body {
+    username: Option<String>,
+    password: Option<String>,
+    url: Option<String>,
+}
 
 pub struct Ext;
 
@@ -32,75 +42,72 @@ impl Ext {
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app
+        app.route(
+            "/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
+            Method::GET,
+            github::repo_file_content,
+        ).route(
+            "/ext/integrations/{registry_type}/credentials/validate",
+            Method::POST,
+            validate_registry_credentials,
+        )
     }
 }
 
 //
 // Route handlers - these functions can return any Responder trait
 //
+pub fn validate_registry_credentials(
+    (req, body): (HttpRequest<AppState>, Json<Body>),
+) -> HttpResponse {
+    let registry_type = Path::<(String)>::extract(&req).unwrap().into_inner();
 
-/*
-// TODO: EXT HANDLERS
+    match do_validate_registry_credentials(body, registry_type) {
+        Ok(_) => HttpResponse::new(StatusCode::OK),
+        Err(err) => err.into(),
+    }
+}
 
--            r.get(
--                "/ext/installations/:install_id/repos/:repo_id/contents/:path",
--                XHandler::new(github::repo_file_content).before(basic.clone()),
--                "ext_repo_content",
--            );
-
-        r.post(
-            "/ext/integrations/:registry_type/credentials/validate",
-            XHandler::new(validate_registry_credentials).before(basic.clone()),
-            "ext_credentials_registry",
-        );
-*/
-
-/*
-
-
-pub fn validate_registry_credentials(req: &mut Request) -> IronResult<Response> {
-    let json_body = req.get::<bodyparser::Json>();
-
-    let registry_type: String = match get_param(req, "registry_type") {
-        Some(t) => t,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-
-    let body = match json_body {
-        Ok(Some(b)) => b,
-        Ok(None) => {
-            debug!("Error: Missing request body");
-            return Ok(Response::with(status::BadRequest));
-        }
-        Err(err) => {
-            debug!("Error: {:?}", err);
-            return Ok(Response::with(status::BadRequest));
-        }
-    };
-
-    if !body["username"].is_string() || !body["password"].is_string() {
+//
+// Internal Functions - These functions are business logic for any handlers
+//
+fn do_validate_registry_credentials(body: Json<Body>, registry_type: String) -> Result<()> {
+    if body.username.is_none() || body.password.is_none() {
         debug!("Error: Missing username or password");
-        return Ok(Response::with(status::BadRequest));
+        return Err(Error::BadRequest(
+            "Error: Missing username or password".to_string(),
+        ));
     }
 
-    let url = match body["url"].as_str() {
-        Some(url) => url,
+    let url = match body.url {
+        Some(ref url) => url.to_string(),
         None => match registry_type.as_ref() {
-            "docker" => "https://hub.docker.com/v2",
-            _ => return Ok(Response::with(status::BadRequest)),
+            "docker" => "https://hub.docker.com/v2".to_string(),
+            _ => {
+                return Err(Error::BadRequest(
+                    "Error: No supported registry type found in request!".to_string(),
+                ))
+            }
         },
     };
 
-    let client = match ApiClient::new(url, PRODUCT, VERSION, None) {
+    //TODO: This should absolutely not be our own custom http client type
+    // if at all possible we should stop using raw hyper calls and use an
+    // actix http client builder and stop doing this
+    let actual_url: &str = url.as_ref();
+
+    let client = match ApiClient::new(actual_url, PRODUCT, VERSION, None) {
         Ok(c) => c,
         Err(e) => {
             debug!("Error: Unable to create HTTP client: {}", e);
-            return Ok(Response::with(status::InternalServerError));
+            return Err(Error::BadRequest(format!(
+                "Error: unable to create HTTP client: {}",
+                e
+            )));
         }
     };
 
-    let sbody = serde_json::to_string(&body).unwrap();
+    let sbody = serde_json::to_string(&body.into_inner()).unwrap();
     let result = client
         .post("users/login")
         .header(Accept::json())
@@ -110,17 +117,18 @@ pub fn validate_registry_credentials(req: &mut Request) -> IronResult<Response> 
 
     match result {
         Ok(response) => match response.status {
-            StatusCode::Ok => Ok(Response::with(status::NoContent)),
+            hyper::status::StatusCode::Ok => Ok(()),
             _ => {
                 debug!("Non-OK Response: {}", &response.status);
-                Ok(Response::with(response.status))
+                Err(Error::BadRequest(format!(
+                    "Non-OK Response: {}",
+                    &response.status
+                )))
             }
         },
         Err(e) => {
             debug!("Error sending request: {:?}", e);
-            Ok(Response::with(status::Forbidden))
+            Err(Error::Authorization)
         }
     }
 }
-
-*/

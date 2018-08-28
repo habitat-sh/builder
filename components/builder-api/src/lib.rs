@@ -30,6 +30,7 @@ extern crate habitat_core as hab_core;
 extern crate habitat_http_client as http_client;
 extern crate habitat_net as hab_net;
 extern crate hex;
+extern crate hyper;
 #[macro_use]
 extern crate log;
 extern crate oauth_client;
