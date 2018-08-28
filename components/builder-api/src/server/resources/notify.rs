@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::{self, StatusCode};
-use actix_web::FromRequest;
-use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
-use protocol::originsrv::*;
+use actix_web::http::{Method, StatusCode};
+use actix_web::{App, HttpRequest, HttpResponse};
 
-use hab_core::package::ident;
-
-use server::error::{Error, Result};
 use server::framework::headers;
-use server::framework::middleware::route_message;
-use server::helpers;
+use server::services::github;
 use server::AppState;
 
 pub struct Notify;
@@ -32,18 +26,16 @@ impl Notify {
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app
+        app.route("/notify", Method::POST, notify)
     }
 }
 
-// r.post("/notify", notify, "notify");
-
-/*
-pub fn notify(req: &mut Request) -> IronResult<Response> {
-    if req.headers.has::<XGitHubEvent>() {
-        return github::handle_event(req);
+pub fn notify((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
+    if req.headers().get(headers::XGITHUBEVENT).is_some() {
+        match github::handle_event(req, body) {
+            Ok(_) => HttpResponse::new(StatusCode::OK),
+            Err(err) => err.into(),
+        };
     }
-    Ok(Response::with(status::BadRequest))
+    return HttpResponse::new(StatusCode::BAD_REQUEST);
 }
-
-*/

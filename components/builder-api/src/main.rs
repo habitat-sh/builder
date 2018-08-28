@@ -15,52 +15,21 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
-extern crate actix_web;
-extern crate base64;
-#[macro_use]
-extern crate bitflags;
-extern crate builder_core as bldr_core;
-extern crate bytes;
-extern crate habitat_builder_api as bldr_api;
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
-#[macro_use]
-extern crate features;
-extern crate futures;
-extern crate github_api_client;
-extern crate habitat_builder_protocol as protocol;
+extern crate habitat_builder_api as bldr_api;
 extern crate habitat_core as hab_core;
-extern crate habitat_net as hab_net;
 #[macro_use]
 extern crate log;
-extern crate num_cpus;
-extern crate protobuf;
-extern crate regex;
-extern crate rusoto_core as rusoto;
-extern crate rusoto_s3;
-extern crate segment_api_client;
-extern crate serde;
-extern crate tempfile;
-extern crate time;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate serde_json;
-extern crate oauth_client;
-extern crate url;
-extern crate uuid;
-extern crate zmq;
 
 use std::fmt;
 use std::path::PathBuf;
 use std::process;
 use std::str::FromStr;
 
-mod config;
-mod server;
-
-use config::Config;
+use bldr_api::config::Config;
+use bldr_api::server;
 use hab_core::config::ConfigFile;
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));

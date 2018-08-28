@@ -44,6 +44,7 @@ pub enum Error {
     Authorization,
     CircularDependency(String),
     Connection(conn::ConnErr),
+    BadRequest(String),
     Github(HubError),
     InnerError(io::IntoInnerError<io::BufWriter<fs::File>>),
     Protocol(protocol::ProtocolError),
@@ -77,6 +78,7 @@ impl fmt::Display for Error {
         let msg = match *self {
             Error::Authentication => "User is not authenticated".to_string(),
             Error::Authorization => "User is not authorized to perform operation".to_string(),
+            Error::BadRequest(ref e) => format!("{}", e),
             Error::CircularDependency(ref e) => {
                 format!("Circular dependency detected for package upload: {}", e)
             }
@@ -120,6 +122,8 @@ impl error::Error for Error {
             Error::Authentication => "User is not authenticated",
             Error::Authorization => "User is not authorized to perform operation",
             Error::CircularDependency(_) => "Circular dependency detected for package upload",
+            Error::BadRequest(_) => "Http request formation error",
+            Error::CircularDependency(_) => "Circular dependency detected for package upload",
             Error::Connection(ref err) => err.description(),
             Error::Github(ref err) => err.description(),
             Error::InnerError(ref err) => err.error().description(),
@@ -156,6 +160,7 @@ impl ResponseError for Error {
         match self {
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
+            Error::BadRequest(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
@@ -174,6 +179,7 @@ impl Into<HttpResponse> for Error {
         match self {
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
+            Error::BadRequest(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),

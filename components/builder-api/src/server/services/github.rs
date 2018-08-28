@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Read;
 use std::str::FromStr;
+
+use actix_web::http::StatusCode;
+use actix_web::{error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Path};
 
 use bldr_core::build_config::{BuildCfg, BLDR_CFG};
 use bldr_core::metrics::CounterMetric;
 use constant_time_eq::constant_time_eq;
+use github_api_client::types::GitHubWebhookPush;
 use github_api_client::{AppToken, GitHubClient};
 use hab_core::package::Plan;
 use hex;
@@ -29,13 +32,11 @@ use protocol::originsrv::{OriginProject, OriginProjectGet};
 use protocol::sessionsrv::{Account, AccountGet};
 use serde_json;
 
-use error::Error;
-use headers::*;
-use metrics::Counter;
-use middleware::route_message;
-use middleware::GitHubCli;
-use net_err::render_json;
-use types::*;
+use server::error::{Error, Result};
+use server::framework::headers;
+use server::framework::middleware::route_message;
+use server::services::metrics::Counter;
+use server::AppState;
 
 pub enum GitHubEvent {
     Push,
@@ -45,7 +46,7 @@ pub enum GitHubEvent {
 impl FromStr for GitHubEvent {
     type Err = Error;
 
-    fn from_str(event: &str) -> Result<Self, Self::Err> {
+    fn from_str(event: &str) -> error::Result<Self, Error> {
         match event {
             "ping" => Ok(GitHubEvent::Ping),
             "push" => Ok(GitHubEvent::Push),
@@ -54,75 +55,68 @@ impl FromStr for GitHubEvent {
     }
 }
 
-pub fn handle_event(req: &mut Request) -> IronResult<Response> {
+pub fn handle_event(req: HttpRequest<AppState>, body: String) -> Result<HttpResponse> {
     Counter::GitHubEvent.increment();
 
-    let event = match req.headers.get::<XGitHubEvent>() {
-        Some(&XGitHubEvent(ref event)) => match GitHubEvent::from_str(event) {
+    let event = match req.headers().get(headers::XGITHUBEVENT) {
+        Some(event) => match GitHubEvent::from_str(match event.to_str() {
+            Ok(value) => value,
+            Err(err) => {
+                error!("An empty value was passed for XGitHubEvent Header!");
+                return Err(Error::BadRequest(err.to_string()));
+            }
+        }) {
             Ok(event) => event,
-            Err(err) => return Ok(Response::with((status::BadRequest, err.to_string()))),
+            Err(err) => return Err(err.into()),
         },
-        _ => return Ok(Response::with(status::BadRequest)),
-    };
-
-    // Authenticate the hook
-    let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
-    let gh_signature = match req.headers.get::<XHubSignature>() {
-        Some(&XHubSignature(ref sig)) => sig.clone(),
-        None => {
-            warn!("Received a GitHub hook with no signature");
-            return Ok(Response::with(status::BadRequest));
+        _ => {
+            return Err(Error::BadRequest(
+                "An unknown value was passed in for XGitHubEvent header!".to_string(),
+            ))
         }
     };
 
-    let mut payload = String::new();
-    if let Err(err) = req.body.read_to_string(&mut payload) {
-        warn!("Unable to read GitHub Hook request body, {}", err);
-        return Ok(Response::with(status::BadRequest));
-    }
-    trace!("handle-notify, {}", payload);
+    // Authenticate the hook
+    let github = &req.state().github;
+    let gh_signature = match req.headers().get(headers::XHUBSIGNATURE) {
+        Some(ref sig) => sig.clone(),
+        None => {
+            warn!("Received a GitHub hook with no signature");
+            return Err(Error::BadRequest(
+                "Recieved a GitHub hook with no signature".to_string(),
+            ));
+        }
+    };
+
+    trace!("handle-notify, {}", body);
 
     let key = PKey::hmac(github.webhook_secret.as_bytes()).unwrap();
     let mut signer = Signer::new(MessageDigest::sha1(), &key).unwrap();
-    signer.update(payload.as_bytes()).unwrap();
+    signer.update(body.as_bytes()).unwrap();
     let hmac = signer.sign_to_vec().unwrap();
     let computed_signature = format!("sha1={}", &hex::encode(hmac));
 
     if !constant_time_eq(gh_signature.as_bytes(), computed_signature.as_bytes()) {
         warn!(
-            "Web hook signatures don't match. GH = {}, Our = {}",
+            "Web hook signatures don't match. GH = {:?}, Our = {:?}",
             gh_signature, computed_signature
         );
-        return Ok(Response::with(status::BadRequest));
+        return Err(Error::BadRequest(
+            "Webhook signatures don't match!".to_string(),
+        ));
     }
 
     match event {
-        GitHubEvent::Ping => Ok(Response::with(status::Ok)),
-        GitHubEvent::Push => handle_push(req, &payload),
+        GitHubEvent::Ping => Ok(HttpResponse::new(StatusCode::OK)),
+        GitHubEvent::Push => handle_push(&req, &body),
     }
 }
 
-pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
-    let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
-    let params = req.extensions.get::<Router>().unwrap();
-    let path = match params.find("path") {
-        Some(path) => path,
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-    let install_id = match params.find("install_id") {
-        Some(install_id) => match install_id.parse::<u32>() {
-            Ok(install_id) => install_id,
-            Err(_) => return Ok(Response::with(status::BadRequest)),
-        },
-        None => return Ok(Response::with(status::BadRequest)),
-    };
-    let repo_id = match params.find("repo_id") {
-        Some(repo_id) => match repo_id.parse::<u32>() {
-            Ok(repo_id) => repo_id,
-            Err(_) => return Ok(Response::with(status::BadRequest)),
-        },
-        None => return Ok(Response::with(status::BadRequest)),
-    };
+pub fn repo_file_content(req: HttpRequest<AppState>) -> Result<HttpResponse> {
+    let github = &req.state().github;
+    let (path, install_id, repo_id) = Path::<(String, u32, u32)>::extract(&req)
+        .unwrap()
+        .into_inner();
 
     let token = {
         debug!(
@@ -135,29 +129,26 @@ pub fn repo_file_content(req: &mut Request) -> IronResult<Response> {
             Ok(token) => token,
             Err(err) => {
                 warn!("unable to generate github app token, {}", err);
-                return Ok(Response::with((status::BadGateway, err.to_string())));
+                return Err(err.into());
             }
         }
     };
 
-    match github.contents(&token, repo_id, path) {
-        Ok(None) => Ok(Response::with(status::NotFound)),
-        Ok(search) => Ok(render_json(status::Ok, &search)),
+    match github.contents(&token, repo_id, &path) {
+        Ok(None) => Ok(HttpResponse::new(StatusCode::NOT_FOUND)),
+        Ok(search) => Ok(HttpResponse::Ok().json(&search)),
         Err(err) => {
             warn!("unable to fetch github contents, {}", err);
-            Ok(Response::with((status::BadGateway, err.to_string())))
+            Err(err.into())
         }
     }
 }
 
-fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
+fn handle_push(req: &HttpRequest<AppState>, body: &str) -> Result<HttpResponse> {
     let hook = match serde_json::from_str::<GitHubWebhookPush>(&body) {
         Ok(hook) => hook,
         Err(err) => {
-            return Ok(Response::with((
-                status::UnprocessableEntity,
-                err.to_string(),
-            )));
+            return Err(err.into());
         }
     };
     debug!(
@@ -170,10 +161,10 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
 
     if hook.commits.is_empty() {
         debug!("GITHUB-WEBHOOK builder_api::github::handle_push: hook commits is empty!");
-        return Ok(Response::with(status::Ok));
+        return Ok(HttpResponse::new(StatusCode::OK));
     }
 
-    let github = req.get::<persistent::Read<GitHubCli>>().unwrap();
+    let github = &req.state().github;
 
     debug!(
         "GITHUB-CALL builder_api::github::handle_push: Getting app_installation_token; installation_id={}",
@@ -183,23 +174,23 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
         Ok(token) => token,
         Err(err) => {
             warn!("unable to generate github app token, {}", err);
-            return Ok(Response::with((status::BadGateway, err.to_string())));
+            return Err(err.into());
         }
     };
 
     let mut account_get = AccountGet::new();
     account_get.set_name(hook.pusher.name.clone());
-    let account_id = match route_message::<AccountGet, Account>(req, &account_get) {
+    let account_id = match route_message::<AccountGet, Account>(&req, &account_get) {
         Ok(account) => Some(account.get_id()),
         Err(_) => None,
     };
 
-    let config = read_bldr_config(&*github, &token, &hook);
+    let config = read_bldr_config(&github, &token, &hook);
     debug!("Config, {:?}", config);
     let plans = read_plans(&github, &token, &hook, &config);
     debug!("Triggered Plans, {:?}", plans);
     build_plans(
-        req,
+        &req,
         &hook.repository.clone_url,
         &hook.pusher.name,
         account_id,
@@ -208,19 +199,19 @@ fn handle_push(req: &mut Request, body: &str) -> IronResult<Response> {
 }
 
 fn build_plans(
-    req: &mut Request,
+    req: &HttpRequest<AppState>,
     repo_url: &str,
     pusher: &str,
     account_id: Option<u64>,
     plans: Vec<Plan>,
-) -> IronResult<Response> {
+) -> Result<HttpResponse> {
     let mut request = JobGroupSpec::new();
 
     for plan in plans.iter() {
         let mut project_get = OriginProjectGet::new();
         project_get.set_name(format!("{}/{}", &plan.origin, &plan.name));
 
-        match route_message::<OriginProjectGet, OriginProject>(req, &project_get) {
+        match route_message::<OriginProjectGet, OriginProject>(&req, &project_get) {
             Ok(project) => {
                 if repo_url != project.get_vcs_data() {
                     warn!(
@@ -250,12 +241,12 @@ fn build_plans(
             request.set_requester_id(account_id.unwrap());
         }
 
-        match route_message::<JobGroupSpec, JobGroup>(req, &request) {
+        match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
             Ok(group) => debug!("JobGroup created, {:?}", group),
             Err(err) => debug!("Failed to create group, {:?}", err),
         }
     }
-    Ok(render_json(status::Ok, &plans))
+    Ok(HttpResponse::Ok().json(&plans))
 }
 
 fn read_bldr_config(github: &GitHubClient, token: &AppToken, hook: &GitHubWebhookPush) -> BuildCfg {

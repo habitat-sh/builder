@@ -27,6 +27,9 @@ pub fn cache(cache: bool) -> &'static str {
     }
 }
 
+pub const XGITHUBEVENT: &str = "X-GitHub-Event";
+pub const XHUBSIGNATURE: &str = "X-Hub-Signature";
+
 /*
 header! { (CacheControl, "Cache-Control") => [String] }
 header! { (ContentDisposition, "Content-Disposition") => [String] }

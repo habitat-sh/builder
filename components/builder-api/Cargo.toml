@@ -22,6 +22,7 @@ env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
+hyper = "*"
 log = "*"
 num_cpus = "*"
 openssl = "0.10"
