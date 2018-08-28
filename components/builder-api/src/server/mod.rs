@@ -35,7 +35,7 @@ use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
 use self::error::Error;
-use self::framework::middleware::{Cors, Optional, XRouteClient};
+use self::framework::middleware::{Authentication, Cors, XRouteClient};
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
 use self::services::upstream::{UpstreamClient, UpstreamMgr};
@@ -129,7 +129,6 @@ pub fn run(config: Config) -> Result<()> {
         .unwrap();
 
     UpstreamMgr::start(&config, S3Handler::new(config.s3.to_owned()))?;
-    // TODO: chain.link_after(Cors);
 
     let cfg = Arc::new(config.clone());
 
@@ -145,7 +144,7 @@ pub fn run(config: Config) -> Result<()> {
         App::with_state(app_state)
             .middleware(Logger::default())
             .middleware(XRouteClient)
-            .middleware(Optional)
+            .middleware(Authentication)
             .middleware(Cors)
             .prefix("/v1")
             .configure(Authenticate::register)

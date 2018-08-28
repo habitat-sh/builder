@@ -37,7 +37,7 @@ impl Ext {
 }
 
 //
-// Route handlers - these functions should return HttpResponse
+// Route handlers - these functions can return any Responder trait
 //
 
 /*

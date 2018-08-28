@@ -166,429 +166,9 @@ impl Packages {
 }
 
 //
-// Public helpers
+// Route handlers - these functions can return any Responder trait
 //
-
-// TODO : this needs to be re-designed to not fan out
-// Common functionality for pkgs and channel routes
-pub fn postprocess_package_list(
-    req: &HttpRequest<AppState>,
-    oplr: &OriginPackageListResponse,
-    distinct: bool,
-) -> HttpResponse {
-    debug!(
-        "postprocessing package list, start: {}, stop: {}, total_count: {}",
-        oplr.get_start(),
-        oplr.get_stop(),
-        oplr.get_count()
-    );
-
-    let mut results = Vec::new();
-
-    // The idea here is for every package we get back, pull its channels using the zmq API
-    // and accumulate those results. This avoids the N+1 HTTP requests that would be
-    // required to fetch channels for a list of packages in the UI. However, if our request
-    // has been marked as "distinct" then skip this step because it doesn't make sense in
-    // that case. Let's get platforms at the same time.
-    for package in oplr.get_idents().to_vec() {
-        let mut channels: Option<Vec<String>> = None;
-        let mut platforms: Option<Vec<String>> = None;
-
-        if !distinct {
-            channels = helpers::channels_for_package_ident(req, &package);
-            platforms = helpers::platforms_for_package_ident(req, &package);
-        }
-
-        let mut pkg_json = serde_json::to_value(package).unwrap();
-
-        if channels.is_some() {
-            pkg_json["channels"] = json!(channels);
-        }
-
-        if platforms.is_some() {
-            pkg_json["platforms"] = json!(platforms);
-        }
-
-        results.push(pkg_json);
-    }
-
-    let body = helpers::package_results_json(
-        &results,
-        oplr.get_count() as isize,
-        oplr.get_start() as isize,
-        oplr.get_stop() as isize,
-    );
-
-    let mut response = if oplr.get_count() as isize > (oplr.get_stop() as isize + 1) {
-        HttpResponse::PartialContent()
-    } else {
-        HttpResponse::Ok()
-    };
-
-    response
-        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-        .body(body)
-}
-
-//
-// Internal - these functions should return Result<..>
-//
-fn do_get_packages(
-    req: &HttpRequest<AppState>,
-    ident: OriginPackageIdent,
-    pagination: &Query<Pagination>,
-) -> Result<OriginPackageListResponse> {
-    let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
-        Err(_) => None,
-    };
-
-    let (start, stop) = helpers::extract_pagination(pagination);
-
-    let mut request = OriginPackageListRequest::new();
-    request.set_start(start as u64);
-    request.set_stop(stop as u64);
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        &req,
-        opt_session_id,
-        &ident.get_origin(),
-    ));
-    request.set_distinct(pagination.distinct);
-    request.set_ident(ident);
-
-    route_message::<OriginPackageListRequest, OriginPackageListResponse>(&req, &request)
-}
-
-//
-//  Async helpers
-//
-fn do_upload_package_start(
-    req: &HttpRequest<AppState>,
-    qupload: &Query<Upload>,
-    ident: &OriginPackageIdent,
-) -> Result<(PathBuf, BufWriter<File>)> {
-    authorize_session(req, Some(&ident.get_origin()))?;
-
-    // Return if we find existing package metadata (unless forced flag specified)
-    let mut ident_req = OriginPackageGet::new();
-    ident_req.set_ident(ident.clone());
-    ident_req.set_visibilities(helpers::all_visibilities());
-
-    if qupload.forced {
-        debug!(
-            "Upload was forced (bypassing existing package check) for: {}",
-            ident
-        );
-    } else {
-        match route_message::<OriginPackageGet, OriginPackage>(&req, &ident_req) {
-            Ok(_) => {
-                return Err(Error::NetError(NetError::new(
-                    ErrCode::ENTITY_CONFLICT,
-                    "ds:up:0",
-                )))
-            }
-            Err(Error::NetError(ref err)) if err.get_code() == ErrCode::ENTITY_NOT_FOUND => (),
-            Err(err) => return Err(err),
-        }
-    }
-
-    debug!("UPLOADING {}, params={:?}", ident, qupload);
-
-    // Find the path to folder where archive should be created, and
-    // create the folder if necessary
-    let parent_path = packages_path(&req.state().config.api.data_path);
-    fs::create_dir_all(parent_path.clone())?;
-
-    // Create a temp file at the archive location
-    let file_path = packages_path(&req.state().config.api.data_path);
-
-    let temp_name = format!("{}.tmp", Uuid::new_v4());
-    let temp_path = parent_path.join(file_path).join(temp_name);
-
-    let file = File::create(&temp_path)?;
-    let writer = BufWriter::new(file);
-
-    Ok((temp_path, writer))
-}
-
-// TODO: Break this up further, convert S3 upload to async
-fn do_upload_package_finish(
-    req: HttpRequest<AppState>,
-    qupload: Query<Upload>,
-    ident: OriginPackageIdent,
-    temp_path: PathBuf,
-) -> HttpResponse {
-    let mut archive = PackageArchive::new(&temp_path);
-
-    debug!("Package Archive: {:#?}", archive);
-
-    let target_from_artifact = match archive.target() {
-        Ok(target) => target,
-        Err(e) => {
-            info!("Could not read the target for {:#?}: {:#?}", archive, e);
-            return HttpResponse::with_body(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                format!("ds:up:1, err={:?}", e),
-            );
-        }
-    };
-
-    if !req
-        .state()
-        .config
-        .api
-        .targets
-        .contains(&target_from_artifact)
-    {
-        debug!(
-            "Unsupported package platform or architecture {}.",
-            target_from_artifact
-        );
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
-    };
-
-    let mut ident_req = OriginPackageGet::new();
-    ident_req.set_ident(ident.clone());
-    ident_req.set_visibilities(helpers::all_visibilities());
-
-    let checksum_from_artifact = match archive.checksum() {
-        Ok(cksum) => cksum,
-        Err(e) => {
-            debug!("Could not compute a checksum for {:#?}: {:#?}", archive, e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:2");
-        }
-    };
-
-    if qupload.checksum != checksum_from_artifact {
-        debug!(
-            "Checksums did not match: from_param={:?}, from_artifact={:?}",
-            qupload.checksum, checksum_from_artifact
-        );
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:3");
-    }
-
-    // Check with scheduler to ensure we don't have circular deps, if configured
-    if feat::is_enabled(feat::Jobsrv) {
-        if let Err(e) = check_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
-            debug!("Failed circular dependency check, err={:?}", e);
-            return e.into();
-        }
-    }
-
-    let file_path = packages_path(&req.state().config.api.data_path);
-    let filename = file_path.join(archive_name(&(&ident).into(), &target_from_artifact));
-    let temp_ident = ident.to_owned().into();
-
-    match fs::rename(&temp_path, &filename) {
-        Ok(_) => {}
-        Err(e) => {
-            warn!(
-                "Unable to rename temp archive {:?} to {:?}, err={:?}",
-                temp_path, filename, e
-            );
-            return Error::IO(e).into();
-        }
-    }
-
-    // TODO: Make S3 upload async
-    if let Err(err) = req
-        .state()
-        .packages
-        .upload(&filename, &temp_ident, &target_from_artifact)
-    {
-        warn!("Unable to upload archive to s3!");
-        return err.into();
-    }
-
-    debug!("File added to Depot: {:?}", &filename);
-
-    let mut archive = PackageArchive::new(filename.clone());
-    let mut package = match OriginPackageCreate::from_archive(&mut archive) {
-        Ok(package) => package,
-        Err(e) => {
-            debug!("Error building package from archive: {:#?}", e);
-            return Error::HabitatCore(e).into();
-        }
-    };
-
-    if !ident.satisfies(package.get_ident()) {
-        debug!(
-            "Ident mismatch, expected={:?}, got={:?}",
-            ident,
-            package.get_ident()
-        );
-
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:6");
-    }
-
-    let session_id = authorize_session(&req, None).unwrap(); // Unwrap Ok
-    let session_name = get_session_user_name(&req, session_id);
-
-    match process_upload_for_package_archive(&ident, &mut package, session_id) {
-        Ok(_) => {
-            // Schedule re-build of dependent packages (if requested)
-            // Don't schedule builds if the upload is being done by the builder
-            if qupload.builder.is_none() && feat::is_enabled(feat::Jobsrv) {
-                let mut request = JobGroupSpec::new();
-                request.set_origin(ident.get_origin().to_string());
-                request.set_package(ident.get_name().to_string());
-                request.set_target(target_from_artifact.to_string());
-                request.set_deps_only(true);
-                request.set_origin_only(false);
-                request.set_package_only(false);
-                request.set_trigger(JobGroupTrigger::Upload);
-                request.set_requester_id(session_id);
-                request.set_requester_name(session_name);
-
-                match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
-                    Ok(group) => debug!(
-                        "Scheduled reverse dependecy build for {}, group id: {}",
-                        ident,
-                        group.get_id()
-                    ),
-                    Err(err) => warn!("Unable to schedule build, err: {:?}", err),
-                }
-            }
-
-            match remove_file(&filename) {
-                Ok(_) => debug!(
-                    "Successfully removed cached file after upload. {:?}",
-                    &filename
-                ),
-                Err(e) => warn!(
-                    "Failed to remove cached file after upload: {:?}, {}",
-                    &filename, e
-                ),
-            }
-
-            HttpResponse::Created()
-                .header(http::header::LOCATION, format!("{}", req.uri()))
-                .body(format!("/pkgs/{}/download", package.get_ident()))
-        }
-        Err(err) => {
-            debug!(
-                "Ident mismatch, expected={:?}, got={:?}",
-                ident,
-                package.get_ident()
-            );
-            Error::NetError(err).into()
-        }
-    }
-}
-
-fn do_upload_package_async(
-    req: HttpRequest<AppState>,
-    qupload: Query<Upload>,
-    ident: OriginPackageIdent,
-    temp_path: PathBuf,
-    writer: BufWriter<File>,
-) -> Box<Future<Item = HttpResponse, Error = Error>> {
-    req.payload()
-        // `Future::from_err` acts like `?` in that it coerces the error type from
-        // the future into the final error type
-        .from_err()
-        // `fold` will asynchronously read each chunk of the request body and
-        // call supplied closure, then it resolves to result of closure
-        .fold(writer, write_archive_async)
-        // `Future::and_then` can be used to merge an asynchronous workflow with a
-        // synchronous workflow
-        .and_then(|writer| {
-            match writer.into_inner() {
-                Ok(f) => {
-                    f.sync_all()?;
-                    Ok( do_upload_package_finish(req, qupload, ident, temp_path))
-                },
-                Err(err) => {
-                    Err(Error::InnerError(err))
-                }
-            }
-        })
-        .responder()
-}
-
-fn do_get_package(
-    req: &HttpRequest<AppState>,
-    qtarget: &Query<Target>,
-    mut ident: OriginPackageIdent,
-) -> Result<OriginPackage> {
-    let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
-        Err(_) => None,
-    };
-
-    // TODO: Deprecate target from headers
-    let target = match qtarget.target.clone() {
-        Some(t) => {
-            debug!("Query requested target = {}", t);
-            PackageTarget::from_str(&t).unwrap() // Unwrap Ok ?
-        }
-        None => helpers::target_from_headers(req),
-    };
-
-    // Fully qualify the ident if needed
-    // TODO: Have the OriginPackageLatestGet call just return the package
-    // metadata, thus saving us a second call to actually retrieve the package
-    if !ident.fully_qualified() {
-        let mut request = OriginPackageLatestGet::new();
-        request.set_ident(ident.clone());
-        request.set_target(target.to_string());
-        request.set_visibilities(helpers::visibility_for_optional_session(
-            req,
-            opt_session_id,
-            &ident.get_origin(),
-        ));
-
-        ident = match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request) {
-            Ok(id) => id.into(),
-            Err(err) => {
-                // Notify upstream with a non-fully qualified ident to handle checking
-                // of a package that does not exist in the on-premise depot
-
-                notify_upstream(req, &ident, &target);
-                return Err(err);
-            }
-        }
-    }
-
-    let mut request = OriginPackageGet::new();
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        req,
-        opt_session_id,
-        &ident.get_origin(),
-    ));
-    request.set_ident(ident.clone());
-
-    // Notify upstream with a fully qualified ident
-    notify_upstream(req, &ident, &target);
-
-    route_message::<OriginPackageGet, OriginPackage>(req, &request)
-}
-
-// TODO: this needs to be re-designed to not fan out
-// Common functionality for pkgs and channel routes
-pub fn postprocess_package(
-    req: &HttpRequest<AppState>,
-    pkg: &OriginPackage,
-    should_cache: bool,
-) -> HttpResponse {
-    let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = helpers::channels_for_package_ident(req, pkg.get_ident());
-    pkg_json["channels"] = json!(channels);
-    pkg_json["is_a_service"] = json!(is_a_service(pkg));
-
-    let body = serde_json::to_string(&pkg_json).unwrap();
-
-    HttpResponse::Ok()
-        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-        .header(http::header::ETAG, pkg.get_checksum().to_string())
-        .header(http::header::CACHE_CONTROL, headers::cache(should_cache))
-        .body(body)
-}
-
-//
-// Route handlers - these functions should return HttpResponse
-//
+// TODO: Move package stats API to originsrv
 fn get_package_stats(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -1134,6 +714,427 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
         }
         Err(e) => e.into(),
     }
+}
+
+//
+// Public helpers
+//
+
+// TODO : this needs to be re-designed to not fan out
+// Common functionality for pkgs and channel routes
+pub fn postprocess_package_list(
+    req: &HttpRequest<AppState>,
+    oplr: &OriginPackageListResponse,
+    distinct: bool,
+) -> HttpResponse {
+    debug!(
+        "postprocessing package list, start: {}, stop: {}, total_count: {}",
+        oplr.get_start(),
+        oplr.get_stop(),
+        oplr.get_count()
+    );
+
+    let mut results = Vec::new();
+
+    // The idea here is for every package we get back, pull its channels using the zmq API
+    // and accumulate those results. This avoids the N+1 HTTP requests that would be
+    // required to fetch channels for a list of packages in the UI. However, if our request
+    // has been marked as "distinct" then skip this step because it doesn't make sense in
+    // that case. Let's get platforms at the same time.
+    for package in oplr.get_idents().to_vec() {
+        let mut channels: Option<Vec<String>> = None;
+        let mut platforms: Option<Vec<String>> = None;
+
+        if !distinct {
+            channels = helpers::channels_for_package_ident(req, &package);
+            platforms = helpers::platforms_for_package_ident(req, &package);
+        }
+
+        let mut pkg_json = serde_json::to_value(package).unwrap();
+
+        if channels.is_some() {
+            pkg_json["channels"] = json!(channels);
+        }
+
+        if platforms.is_some() {
+            pkg_json["platforms"] = json!(platforms);
+        }
+
+        results.push(pkg_json);
+    }
+
+    let body = helpers::package_results_json(
+        &results,
+        oplr.get_count() as isize,
+        oplr.get_start() as isize,
+        oplr.get_stop() as isize,
+    );
+
+    let mut response = if oplr.get_count() as isize > (oplr.get_stop() as isize + 1) {
+        HttpResponse::PartialContent()
+    } else {
+        HttpResponse::Ok()
+    };
+
+    response
+        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+        .body(body)
+}
+
+//
+// Internal - these functions should return Result<..>
+//
+fn do_get_packages(
+    req: &HttpRequest<AppState>,
+    ident: OriginPackageIdent,
+    pagination: &Query<Pagination>,
+) -> Result<OriginPackageListResponse> {
+    let opt_session_id = match authorize_session(req, None) {
+        Ok(id) => Some(id),
+        Err(_) => None,
+    };
+
+    let (start, stop) = helpers::extract_pagination(pagination);
+
+    let mut request = OriginPackageListRequest::new();
+    request.set_start(start as u64);
+    request.set_stop(stop as u64);
+    request.set_visibilities(helpers::visibility_for_optional_session(
+        &req,
+        opt_session_id,
+        &ident.get_origin(),
+    ));
+    request.set_distinct(pagination.distinct);
+    request.set_ident(ident);
+
+    route_message::<OriginPackageListRequest, OriginPackageListResponse>(&req, &request)
+}
+
+//
+//  Async helpers
+//
+fn do_upload_package_start(
+    req: &HttpRequest<AppState>,
+    qupload: &Query<Upload>,
+    ident: &OriginPackageIdent,
+) -> Result<(PathBuf, BufWriter<File>)> {
+    authorize_session(req, Some(&ident.get_origin()))?;
+
+    // Return if we find existing package metadata (unless forced flag specified)
+    let mut ident_req = OriginPackageGet::new();
+    ident_req.set_ident(ident.clone());
+    ident_req.set_visibilities(helpers::all_visibilities());
+
+    if qupload.forced {
+        debug!(
+            "Upload was forced (bypassing existing package check) for: {}",
+            ident
+        );
+    } else {
+        match route_message::<OriginPackageGet, OriginPackage>(&req, &ident_req) {
+            Ok(_) => {
+                return Err(Error::NetError(NetError::new(
+                    ErrCode::ENTITY_CONFLICT,
+                    "ds:up:0",
+                )))
+            }
+            Err(Error::NetError(ref err)) if err.get_code() == ErrCode::ENTITY_NOT_FOUND => (),
+            Err(err) => return Err(err),
+        }
+    }
+
+    debug!("UPLOADING {}, params={:?}", ident, qupload);
+
+    // Find the path to folder where archive should be created, and
+    // create the folder if necessary
+    let parent_path = packages_path(&req.state().config.api.data_path);
+    fs::create_dir_all(parent_path.clone())?;
+
+    // Create a temp file at the archive location
+    let file_path = packages_path(&req.state().config.api.data_path);
+
+    let temp_name = format!("{}.tmp", Uuid::new_v4());
+    let temp_path = parent_path.join(file_path).join(temp_name);
+
+    let file = File::create(&temp_path)?;
+    let writer = BufWriter::new(file);
+
+    Ok((temp_path, writer))
+}
+
+// TODO: Break this up further, convert S3 upload to async
+fn do_upload_package_finish(
+    req: HttpRequest<AppState>,
+    qupload: Query<Upload>,
+    ident: OriginPackageIdent,
+    temp_path: PathBuf,
+) -> HttpResponse {
+    let mut archive = PackageArchive::new(&temp_path);
+
+    debug!("Package Archive: {:#?}", archive);
+
+    let target_from_artifact = match archive.target() {
+        Ok(target) => target,
+        Err(e) => {
+            info!("Could not read the target for {:#?}: {:#?}", archive, e);
+            return HttpResponse::with_body(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                format!("ds:up:1, err={:?}", e),
+            );
+        }
+    };
+
+    if !req
+        .state()
+        .config
+        .api
+        .targets
+        .contains(&target_from_artifact)
+    {
+        debug!(
+            "Unsupported package platform or architecture {}.",
+            target_from_artifact
+        );
+        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+    };
+
+    let mut ident_req = OriginPackageGet::new();
+    ident_req.set_ident(ident.clone());
+    ident_req.set_visibilities(helpers::all_visibilities());
+
+    let checksum_from_artifact = match archive.checksum() {
+        Ok(cksum) => cksum,
+        Err(e) => {
+            debug!("Could not compute a checksum for {:#?}: {:#?}", archive, e);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:2");
+        }
+    };
+
+    if qupload.checksum != checksum_from_artifact {
+        debug!(
+            "Checksums did not match: from_param={:?}, from_artifact={:?}",
+            qupload.checksum, checksum_from_artifact
+        );
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:3");
+    }
+
+    // Check with scheduler to ensure we don't have circular deps, if configured
+    if feat::is_enabled(feat::Jobsrv) {
+        if let Err(e) = check_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
+            debug!("Failed circular dependency check, err={:?}", e);
+            return e.into();
+        }
+    }
+
+    let file_path = packages_path(&req.state().config.api.data_path);
+    let filename = file_path.join(archive_name(&(&ident).into(), &target_from_artifact));
+    let temp_ident = ident.to_owned().into();
+
+    match fs::rename(&temp_path, &filename) {
+        Ok(_) => {}
+        Err(e) => {
+            warn!(
+                "Unable to rename temp archive {:?} to {:?}, err={:?}",
+                temp_path, filename, e
+            );
+            return Error::IO(e).into();
+        }
+    }
+
+    // TODO: Make S3 upload async
+    if let Err(err) = req
+        .state()
+        .packages
+        .upload(&filename, &temp_ident, &target_from_artifact)
+    {
+        warn!("Unable to upload archive to s3!");
+        return err.into();
+    }
+
+    debug!("File added to Depot: {:?}", &filename);
+
+    let mut archive = PackageArchive::new(filename.clone());
+    let mut package = match OriginPackageCreate::from_archive(&mut archive) {
+        Ok(package) => package,
+        Err(e) => {
+            debug!("Error building package from archive: {:#?}", e);
+            return Error::HabitatCore(e).into();
+        }
+    };
+
+    if !ident.satisfies(package.get_ident()) {
+        debug!(
+            "Ident mismatch, expected={:?}, got={:?}",
+            ident,
+            package.get_ident()
+        );
+
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:6");
+    }
+
+    let session_id = authorize_session(&req, None).unwrap(); // Unwrap Ok
+    let session_name = get_session_user_name(&req, session_id);
+
+    match process_upload_for_package_archive(&ident, &mut package, session_id) {
+        Ok(_) => {
+            // Schedule re-build of dependent packages (if requested)
+            // Don't schedule builds if the upload is being done by the builder
+            if qupload.builder.is_none() && feat::is_enabled(feat::Jobsrv) {
+                let mut request = JobGroupSpec::new();
+                request.set_origin(ident.get_origin().to_string());
+                request.set_package(ident.get_name().to_string());
+                request.set_target(target_from_artifact.to_string());
+                request.set_deps_only(true);
+                request.set_origin_only(false);
+                request.set_package_only(false);
+                request.set_trigger(JobGroupTrigger::Upload);
+                request.set_requester_id(session_id);
+                request.set_requester_name(session_name);
+
+                match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
+                    Ok(group) => debug!(
+                        "Scheduled reverse dependecy build for {}, group id: {}",
+                        ident,
+                        group.get_id()
+                    ),
+                    Err(err) => warn!("Unable to schedule build, err: {:?}", err),
+                }
+            }
+
+            match remove_file(&filename) {
+                Ok(_) => debug!(
+                    "Successfully removed cached file after upload. {:?}",
+                    &filename
+                ),
+                Err(e) => warn!(
+                    "Failed to remove cached file after upload: {:?}, {}",
+                    &filename, e
+                ),
+            }
+
+            HttpResponse::Created()
+                .header(http::header::LOCATION, format!("{}", req.uri()))
+                .body(format!("/pkgs/{}/download", package.get_ident()))
+        }
+        Err(err) => {
+            debug!(
+                "Ident mismatch, expected={:?}, got={:?}",
+                ident,
+                package.get_ident()
+            );
+            Error::NetError(err).into()
+        }
+    }
+}
+
+fn do_upload_package_async(
+    req: HttpRequest<AppState>,
+    qupload: Query<Upload>,
+    ident: OriginPackageIdent,
+    temp_path: PathBuf,
+    writer: BufWriter<File>,
+) -> Box<Future<Item = HttpResponse, Error = Error>> {
+    req.payload()
+        // `Future::from_err` acts like `?` in that it coerces the error type from
+        // the future into the final error type
+        .from_err()
+        // `fold` will asynchronously read each chunk of the request body and
+        // call supplied closure, then it resolves to result of closure
+        .fold(writer, write_archive_async)
+        // `Future::and_then` can be used to merge an asynchronous workflow with a
+        // synchronous workflow
+        .and_then(|writer| {
+            match writer.into_inner() {
+                Ok(f) => {
+                    f.sync_all()?;
+                    Ok( do_upload_package_finish(req, qupload, ident, temp_path))
+                },
+                Err(err) => {
+                    Err(Error::InnerError(err))
+                }
+            }
+        })
+        .responder()
+}
+
+fn do_get_package(
+    req: &HttpRequest<AppState>,
+    qtarget: &Query<Target>,
+    mut ident: OriginPackageIdent,
+) -> Result<OriginPackage> {
+    let opt_session_id = match authorize_session(req, None) {
+        Ok(id) => Some(id),
+        Err(_) => None,
+    };
+
+    // TODO: Deprecate target from headers
+    let target = match qtarget.target.clone() {
+        Some(t) => {
+            debug!("Query requested target = {}", t);
+            PackageTarget::from_str(&t).unwrap() // Unwrap Ok ?
+        }
+        None => helpers::target_from_headers(req),
+    };
+
+    // Fully qualify the ident if needed
+    // TODO: Have the OriginPackageLatestGet call just return the package
+    // metadata, thus saving us a second call to actually retrieve the package
+    if !ident.fully_qualified() {
+        let mut request = OriginPackageLatestGet::new();
+        request.set_ident(ident.clone());
+        request.set_target(target.to_string());
+        request.set_visibilities(helpers::visibility_for_optional_session(
+            req,
+            opt_session_id,
+            &ident.get_origin(),
+        ));
+
+        ident = match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request) {
+            Ok(id) => id.into(),
+            Err(err) => {
+                // Notify upstream with a non-fully qualified ident to handle checking
+                // of a package that does not exist in the on-premise depot
+
+                notify_upstream(req, &ident, &target);
+                return Err(err);
+            }
+        }
+    }
+
+    let mut request = OriginPackageGet::new();
+    request.set_visibilities(helpers::visibility_for_optional_session(
+        req,
+        opt_session_id,
+        &ident.get_origin(),
+    ));
+    request.set_ident(ident.clone());
+
+    // Notify upstream with a fully qualified ident
+    notify_upstream(req, &ident, &target);
+
+    route_message::<OriginPackageGet, OriginPackage>(req, &request)
+}
+
+// TODO: this needs to be re-designed to not fan out
+// Common functionality for pkgs and channel routes
+pub fn postprocess_package(
+    req: &HttpRequest<AppState>,
+    pkg: &OriginPackage,
+    should_cache: bool,
+) -> HttpResponse {
+    let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
+    let channels = helpers::channels_for_package_ident(req, pkg.get_ident());
+    pkg_json["channels"] = json!(channels);
+    pkg_json["is_a_service"] = json!(is_a_service(pkg));
+
+    let body = serde_json::to_string(&pkg_json).unwrap();
+
+    HttpResponse::Ok()
+        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+        .header(http::header::ETAG, pkg.get_checksum().to_string())
+        .header(http::header::CACHE_CONTROL, headers::cache(should_cache))
+        .body(body)
 }
 
 //

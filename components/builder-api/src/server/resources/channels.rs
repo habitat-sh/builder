@@ -100,7 +100,7 @@ impl Channels {
 }
 
 //
-// Route handlers - these functions should return HttpResponse
+// Route handlers - these functions can return any Responder trait
 //
 fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();

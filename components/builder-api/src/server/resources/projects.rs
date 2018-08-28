@@ -98,7 +98,7 @@ impl Projects {
 }
 
 //
-// Route handlers - these functions should return HttpResponse
+// Route handlers - these functions can return any Responder trait
 //
 
 fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) -> HttpResponse {

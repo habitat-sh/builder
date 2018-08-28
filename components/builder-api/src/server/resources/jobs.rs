@@ -74,7 +74,7 @@ impl Jobs {
 }
 
 //
-// Route handlers - these functions should return HttpResponse
+// Route handlers - these functions can return any Responder trait
 //
 fn get_rdeps(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name) = Path::<(String, String)>::extract(&req)
@@ -160,7 +160,7 @@ fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 //
-// Internal helpers
+// Internal - these functions should return Result<..>
 //
 fn do_group_promotion_or_demotion(
     req: &HttpRequest<AppState>,

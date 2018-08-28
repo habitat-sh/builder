@@ -33,7 +33,7 @@ impl User {
 }
 
 //
-// Route handlers - these functions should return HttpResponse
+// Route handlers - these functions can return any Responder trait
 //
 fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
