@@ -26,8 +26,6 @@ extern crate habitat_builder_api as bldr_api;
 extern crate clap;
 extern crate env_logger;
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate features;
 extern crate futures;
 extern crate github_api_client;
@@ -45,7 +43,6 @@ extern crate segment_api_client;
 extern crate serde;
 extern crate tempfile;
 extern crate time;
-extern crate typemap;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]

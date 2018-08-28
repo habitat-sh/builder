@@ -23,8 +23,6 @@ extern crate builder_core as bldr_core;
 extern crate bytes;
 extern crate constant_time_eq;
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate features;
 extern crate github_api_client;
 extern crate habitat_builder_protocol as protocol;
@@ -43,9 +41,7 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-extern crate crypto;
 extern crate futures;
-extern crate libc;
 extern crate num_cpus;
 extern crate regex;
 extern crate rusoto_core as rusoto;
@@ -53,11 +49,8 @@ extern crate rusoto_s3;
 extern crate tempfile;
 extern crate time;
 extern crate toml;
-extern crate typemap;
-extern crate unicase;
 extern crate url;
 extern crate uuid;
-extern crate walkdir;
 extern crate zmq;
 
 pub mod config;

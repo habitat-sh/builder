@@ -19,31 +19,24 @@ bitflags = "1"
 clippy = {version = "*", optional = true}
 constant_time_eq = "*"
 env_logger = "*"
-failure = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
 log = "*"
 num_cpus = "*"
-openssl = "*"
+openssl = "0.10"
 protobuf = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
 toml = { version = "*", default-features = false }
-typemap = "*"
-unicase = "1"
 futures = "0.1"
-libc = "*"
-libarchive = "*"
 regex = "*"
 rusoto_core = "*"
 rusoto_s3 = "*"
-rust-crypto = "*"
 tempfile = "*"
 time = "*"
 url = "*"
-walkdir = "*"
 uuid = { version = "*", features = ["v4"] }
 
 [dependencies.clap]
