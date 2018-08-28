@@ -22,12 +22,9 @@ use serde_json;
 
 use hab_core::crypto::SigKeyPair;
 use hab_core::package::PackageTarget;
-use hab_net::privilege::FeatureFlags;
-//use hab_net::{ErrCode, NetError, NetOk};
 
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
-use protocol::sessionsrv::*;
 
 use server::authorize::authorize_session;
 use server::error::Result;
@@ -35,8 +32,7 @@ use server::framework::middleware::route_message;
 use server::AppState;
 
 //
-// TO DO - this module has become a big grab bag of stuff - needs to be
-// reviewed and broken up
+// TO DO - this module should not just be a grab bag of stuff
 //
 
 pub const PAGINATION_RANGE_MAX: isize = 50;
@@ -243,26 +239,6 @@ pub fn platforms_for_package_ident(
     ) {
         Ok(p) => Some(p.get_platforms().to_vec()),
         Err(_) => None,
-    }
-}
-
-fn is_worker(req: &HttpRequest) -> bool {
-    match req.extensions().get::<Session>() {
-        Some(session) => {
-            let flags = FeatureFlags::from_bits(session.get_flags()).unwrap();
-            flags.contains(FeatureFlags::BUILD_WORKER)
-        }
-        None => false,
-    }
-}
-
-pub fn is_request_from_hab(req: &HttpRequest<AppState>) -> bool {
-    match req.headers().get(header::USER_AGENT) {
-        Some(ref agent) => match agent.to_str() {
-            Ok(ref s) => s.starts_with("hab/"),
-            Err(_) => false,
-        },
-        None => false,
     }
 }
 

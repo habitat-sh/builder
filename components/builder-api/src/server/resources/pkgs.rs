@@ -14,7 +14,7 @@
 
 use std::fs::{self, remove_file, File};
 use std::io::{BufReader, BufWriter, Read, Write};
-use std::path::{self, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use actix_web::http::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
