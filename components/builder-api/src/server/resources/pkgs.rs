@@ -322,9 +322,8 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
 
     match route_message::<OriginPackageGet, OriginPackage>(&req, &ident_req) {
         Ok(package) => {
-            let dir = tempdir_in(packages_path(&req.state().config.api.data_path))
-                .expect("Unable to create a tempdir!");
-            //let dir = packages_path(&req.state().config.api.data_path);
+            let dir =
+                tempdir_in(&req.state().config.api.data_path).expect("Unable to create a tempdir!");
             let file_path = dir.path().join(archive_name(&(&package).into(), &target));
             let temp_ident = ident.to_owned().into();
             match req
@@ -846,16 +845,9 @@ fn do_upload_package_start(
 
     debug!("UPLOADING {}, params={:?}", ident, qupload);
 
-    // Find the path to folder where archive should be created, and
-    // create the folder if necessary
-    let parent_path = packages_path(&req.state().config.api.data_path);
-    fs::create_dir_all(parent_path.clone())?;
-
-    // Create a temp file at the archive location
-    let file_path = packages_path(&req.state().config.api.data_path);
-
+    // Create a temp file at the data path
     let temp_name = format!("{}.tmp", Uuid::new_v4());
-    let temp_path = parent_path.join(file_path).join(temp_name);
+    let temp_path = req.state().config.api.data_path.join(temp_name);
 
     let file = File::create(&temp_path)?;
     let writer = BufWriter::new(file);
@@ -927,7 +919,7 @@ fn do_upload_package_finish(
         }
     }
 
-    let file_path = packages_path(&req.state().config.api.data_path);
+    let file_path = &req.state().config.api.data_path;
     let filename = file_path.join(archive_name(&(&ident).into(), &target_from_artifact));
     let temp_ident = ident.to_owned().into();
 
@@ -1140,10 +1132,6 @@ pub fn postprocess_package(
 //
 // Internal helpers
 //
-
-fn packages_path(data_path: &PathBuf) -> PathBuf {
-    path::Path::new(data_path).join("pkgs")
-}
 
 // Return a formatted string representing the filename of an archive for the given package
 // identifier pieces.
