@@ -19,6 +19,7 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
 use serde_json;
 
+use bldr_core::metrics::CounterMetric;
 use hab_core::package::{Identifiable, PackageTarget};
 use hab_net::NetOk;
 use protocol::originsrv::*;
@@ -29,6 +30,7 @@ use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
+use server::services::metrics::Counter;
 use server::AppState;
 
 // Query param containers
@@ -506,6 +508,7 @@ fn do_get_channel_package(
         Ok(id) => Some(id),
         Err(_) => None,
     };
+    Counter::GetChannelPackage.increment();
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target.clone() {

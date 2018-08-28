@@ -1059,6 +1059,7 @@ fn do_get_package(
         Ok(id) => Some(id),
         Err(_) => None,
     };
+    Counter::GetPackage.increment();
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target.clone() {
