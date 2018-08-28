@@ -38,7 +38,7 @@ use self::error::Error;
 use self::framework::middleware::{Optional, XRouteClient};
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
-// TODO: use services::upstream::{UpstreamClient, UpstreamMgr};
+use self::services::upstream::{UpstreamClient, UpstreamMgr};
 
 use self::resources::authenticate::Authenticate;
 use self::resources::channels::Channels;
@@ -68,7 +68,7 @@ pub struct AppState {
     github: GitHubClient,
     oauth: OAuth2Client,
     segment: SegmentClient,
-    // TODO: upstream: UpstreamClient
+    upstream: UpstreamClient,
 }
 
 impl AppState {
@@ -79,7 +79,7 @@ impl AppState {
             github: GitHubClient::new(config.github.clone()),
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
-            // TODO: upstream: UpstreamClient::default()
+            upstream: UpstreamClient::default(),
         }
     }
 }
@@ -128,7 +128,7 @@ pub fn run(config: Config) -> Result<()> {
         })
         .unwrap();
 
-    // TODO: UpstreamMgr::start(&cfg, s3::S3Handler::new(cfg.s3.to_owned()))?;
+    UpstreamMgr::start(&config, S3Handler::new(config.s3.to_owned()))?;
     // TODO: chain.link_after(Cors);
 
     let cfg = Arc::new(config.clone());

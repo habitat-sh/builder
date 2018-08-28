@@ -20,10 +20,10 @@ use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
 use serde_json;
 
 use hab_core::package::{Identifiable, PackageTarget};
-use hab_net::{ErrCode, NetError, NetOk};
+use hab_net::NetOk;
 use protocol::originsrv::*;
 
-use super::pkgs::{postprocess_package, postprocess_package_list};
+use super::pkgs::{notify_upstream, postprocess_package, postprocess_package_list};
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
@@ -538,7 +538,7 @@ fn do_get_channel_package(
                 // Notify upstream with a non-fully qualified ident to handle checking
                 // of a package that does not exist in the on-premise depot
 
-                // TODO: notify_upstream(req, &ident, &target);
+                notify_upstream(req, &ident, &target);
                 return Err(err);
             }
         };
@@ -553,7 +553,7 @@ fn do_get_channel_package(
     request.set_ident(ident.clone());
 
     // Notify upstream with a fully qualified ident
-    // TODO: notify_upstream(req, &ident, &target);
+    notify_upstream(req, &ident, &target);
 
     route_message::<OriginPackageGet, OriginPackage>(req, &request)
 }

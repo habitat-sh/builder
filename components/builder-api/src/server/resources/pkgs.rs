@@ -545,7 +545,7 @@ fn do_get_package(
                 // Notify upstream with a non-fully qualified ident to handle checking
                 // of a package that does not exist in the on-premise depot
 
-                // TODO: notify_upstream(req, &ident, &target);
+                notify_upstream(req, &ident, &target);
                 return Err(err);
             }
         }
@@ -560,7 +560,7 @@ fn do_get_package(
     request.set_ident(ident.clone());
 
     // Notify upstream with a fully qualified ident
-    // TODO: notify_upstream(req, &ident, &target);
+    notify_upstream(req, &ident, &target);
 
     route_message::<OriginPackageGet, OriginPackage>(req, &request)
 }
@@ -1241,7 +1241,7 @@ fn check_circular_deps(
     }
 }
 
-fn process_upload_for_package_archive(
+pub fn process_upload_for_package_archive(
     ident: &OriginPackageIdent,
     package: &mut OriginPackageCreate,
     owner_id: u64,
@@ -1316,9 +1316,10 @@ fn is_a_service(package: &OriginPackage) -> bool {
     m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
 }
 
-/*
-fn notify_upstream(req: &HttpRequest<AppState>, ident: &OriginPackageIdent, target: &PackageTarget) {
-    let upstream_cli = req.get::<persistent::Read<UpstreamCli>>().unwrap();
-    upstream_cli.refresh(ident, target).unwrap();
+pub fn notify_upstream(
+    req: &HttpRequest<AppState>,
+    ident: &OriginPackageIdent,
+    target: &PackageTarget,
+) {
+    req.state().upstream.refresh(ident, target).unwrap();
 }
-*/
