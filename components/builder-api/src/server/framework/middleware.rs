@@ -15,7 +15,8 @@
 use std::env;
 
 use actix_web::http;
-use actix_web::middleware::{Middleware, Started};
+use actix_web::http::header;
+use actix_web::middleware::{Middleware, Response, Started};
 use actix_web::{HttpRequest, HttpResponse, Result};
 use base64;
 use protobuf;
@@ -32,31 +33,33 @@ use server::error;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
-/* TO DO: Add custom Cors middleware 
-
+// Cors
 pub struct Cors;
 
-impl AfterMiddleware for Cors {
-    fn after(&self, _req: &mut Request, mut res: Response) -> IronResult<Response> {
-        res.headers.set(headers::AccessControlAllowOrigin::Any);
-        res.headers.set(headers::AccessControlAllowHeaders(vec![
-            UniCase("authorization".to_string()),
-            UniCase("range".to_string()),
-        ]));
-        res.headers.set(headers::AccessControlAllowMethods(vec![
-            Method::Put,
-            Method::Delete,
-            Method::Patch,
-        ]));
-        res.headers
-            .set(headers::AccessControlExposeHeaders(vec![UniCase(
-                "content-disposition".to_string(),
-            )]));
-        Ok(res)
+impl<S> Middleware<S> for Cors {
+    fn response(&self, _: &HttpRequest<S>, mut resp: HttpResponse) -> Result<Response> {
+        {
+            let h = resp.headers_mut();
+            h.insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                header::HeaderValue::from_static("*"),
+            );
+            h.insert(
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                header::HeaderValue::from_static("Authorization"),
+            );
+            h.insert(
+                header::ACCESS_CONTROL_ALLOW_METHODS,
+                header::HeaderValue::from_static("DELETE, PATCH, POST, PUT"),
+            );
+            h.insert(
+                header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                header::HeaderValue::from_static("Content-Disposition"),
+            );
+        }
+        Ok(Response::Done(resp))
     }
 }
-
-*/
 
 // Router client
 pub struct XRouteClient;
