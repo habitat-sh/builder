@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::env;
+
 use actix_web::http::{self, Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
@@ -101,6 +103,7 @@ impl Projects {
 // Route handlers - these functions can return any Responder trait
 //
 
+// TODO: the project creation API needs to be simplified
 fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) -> HttpResponse {
     let mut request = OriginProjectCreate::new();
     let mut project = OriginProject::new();
@@ -113,6 +116,36 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
     let account_id = match authorize_session(&req, Some(&body.origin)) {
         Ok(id) => id,
         Err(err) => return err.into(),
+    };
+
+    // Test hook - bypass the github dance
+    if env::var_os("HAB_FUNC_TEST").is_some() {
+        debug!("creating test project");
+        project.set_plan_path(body.plan_path.clone());
+        project.set_vcs_type(String::from("git"));
+        project.set_vcs_data(String::from("https://github.com/habitat-sh/testapp.git"));
+        project.set_vcs_installation_id(body.installation_id);
+        project.set_auto_build(body.auto_build);
+        project.set_owner_id(account_id);
+        project.set_visibility(OriginPackageVisibility::Public);
+        project.set_package_name(String::from("testapp"));
+
+        origin_get.set_name(body.origin.clone());
+        let origin = match route_message::<OriginGet, Origin>(&req, &origin_get) {
+            Ok(response) => response,
+            Err(err) => return err.into(),
+        };
+        project.set_origin_name(String::from(origin.get_name()));
+        project.set_origin_id(origin.get_id());
+
+        request.set_project(project);
+        match route_message::<OriginProjectCreate, OriginProject>(&req, &request) {
+            Ok(project) => return HttpResponse::Created().json(project),
+            Err(err) => {
+                debug!("failed project creation with {:?}", err);
+                return err.into();
+            }
+        }
     };
 
     debug!(
@@ -187,7 +220,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
     request.set_project(project);
 
     match route_message::<OriginProjectCreate, OriginProject>(&req, &request) {
-        Ok(project) => HttpResponse::Ok().json(project),
+        Ok(project) => HttpResponse::Created().json(project),
         Err(err) => err.into(),
     }
 }

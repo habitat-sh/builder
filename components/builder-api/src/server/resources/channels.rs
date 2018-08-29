@@ -128,11 +128,10 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
                     ident
                 })
                 .collect();
-            let body = serde_json::to_string(&list).unwrap();
             let mut response = HttpResponse::Ok();
             response
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .body(body)
+                .json(list)
         }
         Err(err) => return err.into(),
     }

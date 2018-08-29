@@ -16,6 +16,7 @@ use std::error;
 use std::fmt;
 use std::fs;
 use std::io;
+use std::num;
 use std::result;
 use std::string;
 
@@ -49,6 +50,7 @@ pub enum Error {
     HabitatCore(hab_core::Error),
     IO(io::Error),
     NetError(hab_net::NetError),
+    ParseIntError(num::ParseIntError),
     PayloadError(actix_web::error::PayloadError),
     Protobuf(protobuf::ProtobufError),
     UnknownGitHubEvent(String),
@@ -81,6 +83,7 @@ impl fmt::Display for Error {
             Error::Connection(ref e) => format!("{}", e),
             Error::Github(ref e) => format!("{}", e),
             Error::InnerError(ref e) => format!("{}", e.error()),
+            Error::ParseIntError(ref e) => format!("{}", e),
             Error::PayloadError(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
@@ -120,6 +123,7 @@ impl error::Error for Error {
             Error::Connection(ref err) => err.description(),
             Error::Github(ref err) => err.description(),
             Error::InnerError(ref err) => err.error().description(),
+            Error::ParseIntError(ref err) => err.description(),
             Error::PayloadError(_) => "Http request stream error",
             Error::Protocol(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),
@@ -156,6 +160,7 @@ impl ResponseError for Error {
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::ParseIntError(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Protocol(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
 
             // Default
@@ -173,6 +178,7 @@ impl Into<HttpResponse> for Error {
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Error::ParseIntError(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Protocol(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
 
             // Default
@@ -256,6 +262,11 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<num::ParseIntError> for Error {
+    fn from(err: num::ParseIntError) -> Self {
+        Error::ParseIntError(err)
+    }
+}
 impl From<OAuthError> for Error {
     fn from(err: OAuthError) -> Error {
         Error::OAuth(err)

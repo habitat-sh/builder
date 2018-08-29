@@ -1066,7 +1066,7 @@ fn create_origin_integration(req: HttpRequest<AppState>, body: &Bytes) -> HttpRe
     request.set_integration(oi);
 
     match route_message::<OriginIntegrationCreate, NetOk>(&req, &request) {
-        Ok(_) => HttpResponse::NoContent().finish(),
+        Ok(_) => HttpResponse::Created().finish(),
         Err(err) => err.into(),
     }
 }

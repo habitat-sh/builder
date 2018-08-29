@@ -168,7 +168,7 @@ impl Packages {
 //
 // Route handlers - these functions can return any Responder trait
 //
-// TODO: Move package stats API to originsrv
+// TODO: Move package stats API to originsrv?
 fn get_package_stats(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -444,7 +444,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
                 warn!("Error tracking scheduling of job group in segment, {}", e);
             }
 
-            HttpResponse::Ok()
+            HttpResponse::Created()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(group)
         }
@@ -527,10 +527,9 @@ fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
                 .iter()
                 .map(|channel| channel.get_name().to_string())
                 .collect();
-            let body = serde_json::to_string(&list).unwrap();
             HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .body(body)
+                .json(list)
         }
         Err(err) => err.into(),
     }

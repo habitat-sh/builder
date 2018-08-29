@@ -36,17 +36,21 @@ use server::AppState;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GroupPromoteReq {
+    #[serde(default)]
     pub idents: Vec<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GroupDemoteReq {
+    #[serde(default)]
     pub idents: Vec<String>,
 }
 
 #[derive(Deserialize)]
 pub struct JobLogPagination {
+    #[serde(default)]
     start: u64,
+    #[serde(default)]
     color: bool,
 }
 
@@ -133,7 +137,9 @@ fn get_job_log(
 }
 
 fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)) -> HttpResponse {
-    let (group_id, channel) = Path::<(u64, String)>::extract(&req).unwrap().into_inner(); // Unwrap Ok ?
+    let (group_id, channel) = Path::<(String, String)>::extract(&req)
+        .unwrap()
+        .into_inner(); // Unwrap Ok
 
     match promote_or_demote_job_group(&req, group_id, &body.idents, &channel, true) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -142,7 +148,9 @@ fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)
 }
 
 fn demote_job_group((req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>)) -> HttpResponse {
-    let (group_id, channel) = Path::<(u64, String)>::extract(&req).unwrap().into_inner(); // Unwrap Ok ?
+    let (group_id, channel) = Path::<(String, String)>::extract(&req)
+        .unwrap()
+        .into_inner(); // Unwrap Ok
 
     match promote_or_demote_job_group(&req, group_id, &body.idents, &channel, false) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -229,11 +237,21 @@ fn do_group_promotion_or_demotion(
 
 fn promote_or_demote_job_group(
     req: &HttpRequest<AppState>,
-    group_id: u64,
+    group_id_str: String,
     idents: &Vec<String>,
     channel: &str,
     promote: bool,
 ) -> Result<()> {
+    authorize_session(&req, None)?;
+
+    let group_id = match group_id_str.parse::<u64>() {
+        Ok(g) => g,
+        Err(err) => {
+            debug!("Error parsing group id: '{}': {:?}", group_id_str, err);
+            return Err(Error::ParseIntError(err));
+        }
+    };
+
     let mut group_get = JobGroupGet::new();
     group_get.set_group_id(group_id);
     group_get.set_include_projects(true);
