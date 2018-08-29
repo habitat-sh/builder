@@ -71,8 +71,6 @@ describe('Projects API', function () {
     });
 
     it('succeeds', function (done) {
-      this.skip(); // don't run in master until passing
-
       this.timeout(5000);
       request.post('/projects')
         .type('application/json')
@@ -112,8 +110,6 @@ describe('Projects API', function () {
     });
 
     it('succeeds', function (done) {
-      this.skip(); // don't run in master until passing
-
       request.get('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
@@ -151,13 +147,12 @@ describe('Projects API', function () {
     });
 
     it('succeeds', function (done) {
-      this.skip(); // don't run in master until passing
-
       request.get('/projects/neurosis')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
+          console.log(res.body);
           expect(res.body.length).to.equal(1);
           expect(res.body[0]).to.equal('testapp');
           done(err);
@@ -192,8 +187,6 @@ describe('Projects API', function () {
     });
 
     it('requires a properly formatted payload', function (done) {
-      this.skip(); // don't run in master until passing
-
       request.put('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
@@ -209,8 +202,6 @@ describe('Projects API', function () {
     });
 
     it('succeeds', function (done) {
-      this.skip(); // don't run in master until passing
-
       this.timeout(5000);
       request.put('/projects/neurosis/testapp')
         .type('application/json')
@@ -229,8 +220,6 @@ describe('Projects API', function () {
     });
 
     it('reflects the new changes when viewing it again', function (done) {
-      this.skip(); // don't run in master until passing
-
       request.get('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
@@ -302,8 +291,6 @@ describe('Projects API', function () {
     });
 
     it('succeeds', function (done) {
-      this.skip(); // don't run in master until passing
-
       request.patch('/projects/neurosis/testapp/private')
         .type('application/json')
         .accept('application/json')
@@ -353,8 +340,6 @@ describe('Projects API', function () {
     });
 
     it('creates another project so that other tests dont fail', function (done) {
-      this.skip(); // don't run in master until passing
-
       this.timeout(5000);
       request.post('/projects')
         .type('application/json')
@@ -419,8 +404,6 @@ describe('Project integrations API', function () {
     });
 
     it('succeeds', function (done) {
-      this.skip(); // don't run in master until passing
-
       request.put('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
@@ -464,8 +447,6 @@ describe('Project integrations API', function () {
     });
 
     it('succeeds', function (done) {
-      this.skip(); // don't run in master until passing
-
       request.get('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')

@@ -210,8 +210,6 @@ describe('Channels API', function () {
 
   describe('Listing channels in an origin', function () {
     it('returns a list of channels', function (done) {
-      this.skip(); // don't run in master until passing
-
       request.get('/depot/channels/neurosis')
         .type('application/json')
         .accept('application/json')

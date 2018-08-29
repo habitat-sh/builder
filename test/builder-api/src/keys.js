@@ -159,7 +159,6 @@ describe('Keys API', function () {
 
   describe('Listing keys', function () {
     it('can list all public keys', function (done) {
-      this.skip(); // don't run in master until passing
       request.get('/depot/origins/neurosis/keys')
         .expect(200)
         .end(function (err, res) {
