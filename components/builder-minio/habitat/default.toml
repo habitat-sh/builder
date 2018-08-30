@@ -1,6 +1,5 @@
 key_id = "depot"
 secret_key = "password"
 use_ssl = false
-gen_cert = false
 ssl_cert_pw = ""
 bucket_name = "habitat-builder-artifact-store.default"
