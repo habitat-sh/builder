@@ -484,7 +484,7 @@ fn get_origin_schedule_status(
     match route_message::<JobGroupOriginGet, JobGroupOriginResponse>(&req, &request) {
         Ok(jgor) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(jgor),
+            .json(jgor.get_job_groups()),
         Err(err) => err.into(),
     }
 }

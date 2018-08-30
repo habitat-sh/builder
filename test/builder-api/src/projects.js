@@ -152,7 +152,6 @@ describe('Projects API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          console.log(res.body);
           expect(res.body.length).to.equal(1);
           expect(res.body[0]).to.equal('testapp');
           done(err);
@@ -196,7 +195,6 @@ describe('Projects API', function () {
         })
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
           done(err);
         });
     });

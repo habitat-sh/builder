@@ -17,7 +17,6 @@ use std::str::FromStr;
 use actix_web::http::{self, Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
-use serde_json;
 
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{Identifiable, PackageTarget};

@@ -290,6 +290,25 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         );
     }
 
+    // Test hook - bypass the github dance
+    if env::var_os("HAB_FUNC_TEST").is_some() {
+        debug!("updating test project");
+        project.set_auto_build(body.auto_build);
+        project.set_plan_path(body.plan_path.clone());
+        project.set_vcs_installation_id(body.installation_id);
+        project.set_vcs_type(String::from("git"));
+        project.set_vcs_data(String::from("https://github.com/habitat-sh/testapp.git"));
+        project.set_visibility(OriginPackageVisibility::Public);
+        project.set_package_name(String::from("testapp"));
+
+        request.set_requestor_id(account_id);
+        request.set_project(project);
+        match route_message::<OriginProjectUpdate, NetOk>(&req, &request) {
+            Ok(_) => return HttpResponse::NoContent().finish(),
+            Err(err) => return err.into(),
+        }
+    };
+
     debug!(
                 "GITHUB-CALL builder_api::server::handlers::project_update: Getting app_installation_token; repo_id={} installation_id={}",
                 body.repo_id,
@@ -373,7 +392,7 @@ fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
     projects_get.set_origin(origin);
 
     match route_message::<OriginProjectListGet, OriginProjectList>(&req, &projects_get) {
-        Ok(projects) => HttpResponse::Ok().json(projects),
+        Ok(projects) => HttpResponse::Ok().json(projects.get_names()),
         Err(err) => err.into(),
     }
 }
