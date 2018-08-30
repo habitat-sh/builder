@@ -14,7 +14,7 @@
 
 use actix_web::http::Method;
 use actix_web::{App, HttpRequest, HttpResponse};
-use protocol::sessionsrv::*;
+use protocol::originsrv::*;
 
 use server::authorize::authorize_session;
 use server::framework::middleware::route_message;
@@ -58,11 +58,11 @@ fn get_origins(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let mut request = AccountOriginListRequest::new();
+    let mut request = MyOriginsRequest::new();
     request.set_account_id(account_id);
 
-    match route_message::<AccountOriginListRequest, AccountOriginListResponse>(&req, &request) {
-        Ok(origins) => HttpResponse::Ok().json(origins),
+    match route_message::<MyOriginsRequest, MyOriginsResponse>(&req, &request) {
+        Ok(response) => HttpResponse::Ok().json(response.get_origins().to_vec()),
         Err(err) => err.into(),
     }
 }

@@ -6,13 +6,13 @@ const request = supertest('http://localhost:9636/v1');
 const installationId = 56940;
 const repoId = 114932712;
 
-describe('External API', function() {
-  describe('Getting the external repo content', function() {
-    it('requires authentication', function(done) {
+describe('External API', function () {
+  describe('Getting the external repo content', function () {
+    it('requires authentication', function (done) {
       request.get(`/ext/installations/${installationId}/repos/${repoId}/contents/haha`)
         .accept('application/json')
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
@@ -24,12 +24,13 @@ describe('External API', function() {
     it('succeeds');
   });
 
-  describe('Validate credentials in an external registry', function() {
-    it('requires authentication', function(done) {
+  describe('Validate credentials in an external registry', function () {
+    it('requires authentication', function (done) {
       request.post('/ext/integrations/docker/credentials/validate')
         .accept('application/json')
+        .send({})
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });

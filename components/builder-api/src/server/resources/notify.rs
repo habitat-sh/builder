@@ -15,6 +15,7 @@
 use actix_web::http::{Method, StatusCode};
 use actix_web::{App, HttpRequest, HttpResponse};
 
+use server::authorize::authorize_session;
 use server::framework::headers;
 use server::services::github;
 use server::AppState;
@@ -31,6 +32,10 @@ impl Notify {
 }
 
 pub fn notify((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
+    if let Err(err) = authorize_session(&req, None) {
+        return err.into();
+    }
+
     if req.headers().get(headers::XGITHUBEVENT).is_some() {
         match github::handle_event(req, body) {
             Ok(_) => HttpResponse::new(StatusCode::OK),

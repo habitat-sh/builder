@@ -51,17 +51,12 @@ describe('Origin Invitations API', function () {
         });
     });
 
-    it('should wait for the account service to be updated', function (done) {
-      this.timeout(15000);
-      setTimeout(done, 10000);
-    });
-
     it('shows xmen in bobos list of invitations', function (done) {
       request.get('/user/invitations')
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.invitations[0].origin_invitation_id).to.equal(global.inviteBoboToXmen.id);
+          expect(res.body.invitations[0].id).to.equal(global.inviteBoboToXmen.id);
           expect(res.body.invitations[0].account_id).to.equal(global.sessionBobo.id);
           expect(res.body.invitations[0].account_name).to.equal('bobo');
           expect(res.body.invitations[0].origin_id).to.equal(global.originXmen.id);

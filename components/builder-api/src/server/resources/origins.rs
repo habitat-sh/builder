@@ -154,7 +154,7 @@ impl Origins {
                 fetch_origin_integrations,
             )
             .route(
-                "/depot/origins/{origin}/{secret}",
+                "/depot/origins/{origin}/secret/{secret}",
                 Method::DELETE,
                 delete_origin_secret,
             )
@@ -973,12 +973,7 @@ fn origin_member_delete(req: HttpRequest<AppState>) -> HttpResponse {
         }
         Err(err) => return err.into(),
     }
-    session_request.set_account_name(user.to_string());
     origin_request.set_account_name(user.to_string());
-
-    if let Err(err) = route_message::<AccountOriginRemove, NetOk>(&req, &session_request) {
-        return err.into();
-    }
 
     match route_message::<OriginMemberRemove, NetOk>(&req, &origin_request) {
         Ok(_) => HttpResponse::NoContent().finish(),

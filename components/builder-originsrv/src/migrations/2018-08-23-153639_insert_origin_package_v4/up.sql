@@ -16,8 +16,8 @@ CREATE OR REPLACE FUNCTION insert_origin_package_v4 (
       inserted_package origin_packages;
       channel_id bigint;
     BEGIN
-        INSERT INTO origin_packages (origin_id, owner_id, name, ident, checksum, manifest, config, target, deps, tdeps, exposes, visibility)
-              VALUES (op_origin_id, op_owner_id, op_name, op_ident, op_checksum, op_manifest, op_config, op_target, op_deps, op_tdeps, op_exposes, op_visibility)
+        INSERT INTO origin_packages (origin_id, owner_id, name, ident, ident_array, checksum, manifest, config, target, deps, tdeps, exposes, visibility)
+              VALUES (op_origin_id, op_owner_id, op_name, op_ident, regexp_split_to_array(op_ident, '/'), op_checksum, op_manifest, op_config, op_target, op_deps, op_tdeps, op_exposes, op_visibility)
               ON CONFLICT ON CONSTRAINT origin_packages_ident_key DO
                 UPDATE set checksum=op_checksum
               RETURNING * into inserted_package;

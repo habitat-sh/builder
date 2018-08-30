@@ -121,7 +121,6 @@ impl error::Error for Error {
         match *self {
             Error::Authentication => "User is not authenticated",
             Error::Authorization => "User is not authorized to perform operation",
-            Error::CircularDependency(_) => "Circular dependency detected for package upload",
             Error::BadRequest(_) => "Http request formation error",
             Error::CircularDependency(_) => "Circular dependency detected for package upload",
             Error::Connection(ref err) => err.description(),

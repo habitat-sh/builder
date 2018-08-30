@@ -8,16 +8,12 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 clean_test_artifacts() {
-  if ! command -v op >/dev/null 2>&1; then
-    hab pkg install -b habitat/builder-op
-  fi
-
-  local sql origins
+   local sql origins
   origins=( neurosis xmen )
 
   # clean origins
   local origins origin_id_tables origin_tables
-  origin_id_tables=( origin_members origin_channels origin_invitations origin_packages origin_projects origin_public_keys origin_secret_keys )
+  origin_id_tables=( origin_secrets origin_private_encryption_keys origin_public_encryption_keys origin_members origin_channels origin_invitations origin_packages origin_projects origin_public_keys origin_secret_keys )
   origin_tables=( origin_integrations origin_project_integrations )
   sql=
 

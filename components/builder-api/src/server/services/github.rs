@@ -32,6 +32,7 @@ use protocol::originsrv::{OriginProject, OriginProjectGet};
 use protocol::sessionsrv::{Account, AccountGet};
 use serde_json;
 
+use server::authorize::authorize_session;
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
@@ -113,9 +114,13 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> Result<HttpResp
 }
 
 pub fn repo_file_content(req: HttpRequest<AppState>) -> Result<HttpResponse> {
+    if let Err(err) = authorize_session(&req, None) {
+        return Err(err.into());
+    }
+
     let github = &req.state().github;
-    let (path, install_id, repo_id) = Path::<(String, u32, u32)>::extract(&req)
-        .unwrap()
+    let (install_id, repo_id, path) = Path::<(u32, u32, String)>::extract(&req)
+        .unwrap()  // Unwrap ok?
         .into_inner();
 
     let token = {

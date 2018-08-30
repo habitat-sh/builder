@@ -21,6 +21,7 @@ use hyper;
 use hyper::header::{Accept, ContentType};
 
 use serde_json;
+use server::authorize::authorize_session;
 use server::error::{Error, Result};
 use server::services::github;
 use server::AppState;
@@ -60,6 +61,10 @@ impl Ext {
 pub fn validate_registry_credentials(
     (req, body): (HttpRequest<AppState>, Json<Body>),
 ) -> HttpResponse {
+    if let Err(err) = authorize_session(&req, None) {
+        return err.into();
+    }
+
     let registry_type = Path::<(String)>::extract(&req).unwrap().into_inner();
 
     match do_validate_registry_credentials(body, registry_type) {

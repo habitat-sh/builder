@@ -74,11 +74,6 @@ describe('Jobs API', function () {
           done(err);
         });
     });
-
-    it('pauses for a few seconds to let the job run', function (done) {
-      this.timeout(5000);
-      setTimeout(done, 4000);
-    });
   });
 
   describe('Retrieving information about a job group', function () {
@@ -378,11 +373,10 @@ describe('Jobs API', function () {
         });
     });
 
-    it('requires that the job group id is a u64');
-
-    it('requires a valid JSON body');
-
-    it('promotes every build in the group to the specified channel');
+    // TODO
+    // it('requires that the job group id is a u64');
+    // it('requires a valid JSON body');
+    // it('promotes every build in the group to the specified channel');
   });
 
   describe('Demoting a job group', function () {
@@ -398,13 +392,11 @@ describe('Jobs API', function () {
         });
     });
 
-    it('requires you are a member of the origin that the job group belongs to');
-
-    it('requires that the job group id is a u64');
-
-    it('requires a valid JSON body');
-
-    it('promotes every build in the group to the specified channel');
+    // TODO
+    // it('requires you are a member of the origin that the job group belongs to');
+    // it('requires that the job group id is a u64');
+    // it('requires a valid JSON body');
+    // it('promotes every build in the group to the specified channel');
   });
 
   describe('Canceling a job group', function () {

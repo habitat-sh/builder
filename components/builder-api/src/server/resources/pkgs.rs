@@ -1288,9 +1288,21 @@ pub fn process_upload_for_package_archive(
     }
 
     // Re-create origin package as needed (eg, checksum update)
-    if let Err(err) = conn.route::<OriginPackageCreate, OriginPackage>(&package) {
-        debug!("Failed to create origin package, err: {:?}", err);
-        return Err(err);
+    match conn.route::<OriginPackageCreate, OriginPackage>(&package) {
+        Ok(pkg) => {
+            let mut job_graph_package = JobGraphPackageCreate::new();
+            job_graph_package.set_package(pkg);
+
+            if let Err(err) = conn.route::<JobGraphPackageCreate, OriginPackage>(&job_graph_package)
+            {
+                warn!("Failed to insert package into graph: {:?}", err);
+                return Err(err);
+            }
+        }
+        Err(err) => {
+            debug!("Failed to create origin package, err: {:?}", err);
+            return Err(err);
+        }
     }
 
     Ok(())
