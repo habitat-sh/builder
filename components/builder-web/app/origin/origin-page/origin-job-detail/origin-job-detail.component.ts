@@ -99,7 +99,7 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
   }
 
   onSelectJob(name, job) {
-    this.routerthis.router.navigate(['pkgs', ...name.split('/'), 'jobs', job]);
+    this.router.navigate(['pkgs', ...name.split('/'), 'jobs', job]);
   }
 
   backToGroups() {
