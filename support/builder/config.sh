@@ -78,7 +78,6 @@ log_level = "debug"
 
 [datastore]
 password = "$PGPASSWORD"
-database = "builder_jobsrv"
 
 [archive]
 backend = "local"
@@ -222,7 +221,6 @@ shards = [
 
 [datastore]
 password = "$PGPASSWORD"
-database = "builder_originsrv"
 EOT
 
 mkdir -p /hab/svc/builder-sessionsrv
@@ -363,7 +361,6 @@ shards = [
 
 [datastore]
 password = "$PGPASSWORD"
-database = "builder_sessionsrv"
 EOT
 
 mkdir -p /hab/svc/builder-worker

@@ -32,7 +32,6 @@ pub enum SrvError {
     AccountGetById(postgres::error::Error),
     AccountIdFromString(num::ParseIntError),
     AccountOriginInvitationAccept(postgres::error::Error),
-    AccountOriginInvitationCreate(postgres::error::Error),
     AccountOriginInvitationIgnore(postgres::error::Error),
     AccountOriginInvitationRescind(postgres::error::Error),
     AccountOriginInvitationList(postgres::error::Error),
@@ -70,9 +69,6 @@ impl fmt::Display for SrvError {
             }
             SrvError::AccountOriginInvitationAccept(ref e) => {
                 format!("Error accepting invitation in database, {}", e)
-            }
-            SrvError::AccountOriginInvitationCreate(ref e) => {
-                format!("Error creating invitation in database, {}", e)
             }
             SrvError::AccountOriginInvitationIgnore(ref e) => {
                 format!("Error ignoring invitation, {}", e)
@@ -131,7 +127,6 @@ impl error::Error for SrvError {
             SrvError::AccountGetById(ref err) => err.description(),
             SrvError::AccountIdFromString(ref err) => err.description(),
             SrvError::AccountOriginInvitationAccept(ref err) => err.description(),
-            SrvError::AccountOriginInvitationCreate(ref err) => err.description(),
             SrvError::AccountOriginInvitationIgnore(ref err) => err.description(),
             SrvError::AccountOriginInvitationRescind(ref err) => err.description(),
             SrvError::AccountOriginInvitationList(ref err) => err.description(),

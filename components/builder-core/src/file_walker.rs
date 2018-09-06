@@ -13,20 +13,14 @@
 // limitations under the License.
 
 use hab_core::package::{FromArchive, PackageArchive};
-use protocol::jobsrv;
 use protocol::originsrv::OriginPackage;
 use std::path::{Path, PathBuf};
-use walkdir::{IntoIter, WalkDir};
 
-pub struct FileWalker {
-    walker: IntoIter,
-}
+pub struct FileWalker {}
 
 impl FileWalker {
-    pub fn new<T: AsRef<Path>>(path: T) -> Self {
-        FileWalker {
-            walker: WalkDir::new(path.as_ref()).follow_links(false).into_iter(),
-        }
+    pub fn new<T: AsRef<Path>>(_path: T) -> Self {
+        FileWalker {}
     }
 }
 
@@ -46,31 +40,6 @@ pub fn extract_package<T: AsRef<Path>>(path: T) -> Option<OriginPackage> {
         Err(e) => {
             error!("Error reading, archive={:?} error={:?}", &archive, &e);
             return None;
-        }
-    }
-}
-
-impl Iterator for FileWalker {
-    type Item = jobsrv::JobGraphPackage;
-
-    fn next(&mut self) -> Option<jobsrv::JobGraphPackage> {
-        loop {
-            match self.walker.next() {
-                Some(entry) => {
-                    let entry = entry.unwrap();
-                    if entry.metadata().unwrap().is_dir() {
-                        continue;
-                    } else {
-                        match extract_package(entry.path()) {
-                            Some(p) => return Some(jobsrv::JobGraphPackage::from(p)),
-                            None => continue,
-                        }
-                    }
-                }
-                None => {
-                    return None;
-                }
-            }
         }
     }
 }

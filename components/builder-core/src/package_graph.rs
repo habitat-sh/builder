@@ -16,7 +16,7 @@ use hab_core::package::PackageIdent;
 use petgraph::algo::{connected_components, is_cyclic_directed};
 use petgraph::graph::NodeIndex;
 use petgraph::{Direction, Graph};
-use protocol::jobsrv;
+use protocol::originsrv;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::str::FromStr;
@@ -103,7 +103,7 @@ impl PackageGraph {
 
     pub fn build<T>(&mut self, packages: T) -> (usize, usize)
     where
-        T: Iterator<Item = jobsrv::JobGraphPackage>,
+        T: Iterator<Item = originsrv::OriginPackage>,
     {
         assert!(self.package_max == 0);
 
@@ -114,7 +114,7 @@ impl PackageGraph {
         (self.graph.node_count(), self.graph.edge_count())
     }
 
-    pub fn check_extend(&mut self, package: &jobsrv::JobGraphPackage) -> bool {
+    pub fn check_extend(&mut self, package: &originsrv::OriginPackage) -> bool {
         let name = format!("{}", package.get_ident());
         let pkg_short_name = short_name(&name);
 
@@ -178,7 +178,7 @@ impl PackageGraph {
         !circular_dep
     }
 
-    pub fn extend(&mut self, package: &jobsrv::JobGraphPackage) -> (usize, usize) {
+    pub fn extend(&mut self, package: &originsrv::OriginPackage) -> (usize, usize) {
         let name = format!("{}", package.get_ident());
         let (pkg_id, pkg_node) = self.generate_id(&name);
 
@@ -352,17 +352,17 @@ mod test {
         let mut graph = PackageGraph::new();
         let mut packages = Vec::new();
 
-        let mut package1 = jobsrv::JobGraphPackage::new();
-        package1.set_ident("foo/bar/1/2".to_string());
+        let mut package1 = originsrv::OriginPackage::new();
+        package1.set_ident(originsrv::OriginPackageIdent::from_str("foo/bar/1/2").unwrap());
         let mut package1_deps = RepeatedField::new();
-        package1_deps.push("foo/baz/1/2".to_string());
+        package1_deps.push(originsrv::OriginPackageIdent::from_str("foo/baz/1/2").unwrap());
         package1.set_deps(package1_deps);
         packages.push(package1);
 
-        let mut package2 = jobsrv::JobGraphPackage::new();
-        package2.set_ident("foo/baz/1/2".to_string());
+        let mut package2 = originsrv::OriginPackage::new();
+        package2.set_ident(originsrv::OriginPackageIdent::from_str("foo/baz/1/2").unwrap());
         let mut package2_deps = RepeatedField::new();
-        package2_deps.push("foo/bar/1/2".to_string());
+        package2_deps.push(originsrv::OriginPackageIdent::from_str("foo/bar/1/2").unwrap());
         package2.set_deps(package2_deps);
         packages.push(package2.clone());
 
@@ -382,16 +382,16 @@ mod test {
     fn pre_check_with_dep_not_present() {
         let mut graph = PackageGraph::new();
 
-        let mut package1 = jobsrv::JobGraphPackage::new();
-        package1.set_ident("foo/bar/1/2".to_string());
+        let mut package1 = originsrv::OriginPackage::new();
+        package1.set_ident(originsrv::OriginPackageIdent::from_str("foo/bar/1/2").unwrap());
         let mut package1_deps = RepeatedField::new();
-        package1_deps.push("foo/baz/1/2".to_string());
+        package1_deps.push(originsrv::OriginPackageIdent::from_str("foo/baz/1/2").unwrap());
         package1.set_deps(package1_deps);
 
-        let mut package2 = jobsrv::JobGraphPackage::new();
-        package2.set_ident("foo/baz/1/2".to_string());
+        let mut package2 = originsrv::OriginPackage::new();
+        package2.set_ident(originsrv::OriginPackageIdent::from_str("foo/baz/1/2").unwrap());
         let mut package2_deps = RepeatedField::new();
-        package2_deps.push("foo/xyz/1/2".to_string());
+        package2_deps.push(originsrv::OriginPackageIdent::from_str("foo/xyz/1/2").unwrap());
         package2.set_deps(package2_deps);
 
         let pre_check1 = graph.check_extend(&package1);

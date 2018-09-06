@@ -85,42 +85,6 @@ If all goes well, you'll see some messages about things being all good, and
 your services should behave normally. If they don't, exit the studio and
 re-enter.
 
-If you try to run a build and get an error message in the logs about
-conflicting IDs, or being unable to create records because of primary key
-constraints, the likely culprit is the sequence for the `graph_packages` and
-`group_projects` tables. Unlike all of our other tables, these two tables use
-auto-incrementing integers for primary keys. That means that the sequence in
-question needs to be set to the what the sequence on shard_0 was before the
-migration. To fix this, perform the following steps:
-
-```
-PGPASSWORD=$(cat /hab/svc/builder-datastore/config/pwfile) hab pkg exec core/postgresql psql -h 127.0.0.1 -p 5433 -U hab builder_jobsrv
-SET search_path TO shard_0;
-SELECT last_value FROM graph_packages_id_seq;
-```
-
-Make a note of the number that shows up for `last_value` and add 1 to it. Then,
-back in the db console:
-
-```
-SET search_path TO public;
-SELECT setval('graph_packages_id_seq', 12345, true);
-```
-
-Replace `12345` in the above query with the number you calculated above
-(`last_value` + 1). Now do the same thing for `group_projects_id_seq`.
-
-```
-SET search_path TO shard_0;
-SELECT last_value FROM group_projects_id_seq;
-SET search_path TO public;
-SELECT setval('group_projects_id_seq', 12345, true);
-```
-
-Again, just like the first time, make a note of the value that shows up for
-`last_value` after running the second query, add 1 to it, and substitute that
-value for `12345` in the last query.
-
 Worst case scenario, just `hab studio rm` and start over. Fresh dev
 environments won't have this issue nor will they need to be migrated.
 

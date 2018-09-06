@@ -16,14 +16,13 @@
 
 embed_migrations!("src/migrations");
 
-use std::env;
 use std::io;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use db::config::DataStoreCfg;
 use db::diesel_pool::DieselPool;
-use db::migration::{self, setup_ids};
+use db::migration::setup_ids;
 use db::pool::Pool;
 use diesel::result::Error as Dre;
 use diesel::Connection;
@@ -59,15 +58,6 @@ impl DataStore {
             Ok(())
         });
         Ok(())
-    }
-
-    /// Validate that the shard migration has happened.
-    pub fn validate_shard_migration(&self) -> SrvResult<()> {
-        if env::var_os("HAB_FUNC_TEST").is_some() {
-            Ok(())
-        } else {
-            migration::validate_shard_migration(&self.pool).map_err(SrvError::Db)
-        }
     }
 
     pub fn account_find_or_create(
@@ -215,158 +205,6 @@ impl DataStore {
         ).map_err(SrvError::AccountTokenRevoke)?;
 
         Ok(())
-    }
-
-    pub fn get_origins_by_account(
-        &self,
-        request: &sessionsrv::AccountOriginListRequest,
-    ) -> SrvResult<sessionsrv::AccountOriginListResponse> {
-        let conn = self.pool.get()?;
-        let rows =
-            conn.query(
-                "SELECT * FROM get_account_origins_v1($1)",
-                &[&(request.get_account_id() as i64)],
-            ).map_err(SrvError::OriginAccountList)?;
-        let mut response = sessionsrv::AccountOriginListResponse::new();
-        response.set_account_id(request.get_account_id());
-        let mut origins = protobuf::RepeatedField::new();
-
-        if rows.len() > 0 {
-            for row in rows.iter() {
-                origins.push(row.get("origin_name"));
-            }
-        }
-        response.set_origins(origins);
-        Ok(response)
-    }
-
-    pub fn accept_origin_invitation(
-        &self,
-        request: &sessionsrv::AccountOriginInvitationAcceptRequest,
-    ) -> SrvResult<()> {
-        let conn = self.pool.get()?;
-        let tr = conn.transaction().map_err(SrvError::DbTransactionStart)?;
-        tr.execute(
-            "SELECT * FROM accept_account_invitation_v1($1, $2)",
-            &[&(request.get_invite_id() as i64), &request.get_ignore()],
-        ).map_err(SrvError::AccountOriginInvitationAccept)?;
-        tr.commit().map_err(SrvError::DbTransactionCommit)?;
-        Ok(())
-    }
-
-    pub fn ignore_origin_invitation(
-        &self,
-        request: &sessionsrv::AccountOriginInvitationIgnoreRequest,
-    ) -> SrvResult<()> {
-        let conn = self.pool.get()?;
-        let tr = conn.transaction().map_err(SrvError::DbTransactionStart)?;
-        tr.execute(
-            "SELECT * FROM ignore_account_invitation_v1($1, $2)",
-            &[
-                &(request.get_invitation_id() as i64),
-                &(request.get_account_id() as i64),
-            ],
-        ).map_err(SrvError::AccountOriginInvitationIgnore)?;
-        tr.commit().map_err(SrvError::DbTransactionCommit)?;
-        Ok(())
-    }
-
-    pub fn rescind_origin_invitation(
-        &self,
-        request: &sessionsrv::AccountOriginInvitationRescindRequest,
-    ) -> SrvResult<()> {
-        let conn = self.pool.get()?;
-        let tr = conn.transaction().map_err(SrvError::DbTransactionStart)?;
-        tr.execute(
-            "SELECT * FROM rescind_account_invitation_v1($1, $2)",
-            &[
-                &(request.get_invitation_id() as i64),
-                &(request.get_account_id() as i64),
-            ],
-        ).map_err(SrvError::AccountOriginInvitationRescind)?;
-        tr.commit().map_err(SrvError::DbTransactionCommit)?;
-        Ok(())
-    }
-
-    pub fn create_origin(&self, request: &sessionsrv::AccountOriginCreate) -> SrvResult<()> {
-        let conn = self.pool.get()?;
-        conn.execute(
-            "SELECT * FROM insert_account_origin_v1($1, $2, $3, $4)",
-            &[
-                &(request.get_account_id() as i64),
-                &request.get_account_name(),
-                &(request.get_origin_id() as i64),
-                &request.get_origin_name(),
-            ],
-        ).map_err(SrvError::OriginCreate)?;
-        Ok(())
-    }
-
-    pub fn delete_origin(&self, request: &sessionsrv::AccountOriginRemove) -> SrvResult<()> {
-        let conn = self.pool.get()?;
-        conn.execute(
-            "SELECT delete_account_origin_v1($1, $2)",
-            &[
-                &request.get_account_name(),
-                &(request.get_origin_id() as i64),
-            ],
-        ).map_err(SrvError::OriginCreate)?;
-        Ok(())
-    }
-
-    pub fn create_account_origin_invitation(
-        &self,
-        invitation_create: &sessionsrv::AccountOriginInvitationCreate,
-    ) -> SrvResult<()> {
-        let conn = self.pool.get()?;
-        let _rows =
-            conn.query(
-                "SELECT * FROM insert_account_invitation_v1($1, $2, $3, $4, $5, $6)",
-                &[
-                    &(invitation_create.get_origin_id() as i64),
-                    &invitation_create.get_origin_name(),
-                    &(invitation_create.get_origin_invitation_id() as i64),
-                    &(invitation_create.get_account_id() as i64),
-                    &invitation_create.get_account_name(),
-                    &(invitation_create.get_owner_id() as i64),
-                ],
-            ).map_err(SrvError::AccountOriginInvitationCreate)?;
-        Ok(())
-    }
-
-    pub fn list_invitations(
-        &self,
-        ailr: &sessionsrv::AccountInvitationListRequest,
-    ) -> SrvResult<sessionsrv::AccountInvitationListResponse> {
-        let conn = self.pool.get()?;
-        let rows = &conn
-            .query(
-                "SELECT * FROM get_invitations_for_account_v1($1)",
-                &[&(ailr.get_account_id() as i64)],
-            )
-            .map_err(SrvError::AccountOriginInvitationList)?;
-
-        let mut response = sessionsrv::AccountInvitationListResponse::new();
-        response.set_account_id(ailr.get_account_id());
-        let mut invitations = protobuf::RepeatedField::new();
-        for row in rows {
-            let mut oi = sessionsrv::AccountOriginInvitation::new();
-            let oi_id: i64 = row.get("id");
-            oi.set_id(oi_id as u64);
-            let oi_account_id: i64 = row.get("account_id");
-            oi.set_account_id(oi_account_id as u64);
-            oi.set_account_name(row.get("account_name"));
-            let oi_origin_id: i64 = row.get("origin_id");
-            oi.set_origin_id(oi_origin_id as u64);
-            oi.set_origin_name(row.get("origin_name"));
-            let oi_owner_id: i64 = row.get("owner_id");
-            oi.set_owner_id(oi_owner_id as u64);
-            let oi_origin_invitation_id: i64 = row.get("origin_invitation_id");
-            oi.set_origin_invitation_id(oi_origin_invitation_id as u64);
-            invitations.push(oi);
-        }
-        response.set_invitations(invitations);
-        Ok(response)
     }
 
     fn row_to_account(&self, row: postgres::rows::Row) -> sessionsrv::Account {

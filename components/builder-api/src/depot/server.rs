@@ -49,12 +49,12 @@ use middleware::SegmentCli;
 use persistent;
 use protobuf;
 use protocol::jobsrv::{
-    JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet, JobGroup,
-    JobGroupAbort, JobGroupGet, JobGroupOriginGet, JobGroupOriginResponse, JobGroupSpec,
+    JobGraphPackageCreate, JobGraphPackagePreCreate, JobGraphPackageStats, JobGraphPackageStatsGet,
+    JobGroup, JobGroupAbort, JobGroupGet, JobGroupOriginGet, JobGroupOriginResponse, JobGroupSpec,
     JobGroupTrigger,
 };
 use protocol::originsrv::*;
-use protocol::sessionsrv::{Account, AccountGet, AccountOriginRemove};
+use protocol::sessionsrv::{Account, AccountGet};
 use regex::Regex;
 use router::{Params, Router};
 use serde_json;
@@ -411,22 +411,15 @@ pub fn origin_member_delete(req: &mut Request) -> IronResult<Response> {
         &origin
     );
 
-    let mut session_request = AccountOriginRemove::new();
     let mut origin_request = OriginMemberRemove::new();
 
     match helpers::get_origin(req, origin) {
         Ok(origin) => {
-            session_request.set_origin_id(origin.get_id());
             origin_request.set_origin_id(origin.get_id());
         }
         Err(err) => return Ok(render_net_error(&err)),
     }
-    session_request.set_account_name(account_name.to_string());
     origin_request.set_account_name(account_name.to_string());
-
-    if let Err(err) = route_message::<AccountOriginRemove, NetOk>(req, &session_request) {
-        return Ok(render_net_error(&err));
-    }
 
     match route_message::<OriginMemberRemove, NetOk>(req, &origin_request) {
         Ok(_) => Ok(Response::with(status::NoContent)),
@@ -2425,8 +2418,19 @@ fn process_upload_for_package_archive(
 
     // Don't re-create the origin package if it already exists
     if !origin_package_found {
-        if let Err(err) = conn.route::<OriginPackageCreate, OriginPackage>(&package) {
-            return Err(err);
+        match conn.route::<OriginPackageCreate, OriginPackage>(&package) {
+            Ok(pkg) => {
+                let mut job_graph_package = JobGraphPackageCreate::new();
+                job_graph_package.set_package(pkg);
+
+                if let Err(err) =
+                    conn.route::<JobGraphPackageCreate, OriginPackage>(&job_graph_package)
+                {
+                    warn!("Failed to insert package into graph: {:?}", err);
+                    return Err(err);
+                }
+            }
+            Err(err) => return Err(err),
         }
 
         // Schedule re-build of dependent packages (if requested)

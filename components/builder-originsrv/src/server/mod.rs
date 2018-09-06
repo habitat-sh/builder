@@ -73,6 +73,10 @@ lazy_static! {
             handlers::origin_invitation_list,
         );
         map.register(
+            AccountInvitationListRequest::descriptor_static(),
+            handlers::account_invitation_list,
+        );
+        map.register(
             OriginInvitationRescindRequest::descriptor_static(),
             handlers::origin_invitation_rescind,
         );
@@ -280,9 +284,8 @@ pub struct ServerState {
 }
 
 impl ServerState {
-    fn new(cfg: Config, router_pipe: Arc<String>) -> SrvResult<Self> {
-        let datastore = DataStore::new(&cfg.datastore, router_pipe)?;
-        datastore.validate_shard_migration()?;
+    fn new(cfg: Config) -> SrvResult<Self> {
+        let datastore = DataStore::new(&cfg.datastore)?;
 
         Ok(ServerState {
             datastore: datastore,
@@ -310,12 +313,9 @@ impl Dispatcher for OriginSrv {
 
     fn app_init(
         config: Self::Config,
-        router_pipe: Arc<String>,
+        _router_pipe: Arc<String>,
     ) -> SrvResult<<Self::State as AppState>::InitState> {
-        let jobsrv_enabled = config.jobsrv_enabled;
-        let state = ServerState::new(config, router_pipe)?;
-        state.datastore.register_async_events(jobsrv_enabled);
-        state.datastore.start_async();
+        let state = ServerState::new(config)?;
         Ok(state)
     }
 
@@ -329,11 +329,6 @@ pub fn run(config: Config) -> AppResult<(), SrvError> {
 }
 
 pub fn migrate(config: Config) -> SrvResult<()> {
-    // Why does it not matter? Because we're not staying alive and communicating with other
-    // services. We're just running migrations and quitting.
-    let router_pipe = Arc::new(format!(
-        "inproc://this.is.not.a.real.router.pipe.but.it.doesnt.matter"
-    ));
-    let ds = DataStore::new(&config.datastore, router_pipe)?;
+    let ds = DataStore::new(&config.datastore)?;
     ds.setup()
 }

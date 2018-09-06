@@ -14,7 +14,7 @@
 
 use hab_core::package::PackageTarget;
 use package_graph::PackageGraph;
-use protocol::jobsrv;
+use protocol::originsrv;
 use std::collections::HashMap;
 use std::iter::Iterator;
 use std::str::FromStr;
@@ -72,7 +72,7 @@ impl TargetGraph {
 
     pub fn build<T>(&mut self, packages: T) -> Vec<TargetGraphStats>
     where
-        T: Iterator<Item = jobsrv::JobGraphPackage>,
+        T: Iterator<Item = originsrv::OriginPackage>,
     {
         for p in packages {
             match self.graph_mut(p.get_target()) {

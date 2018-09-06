@@ -621,38 +621,31 @@ pub fn job_graph_package_create(
     state: &mut ServerState,
 ) -> Result<()> {
     let msg = req.parse::<jobsrv::JobGraphPackageCreate>()?;
-    debug!("job_graph_package_create message: {:?}", msg);
-    let package = state.datastore.create_job_graph_package(&msg)?;
-
+    let package = msg.get_package();
     // Extend the graph with new package
-    {
-        let mut target_graph = state.graph.write().unwrap();
-        let graph = match target_graph.graph_mut(msg.get_target()) {
-            Some(g) => g,
-            None => {
-                warn!(
-                    "JobGraphPackageCreate, no graph found for target {}",
-                    msg.get_target()
-                );
-                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-graph-package-create:1");
-                conn.route_reply(req, &*err)?;
-                return Ok(());
-            }
-        };
-
-        let start_time = PreciseTime::now();
-        let (ncount, ecount) = graph.extend(&package);
-        let end_time = PreciseTime::now();
-
-        debug!(
-            "Extended graph, nodes: {}, edges: {} ({} sec)\n",
-            ncount,
-            ecount,
-            start_time.to(end_time)
-        );
+    let mut target_graph = state.graph.write().unwrap();
+    let graph = match target_graph.graph_mut(package.get_target()) {
+        Some(g) => g,
+        None => {
+            warn!(
+                "JobGraphPackageCreate, no graph found for target {}",
+                package.get_target()
+            );
+            let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-graph-package-create:1");
+            conn.route_reply(req, &*err)?;
+            return Ok(());
+        }
     };
-
-    conn.route_reply(req, &package)?;
+    let start_time = PreciseTime::now();
+    let (ncount, ecount) = graph.extend(&package);
+    let end_time = PreciseTime::now();
+    debug!(
+        "Extended graph, nodes: {}, edges: {} ({} sec)\n",
+        ncount,
+        ecount,
+        start_time.to(end_time)
+    );
+    conn.route_reply(req, package)?;
     Ok(())
 }
 
@@ -663,7 +656,7 @@ pub fn job_graph_package_precreate(
 ) -> Result<()> {
     let msg = req.parse::<jobsrv::JobGraphPackagePreCreate>()?;
     debug!("package_precreate message: {:?}", msg);
-    let package: jobsrv::JobGraphPackage = msg.into();
+    let package: originsrv::OriginPackage = msg.into();
 
     // Check that we can safely extend the graph with new package
     let can_extend = {

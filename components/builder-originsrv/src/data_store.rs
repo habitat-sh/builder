@@ -15,30 +15,24 @@
 embed_migrations!("src/migrations");
 
 use std::collections::HashMap;
-use std::env;
 use std::fmt::Display;
 use std::io;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use bldr_core::helpers::transition_visibility;
-use db::async::{AsyncServer, EventOutcome};
 use db::config::DataStoreCfg;
 use db::diesel_pool::DieselPool;
-use db::error::{Error as DbError, Result as DbResult};
-use db::migration::{self, setup_ids};
+use db::migration::setup_ids;
 use db::pool::Pool;
 use diesel::result::Error as Dre;
 use diesel::Connection;
 use hab_core::package::PackageIdent;
-use hab_net::conn::{RouteClient, RouteConn};
 use hab_net::{ErrCode, NetError};
 use postgres;
 use postgres::rows::Rows;
 use protobuf;
-use protocol::net::NetOk;
+use protocol::originsrv;
 use protocol::originsrv::Pageable;
-use protocol::{jobsrv, originsrv, sessionsrv};
 
 use error::{SrvError, SrvResult};
 
@@ -46,38 +40,21 @@ use error::{SrvError, SrvResult};
 pub struct DataStore {
     pub pool: Pool,
     pub diesel_pool: DieselPool,
-    pub async: AsyncServer,
-}
-
-impl Drop for DataStore {
-    fn drop(&mut self) {
-        self.async.stop();
-    }
 }
 
 impl DataStore {
-    pub fn new(cfg: &DataStoreCfg, router_pipe: Arc<String>) -> SrvResult<DataStore> {
+    pub fn new(cfg: &DataStoreCfg) -> SrvResult<DataStore> {
         let pool = Pool::new(&cfg)?;
         let diesel_pool = DieselPool::new(&cfg)?;
-        let ap = pool.clone();
         Ok(DataStore {
             pool: pool,
             diesel_pool,
-            async: AsyncServer::new(ap, router_pipe),
         })
     }
 
     // For testing only
-    pub fn from_pool(
-        pool: Pool,
-        diesel_pool: DieselPool,
-        router_pipe: Arc<String>,
-    ) -> SrvResult<DataStore> {
-        Ok(DataStore {
-            async: AsyncServer::new(pool.clone(), router_pipe),
-            pool,
-            diesel_pool,
-        })
+    pub fn from_pool(pool: Pool, diesel_pool: DieselPool) -> SrvResult<DataStore> {
+        Ok(DataStore { pool, diesel_pool })
     }
 
     pub fn setup(&self) -> SrvResult<()> {
@@ -88,32 +65,6 @@ impl DataStore {
             Ok(())
         });
         Ok(())
-    }
-
-    /// Validate that the shard migration has happened.
-    pub fn validate_shard_migration(&self) -> SrvResult<()> {
-        if env::var_os("HAB_FUNC_TEST").is_some() {
-            Ok(())
-        } else {
-            migration::validate_shard_migration(&self.pool).map_err(SrvError::Db)
-        }
-    }
-
-    pub fn register_async_events(&self, jobsrv_enabled: bool) {
-        self.async
-            .register("sync_invitations".to_string(), sync_invitations);
-        self.async
-            .register("sync_origins".to_string(), sync_origins);
-
-        if jobsrv_enabled {
-            self.async
-                .register("sync_packages".to_string(), sync_packages);
-        }
-    }
-
-    pub fn start_async(&self) {
-        let async_thread = self.async.clone();
-        async_thread.start(4);
     }
 
     pub fn package_channel_audit(&self, pca: &originsrv::PackageChannelAudit) -> SrvResult<()> {
@@ -191,7 +142,6 @@ impl DataStore {
                 &pkg.get_visibility().to_string(),
             ],
         ).map_err(SrvError::OriginPackageUpdate)?;
-        self.async.schedule("sync_packages")?;
         Ok(())
     }
 
@@ -522,34 +472,10 @@ impl DataStore {
         Ok(response)
     }
 
-    // This function can fail if the corresponding sessionsrv shard is down - this is so that the
-    // user won't experience delay on seeing the invitation be accepted.
     pub fn accept_origin_invitation(
         &self,
-        conn: &mut RouteConn,
         oiar: &originsrv::OriginInvitationAcceptRequest,
     ) -> SrvResult<()> {
-        let mut aoia = sessionsrv::AccountOriginInvitationAcceptRequest::new();
-        aoia.set_account_id(oiar.get_account_id());
-        aoia.set_invite_id(oiar.get_invite_id());
-        aoia.set_origin_name(oiar.get_origin_name().to_string());
-        aoia.set_ignore(oiar.get_ignore());
-        match conn.route::<sessionsrv::AccountOriginInvitationAcceptRequest, NetOk>(&aoia) {
-            Ok(_) => {
-                debug!(
-                    "Updated session service; accepted/ignored invitation, {:?}",
-                    aoia
-                );
-            }
-            Err(e) => {
-                error!(
-                    "Failed to update session service on invitation acceptance/ignore, {:?}, {:?}",
-                    aoia, e
-                );
-                return Err(SrvError::from(e));
-            }
-        }
-
         let conn = self.pool.get()?;
         let tr = conn.transaction().map_err(SrvError::DbTransactionStart)?;
         tr.execute(
@@ -562,26 +488,8 @@ impl DataStore {
 
     pub fn ignore_origin_invitation(
         &self,
-        conn: &mut RouteConn,
         oiir: &originsrv::OriginInvitationIgnoreRequest,
     ) -> SrvResult<()> {
-        let mut aoiir = sessionsrv::AccountOriginInvitationIgnoreRequest::new();
-        aoiir.set_account_id(oiir.get_account_id());
-        aoiir.set_invitation_id(oiir.get_invitation_id());
-
-        match conn.route::<sessionsrv::AccountOriginInvitationIgnoreRequest, NetOk>(&aoiir) {
-            Ok(_) => {
-                debug!("Updated session service; ignored invitation, {:?}", aoiir);
-            }
-            Err(e) => {
-                error!(
-                    "Failed to update session service on invitation ignore, {:?}, {:?}",
-                    aoiir, e
-                );
-                return Err(SrvError::from(e));
-            }
-        }
-
         let conn = self.pool.get()?;
         let tr = conn.transaction().map_err(SrvError::DbTransactionStart)?;
         tr.execute(
@@ -597,11 +505,9 @@ impl DataStore {
 
     pub fn rescind_origin_invitation(
         &self,
-        conn: &mut RouteConn,
         oirr: &originsrv::OriginInvitationRescindRequest,
     ) -> SrvResult<()> {
         let pconn = self.pool.get()?;
-        let mut aoirr = sessionsrv::AccountOriginInvitationRescindRequest::new();
 
         let rows = &pconn
             .query(
@@ -610,28 +516,9 @@ impl DataStore {
             )
             .map_err(SrvError::OriginInvitationGet)?;
 
-        if rows.len() == 1 {
-            let row = rows.get(0);
-            let account_id: i64 = row.get("account_id");
-            aoirr.set_account_id(account_id as u64);
-        } else {
+        if rows.len() != 1 {
             let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "od:rescind-origin-invitation:0");
             return Err(SrvError::NetError(err));
-        }
-
-        aoirr.set_invitation_id(oirr.get_invitation_id());
-
-        match conn.route::<sessionsrv::AccountOriginInvitationRescindRequest, NetOk>(&aoirr) {
-            Ok(_) => {
-                debug!("Updated session service; rescinded invitation, {:?}", aoirr);
-            }
-            Err(e) => {
-                error!(
-                    "Failed to update session service on invitation rescind, {:?}, {:?}",
-                    aoirr, e
-                );
-                return Err(SrvError::from(e));
-            }
         }
 
         let tr = pconn.transaction().map_err(SrvError::DbTransactionStart)?;
@@ -660,6 +547,28 @@ impl DataStore {
 
         let mut response = originsrv::OriginInvitationListResponse::new();
         response.set_origin_id(oilr.get_origin_id());
+        let mut invitations = protobuf::RepeatedField::new();
+        for row in rows {
+            invitations.push(self.row_to_origin_invitation(&row));
+        }
+        response.set_invitations(invitations);
+        Ok(response)
+    }
+
+    pub fn list_origin_invitations_for_account(
+        &self,
+        ailr: &originsrv::AccountInvitationListRequest,
+    ) -> SrvResult<originsrv::AccountInvitationListResponse> {
+        let conn = self.pool.get()?;
+        let rows = &conn
+            .query(
+                "SELECT * FROM get_origin_invitations_for_account_v1($1)",
+                &[&(ailr.get_account_id() as i64)],
+            )
+            .map_err(SrvError::OriginInvitationListForAccount)?;
+
+        let mut response = originsrv::AccountInvitationListResponse::new();
+        response.set_account_id(ailr.get_account_id());
         let mut invitations = protobuf::RepeatedField::new();
         for row in rows {
             invitations.push(self.row_to_origin_invitation(&row));
@@ -700,7 +609,6 @@ impl DataStore {
                 ],
             ).map_err(SrvError::OriginInvitationCreate)?;
         if rows.len() == 1 {
-            self.async.schedule("sync_invitations")?;
             let row = rows.get(0);
             Ok(Some(self.row_to_origin_invitation(&row)))
         } else {
@@ -1078,7 +986,6 @@ impl DataStore {
                 ],
             ).map_err(SrvError::OriginCreate)?;
         if rows.len() == 1 {
-            self.async.schedule("sync_origins")?;
             let row = rows
                 .iter()
                 .nth(0)
@@ -1169,9 +1076,6 @@ impl DataStore {
                 &opc.get_visibility().to_string()
             ],
         ).map_err(SrvError::OriginPackageCreate)?;
-
-        self.async.schedule("sync_packages")?;
-
         let row = rows.get(0);
         self.row_to_origin_package(&row)
     }
@@ -2033,130 +1937,4 @@ impl DataStore {
         response.set_secrets(secrets);
         Ok(response)
     }
-}
-
-fn sync_origins(pool: Pool, mut route_conn: RouteClient) -> DbResult<EventOutcome> {
-    let mut result = EventOutcome::Finished;
-    let conn = pool.get()?;
-    let rows = &conn
-        .query("SELECT * FROM sync_origins_v1()", &[])
-        .map_err(DbError::AsyncFunctionCheck)?;
-    if rows.len() > 0 {
-        let mut request = sessionsrv::AccountOriginCreate::new();
-        for row in rows.iter() {
-            let aid: i64 = row.get("account_id");
-            let oid: i64 = row.get("origin_id");
-            request.set_account_id(aid as u64);
-            request.set_account_name(row.get("account_name"));
-            request.set_origin_id(oid as u64);
-            request.set_origin_name(row.get("origin_name"));
-            match route_conn.route::<sessionsrv::AccountOriginCreate, NetOk>(&request) {
-                Ok(_) => {
-                    conn.query("SELECT * FROM set_session_sync_v1($1)", &[&oid])
-                        .map_err(DbError::AsyncFunctionUpdate)?;
-                    debug!(
-                        "Updated session service with origin creation, {:?}",
-                        request
-                    );
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to sync origin creation with the session service, {:?}, {}",
-                        request, e
-                    );
-                    result = EventOutcome::Retry;
-                }
-            }
-        }
-    }
-    Ok(result)
-}
-
-fn sync_packages(pool: Pool, mut route_conn: RouteClient) -> DbResult<EventOutcome> {
-    let mut result = EventOutcome::Finished;
-    let conn = pool.get()?;
-    let rows = &conn
-        .query("SELECT * FROM sync_packages_v2()", &[])
-        .map_err(DbError::AsyncFunctionCheck)?;
-    if rows.len() > 0 {
-        let mut request = jobsrv::JobGraphPackageCreate::new();
-        for row in rows.iter() {
-            let pid: i64 = row.get("package_id");
-            let ident: String = row.get("package_ident");
-            let deps_column: String = row.get("package_deps");
-            let target: String = row.get("package_target");
-
-            let mut deps = protobuf::RepeatedField::new();
-            for ident in deps_column.split(":") {
-                if !ident.is_empty() {
-                    let opi = originsrv::OriginPackageIdent::from_str(ident).unwrap();
-                    let dep_str = format!("{}", opi);
-                    deps.push(dep_str);
-                }
-            }
-            request.set_ident(ident);
-            request.set_target(target);
-            request.set_deps(deps);
-
-            match route_conn.route::<jobsrv::JobGraphPackageCreate, NetOk>(&request) {
-                Ok(_) => {
-                    conn.query("SELECT * FROM set_packages_sync_v1($1)", &[&pid])
-                        .map_err(DbError::AsyncFunctionUpdate)?;
-                    debug!(
-                        "Updated jobsrv service with package creation, {:?}",
-                        request
-                    );
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to sync package creation with the jobsrv service, {:?}: {}",
-                        request, e
-                    );
-                    result = EventOutcome::Retry;
-                }
-            }
-        }
-    }
-    Ok(result)
-}
-
-fn sync_invitations(pool: Pool, mut route_conn: RouteClient) -> DbResult<EventOutcome> {
-    let mut result = EventOutcome::Finished;
-    let conn = pool.get()?;
-    let rows = &conn
-        .query(
-            "SELECT * FROM get_origin_invitations_not_synced_with_account_v1()",
-            &[],
-        )
-        .map_err(DbError::AsyncFunctionCheck)?;
-    if rows.len() > 0 {
-        for row in rows.iter() {
-            let mut aoic = sessionsrv::AccountOriginInvitationCreate::new();
-            let aid: i64 = row.get("account_id");
-            aoic.set_account_id(aid as u64);
-            let oid: i64 = row.get("origin_id");
-            aoic.set_origin_id(oid as u64);
-            let oiid: i64 = row.get("id");
-            aoic.set_origin_invitation_id(oiid as u64);
-            let owner_id: i64 = row.get("owner_id");
-            aoic.set_owner_id(owner_id as u64);
-            aoic.set_account_name(row.get("account_name"));
-            aoic.set_origin_name(row.get("origin_name"));
-            match route_conn.route::<sessionsrv::AccountOriginInvitationCreate, NetOk>(&aoic) {
-                Ok(_) => {
-                    conn.query("SELECT * FROM set_account_sync_v1($1)", &[&oiid])
-                        .map_err(DbError::AsyncFunctionUpdate)?;
-                    debug!("Updated session service with origin invitation, {:?}", aoic);
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to sync invitation with the session service, {:?}: {}",
-                        aoic, e
-                    );
-                    result = EventOutcome::Retry;
-                }
-            }
-        }
-    }
-    Ok(result)
 }

@@ -27,7 +27,7 @@ use sharding::InstaId;
 
 use error::ProtocolError;
 pub use message::jobsrv::*;
-
+pub use message::originsrv;
 pub const GITHUB_PUSH_NOTIFY_ID: u64 = 23;
 
 impl Into<Job> for JobSpec {
@@ -330,48 +330,20 @@ impl Routable for JobGroupSpec {
     }
 }
 
-impl From<OriginPackage> for JobGraphPackage {
-    fn from(value: OriginPackage) -> JobGraphPackage {
-        let mut package = JobGraphPackage::new();
-
-        let name = format!("{}", value.get_ident());
-        let target = value.get_target().to_string();
-
-        let deps = value.get_deps().iter().map(|x| format!("{}", x)).collect();
-
-        package.set_ident(name);
-        package.set_target(target);
-        package.set_deps(deps);
-        package
-    }
-}
-
-impl From<JobGraphPackage> for JobGraphPackageCreate {
-    fn from(value: JobGraphPackage) -> JobGraphPackageCreate {
-        let mut package = JobGraphPackageCreate::new();
-
-        let name = format!("{}", value.get_ident());
-        let target = value.get_target().to_string();
-
-        let deps = value.get_deps().iter().map(|x| format!("{}", x)).collect();
-
-        package.set_ident(name);
-        package.set_target(target);
-        package.set_deps(deps);
-        package
-    }
-}
-
-impl Into<JobGraphPackage> for JobGraphPackagePreCreate {
-    fn into(self) -> JobGraphPackage {
-        let mut package = JobGraphPackage::new();
+impl Into<OriginPackage> for JobGraphPackagePreCreate {
+    fn into(self) -> OriginPackage {
+        let mut package = OriginPackage::new();
 
         let name = format!("{}", self.get_ident());
         let target = self.get_target().to_string();
 
-        let deps = self.get_deps().iter().map(|x| format!("{}", x)).collect();
+        let deps = self
+            .get_deps()
+            .iter()
+            .map(|x| originsrv::OriginPackageIdent::from_str(&x).unwrap())
+            .collect();
 
-        package.set_ident(name);
+        package.set_ident(originsrv::OriginPackageIdent::from_str(&name).unwrap());
         package.set_target(target);
         package.set_deps(deps);
         package
@@ -401,14 +373,6 @@ impl Routable for JobGroupCancel {
     }
 }
 
-impl Routable for JobGraphPackageCreate {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_ident().to_string())
-    }
-}
-
 impl Routable for JobGraphPackagePreCreate {
     type H = String;
 
@@ -430,6 +394,13 @@ impl Routable for JobGraphPackageStatsGet {
 
     fn route_key(&self) -> Option<Self::H> {
         Some(self.get_origin().to_string())
+    }
+}
+
+impl Routable for JobGraphPackageCreate {
+    type H = String;
+    fn route_key(&self) -> Option<Self::H> {
+        Some(self.get_package().get_ident().to_string())
     }
 }
 

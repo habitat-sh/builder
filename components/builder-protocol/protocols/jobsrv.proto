@@ -204,19 +204,11 @@ message JobGroup {
   optional string project_name = 5;
 }
 
-message JobGraphPackage {
-  optional string ident = 1;
-  repeated string deps = 2;
-  optional string target = 3;
+message JobGraphPackageCreate {
+  optional originsrv.OriginPackage package = 1;
 }
 
 message JobGraphPackagePreCreate {
-  optional string ident = 1;
-  repeated string deps = 2;
-  optional string target = 3;
-}
-
-message JobGraphPackageCreate {
   optional string ident = 1;
   repeated string deps = 2;
   optional string target = 3;

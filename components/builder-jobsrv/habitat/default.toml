@@ -16,7 +16,7 @@ log_ingestion_port = 5568
 [datastore]
 user = "hab"
 password = ""
-database = "builder_jobsrv"
+database = "builder"
 connection_retry_ms = 300
 connection_timeout_sec = 3600
 

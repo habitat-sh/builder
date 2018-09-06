@@ -6,6 +6,6 @@ shards = []
 [datastore]
 user = "hab"
 password = ""
-database = "builder_sessionsrv"
+database = "builder"
 connection_retry_ms = 300
 connection_timeout_sec = 3600
