@@ -15,6 +15,7 @@
 //! Configuration for a Habitat Builder-API service
 
 use std::env;
+use std::fmt;
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use std::option::IntoIter;
@@ -63,6 +64,7 @@ pub struct Config {
     pub segment: SegmentCfg,
     pub ui: UiCfg,
     pub upstream: UpstreamCfg,
+    pub memcached: Vec<MemcacheCfg>,
 }
 
 impl Default for Config {
@@ -77,6 +79,7 @@ impl Default for Config {
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
             upstream: UpstreamCfg::default(),
+            memcached: vec![MemcacheCfg::default()],
         }
     }
 }
@@ -150,6 +153,28 @@ impl Default for ApiCfg {
             targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
             features_enabled: String::from("jobsrv"),
         }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct MemcacheCfg {
+    pub host: String,
+    pub port: u16,
+}
+
+impl Default for MemcacheCfg {
+    fn default() -> Self {
+        MemcacheCfg {
+            host: String::from("localhost"),
+            port: 11211,
+        }
+    }
+}
+
+impl fmt::Display for MemcacheCfg {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "memcache://{}:{}", self.host, self.port)
     }
 }
 

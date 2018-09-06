@@ -1,8 +1,12 @@
-pkg_name=builder-minio
+pkg_name=builder-memcached
 pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=('Apache-2.0')
-pkg_deps=(core/minio core/cacerts core/openssl)
+pkg_deps=(core/memcached)
+pkg_exports=(
+  [port]=port
+)
+pkg_exposes=(port)
 
 pkg_version() {
   # TED: After migrating the builder repo we needed to add to

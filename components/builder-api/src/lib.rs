@@ -35,6 +35,7 @@ extern crate hyper;
 extern crate iron;
 #[macro_use]
 extern crate log;
+extern crate memcache;
 extern crate mount;
 extern crate oauth_client;
 extern crate openssl;
