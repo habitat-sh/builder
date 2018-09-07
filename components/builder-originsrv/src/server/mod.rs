@@ -13,10 +13,17 @@
 // limitations under the License.
 
 mod handlers;
+mod session;
+mod session_handlers;
 
+use self::session::Session;
 use hab_net::app::prelude::*;
 use protobuf::Message;
 use protocol::originsrv::*;
+use std::collections::{HashMap, HashSet};
+use std::sync::RwLock;
+
+use protocol::sessionsrv as proto;
 
 use config::Config;
 use data_store::DataStore;
@@ -274,6 +281,51 @@ lazy_static! {
             PackageGroupChannelAudit::descriptor_static(),
             handlers::package_group_channel_audit,
         );
+        // OLD SESSIONSRV HANDLERS
+        map.register(
+            proto::AccountGet::descriptor_static(),
+            session_handlers::account_get,
+        );
+        map.register(
+            proto::AccountGetId::descriptor_static(),
+            session_handlers::account_get_id,
+        );
+        map.register(
+            proto::AccountCreate::descriptor_static(),
+            session_handlers::account_create,
+        );
+        map.register(
+            proto::AccountUpdate::descriptor_static(),
+            session_handlers::account_update,
+        );
+        map.register(
+            proto::AccountFindOrCreate::descriptor_static(),
+            session_handlers::account_find_or_create,
+        );
+        map.register(
+            proto::AccountTokenCreate::descriptor_static(),
+            session_handlers::account_token_create,
+        );
+        map.register(
+            proto::AccountTokenRevoke::descriptor_static(),
+            session_handlers::account_token_revoke,
+        );
+        map.register(
+            proto::AccountTokensGet::descriptor_static(),
+            session_handlers::account_tokens_get,
+        );
+        map.register(
+            proto::AccountTokenValidate::descriptor_static(),
+            session_handlers::account_token_validate,
+        );
+        map.register(
+            proto::SessionCreate::descriptor_static(),
+            session_handlers::session_create,
+        );
+        map.register(
+            proto::SessionGet::descriptor_static(),
+            session_handlers::session_get,
+        );
         map
     };
 }
@@ -281,6 +333,8 @@ lazy_static! {
 #[derive(Clone)]
 pub struct ServerState {
     datastore: DataStore,
+    sessions: Arc<Box<RwLock<HashSet<Session>>>>,
+    tokens: Arc<Box<RwLock<HashMap<u64, Option<String>>>>>,
 }
 
 impl ServerState {
@@ -289,6 +343,8 @@ impl ServerState {
 
         Ok(ServerState {
             datastore: datastore,
+            sessions: Arc::new(Box::new(RwLock::new(HashSet::default()))),
+            tokens: Arc::new(Box::new(RwLock::new(HashMap::new()))), // TBD: Handle multiple tokens / account
         })
     }
 }

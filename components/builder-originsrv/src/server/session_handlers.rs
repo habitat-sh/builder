@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@ use bldr_core;
 use hab_net::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
 
+use super::ServerState;
+use error::SrvResult;
 use protocol::net;
 use protocol::sessionsrv as proto;
-
-use super::{encode_token, ServerState, Session};
-use error::SrvResult;
+use server::session::encode_token;
+use server::session::Session;
 
 pub fn account_get_id(
     req: &mut Message,

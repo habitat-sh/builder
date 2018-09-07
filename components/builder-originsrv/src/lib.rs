@@ -15,7 +15,9 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
+extern crate base64;
 extern crate builder_core as bldr_core;
+extern crate chrono;
 extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
