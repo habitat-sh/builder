@@ -67,7 +67,6 @@ impl fmt::Display for Protocol {
             Protocol::JobSrv => "jobsrv",
             Protocol::Net => "net",
             Protocol::RouteSrv => "routesrv",
-            Protocol::SessionSrv => "sessionsrv",
             Protocol::OriginSrv => "originsrv",
         };
         write!(f, "{}", value)
@@ -82,7 +81,6 @@ impl FromStr for Protocol {
             "jobsrv" => Ok(Protocol::JobSrv),
             "net" => Ok(Protocol::Net),
             "routesrv" => Ok(Protocol::RouteSrv),
-            "sessionsrv" => Ok(Protocol::SessionSrv),
             "originsrv" => Ok(Protocol::OriginSrv),
             protocol_id => Err(ProtocolError::NoProtocol(protocol_id.to_string())),
         }

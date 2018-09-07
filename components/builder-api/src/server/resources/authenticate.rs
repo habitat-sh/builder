@@ -21,7 +21,7 @@ use actix_web::{App, HttpRequest, HttpResponse, Path};
 use hab_net::{ErrCode, NetError};
 use oauth_client::error::Error as OAuthError;
 
-use protocol::sessionsrv::*;
+use protocol::originsrv::*;
 
 use server::error::{Error, Result};
 use server::framework::middleware::{session_create_oauth, session_create_short_circuit};

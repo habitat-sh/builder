@@ -32,8 +32,8 @@ use hab_net::{ErrCode, NetError};
 use postgres;
 use postgres::rows::Rows;
 use protobuf;
+use protocol::originsrv;
 use protocol::originsrv::Pageable;
-use protocol::{originsrv, sessionsrv};
 
 use error::{SrvError, SrvResult};
 
@@ -1933,8 +1933,8 @@ impl DataStore {
 
     pub fn account_find_or_create(
         &self,
-        msg: &sessionsrv::AccountFindOrCreate,
-    ) -> SrvResult<sessionsrv::Account> {
+        msg: &originsrv::AccountFindOrCreate,
+    ) -> SrvResult<originsrv::Account> {
         let conn = self.pool.get()?;
         let rows = conn.query(
             "SELECT * FROM select_or_insert_account_v1($1, $2)",
@@ -1944,7 +1944,7 @@ impl DataStore {
         Ok(self.row_to_account(row))
     }
 
-    pub fn update_account(&self, account_update: &sessionsrv::AccountUpdate) -> SrvResult<()> {
+    pub fn update_account(&self, account_update: &originsrv::AccountUpdate) -> SrvResult<()> {
         let conn = self.pool.get()?;
         conn.execute(
             "SELECT update_account_v1($1, $2)",
@@ -1958,8 +1958,8 @@ impl DataStore {
 
     pub fn create_account(
         &self,
-        account_create: &sessionsrv::AccountCreate,
-    ) -> SrvResult<sessionsrv::Account> {
+        account_create: &originsrv::AccountCreate,
+    ) -> SrvResult<originsrv::Account> {
         let conn = self.pool.get()?;
         let rows =
             conn.query(
@@ -1973,8 +1973,8 @@ impl DataStore {
 
     pub fn get_account(
         &self,
-        account_get: &sessionsrv::AccountGet,
-    ) -> SrvResult<Option<sessionsrv::Account>> {
+        account_get: &originsrv::AccountGet,
+    ) -> SrvResult<Option<originsrv::Account>> {
         let conn = self.pool.get()?;
         let rows =
             conn.query(
@@ -1991,8 +1991,8 @@ impl DataStore {
 
     pub fn get_account_by_id(
         &self,
-        account_get_id: &sessionsrv::AccountGetId,
-    ) -> SrvResult<Option<sessionsrv::Account>> {
+        account_get_id: &originsrv::AccountGetId,
+    ) -> SrvResult<Option<originsrv::Account>> {
         let conn = self.pool.get()?;
         let rows =
             conn.query(
@@ -2009,8 +2009,8 @@ impl DataStore {
 
     pub fn create_account_token(
         &self,
-        account_token_create: &sessionsrv::AccountTokenCreate,
-    ) -> SrvResult<sessionsrv::AccountToken> {
+        account_token_create: &originsrv::AccountTokenCreate,
+    ) -> SrvResult<originsrv::AccountToken> {
         let conn = self.pool.get()?;
         let rows =
             conn.query(
@@ -2027,8 +2027,8 @@ impl DataStore {
 
     pub fn get_account_tokens(
         &self,
-        account_tokens_get: &sessionsrv::AccountTokensGet,
-    ) -> SrvResult<sessionsrv::AccountTokens> {
+        account_tokens_get: &originsrv::AccountTokensGet,
+    ) -> SrvResult<originsrv::AccountTokens> {
         let conn = self.pool.get()?;
         let rows = &conn
             .query(
@@ -2037,7 +2037,7 @@ impl DataStore {
             )
             .map_err(SrvError::AccountTokensGet)?;
 
-        let mut account_tokens = sessionsrv::AccountTokens::new();
+        let mut account_tokens = originsrv::AccountTokens::new();
         let mut tokens = protobuf::RepeatedField::new();
         for row in rows {
             let account_token = self.row_to_account_token(row);
@@ -2049,8 +2049,8 @@ impl DataStore {
 
     pub fn get_account_token(
         &self,
-        account_token_get: &sessionsrv::AccountTokenGet,
-    ) -> SrvResult<sessionsrv::AccountToken> {
+        account_token_get: &originsrv::AccountTokenGet,
+    ) -> SrvResult<originsrv::AccountToken> {
         let conn = self.pool.get()?;
         let rows = &conn
             .query(
@@ -2067,7 +2067,7 @@ impl DataStore {
 
     pub fn revoke_account_token(
         &self,
-        account_token_revoke: &sessionsrv::AccountTokenRevoke,
+        account_token_revoke: &originsrv::AccountTokenRevoke,
     ) -> SrvResult<()> {
         let conn = self.pool.get()?;
         conn.execute(
@@ -2078,8 +2078,8 @@ impl DataStore {
         Ok(())
     }
 
-    fn row_to_account(&self, row: postgres::rows::Row) -> sessionsrv::Account {
-        let mut account = sessionsrv::Account::new();
+    fn row_to_account(&self, row: postgres::rows::Row) -> originsrv::Account {
+        let mut account = originsrv::Account::new();
         let id: i64 = row.get("id");
         account.set_id(id as u64);
         account.set_email(row.get("email"));
@@ -2087,8 +2087,8 @@ impl DataStore {
         account
     }
 
-    fn row_to_account_token(&self, row: postgres::rows::Row) -> sessionsrv::AccountToken {
-        let mut account_token = sessionsrv::AccountToken::new();
+    fn row_to_account_token(&self, row: postgres::rows::Row) -> originsrv::AccountToken {
+        let mut account_token = originsrv::AccountToken::new();
         let id: i64 = row.get("id");
         account_token.set_id(id as u64);
         let account_id: i64 = row.get("account_id");

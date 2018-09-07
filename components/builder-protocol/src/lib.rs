@@ -33,7 +33,6 @@ pub mod net;
 pub mod originsrv;
 pub mod routesrv;
 pub mod search;
-pub mod sessionsrv;
 pub mod sharding;
 
 pub use self::error::{ProtocolError, ProtocolResult};

@@ -77,7 +77,7 @@ See the [www README](../../www/README.md) for help setting it up.
 
 ## Setting up a Custom OAuth Application
 
-By default, `builder-web` is configured to use a preconfigured dev github oauth application. This should suffice as long as you intend to use `http://localhost:3000` as the homepage. If you need to use an alternate host name or port, you will need to setup a separate oauth application and configure `builder-api` and `builder-sessionsrv` with its generated credentials.
+By default, `builder-web` is configured to use a preconfigured dev github oauth application. This should suffice as long as you intend to use `http://localhost:3000` as the homepage. If you need to use an alternate host name or port, you will need to setup a separate oauth application and configure `builder-api` with its generated credentials.
 
 To register a new oauth application, go to your github user account settings and navigate to `OAuth Applications` and then click on `Register a new application`.
 

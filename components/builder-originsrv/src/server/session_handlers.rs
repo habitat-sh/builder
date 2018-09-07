@@ -19,7 +19,7 @@ use hab_net::privilege::FeatureFlags;
 use super::ServerState;
 use error::SrvResult;
 use protocol::net;
-use protocol::sessionsrv as proto;
+use protocol::originsrv as proto;
 use server::session::encode_token;
 use server::session::Session;
 

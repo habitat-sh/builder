@@ -25,9 +25,9 @@
 //!
 //! use std::process;
 //! use habitat_net::app::prelude::*;
-//! // Use the protocol that your server implements here. For an example, we'll use sessionsrv. You
+//! // Use the protocol that your server implements here. For an example, we'll use originsrv. You
 //! // can create your own protocol in `components/builder-protocol`.
-//! use protocol::sessionsrv::*;
+//! use protocol::originsrv::*;
 //!
 //! pub mod config {
 //!     use habitat_net::app::config::*;
@@ -95,7 +95,7 @@
 //!
 //! mod handlers {
 //!     use habitat_net::app::prelude::*;
-//!     use protocol::sessionsrv::AccountGet;
+//!     use protocol::originsrv::AccountGet;
 //!     use super::SrvState;
 //!     use error::SrvResult;
 //!
@@ -117,7 +117,7 @@
 //!     static ref DISPATCH_TABLE: DispatchTable<MySrv> = {
 //!         let mut map = DispatchTable::new();
 //!         // Register each protocol message and map it to a handler function. For an example, we
-//!         // will use a sessionsrv protocol message for an example here
+//!         // will use a originsrv protocol message for an example here
 //!         map.register(AccountGet::descriptor_static(), handlers::account_get);
 //!         map
 //!     };
@@ -138,8 +138,8 @@
 //! impl Dispatcher for MySrv {
 //!     const APP_NAME: &'static str = "my-srv";
 //!     // Define your protocol in `components/builder-protocol/protocols/net.proto`. For an
-//!     // example, we will use the SessionSrv protocol
-//!     const PROTOCOL: Protocol = Protocol::SessionSrv;
+//!     // example, we will use the OriginSrv protocol
+//!     const PROTOCOL: Protocol = Protocol::OriginSrv;
 //!
 //!     type Config = config::SrvConfig;
 //!     type Error = error::SrvError;

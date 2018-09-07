@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 
 use base64;
 use hab_net::privilege::FeatureFlags;
-use protocol::{message, sessionsrv as proto};
+use protocol::{message, originsrv as proto};
 
 use error::SrvResult;
 
@@ -117,7 +117,7 @@ pub fn decode_token(value: &str) -> SrvResult<proto::SessionToken> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use protocol::sessionsrv as proto;
+    use protocol::originsrv as proto;
 
     #[test]
     fn decode_session_token() {

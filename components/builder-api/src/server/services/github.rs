@@ -28,8 +28,7 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::sign::Signer;
 use protocol::jobsrv::{JobGroup, JobGroupSpec, JobGroupTrigger};
-use protocol::originsrv::{OriginProject, OriginProjectGet};
-use protocol::sessionsrv::{Account, AccountGet};
+use protocol::originsrv::{Account, AccountGet, OriginProject, OriginProjectGet};
 use serde_json;
 
 use server::authorize::authorize_session;

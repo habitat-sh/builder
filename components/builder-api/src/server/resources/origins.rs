@@ -34,7 +34,6 @@ use hab_core::package::ident;
 use hab_net::{ErrCode, NetOk};
 
 use protocol::originsrv::*;
-use protocol::sessionsrv::*;
 
 use server::authorize::{authorize_session, check_origin_owner, get_session_user_name};
 use server::error::{Error, Result};
