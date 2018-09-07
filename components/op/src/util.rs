@@ -12,15 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::hash::Hasher;
 use std::path::PathBuf;
 
-use bldr_originsrv::server::sessionsrv as session;
-use fnv::FnvHasher;
+use bldr_originsrv::server::session;
 use hcore::crypto::hash::hash_file;
-use protocol::SHARD_COUNT;
-
-const SHARD_MASK: u64 = 0x1FFF;
 
 use config::Config;
 use error::{Error, Result};

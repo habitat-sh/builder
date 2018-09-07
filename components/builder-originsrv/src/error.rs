@@ -533,7 +533,6 @@ impl error::Error for SrvError {
             SrvError::AccountUpdate(ref err) => err.description(),
             SrvError::EntityNotFound => "Entity not found in database.",
             SrvError::NetErr(ref err) => err.description(),
-            SrvError::OriginAccountList(ref err) => err.description(),
             SrvError::PostgreSQL(ref err) => err.description(),
             SrvError::SessionCreate(ref err) => err.description(),
             SrvError::SessionGet(ref err) => err.description(),

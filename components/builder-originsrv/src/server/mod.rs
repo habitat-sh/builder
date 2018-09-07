@@ -13,7 +13,8 @@
 // limitations under the License.
 
 mod handlers;
-mod session;
+// This needs to be public so it can be used by the op tool
+pub mod session;
 mod session_handlers;
 
 use self::session::Session;

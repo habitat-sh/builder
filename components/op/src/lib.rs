@@ -15,9 +15,7 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
-extern crate fnv;
 extern crate habitat_builder_originsrv as bldr_originsrv;
-extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hcore;
 
 pub mod config;
