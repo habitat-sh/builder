@@ -32,7 +32,7 @@ execute_sql() {
   local sql="$2"
   local port=${PORT:-5432}
 
-  hab pkg exec core/postgresql psql -t -U hab -h 127.0.0.1 -p "${port}" -c "${sql}" -d "${database}"
+  hab pkg exec core/postgresql psql -t -U hab -h 127.0.0.1 -p "${port}" -c "${sql}" -d "${database}" -X
 }
 
 # before we do anything, let's check to see if this has already been done
@@ -75,12 +75,17 @@ done
 
 for table in "${originsrv_tables[@]}"; do
     echo "Copying ${table} from builder_originsrv to builder"
-    execute_sql builder_originsrv "\\copy ${table} to stdout" | execute_sql builder "\\copy ${table} from stdin"
+    if [ "${table}" == "origin_packages" ]; then
+        execute_sql builder_originsrv "\\copy ${table} to stdout" | \
+        execute_sql builder "\\copy ${table} (id, origin_id, owner_id, name, ident, checksum, manifest, config, target, deps, tdeps, exposes, scheduler_sync, created_at, updated_at, visibility) from stdin"
+    else
+        execute_sql builder_originsrv "\\copy ${table} to stdout" | execute_sql builder "\\copy ${table} from stdin"
+    fi
 done
 
 execute_sql builder "UPDATE origin_packages SET ident_array=regexp_split_to_array(ident, '/');"
 
-if [ -z "${MIGRATE_JOBSRV:-}" ]; then
+if [ -n "${MIGRATE_JOBSRV:-}" ]; then
     echo "Copying audit from builder_jobsrv to builder audit_jobs"
     execute_sql builder_jobsrv "\\copy audit to stdout" | execute_sql builder "\\copy audit_jobs from stdin"
 
