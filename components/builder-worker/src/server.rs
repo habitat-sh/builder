@@ -232,7 +232,7 @@ impl Server {
     fn prepare_dirs(&self) -> Result<()> {
         // Ensure that data path group ownership is set to the build user and directory perms are
         // `0750`. This allows the namespace files to be accessed and read by the build user
-        if cfg!(linux) {
+        if cfg!(not(windows)) {
             perm::set_owner(
                 &self.config.data_path,
                 users::get_current_username()
@@ -255,7 +255,7 @@ impl Server {
             fs::create_dir_all(parent_path)
                 .map_err(|e| Error::CreateDirectory(parent_path.to_path_buf(), e))?;
         }
-        if cfg!(linux) {
+        if cfg!(not(windows)) {
             perm::set_owner(&parent_path, studio::STUDIO_USER, studio::STUDIO_GROUP)?;
             perm::set_permissions(&parent_path, 0o750)?;
         } else {

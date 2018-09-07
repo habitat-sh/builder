@@ -401,7 +401,7 @@ impl Runner {
                 let dst = res.unwrap();
                 debug!("Imported origin secret key, dst={:?}.", dst);
                 if self.config.airlock_enabled {
-                    if cfg!(linux) {
+                    if cfg!(not(windows)) {
                         perm::set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
                     } else {
                         unreachable!();
@@ -511,7 +511,7 @@ impl Runner {
                     .as_str(),
                 STUDIO_GROUP,
             )?;
-            if cfg!(linux) {
+            if cfg!(not(windows)) {
                 perm::set_permissions(&self.config.data_path, 0o750)?;
             } else {
                 unreachable!();
@@ -535,7 +535,7 @@ impl Runner {
         }
 
         if self.config.airlock_enabled {
-            if cfg!(linux) {
+            if cfg!(not(windows)) {
                 perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
                 perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
             } else {
