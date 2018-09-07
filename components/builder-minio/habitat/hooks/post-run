@@ -11,9 +11,9 @@ MINIO_ENDPOINT="--endpoint-url https://localhost:9000 --no-verify-ssl"
 MINIO_ENDPOINT="--endpoint-url http://localhost:9000"
 {{ /if }}
 
-if {{pkgPathFor "core/aws-cli"}}/bin/aws $MINIO_ENDPOINT s3api list-buckets | grep "{{cfg.bucket_name}}" > /dev/null; then
+if aws $MINIO_ENDPOINT s3api list-buckets | grep "{{cfg.bucket_name}}" > /dev/null; then
   echo "Minio already configured"
 else
   echo "Creating bucket in Minio"
-  {{pkgPathFor "core/aws-cli"}}/bin/aws  $MINIO_ENDPOINT s3api create-bucket --bucket "{{cfg.bucket_name}}"
+  aws  $MINIO_ENDPOINT s3api create-bucket --bucket "{{cfg.bucket_name}}"
 fi
