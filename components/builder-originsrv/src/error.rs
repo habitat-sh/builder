@@ -419,14 +419,7 @@ impl fmt::Display for SrvError {
             SrvError::AccountUpdate(ref e) => format!("Error updating account, {}", e),
             SrvError::EntityNotFound => format!("No value for key found"),
             SrvError::NetErr(ref e) => format!("{}", e),
-            SrvError::OriginAccountList(ref e) => {
-                format!("Error listing origins for account in database, {}", e)
-            }
-            SrvError::OriginCreate(ref e) => {
-                format!("Error creating origin for account in database, {}", e)
-            }
             SrvError::PostgreSQL(ref e) => format!("{}", e),
-            SrvError::Protocol(ref e) => format!("{}", e),
             SrvError::SessionCreate(ref e) => format!("Error creating session, {}", e),
             SrvError::SessionGet(ref e) => format!("Error getting session from database, {}", e),
         };
@@ -538,21 +531,10 @@ impl error::Error for SrvError {
             SrvError::AccountTokensGet(ref err) => err.description(),
             SrvError::AccountTokenRevoke(ref err) => err.description(),
             SrvError::AccountUpdate(ref err) => err.description(),
-            SrvError::BadPort(_) => {
-                "Received an invalid port or a number outside of the valid range."
-            }
-            SrvError::ConnErr(ref err) => err.description(),
-            SrvError::Db(ref err) => err.description(),
-            SrvError::DbPoolTimeout(ref err) => err.description(),
-            SrvError::DbTransactionCommit(ref err) => err.description(),
-            SrvError::DbTransactionStart(ref err) => err.description(),
             SrvError::EntityNotFound => "Entity not found in database.",
-            SrvError::HabitatCore(ref err) => err.description(),
             SrvError::NetErr(ref err) => err.description(),
             SrvError::OriginAccountList(ref err) => err.description(),
-            SrvError::OriginCreate(ref err) => err.description(),
             SrvError::PostgreSQL(ref err) => err.description(),
-            SrvError::Protocol(ref err) => err.description(),
             SrvError::SessionCreate(ref err) => err.description(),
             SrvError::SessionGet(ref err) => err.description(),
         }

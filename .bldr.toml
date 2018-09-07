@@ -72,17 +72,6 @@ paths = [
   "support/ci/builder-base-plan.sh",
 ]
 
-[builder-sessionsrv]
-plan_path = "components/builder-sessionsrv/habitat"
-paths = [
-  "components/builder-sessionsrv/*",
-  "components/builder-protocol/*",
-  "components/builder-db/*",
-  "components/core/*",
-  "components/net/*",
-  "support/ci/builder-base-plan.sh",
-]
-
 [builder-worker]
 plan_path = "components/builder-worker/habitat"
 paths = [

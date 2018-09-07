@@ -30,15 +30,9 @@ depot=/root/habitat/tmp/depot
 origins=( neurosis xmen )
 users=( bobo mystique )
 
-if [ ! -x "$dir/op" ]; then
-  echo "This script requires the 'op' tool to determine shards. Please cd into components/op and run 'cargo build' then try this script again."
-  exit 1
-fi
-
 # cleanup origins
 for origin in "${origins[@]}"
 do
-  shard=$("$dir"/op shard --origin "$origin")
   sql=$(cat <<EOF
 DELETE FROM origin_members WHERE origin_id=(SELECT id FROM origins WHERE name='$origin');
 DELETE FROM origin_channel_packages WHERE channel_id IN (SELECT id FROM origin_channels WHERE origin_id=(SELECT id FROM origins WHERE name='$origin'));
@@ -59,7 +53,6 @@ done
 # cleanup users
 for user in "${users[@]}"
 do
-  shard=$("$dir"/op shard --origin "$user")
   sql=$(cat <<EOF
 DELETE FROM accounts WHERE name='$user';
 EOF

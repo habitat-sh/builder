@@ -56,10 +56,6 @@ fn app<'a, 'b>() -> clap::App<'a, 'b> {
             (about: "Decodes a base64 encoded session token and outputs it's contents.")
             (@arg TOKEN: +required +takes_value "Token")
         )
-        (@subcommand shard =>
-            (about: "Return the shard number for a string or numeric id")
-            (@arg SHARD: +required +takes_value "Shard")
-        )
     )
 }
 
@@ -67,10 +63,6 @@ fn config_from_args(matches: &clap::ArgMatches) -> Result<Config> {
     let cmd = matches.subcommand_name().unwrap();
     let args = matches.subcommand_matches(cmd).unwrap();
     let mut config = Config::default();
-
-    if let Some(s) = args.value_of("SHARD") {
-        config.shard = Some(s.to_string());
-    }
 
     if let Some(file) = args.value_of("FILE") {
         config.file = Some(file.to_string());
@@ -82,11 +74,6 @@ fn config_from_args(matches: &clap::ArgMatches) -> Result<Config> {
 fn dispatch(config: Config, matches: &clap::ArgMatches) -> Result<()> {
     match matches.subcommand_name() {
         Some("hash") => util::hash(config),
-        Some("shard") => {
-            let result = util::shard(config);
-            println!("{}", result);
-            Ok(())
-        }
         Some("session") => {
             let args = matches.subcommand_matches("session").unwrap();
             util::session(args.value_of("TOKEN").unwrap())
@@ -102,25 +89,4 @@ fn dispatch(config: Config, matches: &clap::ArgMatches) -> Result<()> {
 fn exit_with(err: Error, code: i32) {
     println!("{}", err);
     process::exit(code)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_shard_with_string() {
-        let mut config = Config::default();
-        config.shard = Some("core".to_string());
-        let result = util::shard(config);
-        assert_eq!(result, 30);
-    }
-
-    #[test]
-    fn test_shard_with_id() {
-        let mut config = Config::default();
-        config.shard = Some("721096872374083614".to_string());
-        let result = util::shard(config);
-        assert_eq!(result, 30);
-    }
 }

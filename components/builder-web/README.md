@@ -83,19 +83,12 @@ To register a new oauth application, go to your github user account settings and
 
 It is important that the homepage is set to `http://<hostname>:<port>` and the Authorization callback URL is set to `http://<hostname>:<port>/#/sign-in`.
 
-Set the `github.client_id` to the client ID assigned to the oauth application. If you are running the API services, add `config.toml` files for the `builder-sessionsrv` and `builder-api` services:
+Set the `github.client_id` to the client ID assigned to the oauth application. If you are running the API services, add `config.toml` files for `builder-api` services:
 
 ```
 mkdir -p /hab/svc/builder-api
-mkdir -p /hab/svc/builder-sessionsrv
 
 cat <<-EOF > /hab/svc/builder-api/config.toml
-[github]
-client_id       = "<Client ID>"
-client_secret   = "<Client Sescret>"
-EOF
-
-cat <<-EOF > /hab/svc/builder-sessionsrv/config.toml
 [github]
 client_id       = "<Client ID>"
 client_secret   = "<Client Sescret>"
