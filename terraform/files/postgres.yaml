@@ -5,7 +5,7 @@ instances:
     port: 5432
     username: hab
     password: REPLACETHIS
-    dbname: builder_jobsrv
+    dbname: builder
     ssl: False
     tags:
       - jobsrv
