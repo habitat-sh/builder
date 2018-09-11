@@ -401,7 +401,11 @@ impl Runner {
                 let dst = res.unwrap();
                 debug!("Imported origin secret key, dst={:?}.", dst);
                 if self.config.airlock_enabled {
-                    perm::set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
+                    if cfg!(not(windows)) {
+                        perm::set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
+                    } else {
+                        unreachable!();
+                    }
                 }
                 Ok(())
             }
@@ -507,7 +511,11 @@ impl Runner {
                     .as_str(),
                 STUDIO_GROUP,
             )?;
-            perm::set_permissions(&self.config.data_path, 0o750)?;
+            if cfg!(not(windows)) {
+                perm::set_permissions(&self.config.data_path, 0o750)?;
+            } else {
+                unreachable!();
+            }
         }
 
         if self.workspace.src().exists() {
@@ -527,8 +535,12 @@ impl Runner {
         }
 
         if self.config.airlock_enabled {
-            perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
-            perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
+            if cfg!(not(windows)) {
+                perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
+                perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
+            } else {
+                unreachable!();
+            }
         }
 
         if let Some(err) = fs::create_dir_all(key_path()).err() {
