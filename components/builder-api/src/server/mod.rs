@@ -142,7 +142,7 @@ pub fn run(config: Config) -> Result<()> {
         let app_state = AppState::new(&config);
 
         App::with_state(app_state)
-            .middleware(Logger::default())
+            .middleware(Logger::default().exclude("/v1/status"))
             .middleware(XRouteClient)
             .middleware(Authentication)
             .middleware(Cors)
