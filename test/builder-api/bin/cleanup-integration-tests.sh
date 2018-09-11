@@ -40,7 +40,6 @@ for origin in "${origins[@]}"
 do
   shard=$("$dir"/op shard --origin "$origin")
   sql=$(cat <<EOF
-SET SEARCH_PATH TO shard_$shard;
 DELETE FROM origin_members WHERE origin_id=(SELECT id FROM origins WHERE name='$origin');
 DELETE FROM origin_channel_packages WHERE channel_id IN (SELECT id FROM origin_channels WHERE origin_id=(SELECT id FROM origins WHERE name='$origin'));
 DELETE FROM origin_channels WHERE origin_id=(SELECT id FROM origins WHERE name='$origin');
@@ -54,7 +53,7 @@ DELETE FROM origin_secret_keys WHERE origin_id=(SELECT id FROM origins WHERE nam
 DELETE FROM origins WHERE name='$origin';
 EOF
 )
-  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder_originsrv
+  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder
 done
 
 # cleanup users
@@ -62,27 +61,23 @@ for user in "${users[@]}"
 do
   shard=$("$dir"/op shard --origin "$user")
   sql=$(cat <<EOF
-SET SEARCH_PATH TO shard_$shard;
-DELETE FROM account_invitations WHERE account_id=(SELECT id FROM accounts WHERE name='$user');
-DELETE FROM account_origins WHERE account_id=(SELECT id FROM accounts WHERE name='$user');
 DELETE FROM accounts WHERE name='$user';
 EOF
 )
-  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder_sessionsrv
+  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder
 done
 
 # cleanup jobs
 for origin in "${origins[@]}"
 do
   sql=$(cat <<EOF
-SET SEARCH_PATH TO shard_0;
 DELETE FROM busy_workers WHERE job_id IN (SELECT id FROM jobs WHERE project_name LIKE '$origin%');
 DELETE FROM group_projects WHERE project_name LIKE '$origin%';
 DELETE FROM groups WHERE project_name LIKE '$origin%';
 DELETE FROM jobs WHERE project_name LIKE '$origin%';
 EOF
 )
-  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder_jobsrv
+  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder
 done
 
 # cleanup files

@@ -47,7 +47,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let mut datastore = DataStoreCfg::default();
-        datastore.database = String::from("builder_jobsrv");
+        datastore.database = String::from("builder");
         Config {
             app: AppCfg::default(),
             net: NetCfg::default(),

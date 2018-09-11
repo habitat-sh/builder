@@ -29,7 +29,7 @@ pub struct DataStore {
     pool: Pool,
 }
 
-// Sample connection_url: "postgresql://hab@127.0.0.1/builder_jobsrv"
+// Sample connection_url: "postgresql://hab@127.0.0.1/builder"
 
 impl DataStore {
     /// Create a new DataStore.

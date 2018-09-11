@@ -35,23 +35,18 @@ clean_test_artifacts() {
     sql+="DELETE FROM origins WHERE name='$origin';"
   done
 
-  psql builder_originsrv -q -c "$sql"
+  psql builder -q -c "$sql"
 
   # clean users
   local users account_tables
   users=( bobo mystique )
-  account_tables=( account_invitations account_origins )
   sql=
 
   for user in "${users[@]}"; do
-    for table in "${account_tables[@]}"; do
-      sql+="DELETE FROM $table WHERE account_id=(SELECT id FROM accounts WHERE name='$user');"
-    done
-
     sql+="DELETE FROM accounts WHERE name='$user';"
   done
 
-  psql builder_sessionsrv -q -c "$sql"
+  psql builder -q -c "$sql"
 
   # clean jobs
   sql=
@@ -63,7 +58,7 @@ clean_test_artifacts() {
     sql+="DELETE FROM jobs WHERE project_name LIKE '$origin%';"
   done
 
-  psql builder_jobsrv -q -c "$sql"
+  psql builder -q -c "$sql"
 }
 
 if [ -n "${TRAVIS:-}" ]; then

@@ -28,7 +28,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let mut datastore = DataStoreCfg::default();
-        datastore.database = String::from("builder_jobsrv");
+        datastore.database = String::from("builder");
         Config {
             datastore: datastore,
         }
@@ -73,6 +73,6 @@ mod tests {
         "#;
 
         let config = Config::from_raw(&content).unwrap();
-        assert_eq!(config.datastore.database, String::from("builder_jobsrv"));
+        assert_eq!(config.datastore.database, String::from("builder"));
     }
 }
