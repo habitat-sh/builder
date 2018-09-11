@@ -561,6 +561,17 @@ impl Serialize for JobGraphPackageStats {
     }
 }
 
+impl Serialize for JobGroupOriginResponse {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut strukt = serializer.serialize_struct("job_group_origin_response", 1)?;
+        strukt.serialize_field("name", &self.get_job_groups())?;
+        strukt.end()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

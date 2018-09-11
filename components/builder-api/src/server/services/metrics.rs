@@ -19,6 +19,8 @@ use bldr_core::metrics;
 use std::borrow::Cow;
 
 pub enum Counter {
+    GetPackage,
+    GetChannelPackage,
     GitHubEvent,
     SearchPackages,
     UploadRequests,
@@ -33,6 +35,8 @@ impl metrics::CounterMetric for Counter {}
 impl metrics::Metric for Counter {
     fn id(&self) -> Cow<'static, str> {
         match *self {
+            Counter::GetPackage => "get-package".into(),
+            Counter::GetChannelPackage => "get-channel-package".into(),
             Counter::GitHubEvent => "github.event".into(),
             Counter::SearchPackages => "search-packages".into(),
             Counter::UploadRequests => "upload-packages".into(),

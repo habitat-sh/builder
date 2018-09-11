@@ -18,7 +18,7 @@
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
-extern crate habitat_builder_api as api;
+extern crate habitat_builder_api as bldr_api;
 extern crate habitat_core as hab_core;
 #[macro_use]
 extern crate log;
@@ -28,7 +28,8 @@ use std::path::PathBuf;
 use std::process;
 use std::str::FromStr;
 
-use api::{Config, Error, Result};
+use bldr_api::config::Config;
+use bldr_api::server;
 use hab_core::config::ConfigFile;
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
@@ -38,11 +39,7 @@ fn main() {
     env_logger::init();
     let matches = app().get_matches();
     debug!("CLI matches: {:?}", matches);
-    let config = match config_from_args(&matches) {
-        Ok(result) => result,
-        Err(e) => return exit_with(e, 1),
-    };
-    match api::server::run(config) {
+    match server::run(config_from_args(&matches)) {
         Ok(_) => std::process::exit(0),
         Err(e) => exit_with(e, 1),
     }
@@ -65,23 +62,25 @@ fn app<'a, 'b>() -> clap::App<'a, 'b> {
     )
 }
 
-fn config_from_args(matches: &clap::ArgMatches) -> Result<Config> {
+fn config_from_args(matches: &clap::ArgMatches) -> Config {
     let cmd = matches.subcommand_name().unwrap();
     let args = matches.subcommand_matches(cmd).unwrap();
     let mut config = match args.value_of("config") {
-        Some(cfg_path) => Config::from_file(cfg_path)?,
+        Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
         None => Config::from_file(CFG_DEFAULT_PATH).unwrap_or(Config::default()),
     };
 
     if let Some(port) = args.value_of("port") {
-        if u16::from_str(port).map(|p| config.http.port = p).is_err() {
-            return Err(Error::BadPort(port.to_string()));
-        }
+        u16::from_str(port)
+            .map(|p| config.http.port = p)
+            .expect("Specified port must be a valid u16");
     }
+
     if let Some(path) = args.value_of("path") {
         config.api.data_path = PathBuf::from(path);
     }
-    Ok(config)
+
+    config
 }
 
 fn exit_with<T>(err: T, code: i32)

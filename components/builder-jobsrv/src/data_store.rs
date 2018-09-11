@@ -691,8 +691,7 @@ impl DataStore {
         package.set_tdeps(self.into_idents(row.get("tdeps")));
 
         let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility =
-            pv.parse().map_err(Error::UnknownOriginPackageVisibility)?;
+        let pv2: originsrv::OriginPackageVisibility = pv.parse()?;
         package.set_visibility(pv2);
 
         Ok(package)

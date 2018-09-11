@@ -24,6 +24,7 @@ pub enum ProtocolError {
     BadJobGroupProjectState(String),
     BadJobGroupState(String),
     BadJobState(String),
+    BadOriginPackageVisibility(String),
     BadPackageChannelOperation(String),
     BadPackageChannelTrigger(String),
     BadSearchEntity(String),
@@ -47,6 +48,9 @@ impl fmt::Display for ProtocolError {
             }
             ProtocolError::BadJobGroupState(ref e) => format!("Bad Job Group State {}", e),
             ProtocolError::BadJobState(ref e) => format!("Bad Job State {}", e),
+            ProtocolError::BadOriginPackageVisibility(ref e) => {
+                format!("Bad Origin Package Visibility {}", e)
+            }
             ProtocolError::BadPackageChannelOperation(ref e) => {
                 format!("Bad Package Channel Operation {}", e)
             }
@@ -86,6 +90,9 @@ impl error::Error for ProtocolError {
             ProtocolError::BadJobGroupProjectState(_) => "Job Group Project state cannot be parsed",
             ProtocolError::BadJobGroupState(_) => "Job Group state cannot be parsed",
             ProtocolError::BadJobState(_) => "Job state cannot be parsed",
+            ProtocolError::BadOriginPackageVisibility(_) => {
+                "Origin package visibility cannot be parsed"
+            }
             ProtocolError::BadPackageChannelOperation(_) => {
                 "Package Channel Operation cannot be parsed"
             }

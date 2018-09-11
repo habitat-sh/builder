@@ -12,11 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-header! { (CacheControl, "Cache-Control") => [String] }
-header! { (ContentDisposition, "Content-Disposition") => [String] }
-header! { (XFileName, "X-Filename") => [String] }
-header! { (ETag, "ETag") => [String] }
+pub const NO_CACHE: &str = "private, no-cache, no-store";
+pub const CACHE: &str = "public, max-age=31536000"; // ONE_YEAR_IN_SECONDS
 
-header! { (XGitHubDelivery, "X-GitHub-Delivery") => [String] }
-header! { (XGitHubEvent, "X-GitHub-Event") => [String] }
-header! { (XHubSignature, "X-Hub-Signature") => [String] }
+pub const APPLICATION_JSON: &str = "application/json";
+
+pub const XFILENAME: &str = "x-filename"; // must be lowercase
+
+pub fn cache(cache: bool) -> &'static str {
+    if cache {
+        CACHE
+    } else {
+        NO_CACHE
+    }
+}
+
+pub const XGITHUBEVENT: &str = "X-GitHub-Event";
+pub const XHUBSIGNATURE: &str = "X-Hub-Signature";

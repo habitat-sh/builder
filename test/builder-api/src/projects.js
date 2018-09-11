@@ -13,7 +13,7 @@ const projectCreatePayload = {
   auto_build: true
 };
 
-let projectExpectations = function(res) {
+let projectExpectations = function (res) {
   expect(res.body.id).to.not.be.empty;
   expect(res.body.origin_id).to.equal(global.originNeurosis.id.toString());
   expect(res.body.origin_name).to.equal('neurosis');
@@ -28,34 +28,34 @@ let projectExpectations = function(res) {
   expect(res.body.auto_build).to.equal(true);
 };
 
-describe('Projects API', function() {
-  describe('Creating a project', function() {
-    it('requires authentication', function(done) {
+describe('Projects API', function () {
+  describe('Creating a project', function () {
+    it('requires authentication', function (done) {
       request.post('/projects')
         .type('application/json')
         .accept('application/json')
         .send(projectCreatePayload)
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.post('/projects')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
         .send(projectCreatePayload)
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires a properly formatted payload', function(done) {
+    it('requires a properly formatted payload', function (done) {
       request.post('/projects')
         .type('application/json')
         .accept('application/json')
@@ -64,15 +64,13 @@ describe('Projects API', function() {
           haha: 'lulz'
         })
         .expect(422)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('succeeds', function (done) {
       this.timeout(5000);
       request.post('/projects')
         .type('application/json')
@@ -80,84 +78,80 @@ describe('Projects API', function() {
         .set('Authorization', global.boboBearer)
         .send(projectCreatePayload)
         .expect(201)
-        .end(function(err, res) {
+        .end(function (err, res) {
           projectExpectations(res);
           done(err);
         });
     });
   });
 
-  describe('Retrieving a project', function() {
-    it('requires authentication', function(done) {
+  describe('Retrieving a project', function () {
+    it('requires authentication', function (done) {
       request.get('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.get('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('succeeds', function (done) {
       request.get('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(200)
-        .end(function(err, res) {
+        .end(function (err, res) {
           projectExpectations(res);
           done(err);
         });
     });
   });
 
-  describe('Listing all projects in an origin', function() {
-    it('requires authentication', function(done) {
+  describe('Listing all projects in an origin', function () {
+    it('requires authentication', function (done) {
       request.get('/projects/neurosis')
         .type('application/json')
         .accept('application/json')
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.get('/projects/neurosis')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('succeeds', function (done) {
       request.get('/projects/neurosis')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(200)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.body.length).to.equal(1);
           expect(res.body[0]).to.equal('testapp');
           done(err);
@@ -165,33 +159,33 @@ describe('Projects API', function() {
     });
   });
 
-  describe('Editing a project', function() {
-    it('requires authentication', function(done) {
+  describe('Editing a project', function () {
+    it('requires authentication', function (done) {
       request.put('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
+        .send({})
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.put('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
+        .send({})
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires a properly formatted payload', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('requires a properly formatted payload', function (done) {
       request.put('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
@@ -200,15 +194,12 @@ describe('Projects API', function() {
           haha: 'lulz'
         })
         .expect(422)
-        .end(function(err, res) {
-          expect(res.text).to.be.empty;
+        .end(function (err, res) {
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('succeeds', function (done) {
       this.timeout(5000);
       request.put('/projects/neurosis/testapp')
         .type('application/json')
@@ -220,21 +211,19 @@ describe('Projects API', function() {
           repo_id: repoId
         })
         .expect(204)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('reflects the new changes when viewing it again', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('reflects the new changes when viewing it again', function (done) {
       request.get('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(200)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.body.id).to.not.be.empty;
           expect(res.body.origin_id).to.equal(global.originNeurosis.id.toString());
           expect(res.body.origin_name).to.equal('neurosis');
@@ -251,108 +240,104 @@ describe('Projects API', function() {
     });
   });
 
-  describe('Toggling the privacy of a project', function() {
-    it('requires authentication', function(done) {
+  describe('Toggling the privacy of a project', function () {
+    it('requires authentication', function (done) {
       request.patch('/projects/neurosis/testapp/private')
         .type('application/json')
         .accept('application/json')
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.patch('/projects/neurosis/testapp/private')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires that you set it to a known visibility setting', function(done) {
+    it('requires that you set it to a known visibility setting', function (done) {
       request.patch('/projects/neurosis/testapp/lulz')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(400)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('does not allow you to set hidden manually', function(done) {
+    it('does not allow you to set hidden manually', function (done) {
       request.patch('/projects/neurosis/testapp/hidden')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(400)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('succeeds', function (done) {
       request.patch('/projects/neurosis/testapp/private')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(204)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
   });
 
-  describe('Deleting a project', function() {
-    it('requires authentication', function(done) {
+  describe('Deleting a project', function () {
+    it('requires authentication', function (done) {
       request.delete('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.delete('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
+    it('succeeds', function (done) {
       request.delete('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(204)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('creates another project so that other tests dont fail', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('creates another project so that other tests dont fail', function (done) {
       this.timeout(5000);
       request.post('/projects')
         .type('application/json')
@@ -360,7 +345,7 @@ describe('Projects API', function() {
         .set('Authorization', global.boboBearer)
         .send(projectCreatePayload)
         .expect(201)
-        .end(function(err, res) {
+        .end(function (err, res) {
           projectExpectations(res);
           done(err);
         });
@@ -368,9 +353,9 @@ describe('Projects API', function() {
   });
 });
 
-describe('Project integrations API', function() {
-  describe('Creating a project integration', function() {
-    it('requires authentication', function(done) {
+describe('Project integrations API', function () {
+  describe('Creating a project integration', function () {
+    it('requires authentication', function (done) {
       request.put('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
@@ -380,13 +365,13 @@ describe('Project integrations API', function() {
           numbers: 123
         })
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.put('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
@@ -397,28 +382,26 @@ describe('Project integrations API', function() {
           numbers: 123
         })
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires a JSON body', function(done) {
+    it('requires a JSON body', function (done) {
       request.put('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .send('this is not JSON')
         .expect(400)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('succeeds', function (done) {
       request.put('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
@@ -430,46 +413,44 @@ describe('Project integrations API', function() {
         })
         // JB TODO: this is wrong - it should be a 201
         .expect(204)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
   });
 
-  describe('Retrieving a project integration', function() {
-    it('requires authentication', function(done) {
+  describe('Retrieving a project integration', function () {
+    it('requires authentication', function (done) {
       request.get('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.get('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
-      this.skip(); // don't run in master until passing
-
+    it('succeeds', function (done) {
       request.get('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(200)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.body).to.deep.equal({
             fun: 'stuff',
             awesome: true,
@@ -480,37 +461,37 @@ describe('Project integrations API', function() {
     });
   });
 
-  describe('Deleting a project integration', function() {
-    it('requires authentication', function(done) {
+  describe('Deleting a project integration', function () {
+    it('requires authentication', function (done) {
       request.delete('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
         .expect(401)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('requires membership in the origin that the project refers to', function(done) {
+    it('requires membership in the origin that the project refers to', function (done) {
       request.delete('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
         .expect(403)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
     });
 
-    it('succeeds', function(done) {
+    it('succeeds', function (done) {
       request.delete('/projects/neurosis/testapp/integrations/docker/default')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(204)
-        .end(function(err, res) {
+        .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
         });
