@@ -159,7 +159,9 @@ impl ResponseError for Error {
         match self {
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
-            Error::BadRequest(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Error::BadRequest(ref err) => {
+                HttpResponse::with_body(StatusCode::BAD_REQUEST, err.to_owned())
+            }
             Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
