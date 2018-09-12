@@ -33,7 +33,7 @@ use protocol::sessionsrv::{Account, AccountGet};
 use serde_json;
 
 use server::authorize::authorize_session;
-use server::error::{Error, Result};
+use server::error::Error;
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::services::metrics::Counter;
@@ -56,24 +56,28 @@ impl FromStr for GitHubEvent {
     }
 }
 
-pub fn handle_event(req: HttpRequest<AppState>, body: String) -> Result<HttpResponse> {
+pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
     Counter::GitHubEvent.increment();
 
     let event = match req.headers().get(headers::XGITHUBEVENT) {
-        Some(event) => match GitHubEvent::from_str(match event.to_str() {
-            Ok(value) => value,
-            Err(err) => {
-                error!("An empty value was passed for XGitHubEvent Header!");
-                return Err(Error::BadRequest(err.to_string()));
+        Some(event) => {
+            let event_str = match event.to_str() {
+                Ok(value) => value,
+                Err(err) => {
+                    warn!("Unable to read XGithubEvent header, {:?}", err);
+                    return Error::BadRequest(err.to_string()).into();
+                }
+            };
+
+            match GitHubEvent::from_str(event_str) {
+                Ok(event) => event,
+                Err(err) => return err.into(),
             }
-        }) {
-            Ok(event) => event,
-            Err(err) => return Err(err.into()),
-        },
-        _ => {
-            return Err(Error::BadRequest(
+        }
+        None => {
+            return Error::BadRequest(
                 "An unknown value was passed in for XGitHubEvent header!".to_string(),
-            ))
+            ).into()
         }
     };
 
@@ -83,9 +87,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> Result<HttpResp
         Some(ref sig) => sig.clone(),
         None => {
             warn!("Received a GitHub hook with no signature");
-            return Err(Error::BadRequest(
-                "Recieved a GitHub hook with no signature".to_string(),
-            ));
+            return Error::BadRequest("Recieved a GitHub hook with no signature".to_string()).into();
         }
     };
 
@@ -102,20 +104,18 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> Result<HttpResp
             "Web hook signatures don't match. GH = {:?}, Our = {:?}",
             gh_signature, computed_signature
         );
-        return Err(Error::BadRequest(
-            "Webhook signatures don't match!".to_string(),
-        ));
+        return Error::BadRequest("Webhook signatures don't match!".to_string()).into();
     }
 
     match event {
-        GitHubEvent::Ping => Ok(HttpResponse::new(StatusCode::OK)),
+        GitHubEvent::Ping => HttpResponse::new(StatusCode::OK),
         GitHubEvent::Push => handle_push(&req, &body),
     }
 }
 
-pub fn repo_file_content(req: HttpRequest<AppState>) -> Result<HttpResponse> {
+pub fn repo_file_content(req: HttpRequest<AppState>) -> HttpResponse {
     if let Err(err) = authorize_session(&req, None) {
-        return Err(err.into());
+        return err.into();
     }
 
     let github = &req.state().github;
@@ -134,27 +134,25 @@ pub fn repo_file_content(req: HttpRequest<AppState>) -> Result<HttpResponse> {
             Ok(token) => token,
             Err(err) => {
                 warn!("unable to generate github app token, {}", err);
-                return Err(err.into());
+                return Error::Github(err).into();
             }
         }
     };
 
     match github.contents(&token, repo_id, &path) {
-        Ok(None) => Ok(HttpResponse::new(StatusCode::NOT_FOUND)),
-        Ok(search) => Ok(HttpResponse::Ok().json(&search)),
+        Ok(None) => HttpResponse::new(StatusCode::NOT_FOUND),
+        Ok(search) => HttpResponse::Ok().json(&search),
         Err(err) => {
             warn!("unable to fetch github contents, {}", err);
-            Err(err.into())
+            Error::Github(err).into()
         }
     }
 }
 
-fn handle_push(req: &HttpRequest<AppState>, body: &str) -> Result<HttpResponse> {
+fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
     let hook = match serde_json::from_str::<GitHubWebhookPush>(&body) {
         Ok(hook) => hook,
-        Err(err) => {
-            return Err(err.into());
-        }
+        Err(err) => return Error::SerdeJson(err).into(),
     };
     debug!(
         "GITHUB-WEBHOOK builder_api::github::handle_push: received hook; repository={} repository_id={} ref={} installation_id={}",
@@ -166,7 +164,7 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> Result<HttpResponse> 
 
     if hook.commits.is_empty() {
         debug!("GITHUB-WEBHOOK builder_api::github::handle_push: hook commits is empty!");
-        return Ok(HttpResponse::new(StatusCode::OK));
+        return HttpResponse::new(StatusCode::OK);
     }
 
     let github = &req.state().github;
@@ -179,7 +177,7 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> Result<HttpResponse> 
         Ok(token) => token,
         Err(err) => {
             warn!("unable to generate github app token, {}", err);
-            return Err(err.into());
+            return Error::Github(err).into();
         }
     };
 
@@ -192,8 +190,10 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> Result<HttpResponse> 
 
     let config = read_bldr_config(&github, &token, &hook);
     debug!("Config, {:?}", config);
+
     let plans = read_plans(&github, &token, &hook, &config);
     debug!("Triggered Plans, {:?}", plans);
+
     build_plans(
         &req,
         &hook.repository.clone_url,
@@ -209,7 +209,7 @@ fn build_plans(
     pusher: &str,
     account_id: Option<u64>,
     plans: Vec<Plan>,
-) -> Result<HttpResponse> {
+) -> HttpResponse {
     let mut request = JobGroupSpec::new();
 
     for plan in plans.iter() {
@@ -251,7 +251,9 @@ fn build_plans(
             Err(err) => debug!("Failed to create group, {:?}", err),
         }
     }
-    Ok(HttpResponse::Ok().json(&plans))
+
+    debug!("Returning success response with {} plans", plans.len());
+    HttpResponse::Ok().json(&plans)
 }
 
 fn read_bldr_config(github: &GitHubClient, token: &AppToken, hook: &GitHubWebhookPush) -> BuildCfg {
