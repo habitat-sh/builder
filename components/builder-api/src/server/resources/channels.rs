@@ -508,19 +508,19 @@ fn do_get_channel_package(
     };
     Counter::GetChannelPackage.increment();
 
-    // TODO: Deprecate target from headers
-    let target = match qtarget.target.clone() {
-        Some(t) => {
-            debug!("Query requested target = {}", t);
-            PackageTarget::from_str(&t)?
-        }
-        None => helpers::target_from_headers(req)?,
-    };
-
     // Fully qualify the ident if needed
     // TODO: Have the OriginPackageLatestGet call just return the package
     // metadata, thus saving us a second call to actually retrieve the package
     if !ident.fully_qualified() {
+        // TODO: Deprecate target from headers
+        let target = match qtarget.target.clone() {
+            Some(t) => {
+                debug!("Query requested target = {}", t);
+                PackageTarget::from_str(&t)?
+            }
+            None => helpers::target_from_headers(req)?,
+        };
+
         let mut request = OriginChannelPackageLatestGet::new();
         request.set_name(channel.clone());
         request.set_target(target.to_string());
@@ -553,8 +553,12 @@ fn do_get_channel_package(
     ));
     request.set_ident(ident.clone());
 
-    // Notify upstream with a fully qualified ident
-    notify_upstream(req, &ident, &target);
-
-    route_message::<OriginPackageGet, OriginPackage>(req, &request)
+    match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
+        Ok(pkg) => {
+            // Notify upstream with a fully qualified ident
+            notify_upstream(req, &ident, &(PackageTarget::from_str(&pkg.get_target())?));
+            Ok(pkg)
+        }
+        Err(err) => Err(err),
+    }
 }
