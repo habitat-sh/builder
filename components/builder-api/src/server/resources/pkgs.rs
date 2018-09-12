@@ -887,7 +887,7 @@ fn do_upload_package_finish(
             "Unsupported package platform or architecture {}.",
             target_from_artifact
         );
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        return HttpResponse::new(StatusCode::NOT_IMPLEMENTED);
     };
 
     let mut ident_req = OriginPackageGet::new();
