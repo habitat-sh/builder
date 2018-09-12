@@ -27,7 +27,7 @@ use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use server::authorize::authorize_session;
-use server::error::Result;
+use server::error::{Error, Result};
 use server::framework::middleware::route_message;
 use server::AppState;
 
@@ -83,15 +83,15 @@ pub fn extract_pagination(pagination: &Query<Pagination>) -> (isize, isize) {
 }
 
 // TODO: Deprecate getting target from User Agent header
-pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
+pub fn target_from_headers(req: &HttpRequest<AppState>) -> Result<PackageTarget> {
     let user_agent_header = match req.headers().get(header::USER_AGENT) {
         Some(s) => s,
-        None => return PackageTarget::from_str("x86_64-linux").unwrap(),
+        None => return Err(Error::UnsupportedPlatform("".to_string())),
     };
 
     let user_agent = match user_agent_header.to_str() {
         Ok(ref s) => s.to_string(),
-        Err(_) => return PackageTarget::from_str("x86_64-linux").unwrap(),
+        Err(_) => return Err(Error::UnsupportedPlatform("".to_string())),
     };
 
     debug!("Parsing target from UserAgent header: {}", &user_agent);
@@ -104,21 +104,15 @@ pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
             if let Some(target_match) = user_agent_capture.name("target") {
                 target_match.as_str().to_string()
             } else {
-                return PackageTarget::from_str("x86_64-linux").unwrap();
+                return Err(Error::UnsupportedPlatform(user_agent.to_owned()));
             }
         }
-        None => return PackageTarget::from_str("x86_64-linux").unwrap(),
+        None => return Err(Error::UnsupportedPlatform(user_agent.to_owned())),
     };
 
-    // All of our tooling that depends on this function to return a target will have a user
-    // agent that includes the platform, or will specify a target in the query.
-    // Therefore, if we can't find a valid target, it's safe to assume that some other kind of HTTP
-    // tool is being used, e.g. curl, with looser constraints. For those kinds of cases,
-    // let's default it to Linux instead of returning a bad request if we can't properly parse
-    // the inbound target.
     match PackageTarget::from_str(&target) {
-        Ok(t) => t,
-        Err(_) => PackageTarget::from_str("x86_64-linux").unwrap(),
+        Ok(t) => Ok(t),
+        Err(_) => Err(Error::UnsupportedPlatform(target)),
     }
 }
 

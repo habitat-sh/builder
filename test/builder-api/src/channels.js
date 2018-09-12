@@ -130,7 +130,7 @@ describe('Channels API', function () {
     });
 
     it('returns the package with the given name, version and release in a channel', function (done) {
-      request.get('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213')
+      request.get('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -144,7 +144,7 @@ describe('Channels API', function () {
     });
 
     it('returns the latest package with the given name in a channel', function (done) {
-      request.get('/depot/channels/neurosis/foo/pkgs/testapp/latest')
+      request.get('/depot/channels/neurosis/foo/pkgs/testapp/latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -158,7 +158,7 @@ describe('Channels API', function () {
     });
 
     it('returns the latest package with the given name and version in a channel', function (done) {
-      request.get('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/latest')
+      request.get('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -172,7 +172,7 @@ describe('Channels API', function () {
     });
 
     it('requires authentication to view private packages in a channel', function (done) {
-      request.get('/depot/channels/neurosis/bar/pkgs/testapp/0.1.3/latest')
+      request.get('/depot/channels/neurosis/bar/pkgs/testapp/0.1.3/latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(404)
@@ -182,7 +182,7 @@ describe('Channels API', function () {
     });
 
     it('does not let members of other origins view private packages in a channel', function (done) {
-      request.get('/depot/channels/neurosis/bar/pkgs/testapp/0.1.3/latest')
+      request.get('/depot/channels/neurosis/bar/pkgs/testapp/0.1.3/latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
@@ -193,7 +193,7 @@ describe('Channels API', function () {
     });
 
     it('allows members of the origin to view private packages when they are authenticated', function (done) {
-      request.get('/depot/channels/neurosis/bar/pkgs/testapp/0.1.3/latest')
+      request.get('/depot/channels/neurosis/bar/pkgs/testapp/0.1.3/latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)

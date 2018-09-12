@@ -97,7 +97,7 @@ describe('Working with packages', function () {
 
   describe('Finding packages', function () {
     it('allows me to search for packages', function (done) {
-      request.get('/depot/pkgs/search/testapp')
+      request.get('/depot/pkgs/search/testapp?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -220,7 +220,7 @@ describe('Working with packages', function () {
     });
 
     it('returns the latest release of a package with the specified name', function (done) {
-      request.get('/depot/pkgs/neurosis/testapp/latest')
+      request.get('/depot/pkgs/neurosis/testapp/latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -256,7 +256,7 @@ describe('Working with packages', function () {
     });
 
     it('returns the latest release of a package with the spcified name and version', function (done) {
-      request.get('/depot/pkgs/neurosis/testapp/0.1.3/latest')
+      request.get('/depot/pkgs/neurosis/testapp/0.1.3/latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -270,7 +270,7 @@ describe('Working with packages', function () {
     });
 
     it('returns the specified release', function (done) {
-      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}?target=x86_64-linux`)
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -298,7 +298,7 @@ describe('Working with packages', function () {
     });
 
     it('downloads a package', function (done) {
-      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download?target=x86_64-linux`)
         .expect(200)
         .buffer()
         .parse(binaryParser)
@@ -326,7 +326,7 @@ describe('Working with packages', function () {
     });
 
     it('requires authentication to view private packages', function (done) {
-      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}?target=x86_64-linux`)
         .type('application/json')
         .accept('application/json')
         .expect(404)
@@ -336,7 +336,7 @@ describe('Working with packages', function () {
     });
 
     it('does not let members of other origins view private packages', function (done) {
-      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}?target=x86_64-linux`)
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.mystiqueBearer)
@@ -347,7 +347,7 @@ describe('Working with packages', function () {
     });
 
     it('allows members of the origin to view private packages when they are authenticated', function (done) {
-      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}?target=x86_64-linux`)
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
