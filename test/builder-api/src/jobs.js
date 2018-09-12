@@ -48,8 +48,20 @@ describe('Jobs API', function () {
         });
     });
 
-    it('only works for linux', function (done) {
+    it('does not schedule a build for Windows', function (done) {
       request.post('/depot/pkgs/schedule/neurosis/testapp?target=x86_64-windows')
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not schedule a build for Linux kernel2', function (done) {
+      request.post('/depot/pkgs/schedule/neurosis/testapp?target=x86_64-linux-kernel2')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)

@@ -34,7 +34,7 @@ impl TargetGraph {
         let mut graphs = HashMap::new();
 
         // We only support the following targets currently
-        for target_str in &["x86_64-linux", "x86_64-windows"] {
+        for target_str in &["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"] {
             graphs.insert(
                 PackageTarget::from_str(target_str).unwrap(),
                 PackageGraph::new(),
