@@ -46,7 +46,7 @@ impl Default for DataStoreCfg {
             port: 5432,
             user: String::from("hab"),
             password: None,
-            database: String::from(""),
+            database: String::from("builder"),
             connection_retry_ms: 300,
             connection_timeout_sec: 3600,
             connection_test: false,

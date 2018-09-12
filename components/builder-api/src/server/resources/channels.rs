@@ -29,6 +29,7 @@ use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
+use server::model::channel::Channel;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -105,35 +106,19 @@ impl Channels {
 //
 fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();
-
+    let conn = req.state().db.0.get().unwrap();
+    let oid: i64;
     // Pass ?sandbox=true to this endpoint to include sandbox channels in the list. They are not
     // there by default.
-    let mut request = OriginChannelListRequest::new();
-    request.set_include_sandbox_channels(sandbox.is_set);
-
     match helpers::get_origin(&req, &origin) {
-        Ok(orgn) => request.set_origin_id(orgn.get_id()),
+        Ok(orgn) => oid = orgn.get_id() as i64,
         Err(err) => return err.into(),
     }
 
-    match route_message::<OriginChannelListRequest, OriginChannelListResponse>(&req, &request) {
-        Ok(list) => {
-            let list: Vec<OriginChannelIdent> = list
-                .get_channels()
-                .iter()
-                .map(|channel| {
-                    let mut ident = OriginChannelIdent::new();
-                    ident.set_name(channel.get_name().to_string());
-                    ident
-                })
-                .collect();
-            let mut response = HttpResponse::Ok();
-            response
-                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .json(list)
-        }
-        Err(err) => return err.into(),
-    }
+    let mut response = HttpResponse::Ok();
+    response
+        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+        .json(Channel::list(oid, sandbox.is_set, &conn))
 }
 
 fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {

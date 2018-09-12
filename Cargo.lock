@@ -963,6 +963,7 @@ dependencies = [
  "futures 0.1.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "github-api-client 0.0.0",
  "habitat-builder-protocol 0.0.0",
+ "habitat_builder_db 0.0.0",
  "habitat_core 0.0.0 (git+https://github.com/habitat-sh/core.git)",
  "habitat_http_client 0.0.0 (git+https://github.com/habitat-sh/core.git)",
  "habitat_net 0.0.0",

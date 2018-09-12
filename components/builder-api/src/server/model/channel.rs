@@ -1,9 +1,9 @@
+use actix_web::{actix::Message, Error};
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
-use diesel::sql_types::*;
 use diesel::PgConnection;
-use server::schema::origin_channels;
+use server::schema::channel::*;
 
 #[derive(Debug, Serialize, Queryable)]
 pub struct Channel {
@@ -23,26 +23,12 @@ pub struct NewChannel {
     pub origin_id: i64,
 }
 
-// TED: Maybe move these into a functions to a module?
+pub struct ChannelList;
 
-sql_function!{
-    fn get_origin_channels_for_origin_v2(origin_id: BigInt, include_sandbox_channels: Bool)
-        -> (BigInt, BigInt, BigInt, Text, Nullable<Timestamptz>, Nullable<Timestamptz>)
+impl Message for NewChannel {
+    type Result = Result<Channel, Error>;
 }
 
-sql_function!{
-    fn get_origin_channel_v1(origin_name: Text, name: Text)
-        -> (BigInt, BigInt, BigInt, Text, Nullable<Timestamptz>, Nullable<Timestamptz>)
-}
-
-sql_function!{
-    fn insert_origin_channel_v1(origin_id: BigInt, owner_id: BigInt, name: Text)
-        -> (BigInt, BigInt, BigInt, Text, Nullable<Timestamptz>, Nullable<Timestamptz>)
-}
-
-sql_function!{
-    fn delete_origin_channel_v1(channel_id: BigInt) -> ()
-}
 impl Channel {
     pub fn insert(channel: &NewChannel, conn: &PgConnection) -> QueryResult<Channel> {
         diesel::select(insert_origin_channel_v1(

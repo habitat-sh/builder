@@ -20,6 +20,7 @@ extern crate clap;
 extern crate env_logger;
 extern crate habitat_builder_api as bldr_api;
 extern crate habitat_core as hab_core;
+
 #[macro_use]
 extern crate log;
 
