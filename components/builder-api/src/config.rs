@@ -169,7 +169,11 @@ impl Default for ApiCfg {
             data_path: PathBuf::from("/hab/svc/builder-api/data"),
             log_path: env::temp_dir(),
             key_path: PathBuf::from("/hab/svc/builder-api/files"),
-            targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
+            targets: vec![
+                target::X86_64_LINUX,
+                target::X86_64_LINUX_KERNEL2,
+                target::X86_64_WINDOWS,
+            ],
             features_enabled: String::from("jobsrv"),
         }
     }
