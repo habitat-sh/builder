@@ -245,7 +245,7 @@ mod tests {
         data_path = "/hab/svc/hab-depot/data"
         log_path = "/hab/svc/hab-depot/var/log"
         key_path = "/hab/svc/hab-depot/files"
-        targets = ["x86_64-linux", "x86_64-windows"]
+        targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
         features_enabled = "foo, bar"
 
         [upstream]
@@ -293,9 +293,10 @@ mod tests {
             PathBuf::from("/hab/svc/hab-depot/files")
         );
 
-        assert_eq!(config.api.targets.len(), 2);
+        assert_eq!(config.api.targets.len(), 3);
         assert_eq!(config.api.targets[0], target::X86_64_LINUX);
-        assert_eq!(config.api.targets[1], target::X86_64_WINDOWS);
+        assert_eq!(config.api.targets[1], target::X86_64_LINUX_KERNEL2);
+        assert_eq!(config.api.targets[2], target::X86_64_WINDOWS);
 
         assert_eq!(&config.api.features_enabled, "foo, bar");
 

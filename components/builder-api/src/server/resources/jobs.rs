@@ -24,14 +24,14 @@ use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
-use hab_core::package::Identifiable;
+use hab_core::package::{Identifiable, PackageTarget};
 use hab_net::{ErrCode, NetError, NetOk};
 
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
-use server::helpers;
+use server::helpers::{self, Target};
 use server::AppState;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -80,18 +80,30 @@ impl Jobs {
 //
 // Route handlers - these functions can return any Responder trait
 //
-fn get_rdeps(req: HttpRequest<AppState>) -> HttpResponse {
+fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, name) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
 
+    // TODO: Deprecate target from headers
+    let target = match qtarget.target.clone() {
+        Some(t) => {
+            debug!("Query requested target = {}", t);
+            match PackageTarget::from_str(&t) {
+                Ok(t) => t,
+                Err(err) => return Error::HabitatCore(err).into(),
+            }
+        }
+        None => match helpers::target_from_headers(&req) {
+            Ok(t) => t,
+            Err(err) => return err.into(),
+        },
+    };
+
     let mut rdeps_get = JobGraphPackageReverseDependenciesGet::new();
     rdeps_get.set_origin(origin);
     rdeps_get.set_name(name);
-
-    // TODO (SA): The rdeps API needs to be extended to support a target param.
-    // For now, hard code a default value
-    rdeps_get.set_target("x86_64-linux".to_string());
+    rdeps_get.set_target(target.to_string());
 
     match route_message::<JobGraphPackageReverseDependenciesGet, JobGraphPackageReverseDependencies>(
         &req, &rdeps_get,
