@@ -37,7 +37,6 @@ If not already running, launch services and wait for them to come up:
 When everything is ready, `hab sup status` will look like:
 ```
 package                                         type        state  uptime (s)  pid    group                       style
-habitat/builder-sessionsrv/7049/20180208225209  standalone  up     22          45502  builder-sessionsrv.default  persistent
 habitat/builder-router/7039/20180207225315      standalone  up     25          45293  builder-router.default      persistent
 core/sccache/0.2.4/20180118212549               standalone  up     24          45298  sccache.default             persistent
 habitat/builder-worker/7054/20180208233206      standalone  up     24          45321  builder-worker.default      persistent

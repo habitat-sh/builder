@@ -26,7 +26,7 @@ use hab_net::conn::RouteClient;
 use hab_net::{ErrCode, NetError, NetOk};
 use oauth_client::types::OAuth2User;
 use protocol;
-use protocol::sessionsrv::*;
+use protocol::originsrv::*;
 use protocol::Routable;
 
 use server::error;

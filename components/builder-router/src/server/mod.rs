@@ -20,8 +20,7 @@ use hab_net::time;
 use hab_net::{ErrCode, NetError};
 use protocol::message::{Message, Protocol};
 use protocol::routesrv::PING_INTERVAL_MS;
-use protocol::sharding::{ShardId, SHARD_COUNT};
-use rand::{self, Rng};
+use protocol::sharding::ShardId;
 use zmq;
 
 use config::Config;
@@ -36,8 +35,6 @@ pub struct Server {
     /// ZeroMQ socket Context. Use this when creating new sockets if you wish them to be able to
     /// participate in the server's main thread.
     context: zmq::Context,
-    /// Random seed used in calculating shard destinations.
-    rng: rand::ThreadRng,
     /// Map of all registered servers and, if applicable, the shards they are hosting.
     servers: ServerMap,
 }
@@ -47,7 +44,6 @@ impl Server {
         Server {
             config: config,
             context: zmq::Context::new(),
-            rng: rand::thread_rng(),
             servers: ServerMap::default(),
         }
     }
@@ -139,14 +135,9 @@ impl Server {
         Ok(())
     }
 
-    /// Returns `Some` with the net identity of the server registered for the given protocol
-    /// hosting the shard for which the given protocol message was intended for. Returns `None`
-    /// if there is no server hosting the shard for the given protocol.
+    // Returns 0 always since we are no longer using sharding
     fn select_shard(&mut self, message: &Message) -> Option<&[u8]> {
-        let shard_id = match message.route_info().and_then(|m| m.hash()) {
-            Some(hash) => (hash % SHARD_COUNT as u64) as u32,
-            None => (self.rng.gen::<u64>() % SHARD_COUNT as u64) as u32,
-        };
+        let shard_id = 0;
         self.servers
             .get(&message.route_info().unwrap().protocol(), &shard_id)
     }

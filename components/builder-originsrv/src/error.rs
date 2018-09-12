@@ -14,6 +14,7 @@
 
 use std::error;
 use std::fmt;
+use std::num;
 
 use bldr_core;
 use db;
@@ -115,6 +116,24 @@ pub enum SrvError {
     SyncInvitationsUpdate(postgres::error::Error),
     Protobuf(protobuf::ProtobufError),
     VisibilityCascade(postgres::error::Error),
+    // Session Errors
+    AccountCreate(postgres::error::Error),
+    AccountGet(postgres::error::Error),
+    AccountGetById(postgres::error::Error),
+    AccountIdFromString(num::ParseIntError),
+    AccountOriginInvitationAccept(postgres::error::Error),
+    AccountOriginInvitationIgnore(postgres::error::Error),
+    AccountOriginInvitationRescind(postgres::error::Error),
+    AccountOriginInvitationList(postgres::error::Error),
+    AccountTokenCreate(postgres::error::Error),
+    AccountTokensGet(postgres::error::Error),
+    AccountTokenRevoke(postgres::error::Error),
+    AccountUpdate(postgres::error::Error),
+    EntityNotFound,
+    NetErr(hab_net::NetError),
+    PostgreSQL(postgres::error::Error),
+    SessionCreate(postgres::error::Error),
+    SessionGet(postgres::error::Error),
 }
 
 impl fmt::Display for SrvError {
@@ -367,6 +386,42 @@ impl fmt::Display for SrvError {
             SrvError::OriginUpdate(ref e) => format!("Error updating origin, {}", e),
             SrvError::Protobuf(ref e) => format!("{}", e),
             SrvError::VisibilityCascade(ref e) => format!("{}", e),
+            // Session Errors
+            SrvError::AccountCreate(ref e) => format!("Error creating account in database, {}", e),
+            SrvError::AccountGet(ref e) => format!("Error getting account from database, {}", e),
+            SrvError::AccountGetById(ref e) => {
+                format!("Error getting account from database, {}", e)
+            }
+            SrvError::AccountIdFromString(ref e) => {
+                format!("Cannot convert from string to Account ID, {}", e)
+            }
+            SrvError::AccountOriginInvitationAccept(ref e) => {
+                format!("Error accepting invitation in database, {}", e)
+            }
+            SrvError::AccountOriginInvitationIgnore(ref e) => {
+                format!("Error ignoring invitation, {}", e)
+            }
+            SrvError::AccountOriginInvitationRescind(ref e) => {
+                format!("Error rescinding invitation, {}", e)
+            }
+            SrvError::AccountOriginInvitationList(ref e) => {
+                format!("Error listing invitation in database, {}", e)
+            }
+            SrvError::AccountTokenCreate(ref e) => {
+                format!("Error creating account token in database, {}", e)
+            }
+            SrvError::AccountTokensGet(ref e) => {
+                format!("Error getting account tokens from database, {}", e)
+            }
+            SrvError::AccountTokenRevoke(ref e) => {
+                format!("Error revoking account token from database, {}", e)
+            }
+            SrvError::AccountUpdate(ref e) => format!("Error updating account, {}", e),
+            SrvError::EntityNotFound => format!("No value for key found"),
+            SrvError::NetErr(ref e) => format!("{}", e),
+            SrvError::PostgreSQL(ref e) => format!("{}", e),
+            SrvError::SessionCreate(ref e) => format!("Error creating session, {}", e),
+            SrvError::SessionGet(ref e) => format!("Error getting session from database, {}", e),
         };
         write!(f, "{}", msg)
     }
@@ -463,6 +518,24 @@ impl error::Error for SrvError {
             SrvError::SyncInvitationsUpdate(ref err) => err.description(),
             SrvError::Protobuf(ref err) => err.description(),
             SrvError::VisibilityCascade(ref err) => err.description(),
+            // Session Errors
+            SrvError::AccountCreate(ref err) => err.description(),
+            SrvError::AccountGet(ref err) => err.description(),
+            SrvError::AccountGetById(ref err) => err.description(),
+            SrvError::AccountIdFromString(ref err) => err.description(),
+            SrvError::AccountOriginInvitationAccept(ref err) => err.description(),
+            SrvError::AccountOriginInvitationIgnore(ref err) => err.description(),
+            SrvError::AccountOriginInvitationRescind(ref err) => err.description(),
+            SrvError::AccountOriginInvitationList(ref err) => err.description(),
+            SrvError::AccountTokenCreate(ref err) => err.description(),
+            SrvError::AccountTokensGet(ref err) => err.description(),
+            SrvError::AccountTokenRevoke(ref err) => err.description(),
+            SrvError::AccountUpdate(ref err) => err.description(),
+            SrvError::EntityNotFound => "Entity not found in database.",
+            SrvError::NetErr(ref err) => err.description(),
+            SrvError::PostgreSQL(ref err) => err.description(),
+            SrvError::SessionCreate(ref err) => err.description(),
+            SrvError::SessionGet(ref err) => err.description(),
         }
     }
 }
@@ -506,5 +579,11 @@ impl From<protocol::ProtocolError> for SrvError {
 impl From<zmq::Error> for SrvError {
     fn from(err: zmq::Error) -> Self {
         SrvError::from(hab_net::conn::ConnErr::from(err))
+    }
+}
+
+impl From<postgres::error::Error> for SrvError {
+    fn from(err: postgres::error::Error) -> Self {
+        SrvError::PostgreSQL(err)
     }
 }

@@ -16,15 +16,10 @@
 pub struct Config {
     // file to hash
     pub file: Option<String>,
-    // shard
-    pub shard: Option<String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config {
-            file: None,
-            shard: None,
-        }
+        Config { file: None }
     }
 }

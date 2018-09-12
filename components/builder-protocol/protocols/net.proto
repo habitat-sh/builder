@@ -4,9 +4,8 @@ package net;
 enum Protocol {
   Net = 0;
   RouteSrv = 1;
-  SessionSrv = 2;
-  OriginSrv = 3;
-  JobSrv = 4;
+  OriginSrv = 2;
+  JobSrv = 3;
 }
 
 enum ErrCode {

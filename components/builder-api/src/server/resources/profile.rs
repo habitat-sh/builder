@@ -17,7 +17,7 @@ use actix_web::{App, FromRequest, HttpRequest, HttpResponse, Json, Path};
 
 use bldr_core;
 use hab_net::NetOk;
-use protocol::sessionsrv::*;
+use protocol::originsrv::*;
 
 use server::authorize::authorize_session;
 use server::framework::middleware::route_message;

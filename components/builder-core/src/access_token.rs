@@ -17,7 +17,7 @@ use chrono::{self, Duration, TimeZone, Utc};
 use error::{Error, Result};
 use hab_net::privilege::FeatureFlags;
 use integrations::{decrypt, encrypt, validate};
-use protocol::{message, sessionsrv};
+use protocol::{message, originsrv};
 use std::path::PathBuf;
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
@@ -60,7 +60,7 @@ pub fn generate_access_token(
         .unwrap_or(chrono::MAX_DATE.and_hms(0, 0, 0))
         .timestamp();
 
-    let mut token = sessionsrv::AccessToken::new();
+    let mut token = originsrv::AccessToken::new();
     token.set_account_id(account_id);
     token.set_flags(flags);
     token.set_expires(expires);
@@ -75,13 +75,13 @@ pub fn is_access_token(token: &str) -> bool {
     token.starts_with(ACCESS_TOKEN_PREFIX)
 }
 
-pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<sessionsrv::Session> {
+pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<originsrv::Session> {
     assert!(is_access_token(token));
 
     let (_, encoded) = token.split_at(ACCESS_TOKEN_PREFIX.len());
     let bytes = decrypt(key_dir, encoded)?;
 
-    let payload: sessionsrv::AccessToken = match message::decode(&bytes) {
+    let payload: originsrv::AccessToken = match message::decode(&bytes) {
         Ok(p) => p,
         Err(e) => {
             warn!("Unable to deserialize access token, err={:?}", e);

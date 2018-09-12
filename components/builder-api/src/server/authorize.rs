@@ -16,7 +16,6 @@ use actix_web::HttpRequest;
 use hab_net::privilege::FeatureFlags;
 
 use protocol::originsrv::*;
-use protocol::sessionsrv::*;
 
 use server::error::{Error, Result};
 use server::framework::middleware::route_message;

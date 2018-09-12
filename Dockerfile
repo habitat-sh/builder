@@ -20,7 +20,6 @@ COPY support/builder/hab-entrypoint.sh /usr/local/bin/hab-entrypoint.sh
 COPY support/builder/init-datastore.sh /tmp/init-datastore.sh
 COPY terraform/scripts/install_base_packages.sh /tmp/install_base_packages.sh
 COPY terraform/scripts/foundation.sh /tmp/foundation.sh
-COPY .secrets/builder-dev-app.pem /hab/svc/builder-sessionsrv/files/builder-github-app.pem
 COPY .secrets/builder-dev-app.pem /hab/svc/builder-api/files/builder-github-app.pem
 
 RUN adduser -g tty -h /home/krangschnak -D krangschnak \
@@ -39,8 +38,7 @@ RUN adduser -g tty -h /home/krangschnak -D krangschnak \
   habitat/builder-api-proxy \
   habitat/builder-jobsrv \
   habitat/builder-originsrv \
-  habitat/builder-router \
-  habitat/builder-sessionsrv
+  habitat/builder-router
 
 RUN /tmp/init-datastore.sh \
   && APP_HOSTNAME=$APP_HOSTNAME \
@@ -63,8 +61,7 @@ RUN hab svc load habitat/builder-datastore \
   && hab svc load habitat/builder-api-proxy --bind http:builder-api.default \
   && hab svc load habitat/builder-api --bind router:builder-router.default \
   && hab svc load habitat/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
-  && hab svc load habitat/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
-  && hab svc load habitat/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default
+  && hab svc load habitat/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default
 
 VOLUME ["/hab/svc", "/hab/cache/keys", "/hab/sup"]
 EXPOSE 80 443 9631 9636 9638

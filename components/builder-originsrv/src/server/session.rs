@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,74 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod handlers;
-
 use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
-use std::sync::RwLock;
 use std::time::{Duration, Instant};
 
 use base64;
-use hab_net::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
-use protobuf::Message;
-use protocol::{message, sessionsrv as proto};
+use protocol::{message, originsrv as proto};
 
-use config::Config;
-use data_store::DataStore;
-use error::{SrvError, SrvResult};
+use error::SrvResult;
 
 lazy_static! {
-    static ref DISPATCH_TABLE: DispatchTable<SessionSrv> = {
-        let mut map = DispatchTable::new();
-        map.register(
-            proto::AccountGet::descriptor_static(),
-            handlers::account_get,
-        );
-        map.register(
-            proto::AccountGetId::descriptor_static(),
-            handlers::account_get_id,
-        );
-        map.register(
-            proto::AccountCreate::descriptor_static(),
-            handlers::account_create,
-        );
-        map.register(
-            proto::AccountUpdate::descriptor_static(),
-            handlers::account_update,
-        );
-        map.register(
-            proto::AccountFindOrCreate::descriptor_static(),
-            handlers::account_find_or_create,
-        );
-        map.register(
-            proto::AccountTokenCreate::descriptor_static(),
-            handlers::account_token_create,
-        );
-        map.register(
-            proto::AccountTokenRevoke::descriptor_static(),
-            handlers::account_token_revoke,
-        );
-        map.register(
-            proto::AccountTokensGet::descriptor_static(),
-            handlers::account_tokens_get,
-        );
-        map.register(
-            proto::AccountTokenValidate::descriptor_static(),
-            handlers::account_token_validate,
-        );
-        map.register(
-            proto::SessionCreate::descriptor_static(),
-            handlers::session_create,
-        );
-        map.register(
-            proto::SessionGet::descriptor_static(),
-            handlers::session_get,
-        );
-        map
-    };
     static ref SESSION_DURATION: Duration = { Duration::from_secs(1 * 24 * 60 * 60) };
 }
 
@@ -159,56 +103,6 @@ impl PartialEq for Session {
     }
 }
 
-#[derive(Clone)]
-pub struct ServerState {
-    datastore: DataStore,
-    sessions: Arc<Box<RwLock<HashSet<Session>>>>,
-    tokens: Arc<Box<RwLock<HashMap<u64, Option<String>>>>>,
-}
-
-impl ServerState {
-    fn new(cfg: Config) -> SrvResult<Self> {
-        let datastore = DataStore::new(&cfg.datastore)?;
-
-        Ok(ServerState {
-            datastore: datastore,
-            sessions: Arc::new(Box::new(RwLock::new(HashSet::default()))),
-            tokens: Arc::new(Box::new(RwLock::new(HashMap::new()))), // TBD: Handle multiple tokens / account
-        })
-    }
-}
-
-impl AppState for ServerState {
-    type Error = SrvError;
-    type InitState = Self;
-
-    fn build(init_state: Self::InitState) -> SrvResult<Self> {
-        Ok(init_state)
-    }
-}
-
-struct SessionSrv;
-impl Dispatcher for SessionSrv {
-    const APP_NAME: &'static str = "builder-sessionsrv";
-    const PROTOCOL: Protocol = Protocol::SessionSrv;
-
-    type Config = Config;
-    type Error = SrvError;
-    type State = ServerState;
-
-    fn app_init(
-        cfg: Self::Config,
-        _: Arc<String>,
-    ) -> SrvResult<<Self::State as AppState>::InitState> {
-        let state = ServerState::new(cfg)?;
-        Ok(state)
-    }
-
-    fn dispatch_table() -> &'static DispatchTable<Self> {
-        &DISPATCH_TABLE
-    }
-}
-
 pub fn encode_token(token: &proto::SessionToken) -> SrvResult<String> {
     let bytes = message::encode(token)?;
     Ok(base64::encode(&bytes))
@@ -220,19 +114,10 @@ pub fn decode_token(value: &str) -> SrvResult<proto::SessionToken> {
     Ok(token)
 }
 
-pub fn run(config: Config) -> AppResult<(), SrvError> {
-    app_start::<SessionSrv>(config)
-}
-
-pub fn migrate(config: Config) -> SrvResult<()> {
-    let ds = DataStore::new(&config.datastore)?;
-    ds.setup()
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use protocol::sessionsrv as proto;
+    use protocol::originsrv as proto;
 
     #[test]
     fn decode_session_token() {

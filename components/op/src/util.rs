@@ -12,15 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::hash::Hasher;
 use std::path::PathBuf;
 
-use bldr_sessionsrv::server as sessionsrv;
-use fnv::FnvHasher;
+use bldr_originsrv::server::session;
 use hcore::crypto::hash::hash_file;
-use protocol::SHARD_COUNT;
-
-const SHARD_MASK: u64 = 0x1FFF;
 
 use config::Config;
 use error::{Error, Result};
@@ -37,20 +32,7 @@ pub fn hash(config: Config) -> Result<()> {
 }
 
 pub fn session(encoded_token: &str) -> Result<()> {
-    let token = sessionsrv::decode_token(encoded_token).unwrap();
+    let token = session::decode_token(encoded_token).unwrap();
     println!("{:?}", token);
     Ok(())
-}
-
-pub fn shard(config: Config) -> u64 {
-    let shard = config.shard.unwrap();
-    match shard.parse::<u64>() {
-        Ok(id) => id & SHARD_MASK,
-        Err(_) => {
-            let mut hasher = FnvHasher::default();
-            hasher.write(shard.as_bytes());
-            let hval = hasher.finish();
-            hval % SHARD_COUNT as u64
-        }
-    }
 }

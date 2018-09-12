@@ -77,25 +77,18 @@ See the [www README](../../www/README.md) for help setting it up.
 
 ## Setting up a Custom OAuth Application
 
-By default, `builder-web` is configured to use a preconfigured dev github oauth application. This should suffice as long as you intend to use `http://localhost:3000` as the homepage. If you need to use an alternate host name or port, you will need to setup a separate oauth application and configure `builder-api` and `builder-sessionsrv` with its generated credentials.
+By default, `builder-web` is configured to use a preconfigured dev github oauth application. This should suffice as long as you intend to use `http://localhost:3000` as the homepage. If you need to use an alternate host name or port, you will need to setup a separate oauth application and configure `builder-api` with its generated credentials.
 
 To register a new oauth application, go to your github user account settings and navigate to `OAuth Applications` and then click on `Register a new application`.
 
 It is important that the homepage is set to `http://<hostname>:<port>` and the Authorization callback URL is set to `http://<hostname>:<port>/#/sign-in`.
 
-Set the `github.client_id` to the client ID assigned to the oauth application. If you are running the API services, add `config.toml` files for the `builder-sessionsrv` and `builder-api` services:
+Set the `github.client_id` to the client ID assigned to the oauth application. If you are running the API services, add `config.toml` files for `builder-api` services:
 
 ```
 mkdir -p /hab/svc/builder-api
-mkdir -p /hab/svc/builder-sessionsrv
 
 cat <<-EOF > /hab/svc/builder-api/config.toml
-[github]
-client_id       = "<Client ID>"
-client_secret   = "<Client Sescret>"
-EOF
-
-cat <<-EOF > /hab/svc/builder-sessionsrv/config.toml
 [github]
 client_id       = "<Client ID>"
 client_secret   = "<Client Sescret>"
