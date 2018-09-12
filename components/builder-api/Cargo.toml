@@ -18,6 +18,9 @@ base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
 constant_time_eq = "*"
+chrono = { version = "*", features = ["serde"] }
+diesel = { version = "*", features = ["postgres", "chrono"] }
+diesel_migrations = "*"
 env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
@@ -27,6 +30,8 @@ log = "*"
 num_cpus = "*"
 openssl = "0.10"
 protobuf = "*"
+r2d2 = "*"
+r2d2-diesel = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"

@@ -16,7 +16,9 @@ pub mod authorize;
 pub mod error;
 pub mod framework;
 pub mod helpers;
+pub mod models;
 pub mod resources;
+pub mod schema;
 pub mod services;
 
 use std::collections::HashMap;

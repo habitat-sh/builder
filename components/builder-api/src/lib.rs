@@ -21,7 +21,12 @@ extern crate base64;
 extern crate bitflags;
 extern crate builder_core as bldr_core;
 extern crate bytes;
+extern crate chrono;
 extern crate constant_time_eq;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 #[macro_use]
 extern crate features;
 extern crate github_api_client;
@@ -44,6 +49,8 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate futures;
 extern crate num_cpus;
+extern crate r2d2;
+extern crate r2d2_diesel;
 extern crate regex;
 extern crate rusoto_core as rusoto;
 extern crate rusoto_s3;
