@@ -115,7 +115,7 @@ export function getUnique(origin: string, nextRange: number = 0, token: string =
 }
 
 export function getLatest(origin: string, pkg: string) {
-  const url = `${urlPrefix}/depot/pkgs/${origin}/${pkg}/latest`;
+  const url = `${urlPrefix}/depot/pkgs/${origin}/${pkg}/latest?target=x86_64-linux`;
 
   return new Promise((resolve, reject) => {
     fetch(url, opts())
@@ -135,7 +135,7 @@ export function getLatest(origin: string, pkg: string) {
 }
 
 export function getLatestInChannel(origin: string, name: string, channel: string, version: string = undefined) {
-  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/${version ? version + '/' : ''}latest`;
+  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/${version ? version + '/' : ''}latest?target=x86_64-linux`;
 
   return new Promise((resolve, reject) => {
     fetch(url, opts())
