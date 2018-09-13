@@ -391,6 +391,13 @@ pub fn job_group_create(
     let msg = req.parse::<jobsrv::JobGroupSpec>()?;
     debug!("job_group_create message: {:?}", msg);
 
+    // Check that the target is supported - currently only x86_64-linux buildable
+    if msg.get_target() != "x86_64-linux" {
+        let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-create:1");
+        conn.route_reply(req, &*err)?;
+        return Ok(());
+    }
+
     let project_name = format!("{}/{}", msg.get_origin(), msg.get_package());
     let mut projects = Vec::new();
 
