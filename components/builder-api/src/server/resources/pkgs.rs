@@ -311,15 +311,9 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
     let target = match qtarget.target.clone() {
         Some(t) => {
             debug!("Query requested target = {}", t);
-            match PackageTarget::from_str(&t) {
-                Ok(t) => t,
-                Err(err) => return Error::HabitatCore(err).into(),
-            }
+            PackageTarget::from_str(&t).unwrap() // Unwrap Ok ?
         }
-        None => match helpers::target_from_headers(&req) {
-            Ok(t) => t,
-            Err(err) => return err.into(),
-        },
+        None => helpers::target_from_headers(&req),
     };
 
     if !req.state().config.api.targets.contains(&target) {
@@ -1076,7 +1070,7 @@ fn do_get_package(
                 debug!("Query requested target = {}", t);
                 PackageTarget::from_str(&t)?
             }
-            None => helpers::target_from_headers(req)?,
+            None => helpers::target_from_headers(req),
         };
 
         let mut request = OriginPackageLatestGet::new();

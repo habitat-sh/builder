@@ -94,10 +94,7 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
                 Err(err) => return Error::HabitatCore(err).into(),
             }
         }
-        None => match helpers::target_from_headers(&req) {
-            Ok(t) => t,
-            Err(err) => return err.into(),
-        },
+        None => helpers::target_from_headers(&req),
     };
 
     let mut rdeps_get = JobGraphPackageReverseDependenciesGet::new();
