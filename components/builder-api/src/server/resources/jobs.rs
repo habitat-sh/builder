@@ -66,14 +66,13 @@ impl Jobs {
             Method::POST,
             promote_job_group,
         ).route(
-                "/jobs/group/{id}/demote/{channel}",
-                Method::POST,
-                demote_job_group,
-            )
-            .route("/jobs/group/{id}/cancel", Method::POST, cancel_job_group)
-            .route("/rdeps/{origin}/{name}", Method::GET, get_rdeps)
-            .route("/jobs/{id}", Method::GET, get_job)
-            .route("/jobs/{id}/log", Method::GET, get_job_log)
+            "/jobs/group/{id}/demote/{channel}",
+            Method::POST,
+            demote_job_group,
+        ).route("/jobs/group/{id}/cancel", Method::POST, cancel_job_group)
+        .route("/rdeps/{origin}/{name}", Method::GET, get_rdeps)
+        .route("/jobs/{id}", Method::GET, get_job)
+        .route("/jobs/{id}/log", Method::GET, get_job_log)
     }
 }
 

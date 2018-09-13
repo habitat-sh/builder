@@ -120,8 +120,7 @@ impl UpstreamMgr {
             .name("upstream-manager".to_string())
             .spawn(move || {
                 manager.run(tx).unwrap();
-            })
-            .unwrap();
+            }).unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("upstream-manager thread startup error, err={}", e),

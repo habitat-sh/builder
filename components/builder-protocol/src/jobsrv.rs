@@ -540,7 +540,8 @@ impl Serialize for JobGraphPackageReverseDependencies {
     where
         S: Serializer,
     {
-        let mut strukt = serializer.serialize_struct("job_graph_package_reverse_dependencies", 3)?;
+        let mut strukt =
+            serializer.serialize_struct("job_graph_package_reverse_dependencies", 3)?;
         strukt.serialize_field("origin", &self.get_origin())?;
         strukt.serialize_field("name", &self.get_name())?;
         strukt.serialize_field("rdeps", &self.get_rdeps())?;

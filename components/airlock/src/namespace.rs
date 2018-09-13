@@ -156,8 +156,7 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
         .ok_or(Error::FileEntryNotFound(
             String::from(entry),
             path.to_string_lossy().into(),
-        ))?
-        .parse()
+        ))?.parse()
         .map_err(|_err| {
             Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())
         })?;
@@ -167,8 +166,7 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
         .ok_or(Error::FileEntryNotFound(
             String::from(entry),
             path.to_string_lossy().into(),
-        ))?
-        .parse()
+        ))?.parse()
         .map_err(|_err| {
             Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())
         })?;

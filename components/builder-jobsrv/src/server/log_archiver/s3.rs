@@ -32,7 +32,7 @@ use std::str::FromStr;
 
 use futures::{Future, Stream};
 use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
-use rusoto_s3::{GetObjectRequest, PutObjectRequest, S3, S3Client};
+use rusoto_s3::{GetObjectRequest, PutObjectRequest, S3Client, S3};
 
 use super::LogArchiver;
 use config::ArchiveCfg;

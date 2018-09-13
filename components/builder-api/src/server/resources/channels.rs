@@ -51,48 +51,39 @@ impl Channels {
                 "/depot/channels/{origin}/{channel}",
                 Method::POST,
                 create_channel,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}",
                 Method::DELETE,
                 delete_channel,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}/pkgs",
                 Method::GET,
                 get_packages_for_origin_channel,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}",
                 Method::GET,
                 get_packages_for_origin_channel_package,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/latest",
                 Method::GET,
                 get_latest_package_for_origin_channel_package,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}",
                 Method::GET,
                 get_packages_for_origin_channel_package_version,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/latest",
                 Method::GET,
                 get_latest_package_for_origin_channel_package_version,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}",
                 Method::GET,
                 get_package_fully_qualified,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/promote",
                 Method::PUT,
                 promote_package,
-            )
-            .route(
+            ).route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/demote",
                 Method::PUT,
                 demote_package,
@@ -125,8 +116,7 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
                     let mut ident = OriginChannelIdent::new();
                     ident.set_name(channel.get_name().to_string());
                     ident
-                })
-                .collect();
+                }).collect();
             let mut response = HttpResponse::Ok();
             response
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
@@ -531,18 +521,18 @@ fn do_get_channel_package(
         ));
         request.set_ident(ident.clone());
 
-        ident = match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(
-            req, &request,
-        ) {
-            Ok(id) => id.into(),
-            Err(err) => {
-                // Notify upstream with a non-fully qualified ident to handle checking
-                // of a package that does not exist in the on-premise depot
+        ident =
+            match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(req, &request)
+            {
+                Ok(id) => id.into(),
+                Err(err) => {
+                    // Notify upstream with a non-fully qualified ident to handle checking
+                    // of a package that does not exist in the on-premise depot
 
-                notify_upstream(req, &ident, &target);
-                return Err(err);
-            }
-        };
+                    notify_upstream(req, &ident, &target);
+                    return Err(err);
+                }
+            };
     }
 
     let mut request = OriginPackageGet::new();

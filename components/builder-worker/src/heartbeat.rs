@@ -144,8 +144,7 @@ impl HeartbeatMgr {
             .name("heartbeat".to_string())
             .spawn(move || {
                 heartbeat.run(tx, jobsrv_addrs).unwrap();
-            })
-            .unwrap();
+            }).unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("heartbeat thread startup error, err={}", e),
