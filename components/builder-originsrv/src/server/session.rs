@@ -121,7 +121,8 @@ mod test {
 
     #[test]
     fn decode_session_token() {
-        let t = "CL3Ag7z4tvaAChCUpgMYACIoZDFmODI3NDc3YTk4ODUyM2E0ZGUyY2JmZjgwNWEyN2ZmOTZkNmIzNQ==";
+        let t =
+            "CL3Ag7z4tvaAChIFNTQwMzYYACIoZDFmODI3NDc3YTk4ODUyM2E0ZGUyY2JmZjgwNWEyN2ZmOTZkNmIzNQ==";
         let token = decode_token(t).unwrap();
         assert_eq!(token.get_account_id(), 721096797631602749);
         assert_eq!(token.get_extern_id(), "54036".to_string());
@@ -146,7 +147,7 @@ mod test {
         let encoded = encode_token(&token).unwrap();
         assert_eq!(
             encoded,
-            "CL3Ag7z4tvaAChCUpgMYACIoZDFmODI3NDc3YTk4ODUyM2E0ZGUyY2JmZjgwNWEyN2ZmOTZkNmIzNQ=="
+            "CL3Ag7z4tvaAChIFNTQwMzYYACIoZDFmODI3NDc3YTk4ODUyM2E0ZGUyY2JmZjgwNWEyN2ZmOTZkNmIzNQ=="
         );
     }
 }

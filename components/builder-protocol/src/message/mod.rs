@@ -489,7 +489,7 @@ mod tests {
         let mut msg = originsrv::AccountGet::new();
         msg.set_name("reset".to_string());
         let route_info = RouteInfo::build(&msg);
-        assert_eq!(route_info.protocol(), net::Protocol::SessionSrv);
+        assert_eq!(route_info.protocol(), net::Protocol::OriginSrv);
         assert_eq!(route_info.hash().map(|x| x % 128), Some(96));
     }
 }
