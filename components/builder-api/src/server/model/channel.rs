@@ -23,10 +23,17 @@ pub struct NewChannel {
     pub origin_id: i64,
 }
 
-pub struct ChannelList;
+pub struct ChannelList {
+    origin_id: i64,
+    include_sandbox_channels: bool,
+}
 
 impl Message for NewChannel {
     type Result = Result<Channel, Error>;
+}
+
+impl Message for ChannelList {
+    type Result = Result<Vec<Channel>, Error>;
 }
 
 impl Channel {

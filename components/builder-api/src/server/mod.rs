@@ -22,14 +22,14 @@ pub mod resources;
 pub mod schema;
 pub mod services;
 
+use actix_web::actix::Addr;
+use actix_web::http::StatusCode;
+use actix_web::middleware::Logger;
+use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::Arc;
 use std::thread;
-
-use actix_web::http::StatusCode;
-use actix_web::middleware::Logger;
-use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 
 use github_api_client::GitHubClient;
 use hab_net::socket;
@@ -72,7 +72,7 @@ pub struct AppState {
     oauth: OAuth2Client,
     segment: SegmentClient,
     upstream: UpstreamClient,
-    db: DbPool,
+    db: Addr<DbPool>,
 }
 
 impl AppState {
@@ -84,7 +84,7 @@ impl AppState {
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
             upstream: UpstreamClient::default(),
-            db: init(config.datastore.clone()),
+            db: init(config.datastore.clone()).clone(),
         }
     }
 }

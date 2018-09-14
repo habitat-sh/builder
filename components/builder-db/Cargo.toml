@@ -9,7 +9,7 @@ workspace = "../../"
 clippy = {version = "*", optional = true}
 habitat-builder-protocol = { path = "../builder-protocol" }
 log = "*"
-diesel = { version = "*", features = ["postgres"] }
+diesel = { version = "*", features = ["postgres","r2d2"] }
 r2d2 = "*"
 time = "*"
 rand = "*"
@@ -21,7 +21,6 @@ fallible-iterator = "*"
 postgres = "*"
 postgres-shared = "*"
 r2d2_postgres = "*"
-r2d2-diesel = "*"
 threadpool = "*"
 url = "*"
 

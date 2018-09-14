@@ -104,9 +104,10 @@ impl Channels {
 //
 // Route handlers - these functions can return any Responder trait
 //
-fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
+fn get_channels(
+    (req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>),
+) -> FutureResponse<HttpResponse> {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();
-    let conn = req.state().db.0.get().unwrap();
     let oid: i64;
     // Pass ?sandbox=true to this endpoint to include sandbox channels in the list. They are not
     // there by default.
@@ -115,10 +116,23 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
         Err(err) => return err.into(),
     }
 
-    let mut response = HttpResponse::Ok();
-    response
-        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-        .json(Channel::list(oid, sandbox.is_set, &conn))
+    req.state()
+        .db
+        .send(ChannelList {
+            origin_id: oid,
+            sandbox: sandbox.is_set,
+        })
+        .from_err()
+        .and_then(|res| match res {
+            Ok(list) => {
+                let mut response = HttpResponse::Ok();
+                response
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .json(res)
+            }
+            Err(_) => Ok(HttpResponse::InternalServerError().into()),
+        })
+        .responder()
 }
 
 fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
