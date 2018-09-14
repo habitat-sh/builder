@@ -43,7 +43,9 @@ extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
 extern crate futures;
+extern crate memcache;
 extern crate num_cpus;
+extern crate r2d2;
 extern crate regex;
 extern crate rusoto_core as rusoto;
 extern crate rusoto_s3;

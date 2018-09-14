@@ -357,7 +357,13 @@ fn upload_package(
     }
 
     match do_upload_package_start(&req, &qupload, &ident) {
-        Ok((temp_path, writer)) => do_upload_package_async(req, qupload, ident, temp_path, writer),
+        Ok((temp_path, writer)) => {
+            req.state()
+                .memcache
+                .borrow_mut()
+                .clear_cache_for_package(ident.clone().into());
+            do_upload_package_async(req, qupload, ident, temp_path, writer)
+        }
         Err(err) => {
             warn!("Failed to upload package, err={:?}", err);
             Box::new(fut_ok(err.into()))

@@ -278,6 +278,12 @@ impl Serialize for OriginChannelIdent {
     }
 }
 
+impl fmt::Display for OriginChannelIdent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.get_name().fmt(f)
+    }
+}
+
 impl Routable for OriginChannelListRequest {
     type H = InstaId;
 

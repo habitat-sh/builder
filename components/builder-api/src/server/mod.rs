@@ -19,6 +19,7 @@ pub mod helpers;
 pub mod resources;
 pub mod services;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::Arc;
@@ -37,6 +38,8 @@ use segment_api_client::SegmentClient;
 
 use self::error::Error;
 use self::framework::middleware::{Authentication, XRouteClient};
+
+use self::services::memcache::MemcacheClient;
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
 use self::services::upstream::{UpstreamClient, UpstreamMgr};
@@ -70,6 +73,7 @@ pub struct AppState {
     oauth: OAuth2Client,
     segment: SegmentClient,
     upstream: UpstreamClient,
+    memcache: RefCell<MemcacheClient>,
 }
 
 impl AppState {
@@ -81,6 +85,7 @@ impl AppState {
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
             upstream: UpstreamClient::default(),
+            memcache: RefCell::new(MemcacheClient::new(config.memcached.clone())),
         }
     }
 }

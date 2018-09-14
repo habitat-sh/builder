@@ -220,6 +220,12 @@ fn do_group_promotion_or_demotion(
         opg.set_ident(opi);
         opg.set_visibilities(helpers::all_visibilities());
 
+        req.state().memcache.borrow_mut().clear_cache_for_package(
+            OriginPackageIdent::from_str(project.get_ident())
+                .unwrap()
+                .into(),
+        );
+
         let op = route_message::<OriginPackageGet, OriginPackage>(req, &opg)?;
         package_ids.push(op.get_id());
     }

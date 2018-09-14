@@ -1,0 +1,2 @@
+#!/bin/sh
+exec memcached -m "{{cfg.mem_limit}}" -p "{{cfg.port}}"

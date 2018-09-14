@@ -64,6 +64,7 @@ pub struct Config {
     pub segment: SegmentCfg,
     pub ui: UiCfg,
     pub upstream: UpstreamCfg,
+    pub memcached: MemcacheCfg,
 }
 
 impl Default for Config {
@@ -78,6 +79,7 @@ impl Default for Config {
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
             upstream: UpstreamCfg::default(),
+            memcached: MemcacheCfg::default(),
         }
     }
 }
@@ -234,6 +236,44 @@ impl ToSocketAddrs for HttpCfg {
 pub struct UiCfg {
     /// Path to UI files to host over HTTP. If not set the UI will be disabled.
     pub root: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct MemcacheCfgHosts {
+    pub host: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct MemcacheCfg {
+    pub ttl: u32,
+    pub hosts: Vec<MemcacheCfgHosts>,
+}
+
+impl Default for MemcacheCfgHosts {
+    fn default() -> Self {
+        MemcacheCfgHosts {
+            host: String::from("localhost"),
+            port: 11211,
+        }
+    }
+}
+
+impl Default for MemcacheCfg {
+    fn default() -> Self {
+        MemcacheCfg {
+            hosts: vec![MemcacheCfgHosts::default()],
+            ttl: 15,
+        }
+    }
+}
+
+impl fmt::Display for MemcacheCfgHosts {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "memcache://{}:{}", self.host, self.port)
+    }
 }
 
 #[cfg(test)]

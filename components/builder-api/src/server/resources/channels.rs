@@ -97,32 +97,14 @@ impl Channels {
 fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();
 
-    // Pass ?sandbox=true to this endpoint to include sandbox channels in the list. They are not
-    // there by default.
-    let mut request = OriginChannelListRequest::new();
-    request.set_include_sandbox_channels(sandbox.is_set);
-
-    match helpers::get_origin(&req, &origin) {
-        Ok(orgn) => request.set_origin_id(orgn.get_id()),
-        Err(err) => return err.into(),
-    }
-
-    match route_message::<OriginChannelListRequest, OriginChannelListResponse>(&req, &request) {
+    match do_get_channels(&req, origin, sandbox.is_set) {
         Ok(list) => {
-            let list: Vec<OriginChannelIdent> = list
-                .get_channels()
-                .iter()
-                .map(|channel| {
-                    let mut ident = OriginChannelIdent::new();
-                    ident.set_name(channel.get_name().to_string());
-                    ident
-                }).collect();
             let mut response = HttpResponse::Ok();
             response
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(list)
         }
-        Err(err) => return err.into(),
+        Err(err) => err.into(),
     }
 }
 
@@ -300,6 +282,37 @@ fn get_package_fully_qualified(
 //
 // Internal - these functions should return Result<..>
 //
+fn do_get_channels(
+    req: &HttpRequest<AppState>,
+    origin: String,
+    sandbox: bool,
+) -> Result<Vec<OriginChannelIdent>> {
+    // Pass ?sandbox=true to this endpoint to include sandbox channels in the list. They are not
+    // there by default.
+    let mut request = OriginChannelListRequest::new();
+    request.set_include_sandbox_channels(sandbox);
+
+    match helpers::get_origin(&req, &origin) {
+        Ok(orgn) => request.set_origin_id(orgn.get_id()),
+        Err(err) => return Err(err),
+    }
+
+    match route_message::<OriginChannelListRequest, OriginChannelListResponse>(&req, &request) {
+        Ok(list) => {
+            let res: Vec<OriginChannelIdent> = list
+                .get_channels()
+                .iter()
+                .map(|channel| {
+                    let mut ident = OriginChannelIdent::new();
+                    ident.set_name(channel.get_name().to_string());
+                    ident
+                }).collect();
+            Ok(res)
+        }
+        Err(err) => return Err(err),
+    }
+}
+
 fn do_promote_package(
     req: &HttpRequest<AppState>,
     origin: String,
@@ -311,7 +324,7 @@ fn do_promote_package(
     let session_id = authorize_session(req, Some(&origin))?;
 
     let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
+    ident.set_origin(origin.clone());
     ident.set_name(pkg);
     ident.set_version(version);
     ident.set_release(release);
@@ -329,7 +342,13 @@ fn do_promote_package(
     channel_req.set_name(channel.to_string());
 
     let origin_channel = match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
-        Ok(c) => c,
+        Ok(c) => {
+            req.state()
+                .memcache
+                .borrow_mut()
+                .clear_cache_for_package(ident.clone().into());
+            c
+        }
         Err(e) => {
             warn!("Error retrieving channel: {:?}", &e);
             return Err(e);
@@ -421,7 +440,13 @@ fn do_demote_package(
                             origin_id,
                             session_id,
                         ) {
-                            Ok(_) => return Ok(()),
+                            Ok(_) => {
+                                req.state()
+                                    .memcache
+                                    .borrow_mut()
+                                    .clear_cache_for_package(ident.clone().into());
+                                return Ok(());
+                            }
                             Err(err) => return Err(err.into()),
                         },
                         Err(err) => return Err(err.into()),
@@ -498,6 +523,18 @@ fn do_get_channel_package(
     };
     Counter::GetChannelPackage.increment();
 
+    let mut memcache = req.state().memcache.borrow_mut();
+    let req_ident = ident.clone();
+    match memcache.get_package(req_ident.clone().into(), &channel) {
+        Some(package) => {
+            trace!("Cache Hit!");
+            return Ok(package.clone());
+        }
+        None => {
+            trace!("Cache Miss!");
+        }
+    };
+
     // Fully qualify the ident if needed
     // TODO: Have the OriginPackageLatestGet call just return the package
     // metadata, thus saving us a second call to actually retrieve the package
@@ -545,6 +582,7 @@ fn do_get_channel_package(
 
     match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
         Ok(pkg) => {
+            memcache.set_package(req_ident.clone().into(), pkg.clone().into(), &channel);
             // Notify upstream with a fully qualified ident
             notify_upstream(req, &ident, &(PackageTarget::from_str(&pkg.get_target())?));
             Ok(pkg)
