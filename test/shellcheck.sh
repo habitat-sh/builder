@@ -27,6 +27,7 @@ find . -type f \
   -and \! -path "./components/builder-api-proxy/habitat/hooks/init" \
   -and \! -path "./components/builder-minio/habitat/hooks/init" \
   -and \! -path "./components/builder-minio/habitat/hooks/run" \
+  -and \! -path "./components/builder-minio/habitat/hooks/post-run" \
   -print \
   | xargs shellcheck --external-sources --exclude=1090,1091,2148,2034
 
