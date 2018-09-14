@@ -26,7 +26,8 @@ use std::thread;
 
 use actix_web::http::StatusCode;
 use actix_web::middleware::Logger;
-use actix_web::{server, App, HttpRequest, HttpResponse, Result};
+use actix_web::server::{self, KeepAlive};
+use actix_web::{App, HttpRequest, HttpResponse, Result};
 
 use github_api_client::GitHubClient;
 use hab_net::socket;
@@ -162,6 +163,7 @@ pub fn run(config: Config) -> Result<()> {
                 r.head().f(status)
             })
     }).workers(cfg.handler_count())
+        .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
         .bind(cfg.http.clone())
         .unwrap()
         .run();
