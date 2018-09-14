@@ -13,20 +13,23 @@
 // limitations under the License.
 
 pub mod authorize;
+pub mod db;
 pub mod error;
 pub mod framework;
 pub mod helpers;
+pub mod model;
 pub mod resources;
+pub mod schema;
 pub mod services;
 
+use actix_web::actix::Addr;
+use actix_web::http::StatusCode;
+use actix_web::middleware::Logger;
+use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::Arc;
 use std::thread;
-
-use actix_web::http::StatusCode;
-use actix_web::middleware::Logger;
-use actix_web::{server, App, HttpRequest, HttpResponse, Result};
 
 use github_api_client::GitHubClient;
 use hab_net::socket;
@@ -34,12 +37,9 @@ use hab_net::socket;
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
+use self::db::{init, DbPool};
 use self::error::Error;
 use self::framework::middleware::{Authentication, Cors, XRouteClient};
-use self::services::route_broker::RouteBroker;
-use self::services::s3::S3Handler;
-use self::services::upstream::{UpstreamClient, UpstreamMgr};
-
 use self::resources::authenticate::Authenticate;
 use self::resources::channels::Channels;
 use self::resources::ext::Ext;
@@ -50,6 +50,9 @@ use self::resources::pkgs::Packages;
 use self::resources::profile::Profile;
 use self::resources::projects::Projects;
 use self::resources::user::User;
+use self::services::route_broker::RouteBroker;
+use self::services::s3::S3Handler;
+use self::services::upstream::{UpstreamClient, UpstreamMgr};
 
 use config::{Config, GatewayCfg};
 
@@ -69,6 +72,7 @@ pub struct AppState {
     oauth: OAuth2Client,
     segment: SegmentClient,
     upstream: UpstreamClient,
+    db: Addr<DbPool>,
 }
 
 impl AppState {
@@ -80,6 +84,7 @@ impl AppState {
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
             upstream: UpstreamClient::default(),
+            db: init(config.datastore.clone()).clone(),
         }
     }
 }

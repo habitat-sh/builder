@@ -24,6 +24,7 @@ use std::path::PathBuf;
 
 use num_cpus;
 
+use db::config::DataStoreCfg;
 use hab_core;
 use hab_core::config::ConfigFile;
 use hab_core::package::target::{self, PackageTarget};
@@ -64,6 +65,7 @@ pub struct Config {
     pub segment: SegmentCfg,
     pub ui: UiCfg,
     pub upstream: UpstreamCfg,
+    pub datastore: DataStoreCfg,
 }
 
 impl Default for Config {
@@ -78,6 +80,7 @@ impl Default for Config {
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
             upstream: UpstreamCfg::default(),
+            datastore: DataStoreCfg::default(),
         }
     }
 }

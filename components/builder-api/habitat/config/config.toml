@@ -31,3 +31,12 @@ root = "{{pkg.svc_static_path}}"
 
 [upstream]
 {{toToml cfg.upstream}}
+
+[datastore]
+{{toToml cfg.datastore}}
+{{~#eachAlive bind.datastore.members as |member|}}
+{{~#if @first}}
+host = "{{member.sys.ip}}"
+port = {{member.cfg.port}}
+{{~/if}}
+{{~/eachAlive}}

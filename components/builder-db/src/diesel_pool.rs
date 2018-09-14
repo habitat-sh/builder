@@ -17,22 +17,21 @@ use std::thread;
 use std::time::Duration;
 
 use diesel::pg::PgConnection;
-use r2d2;
-use r2d2_diesel::ConnectionManager;
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 
 use config::DataStoreCfg;
 use error::{Error, Result};
 
 #[derive(Clone)]
 pub struct DieselPool {
-    inner: r2d2::Pool<ConnectionManager<PgConnection>>,
+    inner: Pool<ConnectionManager<PgConnection>>,
 }
 
 impl DieselPool {
     pub fn new(config: &DataStoreCfg) -> Result<DieselPool> {
         loop {
             let manager = ConnectionManager::<PgConnection>::new(config.to_string());
-            match r2d2::Pool::builder()
+            match Pool::builder()
                 .max_size(config.pool_size)
                 .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
                 .build(manager)
@@ -47,14 +46,14 @@ impl DieselPool {
         }
     }
 
-    pub fn get_raw(&self) -> Result<r2d2::PooledConnection<ConnectionManager<PgConnection>>> {
+    pub fn get_raw(&self) -> Result<PooledConnection<ConnectionManager<PgConnection>>> {
         let conn = self.inner.get().map_err(Error::ConnectionTimeout)?;
         Ok(conn)
     }
 }
 
 impl Deref for DieselPool {
-    type Target = r2d2::Pool<ConnectionManager<PgConnection>>;
+    type Target = Pool<ConnectionManager<PgConnection>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -62,7 +61,7 @@ impl Deref for DieselPool {
 }
 
 impl DerefMut for DieselPool {
-    fn deref_mut(&mut self) -> &mut r2d2::Pool<ConnectionManager<PgConnection>> {
+    fn deref_mut(&mut self) -> &mut Pool<ConnectionManager<PgConnection>> {
         &mut self.inner
     }
 }

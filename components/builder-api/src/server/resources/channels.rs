@@ -29,6 +29,7 @@ use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
+use server::model::channel::Channel;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -103,37 +104,35 @@ impl Channels {
 //
 // Route handlers - these functions can return any Responder trait
 //
-fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
+fn get_channels(
+    (req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>),
+) -> FutureResponse<HttpResponse> {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();
-
+    let oid: i64;
     // Pass ?sandbox=true to this endpoint to include sandbox channels in the list. They are not
     // there by default.
-    let mut request = OriginChannelListRequest::new();
-    request.set_include_sandbox_channels(sandbox.is_set);
-
     match helpers::get_origin(&req, &origin) {
-        Ok(orgn) => request.set_origin_id(orgn.get_id()),
+        Ok(orgn) => oid = orgn.get_id() as i64,
         Err(err) => return err.into(),
     }
 
-    match route_message::<OriginChannelListRequest, OriginChannelListResponse>(&req, &request) {
-        Ok(list) => {
-            let list: Vec<OriginChannelIdent> = list
-                .get_channels()
-                .iter()
-                .map(|channel| {
-                    let mut ident = OriginChannelIdent::new();
-                    ident.set_name(channel.get_name().to_string());
-                    ident
-                })
-                .collect();
-            let mut response = HttpResponse::Ok();
-            response
-                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .json(list)
-        }
-        Err(err) => return err.into(),
-    }
+    req.state()
+        .db
+        .send(ChannelList {
+            origin_id: oid,
+            sandbox: sandbox.is_set,
+        })
+        .from_err()
+        .and_then(|res| match res {
+            Ok(list) => {
+                let mut response = HttpResponse::Ok();
+                response
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .json(res)
+            }
+            Err(_) => Ok(HttpResponse::InternalServerError().into()),
+        })
+        .responder()
 }
 
 fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {

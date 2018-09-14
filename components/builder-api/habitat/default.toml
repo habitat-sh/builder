@@ -35,3 +35,10 @@ bucket_name = "habitat-builder-artifact-store.default"
 [upstream]
 endpoint = "http://localhost"
 origins = ["core"]
+
+[datastore]
+user = "hab"
+password = ""
+database = "builder"
+connection_retry_ms = 300
+connection_timeout_sec = 3600

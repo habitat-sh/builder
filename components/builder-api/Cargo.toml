@@ -18,23 +18,28 @@ base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
 constant_time_eq = "*"
+chrono = { version = "*", features = ["serde"] }
+diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
+diesel_migrations = "*"
 env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
-hyper = "*"
+hyper = "0.10.3"
 log = "*"
+memcache = "*"
 num_cpus = "*"
 openssl = "0.10"
 protobuf = "*"
+r2d2 = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
 toml = { version = "*", default-features = false }
 futures = "0.1"
 regex = "*"
-rusoto_core = "*"
-rusoto_s3 = "*"
+rusoto_core = "0.32.0"
+rusoto_s3 = "0.32.0"
 tempfile = "*"
 time = "*"
 url = "*"
@@ -62,6 +67,9 @@ git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
+
+[dependencies.habitat_builder_db]
+path = "../builder-db"
 
 [dependencies.habitat_http_client]
 git = "https://github.com/habitat-sh/core.git"

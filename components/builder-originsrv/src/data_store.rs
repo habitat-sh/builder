@@ -1540,28 +1540,6 @@ impl DataStore {
         originsrv::OriginPackageIdent::from_str(ident.as_str()).unwrap()
     }
 
-    pub fn create_origin_channel(
-        &self,
-        occ: &originsrv::OriginChannelCreate,
-    ) -> SrvResult<originsrv::OriginChannel> {
-        let conn = self.pool.get()?;
-
-        let rows =
-            conn.query(
-                "SELECT * FROM insert_origin_channel_v1($1, $2, $3)",
-                &[
-                    &(occ.get_origin_id() as i64),
-                    &(occ.get_owner_id() as i64),
-                    &occ.get_name(),
-                ],
-            ).map_err(SrvError::OriginChannelCreate)?;
-        let row = rows
-            .iter()
-            .nth(0)
-            .expect("Insert returns row, but no row present");
-        Ok(self.row_to_origin_channel(&row))
-    }
-
     fn row_to_origin_channel(&self, row: &postgres::rows::Row) -> originsrv::OriginChannel {
         let mut occ = originsrv::OriginChannel::new();
         let occ_id: i64 = row.get("id");
@@ -1572,54 +1550,6 @@ impl DataStore {
         let occ_owner_id: i64 = row.get("owner_id");
         occ.set_owner_id(occ_owner_id as u64);
         occ
-    }
-
-    pub fn list_origin_channels(
-        &self,
-        oclr: &originsrv::OriginChannelListRequest,
-    ) -> SrvResult<originsrv::OriginChannelListResponse> {
-        let conn = self.pool.get()?;
-
-        let rows = &conn
-            .query(
-                "SELECT * FROM get_origin_channels_for_origin_v2($1, $2)",
-                &[
-                    &(oclr.get_origin_id() as i64),
-                    &oclr.get_include_sandbox_channels(),
-                ],
-            )
-            .map_err(SrvError::OriginChannelList)?;
-
-        let mut response = originsrv::OriginChannelListResponse::new();
-        response.set_origin_id(oclr.get_origin_id());
-
-        let mut channels = protobuf::RepeatedField::new();
-        for row in rows {
-            channels.push(self.row_to_origin_channel(&row))
-        }
-
-        response.set_channels(channels);
-        Ok(response)
-    }
-
-    pub fn get_origin_channel(
-        &self,
-        ocg: &originsrv::OriginChannelGet,
-    ) -> SrvResult<Option<originsrv::OriginChannel>> {
-        let conn = self.pool.get()?;
-        let rows = &conn
-            .query(
-                "SELECT * FROM get_origin_channel_v1($1, $2)",
-                &[&ocg.get_origin_name(), &ocg.get_name()],
-            )
-            .map_err(SrvError::OriginChannelGet)?;
-
-        if rows.len() != 0 {
-            let row = rows.get(0);
-            Ok(Some(self.row_to_origin_channel(&row)))
-        } else {
-            Ok(None)
-        }
     }
 
     pub fn promote_origin_package_group(
@@ -1693,18 +1623,6 @@ impl DataStore {
             )
             .map_err(SrvError::OriginPackageDemote)?;
 
-        Ok(())
-    }
-
-    pub fn delete_origin_channel_by_id(
-        &self,
-        ocd: &originsrv::OriginChannelDelete,
-    ) -> SrvResult<()> {
-        let conn = self.pool.get()?;
-        conn.execute(
-            "SELECT delete_origin_channel_v1($1)",
-            &[&(ocd.get_id() as i64)],
-        ).map_err(SrvError::OriginChannelDelete)?;
         Ok(())
     }
 
