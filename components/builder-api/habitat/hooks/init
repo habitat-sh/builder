@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+export PGPASSWORD="{{cfg.datastore.password}}"
+
+PSQL_ARGS="-w -h {{bind.datastore.first.sys.ip}} -p {{bind.datastore.first.cfg.port}} -U hab {{cfg.datastore.database}}"
+# shellcheck disable=SC2086
+# Create the DB or check that it exists
+createdb $PSQL_ARGS || psql -c ";" $PSQL_ARGS
