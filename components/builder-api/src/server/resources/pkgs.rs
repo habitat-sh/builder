@@ -17,7 +17,9 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use actix_web::http::header::{Charset, ContentDisposition, DispositionParam, DispositionType};
+use actix_web::http::header::{
+    Charset, ContentDisposition, ContentType, DispositionParam, DispositionType,
+};
 use actix_web::http::{self, Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{error, App, AsyncResponder, HttpMessage, HttpRequest, HttpResponse, Path, Query};
@@ -1177,6 +1179,7 @@ fn download_response_for_archive(archive: PackageArchive, file_path: PathBuf) ->
             http::header::HeaderName::from_static(headers::XFILENAME),
             archive.file_name(),
         )
+        .set(ContentType::octet_stream())
         .header(http::header::CACHE_CONTROL, headers::cache(true))
         .streaming(rx_body.map_err(|_| error::ErrorBadRequest("bad request")))
 }
