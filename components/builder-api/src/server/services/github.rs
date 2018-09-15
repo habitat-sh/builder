@@ -227,7 +227,11 @@ fn build_plans(
                 }
             }
             Err(err) => {
-                warn!("Failed to fetch project, {}", err);
+                warn!(
+                    "Failed to fetch project: {}, {:?}",
+                    project_get.get_name(),
+                    err
+                );
                 continue;
             }
         }
