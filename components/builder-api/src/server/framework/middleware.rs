@@ -22,6 +22,7 @@ use base64;
 use protobuf;
 
 use bldr_core;
+use bldr_core::metrics::CounterMetric;
 use hab_net::conn::RouteClient;
 use hab_net::{ErrCode, NetError, NetOk};
 use oauth_client::types::OAuth2User;
@@ -30,6 +31,7 @@ use protocol::originsrv::*;
 use protocol::Routable;
 
 use server::error;
+use server::services::metrics::Counter;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
@@ -77,6 +79,8 @@ where
     M: Routable,
     R: protobuf::Message,
 {
+    Counter::RouteMessage.increment();
+
     req.extensions_mut()
         .get_mut::<RouteClient>()
         .expect("no XRouteClient extension in request")
