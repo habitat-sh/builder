@@ -204,6 +204,7 @@ pub struct HttpCfg {
     pub listen: IpAddr,
     pub port: u16,
     pub handler_count: usize,
+    pub keep_alive: usize,
 }
 
 impl Default for HttpCfg {
@@ -212,6 +213,7 @@ impl Default for HttpCfg {
             listen: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             port: 9636,
             handler_count: Config::default_handler_count(),
+            keep_alive: 60,
         }
     }
 }
@@ -256,6 +258,7 @@ mod tests {
         listen = "0:0:0:0:0:0:0:1"
         port = 9636
         handler_count = 128
+        keep_alive = 30
 
         [ui]
         root = "/some/path"
@@ -310,6 +313,7 @@ mod tests {
 
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);
+        assert_eq!(config.http.keep_alive, 30);
         assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9632");
 
         assert_eq!(config.oauth.client_id, "0c2f738a7d0bd300de10");
