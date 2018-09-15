@@ -119,11 +119,7 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
     rz.send(()).unwrap(); // Blocks until the matching receive is called
 
     loop {
-        let (mtyp, mop, mid, mval, mtags): MetricTuple = rx.recv().unwrap();
-        debug!(
-            "Received metrics tuple: {:?}",
-            (mtyp, mop, &mid, mval, &mtags,)
-        );
+        let (mtyp, mop, mid, _mval, mtags): MetricTuple = rx.recv().unwrap();
 
         match client {
             Some(ref mut cli) => match mtyp {
