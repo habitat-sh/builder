@@ -101,7 +101,12 @@ cd /src/test/builder-api
 npm install mocha
 hab pkg binlink core/coreutils -d /usr/bin env
 
-hab sup status
+while hab sup status | grep --quiet down;
+do
+  echo "Waiting for services to start..."
+  sleep 10
+done
+
 npm run mocha
 exit \$?
 EOT
