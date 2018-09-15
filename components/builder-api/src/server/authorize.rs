@@ -15,6 +15,7 @@
 use actix_web::HttpRequest;
 use hab_net::privilege::FeatureFlags;
 
+use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
 use protocol::originsrv::*;
 
 use server::error::{Error, Result};
@@ -52,13 +53,17 @@ pub fn authorize_session(req: &HttpRequest<AppState>, origin_opt: Option<&str>) 
 
 // TODO - Merge into authorize_session when we are able to cache the name
 pub fn get_session_user_name(req: &HttpRequest<AppState>, account_id: u64) -> String {
+    if account_id == BUILDER_ACCOUNT_ID {
+        return BUILDER_ACCOUNT_NAME.to_string();
+    }
+
     let mut msg = AccountGetId::new();
     msg.set_id(account_id);
 
     match route_message::<AccountGetId, Account>(req, &msg) {
         Ok(account) => account.get_name().to_string(),
         Err(err) => {
-            warn!("Failed to get account, err={:?}", err);
+            warn!("Failed to get account, id={}, err={:?}", account_id, err);
             "".to_string()
         }
     }
