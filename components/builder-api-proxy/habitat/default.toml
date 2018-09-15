@@ -46,7 +46,8 @@ limit_req_known           = "burst=40 nodelay"
 limit_req_status          = 429
 limit_ua_known            = "hab|builder|Chef|Mozilla|Github"
 limit_ua_unknown_target   = "$http_x_forwarded_for"
-enable_caching            = true
+enable_caching            = false
+enable_gzip               = false
 
 [http]
 keepalive_timeout         = "20s"
