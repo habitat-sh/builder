@@ -335,7 +335,10 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
             {
                 Ok(archive) => download_response_for_archive(archive, file_path),
                 Err(e) => {
-                    warn!("Failed to download package, err={:?}", e);
+                    warn!(
+                        "Failed to download package, ident={}, err={:?}",
+                        temp_ident, e
+                    );
                     return HttpResponse::new(StatusCode::NOT_FOUND);
                 }
             }

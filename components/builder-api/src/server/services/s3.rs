@@ -178,7 +178,10 @@ impl S3Handler {
         let body = match payload {
             Ok(response) => response.body,
             Err(e) => {
-                warn!("Failed to retrieve object from S3: {:?}", e);
+                warn!(
+                    "Failed to retrieve object from S3, key={}: {:?}",
+                    request.key, e
+                );
                 return Err(Error::PackageDownload(e));
             }
         };
@@ -298,8 +301,7 @@ impl S3Handler {
                         Ok(())
                     }
                     Err(e) => {
-                        warn!("Upload failed for {}", path_attr);
-                        debug!("{:?}", e);
+                        warn!("Upload failed for {}: ({:?})", path_attr, e);
                         Err(Error::MultipartCompletion(e))
                     }
                 }
