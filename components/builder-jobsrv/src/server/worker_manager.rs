@@ -188,8 +188,7 @@ impl WorkerMgr {
             .name("worker-manager".to_string())
             .spawn(move || {
                 manager.run(tx).unwrap();
-            })
-            .unwrap();
+            }).unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("worker-manager thread startup error, err={}", e),
@@ -557,8 +556,8 @@ impl WorkerMgr {
                     let (name, rev, pub_key) = match self
                         .route_conn
                         .route::<OriginPublicEncryptionKeyLatestGet, OriginPublicEncryptionKey>(
-                            &db_pub_request,
-                        ) {
+                        &db_pub_request,
+                    ) {
                         Ok(key) => {
                             let key_str = from_utf8(key.get_body()).unwrap();
                             let (name, rev) = match parse_key_str(key_str) {

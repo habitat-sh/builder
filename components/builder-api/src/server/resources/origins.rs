@@ -80,109 +80,88 @@ impl Origins {
                 "/depot/origins/{origin}/users",
                 Method::GET,
                 list_origin_members,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/users/{user}",
                 http::Method::DELETE,
                 origin_member_delete,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/invitations",
                 Method::GET,
                 list_origin_invitations,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/users/{username}/invitations",
                 Method::POST,
                 invite_to_origin,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/invitations/{invitation_id}",
                 Method::PUT,
                 accept_invitation,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/invitations/{invitation_id}",
                 Method::DELETE,
                 rescind_invitation,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/invitations/{invitation_id}/ignore",
                 Method::PUT,
                 ignore_invitation,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/keys/latest",
                 Method::GET,
                 download_latest_origin_key,
-            )
-            .route("/depot/origins/{origin}/keys", Method::POST, create_keys)
+            ).route("/depot/origins/{origin}/keys", Method::POST, create_keys)
             .route(
                 "/depot/origins/{origin}/keys",
                 Method::GET,
                 list_origin_keys,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/keys/{revision}",
                 http::Method::POST,
                 upload_origin_key,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/keys/{revision}",
                 http::Method::GET,
                 download_origin_key,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/secret",
                 Method::GET,
                 list_origin_secrets,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/secret",
                 Method::POST,
                 create_origin_secret,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/encryption_key",
                 Method::GET,
                 download_latest_origin_encryption_key,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/integrations",
                 Method::GET,
                 fetch_origin_integrations,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/secret/{secret}",
                 Method::DELETE,
                 delete_origin_secret,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/secret_keys/latest",
                 Method::GET,
                 download_latest_origin_secret_key,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/secret_keys/{revision}",
                 Method::POST,
                 upload_origin_secret_key,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/integrations/{integration}/names",
                 Method::GET,
                 fetch_origin_integration_names,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/integrations/{integration}/{name}",
                 Method::GET,
                 get_origin_integration,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/integrations/{integration}/{name}",
                 Method::DELETE,
                 delete_origin_integration,
-            )
-            .route(
+            ).route(
                 "/depot/origins/{origin}/integrations/{integration}/{name}",
                 Method::PUT,
                 create_origin_integration_async,
@@ -310,8 +289,7 @@ fn list_origin_keys(req: HttpRequest<AppState>) -> HttpResponse {
                     ident.set_origin(key.get_name().to_string());
                     ident.set_revision(key.get_revision().to_string());
                     ident
-                })
-                .collect();
+                }).collect();
 
             HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
@@ -1145,12 +1123,10 @@ fn download_content_as_file(content: &[u8], filename: String) -> HttpResponse {
                     filename.as_bytes().to_vec(), // the actual bytes of the filename
                 )],
             },
-        )
-        .header(
+        ).header(
             http::header::HeaderName::from_static(headers::XFILENAME),
             filename,
-        )
-        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+        ).header(http::header::CACHE_CONTROL, headers::NO_CACHE)
         .body(Bytes::from(content))
 }
 
@@ -1173,7 +1149,8 @@ fn generate_origin_encryption_keys(
     private_key.set_name(origin.get_name().to_string());
     private_key.set_origin_id(origin.get_id());
 
-    let pair = BoxKeyPair::generate_pair_for_origin(origin.get_name()).map_err(Error::HabitatCore)?;
+    let pair =
+        BoxKeyPair::generate_pair_for_origin(origin.get_name()).map_err(Error::HabitatCore)?;
     public_key.set_revision(pair.rev.clone());
     public_key.set_body(
         pair.to_public_string()

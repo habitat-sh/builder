@@ -39,8 +39,8 @@ use futures::{Future, Stream};
 use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
 use rusoto_s3::{
     CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart, CreateBucketRequest,
-    CreateMultipartUploadRequest, GetObjectRequest, HeadObjectRequest, PutObjectRequest, S3,
-    S3Client, UploadPartRequest,
+    CreateMultipartUploadRequest, GetObjectRequest, HeadObjectRequest, PutObjectRequest, S3Client,
+    UploadPartRequest, S3,
 };
 use time::PreciseTime;
 

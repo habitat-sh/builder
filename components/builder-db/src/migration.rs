@@ -33,6 +33,6 @@ pub fn setup_ids(conn: &PgConnection) -> Result<()> {
                 END;
                 $$ LANGUAGE PLPGSQL;"#,
     ).execute(conn)
-        .unwrap();
+    .unwrap();
     Ok(())
 }

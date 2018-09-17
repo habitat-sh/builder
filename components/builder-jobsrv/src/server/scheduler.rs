@@ -109,8 +109,7 @@ impl ScheduleMgr {
             .name("scheduler".to_string())
             .spawn(move || {
                 schedule_mgr.run(tx).unwrap();
-            })
-            .unwrap();
+            }).unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("scheduler thread startup error, err={}", e),

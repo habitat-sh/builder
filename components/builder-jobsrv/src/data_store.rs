@@ -105,8 +105,8 @@ impl DataStore {
                 }
             };
 
-            let rows =
-                conn.query(
+            let rows = conn
+                .query(
                     "SELECT * FROM insert_job_v2($1, $2, $3, $4, $5, $6, $7, $8)",
                     &[
                         &(job.get_owner_id() as i64),
@@ -139,8 +139,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_job_v1($1)",
                 &[&(get_job.get_id() as i64)],
-            )
-            .map_err(Error::JobGet)?;
+            ).map_err(Error::JobGet)?;
         for row in rows {
             let job = row_to_job(&row)?;
             return Ok(Some(job));
@@ -168,8 +167,7 @@ impl DataStore {
                     &project.limit(),
                     &(project.get_start() as i64),
                 ],
-            )
-            .map_err(Error::ProjectJobsGet)?;
+            ).map_err(Error::ProjectJobsGet)?;
 
         let mut jobs = protobuf::RepeatedField::new();
         let mut response = jobsrv::ProjectJobsGetResponse::new();
@@ -398,8 +396,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_all_origin_packages_for_ident_v1($1)",
                 &[&String::from("")],
-            )
-            .map_err(Error::JobGraphPackagesGet)?;
+            ).map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
             warn!("No packages found");
@@ -421,8 +418,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_package_v4($1, $2)",
                 &[&ident, &String::from("public,private,hidden")],
-            )
-            .map_err(Error::JobGraphPackagesGet)?;
+            ).map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
             error!("No package found");
@@ -458,8 +454,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM count_unique_origin_packages_v1($1)",
                 &[&origin],
-            )
-            .map_err(Error::JobGraphPackageStats)?;
+            ).map_err(Error::JobGraphPackageStats)?;
         assert!(rows.len() == 1); // should never have more than one
         let up_count: i64 = rows.get(0).get("count_unique_origin_packages_v1");
 
@@ -503,8 +498,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_group_projects_for_group_v1($1)",
                 &[&(group_id as i64)],
-            )
-            .map_err(Error::JobGroupGet)?;
+            ).map_err(Error::JobGroupGet)?;
 
         assert!(project_rows.len() > 0); // should at least have one
         let projects = self.rows_to_job_group_projects(&project_rows)?;
@@ -544,8 +538,8 @@ impl DataStore {
         let (project_names, project_idents): (Vec<String>, Vec<String>) =
             project_tuples.iter().cloned().unzip();
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_group_v2($1, $2, $3)",
                 &[&root_project, &project_names, &project_idents],
             ).map_err(Error::JobGroupCreate)?;
@@ -604,8 +598,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_job_groups_for_origin_v2($1, $2)",
                 &[&origin, &(limit as i32)],
-            )
-            .map_err(Error::JobGroupOriginGet)?;
+            ).map_err(Error::JobGroupOriginGet)?;
 
         let mut response = jobsrv::JobGroupOriginResponse::new();
         let mut job_groups = RepeatedField::new();
@@ -642,8 +635,7 @@ impl DataStore {
                 .query(
                     "SELECT * FROM get_group_projects_for_group_v1($1)",
                     &[&(group_id as i64)],
-                )
-                .map_err(Error::JobGroupGet)?;
+                ).map_err(Error::JobGroupGet)?;
 
             assert!(project_rows.len() > 0); // should at least have one
             let projects = self.rows_to_job_group_projects(&project_rows)?;
@@ -797,8 +789,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM find_group_project_v1($1, $2)",
                 &[&(job.get_owner_id() as i64), &job.get_project().get_name()],
-            )
-            .map_err(Error::JobGroupProjectSetState)?;
+            ).map_err(Error::JobGroupProjectSetState)?;
 
         // No rows means this job might not be one we care about
         if rows.is_empty() {
@@ -853,8 +844,7 @@ impl DataStore {
                 .query(
                     "SELECT * FROM get_group_projects_for_group_v1($1)",
                     &[&(group.get_id() as i64)],
-                )
-                .map_err(Error::JobGroupPending)?;
+                ).map_err(Error::JobGroupPending)?;
             let projects = self.rows_to_job_group_projects(&project_rows)?;
 
             group.set_projects(projects);

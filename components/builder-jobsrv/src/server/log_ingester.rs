@@ -70,8 +70,7 @@ impl LogIngester {
             .name("log-ingester".to_string())
             .spawn(move || {
                 ingester.run(tx).unwrap();
-            })
-            .unwrap();
+            }).unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("log-ingester thread startup error, err={}", e),

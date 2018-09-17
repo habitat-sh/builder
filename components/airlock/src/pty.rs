@@ -56,13 +56,14 @@ impl Master {
     }
 
     fn new<P: AsRef<Path>>(ptmx_path: P) -> Result<Self> {
-        let c_path = CString::new(ptmx_path.as_ref().to_string_lossy().as_ref()).map_err(|err| {
-            Error::CreateMaster(format!(
-                "cannot create c string from path: {} ({})",
-                ptmx_path.as_ref().display(),
-                err
-            ))
-        })?;
+        let c_path =
+            CString::new(ptmx_path.as_ref().to_string_lossy().as_ref()).map_err(|err| {
+                Error::CreateMaster(format!(
+                    "cannot create c string from path: {} ({})",
+                    ptmx_path.as_ref().display(),
+                    err
+                ))
+            })?;
 
         match unsafe { libc::open(c_path.as_ptr(), libc::O_RDWR) } {
             fd if fd < 0 => Err(Error::CreateMaster(format!(

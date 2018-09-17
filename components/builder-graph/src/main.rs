@@ -63,8 +63,7 @@ fn main() {
                 .help("Filepath to configuration file")
                 .required(false)
                 .index(1),
-        )
-        .get_matches();
+        ).get_matches();
 
     let config = match matches.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path).unwrap(),

@@ -103,63 +103,51 @@ impl Packages {
                 "/depot/pkgs/{origin}/{pkg}",
                 Method::GET,
                 get_packages_for_origin_package,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/origins/{origin}/stats",
                 Method::GET,
                 get_package_stats,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/schedule/{origin}/status",
                 Method::GET,
                 get_origin_schedule_status,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/schedule/{origin}/{pkg}",
                 Method::POST,
                 schedule_job_group,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/latest",
                 Method::GET,
                 get_latest_package_for_origin_package,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/versions",
                 Method::GET,
                 list_package_versions,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}",
                 Method::GET,
                 get_packages_for_origin_package_version,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/latest",
                 Method::GET,
                 get_latest_package_for_origin_package_version,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                 Method::POST,
                 upload_package,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                 Method::GET,
                 get_latest_package,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
                 Method::GET,
                 download_package,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/channels",
                 Method::GET,
                 get_package_channels,
-            )
-            .route(
+            ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/{visibility}",
                 Method::PATCH,
                 package_privacy_toggle,
@@ -1177,12 +1165,10 @@ fn download_response_for_archive(archive: PackageArchive, file_path: PathBuf) ->
                     filename,            // the actual bytes of the filename
                 )],
             },
-        )
-        .header(
+        ).header(
             http::header::HeaderName::from_static(headers::XFILENAME),
             archive.file_name(),
-        )
-        .set(ContentType::octet_stream())
+        ).set(ContentType::octet_stream())
         .header(http::header::CACHE_CONTROL, headers::cache(true))
         .streaming(rx_body.map_err(|_| error::ErrorBadRequest("bad request")))
 }

@@ -83,8 +83,7 @@ impl DataStore {
                     &(pca.get_requester_id() as i64),
                     &pca.get_requester_name().to_string(),
                 ],
-            )
-            .map_err(SrvError::PackageChannelAudit)?;
+            ).map_err(SrvError::PackageChannelAudit)?;
 
         Ok(())
     }
@@ -115,8 +114,7 @@ impl DataStore {
                     &pgca.get_requester_name().to_string(),
                     &(pgca.get_group_id() as i64),
                 ],
-            )
-            .map_err(SrvError::PackageGroupChannelAudit)?;
+            ).map_err(SrvError::PackageGroupChannelAudit)?;
 
         Ok(())
     }
@@ -167,8 +165,8 @@ impl DataStore {
         ).map_err(SrvError::OriginProjectUpdate)?;
 
         // Get all the packages tied to this project
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_all_origin_packages_for_ident_v1($1)",
                 &[&project.get_name()],
             ).map_err(SrvError::VisibilityCascade)?;
@@ -266,8 +264,8 @@ impl DataStore {
                 None
             }
         };
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_project_v5($1, $2, $3, $4, $5, $6, $7, $8, $9)",
                 &[
                     &project.get_origin_name(),
@@ -313,8 +311,8 @@ impl DataStore {
     ) -> SrvResult<()> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM upsert_origin_project_integration_v3($1, $2, $3, $4)",
                 &[
                     &opic.get_integration().get_origin(),
@@ -359,8 +357,7 @@ impl DataStore {
                     &opig.get_integration().get_name(),
                     &opig.get_integration().get_integration(),
                 ],
-            )
-            .map_err(SrvError::OriginProjectIntegrationGet)?;
+            ).map_err(SrvError::OriginProjectIntegrationGet)?;
 
         if rows.len() != 0 {
             let row = rows.get(0);
@@ -389,8 +386,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_project_integrations_for_project_v2($1, $2)",
                 &[&opir.get_origin(), &opir.get_name()],
-            )
-            .map_err(SrvError::OriginProjectIntegrationRequest)?;
+            ).map_err(SrvError::OriginProjectIntegrationRequest)?;
 
         let mut response = originsrv::OriginProjectIntegrationResponse::new();
         let mut integrations = protobuf::RepeatedField::new();
@@ -412,8 +408,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM check_account_in_origin_members_v1($1, $2)",
                 &[&coar.get_origin_name(), &(coar.get_account_id() as i64)],
-            )
-            .map_err(SrvError::OriginAccountInOrigin)?;
+            ).map_err(SrvError::OriginAccountInOrigin)?;
         if rows.len() != 0 {
             Ok(true)
         } else {
@@ -430,8 +425,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM my_origins_v2($1) ORDER BY name",
                 &[&(mor.get_account_id() as i64)],
-            )
-            .map_err(SrvError::MyOrigins)?;
+            ).map_err(SrvError::MyOrigins)?;
 
         let mut response = originsrv::MyOriginsResponse::new();
 
@@ -454,8 +448,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM list_origin_members_v1($1)",
                 &[&(omlr.get_origin_id() as i64)],
-            )
-            .map_err(SrvError::OriginMemberList)?;
+            ).map_err(SrvError::OriginMemberList)?;
 
         let mut response = originsrv::OriginMemberListResponse::new();
         response.set_origin_id(omlr.get_origin_id());
@@ -510,8 +503,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_invitation_v1($1)",
                 &[&(oirr.get_invitation_id() as i64)],
-            )
-            .map_err(SrvError::OriginInvitationGet)?;
+            ).map_err(SrvError::OriginInvitationGet)?;
 
         if rows.len() != 1 {
             let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "od:rescind-origin-invitation:0");
@@ -539,8 +531,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_invitations_for_origin_v1($1)",
                 &[&(oilr.get_origin_id() as i64)],
-            )
-            .map_err(SrvError::OriginInvitationListForOrigin)?;
+            ).map_err(SrvError::OriginInvitationListForOrigin)?;
 
         let mut response = originsrv::OriginInvitationListResponse::new();
         response.set_origin_id(oilr.get_origin_id());
@@ -561,8 +552,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_invitations_for_account_v1($1)",
                 &[&(ailr.get_account_id() as i64)],
-            )
-            .map_err(SrvError::OriginInvitationListForAccount)?;
+            ).map_err(SrvError::OriginInvitationListForAccount)?;
 
         let mut response = originsrv::AccountInvitationListResponse::new();
         response.set_account_id(ailr.get_account_id());
@@ -594,8 +584,8 @@ impl DataStore {
         oic: &originsrv::OriginInvitationCreate,
     ) -> SrvResult<Option<originsrv::OriginInvitation>> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_invitation_v1($1, $2, $3, $4, $5)",
                 &[
                     &(oic.get_origin_id() as i64),
@@ -619,8 +609,8 @@ impl DataStore {
     ) -> SrvResult<originsrv::OriginPrivateEncryptionKey> {
         let conn = self.pool.get()?;
         let opek = opekc.get_private_encryption_key();
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_private_encryption_key_v1($1, $2, $3, $4, $5, $6)",
                 &[
                     &(opek.get_origin_id() as i64),
@@ -665,8 +655,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_private_encryption_key_v1($1)",
                 &[&opek_get.get_origin()],
-            )
-            .map_err(SrvError::OriginPrivateEncryptionKeyGet)?;
+            ).map_err(SrvError::OriginPrivateEncryptionKeyGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -682,8 +671,8 @@ impl DataStore {
     ) -> SrvResult<originsrv::OriginPublicEncryptionKey> {
         let conn = self.pool.get()?;
         let opek = opekc.get_public_encryption_key();
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_public_encryption_key_v1($1, $2, $3, $4, $5, $6)",
                 &[
                     &(opek.get_origin_id() as i64),
@@ -726,8 +715,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_public_encryption_key_v1($1, $2)",
                 &[&opek_get.get_origin(), &opek_get.get_revision()],
-            )
-            .map_err(SrvError::OriginPublicEncryptionKeyGet)?;
+            ).map_err(SrvError::OriginPublicEncryptionKeyGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -746,8 +734,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_public_encryption_key_latest_v1($1)",
                 &[&opek_get.get_origin()],
-            )
-            .map_err(SrvError::OriginPublicEncryptionKeyLatestGet)?;
+            ).map_err(SrvError::OriginPublicEncryptionKeyLatestGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -766,8 +753,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_public_encryption_keys_for_origin_v1($1)",
                 &[&(opeklr.get_origin_id() as i64)],
-            )
-            .map_err(SrvError::OriginPublicEncryptionKeyListForOrigin)?;
+            ).map_err(SrvError::OriginPublicEncryptionKeyListForOrigin)?;
 
         let mut response = originsrv::OriginPublicEncryptionKeyListResponse::new();
         response.set_origin_id(opeklr.get_origin_id());
@@ -784,8 +770,8 @@ impl DataStore {
         osk: &originsrv::OriginPrivateSigningKeyCreate,
     ) -> SrvResult<originsrv::OriginPrivateSigningKey> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_secret_key_v1($1, $2, $3, $4, $5, $6)",
                 &[
                     &(osk.get_origin_id() as i64),
@@ -828,8 +814,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_secret_key_v1($1)",
                 &[&osk_get.get_origin()],
-            )
-            .map_err(SrvError::OriginPrivateSigningKeyGet)?;
+            ).map_err(SrvError::OriginPrivateSigningKeyGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -844,8 +829,8 @@ impl DataStore {
         opk: &originsrv::OriginPublicSigningKeyCreate,
     ) -> SrvResult<originsrv::OriginPublicSigningKey> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_public_key_v1($1, $2, $3, $4, $5, $6)",
                 &[
                     &(opk.get_origin_id() as i64),
@@ -888,8 +873,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_public_key_v1($1, $2)",
                 &[&opk_get.get_origin(), &opk_get.get_revision()],
-            )
-            .map_err(SrvError::OriginPublicSigningKeyGet)?;
+            ).map_err(SrvError::OriginPublicSigningKeyGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -908,8 +892,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_public_key_latest_v1($1)",
                 &[&opk_get.get_origin()],
-            )
-            .map_err(SrvError::OriginPublicSigningKeyLatestGet)?;
+            ).map_err(SrvError::OriginPublicSigningKeyLatestGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -928,8 +911,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_public_keys_for_origin_v1($1)",
                 &[&(opklr.get_origin_id() as i64)],
-            )
-            .map_err(SrvError::OriginPublicSigningKeyListForOrigin)?;
+            ).map_err(SrvError::OriginPublicSigningKeyListForOrigin)?;
 
         let mut response = originsrv::OriginPublicSigningKeyListResponse::new();
         response.set_origin_id(opklr.get_origin_id());
@@ -970,8 +952,8 @@ impl DataStore {
             dpv = originsrv::OriginPackageVisibility::default().to_string();
         }
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_v2($1, $2, $3, $4)",
                 &[
                     &origin.get_name(),
@@ -1022,8 +1004,7 @@ impl DataStore {
                 "SELECT * FROM origins_with_secret_key_full_name_v2 WHERE name = $1 LIMIT \
                  1",
                 &[&origin_name],
-            )
-            .map_err(SrvError::OriginGet)?;
+            ).map_err(SrvError::OriginGet)?;
         if rows.len() != 0 {
             let row = rows.iter().nth(0).unwrap();
             let mut origin = originsrv::Origin::new();
@@ -1079,8 +1060,8 @@ impl DataStore {
     ) -> SrvResult<Option<originsrv::OriginPackage>> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_package_v4($1, $2)",
                 &[
                     &opg.get_ident().to_string(),
@@ -1102,8 +1083,8 @@ impl DataStore {
         ocpg: &originsrv::OriginChannelPackageGet,
     ) -> SrvResult<Option<originsrv::OriginPackage>> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_channel_package_v4($1, $2, $3, $4)",
                 &[
                     &ocpg.get_ident().get_origin(),
@@ -1147,8 +1128,8 @@ impl DataStore {
         opc: &originsrv::OriginPackageLatestGet,
     ) -> SrvResult<Option<originsrv::OriginPackageIdent>> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_package_latest_v5($1, $2, $3)",
                 &[
                     &self.searchable_ident(opc.get_ident()),
@@ -1169,8 +1150,8 @@ impl DataStore {
         ocpg: &originsrv::OriginChannelPackageLatestGet,
     ) -> SrvResult<Option<originsrv::OriginPackageIdent>> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_channel_package_latest_v5($1, $2, $3, $4, $5)",
                 &[
                     &ocpg.get_ident().get_origin(),
@@ -1195,8 +1176,8 @@ impl DataStore {
     ) -> SrvResult<originsrv::OriginPackageVersionListResponse> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_package_versions_for_origin_v7($1, $2, $3)",
                 &[
                     &opvl.get_origin(),
@@ -1241,8 +1222,8 @@ impl DataStore {
     ) -> SrvResult<originsrv::OriginPackagePlatformListResponse> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_package_platforms_for_package_v4($1, $2)",
                 &[
                     &self.searchable_ident(oppl.get_ident()),
@@ -1266,8 +1247,8 @@ impl DataStore {
     ) -> SrvResult<Option<originsrv::OriginPackageChannelListResponse>> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_package_channels_for_package_v4($1, $2)",
                 &[
                     &self.searchable_ident(opcl.get_ident()),
@@ -1303,8 +1284,8 @@ impl DataStore {
             "SELECT * FROM get_origin_packages_for_origin_v5($1, $2, $3, $4)"
         };
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 query,
                 &[
                     &self.searchable_ident(opl.get_ident()),
@@ -1353,8 +1334,8 @@ impl DataStore {
     ) -> SrvResult<originsrv::OriginPackageListResponse> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_channel_packages_for_channel_v3($1, $2, $3, $4, $5, $6)",
                 &[
                     &opl.get_ident().get_origin(),
@@ -1384,8 +1365,8 @@ impl DataStore {
         opl: &originsrv::OriginPackageUniqueListRequest,
     ) -> SrvResult<originsrv::OriginPackageUniqueListResponse> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_packages_unique_for_origin_v4($1, $2, $3, $4)",
                 &[
                     &opl.get_origin(),
@@ -1546,8 +1527,8 @@ impl DataStore {
     ) -> SrvResult<originsrv::OriginChannel> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_channel_v1($1, $2, $3)",
                 &[
                     &(occ.get_origin_id() as i64),
@@ -1587,8 +1568,7 @@ impl DataStore {
                     &(oclr.get_origin_id() as i64),
                     &oclr.get_include_sandbox_channels(),
                 ],
-            )
-            .map_err(SrvError::OriginChannelList)?;
+            ).map_err(SrvError::OriginChannelList)?;
 
         let mut response = originsrv::OriginChannelListResponse::new();
         response.set_origin_id(oclr.get_origin_id());
@@ -1611,8 +1591,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_channel_v1($1, $2)",
                 &[&ocg.get_origin_name(), &ocg.get_name()],
-            )
-            .map_err(SrvError::OriginChannelGet)?;
+            ).map_err(SrvError::OriginChannelGet)?;
 
         if rows.len() != 0 {
             let row = rows.get(0);
@@ -1638,8 +1617,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM promote_origin_package_group_v1($1, $2)",
                 &[&(opp.get_channel_id() as i64), &(pkg_ids)],
-            )
-            .map_err(SrvError::OriginPackageGroupPromote)?;
+            ).map_err(SrvError::OriginPackageGroupPromote)?;
 
         Ok(())
     }
@@ -1653,8 +1631,7 @@ impl DataStore {
                     &(opp.get_channel_id() as i64),
                     &(opp.get_package_id() as i64),
                 ],
-            )
-            .map_err(SrvError::OriginPackagePromote)?;
+            ).map_err(SrvError::OriginPackagePromote)?;
 
         Ok(())
     }
@@ -1675,8 +1652,7 @@ impl DataStore {
             .query(
                 "SELECT FROM demote_origin_package_group_v1($1, $2)",
                 &[&(opp.get_channel_id() as i64), &(pkg_ids)],
-            )
-            .map_err(SrvError::OriginPackageGroupDemote)?;
+            ).map_err(SrvError::OriginPackageGroupDemote)?;
 
         Ok(())
     }
@@ -1690,8 +1666,7 @@ impl DataStore {
                     &(opp.get_channel_id() as i64),
                     &(opp.get_package_id() as i64),
                 ],
-            )
-            .map_err(SrvError::OriginPackageDemote)?;
+            ).map_err(SrvError::OriginPackageDemote)?;
 
         Ok(())
     }
@@ -1714,8 +1689,8 @@ impl DataStore {
     ) -> SrvResult<()> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM upsert_origin_integration_v1($1, $2, $3, $4)",
                 &[
                     &oic.get_integration().get_origin(),
@@ -1739,8 +1714,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_integrations_v1($1, $2)",
                 &[&oig.get_origin(), &oig.get_integration()],
-            )
-            .map_err(SrvError::OriginIntegrationGetNames)?;
+            ).map_err(SrvError::OriginIntegrationGetNames)?;
 
         if rows.len() != 0 {
             Ok(Some(self.rows_to_origin_integration_names(&rows)))
@@ -1758,8 +1732,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_integrations_for_origin_v1($1)",
                 &[&oir.get_origin()],
-            )
-            .map_err(SrvError::OriginIntegrationRequest)?;
+            ).map_err(SrvError::OriginIntegrationRequest)?;
 
         let mut response = originsrv::OriginIntegrationResponse::new();
         let mut integrations = protobuf::RepeatedField::new();
@@ -1804,8 +1777,8 @@ impl DataStore {
     ) -> SrvResult<Option<originsrv::OriginIntegration>> {
         let conn = self.pool.get()?;
 
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_origin_integration_v1($1, $2, $3)",
                 &[
                     &oig.get_integration().get_origin(),
@@ -1851,8 +1824,8 @@ impl DataStore {
         os: &originsrv::OriginSecretCreate,
     ) -> SrvResult<originsrv::OriginSecret> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_origin_secret_v1($1, $2, $3)",
                 &[
                     &(os.get_secret().get_origin_id() as i64),
@@ -1886,8 +1859,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_secret_v1($1, $2)",
                 &[&(os_get.get_origin_id() as i64), &os_get.get_name()],
-            )
-            .map_err(SrvError::OriginSecretGet)?;
+            ).map_err(SrvError::OriginSecretGet)?;
         if rows.len() != 0 {
             // We just checked - we know there is a value here
             let row = rows.iter().nth(0).unwrap();
@@ -1917,8 +1889,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_origin_secrets_for_origin_v1($1)",
                 &[&(os.get_origin_id() as i64)],
-            )
-            .map_err(SrvError::OriginSecretList)?;
+            ).map_err(SrvError::OriginSecretList)?;
 
         let mut response = originsrv::OriginSecretList::new();
         let mut secrets = protobuf::RepeatedField::new();
@@ -1961,8 +1932,8 @@ impl DataStore {
         account_create: &originsrv::AccountCreate,
     ) -> SrvResult<originsrv::Account> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM select_or_insert_account_v1($1, $2)",
                 &[&account_create.get_name(), &account_create.get_email()],
             ).map_err(SrvError::AccountCreate)?;
@@ -1976,8 +1947,8 @@ impl DataStore {
         account_get: &originsrv::AccountGet,
     ) -> SrvResult<Option<originsrv::Account>> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_account_by_name_v1($1)",
                 &[&account_get.get_name()],
             ).map_err(SrvError::AccountGet)?;
@@ -1994,8 +1965,8 @@ impl DataStore {
         account_get_id: &originsrv::AccountGetId,
     ) -> SrvResult<Option<originsrv::Account>> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM get_account_by_id_v1($1)",
                 &[&(account_get_id.get_id() as i64)],
             ).map_err(SrvError::AccountGetById)?;
@@ -2012,8 +1983,8 @@ impl DataStore {
         account_token_create: &originsrv::AccountTokenCreate,
     ) -> SrvResult<originsrv::AccountToken> {
         let conn = self.pool.get()?;
-        let rows =
-            conn.query(
+        let rows = conn
+            .query(
                 "SELECT * FROM insert_account_token_v1($1, $2)",
                 &[
                     &(account_token_create.get_account_id() as i64),
@@ -2034,8 +2005,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_account_tokens_v1($1)",
                 &[&(account_tokens_get.get_account_id() as i64)],
-            )
-            .map_err(SrvError::AccountTokensGet)?;
+            ).map_err(SrvError::AccountTokensGet)?;
 
         let mut account_tokens = originsrv::AccountTokens::new();
         let mut tokens = protobuf::RepeatedField::new();
@@ -2056,8 +2026,7 @@ impl DataStore {
             .query(
                 "SELECT * FROM get_account_token_with_id_v1($1)",
                 &[&(account_token_get.get_id() as i64)],
-            )
-            .map_err(SrvError::AccountTokensGet)?;
+            ).map_err(SrvError::AccountTokensGet)?;
 
         assert!(rows.len() == 1);
         let row = rows.get(0);

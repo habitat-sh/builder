@@ -669,8 +669,7 @@ impl RunnerMgr {
             .name("runner".to_string())
             .spawn(move || {
                 runner.run(tx).unwrap();
-            })
-            .unwrap();
+            }).unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("runner thread startup error, err={}", e),

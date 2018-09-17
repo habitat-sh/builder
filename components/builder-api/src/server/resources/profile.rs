@@ -43,8 +43,7 @@ impl Profile {
                 "/profile/access-tokens",
                 Method::POST,
                 generate_access_token,
-            )
-            .route(
+            ).route(
                 "/profile/access-tokens/{id}",
                 Method::DELETE,
                 revoke_access_token,

@@ -80,18 +80,15 @@ impl Projects {
                 "/projects/{origin}/{name}/integrations/{integration}/default",
                 Method::GET,
                 get_integration,
-            )
-            .route(
+            ).route(
                 "/projects/{origin}/{name}/integrations/{integration}/default",
                 Method::PUT,
                 create_integration,
-            )
-            .route(
+            ).route(
                 "/projects/{origin}/{name}/integrations/{integration}/default",
                 Method::DELETE,
                 delete_integration,
-            )
-            .route(
+            ).route(
                 "/projects/{origin}/{name}/{visibility}",
                 Method::PATCH,
                 toggle_privacy,
@@ -439,8 +436,7 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
                     } else {
                         serde_json::to_value(job).unwrap()
                     }
-                })
-                .collect();
+                }).collect();
 
             let body = helpers::package_results_json(
                 &list,

@@ -60,8 +60,7 @@ impl LogForwarder {
             .name("log".to_string())
             .spawn(move || {
                 log.run(tx, jobsrv_addrs).unwrap();
-            })
-            .unwrap();
+            }).unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("log thread startup error, err={}", e),
