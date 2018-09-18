@@ -337,7 +337,7 @@ resource "aws_instance" "jobsrv" {
 
 resource "aws_instance" "originsrv" {
   ami           = "${lookup(var.aws_ami, var.aws_region)}"
-  instance_type = "t2.medium"
+  instance_type = "c4.8xlarge"
   key_name      = "${var.aws_key_pair}"
   // JW TODO: switch to private subnet after VPN is ready
   subnet_id     = "${var.public_subnet_id}"
