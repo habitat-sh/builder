@@ -12,7 +12,6 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-actix-web = "0.7"
 bytes = "*"
 base64 = "*"
 bitflags = "1"
@@ -39,6 +38,10 @@ tempfile = "*"
 time = "*"
 url = "*"
 uuid = { version = "*", features = ["v4"] }
+
+[dependencies.actix-web]
+version = "0.7"
+default-features = false
 
 [dependencies.clap]
 version = "*"
