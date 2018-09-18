@@ -12,7 +12,6 @@ The configuration file looks like this:
 
 ```js
 habitatConfig({
-    habitat_api_url: "http://localhost:9636",
     docs_url: "https://www.habitat.sh/docs",
     environment: "production",
     github_client_id: "0c2f738a7d0bd300de10",

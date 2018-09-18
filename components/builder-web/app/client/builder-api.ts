@@ -25,7 +25,7 @@ export enum ErrorCode {
 export class BuilderApiClient {
   private headers;
   private jsonHeaders;
-  private urlPrefix: string = `${config['habitat_api_url']}/v1`;
+  private urlPrefix: string = '/v1';
   private store: AppStore;
 
   constructor(private token: string = '') {

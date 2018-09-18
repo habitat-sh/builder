@@ -116,7 +116,7 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
   }
 
   urlFor(key) {
-    return `${config['habitat_api_url']}/v1/depot${key.location}`;
+    return `/v1/depot${key.location}`;
   }
 
   private download(blob, name) {
