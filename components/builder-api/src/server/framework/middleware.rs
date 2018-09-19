@@ -35,34 +35,6 @@ use server::services::metrics::Counter;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
-// Cors
-pub struct Cors;
-
-impl<S> Middleware<S> for Cors {
-    fn response(&self, _: &HttpRequest<S>, mut resp: HttpResponse) -> Result<Response> {
-        {
-            let h = resp.headers_mut();
-            h.insert(
-                header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                header::HeaderValue::from_static("*"),
-            );
-            h.insert(
-                header::ACCESS_CONTROL_ALLOW_HEADERS,
-                header::HeaderValue::from_static("Authorization"),
-            );
-            h.insert(
-                header::ACCESS_CONTROL_ALLOW_METHODS,
-                header::HeaderValue::from_static("DELETE, PATCH, POST, PUT"),
-            );
-            h.insert(
-                header::ACCESS_CONTROL_EXPOSE_HEADERS,
-                header::HeaderValue::from_static("Content-Disposition"),
-            );
-        }
-        Ok(Response::Done(resp))
-    }
-}
-
 // Router client
 pub struct XRouteClient;
 

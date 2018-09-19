@@ -13,7 +13,6 @@ habitatConfig({
     github_api_url: "{{cfg.github.api_url}}",
     github_app_url: "{{cfg.github.app_url}}",
     github_app_id: "{{cfg.github.app_id}}",
-    habitat_api_url: "{{cfg.app_url}}",
     oauth_authorize_url: "{{cfg.oauth.authorize_url}}",
     oauth_client_id: "{{cfg.oauth.client_id}}",
     oauth_provider: "{{cfg.oauth.provider}}",

@@ -36,13 +36,6 @@ habitatConfig({
     // The Habitat Builder GitHub app ID
     github_app_id: "5629",
 
-    // The URL for the Habitat API service (including the API version.) If
-    // running the API services locally with `start-builder` from the root
-    // of the builder repo, this will be localhost (if running Docker for Mac or
-    // Linux) or the result of `$(docker-machine ip default)` if using Docker
-    // in a virtual Machine.
-    habitat_api_url: "http://localhost:9636",
-
     // OAuth properties
     oauth_authorize_url: "https://github.com/login/oauth/authorize",
     oauth_client_id: "Iv1.732260b62f84db15",

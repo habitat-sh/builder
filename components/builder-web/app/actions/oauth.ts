@@ -30,7 +30,7 @@ import { Browser } from '../browser';
 import { OAuthProvider } from '../oauth-providers';
 
 const uuid = require('uuid').v4;
-const authenticateEndpoint = `${config['habitat_api_url']}/v1/authenticate`;
+const authenticateEndpoint = '/v1/authenticate';
 
 export const LOAD_OAUTH_STATE = 'LOAD_OAUTH_STATE';
 export const POPULATE_GITHUB_INSTALLATIONS = 'POPULATE_GITHUB_INSTALLATIONS';

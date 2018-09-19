@@ -36,7 +36,7 @@ use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
 use self::error::Error;
-use self::framework::middleware::{Authentication, Cors, XRouteClient};
+use self::framework::middleware::{Authentication, XRouteClient};
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
 use self::services::upstream::{UpstreamClient, UpstreamMgr};
@@ -145,7 +145,6 @@ pub fn run(config: Config) -> Result<()> {
             .middleware(Logger::default().exclude("/v1/status"))
             .middleware(XRouteClient)
             .middleware(Authentication)
-            .middleware(Cors)
             .prefix("/v1")
             .configure(Authenticate::register)
             .configure(Channels::register)
