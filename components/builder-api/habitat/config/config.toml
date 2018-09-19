@@ -31,3 +31,11 @@ root = "{{pkg.svc_static_path}}"
 
 [upstream]
 {{toToml cfg.upstream}}
+
+[memcache]
+ttl = {{cfg.memcache.ttl}}
+{{~#each bind.memcached.members as |member|}}
+[[memcache.hosts]]
+host = "{{member.sys.ip}}"
+port = {{member.cfg.port}}
+{{~/each}}

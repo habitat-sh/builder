@@ -14,5 +14,6 @@ pkg_exports=(
 pkg_exposes=(port)
 pkg_binds=(
   [router]="port"
+  [memcached]="port"
 )
 bin="bldr-api"

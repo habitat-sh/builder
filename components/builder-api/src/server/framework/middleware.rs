@@ -15,8 +15,7 @@
 use std::env;
 
 use actix_web::http;
-use actix_web::http::header;
-use actix_web::middleware::{Middleware, Response, Started};
+use actix_web::middleware::{Middleware, Started};
 use actix_web::{HttpRequest, HttpResponse, Result};
 use base64;
 use protobuf;
