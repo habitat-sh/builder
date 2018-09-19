@@ -93,7 +93,8 @@ resource "aws_instance" "api" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sudo hab svc load habitat/builder-api --group ${var.env} --bind router:builder-router.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-memcached --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-api --group ${var.env} --bind memcached:builder-memcached.${var.env} --bind router:builder-router.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load habitat/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
