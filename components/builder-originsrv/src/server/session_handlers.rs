@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bldr_core;
 use hab_net::app::prelude::*;
 use hab_net::privilege::FeatureFlags;
 
@@ -122,11 +121,6 @@ pub fn account_token_create(
     state: &mut ServerState,
 ) -> SrvResult<()> {
     let msg = req.parse::<proto::AccountTokenCreate>()?;
-    let account_id = msg.get_account_id();
-
-    {
-        state.tokens.write().unwrap().remove(&account_id);
-    }
 
     match state.datastore.create_account_token(&msg) {
         Ok(account_token) => conn.route_reply(req, &account_token)?,
@@ -148,20 +142,6 @@ pub fn account_token_revoke(
 
     let mut msg_get = proto::AccountTokenGet::new();
     msg_get.set_id(msg.get_id());
-
-    let account_id = match state.datastore.get_account_token(&msg_get) {
-        Ok(account_token) => account_token.get_account_id(),
-        Err(e) => {
-            let err = NetError::new(ErrCode::DATA_STORE, "ss:account-token-revoke:0");
-            error!("{}, {}", e, err);
-            conn.route_reply(req, &*err)?;
-            return Ok(());
-        }
-    };
-
-    {
-        state.tokens.write().unwrap().remove(&account_id);
-    }
 
     match state.datastore.revoke_account_token(&msg) {
         Ok(_) => conn.route_reply(req, &net::NetOk::new())?,
@@ -188,78 +168,6 @@ pub fn account_tokens_get(
             conn.route_reply(req, &*err)?;
         }
     }
-    Ok(())
-}
-
-pub fn account_token_validate(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> SrvResult<()> {
-    let msg = req.parse::<proto::AccountTokenValidate>()?;
-
-    let account_id = msg.get_account_id();
-
-    // Builder tokens are never in the DB and are not revocable
-    if account_id == bldr_core::access_token::BUILDER_ACCOUNT_ID {
-        conn.route_reply(req, &NetOk::new())?;
-        return Ok(());
-    }
-
-    cache_tokens_for_account(state, account_id)?; // Pre-emptively populate cache if needed
-
-    let is_valid = match state.tokens.read().unwrap().get(&account_id) {
-        Some(&Some(ref token)) => {
-            token.trim_right_matches('=') == msg.get_token().trim_right_matches('=')
-        }
-        Some(&None) => false,
-        None => panic!("Not reachable!"),
-    };
-
-    if is_valid {
-        conn.route_reply(req, &NetOk::new())?
-    } else {
-        let err = NetError::new(ErrCode::DATA_STORE, "ss:account-tokens-validate:0");
-        conn.route_reply(req, &*err)?;
-    }
-
-    Ok(())
-}
-
-pub fn cache_tokens_for_account(state: &mut ServerState, account_id: u64) -> SrvResult<()> {
-    let needs_cache_entry = { state.tokens.read().unwrap().get(&account_id).is_none() };
-
-    if needs_cache_entry {
-        let mut tokens = state.tokens.write().unwrap();
-        let mut msg = proto::AccountTokensGet::new();
-        msg.set_account_id(account_id);
-
-        match state.datastore.get_account_tokens(&msg) {
-            Ok(account_tokens) => {
-                assert!(account_tokens.get_tokens().len() <= 1); // Can only have max of 1 for now
-                if account_tokens.get_tokens().is_empty() {
-                    tokens.insert(account_id, None);
-                } else {
-                    tokens.insert(
-                        account_id,
-                        Some(
-                            account_tokens
-                                .get_tokens()
-                                .first()
-                                .unwrap()
-                                .get_token()
-                                .to_owned(),
-                        ),
-                    );
-                }
-            }
-            Err(err) => {
-                warn!("Unable to fetch account tokens: {:?}", err);
-                return Err(err);
-            }
-        }
-    }
-
     Ok(())
 }
 

@@ -1596,14 +1596,6 @@ impl Routable for AccountTokenRevoke {
     }
 }
 
-impl Routable for AccountTokenValidate {
-    type H = InstaId;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(InstaId(self.get_account_id()))
-    }
-}
-
 impl Serialize for Session {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where

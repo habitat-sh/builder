@@ -21,7 +21,7 @@ use self::session::Session;
 use hab_net::app::prelude::*;
 use protobuf::Message;
 use protocol::originsrv::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::RwLock;
 
 use config::Config;
@@ -314,10 +314,6 @@ lazy_static! {
             session_handlers::account_tokens_get,
         );
         map.register(
-            AccountTokenValidate::descriptor_static(),
-            session_handlers::account_token_validate,
-        );
-        map.register(
             SessionCreate::descriptor_static(),
             session_handlers::session_create,
         );
@@ -333,7 +329,6 @@ lazy_static! {
 pub struct ServerState {
     datastore: DataStore,
     sessions: Arc<Box<RwLock<HashSet<Session>>>>,
-    tokens: Arc<Box<RwLock<HashMap<u64, Option<String>>>>>,
 }
 
 impl ServerState {
@@ -343,7 +338,6 @@ impl ServerState {
         Ok(ServerState {
             datastore: datastore,
             sessions: Arc::new(Box::new(RwLock::new(HashSet::default()))),
-            tokens: Arc::new(Box::new(RwLock::new(HashMap::new()))), // TBD: Handle multiple tokens / account
         })
     }
 }

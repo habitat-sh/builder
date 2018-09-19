@@ -19,7 +19,7 @@ use hab_core::package::PackageIdent;
 use memcache;
 use protobuf;
 use protobuf::Message;
-use protocol::originsrv::OriginPackage;
+use protocol::originsrv::{OriginPackage, Session};
 
 pub struct MemcacheClient {
     cli: memcache::Client,
@@ -76,6 +76,33 @@ impl MemcacheClient {
             .as_secs();
         let namespace = format!("{}/{}", package.origin, package.name);
         self.cli.set(&namespace, epoch, self.ttl * 60).unwrap()
+    }
+
+    pub fn get_session(&mut self, user: &str) -> Option<Session> {
+        trace!("Getting session for user {} from memcached", user);
+
+        match self.get_bytes(&format!("{}", user)) {
+            Some(session) => Some(protobuf::parse_from_bytes(&session).unwrap()),
+            None => None,
+        }
+    }
+
+    pub fn delete_key(&mut self, key: &str) {
+        match self.cli.delete(key) {
+            Ok(b) => trace!("Deleted key {}, {:?}", key, b),
+            Err(e) => warn!("Failed to delete key {}: {}", key, e),
+        };
+    }
+
+    pub fn set_session(&mut self, user: &str, session: &Session) {
+        match self.cli.set(
+            &format!("{}", user),
+            session.write_to_bytes().unwrap().as_slice(),
+            self.ttl * 60,
+        ) {
+            Ok(_) => trace!("Saved session for {} to memcached", user),
+            Err(e) => warn!("Failed to save user {} to memcached: {}", user, e),
+        };
     }
 
     fn namespace(&mut self, origin: &str, name: &str) -> String {
