@@ -22,8 +22,9 @@ use bldr_core::metrics::CounterMetric;
 use hab_core::package::{Identifiable, PackageTarget};
 use hab_net::NetOk;
 use protocol::originsrv::*;
+use serde_json;
 
-use super::pkgs::{notify_upstream, postprocess_package, postprocess_package_list};
+use super::pkgs::{is_a_service, notify_upstream, postprocess_package_list};
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
@@ -236,7 +237,10 @@ fn get_latest_package_for_origin_channel_package(
     ident.set_name(pkg);
 
     match do_get_channel_package(&req, &qtarget, ident, channel) {
-        Ok(package) => postprocess_package(&req, &package, false),
+        Ok(json_body) => HttpResponse::Ok()
+            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+            .header(http::header::CACHE_CONTROL, headers::cache(false))
+            .body(json_body),
         Err(err) => err.into(),
     }
 }
@@ -254,7 +258,10 @@ fn get_latest_package_for_origin_channel_package_version(
     ident.set_version(version);
 
     match do_get_channel_package(&req, &qtarget, ident, channel) {
-        Ok(package) => postprocess_package(&req, &package, false),
+        Ok(json_body) => HttpResponse::Ok()
+            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+            .header(http::header::CACHE_CONTROL, headers::cache(false))
+            .body(json_body),
         Err(err) => err.into(),
     }
 }
@@ -274,7 +281,10 @@ fn get_package_fully_qualified(
     ident.set_release(release);
 
     match do_get_channel_package(&req, &qtarget, ident, channel) {
-        Ok(package) => postprocess_package(&req, &package, false),
+        Ok(json_body) => HttpResponse::Ok()
+            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+            .header(http::header::CACHE_CONTROL, headers::cache(false))
+            .body(json_body),
         Err(err) => err.into(),
     }
 }
@@ -516,7 +526,7 @@ fn do_get_channel_package(
     qtarget: &Query<Target>,
     mut ident: OriginPackageIdent,
     channel: String,
-) -> Result<OriginPackage> {
+) -> Result<String> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(id) => Some(id),
         Err(_) => None,
@@ -526,9 +536,9 @@ fn do_get_channel_package(
     let mut memcache = req.state().memcache.borrow_mut();
     let req_ident = ident.clone();
     match memcache.get_package(req_ident.clone().into(), &channel) {
-        Some(package) => {
+        Some(pkg_json) => {
             trace!("Cache Hit!");
-            return Ok(package.clone());
+            return Ok(pkg_json);
         }
         None => {
             trace!("Cache Miss!");
@@ -580,13 +590,22 @@ fn do_get_channel_package(
     ));
     request.set_ident(ident.clone());
 
-    match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
+    let pkg = match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
         Ok(pkg) => {
-            memcache.set_package(req_ident.clone().into(), pkg.clone().into(), &channel);
             // Notify upstream with a fully qualified ident
             notify_upstream(req, &ident, &(PackageTarget::from_str(&pkg.get_target())?));
-            Ok(pkg)
+            pkg
         }
-        Err(err) => Err(err),
-    }
+        Err(err) => return Err(err),
+    };
+
+    let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
+    let channels = helpers::channels_for_package_ident(req, pkg.get_ident());
+    pkg_json["channels"] = json!(channels);
+    pkg_json["is_a_service"] = json!(is_a_service(&pkg));
+
+    let json_body = serde_json::to_string(&pkg_json).unwrap();
+    memcache.set_package(req_ident.clone().into(), &json_body, &channel);
+
+    Ok(json_body)
 }

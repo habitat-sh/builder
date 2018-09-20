@@ -1310,7 +1310,7 @@ pub fn process_upload_for_package_archive(
     Ok(())
 }
 
-fn is_a_service(package: &OriginPackage) -> bool {
+pub fn is_a_service(package: &OriginPackage) -> bool {
     let m = package.get_manifest();
 
     // TODO: This is a temporary workaround until we plumb in a better solution for

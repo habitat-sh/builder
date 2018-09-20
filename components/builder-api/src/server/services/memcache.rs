@@ -19,7 +19,7 @@ use hab_core::package::PackageIdent;
 use memcache;
 use protobuf;
 use protobuf::Message;
-use protocol::originsrv::{OriginPackage, Session};
+use protocol::originsrv::Session;
 
 pub struct MemcacheClient {
     cli: memcache::Client,
@@ -37,34 +37,35 @@ impl MemcacheClient {
         }
     }
 
-    pub fn set_package(&mut self, ident: PackageIdent, package: OriginPackage, channel: &str) {
+    pub fn set_package(&mut self, ident: PackageIdent, pkg_json: &str, channel: &str) {
         let namespace = self.namespace(&ident.origin, &ident.name);
 
         match self.cli.set(
             &format!("{}/{}:{}", channel, ident.to_string(), namespace),
-            package.write_to_bytes().unwrap().as_slice(),
+            pkg_json,
             self.ttl * 60,
         ) {
             Ok(_) => trace!("Saved {}/{} to memcached", channel, ident.to_string()),
             Err(e) => warn!(
-                "Failed to save {:?} to memcached: {}",
-                package.to_string(),
+                "Failed to save {}/{} to memcached: {:?}",
+                channel,
+                ident.to_string(),
                 e
             ),
         };
     }
 
-    pub fn get_package(&mut self, package: PackageIdent, channel: &str) -> Option<OriginPackage> {
+    pub fn get_package(&mut self, package: PackageIdent, channel: &str) -> Option<String> {
         let namespace = self.namespace(&package.origin, &package.name);
         trace!("Getting {}/{} from memcached", channel, package.to_string());
 
-        match self.get_bytes(&format!(
+        match self.get_string(&format!(
             "{}/{}:{}",
             channel,
             package.to_string(),
             namespace
         )) {
-            Some(ops) => Some(protobuf::parse_from_bytes(&ops).unwrap()),
+            Some(json_body) => Some(json_body),
             None => None,
         }
     }
