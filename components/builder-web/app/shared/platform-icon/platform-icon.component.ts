@@ -3,7 +3,7 @@ import { targetToPlatform } from '../../util';
 
 @Component({
   selector: 'hab-platform-icon',
-  template: `<hab-icon [symbol]="os" class="icon-os" [title]="os | titlecase"></hab-icon>`
+  template: `<hab-icon [symbol]="os" class="icon-os" [title]="title"></hab-icon>`
 })
 export class PlatformIconComponent {
 
@@ -11,5 +11,13 @@ export class PlatformIconComponent {
 
   get os() {
     return targetToPlatform(this.platform);
+  }
+
+  get title() {
+    return {
+      linux: 'Linux',
+      kernel2: 'Linux (Kernel Version 2)',
+      windows: 'Windows'
+    }[this.os] || '';
   }
 }
