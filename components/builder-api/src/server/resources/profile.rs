@@ -20,6 +20,7 @@ use hab_net::NetOk;
 use protocol::originsrv::*;
 
 use server::authorize::authorize_session;
+use server::error::Result;
 use server::framework::middleware::route_message;
 use server::AppState;
 
@@ -51,6 +52,14 @@ impl Profile {
     }
 }
 
+// do_get_access_tokens is used in the framework middleware so it has to be public
+pub fn do_get_access_tokens(req: &HttpRequest<AppState>, account_id: u64) -> Result<AccountTokens> {
+    let mut request = AccountTokensGet::new();
+    request.set_account_id(account_id);
+
+    route_message::<AccountTokensGet, AccountTokens>(&req, &request)
+}
+
 //
 // Route handlers - these functions can return any Responder trait
 //
@@ -75,10 +84,7 @@ fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let mut request = AccountTokensGet::new();
-    request.set_account_id(account_id);
-
-    match route_message::<AccountTokensGet, AccountTokens>(&req, &request) {
+    match do_get_access_tokens(&req, account_id) {
         Ok(account_tokens) => HttpResponse::Ok().json(account_tokens),
         Err(err) => err.into(),
     }
@@ -105,6 +111,13 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
+    // Memcache supports multiple tokens but to preserve legacy behavior
+    // we must purge any existing tokens AFTER generating new ones
+    let access_tokens = match do_get_access_tokens(&req, account_id) {
+        Ok(access_tokens) => access_tokens,
+        Err(err) => return err.into(),
+    };
+
     let mut request = AccountTokenCreate::new();
     let token = bldr_core::access_token::generate_user_token(
         &req.state().config.api.key_path,
@@ -116,7 +129,13 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     request.set_token(token);
 
     match route_message::<AccountTokenCreate, AccountToken>(&req, &request) {
-        Ok(account_token) => HttpResponse::Ok().json(account_token),
+        Ok(account_token) => {
+            let mut memcache = req.state().memcache.borrow_mut();
+            for token in access_tokens.get_tokens() {
+                memcache.delete_key(token.get_token())
+            }
+            HttpResponse::Ok().json(account_token)
+        }
         Err(err) => err.into(),
     }
 }
@@ -128,11 +147,27 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
     };
 
+    let account_id = match authorize_session(&req, None) {
+        Ok(id) => id,
+        Err(err) => return err.into(),
+    };
+
+    let access_tokens = match do_get_access_tokens(&req, account_id) {
+        Ok(access_tokens) => access_tokens,
+        Err(err) => return err.into(),
+    };
+
     let mut request = AccountTokenRevoke::new();
     request.set_id(token_id);
 
     match route_message::<AccountTokenRevoke, NetOk>(&req, &request) {
-        Ok(_) => HttpResponse::Ok().finish(),
+        Ok(_) => {
+            let mut memcache = req.state().memcache.borrow_mut();
+            for token in access_tokens.get_tokens() {
+                memcache.delete_key(token.get_token())
+            }
+            HttpResponse::Ok().finish()
+        }
         Err(err) => err.into(),
     }
 }

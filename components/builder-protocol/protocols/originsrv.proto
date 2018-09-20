@@ -741,11 +741,6 @@ message AccountTokenRevoke {
   optional uint64 id = 1;
 }
 
-message AccountTokenValidate {
-  optional uint64 account_id = 1;
-  optional string token = 2;
-}
-
 enum SessionType {
   User = 0;
   Builder = 1;

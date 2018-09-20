@@ -23,13 +23,14 @@ use protobuf;
 use bldr_core;
 use bldr_core::metrics::CounterMetric;
 use hab_net::conn::RouteClient;
-use hab_net::{ErrCode, NetError, NetOk};
+use hab_net::{ErrCode, NetError};
 use oauth_client::types::OAuth2User;
 use protocol;
 use protocol::originsrv::*;
 use protocol::Routable;
 
 use server::error;
+use server::resources::profile::do_get_access_tokens;
 use server::services::metrics::Counter;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
@@ -98,12 +99,60 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
 
     // Check for a valid personal access token
     if bldr_core::access_token::is_access_token(token) {
-        let session =
-            bldr_core::access_token::validate_access_token(&req.state().config.api.key_path, token)
-                .map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
-        revocation_check(req, session.get_id(), token)
-            .map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:revoked-token"))?;
-        return Ok(session);
+        let mut memcache = req.state().memcache.borrow_mut();
+        match memcache.get_session(token) {
+            Some(session) => {
+                trace!("Session {} Cache Hit!", token);
+                return Ok(session);
+            }
+            None => {
+                trace!("Session {} Cache Miss!", token);
+                // Pull the session out of the current token provided so we can validate
+                // it against the db's tokens
+                let session = bldr_core::access_token::validate_access_token(
+                    &req.state().config.api.key_path,
+                    token,
+                ).map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
+
+                // If we can't find a token in the cache, we need to round-trip to the
+                // db to see if we have a valid session token.
+                match do_get_access_tokens(&req, session.get_id()) {
+                    Ok(access_tokens) => {
+                        assert!(access_tokens.get_tokens().len() <= 1); // Can only have max of 1 for now
+                        match access_tokens.get_tokens().first() {
+                            Some(access_token) => {
+                                let new_token = access_token.get_token();
+                                if token.trim_right_matches('=')
+                                    != new_token.trim_right_matches('=')
+                                {
+                                    // Token is valid but revoked or otherwise expired
+                                    return Err(error::Error::NetError(NetError::new(
+                                        ErrCode::BAD_TOKEN,
+                                        "net:auth:revoked-token",
+                                    )));
+                                }
+                                memcache.set_session(new_token, &session);
+                                return Ok(session);
+                            }
+                            None => {
+                                // We have no tokens in the database for this user
+                                return Err(error::Error::NetError(NetError::new(
+                                    ErrCode::BAD_TOKEN,
+                                    "net:auth:revoked-token",
+                                )));
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // Failed to fetch tokens from the database for this user
+                        return Err(error::Error::NetError(NetError::new(
+                            ErrCode::BAD_TOKEN,
+                            "net:auth:revoked-token",
+                        )));
+                    }
+                }
+            }
+        };
     };
 
     // Check for internal sessionsrv token
@@ -128,18 +177,6 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
             )))
         }
     }
-}
-
-fn revocation_check(
-    req: &HttpRequest<AppState>,
-    account_id: u64,
-    token: &str,
-) -> error::Result<()> {
-    let mut request = AccountTokenValidate::new();
-    request.set_account_id(account_id);
-    request.set_token(token.to_owned());
-    route_message::<AccountTokenValidate, NetOk>(req, &request)?;
-    Ok(())
 }
 
 fn session_validate(req: &HttpRequest<AppState>, token: SessionToken) -> error::Result<Session> {
