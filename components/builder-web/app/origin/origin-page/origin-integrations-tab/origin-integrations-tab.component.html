@@ -12,7 +12,7 @@
       <div class="buttons">
         <ng-container *ngFor="let provider of providers">
           <div class="wrapper" *ngIf="provider.enabled">
-            <button mat-raised-button (click)="addIntegration(provider.key)">
+            <button mat-raised-button (mouseup)="addIntegration(provider.key)">
               <div class="tile {{ provider.key }}">
                 <hab-icon [symbol]="provider.key"></hab-icon>
               </div>
