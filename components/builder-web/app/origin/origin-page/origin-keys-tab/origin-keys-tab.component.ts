@@ -90,8 +90,8 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
       .then((response: any) => {
         response.blob().then((blob) => {
           let header = response.headers.get('content-disposition');
-          let filename = header.split('; filename=')[1].trim().replace(/"/g, '');
-          this.download(blob, filename);
+          let filename = header.split(`''`).slice(-1);
+          this.download(blob, unescape(filename));
         });
       });
   }
