@@ -13,22 +13,22 @@ table! {
     }
 }
 
-// sql_function!{
-//     fn update_origin_project_v4($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) -> ()
-// }
+sql_function!{
+    fn update_origin_project_v4(project_id: BigInt, project_origin_id: BigInt, project_package_name: Text, project_plan_path: Text, project_vcs_type: Text, project_vcs_data: Text, project_owner_id: BigInt, project_vcs_installation_id: BigInt, project_visibility: Text, project_auto_build: Bool) -> ()
+}
 
-// sql_function!{
-//     fn delete_origin_project_v1($1) -> ()
-// }
+sql_function!{
+   fn delete_origin_project_v1(project_name: Text) -> ()
+}
 
-// sql_function!{
-//     fn get_origin_project_v1($1) -> ()
-// }
+sql_function!{
+    fn get_origin_project_v1(project_name: Text) -> (BigInt, Nullable<BigInt>, Nullable<Text>, Nullable<Text>, Nullable<Text>, Nullable<Text>, Nullable<BigInt>, Nullable<Timestamptz>, Nullable<Timestamptz>, Text)
+}
 
-// sql_function!{
-//     fn insert_origin_project_v5($1, $2, $3, $4, $5, $6, $7, $8, $9) -> ()
-// }
+sql_function!{
+    fn insert_origin_project_v5(project_origin_name: Text, project_package_name: Text, project_plan_path: Text, project_vcs_type: Text, project_vcs_data: Text, project_owner_id: BigInt, project_vcs_installation_id: BigInt, project_visibility: Text, project_auto_build: Bool) -> (BigInt, Nullable<BigInt>, Nullable<Text>, Nullable<Text>, Nullable<Text>, Nullable<Text>, Nullable<BigInt>, Nullable<Timestamptz>, Nullable<Timestamptz>, Text)
+}
 
-// sql_function!{
-//     fn get_origin_project_list_v2($1) -> ()
-// }
+sql_function!{
+    fn get_origin_project_list_v2(in_origin: Text) -> (BigInt, Nullable<BigInt>, Nullable<Text>, Nullable<Text>, Nullable<Text>, Nullable<Text>, Nullable<BigInt>, Nullable<Timestamptz>, Nullable<Timestamptz>, Text)
+}
