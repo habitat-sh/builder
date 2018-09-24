@@ -364,8 +364,15 @@ fn upload_package(
                 .clear_cache_for_package(ident.clone().into());
             do_upload_package_async(req, qupload, ident, temp_path, writer)
         }
+        Err(Error::NetError(ref err)) if err.get_code() == ErrCode::ENTITY_CONFLICT => {
+            debug!(
+                "Failed to upload package {}, metadata already exists",
+                &ident
+            );
+            Box::new(fut_ok(HttpResponse::new(StatusCode::CONFLICT)))
+        }
         Err(err) => {
-            warn!("Failed to upload package, err={:?}", err);
+            warn!("Failed to upload package {}, err={:?}", &ident, err);
             Box::new(fut_ok(err.into()))
         }
     }
@@ -912,7 +919,6 @@ fn do_upload_package_finish(
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
         if let Err(e) = check_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
-            debug!("Failed circular dependency check, err={:?}", e);
             return e.into();
         }
     }
@@ -988,7 +994,12 @@ fn do_upload_package_finish(
                         ident,
                         group.get_id()
                     ),
-                    Err(err) => warn!("Unable to schedule build, err: {:?}", err),
+                    Err(Error::NetError(ref err))
+                        if err.get_code() == ErrCode::ENTITY_NOT_FOUND =>
+                    {
+                        debug!("Unable to schedule build for {}, err: {:?}", ident, err)
+                    }
+                    Err(err) => warn!("Unable to schedule build for {}, err: {:?}", ident, err),
                 }
             }
 
@@ -1220,11 +1231,13 @@ fn check_circular_deps(
         Ok(_) => Ok(()),
         Err(Error::NetError(err)) => {
             if err.get_code() == ErrCode::ENTITY_CONFLICT {
-                warn!(
+                debug!(
                     "Failed package circular dependency check: {}, err: {:?}",
                     ident, err
                 );
                 return Err(Error::CircularDependency(ident.to_string()));
+            } else {
+                warn!("Error checking circular dependency, err={:?}", err);
             }
             return Err(Error::NetError(err));
         }
