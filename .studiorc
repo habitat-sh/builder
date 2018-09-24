@@ -134,6 +134,7 @@ _start-builder() {
     start-builder datastore
     configure
     start-builder cache
+    start-builder memcached
     start-builder router
     start-builder api
     start-builder api-proxy
@@ -142,7 +143,6 @@ _start-builder() {
     start-builder worker
     start-builder minio
     configure-minio
-    start-builder memcached
     sleep 2
     generate_bldr_keys
     upload_github_keys
@@ -217,7 +217,7 @@ declare -A svc_params=(
 
 _stop-builder() {
   if [[ "$#" -eq 0 ]]; then
-    stop-builder cache api api-proxy datastore jobsrv originsrv router worker minio
+    stop-builder cache api api-proxy datastore jobsrv originsrv router worker minio memcached
     return $?
   fi
 

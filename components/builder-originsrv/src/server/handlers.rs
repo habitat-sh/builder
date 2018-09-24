@@ -1144,7 +1144,7 @@ pub fn origin_package_channel_list(
         }
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "vt:origin-package-channel-list:1");
-            error!("{}, {}", err, e);
+            debug!("{}, {}", err, e);
             conn.route_reply(req, &*err)?;
         }
     }
