@@ -535,7 +535,17 @@ fn do_get_channel_package(
 
     let mut memcache = req.state().memcache.borrow_mut();
     let req_ident = ident.clone();
-    match memcache.get_package(req_ident.clone().into(), &channel) {
+
+    // TODO: Deprecate target from headers
+    let target = match qtarget.target.clone() {
+        Some(t) => {
+            debug!("Query requested target = {}", t);
+            PackageTarget::from_str(&t)?
+        }
+        None => helpers::target_from_headers(req),
+    };
+
+    match memcache.get_package(req_ident.clone().into(), &channel, &target) {
         Some(pkg_json) => {
             trace!("Cache Hit!");
             return Ok(pkg_json);
@@ -549,15 +559,6 @@ fn do_get_channel_package(
     // TODO: Have the OriginPackageLatestGet call just return the package
     // metadata, thus saving us a second call to actually retrieve the package
     if !ident.fully_qualified() {
-        // TODO: Deprecate target from headers
-        let target = match qtarget.target.clone() {
-            Some(t) => {
-                debug!("Query requested target = {}", t);
-                PackageTarget::from_str(&t)?
-            }
-            None => helpers::target_from_headers(req),
-        };
-
         let mut request = OriginChannelPackageLatestGet::new();
         request.set_name(channel.clone());
         request.set_target(target.to_string());
@@ -605,7 +606,7 @@ fn do_get_channel_package(
     pkg_json["is_a_service"] = json!(is_a_service(&pkg));
 
     let json_body = serde_json::to_string(&pkg_json).unwrap();
-    memcache.set_package(req_ident.clone().into(), &json_body, &channel);
+    memcache.set_package(req_ident.clone().into(), &json_body, &channel, &target);
 
     Ok(json_body)
 }

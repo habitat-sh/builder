@@ -37,17 +37,29 @@ impl MemcacheClient {
         }
     }
 
-    pub fn set_package(&mut self, ident: PackageIdent, pkg_json: &str, channel: &str) {
+    pub fn set_package(
+        &mut self,
+        ident: PackageIdent,
+        pkg_json: &str,
+        channel: &str,
+        target: &str,
+    ) {
         let namespace = self.namespace(&ident.origin, &ident.name);
 
         match self.cli.set(
-            &format!("{}/{}:{}", channel, ident.to_string(), namespace),
+            &format!("{}/{}/{}:{}", target, channel, ident.to_string(), namespace),
             pkg_json,
             self.ttl * 60,
         ) {
-            Ok(_) => trace!("Saved {}/{} to memcached", channel, ident.to_string()),
+            Ok(_) => trace!(
+                "Saved {}/{}/{} to memcached",
+                target,
+                channel,
+                ident.to_string()
+            ),
             Err(e) => warn!(
-                "Failed to save {}/{} to memcached: {:?}",
+                "Failed to save {}/{}/{} to memcached: {:?}",
+                target,
                 channel,
                 ident.to_string(),
                 e
@@ -55,12 +67,23 @@ impl MemcacheClient {
         };
     }
 
-    pub fn get_package(&mut self, package: PackageIdent, channel: &str) -> Option<String> {
+    pub fn get_package(
+        &mut self,
+        package: PackageIdent,
+        channel: &str,
+        target: &str,
+    ) -> Option<String> {
         let namespace = self.namespace(&package.origin, &package.name);
-        trace!("Getting {}/{} from memcached", channel, package.to_string());
+        trace!(
+            "Getting {}/{}/{} from memcached",
+            target,
+            channel,
+            package.to_string()
+        );
 
         match self.get_string(&format!(
-            "{}/{}:{}",
+            "{}/{}/{}:{}",
+            target,
             channel,
             package.to_string(),
             namespace
