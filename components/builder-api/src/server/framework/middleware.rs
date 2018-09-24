@@ -114,7 +114,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
                     token,
                 ).map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
 
-                if (session.get_id() == bldr_core::access_token::BUILDER_ACCOUNT_ID) {
+                if session.get_id() == bldr_core::access_token::BUILDER_ACCOUNT_ID {
                     trace!("Builder token identified");
                     memcache.set_session(token, &session);
                     return Ok(session);
