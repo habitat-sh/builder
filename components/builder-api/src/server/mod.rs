@@ -42,7 +42,7 @@ use hab_net::socket;
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
-use self::db::{init, DbPool};
+use self::db::{init, DbExecutor};
 use self::error::Error;
 use self::framework::middleware::{Authentication, XRouteClient};
 
@@ -81,11 +81,11 @@ pub struct AppState {
     segment: SegmentClient,
     upstream: UpstreamClient,
     memcache: RefCell<MemcacheClient>,
-    db: Addr<DbPool>,
+    db: Addr<DbExecutor>,
 }
 
 impl AppState {
-    pub fn new(config: &Config, db: Addr<DbPool>) -> AppState {
+    pub fn new(config: &Config, db: Addr<DbExecutor>) -> AppState {
         AppState {
             config: config.clone(),
             packages: S3Handler::new(config.s3.clone()),
