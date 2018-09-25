@@ -3,6 +3,7 @@ pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=('Apache-2.0')
 pkg_deps=(core/memcached)
+pkg_build_deps=(core/git)
 pkg_exports=(
   [port]=port
 )

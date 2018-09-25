@@ -1139,7 +1139,7 @@ pub fn origin_package_channel_list(
                 ErrCode::ENTITY_NOT_FOUND,
                 "vt:origin-package-channel-list:0",
             );
-            error!("{}", err);
+            debug!("{}", err);
             conn.route_reply(req, &*err)?;
         }
         Err(e) => {

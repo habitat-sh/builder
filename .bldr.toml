@@ -1,20 +1,6 @@
 [airlock]
 plan_path = "components/airlock"
 
-[builder-admin-proxy]
-plan_path = "components/builder-admin-proxy"
-
-[builder-admin]
-plan_path = "components/builder-admin/habitat"
-paths = [
-  "components/builder-admin/*",
-  "components/builder-http-gateway/*",
-  "components/builder-protocol/*",
-  "components/core/*",
-  "components/net/*",
-  "support/ci/builder-base-plan.sh",
-]
-
 [builder-api-proxy]
 plan_path = "components/builder-api-proxy/habitat"
 paths = [
@@ -81,4 +67,16 @@ paths = [
   "components/core/*",
   "components/net/*",
   "support/ci/builder-base-plan.sh",
+]
+
+[builder-minio]
+plan_path = "components/builder-minio/habitat"
+paths = [
+  "components/builder-minio/*"
+]
+
+[builder-memcached]
+plan_path = "components/builder-memcached"
+paths = [
+  "components/builder-memcached/*"
 ]
