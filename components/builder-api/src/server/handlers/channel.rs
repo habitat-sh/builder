@@ -1,35 +1,37 @@
 use actix_web::{actix::Handler, error, Error};
-use diesel;
-use diesel::sql_types::{Bool, Text};
-use diesel::RunQueryDsl;
-use server::db::DbPool;
-use server::models::channel::{Channel, ChannelGet, ChannelList};
+use server::db::DbExecutor;
+use server::models::channel::{Channel, DeleteChannel, GetChannel, ListChannels, NewChannel};
+use std::ops::Deref;
 
-impl Handler<ChannelList> for DbPool {
+impl Handler<ListChannels> for DbExecutor {
     type Result = Result<Vec<Channel>, Error>;
-    fn handle(&mut self, channel_list: ChannelList, _: &mut Self::Context) -> Self::Result {
-        let conn = &self.0.get().map_err(error::ErrorInternalServerError)?;
-        let channels = diesel::sql_query("select * from get_origin_channels_for_origin_v3($1, $2)")
-            .bind::<Text, _>(channel_list.origin)
-            .bind::<Bool, _>(channel_list.include_sandbox_channels)
-            .get_results(conn)
-            .unwrap();
-
-        Ok(channels)
+    fn handle(&mut self, channel: ListChannels, _: &mut Self::Context) -> Self::Result {
+        Channel::list(channel, self.get_conn()?.deref())
+            .map_err(|_| error::ErrorInternalServerError("Error listing channels"))
     }
 }
 
-impl Handler<ChannelGet> for DbPool {
+impl Handler<GetChannel> for DbExecutor {
     type Result = Result<Channel, Error>;
-    fn handle(&mut self, channel_get: ChannelGet, _: &mut Self::Context) -> Self::Result {
-        let conn = &self.0.get().map_err(error::ErrorInternalServerError)?;
-        let channel =
-            diesel::sql_query("select * from get_origin_channel_v1(origin_name, channel_name)")
-                .bind::<Text, _>(channel_get.origin)
-                .bind::<Text, _>(channel_get.channel)
-                .get_result(conn)
-                .unwrap();
+    fn handle(&mut self, channel: GetChannel, _: &mut Self::Context) -> Self::Result {
+        Channel::get(channel, self.get_conn()?.deref())
+            .map_err(|_| error::ErrorInternalServerError("Error fetching channel"))
+    }
+}
 
-        Ok(channel)
+impl Handler<NewChannel> for DbExecutor {
+    type Result = Result<Channel, Error>;
+    fn handle(&mut self, channel: NewChannel, _: &mut Self::Context) -> Self::Result {
+        Channel::insert(channel, self.get_conn()?.deref())
+            .map_err(|_| error::ErrorInternalServerError("Error creating channel"))
+    }
+}
+
+impl Handler<DeleteChannel> for DbExecutor {
+    type Result = Result<(), Error>;
+    fn handle(&mut self, channel: DeleteChannel, _: &mut Self::Context) -> Self::Result {
+        Channel::delete(channel, self.get_conn()?.deref())
+            .map(|_| ())
+            .map_err(|_| error::ErrorInternalServerError("Error deleting channel"))
     }
 }
