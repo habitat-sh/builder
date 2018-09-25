@@ -17,9 +17,9 @@ doc = false
 clap = { version = "*", features = ["suggestions", "color", "unstable"] }
 env_logger = "*"
 errno = "*"
-libc = "*"
+libc = "0.2.42"
 log = "*"
 pnet_datalink = "*"
 rand = "*"
-unshare = "*"
+unshare = "0.4.0"
 users = "*"

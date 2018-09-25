@@ -15,8 +15,9 @@
 use std::str::FromStr;
 
 use actix_web::http::{self, Method, StatusCode};
-use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
+use actix_web::{AsyncResponder, FromRequest, FutureResponse};
+use futures::Future;
 
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{Identifiable, PackageTarget};
@@ -30,6 +31,7 @@ use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
+use server::models::channel::ChannelList;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -95,18 +97,36 @@ impl Channels {
 //
 // Route handlers - these functions can return any Responder trait
 //
-fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
+fn get_channels(
+    (req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>),
+) -> FutureResponse<HttpResponse> {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();
 
-    match do_get_channels(&req, origin, sandbox.is_set) {
-        Ok(list) => {
-            let mut response = HttpResponse::Ok();
-            response
-                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .json(list)
-        }
-        Err(err) => err.into(),
-    }
+    req.state()
+        .db
+        .send(ChannelList {
+            origin: origin,
+            include_sandbox_channels: sandbox.is_set,
+        }).from_err()
+        .and_then(|res| match res {
+            Ok(list) => {
+                // TED: This is to maintain backwards API compat while killing some proto definitions
+                // currently the output looks like [{"name": "foo"}] when it probably should be ["foo"]
+                #[derive(Serialize)]
+                struct Temp {
+                    name: String,
+                }
+                let ident_list: Vec<Temp> = list
+                    .iter()
+                    .map(|channel| Temp {
+                        name: channel.name.clone(),
+                    }).collect();
+                Ok(HttpResponse::Ok()
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .json(ident_list))
+            }
+            Err(_err) => Ok(HttpResponse::InternalServerError().into()),
+        }).responder()
 }
 
 fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
@@ -292,37 +312,6 @@ fn get_package_fully_qualified(
 //
 // Internal - these functions should return Result<..>
 //
-fn do_get_channels(
-    req: &HttpRequest<AppState>,
-    origin: String,
-    sandbox: bool,
-) -> Result<Vec<OriginChannelIdent>> {
-    // Pass ?sandbox=true to this endpoint to include sandbox channels in the list. They are not
-    // there by default.
-    let mut request = OriginChannelListRequest::new();
-    request.set_include_sandbox_channels(sandbox);
-
-    match helpers::get_origin(&req, &origin) {
-        Ok(orgn) => request.set_origin_id(orgn.get_id()),
-        Err(err) => return Err(err),
-    }
-
-    match route_message::<OriginChannelListRequest, OriginChannelListResponse>(&req, &request) {
-        Ok(list) => {
-            let res: Vec<OriginChannelIdent> = list
-                .get_channels()
-                .iter()
-                .map(|channel| {
-                    let mut ident = OriginChannelIdent::new();
-                    ident.set_name(channel.get_name().to_string());
-                    ident
-                }).collect();
-            Ok(res)
-        }
-        Err(err) => return Err(err),
-    }
-}
-
 fn do_promote_package(
     req: &HttpRequest<AppState>,
     origin: String,

@@ -12,11 +12,14 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
+actix = "*"
 bytes = "*"
 base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
 constant_time_eq = "*"
+chrono = { version = "*", features = ["serde"] }
+diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
@@ -34,15 +37,15 @@ toml = { version = "*", default-features = false }
 futures = "0.1"
 r2d2 = "*"
 regex = "*"
-rusoto_core = "*"
-rusoto_s3 = "*"
+rusoto_core = "0.32.0"
+rusoto_s3 = "0.32.0"
 tempfile = "*"
 time = "*"
 url = "*"
 uuid = { version = "*", features = ["v4"] }
 
 [dependencies.actix-web]
-version = "0.7.3"
+version = "*"
 default-features = false
 
 [dependencies.clap]
@@ -73,3 +76,6 @@ git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.habitat_net]
 path = "../net"
+
+[dependencies.habitat_builder_db]
+path = "../builder-db"

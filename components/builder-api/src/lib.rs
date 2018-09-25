@@ -15,16 +15,21 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
+extern crate actix;
 extern crate actix_web;
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
 extern crate builder_core as bldr_core;
 extern crate bytes;
+extern crate chrono;
 extern crate constant_time_eq;
+#[macro_use]
+extern crate diesel;
 #[macro_use]
 extern crate features;
 extern crate github_api_client;
+extern crate habitat_builder_db as db;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
 extern crate habitat_http_client as http_client;

@@ -24,6 +24,7 @@ use std::path::PathBuf;
 
 use num_cpus;
 
+use db::config::DataStoreCfg;
 use hab_core;
 use hab_core::config::ConfigFile;
 use hab_core::package::target::{self, PackageTarget};
@@ -65,6 +66,7 @@ pub struct Config {
     pub ui: UiCfg,
     pub upstream: UpstreamCfg,
     pub memcached: MemcacheCfg,
+    pub datastore: DataStoreCfg,
 }
 
 impl Default for Config {
@@ -80,6 +82,7 @@ impl Default for Config {
             ui: UiCfg::default(),
             upstream: UpstreamCfg::default(),
             memcached: MemcacheCfg::default(),
+            datastore: DataStoreCfg::default(),
         }
     }
 }
@@ -320,6 +323,16 @@ mod tests {
 
         [github]
         api_url = "https://api.github.com"
+        
+        [datastore]
+        host = "1.1.1.1"
+        port = 9000
+        user = "test"
+        database = "test"
+        connection_retry_ms = 500
+        connection_timeout_sec = 4800
+        connection_test = true
+        pool_size = 1
         "#;
 
         let config = Config::from_raw(&content).unwrap();
@@ -376,6 +389,13 @@ mod tests {
         );
         assert_eq!(config.s3.endpoint, "http://localhost:9000");
         assert_eq!(config.s3.bucket_name, "hibbity-bibbity-poopity-scoopity");
+        assert_eq!(config.datastore.port, 9000);
+        assert_eq!(config.datastore.user, "test");
+        assert_eq!(config.datastore.database, "test");
+        assert_eq!(config.datastore.connection_retry_ms, 500);
+        assert_eq!(config.datastore.connection_timeout_sec, 4800);
+        assert_eq!(config.datastore.connection_test, true);
+        assert_eq!(config.datastore.pool_size, 1);
     }
 
     #[test]

@@ -38,3 +38,11 @@ origins = ["core"]
 
 [memcache]
 ttl = 15
+
+[datastore]
+user = "hab"
+password = ""
+database = "builder"
+connection_retry_ms = 300
+connection_timeout_sec = 3600
+db_workers = 4

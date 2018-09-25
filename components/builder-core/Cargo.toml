@@ -22,7 +22,7 @@ serde_json = "*"
 time = "*"
 toml = { version = "*", default-features = false }
 walkdir = "*"
-reqwest = "*"
+reqwest = "0.8.1"
 hyper = "^0.11.9"
 
 [dependencies.habitat_core]

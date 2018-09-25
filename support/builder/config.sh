@@ -42,6 +42,9 @@ client_secret = "$OAUTH_CLIENT_SECRET"
 [github]
 api_url = "$GITHUB_API_URL"
 app_id = $GITHUB_APP_ID
+
+[datastore]
+password = "$PGPASSWORD"
 EOT
 
 mkdir -p /hab/svc/builder-api-proxy
