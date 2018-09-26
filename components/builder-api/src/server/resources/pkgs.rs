@@ -310,6 +310,18 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
 
     match route_message::<OriginPackageGet, OriginPackage>(&req, &ident_req) {
         Ok(package) => {
+            // TODO: Modify OriginPackageGet to take a target param. For now,
+            // just check to make sure the target matches the request
+            if package.get_target() != target.as_ref() {
+                debug!(
+                    "Package target did not match: {} {} {}",
+                    ident,
+                    package.get_target(),
+                    target
+                );
+                return HttpResponse::new(StatusCode::NOT_FOUND);
+            }
+
             let dir =
                 tempdir_in(&req.state().config.api.data_path).expect("Unable to create a tempdir!");
             let file_path = dir.path().join(archive_name(&(&package).into(), &target));
