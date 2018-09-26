@@ -59,6 +59,38 @@ pub trait CounterMetric: Metric {
     }
 }
 
+pub trait GaugeMetric: Metric {
+    /// Set the value of the gauge
+    fn set(&self, val: MetricValue) {
+        match sender().send((
+            MetricType::Gauge,
+            MetricOperation::Set,
+            self.id(),
+            Some(val),
+            vec![],
+        )) {
+            Ok(_) => (),
+            Err(e) => error!("Failed to set gauge, error: {:?}", e),
+        }
+    }
+}
+
+pub trait HistogramMetric: Metric {
+    /// Set the value of the gauge
+    fn set(&self, val: MetricValue) {
+        match sender().send((
+            MetricType::Histogram,
+            MetricOperation::Set,
+            self.id(),
+            Some(val),
+            vec![],
+        )) {
+            Ok(_) => (),
+            Err(e) => error!("Failed to set gauge, error: {:?}", e),
+        }
+    }
+}
+
 // Implementation Details
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -66,11 +98,14 @@ pub trait CounterMetric: Metric {
 #[derive(Debug, Clone, Copy)]
 enum MetricType {
     Counter,
+    Gauge,
+    Histogram,
 }
 
 #[derive(Debug, Clone, Copy)]
 enum MetricOperation {
     Increment,
+    Set,
 }
 
 type MetricValue = f64;
@@ -119,7 +154,7 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
     rz.send(()).unwrap(); // Blocks until the matching receive is called
 
     loop {
-        let (mtyp, mop, mid, _mval, mtags): MetricTuple = rx.recv().unwrap();
+        let (mtyp, mop, mid, mval, mtags): MetricTuple = rx.recv().unwrap();
 
         match client {
             Some(ref mut cli) => match mtyp {
@@ -130,8 +165,27 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
                             cli.incr(mid_str, &mtags)
                                 .unwrap_or_else(|e| warn!("Could not increment metric; {:?}", e))
                         }
+                        _ => warn!("Unexpected metric operation!"),
                     };
                 }
+                MetricType::Gauge => match mop {
+                    MetricOperation::Set => {
+                        let mid_str: &str = mid.borrow();
+                        let val_str = format!("{}", mval.unwrap());
+                        cli.gauge(mid_str, val_str, &mtags)
+                            .unwrap_or_else(|e| warn!("Could not set metric; {:?}", e))
+                    }
+                    _ => warn!("Unexpected metric operation!"),
+                },
+                MetricType::Histogram => match mop {
+                    MetricOperation::Set => {
+                        let mid_str: &str = mid.borrow();
+                        let val_str = format!("{}", mval.unwrap());
+                        cli.histogram(mid_str, val_str, &mtags)
+                            .unwrap_or_else(|e| warn!("Could not set metric; {:?}", e))
+                    }
+                    _ => warn!("Unexpected metric operation!"),
+                },
             },
             None => (),
         }

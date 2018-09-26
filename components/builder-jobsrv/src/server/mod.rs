@@ -16,6 +16,7 @@ mod handlers;
 pub mod log_archiver;
 mod log_directory;
 mod log_ingester;
+mod metrics;
 mod scheduler;
 mod worker_manager;
 
