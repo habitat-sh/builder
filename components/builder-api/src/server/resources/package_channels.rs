@@ -31,6 +31,7 @@ use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
+use server::models::package_channels::PromotePackage;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -77,16 +78,24 @@ impl PackageChannels {
     }
 }
 
-fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
+fn promote_package(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let (origin, channel, pkg, version, release) =
         Path::<(String, String, String, String, String)>::extract(&req)
             .unwrap()
             .into_inner();
 
-    match do_promote_package(&req, origin, channel, pkg, version, release) {
-        Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(err) => err.into(),
-    }
+    let ident = format!("{}/{}/{}/{}", origin, pkg, version, release);
+    req.state()
+        .db
+        .send(PromotePackage {
+            ident,
+            origin,
+            channel,
+        }).from_err()
+        .and_then(|res| match res {
+            Ok(_) => Ok(HttpResponse::new(StatusCode::OK)),
+            Err(e) => Err(e),
+        }).responder()
 }
 
 fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
@@ -219,81 +228,6 @@ fn get_package_fully_qualified(
 //
 // Internal - these functions should return Result<..>
 //
-fn do_promote_package(
-    req: &HttpRequest<AppState>,
-    origin: String,
-    channel: String,
-    pkg: String,
-    version: String,
-    release: String,
-) -> Result<()> {
-    let session_id = authorize_session(req, Some(&origin))?;
-
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin.clone());
-    ident.set_name(pkg);
-    ident.set_version(version);
-    ident.set_release(release);
-
-    let mut origin_get = OriginGet::new();
-    origin_get.set_name(ident.get_origin().to_string());
-
-    let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
-        Ok(o) => o.get_id(),
-        Err(err) => return Err(err),
-    };
-
-    let mut channel_req = OriginChannelGet::new();
-    channel_req.set_origin_name(ident.get_origin().to_string());
-    channel_req.set_name(channel.to_string());
-
-    let origin_channel = match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
-        Ok(c) => {
-            req.state()
-                .memcache
-                .borrow_mut()
-                .clear_cache_for_package(ident.clone().into());
-            c
-        }
-        Err(e) => {
-            warn!("Error retrieving channel: {:?}", &e);
-            return Err(e);
-        }
-    };
-
-    let mut request = OriginPackageGet::new();
-    request.set_ident(ident.clone());
-    request.set_visibilities(helpers::all_visibilities());
-
-    let package = match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-        Ok(p) => p,
-        Err(e) => {
-            warn!("Error retrieving package {:?}", &e);
-            return Err(e);
-        }
-    };
-
-    let mut promote = OriginPackagePromote::new();
-    promote.set_channel_id(origin_channel.get_id());
-    promote.set_package_id(package.get_id());
-    promote.set_ident(ident.clone());
-
-    match route_message::<OriginPackagePromote, NetOk>(req, &promote) {
-        Ok(_) => match audit_package_rank_change(
-            req,
-            package.get_id(),
-            origin_channel.get_id(),
-            PackageChannelOperation::Promote,
-            origin_id,
-            session_id,
-        ) {
-            Ok(_) => return Ok(()),
-            Err(err) => return Err(err),
-        },
-        Err(err) => return Err(err),
-    }
-}
-
 fn do_demote_package(
     req: &HttpRequest<AppState>,
     origin: String,
