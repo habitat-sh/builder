@@ -303,6 +303,9 @@ mod tests {
         handler_count = 128
         keep_alive = 30
 
+        [memcached]
+        ttl = 11
+
         [ui]
         root = "/some/path"
 
@@ -357,6 +360,8 @@ mod tests {
         assert_eq!(&config.api.features_enabled, "foo, bar");
 
         assert_eq!(&format!("{}", config.http.listen), "::1");
+
+        assert_eq!(config.memcached.ttl, 11);
 
         assert_eq!(config.upstream.endpoint, String::from("http://example.com"));
         assert_eq!(

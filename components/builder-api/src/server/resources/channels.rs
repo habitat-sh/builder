@@ -31,7 +31,7 @@ use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-use server::models::channel::ChannelList;
+use server::models::channel::{DeleteChannel, ListChannels};
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -104,7 +104,7 @@ fn get_channels(
 
     req.state()
         .db
-        .send(ChannelList {
+        .send(ListChannels {
             origin: origin,
             include_sandbox_channels: sandbox.is_set,
         }).from_err()
@@ -140,34 +140,29 @@ fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
-fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
+fn delete_channel(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner();
 
-    let mut channel_req = OriginChannelGet::new();
-    channel_req.set_origin_name(origin.clone());
-    channel_req.set_name(channel.clone());
-    match route_message::<OriginChannelGet, OriginChannel>(&req, &channel_req) {
-        Ok(origin_channel) => {
-            if let Err(err) = authorize_session(&req, Some(&origin)) {
-                return err.into();
-            }
-
-            if channel == "stable" || channel == "unstable" {
-                return HttpResponse::new(StatusCode::FORBIDDEN);
-            }
-
-            let mut delete = OriginChannelDelete::new();
-            delete.set_id(origin_channel.get_id());
-            delete.set_origin_id(origin_channel.get_origin_id());
-            match route_message::<OriginChannelDelete, NetOk>(&req, &delete) {
-                Ok(_) => HttpResponse::new(StatusCode::OK),
-                Err(err) => err.into(),
-            }
-        }
-        Err(err) => err.into(),
+    if let Err(err) = authorize_session(&req, Some(&origin)) {
+        return Err(err);
     }
+
+    if channel == "stable" || channel == "unstable" {
+        return Ok(HttpResponse::new(StatusCode::FORBIDDEN).finish());
+    }
+
+    req.state()
+        .db
+        .send(DeleteChannel {
+            origin: origin,
+            channel: channel,
+        }).from_err()
+        .and_then(|res| match res {
+            Ok(_) => HttpResponse::new(StatusCode::OK),
+            Err(e) => e.into(),
+        }).responder()
 }
 
 fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {

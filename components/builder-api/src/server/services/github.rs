@@ -227,8 +227,8 @@ fn build_plans(
                 }
             }
             Err(err) => {
-                warn!(
-                    "Failed to fetch project: {}, {:?}",
+                debug!(
+                    "Failed to fetch project (plan may not be connected): {}, {:?}",
                     project_get.get_name(),
                     err
                 );
