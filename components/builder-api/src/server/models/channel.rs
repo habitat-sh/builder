@@ -18,12 +18,10 @@ pub struct Channel {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Deserialize, Insertable)]
-#[table_name = "origin_channels"]
-pub struct NewChannel {
+pub struct CreateChannel {
     pub name: String,
     pub owner_id: i64,
-    pub origin_id: i64,
+    pub origin: String,
 }
 
 pub struct ListChannels {
@@ -41,7 +39,7 @@ pub struct DeleteChannel {
     pub channel: String,
 }
 
-impl Message for NewChannel {
+impl Message for CreateChannel {
     type Result = Result<Channel, Error>;
 }
 
@@ -72,9 +70,9 @@ impl Channel {
             .get_result(conn)
     }
 
-    pub fn insert(channel: NewChannel, conn: &PgConnection) -> QueryResult<Channel> {
-        diesel::sql_query("select * from insert_origin_channel_v1($1, $2, $3)")
-            .bind::<BigInt, _>(channel.origin_id)
+    pub fn create(channel: CreateChannel, conn: &PgConnection) -> QueryResult<Channel> {
+        diesel::sql_query("select * from insert_origin_channel_v2($1, $2, $3)")
+            .bind::<Text, _>(channel.origin)
             .bind::<BigInt, _>(channel.owner_id)
             .bind::<Text, _>(channel.name)
             .get_result(conn)
