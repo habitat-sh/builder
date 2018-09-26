@@ -57,6 +57,7 @@ use self::resources::ext::Ext;
 use self::resources::jobs::Jobs;
 use self::resources::notify::Notify;
 use self::resources::origins::Origins;
+use self::resources::package_channels::PackageChannels;
 use self::resources::pkgs::Packages;
 use self::resources::profile::Profile;
 use self::resources::projects::Projects;
@@ -171,6 +172,7 @@ pub fn run(config: Config) -> Result<()> {
             .configure(Notify::register)
             .configure(Origins::register)
             .configure(Packages::register)
+            .configure(PackageChannels::register)
             .configure(Profile::register)
             .configure(Projects::register)
             .configure(User::register)
