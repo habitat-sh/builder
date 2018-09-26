@@ -4,6 +4,7 @@ pub mod ext;
 pub mod jobs;
 pub mod notify;
 pub mod origins;
+pub mod package_channels;
 pub mod pkgs;
 pub mod profile;
 pub mod projects;
