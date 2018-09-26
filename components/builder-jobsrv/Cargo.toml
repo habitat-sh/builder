@@ -15,8 +15,8 @@ doc = false
 builder_core = { path = "../builder-core" }
 clippy = {version = "*", optional = true}
 futures = "*"
-rusoto_core = "*"
-rusoto_s3 = "*"
+rusoto_core = "0.32.0"
+rusoto_s3 = "0.32.0"
 env_logger = "*"
 habitat_net = { path = "../net" }
 habitat_builder_db = { path = "../builder-db" }

@@ -27,7 +27,6 @@ extern crate num_cpus;
 extern crate postgres;
 extern crate postgres_shared;
 extern crate r2d2;
-extern crate r2d2_diesel;
 extern crate r2d2_postgres;
 extern crate rand;
 extern crate serde;

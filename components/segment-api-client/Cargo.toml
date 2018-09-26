@@ -6,7 +6,7 @@ workspace = "../../"
 
 [dependencies]
 base64 = "*"
-reqwest = "*"
+reqwest = "0.8.1"
 log = "*"
 serde = "*"
 serde_derive = "*"

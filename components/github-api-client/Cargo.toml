@@ -7,7 +7,7 @@ workspace = "../../"
 [dependencies]
 base64 = "*"
 frank_jwt = "*"
-reqwest = "*"
+reqwest = "0.8.1"
 log = "*"
 regex = "*"
 serde = "*"

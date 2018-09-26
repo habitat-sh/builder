@@ -17,9 +17,7 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use actix_web::http::header::{
-    Charset, ContentDisposition, ContentType, DispositionParam, DispositionType,
-};
+use actix_web::http::header::{ContentDisposition, ContentType, DispositionParam, DispositionType};
 use actix_web::http::{self, Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{error, App, AsyncResponder, HttpMessage, HttpRequest, HttpResponse, Path, Query};
@@ -1157,7 +1155,7 @@ fn archive_name(ident: &PackageIdent, target: &PackageTarget) -> PathBuf {
 }
 
 fn download_response_for_archive(archive: PackageArchive, file_path: PathBuf) -> HttpResponse {
-    let filename = archive.file_name().as_bytes().to_vec();
+    let filename = archive.file_name();
     let file = match File::open(&file_path) {
         Ok(f) => f,
         Err(err) => {
@@ -1176,11 +1174,7 @@ fn download_response_for_archive(archive: PackageArchive, file_path: PathBuf) ->
             http::header::CONTENT_DISPOSITION,
             ContentDisposition {
                 disposition: DispositionType::Attachment,
-                parameters: vec![DispositionParam::Filename(
-                    Charset::Iso_8859_1, // The character set for the bytes of the filename
-                    None,                // The optional language tag (see `language-tag` crate)
-                    filename,            // the actual bytes of the filename
-                )],
+                parameters: vec![DispositionParam::Filename(filename)],
             },
         ).header(
             http::header::HeaderName::from_static(headers::XFILENAME),

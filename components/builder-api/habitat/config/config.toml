@@ -39,3 +39,12 @@ ttl = {{cfg.memcache.ttl}}
 host = "{{member.sys.ip}}"
 port = {{member.cfg.port}}
 {{~/each}}
+
+[datastore]
+{{toToml cfg.datastore}}
+{{~#eachAlive bind.datastore.members as |member|}}
+{{~#if @first}}
+host = "{{member.sys.ip}}"
+port = {{member.cfg.port}}
+{{~/if}}
+{{~/eachAlive}}
