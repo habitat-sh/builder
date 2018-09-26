@@ -7,3 +7,11 @@ CREATE OR REPLACE FUNCTION promote_origin_package_v2(in_origin text, in_ident te
         (SELECT id from get_origin_package_v4(in_ident, 'public,private,hidden'))
     );
 $$;
+
+CREATE OR REPLACE FUNCTION demote_origin_package_v2(in_origin text, in_ident text, out_channel text) RETURNS void
+    LANGUAGE sql
+    AS $$
+      DELETE FROM origin_channel_packages
+      WHERE channel_id=(SELECT id from get_origin_channel_v1(in_origin, out_channel))
+      AND package_id=(SELECT id from get_origin_package_v4(in_ident, 'public,private,hidden'));
+$$;
