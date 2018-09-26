@@ -1,6 +1,6 @@
 use actix_web::{actix::Handler, error, Error};
 use server::db::DbExecutor;
-use server::models::channel::{Channel, DeleteChannel, GetChannel, ListChannels, NewChannel};
+use server::models::channel::{Channel, CreateChannel, DeleteChannel, GetChannel, ListChannels};
 use std::ops::Deref;
 
 impl Handler<ListChannels> for DbExecutor {
@@ -19,10 +19,10 @@ impl Handler<GetChannel> for DbExecutor {
     }
 }
 
-impl Handler<NewChannel> for DbExecutor {
+impl Handler<CreateChannel> for DbExecutor {
     type Result = Result<Channel, Error>;
-    fn handle(&mut self, channel: NewChannel, _: &mut Self::Context) -> Self::Result {
-        Channel::insert(channel, self.get_conn()?.deref())
+    fn handle(&mut self, channel: CreateChannel, _: &mut Self::Context) -> Self::Result {
+        Channel::create(channel, self.get_conn()?.deref())
             .map_err(|_| error::ErrorInternalServerError("Error creating channel"))
     }
 }

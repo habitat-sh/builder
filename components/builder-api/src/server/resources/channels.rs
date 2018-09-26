@@ -31,7 +31,7 @@ use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-use server::models::channel::{DeleteChannel, ListChannels};
+use server::models::channel::{CreateChannel, DeleteChannel, ListChannels};
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -129,15 +129,27 @@ fn get_channels(
         }).responder()
 }
 
-fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
+fn create_channel(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner();
 
-    match helpers::create_channel(&req, &origin, &channel) {
-        Ok(origin_channel) => HttpResponse::Created().json(&origin_channel),
-        Err(err) => err.into(),
-    }
+    let session_id = match authorize_session(&req, Some(&origin)) {
+        Ok(session_id) => session_id as i64,
+        Err(e) => return future::err(error::ErrorUnauthorized(e)).responder(),
+    };
+
+    req.state()
+        .db
+        .send(CreateChannel {
+            name: channel,
+            origin: origin,
+            owner_id: session_id,
+        }).from_err()
+        .and_then(|res| match res {
+            Ok(channel) => Ok(HttpResponse::Created().json(channel)),
+            Err(e) => Err(e),
+        }).responder()
 }
 
 fn delete_channel(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
