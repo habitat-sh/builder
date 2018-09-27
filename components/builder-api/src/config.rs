@@ -65,7 +65,7 @@ pub struct Config {
     pub segment: SegmentCfg,
     pub ui: UiCfg,
     pub upstream: UpstreamCfg,
-    pub memcached: MemcacheCfg,
+    pub memcache: MemcacheCfg,
     pub datastore: DataStoreCfg,
 }
 
@@ -81,7 +81,7 @@ impl Default for Config {
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
             upstream: UpstreamCfg::default(),
-            memcached: MemcacheCfg::default(),
+            memcache: MemcacheCfg::default(),
             datastore: DataStoreCfg::default(),
         }
     }
@@ -303,8 +303,11 @@ mod tests {
         handler_count = 128
         keep_alive = 30
 
-        [memcached]
+        [memcache]
         ttl = 11
+        [[memcache.hosts]]
+        host = "192.168.0.1"
+        port = 12345
 
         [ui]
         root = "/some/path"
@@ -326,7 +329,7 @@ mod tests {
 
         [github]
         api_url = "https://api.github.com"
-        
+
         [datastore]
         host = "1.1.1.1"
         port = 9000
@@ -361,7 +364,8 @@ mod tests {
 
         assert_eq!(&format!("{}", config.http.listen), "::1");
 
-        assert_eq!(config.memcached.ttl, 11);
+        assert_eq!(config.memcache.ttl, 11);
+        assert_eq!(&format!("{}", config.memcache.hosts[0]), "memcache://192.168.0.1:12345");
 
         assert_eq!(config.upstream.endpoint, String::from("http://example.com"));
         assert_eq!(

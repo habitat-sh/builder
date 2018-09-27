@@ -93,7 +93,7 @@ impl AppState {
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
             upstream: UpstreamClient::default(),
-            memcache: RefCell::new(MemcacheClient::new(config.memcached.clone())),
+            memcache: RefCell::new(MemcacheClient::new(config.memcache.clone())),
             db: db,
         }
     }
