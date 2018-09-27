@@ -1,3 +1,4 @@
+use super::db_id_format;
 use actix_web::{actix::Message, Error};
 use chrono::NaiveDateTime;
 use diesel;
@@ -10,8 +11,11 @@ use server::schema::channel::*;
 #[derive(Debug, Serialize, QueryableByName)]
 #[table_name = "origin_channels"]
 pub struct Channel {
+    #[serde(with = "db_id_format")]
     pub id: i64,
+    #[serde(with = "db_id_format")]
     pub origin_id: i64,
+    #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
     pub created_at: Option<NaiveDateTime>,
