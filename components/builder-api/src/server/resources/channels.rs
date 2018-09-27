@@ -26,12 +26,16 @@ use protocol::originsrv::*;
 use serde_json;
 
 use super::pkgs::{is_a_service, notify_upstream, postprocess_package_list};
+use hab_core::package::PackageIdent;
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-use server::models::channel::{CreateChannel, DeleteChannel, ListChannels};
+use server::models::channel::{
+    AuditPackageRankChange, CreateChannel, DeleteChannel, DemotePackage, ListChannels,
+    PackageChannelOperation, PromotePackage,
+};
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -177,28 +181,87 @@ fn delete_channel(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
         }).responder()
 }
 
-fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
+fn promote_package(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let (origin, channel, pkg, version, release) =
         Path::<(String, String, String, String, String)>::extract(&req)
             .unwrap()
             .into_inner();
-
-    match do_promote_package(&req, origin, channel, pkg, version, release) {
-        Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(err) => err.into(),
-    }
+    let session_id = match authorize_session(&req, Some(&origin)) {
+        Ok(session_id) => session_id as i64,
+        Err(e) => return future::err(error::ErrorUnauthorized(e)).responder(),
+    };
+    let ident = PackageIdent::new(
+        origin.clone(),
+        pkg.clone(),
+        Some(version.clone()),
+        Some(release.clone()),
+    );
+    req.state()
+        .db
+        .send(PromotePackage {
+            ident: ident.clone(),
+            origin: origin.clone(),
+            channel: channel.clone(),
+        }).from_err()
+        .and_then(move |res| match res {
+            Ok(_) => {
+                audit_package_rank_change(
+                    &req,
+                    ident.clone(),
+                    channel,
+                    PackageChannelOperation::Promote,
+                    origin,
+                    session_id,
+                );
+                Ok(HttpResponse::new(StatusCode::OK))
+            }
+            Err(e) => Err(e),
+        }).responder()
 }
 
-fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
+fn demote_package(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let (origin, channel, pkg, version, release) =
         Path::<(String, String, String, String, String)>::extract(&req)
             .unwrap()
             .into_inner();
-
-    match do_demote_package(&req, origin, channel, pkg, version, release) {
-        Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(err) => err.into(),
+    if channel == "unstable" {
+        return future::err(error::ErrorUnauthorized("Can't demote from unstable")).responder();
     }
+    let ident = PackageIdent::new(
+        origin.clone(),
+        pkg.clone(),
+        Some(version.clone()),
+        Some(release.clone()),
+    );
+    let session_id = match authorize_session(&req, Some(&origin)) {
+        Ok(session_id) => session_id as i64,
+        Err(e) => return future::err(error::ErrorUnauthorized(e)).responder(),
+    };
+    req.state()
+        .db
+        .send(DemotePackage {
+            ident: ident.clone(),
+            origin: origin.clone(),
+            channel: channel.clone(),
+        }).from_err()
+        .and_then(move |res| match res {
+            Ok(_) => {
+                audit_package_rank_change(
+                    &req,
+                    ident.clone(),
+                    channel,
+                    PackageChannelOperation::Demote,
+                    origin,
+                    session_id,
+                );
+                req.state()
+                    .memcache
+                    .borrow_mut()
+                    .clear_cache_for_package(ident.clone().into());
+                Ok(HttpResponse::new(StatusCode::OK))
+            }
+            Err(err) => Err(err),
+        }).responder()
 }
 
 fn get_packages_for_origin_channel_package_version(
@@ -319,175 +382,22 @@ fn get_package_fully_qualified(
 //
 // Internal - these functions should return Result<..>
 //
-fn do_promote_package(
-    req: &HttpRequest<AppState>,
-    origin: String,
-    channel: String,
-    pkg: String,
-    version: String,
-    release: String,
-) -> Result<()> {
-    let session_id = authorize_session(req, Some(&origin))?;
-
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin.clone());
-    ident.set_name(pkg);
-    ident.set_version(version);
-    ident.set_release(release);
-
-    let mut origin_get = OriginGet::new();
-    origin_get.set_name(ident.get_origin().to_string());
-
-    let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
-        Ok(o) => o.get_id(),
-        Err(err) => return Err(err),
-    };
-
-    let mut channel_req = OriginChannelGet::new();
-    channel_req.set_origin_name(ident.get_origin().to_string());
-    channel_req.set_name(channel.to_string());
-
-    let origin_channel = match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
-        Ok(c) => {
-            req.state()
-                .memcache
-                .borrow_mut()
-                .clear_cache_for_package(ident.clone().into());
-            c
-        }
-        Err(e) => {
-            warn!("Error retrieving channel: {:?}", &e);
-            return Err(e);
-        }
-    };
-
-    let mut request = OriginPackageGet::new();
-    request.set_ident(ident.clone());
-    request.set_visibilities(helpers::all_visibilities());
-
-    let package = match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-        Ok(p) => p,
-        Err(e) => {
-            warn!("Error retrieving package {:?}", &e);
-            return Err(e);
-        }
-    };
-
-    let mut promote = OriginPackagePromote::new();
-    promote.set_channel_id(origin_channel.get_id());
-    promote.set_package_id(package.get_id());
-    promote.set_ident(ident.clone());
-
-    match route_message::<OriginPackagePromote, NetOk>(req, &promote) {
-        Ok(_) => match audit_package_rank_change(
-            req,
-            package.get_id(),
-            origin_channel.get_id(),
-            PackageChannelOperation::Promote,
-            origin_id,
-            session_id,
-        ) {
-            Ok(_) => return Ok(()),
-            Err(err) => return Err(err),
-        },
-        Err(err) => return Err(err),
-    }
-}
-
-fn do_demote_package(
-    req: &HttpRequest<AppState>,
-    origin: String,
-    channel: String,
-    pkg: String,
-    version: String,
-    release: String,
-) -> Result<()> {
-    let session_id = authorize_session(req, Some(&origin))?;
-
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
-    ident.set_version(version);
-    ident.set_release(release);
-
-    if channel == "unstable" {
-        return Err(Error::Authorization);
-    }
-
-    let mut origin_get = OriginGet::new();
-    origin_get.set_name(ident.get_origin().to_string());
-
-    let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
-        Ok(o) => o.get_id(),
-        Err(e) => return Err(e),
-    };
-
-    let mut channel_req = OriginChannelGet::new();
-    channel_req.set_origin_name(ident.get_origin().to_string());
-    channel_req.set_name(channel);
-
-    match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
-        Ok(origin_channel) => {
-            let mut request = OriginPackageGet::new();
-            request.set_ident(ident.clone());
-            request.set_visibilities(helpers::all_visibilities());
-            match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-                Ok(package) => {
-                    let mut demote = OriginPackageDemote::new();
-                    demote.set_channel_id(origin_channel.get_id());
-                    demote.set_package_id(package.get_id());
-                    demote.set_ident(ident.clone());
-                    match route_message::<OriginPackageDemote, NetOk>(req, &demote) {
-                        Ok(_) => match audit_package_rank_change(
-                            req,
-                            package.get_id(),
-                            origin_channel.get_id(),
-                            PackageChannelOperation::Demote,
-                            origin_id,
-                            session_id,
-                        ) {
-                            Ok(_) => {
-                                req.state()
-                                    .memcache
-                                    .borrow_mut()
-                                    .clear_cache_for_package(ident.clone().into());
-                                return Ok(());
-                            }
-                            Err(err) => return Err(err.into()),
-                        },
-                        Err(err) => return Err(err.into()),
-                    }
-                }
-                Err(err) => return Err(err.into()),
-            }
-        }
-        Err(err) => return Err(err.into()),
-    }
-}
 
 fn audit_package_rank_change(
     req: &HttpRequest<AppState>,
-    package_id: u64,
-    channel_id: u64,
+    ident: PackageIdent,
+    channel: String,
     operation: PackageChannelOperation,
-    origin_id: u64,
-    session_id: u64,
-) -> Result<NetOk> {
-    let mut audit = PackageChannelAudit::new();
-    audit.set_package_id(package_id);
-    audit.set_channel_id(channel_id);
-    audit.set_operation(operation);
-
-    let jgt = helpers::trigger_from_request(req);
-    audit.set_trigger(PackageChannelTrigger::from(jgt));
-
-    let session_name = get_session_user_name(req, session_id);
-
-    audit.set_requester_id(session_id);
-    audit.set_requester_name(session_name);
-    audit.set_origin_id(origin_id);
-
-    route_message::<PackageChannelAudit, NetOk>(req, &audit)
+    origin: String,
+    session_id: i64,
+) {
+    req.state().db.do_send(AuditPackageRankChange {
+        ident,
+        channel,
+        operation,
+        origin,
+        session_id,
+    })
 }
 
 fn do_get_channel_packages(
