@@ -246,6 +246,21 @@ impl DataStore {
         Ok(jobs)
     }
 
+    /// Count the number of jobs in a given state
+    ///
+    /// # Errors
+    ///
+    /// * If a connection cannot be gotten from the pool
+    pub fn count_jobs(&self, job_state: jobsrv::JobState) -> Result<i64> {
+        let conn = self.pool.get()?;
+        let rows = &conn
+            .query("SELECT * FROM count_jobs_v1($1)", &[&job_state.to_string()])
+            .map_err(Error::JobGet)?;
+        assert!(rows.len() == 1);
+        let count: i64 = rows.get(0).get("count_jobs_v1");
+        Ok(count)
+    }
+
     /// Updates a job. Currently, this entails updating the state,
     /// build start and stop times, and recording the identifier of
     /// the package the job produced, if any.

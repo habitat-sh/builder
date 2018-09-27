@@ -17,6 +17,7 @@ use std::path::Path;
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 
+use chrono::{DateTime, Utc};
 use hab_net::conn::RouteClient;
 use hab_net::socket::DEFAULT_CONTEXT;
 use hab_net::ErrCode;
@@ -28,8 +29,10 @@ use protocol::jobsrv;
 use protocol::originsrv;
 
 use bldr_core::logger::Logger;
+use bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
 use hab_core::channel::bldr_channel_name;
 
+use super::metrics::{Counter, Gauge, Histogram};
 use super::worker_manager::WorkerMgrClient;
 
 const SCHEDULER_ADDR: &'static str = "inproc://scheduler";
@@ -133,6 +136,10 @@ impl ScheduleMgr {
                 }
             }
 
+            if let Err(err) = self.process_metrics() {
+                warn!("Scheduler unable to process metrics: err {:?}", err);
+            }
+
             if let Err(err) = self.process_status() {
                 warn!("Scheduler unable to process status: err {:?}", err);
             }
@@ -157,6 +164,16 @@ impl ScheduleMgr {
     fn log_error(&mut self, msg: String) {
         warn!("{}", msg);
         self.logger.log(&msg);
+    }
+
+    fn process_metrics(&mut self) -> Result<()> {
+        let waiting_jobs = self.datastore.count_jobs(jobsrv::JobState::Pending)?;
+        let working_jobs = self.datastore.count_jobs(jobsrv::JobState::Dispatched)?;
+
+        Gauge::WaitingJobs.set(waiting_jobs as f64);
+        Gauge::WorkingJobs.set(working_jobs as f64);
+
+        Ok(())
     }
 
     fn process_queue(&mut self) -> Result<()> {
@@ -464,6 +481,26 @@ impl ScheduleMgr {
             };
 
             self.logger.log_group_job(&group, &job);
+
+            match job.get_state() {
+                jobsrv::JobState::Complete => {
+                    Counter::CompletedJobs.increment();
+                    assert!(job.has_build_started_at());
+                    assert!(job.has_build_finished_at());
+
+                    let build_started_at =
+                        job.get_build_started_at().parse::<DateTime<Utc>>().unwrap();
+                    let build_finished_at = job
+                        .get_build_finished_at()
+                        .parse::<DateTime<Utc>>()
+                        .unwrap();
+
+                    let build_duration = build_finished_at - build_started_at;
+                    Histogram::JobCompletionTime.set(build_duration.num_seconds() as f64);
+                }
+                jobsrv::JobState::Failed => Counter::FailedJobs.increment(),
+                _ => (),
+            }
 
             match self.datastore.set_job_group_job_state(&job) {
                 Ok(_) => {
