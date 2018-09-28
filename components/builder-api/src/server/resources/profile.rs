@@ -11,9 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+//
 use actix_web::http::{Method, StatusCode};
-use actix_web::{App, FromRequest, HttpRequest, HttpResponse, Json, Path};
+use actix_web::{
+    error, App, AsyncResponder, FromRequest, FutureResponse, HttpRequest, HttpResponse, Json, Path,
+};
+use futures::{future, Future};
 
 use bldr_core;
 use hab_net::NetOk;
@@ -22,6 +25,7 @@ use protocol::originsrv::*;
 use server::authorize::authorize_session;
 use server::error::Result;
 use server::framework::middleware::route_message;
+use server::models::account::{GetAccountById, UpdateAccount};
 use server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,14 +41,15 @@ impl Profile {
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/profile", Method::GET, get_profile)
-            .route("/profile", Method::PATCH, update_profile)
+        app.route("/profile", Method::GET, get_account)
+            .route("/profile", Method::PATCH, update_account)
             .route("/profile/access-tokens", Method::GET, get_access_tokens)
             .route(
                 "/profile/access-tokens",
                 Method::POST,
                 generate_access_token,
-            ).route(
+            )
+            .route(
                 "/profile/access-tokens/{id}",
                 Method::DELETE,
                 revoke_access_token,
@@ -63,19 +68,23 @@ pub fn do_get_access_tokens(req: &HttpRequest<AppState>, account_id: u64) -> Res
 //
 // Route handlers - these functions can return any Responder trait
 //
-fn get_profile(req: HttpRequest<AppState>) -> HttpResponse {
-    let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
-        Err(err) => return err.into(),
+fn get_account(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+    let session_id = match authorize_session(&req, None) {
+        Ok(session_id) => session_id as i64,
+        Err(err) => return future::err(error::ErrorUnauthorized(err)).responder(),
     };
 
-    let mut request = AccountGetId::new();
-    request.set_id(account_id);
-
-    match route_message::<AccountGetId, Account>(&req, &request) {
-        Ok(account) => HttpResponse::Ok().json(account),
-        Err(err) => err.into(),
-    }
+    req.state()
+        .db
+        .send(GetAccountById {
+            id: session_id.clone(),
+        })
+        .from_err()
+        .and_then(move |res| match res {
+            Ok(account) => Ok(HttpResponse::Ok().json(account)),
+            Err(e) => Err(e),
+        })
+        .responder()
 }
 
 fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
@@ -172,22 +181,30 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
-fn update_profile((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> HttpResponse {
-    let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
-        Err(err) => return err.into(),
+fn update_account(
+    (req, body): (HttpRequest<AppState>, Json<UserUpdateReq>),
+) -> FutureResponse<HttpResponse> {
+    let session_id = match authorize_session(&req, None) {
+        Ok(session_id) => session_id as i64,
+        Err(err) => return future::err(error::ErrorUnauthorized(err)).responder(),
     };
 
     if body.email.len() <= 0 {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        return future::err(error::ErrorBadRequest(
+            "No email address provided with request",
+        )).responder();
     }
 
-    let mut request = AccountUpdate::new();
-    request.set_id(account_id);
-    request.set_email(body.email.to_owned());
-
-    match route_message::<AccountUpdate, NetOk>(&req, &request) {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(err) => err.into(),
-    }
+    req.state()
+        .db
+        .send(UpdateAccount {
+            id: session_id.clone(),
+            email: body.email.to_owned(),
+        })
+        .from_err()
+        .and_then(move |res| match res {
+            Ok(_) => Ok(HttpResponse::new(StatusCode::OK)),
+            Err(e) => Err(e),
+        })
+        .responder()
 }

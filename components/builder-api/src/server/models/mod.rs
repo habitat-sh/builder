@@ -2,6 +2,7 @@
 // https://github.com/rust-lang/rust/issues/50504
 #![allow(proc_macro_derive_resolution_fallback)]
 
+pub mod account;
 pub mod channel;
 
 mod db_id_format {
