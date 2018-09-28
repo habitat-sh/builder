@@ -17,7 +17,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use rand::{self, Rng};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 
 use {Error, Result};
 
@@ -91,10 +92,12 @@ impl Drop for FsRoot {
 }
 
 fn tmp_path() -> Result<PathBuf> {
-    let mut rng = rand::thread_rng();
     // Find a nonexistent candidate directory path and return the first success
     for _ in 0..NUM_RETRIES {
-        let suffix: String = rng.gen_ascii_chars().take(NUM_RAND_CHARS).collect();
+        let suffix = thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(NUM_RAND_CHARS)
+            .collect::<String>();
         let path = env::temp_dir().join(format!("airlock-fsroot.{}", suffix));
         if !path.exists() {
             return Ok(path);
