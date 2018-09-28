@@ -20,6 +20,7 @@ use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use dirs;
 use libc;
 
 use coreutils::{chmod, mkdir_p, rmdir, symlink, touch, umask};
@@ -173,7 +174,7 @@ pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool)
         Mount::Nonrecursive,
         Some(libc::MS_RDONLY),
     )?;
-    let source = env::home_dir()
+    let source = dirs::home_dir()
         .ok_or(Error::HomeDirectoryNotFound)?
         .join(".hab/cache/keys");
     mkdir_p(&source)?;
@@ -186,7 +187,7 @@ pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool)
 
     if mount_artifacts {
         // Bind mount outside artifact cache (and ensure outside directory exists)
-        let source = env::home_dir()
+        let source = dirs::home_dir()
             .ok_or(Error::HomeDirectoryNotFound)?
             .join(".hab/cache/artifacts");
         mkdir_p(&source)?;
