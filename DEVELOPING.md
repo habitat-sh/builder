@@ -198,3 +198,15 @@ hab pkg install -u http://localhost -z <auth-token> <package>
 Initially, you will get a `Package Not Found` error.  Wait for a bit (the package will get synchronized in the background) and try again - this time the install should succeed!
 
 *NOTE*: It is important to understand how the upstream cache is working. Packages that are requested (either via a `hab pkg install`, or even searching or browsing packages in the Web UI) in the local on-premise depot that have newer (or existing) versions in the upstream in the *stable* channel are marked for retrieval in the background. It is only after the background retrieval of the package succeeds that the package then becomes available in the local instance. If there is any failure to retrieve or submit the package, the next retrieval attempt will be triggered only by another request for that package. This functionality is new, and will be refined over time.
+
+### Receiving metrics
+
+Some services like builder-api and builder-jobsrv send statsd metrics. These are easy to monitor if needed for dev purposes. 
+The below assumes node and npm is already installed and available.
+
+```
+npm install -g statsd-logger
+statsd-logger
+```
+
+Once statsd-logger is running, it should receive and display any metrics sent by the services.
