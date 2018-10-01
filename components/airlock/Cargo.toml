@@ -15,6 +15,7 @@ doc = false
 
 [dependencies]
 clap = { version = "*", features = ["suggestions", "color", "unstable"] }
+dirs = "*"
 env_logger = "*"
 errno = "*"
 libc = "0.2.42"
