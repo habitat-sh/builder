@@ -1,21 +1,21 @@
 * @chefsalim @raskchanky
+components/airlock @chefsalim @raskchanky @fnichol @elliott-davis
 components/airlock/src/command @apriofrost
 components/airlock/src/main.rs @apriofrost
-components/airlock @chefsalim @raskchanky @fnichol @elliott-davis
+components/builder-* @chefsalim @raskchanky @reset @elliott-davis @eeyun
+components/builder-web @chefsalim @cnunciato @raskchanky @mgamini @elliott-davis
+components/builder-worker @chefsalim @raskchanky @reset @elliott-davis @fnichol
+components/builder-worker/src/main.rs @apriofrost
 components/builder-api/src/main.rs @apriofrost
 components/builder-graph/src/main.rs @apriofrost
 components/builder-jobsrv/src/main.rs @apriofrost
 components/builder-originsrv/src/main.rs @apriofrost
 components/builder-router/src/main.rs @apriofrost
-components/builder-web @chefsalim @cnunciato @raskchanky @mgamini @elliott-davis
-components/builder-worker/src/main.rs @apriofrost
-components/builder-worker @chefsalim @raskchanky @reset @elliott-davis @fnichol
-components/builder-* @chefsalim @raskchanky @reset @elliott-davis @eeyun
 components/github-api-client @chefsalim @raskchanky
 components/net @chefsalim @raskchanky
 components/oauth-client @chefsalim @raskchanky
-components/op/src/main.rs @apriofrost
 components/op @chefsalim @raskchanky
+components/op/src/main.rs @apriofrost
 components/segment-api-client @chefsalim @raskchanky
 support @fnichol @chefsalim @raskchanky @baumanj @elliott-davis
 tools @baumanj @chefsalim @christophermaier @eeyun @raskchanky @fnichol
