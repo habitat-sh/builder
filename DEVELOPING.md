@@ -53,12 +53,18 @@ If you are on a Mac, you will need brew, direnv, habitat, and Docker for Mac
 
 ### Studio requirements
 
-1. Ensure you have run `hab setup` in your environment that will be executing the studio
+Ensure you have run `hab setup` in the environment that will be executing the studio, or exported environment variables of `HAB_ORIGIN` and `HAB_AUTO_TOKEN` whose values correspond with the public Builder service. For example:
+
+```
+export HAB_ORIGIN=habitat
+export HAB_AUTH_TOKEN=<YOUR_PERSONAL_ACCESS_TOKEN>
+```
 
 ### Starting the services
 
 From either your VM or Mac:
 
+* `sudo -i # Or your preferred method of running as root`
 * `cd <source path>`
 * `direnv allow`
 * `hab studio enter`
@@ -140,7 +146,7 @@ You may use the `load_package` helper to specify a package to upload. Ex:
 load_package /hab/cache/artifacts/core-*.hart
 ```
 
-If you are missing packages, see [Setting up an upstream source](#setting-up-an-upstream-source) below.
+If you are missing packages, see [Setting up an upstream source](#setting-up-a-package-upstream) below.
 
 #### Option A: From the Web UI
 * Navigate to http://${APP_HOSTNAME}/#/pkgs
@@ -171,7 +177,8 @@ Note: you will need to upload additional packages to the core origin for the `co
 
 It is possible to configure the on-premise builder to point to another Builder depot, such as the hosted Builder, as an 'upstream'. This allows new packages from the upstream to get created in the on-premise instance automatically.
 
-In order to do so, create a file called `upstream.toml` with the following content:
+In order to do so, create a file called `at <BUILDER_SRC>/upstream.toml` with the following content:
+
 ```
 [api]
 features_enabled = "jobsrv, upstream"
@@ -182,7 +189,8 @@ endpoint = "https://bldr.habitat.sh"
 
 Then, issue the following command:
 ```
-hab config apply builder-api.default $(date +%s) upstream.toml
+
+hab config apply builder-api.default $(date +%s) <BUILDER_SRC>/upstream.toml
 ```
 
 _Note: the config can also be added directly to the builder-api `user.toml` by modifying the `support/builder/config.sh` file._
@@ -201,7 +209,7 @@ Initially, you will get a `Package Not Found` error.  Wait for a bit (the packag
 
 ### Receiving metrics
 
-Some services like builder-api and builder-jobsrv send statsd metrics. These are easy to monitor if needed for dev purposes. 
+Some services like builder-api and builder-jobsrv send statsd metrics. These are easy to monitor if needed for dev purposes.
 The below assumes node and npm is already installed and available.
 
 ```
@@ -210,3 +218,23 @@ statsd-logger
 ```
 
 Once statsd-logger is running, it should receive and display any metrics sent by the services.
+### Setting up to run Builder builds in development
+
+Initially, your depot will be empty, which means you won't be able to run a successful build. Minimally, you'll need to upload the current, stable version of `core/hab-backline` (which you'll have installed locally as a result of entering the studio). Follow these steps to prepare an empty, upstream-enabled depot to run successful builds:
+
+  1. Ensure Builder services are running (e.g., via `start-builder`). `hab svc status` should be able to confirm this.
+
+  1. Browse to your local instance of Builder UI (e.g., http://localhost) and sign in.
+
+  1. Navigate to **My Origins &gt; Create Origin** and make a new origin called `core` using the default settings.
+
+  1. Navigate to your Profile and generate a personal access token.
+
+  1. Using that token and the `load_package` helper, upload your locally installed version of `hab-backline`. For example, for Habitat 0.64.1:
+
+      ```
+      HAB_AUTH_TOKEN=<YOUR_NEWLY_GENERATED_TOKEN> \
+      load_package /hab/cache/artifacts/core-hab-backline-0.64.1-20180928012546-x86_64-linux.hart
+      ```
+
+You should now be able to connect a plan file, and run a build, of a simple package (e.g., one with no direct dependencies). To build a package with upstream dependencies, connect a plan for the package and request an initial build; the request may fail, but subsequent requests should succeed once its dependencies have been downloaded from the configured upstream depot and installed.
