@@ -26,6 +26,18 @@ describe('Channels API', function () {
     });
   });
 
+  describe('Duplicate channel', function () {
+    it('returns conflict on channel create', function (done) {
+      request.post('/depot/channels/neurosis/foo')
+        .set('Authorization', global.boboBearer)
+        .expect(409)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
   describe('Create bar channel', function () {
     it('succeeds', function (done) {
       request.post('/depot/channels/neurosis/bar')
@@ -53,7 +65,7 @@ describe('Channels API', function () {
     it('requires origin membership to promote a package', function (done) {
       request.put('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213/promote')
         .set('Authorization', global.mystiqueBearer)
-        .expect(401)
+        .expect(403)
         .end(function (err, res) {
           done(err);
         });
