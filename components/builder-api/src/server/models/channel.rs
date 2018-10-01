@@ -23,7 +23,7 @@ pub struct Channel {
 }
 
 pub struct CreateChannel {
-    pub name: String,
+    pub channel: String,
     pub owner_id: i64,
     pub origin: String,
 }
@@ -78,7 +78,7 @@ impl Channel {
         diesel::sql_query("select * from insert_origin_channel_v2($1, $2, $3)")
             .bind::<Text, _>(channel.origin)
             .bind::<BigInt, _>(channel.owner_id)
-            .bind::<Text, _>(channel.name)
+            .bind::<Text, _>(channel.channel)
             .get_result(conn)
     }
 

@@ -61,7 +61,7 @@ where
         Ok(bytes) => bytes,
         Err(err) => {
             let e = format!("Unable to decrypt with bldr key pair, err={:?}", &err);
-            error!("Unable to decrypt with bldr key pair, err={:?}", err);
+            debug!("Unable to decrypt with bldr key pair, err={:?}", err);
             return Err(Error::DecryptError(e));
         }
     };
