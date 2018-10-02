@@ -4,6 +4,10 @@ export HOME="{{pkg.svc_data_path}}"
 export RUST_LOG="{{cfg.log_level}}"
 export RUST_BACKTRACE=1
 
+title="Service Start"
+text="builder-api starting"
+echo "_e{${#title},${#text}}:$title|$text|#shell,bash"  >/dev/udp/localhost/8125
+
 if [ "$(whoami)" = "root" ]; then
   exec chpst \
     -U "{{pkg.svc_user}}:{{pkg.svc_group}}" \
