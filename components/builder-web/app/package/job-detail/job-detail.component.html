@@ -1,18 +1,34 @@
 <div class="job-detail-component">
   <section class="back">
-    <a [routerLink]="['../']">
-      <hab-icon symbol="chevron-left"></hab-icon>
-      <span>Back to build jobs</span>
-    </a>
+    <h3>
+      <a [routerLink]="['../']">
+        <span>Build Jobs</span>
+      </a>
+      <hab-icon symbol="chevron-right"></hab-icon>
+      <span>{{ job.id }}</span>
+    </h3>
   </section>
   <div class="summary">
     <div class="status {{ statusClass }}">
       <div *ngIf="jobState">
-        <hab-icon [symbol]="statusIcon" [class]="statusClass" [title]="jobState | titlecase"></hab-icon>
-        Build {{ jobState }}
+        <hab-job-status [job]="job"></hab-job-status>
+        <div class="package" *ngIf="ident">
+          <a [routerLink]="packageRoute">
+            {{ ident }}
+          </a>
+          <hab-channels [channels]="job.channels"></hab-channels>
+        </div>
       </div>
     </div>
     <div class="detail">
+      <div class="item" *ngIf="job.owner_id">
+        <div class="label">Build Job Group</div>
+        <div class="data">
+          <a [routerLink]="['/origins', job.origin, 'jobs', job.owner_id]">
+            <span>{{ job.owner_id }}</span>
+          </a>
+        </div>
+      </div>
       <div class="item">
         <div class="label">Build Time</div>
         <div class="data">{{ elapsed || "&mdash;" }}</div>

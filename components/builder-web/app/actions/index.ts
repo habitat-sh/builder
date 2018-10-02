@@ -34,6 +34,7 @@ export {
 } from './jobs';
 
 export {
+  cancelJobGroup,
   fetchJobGroups,
   fetchJobGroup,
   POPULATE_JOB_GROUPS,

@@ -138,6 +138,10 @@ impl Serialize for Job {
             strukt.serialize_field("build_finished_at", &self.get_build_finished_at())?;
         }
 
+        if self.has_owner_id() {
+            strukt.serialize_field("owner_id", &self.get_owner_id().to_string())?;
+        }
+
         strukt.serialize_field("state", &self.get_state())?;
 
         if self.has_error() {

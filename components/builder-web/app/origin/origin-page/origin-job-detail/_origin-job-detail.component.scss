@@ -1,4 +1,5 @@
 .origin-job-detail-component {
+
   .jobgroup-overview {
     @include shadow-panel;
 
@@ -19,53 +20,80 @@
   .jobgroup-overview-item-title {
     margin-top: 0;
   }
+
   .jobgroup-overview-item {
-    width: 50%;
+    width: 100%;
   }
-  .jobgroup-status-icongroup {
+
+  .jobgroup-complete-total, .jobgroup-status-icongroup {
     width: 100%;
   }
 
   @include tablet-up {
+
     .jobgroup-overview-item {
       width: 33%;
     }
-    .jobgroup-status-icongroup {
-      width: 66%;
+
+    .jobgroup-complete-total, .jobgroup-status-icongroup {
+      width: 33%;
     }
   }
 
   .jobgroup-status-icons {
     display: flex;
   }
+
   .jobgroup-status-count {
     flex: 1;
+    white-space: nowrap;
+  }
+
+  .jobgroup-actions {
+    .cancel {
+      white-space: nowrap;
+    }
   }
 
   .jobgroup-list {
+
     .heading {
       display: none;
     }
+
     .item > a {
       cursor: default;
+      padding: auto;
+
       &:hover {
         background: $white;
       }
     }
+
     .jobgroup-list-name {
       width: 70%;
       flex: auto;
     }
+
     .jobgroup-list-icons {
       width: 30%;
       flex: auto;
       text-align: right;
+
+      hab-icon {
+
+        &:not(:first-child) {
+          margin: 0 .4em;
+        }
+      }
     }
 
     @include tablet-up {
+
       .heading {
         display: flex;
       }
+
       .jobgroup-list-name, .jobgroup-list-icons {
         width: auto;
         flex: 1;

@@ -1,16 +1,19 @@
-<div class="dialog simple-confirm">
+<div class="dialog job-cancel">
   <section class="heading">
     <hab-icon symbol="delete"></hab-icon>
-    <h1>{{ heading }}</h1>
+    <h1>Confirm Job Cancellation</h1>
   </section>
   <section class="body">
     <p>
-      {{ body }}
+      Completed build jobs will remain in the <b>unstable</b> channel. Pending jobs will not be processed.
+    </p>
+    <p>
+      Build jobs to be canceled: <b>{{ pendingCount }}</b>
     </p>
   </section>
   <section class="controls">
     <button mat-raised-button color="primary" class="button" (click)="ok()">
-      Yes, {{ action }}
+      Yes, cancel jobs
     </button>
     <a (click)="cancel()">Cancel</a>
   </section>

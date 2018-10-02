@@ -32,6 +32,7 @@ describe('JobListComponent', () => {
       ],
       declarations: [
         MockComponent({ selector: 'hab-icon', inputs: ['symbol'] }),
+        MockComponent({ selector: 'hab-job-status-icon', inputs: ['job'] }),
         JobListComponent
       ]
     });
@@ -48,34 +49,31 @@ describe('JobListComponent', () => {
     beforeEach(() => {
       jobs = [
         {
-          'id': '123',
-          'origin': 'core',
-          'project': 'nginx',
-          'version': '1.0.0',
-          'release': '20170505001756',
-          'state': 'complete',
-          'build_start': '2017-05-05 00:43:11.729835+00',
-          'build_stop': '2017-05-05 00:44:00.896919+00'
+          'build_finished_at': '2018-10-04T21:56:49.475924+00:00',
+          'build_started_at': '2018-10-04T21:56:16.353801+00:00',
+          'channels': [
+            'bldr-1085686806252797952',
+            'unstable'
+          ],
+          'created_at': '2018-10-04T21:56:15.106690+00:00',
+          'id': '1085687068480929792',
+          'name': 'testapp',
+          'origin': 'cnunciato',
+          'owner_id': '1085686806252797952',
+          'platforms': [
+            'x86_64-linux'
+          ],
+          'release': '20181004215649',
+          'state': 'Complete',
+          'version': '0.1.0'
         },
         {
-          'id': '456',
-          'origin': 'core',
-          'project': 'nginx',
-          'version': '1.0.0',
-          'release': '20170505001756',
-          'state': 'pending',
-          'build_start': '2017-05-05 00:43:11.729835+00',
-          'build_stop': '2017-05-05 00:44:00.896919+00'
-        },
-        {
-          'id': '789',
-          'origin': 'core',
-          'project': 'nginx',
-          'version': '1.0.0',
-          'release': '20170505001756',
-          'state': 'failed',
-          'build_started_at': '2017-05-05 00:43:11.729835+00',
-          'build_stopped_at': '2017-05-05 00:44:00.896919+00'
+          'created_at': '2018-10-03T21:55:43.605320+00:00',
+          'id': '1085686804222992384',
+          'name': 'testapp',
+          'origin': 'cnunciato',
+          'owner_id': '1085686803887202304',
+          'state': 'CancelComplete'
         }
       ];
 
@@ -86,13 +84,19 @@ describe('JobListComponent', () => {
 
     it('renders them', () => {
       let items = element.queryAll(By.css('.job-list-component ol li.item'));
+      expect(items.length).toBe(2);
 
-      expect(items.length).toBe(3);
-      expect(items[0].query(By.css('.name')).nativeElement.textContent).toContain('1.0.0');
-      expect(items[0].query(By.css('.status')).nativeElement.getAttribute('title')).toBe('Complete');
-      expect(items[0].query(By.css('.status')).nativeElement.getAttribute('class')).toContain('complete');
-      expect(items[1].query(By.css('.status')).nativeElement.getAttribute('class')).toContain('pending');
-      expect(items[2].query(By.css('.status')).nativeElement.getAttribute('class')).toContain('failed');
+      function text(item, selector) {
+        return item.query(By.css(selector)).nativeElement.textContent;
+      }
+
+      expect(text(items[0], '.name')).toContain('0.1.0');
+      expect(text(items[0], '.package')).toContain('cnunciato / testapp');
+      expect(text(items[0], '.date')).toContain('2018-10-04');
+
+      expect(text(items[1], '.name')).toContain('—');
+      expect(text(items[1], '.package')).toContain('cnunciato / testapp');
+      expect(text(items[1], '.date')).toContain('2018-10-03');
     });
 
     describe('when a job item is clicked', () => {

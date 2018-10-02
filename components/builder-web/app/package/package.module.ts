@@ -19,7 +19,6 @@ import { RouterModule } from '@angular/router';
 import { MatTabsModule, MatButtonModule, MatRadioModule } from '@angular/material';
 import { JobDetailComponent } from './job-detail/job-detail.component';
 import { JobListComponent } from './job-list/job-list.component';
-import { JobStatusComponent } from './job-status/job-status.component';
 import { PackageJobComponent } from './package-job/package-job.component';
 import { PackageComponent } from './package/package.component';
 import { PackageJobsComponent } from './package-jobs/package-jobs.component';
@@ -50,7 +49,6 @@ import { PackageRoutingModule } from './package-routing.module';
   declarations: [
     JobDetailComponent,
     JobListComponent,
-    JobStatusComponent,
     PackageComponent,
     PackageJobComponent,
     PackageJobsComponent,

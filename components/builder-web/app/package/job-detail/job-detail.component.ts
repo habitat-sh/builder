@@ -17,7 +17,7 @@ import { Subscription } from 'rxjs';
 import * as AnsiUp from 'ansi_up';
 import * as moment from 'moment';
 import { fetchJobLog, streamJobLog } from '../../actions/index';
-import { iconForJobState } from '../../util';
+import { iconForJobState, labelForJobState } from '../../util';
 import { AppStore } from '../../app.store';
 
 @Component({
@@ -100,12 +100,8 @@ export class JobDetailComponent implements OnChanges, OnDestroy {
   }
 
   get jobState() {
-    return this.lastJobState;
-  }
-
-  get statusIcon() {
-    if (this.jobState) {
-      return iconForJobState(this.jobState);
+    if (this.lastJobState) {
+      return labelForJobState(this.lastJobState);
     }
   }
 
@@ -153,6 +149,20 @@ export class JobDetailComponent implements OnChanges, OnDestroy {
       }
 
       return f;
+    }
+  }
+
+  get ident() {
+    if (this.job.origin && this.job.name && this.job.version && this.job.release) {
+      return [
+        this.job.origin, this.job.name, this.job.version, this.job.release
+      ].join('/');
+    }
+  }
+
+  get packageRoute() {
+    if (this.ident) {
+      return ['/pkgs', ...this.ident.split('/')];
     }
   }
 

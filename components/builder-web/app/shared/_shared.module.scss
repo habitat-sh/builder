@@ -2,9 +2,12 @@
 @import 'breadcrumbs/breadcrumbs.component';
 @import 'channels/channels.component';
 @import 'checking-input/checking-input.component';
-@import "copyable/copyable.component";
-@import "docker-export-settings/docker-export-settings.component";
+@import 'copyable/copyable.component';
+@import 'docker-export-settings/docker-export-settings.component';
 @import 'icon/icon.component';
+@import 'job-notice/job-notice.component';
+@import 'job-status/job-status.component';
+@import 'job-status-label/job-status-label.component';
+@import 'job-status-icon/job-status-icon.component';
 @import 'project-settings/project-settings.component';
 @import 'visibility-selector/visibility-selector.component';
-@import 'job-notice/job-notice.component';

@@ -183,7 +183,7 @@ impl Into<HttpResponse> for Error {
             Error::BadRequest(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
-            Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::NetError(ref e) => HttpResponse::build(net_err_to_http(&e)).json(&e),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::ParseIntError(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Protocol(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),

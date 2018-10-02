@@ -1,12 +1,6 @@
 .job-detail-component {
   position: relative;
 
-  @each $status, $color in $status-colors {
-    .#{$status} {
-      color: #{$color};
-    }
-  }
-
   .back {
 
     hab-icon, span {
@@ -33,17 +27,45 @@
 
     .status {
       flex: 6;
-      font-weight: 600;
+
+      @include desktop-up {
+        padding-left: $default-padding;
+
+        hab-job-status-icon {
+          margin-left: -22px;
+        }
+      }
 
       div {
         display: block;
         font-size: $base-font-size;
-        margin-bottom: $default-margin;
       }
 
-      hab-icon {
-        &.dispatched, &.processing {
-          @extend hab-icon.spinning;
+      hab-job-status {
+        display: block;
+        margin-bottom: $default-margin / 2;
+      }
+
+      .package {
+        font-weight: 600;
+        font-size: $base-font-size;
+
+        a {
+          display: block;
+          color: $hab-text;
+          margin-bottom: $default-margin / 2;
+
+          &:hover {
+            color: $hab-links;
+          }
+        }
+
+        @include desktop-up {
+          hab-channels {
+            ul {
+              margin-bottom: 0;
+            }
+          }
         }
       }
     }

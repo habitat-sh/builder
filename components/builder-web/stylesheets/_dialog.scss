@@ -6,6 +6,7 @@
     &.heading {
       margin: 0 0 $default-margin;
       font-size: 16px;
+      white-space: nowrap;
 
       h1 {
         font-family: $heading-font-family;
@@ -19,7 +20,7 @@
     &.body {
       margin: $default-margin 0;
 
-      p, textarea {
+      p:last-child, textarea {
         margin: 0;
       }
     }
