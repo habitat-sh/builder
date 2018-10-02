@@ -22,10 +22,8 @@ pub type Endpoint = &'static str;
 
 pub enum Counter {
     InstallationToken,
-    // Github App-mediated API calls
-    Api(Endpoint),
-    // Github API calls, but using a user's personal Github token
-    UserApi(Endpoint),
+    Repo,
+    Contents,
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -34,8 +32,8 @@ impl metrics::Metric for Counter {
     fn id(&self) -> Cow<'static, str> {
         match *self {
             Counter::InstallationToken => "github.installation-token".into(),
-            Counter::Api(ref endpoint) => format!("github.api.{}", endpoint).into(),
-            Counter::UserApi(ref endpoint) => format!("github.user-api.{}", endpoint).into(),
+            Counter::Repo => "github.api.repo".into(),
+            Counter::Contents => "github.api.contents".into(),
         }
     }
 }

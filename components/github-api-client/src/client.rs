@@ -165,7 +165,7 @@ impl GitHubClient {
     pub fn contents(&self, token: &AppToken, repo: u32, path: &str) -> HubResult<Option<Contents>> {
         let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
 
-        Counter::Api("contents").increment();
+        Counter::Contents.increment();
         let mut rep = self.http_get(&url_path, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
@@ -189,7 +189,7 @@ impl GitHubClient {
 
     pub fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
         let url_path = format!("{}/repositories/{}", self.api_url, repo);
-        Counter::Api("repo").increment();
+        Counter::Repo.increment();
         let mut rep = self.http_get(&url_path, Some(&token.inner_token))?;
         let mut body = String::new();
         rep.read_to_string(&mut body)?;
