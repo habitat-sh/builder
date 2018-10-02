@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Usage: eval $(./hab-token [live|acceptance|dev])
+
+set -euo pipefail
+
+TOKENFILE=~/.tokens
+ENVIRON=${1}
+
+if [ ! -e "$TOKENFILE" ]; then
+    echo "Token file missing - please ensure a .tokens file exists in $HOME"
+    exit 0
+fi
+
+source $TOKENFILE
+
+case "$ENVIRON" in
+  live)
+    echo "export HAB_AUTH_TOKEN=$TOKEN_LIVE"
+    ;;
+  acceptance)
+    echo "export HAB_AUTH_TOKEN=$TOKEN_ACCEPTANCE"
+    ;;
+  dev)
+    echo "export HAB_AUTH_TOKEN=$TOKEN_DEV"
+    ;;
+  *) echo $"Usage: eval \$(hab-token [live|acceptance|dev])"
+    ;;
+esac
