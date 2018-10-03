@@ -28,6 +28,7 @@ use hab_net::{self, ErrCode};
 use oauth_client::error::Error as OAuthError;
 use serde_json;
 
+use actix;
 use actix_web;
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
@@ -40,6 +41,8 @@ use zmq;
 // are wrapping - review whether we need more than one error per module
 #[derive(Debug)]
 pub enum Error {
+    ActixMailbox(actix::MailboxError),
+    ActixWeb(actix_web::Error),
     Authentication,
     Authorization,
     CircularDependency(String),
@@ -76,6 +79,8 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::ActixMailbox(ref e) => format!("{}", e),
+            Error::ActixWeb(ref e) => format!("{}", e),
             Error::Authentication => "User is not authenticated".to_string(),
             Error::Authorization => "User is not authorized to perform operation".to_string(),
             Error::BadRequest(ref e) => format!("{}", e),
@@ -119,6 +124,8 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::ActixMailbox(_) => "Mailbox is ded",
+            Error::ActixWeb(_) => "Web is ded",
             Error::Authentication => "User is not authenticated",
             Error::Authorization => "User is not authorized to perform operation",
             Error::BadRequest(_) => "Http request formation error",
@@ -232,6 +239,18 @@ fn net_err_to_http(err: &hab_net::NetError) -> StatusCode {
 }
 
 // From handlers - these make application level error handling cleaner
+
+impl From<actix::MailboxError> for Error {
+    fn from(err: actix::MailboxError) -> Error {
+        Error::ActixMailbox(err)
+    }
+}
+
+impl From<actix_web::Error> for Error {
+    fn from(err: actix_web::Error) -> Error {
+        Error::ActixWeb(err)
+    }
+}
 
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error {

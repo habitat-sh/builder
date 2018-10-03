@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use futures::future::FutureResult;
 use std::str::FromStr;
 
 use actix_web::http::header;
 use actix_web::{HttpRequest, Query};
+use futures::{future, Future, IntoFuture};
 use regex::Regex;
 use serde::Serialize;
 use serde_json;
+
+use server::models::channel::{Channel, CreateChannel};
 
 use hab_core::crypto::SigKeyPair;
 use hab_core::package::PackageTarget;
@@ -27,7 +31,7 @@ use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use server::authorize::authorize_session;
-use server::error::Result;
+use server::error::{Error, Result};
 use server::framework::middleware::route_message;
 use server::AppState;
 
@@ -266,6 +270,25 @@ pub fn create_channel(
     request.set_name(channel.to_string());
 
     route_message::<OriginChannelCreate, OriginChannel>(req, &request)
+}
+
+pub fn create_channel_async(
+    req: &HttpRequest<AppState>,
+    origin: &str,
+    channel: &str,
+) -> FutureResult<Channel, Error> {
+    let session_id = match authorize_session(&req, Some(&origin)) {
+        Ok(session_id) => session_id as i64,
+        Err(e) => return future::err(e),
+    };
+
+    req.state()
+        .db
+        .send(CreateChannel {
+            name: channel.to_string(),
+            origin: origin.to_string(),
+            owner_id: session_id,
+        }).from_err()
 }
 
 pub fn trigger_from_request(req: &HttpRequest<AppState>) -> JobGroupTrigger {
