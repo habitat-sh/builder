@@ -142,7 +142,7 @@ fn create_channel(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     req.state()
         .db
         .send(CreateChannel {
-            name: channel,
+            channel: channel,
             origin: origin,
             owner_id: session_id,
         }).from_err()
@@ -164,6 +164,11 @@ fn delete_channel(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     if channel == "stable" || channel == "unstable" {
         return future::err(error::ErrorForbidden(format!("{} is protected", channel))).responder();
     }
+
+    req.state()
+        .memcache
+        .borrow_mut()
+        .clear_cache_for_channel(&origin, &channel);
 
     req.state()
         .db

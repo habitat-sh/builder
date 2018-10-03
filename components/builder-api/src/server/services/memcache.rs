@@ -44,10 +44,18 @@ impl MemcacheClient {
         channel: &str,
         target: &str,
     ) {
-        let namespace = self.namespace(&ident.origin, &ident.name);
+        let package_namespace = self.package_namespace(&ident.origin, &ident.name);
+        let channel_namespace = self.channel_namespace(&ident.origin, channel);
 
         match self.cli.set(
-            &format!("{}/{}/{}:{}", target, channel, ident.to_string(), namespace),
+            &format!(
+                "{}/{}/{}:{}:{}",
+                target,
+                channel,
+                ident.to_string(),
+                channel_namespace,
+                package_namespace
+            ),
             pkg_json,
             self.ttl * 60,
         ) {
@@ -73,7 +81,9 @@ impl MemcacheClient {
         channel: &str,
         target: &str,
     ) -> Option<String> {
-        let namespace = self.namespace(&package.origin, &package.name);
+        let package_namespace = self.package_namespace(&package.origin, &package.name);
+        let channel_namespace = self.channel_namespace(&package.origin, channel);
+
         trace!(
             "Getting {}/{}/{} from memcached",
             target,
@@ -82,11 +92,12 @@ impl MemcacheClient {
         );
 
         match self.get_string(&format!(
-            "{}/{}/{}:{}",
+            "{}/{}/{}:{}:{}",
             target,
             channel,
             package.to_string(),
-            namespace
+            channel_namespace,
+            package_namespace
         )) {
             Some(json_body) => Some(json_body),
             None => None,
@@ -94,12 +105,11 @@ impl MemcacheClient {
     }
 
     pub fn clear_cache_for_package(&mut self, package: PackageIdent) {
-        let epoch = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let namespace = format!("{}/{}", package.origin, package.name);
-        self.cli.set(&namespace, epoch, self.ttl * 60).unwrap()
+        self.reset_namespace(&package_ns_key(&package.origin, &package.name));
+    }
+
+    pub fn clear_cache_for_channel(&mut self, origin: &str, channel: &str) {
+        self.reset_namespace(&channel_ns_key(origin, channel));
     }
 
     pub fn get_session(&mut self, user: &str) -> Option<Session> {
@@ -129,19 +139,28 @@ impl MemcacheClient {
         };
     }
 
-    fn namespace(&mut self, origin: &str, name: &str) -> String {
-        let namespace_key = format!("{}/{}", origin, name);
-        match self.get_string(&namespace_key) {
+    fn package_namespace(&mut self, origin: &str, name: &str) -> String {
+        self.get_namespace(&package_ns_key(origin, name))
+    }
+
+    fn channel_namespace(&mut self, origin: &str, channel: &str) -> String {
+        self.get_namespace(&channel_ns_key(origin, channel))
+    }
+
+    fn get_namespace(&mut self, namespace_key: &str) -> String {
+        match self.get_string(namespace_key) {
             Some(value) => value,
-            None => {
-                let epoch = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs();
-                self.cli.set(&namespace_key, epoch, self.ttl * 60).unwrap();
-                format!("{}", epoch)
-            }
+            None => self.reset_namespace(namespace_key),
         }
+    }
+
+    fn reset_namespace(&mut self, namespace_key: &str) -> String {
+        let epoch = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        self.cli.set(namespace_key, epoch, self.ttl * 60).unwrap();
+        format!("{}", epoch)
     }
 
     // These are to make the compiler happy
@@ -152,4 +171,12 @@ impl MemcacheClient {
     fn get_string(&mut self, key: &str) -> Option<String> {
         self.cli.get(key).unwrap()
     }
+}
+
+fn package_ns_key(origin: &str, name: &str) -> String {
+    format!("package:{}/{}", origin, name)
+}
+
+fn channel_ns_key(origin: &str, channel: &str) -> String {
+    format!("channel:{}/{}", origin, channel)
 }

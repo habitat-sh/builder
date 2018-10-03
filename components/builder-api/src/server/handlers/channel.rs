@@ -26,7 +26,7 @@ impl Handler<CreateChannel> for DbExecutor {
         match Channel::create(channel, self.get_conn()?.deref()) {
             Ok(channel) => Ok(channel),
             Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
-                Err(error::ErrorConflict("channel already Exists"))
+                Err(error::ErrorConflict("channel already exists"))
             }
             Err(_) => Err(error::ErrorInternalServerError("Error creating channel")),
         }
