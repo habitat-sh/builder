@@ -15,9 +15,11 @@
 use std::str::FromStr;
 
 use actix_web::http::{self, Method, StatusCode};
-use actix_web::{error, App, HttpRequest, HttpResponse, Path, Query};
-use actix_web::{AsyncResponder, FromRequest, FutureResponse};
-use futures::{future, Future};
+use actix_web::FromRequest;
+use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
+use diesel::result::{DatabaseErrorKind, Error::DatabaseError};
+
+use std::ops::Deref;
 
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{Identifiable, PackageTarget};
@@ -31,7 +33,7 @@ use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-use server::models::channel::{CreateChannel, DeleteChannel, ListChannels};
+use server::models::channel::{Channel, CreateChannel, DeleteChannel, ListChannels};
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -97,89 +99,105 @@ impl Channels {
 //
 // Route handlers - these functions can return any Responder trait
 //
-fn get_channels(
-    (req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>),
-) -> FutureResponse<HttpResponse> {
+fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();
 
-    req.state()
-        .db
-        .send(ListChannels {
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    match Channel::list(
+        ListChannels {
             origin: origin,
             include_sandbox_channels: sandbox.is_set,
-        }).from_err()
-        .and_then(|res| match res {
-            Ok(list) => {
-                // TED: This is to maintain backwards API compat while killing some proto definitions
-                // currently the output looks like [{"name": "foo"}] when it probably should be ["foo"]
-                #[derive(Serialize)]
-                struct Temp {
-                    name: String,
-                }
-                let ident_list: Vec<Temp> = list
-                    .iter()
-                    .map(|channel| Temp {
-                        name: channel.name.clone(),
-                    }).collect();
-                Ok(HttpResponse::Ok()
-                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                    .json(ident_list))
+        },
+        conn.deref(),
+    ) {
+        Ok(list) => {
+            // TED: This is to maintain backwards API compat while killing some proto definitions
+            // currently the output looks like [{"name": "foo"}] when it probably should be ["foo"]
+            #[derive(Serialize)]
+            struct Temp {
+                name: String,
             }
-            Err(_err) => Ok(HttpResponse::InternalServerError().into()),
-        }).responder()
+            let ident_list: Vec<Temp> = list
+                .iter()
+                .map(|channel| Temp {
+                    name: channel.name.clone(),
+                }).collect();
+            HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(ident_list)
+        }
+        Err(_err) => HttpResponse::InternalServerError().into(),
+    }
 }
 
-fn create_channel(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner();
 
     let session_id = match authorize_session(&req, Some(&origin)) {
         Ok(session_id) => session_id as i64,
-        Err(e) => return future::err(error::ErrorUnauthorized(e)).responder(),
+        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    req.state()
-        .db
-        .send(CreateChannel {
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    match Channel::create(
+        CreateChannel {
             channel: channel,
             origin: origin,
             owner_id: session_id,
-        }).from_err()
-        .and_then(|res| match res {
-            Ok(channel) => Ok(HttpResponse::Created().json(channel)),
-            Err(e) => Err(e),
-        }).responder()
+        },
+        conn.deref(),
+    ) {
+        Ok(channel) => HttpResponse::Created().json(channel),
+        Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
+            HttpResponse::Conflict().into()
+        }
+        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
-fn delete_channel(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
-        return future::err(error::ErrorUnauthorized(err)).responder();
+    if let Err(_err) = authorize_session(&req, Some(&origin)) {
+        return HttpResponse::new(StatusCode::UNAUTHORIZED);
     }
 
     if channel == "stable" || channel == "unstable" {
-        return future::err(error::ErrorForbidden(format!("{} is protected", channel))).responder();
+        return HttpResponse::new(StatusCode::FORBIDDEN);
     }
+
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
 
     req.state()
         .memcache
         .borrow_mut()
         .clear_cache_for_channel(&origin, &channel);
 
-    req.state()
-        .db
-        .send(DeleteChannel {
+    match Channel::delete(
+        DeleteChannel {
             origin: origin,
             channel: channel,
-        }).from_err()
-        .and_then(|res| match res {
-            Ok(_) => Ok(HttpResponse::new(StatusCode::OK)),
-            Err(e) => Err(e),
-        }).responder()
+        },
+        conn.deref(),
+    ) {
+        Ok(_) => HttpResponse::new(StatusCode::OK),
+        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {

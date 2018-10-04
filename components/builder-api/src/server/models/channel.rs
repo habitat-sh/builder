@@ -1,5 +1,4 @@
 use super::db_id_format;
-use actix_web::{actix::Message, Error};
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
@@ -8,7 +7,7 @@ use diesel::sql_types::{BigInt, Bool, Text};
 use diesel::RunQueryDsl;
 use server::schema::channel::*;
 
-#[derive(Debug, Serialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_channels"]
 pub struct Channel {
     #[serde(with = "db_id_format")]
@@ -41,22 +40,6 @@ pub struct GetChannel {
 pub struct DeleteChannel {
     pub origin: String,
     pub channel: String,
-}
-
-impl Message for CreateChannel {
-    type Result = Result<Channel, Error>;
-}
-
-impl Message for ListChannels {
-    type Result = Result<Vec<Channel>, Error>;
-}
-
-impl Message for GetChannel {
-    type Result = Result<Channel, Error>;
-}
-
-impl Message for DeleteChannel {
-    type Result = Result<(), Error>;
 }
 
 impl Channel {
