@@ -1,7 +1,7 @@
-use actix_web::{error, Error};
 use db::config::DataStoreCfg;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use server::error::Result;
 
 type PgPool = Pool<ConnectionManager<PgConnection>>;
 type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
@@ -19,7 +19,10 @@ pub fn init(config: DataStoreCfg) -> DbPool {
 }
 
 impl DbPool {
-    pub fn get_conn(&self) -> Result<PgPooledConnection, Error> {
-        self.0.get().map_err(|e| error::ErrorInternalServerError(e))
+    pub fn get_conn(&self) -> Result<PgPooledConnection> {
+        match self.0.get() {
+            Ok(conn) => Ok(conn),
+            Err(e) => Err(e.into()),
+        }
     }
 }

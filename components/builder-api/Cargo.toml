@@ -25,6 +25,7 @@ features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
 hyper = "0.10.3"
+lazy_static = "*"
 log = "*"
 memcache = "*"
 num_cpus = "*"

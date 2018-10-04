@@ -6,7 +6,7 @@ use diesel::RunQueryDsl;
 use server::schema::account::*;
 
 // Accounts
-#[derive(Debug, Serialize, QueryableByName)]
+#[derive(Identifiable, Debug, Serialize, QueryableByName)]
 #[table_name = "accounts"]
 pub struct Account {
     pub id: i64,
@@ -32,9 +32,10 @@ pub struct UpdateAccount {
     pub email: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FindOrCreateAccount {
-    name: String,
-    email: String,
+    pub name: String,
+    pub email: String,
 }
 
 impl Account {

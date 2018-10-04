@@ -20,6 +20,8 @@ use actix_web::{HttpRequest, HttpResponse, Result};
 use base64;
 use protobuf;
 
+use std::ops::Deref;
+
 use bldr_core;
 use bldr_core::metrics::CounterMetric;
 use hab_net::conn::RouteClient;
@@ -29,7 +31,9 @@ use protocol;
 use protocol::originsrv::*;
 use protocol::Routable;
 
+use hab_net::privilege::FeatureFlags;
 use server::error;
+use server::models::account;
 use server::resources::profile::do_get_access_tokens;
 use server::services::metrics::Counter;
 use server::services::route_broker::RouteBroker;
@@ -100,7 +104,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
     // Check for a valid personal access token
     if bldr_core::access_token::is_access_token(token) {
         let mut memcache = req.state().memcache.borrow_mut();
-        match memcache.get_session(token) {
+        match memcache.get_access_token(token) {
             Some(session) => {
                 trace!("Session {} Cache Hit!", token);
                 return Ok(session);
@@ -109,14 +113,15 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
                 trace!("Session {} Cache Miss!", token);
                 // Pull the session out of the current token provided so we can validate
                 // it against the db's tokens
-                let session = bldr_core::access_token::validate_access_token(
-                    &req.state().config.api.key_path,
-                    token,
-                ).map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
+                let session =
+                    bldr_core::access_token::validate_access_token(
+                        &req.state().config.api.key_path,
+                        token,
+                    ).map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
 
                 if session.get_id() == bldr_core::access_token::BUILDER_ACCOUNT_ID {
                     trace!("Builder token identified");
-                    memcache.set_session(token, &session);
+                    memcache.set_access_token(token, &session);
                     return Ok(session);
                 }
 
@@ -137,7 +142,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
                                         "net:auth:revoked-token",
                                     )));
                                 }
-                                memcache.set_session(new_token, &session);
+                                memcache.set_access_token(new_token, &session);
                                 return Ok(session);
                             }
                             None => {
@@ -161,100 +166,116 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
         };
     };
 
-    // Check for internal sessionsrv token
-    let decoded_token = match base64::decode(token) {
-        Ok(decoded_token) => decoded_token,
-        Err(e) => {
-            debug!("Failed to base64 decode token, err={:?}", e);
-            return Err(error::Error::NetError(NetError::new(
-                ErrCode::BAD_TOKEN,
-                "net:auth:decode:1",
-            )));
-        }
-    };
-
-    match protocol::message::decode(&decoded_token) {
-        Ok(session_token) => session_validate(req, session_token),
-        Err(e) => {
-            debug!("Failed to decode token, err={:?}", e);
-            Err(error::Error::NetError(NetError::new(
-                ErrCode::BAD_TOKEN,
-                "net:auth:decode:2",
-            )))
-        }
-    }
+    session_validate(req, token)
 }
 
-fn session_validate(req: &HttpRequest<AppState>, token: SessionToken) -> error::Result<Session> {
-    let mut request = SessionGet::new();
-    request.set_token(token);
-    route_message::<SessionGet, Session>(req, &request)
+fn session_validate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Session> {
+    match req.state().memcache.borrow_mut().get_session(token) {
+        Some(token) => Ok(token),
+        None => Err(error::Error::NetError(NetError::new(
+            ErrCode::SESSION_EXPIRED,
+            "ss:session-get:0",
+        ))),
+    }
 }
 
 pub fn session_create_oauth(
     req: &HttpRequest<AppState>,
-    token: &str,
+    oauth_token: &str,
     user: &OAuth2User,
     provider: &str,
 ) -> error::Result<Session> {
-    let mut request = SessionCreate::new();
-    request.set_session_type(SessionType::User);
-    request.set_token(token.to_owned());
-    request.set_extern_id(user.id.clone());
-    request.set_name(user.username.clone());
+    let mut session = Session::new();
+    let mut session_token = SessionToken::new();
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(e) => return Err(e),
+    };
 
-    match provider.parse::<OAuthProvider>() {
-        Ok(p) => request.set_provider(p),
+    let email = match user.email {
+        Some(ref email) => {
+            session.set_email(email.clone());
+            email
+        }
+        None => "",
+    };
+
+    match account::Account::find_or_create(
+        account::FindOrCreateAccount {
+            name: user.username.to_string(),
+            email: email.to_string(),
+        },
+        conn.deref(),
+    ) {
+        Ok(account) => {
+            session_token.set_account_id(account.id as u64);
+            session_token.set_extern_id(user.id.to_string());
+            session_token.set_token(oauth_token.to_string().into_bytes());
+
+            match provider.parse::<OAuthProvider>() {
+                Ok(p) => session_token.set_provider(p),
+                Err(e) => {
+                    warn!(
+                        "Error parsing oauth provider: provider={}, err={:?}",
+                        provider, e
+                    );
+                    return Err(error::Error::NetError(NetError::new(
+                        ErrCode::BUG,
+                        "session_create_oauth:1",
+                    )));
+                }
+            }
+
+            let encoded_token = encode_token(&session_token);
+            session.set_id(account.id as u64);
+            session.set_name(account.name);
+            session.set_token(encoded_token.clone());
+            session.set_flags(FeatureFlags::empty().bits());
+            session.set_oauth_token(oauth_token.to_owned());
+
+            debug!("issuing session, {:?}", session);
+            req.state()
+                .memcache
+                .borrow_mut()
+                .set_session(session.clone());
+            Ok(session)
+        }
         Err(e) => {
-            warn!(
-                "Error parsing oauth provider: provider={}, err={:?}",
-                provider, e
-            );
-            return Err(error::Error::NetError(NetError::new(
-                ErrCode::BUG,
-                "session_create_oauth:1",
-            )));
+            error!("Failed to create session {}", e);
+            Err(e.into())
         }
     }
-
-    if let Some(ref email) = user.email {
-        request.set_email(email.clone());
-    }
-
-    route_message::<SessionCreate, Session>(req, &request)
 }
 
 pub fn session_create_short_circuit(
     req: &HttpRequest<AppState>,
     token: &str,
 ) -> error::Result<Session> {
-    let request = match token.as_ref() {
-        "bobo" => {
-            let mut request = SessionCreate::new();
-            request.set_session_type(SessionType::User);
-            request.set_extern_id("0".to_string());
-            request.set_email("bobo@example.com".to_string());
-            request.set_name("bobo".to_string());
-            request.set_provider(OAuthProvider::GitHub);
-            request
-        }
-        "mystique" => {
-            let mut request = SessionCreate::new();
-            request.set_session_type(SessionType::User);
-            request.set_extern_id("1".to_string());
-            request.set_email("mystique@example.com".to_string());
-            request.set_name("mystique".to_string());
-            request.set_provider(OAuthProvider::GitHub);
-            request
-        }
-        "hank" => {
-            let mut request = SessionCreate::new();
-            request.set_extern_id("2".to_string());
-            request.set_email("hank@example.com".to_string());
-            request.set_name("hank".to_string());
-            request.set_provider(OAuthProvider::GitHub);
-            request
-        }
+    let (user, provider) = match token.as_ref() {
+        "bobo" => (
+            OAuth2User {
+                id: "0".to_string(),
+                email: Some("bobo@example.com".to_string()),
+                username: "bobo".to_string(),
+            },
+            "GitHub",
+        ),
+        "mystique" => (
+            OAuth2User {
+                id: "1".to_string(),
+                email: Some("mystique@example.com".to_string()),
+                username: "mystique".to_string(),
+            },
+            "GitHub",
+        ),
+        "hank" => (
+            OAuth2User {
+                id: "2".to_string(),
+                email: Some("hank@example.com".to_string()),
+                username: "hank".to_string(),
+            },
+            "GitHub",
+        ),
         user => {
             error!("Unexpected short circuit token {:?}", user);
             return Err(error::Error::NetError(NetError::new(
@@ -264,5 +285,10 @@ pub fn session_create_short_circuit(
         }
     };
 
-    route_message::<SessionCreate, Session>(req, &request)
+    session_create_oauth(req, token, &user, provider)
+}
+
+fn encode_token(token: &SessionToken) -> String {
+    let bytes = protocol::message::encode(token).unwrap(); //Unwrap is safe
+    base64::encode(&bytes)
 }
