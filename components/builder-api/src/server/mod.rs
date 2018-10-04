@@ -16,7 +16,6 @@ pub mod authorize;
 pub mod db;
 pub mod error;
 pub mod framework;
-pub mod handlers;
 pub mod helpers;
 pub mod models;
 pub mod resources;
@@ -30,7 +29,6 @@ use std::sync::Arc;
 use std::thread;
 
 use actix;
-use actix_web::actix::Addr;
 use actix_web::http::StatusCode;
 use actix_web::middleware::Logger;
 use actix_web::server::{self, KeepAlive};
@@ -42,7 +40,7 @@ use hab_net::socket;
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
-use self::db::{init, DbExecutor};
+use self::db::{init, DbPool};
 use self::error::Error;
 use self::framework::middleware::{Authentication, XRouteClient};
 
@@ -81,11 +79,11 @@ pub struct AppState {
     segment: SegmentClient,
     upstream: UpstreamClient,
     memcache: RefCell<MemcacheClient>,
-    db: Addr<DbExecutor>,
+    db: DbPool,
 }
 
 impl AppState {
-    pub fn new(config: &Config, db: Addr<DbExecutor>) -> AppState {
+    pub fn new(config: &Config, db: DbPool) -> AppState {
         AppState {
             config: config.clone(),
             packages: S3Handler::new(config.s3.clone()),
@@ -154,10 +152,10 @@ pub fn run(config: Config) -> Result<()> {
 
     // TED TODO: When originsrv gets removed we need to do the migrations here
 
-    let addr = init(config.datastore.clone());
+    let db_pool = init(config.datastore.clone());
 
     server::new(move || {
-        let app_state = AppState::new(&config, addr.clone());
+        let app_state = AppState::new(&config, db_pool.clone());
 
         App::with_state(app_state)
             .middleware(Logger::default().exclude("/v1/status"))

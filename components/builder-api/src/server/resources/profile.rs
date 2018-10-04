@@ -13,10 +13,9 @@
 // limitations under the License.
 //
 use actix_web::http::{Method, StatusCode};
-use actix_web::{
-    error, App, AsyncResponder, FromRequest, FutureResponse, HttpRequest, HttpResponse, Json, Path,
-};
-use futures::{future, Future};
+use actix_web::{App, FromRequest, HttpRequest, HttpResponse, Json, Path};
+
+use std::ops::Deref;
 
 use bldr_core;
 use hab_net::NetOk;
@@ -25,7 +24,7 @@ use protocol::originsrv::*;
 use server::authorize::authorize_session;
 use server::error::Result;
 use server::framework::middleware::route_message;
-use server::models::account::{GetAccountById, UpdateAccount};
+use server::models::account::{Account as AccountModel, GetAccountById, UpdateAccount};
 use server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -48,8 +47,7 @@ impl Profile {
                 "/profile/access-tokens",
                 Method::POST,
                 generate_access_token,
-            )
-            .route(
+            ).route(
                 "/profile/access-tokens/{id}",
                 Method::DELETE,
                 revoke_access_token,
@@ -68,23 +66,26 @@ pub fn do_get_access_tokens(req: &HttpRequest<AppState>, account_id: u64) -> Res
 //
 // Route handlers - these functions can return any Responder trait
 //
-fn get_account(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
     let session_id = match authorize_session(&req, None) {
         Ok(session_id) => session_id as i64,
-        Err(err) => return future::err(error::ErrorUnauthorized(err)).responder(),
+        Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    req.state()
-        .db
-        .send(GetAccountById {
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    match AccountModel::get_by_id(
+        GetAccountById {
             id: session_id.clone(),
-        })
-        .from_err()
-        .and_then(move |res| match res {
-            Ok(account) => Ok(HttpResponse::Ok().json(account)),
-            Err(e) => Err(e),
-        })
-        .responder()
+        },
+        conn.deref(),
+    ) {
+        Ok(account) => HttpResponse::Ok().json(account),
+        Err(_e) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
@@ -181,30 +182,29 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
-fn update_account(
-    (req, body): (HttpRequest<AppState>, Json<UserUpdateReq>),
-) -> FutureResponse<HttpResponse> {
+fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> HttpResponse {
     let session_id = match authorize_session(&req, None) {
         Ok(session_id) => session_id as i64,
-        Err(err) => return future::err(error::ErrorUnauthorized(err)).responder(),
+        Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
     if body.email.len() <= 0 {
-        return future::err(error::ErrorBadRequest(
-            "No email address provided with request",
-        )).responder();
+        return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
-    req.state()
-        .db
-        .send(UpdateAccount {
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    match AccountModel::update(
+        UpdateAccount {
             id: session_id.clone(),
             email: body.email.to_owned(),
-        })
-        .from_err()
-        .and_then(move |res| match res {
-            Ok(_) => Ok(HttpResponse::new(StatusCode::OK)),
-            Err(e) => Err(e),
-        })
-        .responder()
+        },
+        conn.deref(),
+    ) {
+        Ok(_) => HttpResponse::new(StatusCode::OK),
+        Err(_e) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }

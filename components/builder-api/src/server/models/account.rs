@@ -1,4 +1,3 @@
-use actix_web::{actix::Message, Error};
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
@@ -36,26 +35,6 @@ pub struct UpdateAccount {
 pub struct FindOrCreateAccount {
     name: String,
     email: String,
-}
-
-impl Message for GetAccount {
-    type Result = Result<Account, Error>;
-}
-
-impl Message for GetAccountById {
-    type Result = Result<Account, Error>;
-}
-
-impl Message for CreateAccount {
-    type Result = Result<Account, Error>;
-}
-
-impl Message for UpdateAccount {
-    type Result = Result<(), Error>;
-}
-
-impl Message for FindOrCreateAccount {
-    type Result = Result<Account, Error>;
 }
 
 impl Account {
