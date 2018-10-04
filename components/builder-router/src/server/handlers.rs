@@ -37,18 +37,15 @@ pub fn on_heartbeat(conn: &SrvConn, message: &mut Message, servers: &mut ServerM
 }
 
 pub fn on_registration(
-    conn: &SrvConn,
+    _conn: &SrvConn,
     message: &mut Message,
     servers: &mut ServerMap,
 ) -> Result<()> {
-    let mut body = message.parse::<routesrv::Registration>()?;
+    let body = message.parse::<routesrv::Registration>()?;
     debug!("OnRegistration, {:?}", body);
     let protocol = body.get_protocol();
-    let shards = body.take_shards();
-    if !servers.add(protocol, message.sender().unwrap().to_vec(), shards) {
-        let err = NetError::new(ErrCode::REG_CONFLICT, "rt:register:1");
-        warn!("{}", err);
-        conn.route_reply(message, &*err)?;
+    if !servers.add(protocol, message.sender().unwrap().to_vec()) {
+        debug!("Server already registered - no op");
     }
     Ok(())
 }

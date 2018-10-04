@@ -20,7 +20,6 @@ use hab_net::time;
 use hab_net::{ErrCode, NetError};
 use protocol::message::{Message, Protocol};
 use protocol::routesrv::PING_INTERVAL_MS;
-use protocol::sharding::ShardId;
 use zmq;
 
 use config::Config;
@@ -83,13 +82,13 @@ impl Server {
             }
             Some(Protocol::Net) => warn!("route-message, unroutable message, {}", message),
             Some(_) => {
-                if let Some(identity) = self.select_shard(message) {
+                if let Some(identity) = self.select_server(message) {
                     if let Err(err) = conn.forward(message, identity.to_vec()) {
                         error!("{}", err);
                     }
                     return;
                 }
-                let err = NetError::new(ErrCode::NO_SHARD, "rt:route:2");
+                let err = NetError::new(ErrCode::REG_NOT_FOUND, "rt:route:2");
                 error!("{}", err);
                 message.populate_reply(&*err).unwrap();
                 if let Err(err) = conn.forward_reply(message) {
@@ -135,11 +134,8 @@ impl Server {
         Ok(())
     }
 
-    // Returns 0 always since we are no longer using sharding
-    fn select_shard(&mut self, message: &Message) -> Option<&[u8]> {
-        let shard_id = 0;
-        self.servers
-            .get(&message.route_info().unwrap().protocol(), &shard_id)
+    fn select_server(&mut self, message: &Message) -> Option<&[u8]> {
+        self.servers.get(&message.route_info().unwrap().protocol())
     }
 
     /// A tickless timer for determining how long to wait between each server tick. This value is
@@ -152,34 +148,30 @@ impl Server {
 
 #[derive(Debug, Default)]
 pub struct ServerMap {
-    reg: HashMap<Protocol, HashMap<ShardId, Vec<u8>>>,
+    reg: HashMap<Protocol, Vec<Vec<u8>>>,
     timestamps: HashMap<Vec<u8>, i64>,
 }
 
 impl ServerMap {
-    pub fn add(&mut self, protocol: Protocol, net_ident: Vec<u8>, shards: Vec<ShardId>) -> bool {
+    pub fn add(&mut self, protocol: Protocol, net_ident: Vec<u8>) -> bool {
         if !self.reg.contains_key(&protocol) {
-            self.reg.insert(protocol, HashMap::default());
+            self.reg.insert(protocol, Vec::new());
         }
+
         let registrations = self.reg.get_mut(&protocol).unwrap();
-        for shard in shards.iter() {
-            if let Some(reg) = registrations.get(&shard) {
-                if reg != &net_ident {
-                    return false;
-                }
-            }
+        if registrations.contains(&net_ident) {
+            return false;
         }
-        for shard in shards {
-            registrations.insert(shard, net_ident.clone());
-        }
+        registrations.push(net_ident.clone());
+
         self.timestamps
             .insert(net_ident, time::clock_time() + SERVER_TTL);
         true
     }
 
     pub fn drop(&mut self, target: &[u8]) {
-        for map in self.reg.values_mut() {
-            map.retain(|_, net_ident| net_ident.as_slice() != target);
+        for idents in self.reg.values_mut() {
+            idents.retain(|net_ident| net_ident.as_slice() != target);
         }
         self.timestamps
             .retain(|net_ident, _| net_ident.as_slice() != target);
@@ -205,10 +197,10 @@ impl ServerMap {
         }
     }
 
-    pub fn get(&self, protocol: &Protocol, shard: &ShardId) -> Option<&[u8]> {
+    pub fn get(&self, protocol: &Protocol) -> Option<&[u8]> {
         self.reg
             .get(protocol)
-            .and_then(|shards| shards.get(shard))
+            .and_then(|idents| idents.get(0)) // TODO: randomly select
             .and_then(|s| Some(s.as_slice()))
     }
 
