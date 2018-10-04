@@ -90,9 +90,6 @@ mkdir -p /hab/svc/builder-originsrv
 cat <<EOT > /hab/svc/builder-originsrv/user.toml
 log_level = "info"
 
-[app]
-shards = [0]
-
 [datastore]
 password = "$PGPASSWORD"
 EOT

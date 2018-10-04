@@ -19,7 +19,6 @@ use std::str::FromStr;
 pub use core::config::ConfigFile;
 use num_cpus;
 use protocol::routesrv::DEFAULT_ROUTER_PORT;
-use protocol::sharding::{ShardId, SHARD_COUNT};
 use toml;
 
 use socket::ToAddrString;
@@ -64,9 +63,6 @@ pub struct AppCfg {
     pub routers: Vec<RouterAddr>,
     /// Return a list of shards which this service is hosting.
     ///
-    /// A value of `None` indicates that this is not a sharded service.
-    #[serde(default = "AppCfg::default_shards")]
-    pub shards: Option<Vec<ShardId>>,
     /// Count of Dispatch workers to start and supervise.
     #[serde(default = "AppCfg::default_worker_count")]
     pub worker_count: usize,
@@ -77,13 +73,9 @@ impl AppCfg {
         vec![RouterAddr::default()]
     }
 
-    pub fn default_shards() -> Option<Vec<ShardId>> {
-        Some((0..SHARD_COUNT).collect())
-    }
-
     /// Default size of Dispatch worker pool.
     pub fn default_worker_count() -> usize {
-        num_cpus::get() * 8
+        num_cpus::get() * 2
     }
 }
 
@@ -91,7 +83,6 @@ impl Default for AppCfg {
     fn default() -> Self {
         AppCfg {
             routers: Self::default_routers(),
-            shards: Self::default_shards(),
             worker_count: Self::default_worker_count(),
         }
     }
@@ -113,7 +104,6 @@ mod tests {
     #[test]
     fn config_from_file() {
         let content = r#"
-        shards = [0]
         worker_count = 1
 
         [[routers]]
@@ -122,7 +112,6 @@ mod tests {
         "#;
 
         let config = AppCfg::from_str(&content).unwrap();
-        assert_eq!(config.shards, Some(vec![0]));
         assert_eq!(config.worker_count, 1);
         assert_eq!(&format!("{}", config.routers[0]), "1:1:1:1:1:1:1:1:9000");
     }
