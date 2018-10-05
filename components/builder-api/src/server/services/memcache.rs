@@ -112,7 +112,7 @@ impl MemcacheClient {
         self.reset_namespace(&channel_ns_key(origin, channel));
     }
 
-    pub fn get_access_token(&mut self, token: &str) -> Option<Session> {
+    pub fn get_session(&mut self, token: &str) -> Option<Session> {
         trace!("Getting session for user {} from memcached", token);
 
         match self.get_bytes(&format!("{}", token)) {
@@ -128,11 +128,16 @@ impl MemcacheClient {
         };
     }
 
-    pub fn set_access_token(&mut self, token: &str, session: &Session) {
+    pub fn set_session(&mut self, token: &str, session: &Session, ttl: Option<u32>) {
+        let computed_ttl = match ttl {
+            Some(ttl) => ttl,
+            None => self.ttl * 60,
+        };
+
         match self.cli.set(
-            &format!("{}", token),
+            token,
             session.write_to_bytes().unwrap().as_slice(),
-            self.ttl * 60,
+            computed_ttl,
         ) {
             Ok(_) => trace!("Saved token to memcached!"),
             Err(e) => warn!("Failed to save token to memcached: {}", e),
@@ -170,24 +175,6 @@ impl MemcacheClient {
 
     fn get_string(&mut self, key: &str) -> Option<String> {
         self.cli.get(key).unwrap()
-    }
-
-    pub fn set_session(&mut self, session: Session) {
-        self.cli
-            .set(
-                session.get_token(),
-                session.write_to_bytes().unwrap().as_slice(),
-                // SESSION_DURATION this is hardcoded to 24hrs
-                1 * 24 * 60 * 60,
-            )
-            .unwrap()
-    }
-
-    pub fn get_session(&mut self, token: &str) -> Option<Session> {
-        match self.get_bytes(token) {
-            Some(session) => Some(protobuf::parse_from_bytes(&session).unwrap()),
-            None => None,
-        }
     }
 }
 

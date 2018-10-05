@@ -39,6 +39,10 @@ use server::services::metrics::Counter;
 use server::services::route_broker::RouteBroker;
 use server::AppState;
 
+lazy_static! {
+    static ref SESSION_DURATION: u32 = 1 * 24 * 60 * 60;
+}
+
 // Router client
 pub struct XRouteClient;
 
@@ -101,81 +105,70 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
         return session_create_short_circuit(req, token);
     };
 
-    // Check for a valid personal access token
-    if bldr_core::access_token::is_access_token(token) {
-        let mut memcache = req.state().memcache.borrow_mut();
-        match memcache.get_access_token(token) {
-            Some(session) => {
-                trace!("Session {} Cache Hit!", token);
+    let mut memcache = req.state().memcache.borrow_mut();
+    match memcache.get_session(token) {
+        Some(session) => {
+            trace!("Session {} Cache Hit!", token);
+            return Ok(session);
+        }
+        None => {
+            trace!("Session {} Cache Miss!", token);
+            if !bldr_core::access_token::is_access_token(token) {
+                // No token in cache and not a PAT - bail
+                return Err(error::Error::NetError(NetError::new(
+                    ErrCode::BAD_TOKEN,
+                    "net:auth:expired-token",
+                )));
+            }
+            // Pull the session out of the current token provided so we can validate
+            // it against the db's tokens
+            let session = bldr_core::access_token::validate_access_token(
+                &req.state().config.api.key_path,
+                token,
+            ).map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
+
+            if session.get_id() == bldr_core::access_token::BUILDER_ACCOUNT_ID {
+                trace!("Builder token identified");
+                memcache.set_session(token, &session, None);
                 return Ok(session);
             }
-            None => {
-                trace!("Session {} Cache Miss!", token);
-                // Pull the session out of the current token provided so we can validate
-                // it against the db's tokens
-                let session =
-                    bldr_core::access_token::validate_access_token(
-                        &req.state().config.api.key_path,
-                        token,
-                    ).map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
 
-                if session.get_id() == bldr_core::access_token::BUILDER_ACCOUNT_ID {
-                    trace!("Builder token identified");
-                    memcache.set_access_token(token, &session);
-                    return Ok(session);
-                }
-
-                // If we can't find a token in the cache, we need to round-trip to the
-                // db to see if we have a valid session token.
-                match do_get_access_tokens(&req, session.get_id()) {
-                    Ok(access_tokens) => {
-                        assert!(access_tokens.get_tokens().len() <= 1); // Can only have max of 1 for now
-                        match access_tokens.get_tokens().first() {
-                            Some(access_token) => {
-                                let new_token = access_token.get_token();
-                                if token.trim_right_matches('=')
-                                    != new_token.trim_right_matches('=')
-                                {
-                                    // Token is valid but revoked or otherwise expired
-                                    return Err(error::Error::NetError(NetError::new(
-                                        ErrCode::BAD_TOKEN,
-                                        "net:auth:revoked-token",
-                                    )));
-                                }
-                                memcache.set_access_token(new_token, &session);
-                                return Ok(session);
-                            }
-                            None => {
-                                // We have no tokens in the database for this user
+            // If we can't find a token in the cache, we need to round-trip to the
+            // db to see if we have a valid session token.
+            match do_get_access_tokens(&req, session.get_id()) {
+                Ok(access_tokens) => {
+                    assert!(access_tokens.get_tokens().len() <= 1); // Can only have max of 1 for now
+                    match access_tokens.get_tokens().first() {
+                        Some(access_token) => {
+                            let new_token = access_token.get_token();
+                            if token.trim_right_matches('=') != new_token.trim_right_matches('=') {
+                                // Token is valid but revoked or otherwise expired
                                 return Err(error::Error::NetError(NetError::new(
                                     ErrCode::BAD_TOKEN,
                                     "net:auth:revoked-token",
                                 )));
                             }
+                            memcache.set_session(new_token, &session, None);
+                            return Ok(session);
+                        }
+                        None => {
+                            // We have no tokens in the database for this user
+                            return Err(error::Error::NetError(NetError::new(
+                                ErrCode::BAD_TOKEN,
+                                "net:auth:revoked-token",
+                            )));
                         }
                     }
-                    Err(_) => {
-                        // Failed to fetch tokens from the database for this user
-                        return Err(error::Error::NetError(NetError::new(
-                            ErrCode::BAD_TOKEN,
-                            "net:auth:revoked-token",
-                        )));
-                    }
+                }
+                Err(_) => {
+                    // Failed to fetch tokens from the database for this user
+                    return Err(error::Error::NetError(NetError::new(
+                        ErrCode::BAD_TOKEN,
+                        "net:auth:revoked-token",
+                    )));
                 }
             }
-        };
-    };
-
-    session_validate(req, token)
-}
-
-fn session_validate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Session> {
-    match req.state().memcache.borrow_mut().get_session(token) {
-        Some(token) => Ok(token),
-        None => Err(error::Error::NetError(NetError::new(
-            ErrCode::SESSION_EXPIRED,
-            "ss:session-get:0",
-        ))),
+        }
     }
 }
 
@@ -234,10 +227,11 @@ pub fn session_create_oauth(
             session.set_oauth_token(oauth_token.to_owned());
 
             debug!("issuing session, {:?}", session);
-            req.state()
-                .memcache
-                .borrow_mut()
-                .set_session(session.clone());
+            req.state().memcache.borrow_mut().set_session(
+                &session.get_token(),
+                &session,
+                Some(*SESSION_DURATION),
+            );
             Ok(session)
         }
         Err(e) => {
