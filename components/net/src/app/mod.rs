@@ -247,7 +247,7 @@ impl<T> Application<T>
 where
     T: Dispatcher,
 {
-    fn new(config: &T::Config) -> AppResult<Self, T::Error> {
+    fn new(_config: &T::Config) -> AppResult<Self, T::Error> {
         let router_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER)?;
         router_sock.set_identity(socket::srv_ident().as_bytes())?;
         router_sock.set_probe_router(true)?;
@@ -258,9 +258,6 @@ where
         let pipe_in = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         let mut registration = routesrv::Registration::new();
         registration.set_protocol(T::PROTOCOL);
-        if let Some(ref shards) = config.as_ref().shards {
-            registration.set_shards(shards.to_vec());
-        }
         Ok(Application {
             heartbeat: protocol::Message::build(&routesrv::Heartbeat::new())?,
             msg_buf: protocol::Message::default(),

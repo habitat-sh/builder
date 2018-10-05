@@ -6,6 +6,7 @@ message Disconnect {}
 message Heartbeat {}
 
 message Registration {
+  reserved 2;
+  reserved "shards";
   optional net.Protocol protocol = 1;
-  repeated uint32 shards = 2 [packed=true];
 }
