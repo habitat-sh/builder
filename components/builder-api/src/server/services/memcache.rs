@@ -112,10 +112,10 @@ impl MemcacheClient {
         self.reset_namespace(&channel_ns_key(origin, channel));
     }
 
-    pub fn get_session(&mut self, user: &str) -> Option<Session> {
-        trace!("Getting session for user {} from memcached", user);
+    pub fn get_session(&mut self, token: &str) -> Option<Session> {
+        trace!("Getting session for user {} from memcached", token);
 
-        match self.get_bytes(&format!("{}", user)) {
+        match self.get_bytes(&format!("{}", token)) {
             Some(session) => Some(protobuf::parse_from_bytes(&session).unwrap()),
             None => None,
         }
@@ -128,14 +128,19 @@ impl MemcacheClient {
         };
     }
 
-    pub fn set_session(&mut self, user: &str, session: &Session) {
+    pub fn set_session(&mut self, token: &str, session: &Session, ttl: Option<u32>) {
+        let computed_ttl = match ttl {
+            Some(ttl) => ttl,
+            None => self.ttl * 60,
+        };
+
         match self.cli.set(
-            &format!("{}", user),
+            token,
             session.write_to_bytes().unwrap().as_slice(),
-            self.ttl * 60,
+            computed_ttl,
         ) {
-            Ok(_) => trace!("Saved session for {} to memcached", user),
-            Err(e) => warn!("Failed to save user {} to memcached: {}", user, e),
+            Ok(_) => trace!("Saved token to memcached!"),
+            Err(e) => warn!("Failed to save token to memcached: {}", e),
         };
     }
 

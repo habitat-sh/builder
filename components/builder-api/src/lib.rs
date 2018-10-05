@@ -37,6 +37,8 @@ extern crate habitat_net as hab_net;
 extern crate hex;
 extern crate hyper;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log;
 extern crate oauth_client;
 extern crate openssl;

@@ -1630,7 +1630,8 @@ mod tests {
                 opv.set_version(z.to_string());
                 opv.set_latest("haha".to_string());
                 opv
-            }).collect::<Vec<OriginPackageVersion>>();
+            })
+            .collect::<Vec<OriginPackageVersion>>();
 
         let mut y = b
             .iter()
@@ -1641,7 +1642,8 @@ mod tests {
                 opv.set_version(z.to_string());
                 opv.set_latest("haha".to_string());
                 opv
-            }).collect::<Vec<OriginPackageVersion>>();
+            })
+            .collect::<Vec<OriginPackageVersion>>();
 
         x.sort_by(|m, n| n.cmp(m));
         y.sort_by(|m, n| n.cmp(m));
