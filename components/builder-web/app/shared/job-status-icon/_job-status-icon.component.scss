@@ -1,0 +1,18 @@
+hab-job-status-icon {
+
+  hab-icon {
+
+    @each $key, $color in $status-colors {
+      &.#{$key} {
+        color: #{$color};
+      }
+    }
+
+    &.inprogress, &.dispatching, &.dispatched, &.cancelpending, &.cancelprocessing {
+
+      &.animate {
+        @extend hab-icon.spinning;
+      }
+    }
+  }
+}

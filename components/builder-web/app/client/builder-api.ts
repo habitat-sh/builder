@@ -380,6 +380,24 @@ export class BuilderApiClient {
     });
   }
 
+  public cancelJobGroup(id: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/jobs/group/${id}/cancel`, {
+        method: 'POST',
+        headers: this.headers
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve();
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public getProject(origin: string, name: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${origin}/${name}`, {

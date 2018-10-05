@@ -20,6 +20,8 @@
       padding: 0;
       width: 100%;
 
+      color: $hab-text;
+
       .mat-button-wrapper {
         position: relative;
 
@@ -52,13 +54,8 @@
         }
       }
 
-      .add-icon {
-        hab-icon {
-          margin: 0 $default-margin / 2;
-        }
-      }
-
       .label {
+        margin-left: $default-margin / 2;
         white-space: normal;
         text-align: left;
         font-weight: 600;

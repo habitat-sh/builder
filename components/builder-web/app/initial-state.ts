@@ -55,6 +55,7 @@ export default Record({
     selected: Record({
       info: Record({
         id: undefined,
+        owner_id: undefined,
         origin: undefined,
         name: undefined,
         version: undefined,

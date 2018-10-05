@@ -63,6 +63,8 @@ describe('JobDetailComponent', () => {
       declarations: [
         JobDetailComponent,
         MockComponent({ selector: 'hab-package-breadcrumbs', inputs: ['ident'] }),
+        MockComponent({ selector: 'hab-job-status', inputs: ['job'] }),
+        MockComponent({ selector: 'hab-channels', inputs: ['channels'] }),
         MockComponent({ selector: 'hab-icon', inputs: ['symbol'] })
       ],
       providers: [

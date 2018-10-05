@@ -14,14 +14,14 @@
         <span class="column name">
           {{ job.version || "&mdash;" }}
         </span>
-        <span class="column">
+        <span class="column package">
           {{ job.origin }} / {{ job.name }}
         </span>
-        <span class="column">
+        <span class="column date">
           {{ dateFor(job.created_at) }}
         </span>
         <span class="column icons">
-          <hab-icon [symbol]="iconFor(job.state)" class="status {{ job.state | lowercase }}" title="{{ job.state | titlecase }}"></hab-icon>
+          <hab-job-status-icon [job]="job"></hab-job-status-icon>
           <hab-icon symbol="chevron-right"></hab-icon>
         </span>
       </a>

@@ -14,10 +14,12 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatDialog } from '@angular/material';
 import { AppStore } from '../../../app.store';
 import { Title } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
-import { fetchJobGroup } from '../../../actions/index';
+import { JobCancelDialog } from '../../../shared/dialog/job-cancel/job-cancel.dialog';
+import { fetchJobGroup, cancelJobGroup } from '../../../actions/index';
 import { parseDate, iconForJobState } from '../../../util';
 
 @Component({
@@ -39,6 +41,7 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private store: AppStore,
     private router: Router,
+    private cancelDialog: MatDialog,
     private title: Title
   ) {
     this.sub = this.route.params.subscribe((params) => {
@@ -51,7 +54,7 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.poll = window.setInterval(() => {
       this.fetchJobGroup();
-    }, 10000);
+    }, 5000);
 
     this.fetchJobGroup();
   }
@@ -65,32 +68,36 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
     window.clearInterval(this.poll);
   }
 
-  get token() {
-    return this.store.getState().session.token;
+  get pendingCount() {
+    return (this.store.getState().jobGroups.selected.projects_by_state.notstarted || []).length;
   }
 
   get completedCount() {
     return this.completedStates.reduce((total, state) => {
-      const stateList = this.thisGroup.projects_by_state[state];
+      const stateList = this.group.projects_by_state[state];
       total += stateList ? stateList.length : 0;
       return total;
     }, 0);
   }
 
-  get totalCount() {
-    return this.thisGroup.projects.length;
-  }
-
-  get projects() {
-    return this.thisGroup.projects;
-  }
-
-  get thisGroup() {
+  get group() {
     return this.store.getState().jobGroups.selected;
   }
 
+  get projects() {
+    return this.group.projects;
+  }
+
+  get token() {
+    return this.store.getState().session.token;
+  }
+
+  get totalCount() {
+    return this.group.projects.length;
+  }
+
   projectStateCount(param) {
-    const stateList = this.thisGroup.projects_by_state[param];
+    const stateList = this.group.projects_by_state[param];
     return stateList ? stateList.length : 0;
   }
 
@@ -106,8 +113,24 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
     this.router.navigate(['origins', this.origin, 'jobs']);
   }
 
-  iconFor(state) {
-    return iconForJobState(state);
+  hasJobId(project) {
+    return project.job_id !== '0';
+  }
+
+  cancel(id) {
+    this.cancelDialog
+      .open(JobCancelDialog, {
+        width: '480px',
+        data: {
+          pendingCount: this.pendingCount
+        }
+      })
+      .afterClosed()
+      .subscribe(confirmed => {
+        if (confirmed) {
+          this.store.dispatch(cancelJobGroup(this.id, this.token));
+        }
+      });
   }
 
   private fetchJobGroup() {

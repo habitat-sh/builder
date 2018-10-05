@@ -46,15 +46,23 @@ $error: $hab-red;
 $disabled: $medium-gray;
 
 $status-colors: (
+  canceled: $disabled,
+  cancelpending: $disabled,
+  cancelprocessing: $disabled,
+  cancelcomplete: $disabled,
   complete: $success,
-  success: $success,
+  dispatching: $active,
   dispatched: $active,
+  failed: $error,
+  failure: $error,
+  inprogress: $active,
+  notstarted: $pending,
   processing: $active,
   pending: $pending,
-  failure: $error,
-  failed: $error,
+  queued: $pending,
   rejected: $error,
-  cancelled: $disabled
+  skipped: $disabled,
+  success: $success
 );
 
 $form-colors: (

@@ -118,17 +118,48 @@ export function targetToPlatform(target: string = ''): string {
   return target.split('-').slice(-1).toString();
 }
 
-// Return a build state's proper icon symbol
+// Return a job state's proper icon symbol
 export function iconForJobState(state) {
   return {
+    canceled: 'no',
+    cancelpending: 'loading',
+    cancelprocessing: 'loading',
+    cancelcomplete: 'no',
     complete: 'check',
     success: 'check',
+    dispatching: 'loading',
     dispatched: 'loading',
     failed: 'alert',
     failure: 'alert',
+    inprogress: 'loading',
+    notstarted: 'pending',
     pending: 'pending',
     processing: 'loading',
+    queued: 'pending',
     rejected: 'alert',
-    cancelled: 'no'
+    skipped: 'no'
+  }[state.toLowerCase()];
+}
+
+// Translate a job state into a friendlier label
+export function labelForJobState(state) {
+  return {
+    canceled: 'Canceled',
+    cancelpending: 'Canceling',
+    cancelprocessing: 'Canceling',
+    cancelcomplete: 'Canceled',
+    complete: 'Complete',
+    success: 'Complete',
+    dispatching: 'Dispatching',
+    dispatched: 'Dispatched',
+    failed: 'Failed',
+    failure: 'Failed',
+    inprogress: 'In Progress',
+    notstarted: 'Not Started',
+    pending: 'Pending',
+    processing: 'Processing',
+    queued: 'Queued',
+    rejected: 'Rejected',
+    skipped: 'Skipped'
   }[state.toLowerCase()];
 }

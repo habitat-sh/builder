@@ -32,6 +32,10 @@ import { DockerExportSettingsComponent } from './docker-export-settings/docker-e
 import { DockerExportSettingsDialog } from './docker-export-settings/dialog/docker-export-settings.dialog';
 import { DisconnectConfirmDialog } from './project-settings/dialog/disconnect-confirm/disconnect-confirm.dialog';
 import { IconComponent } from './icon/icon.component';
+import { JobCancelDialog } from './dialog/job-cancel/job-cancel.dialog';
+import { JobStatusComponent } from './job-status/job-status.component';
+import { JobStatusIconComponent } from './job-status-icon/job-status-icon.component';
+import { JobStatusLabelComponent } from './job-status-label/job-status-label.component';
 import { PackageListComponent } from './package-list/package-list.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { PlatformIconComponent } from './platform-icon/platform-icon.component';
@@ -68,6 +72,10 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     DockerExportSettingsComponent,
     DockerExportSettingsDialog,
     IconComponent,
+    JobCancelDialog,
+    JobStatusComponent,
+    JobStatusIconComponent,
+    JobStatusLabelComponent,
     PackageListComponent,
     ProjectSettingsComponent,
     PlatformIconComponent,
@@ -79,6 +87,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
   entryComponents: [
     DisconnectConfirmDialog,
     DockerExportSettingsDialog,
+    JobCancelDialog,
     SimpleConfirmDialog
   ],
   exports: [
@@ -89,6 +98,9 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     DisconnectConfirmDialog,
     DockerExportSettingsComponent,
     IconComponent,
+    JobStatusComponent,
+    JobStatusIconComponent,
+    JobStatusLabelComponent,
     MatCheckbox,
     MatRadioGroup,
     MatRadioButton,

@@ -12,13 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// import * as depotApi from '../client/depot-api';
 import { BuilderApiClient } from '../client/builder-api';
-// import { addNotification } from './notifications';
-// import { DANGER, SUCCESS } from './notifications';
+import { addNotification } from './notifications';
+import { DANGER, SUCCESS } from './notifications';
 
 export const POPULATE_JOB_GROUPS = 'POPULATE_JOB_GROUPS';
 export const POPULATE_JOB_GROUP = 'POPULATE_JOB_GROUP';
+
+export function cancelJobGroup(id: string, token: string) {
+  return (dispatch, getState) => {
+    new BuilderApiClient(token)
+      .cancelJobGroup(id)
+      .then(response => {
+        dispatch(addNotification({
+          title: 'Job canceled',
+          body: `Job ${id} was canceled successfully.`,
+          type: SUCCESS
+        }));
+      })
+      .catch(error => {
+        dispatch(addNotification({
+          title: 'Request failed',
+          body: `The job cancellation request failed. The reason provided was: ${error}`,
+          type: DANGER
+        }));
+      });
+  };
+}
 
 export function fetchJobGroups(origin: string, token: string, limit: number = 10) {
   return dispatch => {

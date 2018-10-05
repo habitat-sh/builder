@@ -1,0 +1,12 @@
+hab-job-status {
+
+  @each $status, $color in $status-colors {
+    .#{$status} {
+      color: #{$color};
+    }
+  }
+
+  hab-job-status-label {
+    font-weight: 600;
+  }
+}

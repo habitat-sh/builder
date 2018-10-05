@@ -1,6 +1,7 @@
 const proxyMiddleware = require('http-proxy-middleware');
 
 module.exports = {
+  open: false,
   server: {
     middleware: [
       proxyMiddleware('/v1', {

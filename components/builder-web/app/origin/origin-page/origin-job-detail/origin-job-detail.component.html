@@ -1,26 +1,29 @@
 <div class="origin-job-detail-component body">
-  <div class="content">
+  <div class="content full">
     <h3>
       <a (click)="backToGroups()">Build Job Groups </a>
-      / Group {{ this.id }}
+      / Group {{ id }}
     </h3>
     <section class="jobgroup-overview">
       <section class="jobgroup-details">
         <div class="jobgroup-overview-item">
           <h4 class="jobgroup-overview-item-title">Initiated By</h4>
-          <p class="jobgroup-overview-item-value">{{ thisGroup.project_name }}</p>
+          <p class="jobgroup-overview-item-value">{{ group.project_name }}</p>
         </div>
         <div class="jobgroup-overview-item">
           <h4 class="jobgroup-overview-item-title">Group ID</h4>
-          <p class="jobgroup-overview-item-value">{{ thisGroup.id }}</p>
+          <p class="jobgroup-overview-item-value">{{ group.id }}</p>
         </div>
         <div class="jobgroup-overview-item">
           <h4 class="jobgroup-overview-item-title">Created</h4>
-          <p class="jobgroup-overview-item-value">{{ dateFor(thisGroup.created_at) }}</p>
+          <p class="jobgroup-overview-item-value">{{ dateFor(group.created_at) }}</p>
         </div>
       </section>
+      <section>
+        <hab-job-status [job]="group"></hab-job-status>
+      </section>
       <section class="jobgroup-status">
-        <div class="jobgroup-overview-item jobgroup-complete-total">
+        <div class="jobgroup-overview-item">
           <h4 class="jobgroup-overview-item-title">Complete / Total</h4>
           <p class="jobgroup-overview-item-value">{{ completedCount }} / {{ totalCount }}</p>
         </div>
@@ -28,26 +31,39 @@
           <h4 class="jobgroup-overview-item-title">Job Status</h4>
           <div class="jobgroup-overview-item-value jobgroup-status-icons">
             <div class="jobgroup-status-count">
-              <hab-icon [symbol]="iconFor('complete')" class="status complete" title="complete"></hab-icon>
+              <hab-job-status-icon status="success"></hab-job-status-icon>
               {{ projectStateCount('success') }}
             </div>
             <div class="jobgroup-status-count">
-              <hab-icon [symbol]="iconFor('failure')" class="status failure" title="failure"></hab-icon>
+              <hab-job-status-icon status="failure"></hab-job-status-icon>
               {{ projectStateCount('failure') }}
             </div>
             <div class="jobgroup-status-count">
-              <hab-icon [symbol]="iconFor('pending')" class="status pending" title="pending"></hab-icon>
-              {{ projectStateCount('pending') }}
+              <hab-job-status-icon status="notstarted"></hab-job-status-icon>
+              {{ projectStateCount('notstarted') }}
             </div>
             <div class="jobgroup-status-count">
-              <hab-icon [symbol]="iconFor('processing')" class="status processing" title="processing"></hab-icon>
-              {{ projectStateCount('processing') }}
+              <hab-job-status-icon status="inprogress"></hab-job-status-icon>
+              {{ projectStateCount('inprogress') }}
             </div>
             <div class="jobgroup-status-count">
-              <hab-icon [symbol]="iconFor('cancelled')" class="status cancelled" title="cancelled"></hab-icon>
-              {{ projectStateCount('cancelled') }}
+              <hab-job-status-icon status="canceled"></hab-job-status-icon>
+              {{ projectStateCount('canceled') }}
               </div>
           </div>
+        </div>
+        <div class="jobgroup-overview-item">
+          <ng-container *ngIf="true">
+            <h4 class="jobgroup-overview-item-title">&nbsp;</h4>
+            <div class="jobgroup-overview-item-value">
+              <span class="jobgroup-actions">
+                <a *ngIf="pendingCount > 0" class="cancel" (click)="cancel(id)">
+                  <hab-icon symbol="no"></hab-icon>
+                  Cancel unfinished jobs
+                </a>
+              </span>
+            </div>
+          </ng-container>
         </div>
       </section>
     </section>
@@ -63,8 +79,8 @@
               {{ project.name }}
             </span>
             <span class="column jobgroup-list-icons">
-              <hab-icon [symbol]="iconFor(project.state)" class="status {{ project.state | lowercase }}" title="{{ project.state | titlecase }}"></hab-icon>
-              <hab-icon symbol="web-asset" class="icon-button" (click)="onSelectJob(project.name, project.job_id)" title="View Build Job"></hab-icon>
+              <hab-job-status-icon [job]="project" [animate]="true"></hab-job-status-icon>
+              <hab-icon *ngIf="hasJobId(project)" symbol="web-asset" class="button" (click)="onSelectJob(project.name, project.job_id)" title="View Build Job"></hab-icon>
             </span>
           </a>
         </li>
