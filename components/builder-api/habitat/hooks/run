@@ -6,7 +6,7 @@ export RUST_BACKTRACE=1
 
 title="Service Start"
 text="builder-api starting"
-echo "_e{${#title},${#text}}:$title|$text|#shell,bash"  >/dev/udp/localhost/8125
+echo "_e{${#title},${#text}}:$title|$text|#api"  >/dev/udp/localhost/8125
 
 if [ "$(whoami)" = "root" ]; then
   exec chpst \

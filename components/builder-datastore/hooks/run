@@ -7,6 +7,10 @@ exec 2>&1
 
 chmod 0700 "{{pkg.svc_data_path}}"
 
+title="Service Start"
+text="builder-datastore starting"
+echo "_e{${#title},${#text}}:$title|$text|#datastore"  >/dev/udp/localhost/8125
+
 # shellcheck disable=1083
 exec {{pkgPathFor "core/postgresql"}}/bin/postmaster \
   -c config_file={{pkg.svc_config_path}}/postgresql.conf
