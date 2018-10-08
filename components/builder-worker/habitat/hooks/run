@@ -5,6 +5,10 @@ export RUST_LOG="{{cfg.log_level}}"
 export RUST_BACKTRACE=1
 export HAB_STUDIO_BACKLINE_PKG=core/hab-backline
 
+title="Service Start"
+text="builder-worker starting"
+echo "_e{${#title},${#text}}:$title|$text|#worker"  >/dev/udp/localhost/8125
+
 # Wait for pem file before starting the service
 while ! [ -f "{{pkg.svc_files_path}}/builder-github-app.pem" ];
 do
