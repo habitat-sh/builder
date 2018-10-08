@@ -661,16 +661,6 @@ impl DataStore {
         Ok(Some(group))
     }
 
-    // TODO (SA): This is an experimental dev-only function for now
-    pub fn abort_job_group(&self, msg: &jobsrv::JobGroupAbort) -> Result<()> {
-        let group_id = msg.get_group_id();
-        let conn = self.pool.get()?;
-        conn.query("SELECT abort_group_v1($1)", &[&(group_id as i64)])
-            .map_err(Error::JobGroupGet)?;
-
-        Ok(())
-    }
-
     fn row_to_origin_package(&self, row: &postgres::rows::Row) -> Result<originsrv::OriginPackage> {
         let mut package = originsrv::OriginPackage::new();
         let id: i64 = row.get("id");

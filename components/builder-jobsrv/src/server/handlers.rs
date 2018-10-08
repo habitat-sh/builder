@@ -29,21 +29,6 @@ use super::ServerState;
 use error::{Error, Result};
 use time::PreciseTime;
 
-pub fn job_create(req: &mut Message, conn: &mut RouteConn, state: &mut ServerState) -> Result<()> {
-    let msg = req.parse::<jobsrv::JobSpec>()?;
-    let mut job: jobsrv::Job = msg.into();
-    let created_job = state.datastore.create_job(&mut job)?;
-    debug!(
-        "Job created: id={} owner_id={} state={:?}",
-        created_job.get_id(),
-        created_job.get_owner_id(),
-        created_job.get_state()
-    );
-    state.worker_mgr.notify_work()?;
-    conn.route_reply(req, &created_job)?;
-    Ok(())
-}
-
 pub fn job_get(req: &mut Message, conn: &mut RouteConn, state: &mut ServerState) -> Result<()> {
     let msg = req.parse::<jobsrv::JobGet>()?;
     match state.datastore.get_job(&msg) {
@@ -184,34 +169,6 @@ fn get_log_content(log_file: &PathBuf, offset: u64) -> Option<Vec<String>> {
             None
         }
     }
-}
-
-// TODO (SA): This is an experimental dev-only function for now
-pub fn job_group_abort(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
-    let msg = req.parse::<jobsrv::JobGroupAbort>()?;
-    debug!("job_group_abort message: {:?}", msg);
-
-    match state.datastore.abort_job_group(&msg) {
-        Ok(()) => {
-            warn!("Job Group {} aborted", msg.get_group_id());
-            conn.route_reply(req, &net::NetOk::new())?
-        }
-        Err(err) => {
-            warn!(
-                "Unable to abort job group {}, err: {:?}",
-                msg.get_group_id(),
-                err
-            );
-            let err = NetError::new(ErrCode::DATA_STORE, "jb:job-group-abort:1");
-            conn.route_reply(req, &*err)?;
-        }
-    };
-
-    Ok(())
 }
 
 pub fn job_group_cancel(

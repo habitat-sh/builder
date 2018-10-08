@@ -41,7 +41,6 @@ use error::{Error, Result};
 lazy_static! {
     static ref DISPATCH_TABLE: DispatchTable<JobSrv> = {
         let mut map = DispatchTable::new();
-        map.register(JobSpec::descriptor_static(), handlers::job_create);
         map.register(JobGet::descriptor_static(), handlers::job_get);
         map.register(
             ProjectJobsGet::descriptor_static(),
@@ -51,10 +50,6 @@ lazy_static! {
         map.register(
             JobGroupSpec::descriptor_static(),
             handlers::job_group_create,
-        );
-        map.register(
-            JobGroupAbort::descriptor_static(),
-            handlers::job_group_abort,
         );
         map.register(
             JobGroupCancel::descriptor_static(),

@@ -362,13 +362,6 @@ impl Routable for JobGroupGet {
     }
 }
 
-impl Routable for JobGroupAbort {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_group_id().to_string())
-    }
-}
 impl Routable for JobGroupCancel {
     type H = String;
 
