@@ -5,16 +5,16 @@
   </section>
   <section class="body">
     <p>
-      Completed build jobs will remain in the <b>unstable</b> channel. Pending jobs will not be processed.
+      Completed packages will remain in the <b>unstable</b> channel. Remaining jobs will be canceled.
     </p>
     <p>
-      Build jobs to be canceled: <b>{{ pendingCount }}</b>
+      Remaining build jobs: <b>{{ pendingCount }}</b>
     </p>
   </section>
   <section class="controls">
     <button mat-raised-button color="primary" class="button" (click)="ok()">
-      Yes, cancel jobs
+      Cancel remaining jobs
     </button>
-    <a (click)="cancel()">Cancel</a>
+    <a (click)="cancel()">Don't cancel</a>
   </section>
 </div>

@@ -32,7 +32,7 @@ describe('JobListComponent', () => {
       ],
       declarations: [
         MockComponent({ selector: 'hab-icon', inputs: ['symbol'] }),
-        MockComponent({ selector: 'hab-job-status-icon', inputs: ['job'] }),
+        MockComponent({ selector: 'hab-job-status-icon', inputs: ['job', 'animate'] }),
         JobListComponent
       ]
     });
