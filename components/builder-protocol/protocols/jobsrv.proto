@@ -171,10 +171,6 @@ enum JobGroupState {
   GroupCanceled = 5;
 }
 
-message JobGroupAbort {
-  optional uint64 group_id = 1;
-}
-
 message JobGroupCancel {
   optional uint64 group_id = 1;
   optional JobGroupTrigger trigger = 7;
