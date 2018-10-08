@@ -1,0 +1,17 @@
+#!/bin/sh
+set -ex
+
+./bin/dist e2e
+cp index.html dist/
+cp habitat.conf.sample.js dist/habitat.conf.js
+mv dist/assets/app-e2e.css dist/assets/app.css
+mv dist/assets/app-e2e.js dist/assets/app.js
+
+browsers="chrome:headless,firefox:headless"
+
+if [ "$1" = "debug" ]; then
+  browsers="chrome"
+  params="--debug-mode"
+fi
+
+testcafe "$browsers" e2e/*.ts --app 'npm run lite-server -- -c e2e/bs-config.js' --app-init-delay 5000 $params
