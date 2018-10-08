@@ -7,6 +7,7 @@ export HAB_STUDIO_BACKLINE_PKG=core/hab-backline
 
 title="Service Start"
 text="builder-worker starting"
+# shellcheck disable=2039
 echo "_e{${#title},${#text}}:$title|$text|#worker"  >/dev/udp/localhost/8125
 
 # Wait for pem file before starting the service

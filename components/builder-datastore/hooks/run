@@ -9,6 +9,7 @@ chmod 0700 "{{pkg.svc_data_path}}"
 
 title="Service Start"
 text="builder-datastore starting"
+# shellcheck disable=2039
 echo "_e{${#title},${#text}}:$title|$text|#datastore"  >/dev/udp/localhost/8125
 
 # shellcheck disable=1083
