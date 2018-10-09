@@ -17,23 +17,28 @@ use std::str::FromStr;
 use actix_web::http::{self, Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
+use diesel::pg::PgConnection;
 use diesel::result::{DatabaseErrorKind, Error::DatabaseError};
 
 use std::ops::Deref;
 
 use bldr_core::metrics::CounterMetric;
-use hab_core::package::{Identifiable, PackageTarget};
-use hab_net::NetOk;
+use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 use protocol::originsrv::*;
 use serde_json;
 
 use super::pkgs::{is_a_service, notify_upstream, postprocess_package_list};
 use server::authorize::{authorize_session, get_session_user_name};
-use server::error::{Error, Result};
+use server::error::Result;
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-use server::models::channel::{Channel, CreateChannel, DeleteChannel, ListChannels};
+// TED remove as when we get rid of all the protos
+use server::models::channel::{
+    Channel, CreateChannel, DeleteChannel, ListChannels, OriginChannelDemote as OCD,
+    OriginChannelPackage as OCPackage, OriginChannelPromote as OCP, PackageChannelAudit as PCA,
+    PackageChannelAudit, PackageChannelOperation as PCO,
+};
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -206,9 +211,47 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
             .unwrap()
             .into_inner();
 
-    match do_promote_package(&req, origin, channel, pkg, version, release) {
-        Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(err) => err.into(),
+    let session_id = match authorize_session(&req, Some(&origin)) {
+        Ok(session) => session,
+        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+    };
+
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    let ident = PackageIdent::new(
+        origin.clone(),
+        pkg.clone(),
+        Some(version.clone()),
+        Some(release.clone()),
+    );
+
+    match OCPackage::promote(
+        OCP {
+            ident: ident.clone(),
+            origin: origin.clone(),
+            channel: channel.clone(),
+        },
+        &*conn,
+    ) {
+        Ok(_) => match audit_package_rank_change(
+            &req,
+            &*conn,
+            ident,
+            channel,
+            PCO::Promote,
+            origin,
+            session_id,
+        ) {
+            Ok(_) => HttpResponse::new(StatusCode::OK),
+            Err(err) => {
+                warn!("Failed to save rank change to audit log: {}", err);
+                HttpResponse::new(StatusCode::OK)
+            }
+        },
+        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
@@ -218,9 +261,53 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
             .unwrap()
             .into_inner();
 
-    match do_demote_package(&req, origin, channel, pkg, version, release) {
-        Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(err) => err.into(),
+    if channel == "unstable" {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
+
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    let ident = PackageIdent::new(
+        origin.clone(),
+        pkg.clone(),
+        Some(version.clone()),
+        Some(release.clone()),
+    );
+    let session_id = match authorize_session(&req, Some(&origin)) {
+        Ok(session_id) => session_id,
+        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+    };
+    match OCPackage::demote(
+        OCD {
+            ident: ident.clone(),
+            origin: origin.clone(),
+            channel: channel.clone(),
+        },
+        &*conn,
+    ) {
+        Ok(_) => {
+            match audit_package_rank_change(
+                &req,
+                &conn,
+                ident.clone(),
+                channel,
+                PCO::Demote,
+                origin,
+                session_id,
+            ) {
+                Ok(_) => {}
+                Err(err) => warn!("Failed to save rank change to audit log: {}", err),
+            };
+            req.state()
+                .memcache
+                .borrow_mut()
+                .clear_cache_for_package(ident.clone().into());
+            HttpResponse::new(StatusCode::OK)
+        }
+        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
@@ -342,175 +429,31 @@ fn get_package_fully_qualified(
 //
 // Internal - these functions should return Result<..>
 //
-fn do_promote_package(
-    req: &HttpRequest<AppState>,
-    origin: String,
-    channel: String,
-    pkg: String,
-    version: String,
-    release: String,
-) -> Result<()> {
-    let session_id = authorize_session(req, Some(&origin))?;
-
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin.clone());
-    ident.set_name(pkg);
-    ident.set_version(version);
-    ident.set_release(release);
-
-    let mut origin_get = OriginGet::new();
-    origin_get.set_name(ident.get_origin().to_string());
-
-    let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
-        Ok(o) => o.get_id(),
-        Err(err) => return Err(err),
-    };
-
-    let mut channel_req = OriginChannelGet::new();
-    channel_req.set_origin_name(ident.get_origin().to_string());
-    channel_req.set_name(channel.to_string());
-
-    let origin_channel = match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
-        Ok(c) => {
-            req.state()
-                .memcache
-                .borrow_mut()
-                .clear_cache_for_package(ident.clone().into());
-            c
-        }
-        Err(e) => {
-            warn!("Error retrieving channel: {:?}", &e);
-            return Err(e);
-        }
-    };
-
-    let mut request = OriginPackageGet::new();
-    request.set_ident(ident.clone());
-    request.set_visibilities(helpers::all_visibilities());
-
-    let package = match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-        Ok(p) => p,
-        Err(e) => {
-            warn!("Error retrieving package {:?}", &e);
-            return Err(e);
-        }
-    };
-
-    let mut promote = OriginPackagePromote::new();
-    promote.set_channel_id(origin_channel.get_id());
-    promote.set_package_id(package.get_id());
-    promote.set_ident(ident.clone());
-
-    match route_message::<OriginPackagePromote, NetOk>(req, &promote) {
-        Ok(_) => match audit_package_rank_change(
-            req,
-            package.get_id(),
-            origin_channel.get_id(),
-            PackageChannelOperation::Promote,
-            origin_id,
-            session_id,
-        ) {
-            Ok(_) => return Ok(()),
-            Err(err) => return Err(err),
-        },
-        Err(err) => return Err(err),
-    }
-}
-
-fn do_demote_package(
-    req: &HttpRequest<AppState>,
-    origin: String,
-    channel: String,
-    pkg: String,
-    version: String,
-    release: String,
-) -> Result<()> {
-    let session_id = authorize_session(req, Some(&origin))?;
-
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
-    ident.set_version(version);
-    ident.set_release(release);
-
-    if channel == "unstable" {
-        return Err(Error::Authorization);
-    }
-
-    let mut origin_get = OriginGet::new();
-    origin_get.set_name(ident.get_origin().to_string());
-
-    let origin_id = match route_message::<OriginGet, Origin>(req, &origin_get) {
-        Ok(o) => o.get_id(),
-        Err(e) => return Err(e),
-    };
-
-    let mut channel_req = OriginChannelGet::new();
-    channel_req.set_origin_name(ident.get_origin().to_string());
-    channel_req.set_name(channel);
-
-    match route_message::<OriginChannelGet, OriginChannel>(req, &channel_req) {
-        Ok(origin_channel) => {
-            let mut request = OriginPackageGet::new();
-            request.set_ident(ident.clone());
-            request.set_visibilities(helpers::all_visibilities());
-            match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-                Ok(package) => {
-                    let mut demote = OriginPackageDemote::new();
-                    demote.set_channel_id(origin_channel.get_id());
-                    demote.set_package_id(package.get_id());
-                    demote.set_ident(ident.clone());
-                    match route_message::<OriginPackageDemote, NetOk>(req, &demote) {
-                        Ok(_) => match audit_package_rank_change(
-                            req,
-                            package.get_id(),
-                            origin_channel.get_id(),
-                            PackageChannelOperation::Demote,
-                            origin_id,
-                            session_id,
-                        ) {
-                            Ok(_) => {
-                                req.state()
-                                    .memcache
-                                    .borrow_mut()
-                                    .clear_cache_for_package(ident.clone().into());
-                                return Ok(());
-                            }
-                            Err(err) => return Err(err.into()),
-                        },
-                        Err(err) => return Err(err.into()),
-                    }
-                }
-                Err(err) => return Err(err.into()),
-            }
-        }
-        Err(err) => return Err(err.into()),
-    }
-}
 
 fn audit_package_rank_change(
     req: &HttpRequest<AppState>,
-    package_id: u64,
-    channel_id: u64,
-    operation: PackageChannelOperation,
-    origin_id: u64,
+    conn: &PgConnection,
+    ident: PackageIdent,
+    channel: String,
+    operation: PCO,
+    origin: String,
     session_id: u64,
-) -> Result<NetOk> {
-    let mut audit = PackageChannelAudit::new();
-    audit.set_package_id(package_id);
-    audit.set_channel_id(channel_id);
-    audit.set_operation(operation);
-
-    let jgt = helpers::trigger_from_request(req);
-    audit.set_trigger(PackageChannelTrigger::from(jgt));
-
-    let session_name = get_session_user_name(req, session_id);
-
-    audit.set_requester_id(session_id);
-    audit.set_requester_name(session_name);
-    audit.set_origin_id(origin_id);
-
-    route_message::<PackageChannelAudit, NetOk>(req, &audit)
+) -> Result<()> {
+    match PackageChannelAudit::audit(
+        PCA {
+            ident: ident,
+            channel: channel,
+            operation: operation,
+            trigger: helpers::trigger_from_request_model(req),
+            requester_id: session_id as i64,
+            requester_name: get_session_user_name(req, session_id),
+            origin: origin,
+        },
+        &*conn,
+    ) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.into()),
+    }
 }
 
 fn do_get_channel_packages(

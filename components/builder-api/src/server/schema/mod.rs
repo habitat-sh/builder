@@ -3,6 +3,7 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 
 pub mod account;
+pub mod audit;
 pub mod channel;
 pub mod integration;
 pub mod invitation;
