@@ -29,6 +29,7 @@ use protocol::originsrv::*;
 use server::authorize::authorize_session;
 use server::error::Result;
 use server::framework::middleware::route_message;
+use server::models::channel::PackageChannelTrigger as PCT;
 use server::AppState;
 
 //
@@ -292,4 +293,31 @@ pub fn trigger_from_request(req: &HttpRequest<AppState>) -> JobGroupTrigger {
     }
 
     JobGroupTrigger::Unknown
+}
+
+// TED remove function above when it's no longer used anywhere
+pub fn trigger_from_request_model(req: &HttpRequest<AppState>) -> PCT {
+    // TODO: the search strings should be configurable.
+    match req.headers().get(header::USER_AGENT) {
+        Some(ref agent) => match agent.to_str() {
+            Ok(s) => if s.starts_with("hab/") {
+                return PCT::HabClient;
+            },
+            Err(_) => (),
+        },
+        None => (),
+    }
+
+    match req.headers().get(header::REFERER) {
+        Some(ref referer) => match referer.to_str() {
+            // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
+            Ok(s) => if s.contains("http") {
+                return PCT::BuilderUi;
+            },
+            Err(_) => (),
+        },
+        None => (),
+    }
+
+    PCT::Unknown
 }

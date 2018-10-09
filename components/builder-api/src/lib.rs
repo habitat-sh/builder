@@ -27,6 +27,8 @@ extern crate constant_time_eq;
 #[macro_use]
 extern crate diesel;
 #[macro_use]
+extern crate diesel_derive_enum;
+#[macro_use]
 extern crate features;
 extern crate github_api_client;
 extern crate habitat_builder_db as db;
