@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{mpsc, Arc};
+use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
 use chrono::{DateTime, Utc};
@@ -57,6 +57,7 @@ impl ScheduleClient {
 impl Default for ScheduleClient {
     fn default() -> ScheduleClient {
         let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
+        socket.connect(SCHEDULER_ADDR).unwrap();
         ScheduleClient { socket: socket }
     }
 }
@@ -72,7 +73,7 @@ pub struct ScheduleMgr {
 }
 
 impl ScheduleMgr {
-    pub fn new<T>(datastore: DataStore, log_path: T, router_pipe: Arc<String>) -> Result<Self>
+    pub fn new<T>(datastore: &DataStore, log_path: T, route_conn: RouteClient) -> Result<Self>
     where
         T: AsRef<Path>,
     {
@@ -81,14 +82,11 @@ impl ScheduleMgr {
         let mut schedule_cli = ScheduleClient::default();
         schedule_cli.connect()?;
 
-        let route_conn = RouteClient::new()?;
-        route_conn.connect(&*router_pipe)?;
-
         let mut worker_mgr = WorkerMgrClient::default();
         worker_mgr.connect()?;
 
         Ok(ScheduleMgr {
-            datastore: datastore,
+            datastore: datastore.clone(),
             logger: Logger::init(log_path, "builder-scheduler.log"),
             msg: zmq::Message::new()?,
             route_conn: route_conn,
@@ -99,15 +97,15 @@ impl ScheduleMgr {
     }
 
     pub fn start<T>(
-        datastore: DataStore,
+        datastore: &DataStore,
         log_path: T,
-        route_pipe: Arc<String>,
+        route_conn: RouteClient,
     ) -> Result<JoinHandle<()>>
     where
         T: AsRef<Path>,
     {
         let (tx, rx) = mpsc::sync_channel(1);
-        let mut schedule_mgr = Self::new(datastore, log_path, route_pipe)?;
+        let mut schedule_mgr = Self::new(datastore, log_path, route_conn)?;
         let handle = thread::Builder::new()
             .name("scheduler".to_string())
             .spawn(move || {

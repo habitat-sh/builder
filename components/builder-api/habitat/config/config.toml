@@ -40,6 +40,14 @@ host = "{{member.sys.ip}}"
 port = {{member.cfg.port}}
 {{~/each}}
 
+[jobsrv]
+{{~#eachAlive bind.jobsrv.members as |member|}}
+{{~#if @first}}
+host = "{{member.sys.ip}}"
+port = {{member.cfg.rpc_port}}
+{{~/if}}
+{{~/eachAlive}}
+
 [datastore]
 {{toToml cfg.datastore}}
 {{~#eachAlive bind.datastore.members as |member|}}

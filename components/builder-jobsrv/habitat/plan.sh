@@ -12,8 +12,9 @@ pkg_exports=(
   [worker_port]=net.worker_command_port
   [worker_heartbeat]=net.worker_heartbeat_port
   [log_port]=net.log_ingestion_port
+  [rpc_port]=http.port
 )
-pkg_exposes=(worker_port worker_heartbeat log_port)
+pkg_exposes=(worker_port worker_heartbeat log_port rpc_port)
 pkg_binds=(
   [router]="port"
   [datastore]="port"

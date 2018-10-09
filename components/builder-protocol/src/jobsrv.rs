@@ -386,14 +386,6 @@ impl Routable for JobGroupOriginGet {
     }
 }
 
-impl Routable for JobGraphPackageStatsGet {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_origin().to_string())
-    }
-}
-
 impl Routable for JobGraphPackageCreate {
     type H = String;
     fn route_key(&self) -> Option<Self::H> {
@@ -542,19 +534,6 @@ impl Serialize for JobGraphPackageReverseDependencies {
         strukt.serialize_field("origin", &self.get_origin())?;
         strukt.serialize_field("name", &self.get_name())?;
         strukt.serialize_field("rdeps", &self.get_rdeps())?;
-        strukt.end()
-    }
-}
-
-impl Serialize for JobGraphPackageStats {
-    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut strukt = serializer.serialize_struct("job_graph_package_stats", 2)?;
-        strukt.serialize_field("plans", &self.get_plans())?;
-        strukt.serialize_field("builds", &self.get_builds())?;
-        strukt.serialize_field("unique_packages", &self.get_unique_packages())?;
         strukt.end()
     }
 }

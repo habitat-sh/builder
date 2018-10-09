@@ -19,55 +19,65 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
+use bldr_core::rpc::RpcMessage;
 use hab_net::app::prelude::*;
+use hab_net::conn::RouteClient;
+
 use protobuf::RepeatedField;
 use protocol::jobsrv;
 use protocol::net::{self, ErrCode};
 use protocol::originsrv;
 
-use super::ServerState;
+use super::AppState;
+
+use server::scheduler::ScheduleClient;
+use server::worker_manager::WorkerMgrClient;
+
 use error::{Error, Result};
 use time::PreciseTime;
 
-pub fn job_get(req: &mut Message, conn: &mut RouteConn, state: &mut ServerState) -> Result<()> {
+pub fn job_get(req: &RpcMessage, _conn: &mut RouteClient, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGet>()?;
+
     match state.datastore.get_job(&msg) {
-        Ok(Some(ref job)) => conn.route_reply(req, job)?,
+        Ok(Some(ref job)) => RpcMessage::make(job).map_err(Error::BuilderCore),
         Ok(None) => {
             let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-get:1");
-            conn.route_reply(req, &*err)?;
+            Err(Error::NetError(err))
         }
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "jb:job-get:2");
             error!("{}, {}", err, e);
-            conn.route_reply(req, &*err)?;
+            Err(Error::NetError(err))
         }
     }
-    Ok(())
 }
 
 pub fn project_jobs_get(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
+    req: &RpcMessage,
+    _conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::ProjectJobsGet>()?;
     match state.datastore.get_jobs_for_project(&msg) {
         Ok(ref jobs) => {
             // NOTE: Currently no difference between "project has no jobs" and "no
             // such project"
-            conn.route_reply(req, jobs)?;
+            RpcMessage::make(jobs).map_err(Error::BuilderCore)
         }
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "jb:project-jobs-get:1");
             error!("{}, {}", err, e);
-            conn.route_reply(req, &*err)?;
+            Err(Error::NetError(err))
         }
     }
-    Ok(())
 }
 
-pub fn job_log_get(req: &mut Message, conn: &mut RouteConn, state: &mut ServerState) -> Result<()> {
+pub fn job_log_get(
+    req: &RpcMessage,
+    _conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobLogGet>()?;
     let mut get = jobsrv::JobGet::new();
     get.set_id(msg.get_id());
@@ -75,14 +85,12 @@ pub fn job_log_get(req: &mut Message, conn: &mut RouteConn, state: &mut ServerSt
         Ok(Some(job)) => job,
         Ok(None) => {
             let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-log-get:1");
-            conn.route_reply(req, &*err)?;
-            return Ok(());
+            return Err(Error::NetError(err));
         }
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "jb:job-log-get:2");
             error!("{}, {}", err, e);
-            conn.route_reply(req, &*err)?;
-            return Ok(());
+            return Err(Error::NetError(err));
         }
     };
 
@@ -106,7 +114,8 @@ pub fn job_log_get(req: &mut Message, conn: &mut RouteConn, state: &mut ServerSt
                 log.set_stop(num_lines);
                 log.set_is_complete(true); // by definition
                 log.set_content(log_content);
-                conn.route_reply(req, &log)?;
+
+                RpcMessage::make(&log).map_err(Error::BuilderCore)
             }
             Err(e @ Error::CaughtPanic(_, _)) => {
                 // Generally, this happens when the archiver can't
@@ -116,11 +125,11 @@ pub fn job_log_get(req: &mut Message, conn: &mut RouteConn, state: &mut ServerSt
                 // TODO: Need to return a different error here... it's
                 // not quite ENTITY_NOT_FOUND
                 let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-log-get:5");
-                conn.route_reply(req, &*err)?;
+                Err(Error::NetError(err))
             }
             Err(_) => {
                 let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-log-get:4");
-                conn.route_reply(req, &*err)?;
+                Err(Error::NetError(err))
             }
         }
     } else {
@@ -136,16 +145,15 @@ pub fn job_log_get(req: &mut Message, conn: &mut RouteConn, state: &mut ServerSt
                 log.set_content(RepeatedField::from_vec(content));
                 log.set_stop(start + num_lines);
                 log.set_is_complete(false);
-                conn.route_reply(req, &log)?;
+                RpcMessage::make(&log).map_err(Error::BuilderCore)
             }
             None => {
                 // The job exists, but there are no logs (either yet, or ever).
                 let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-log-get:3");
-                conn.route_reply(req, &*err)?;
+                Err(Error::NetError(err))
             }
         }
     }
-    Ok(())
 }
 
 /// Returns the lines of the log file past `offset`.
@@ -172,10 +180,10 @@ fn get_log_content(log_file: &PathBuf, offset: u64) -> Option<Vec<String>> {
 }
 
 pub fn job_group_cancel(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
+    req: &RpcMessage,
+    _conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupCancel>()?;
     debug!("job_group_cancel message: {:?}", msg);
 
@@ -189,8 +197,7 @@ pub fn job_group_cancel(
             Some(group) => group,
             None => {
                 let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-cancel:1");
-                conn.route_reply(req, &*err)?;
-                return Ok(());
+                return Err(Error::NetError(err));
             }
         },
         Err(err) => {
@@ -200,8 +207,7 @@ pub fn job_group_cancel(
                 err
             );
             let err = NetError::new(ErrCode::DATA_STORE, "jb:job-group-cancel:2");
-            conn.route_reply(req, &*err)?;
-            return Ok(());
+            return Err(Error::NetError(err));
         }
     };
 
@@ -247,12 +253,11 @@ pub fn job_group_cancel(
         }
     };
 
-    state.worker_mgr.notify_work()?;
-    conn.route_reply(req, &net::NetOk::new())?;
-    Ok(())
+    WorkerMgrClient::default().notify_work()?;
+    RpcMessage::make(&net::NetOk::new()).map_err(Error::BuilderCore)
 }
 
-fn is_project_buildable(conn: &mut RouteConn, project_name: &str) -> bool {
+fn is_project_buildable(conn: &mut RouteClient, project_name: &str) -> bool {
     let mut project_get = originsrv::OriginProjectGet::new();
     project_get.set_name(String::from(project_name));
 
@@ -274,8 +279,8 @@ fn is_project_buildable(conn: &mut RouteConn, project_name: &str) -> bool {
 
 fn populate_build_projects(
     msg: &jobsrv::JobGroupSpec,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
+    conn: &mut RouteClient,
+    state: &AppState,
     rdeps: &Vec<(String, String)>,
     projects: &mut Vec<(String, String)>,
 ) {
@@ -341,18 +346,17 @@ fn populate_build_projects(
 }
 
 pub fn job_group_create(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
+    req: &RpcMessage,
+    conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupSpec>()?;
     debug!("job_group_create message: {:?}", msg);
 
     // Check that the target is supported - currently only x86_64-linux buildable
     if msg.get_target() != "x86_64-linux" {
         let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-create:1");
-        conn.route_reply(req, &*err)?;
-        return Ok(());
+        return Err(Error::NetError(err));
     }
 
     let project_name = format!("{}/{}", msg.get_origin(), msg.get_package());
@@ -372,8 +376,7 @@ pub fn job_group_create(
                     msg.get_target()
                 );
                 let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-create:2");
-                conn.route_reply(req, &*err)?;
-                return Ok(());
+                return Err(Error::NetError(err));
             }
         };
 
@@ -398,8 +401,7 @@ pub fn job_group_create(
             jobsrv::JobGroupTrigger::HabClient | jobsrv::JobGroupTrigger::BuilderUI => (),
             _ => {
                 let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-create:3");
-                conn.route_reply(req, &*err)?;
-                return Ok(());
+                return Err(Error::NetError(err));
             }
         }
     }
@@ -456,7 +458,7 @@ pub fn job_group_create(
             }
             None => state.datastore.create_job_group(&msg, projects)?,
         };
-        state.schedule_cli.notify()?;
+        ScheduleClient::default().notify()?;
 
         // Add audit entry
         let mut jga = jobsrv::JobGroupAudit::new();
@@ -476,15 +478,14 @@ pub fn job_group_create(
         new_group
     };
 
-    conn.route_reply(req, &group)?;
-    Ok(())
+    RpcMessage::make(&group).map_err(Error::BuilderCore)
 }
 
 pub fn job_graph_package_reverse_dependencies_get(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
+    req: &RpcMessage,
+    _conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGraphPackageReverseDependenciesGet>()?;
     debug!("reverse_dependencies_get message: {:?}", msg);
 
@@ -498,8 +499,7 @@ pub fn job_graph_package_reverse_dependencies_get(
                 msg.get_target()
             );
             let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:reverse-dependencies-get:1");
-            conn.route_reply(req, &*err)?;
-            return Ok(());
+            return Err(Error::NetError(err));
         }
     };
 
@@ -524,34 +524,31 @@ pub fn job_graph_package_reverse_dependencies_get(
         None => debug!("No rdeps found for {}", ident),
     }
 
-    conn.route_reply(req, &rd_reply)?;
-
-    Ok(())
+    RpcMessage::make(&rd_reply).map_err(Error::BuilderCore)
 }
 
 pub fn job_group_origin_get(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
+    req: &RpcMessage,
+    _conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupOriginGet>()?;
 
     match state.datastore.get_job_group_origin(&msg) {
-        Ok(ref jgor) => conn.route_reply(req, jgor)?,
+        Ok(ref jgor) => RpcMessage::make(jgor).map_err(Error::BuilderCore),
         Err(e) => {
             let err = NetError::new(ErrCode::DATA_STORE, "jb:job-group-origin-get:1");
             error!("{}, {}", err, e);
-            conn.route_reply(req, &*err)?;
+            Err(Error::NetError(err))
         }
     }
-    Ok(())
 }
 
 pub fn job_group_get(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
+    req: &RpcMessage,
+    _conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupGet>()?;
     debug!("group_get message: {:?}", msg);
 
@@ -568,22 +565,19 @@ pub fn job_group_get(
     };
 
     match group_opt {
-        Some(group) => {
-            conn.route_reply(req, &group)?;
-        }
+        Some(group) => RpcMessage::make(&group).map_err(Error::BuilderCore),
         None => {
             let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-get:1");
-            conn.route_reply(req, &*err)?;
+            Err(Error::NetError(err))
         }
     }
-    Ok(())
 }
 
 pub fn job_graph_package_create(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
+    req: &RpcMessage,
+    _conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGraphPackageCreate>()?;
     let package = msg.get_package();
     // Extend the graph with new package
@@ -596,8 +590,7 @@ pub fn job_graph_package_create(
                 package.get_target()
             );
             let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-graph-package-create:1");
-            conn.route_reply(req, &*err)?;
-            return Ok(());
+            return Err(Error::NetError(err));
         }
     };
     let start_time = PreciseTime::now();
@@ -609,15 +602,15 @@ pub fn job_graph_package_create(
         ecount,
         start_time.to(end_time)
     );
-    conn.route_reply(req, package)?;
-    Ok(())
+
+    RpcMessage::make(package).map_err(Error::BuilderCore)
 }
 
 pub fn job_graph_package_precreate(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
+    req: &RpcMessage,
+    _conn: &mut RouteClient,
+    state: &AppState,
+) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGraphPackagePreCreate>()?;
     debug!("package_precreate message: {:?}", msg);
     let package: originsrv::OriginPackage = msg.into();
@@ -633,8 +626,7 @@ pub fn job_graph_package_precreate(
                     package.get_target()
                 );
                 let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-graph-package-pc:1");
-                conn.route_reply(req, &*err)?;
-                return Ok(());
+                return Err(Error::NetError(err));
             }
         };
 
@@ -652,36 +644,9 @@ pub fn job_graph_package_precreate(
     };
 
     if can_extend {
-        conn.route_reply(req, &net::NetOk::new())?
+        RpcMessage::make(&net::NetOk::new()).map_err(Error::BuilderCore)
     } else {
         let err = NetError::new(ErrCode::ENTITY_CONFLICT, "jb:job-graph-package-pc:2");
-        conn.route_reply(req, &*err)?;
+        Err(Error::NetError(err))
     }
-    Ok(())
-}
-
-pub fn job_graph_package_stats_get(
-    req: &mut Message,
-    conn: &mut RouteConn,
-    state: &mut ServerState,
-) -> Result<()> {
-    let msg = req.parse::<jobsrv::JobGraphPackageStatsGet>()?;
-    debug!("package_stats_get message: {:?}", msg);
-
-    match state.datastore.get_job_graph_package_stats(&msg) {
-        Ok(package_stats) => conn.route_reply(req, &package_stats)?,
-        Err(err) => {
-            warn!(
-                "Unable to retrieve package stats for {}, err: {:?}",
-                msg.get_origin(),
-                err
-            );
-            let err = NetError::new(
-                ErrCode::ENTITY_NOT_FOUND,
-                "jb:job-graph-package-stats-get:1",
-            );
-            conn.route_reply(req, &*err)?;
-        }
-    }
-    Ok(())
 }

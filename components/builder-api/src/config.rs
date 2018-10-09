@@ -66,6 +66,7 @@ pub struct Config {
     pub ui: UiCfg,
     pub upstream: UpstreamCfg,
     pub memcache: MemcacheCfg,
+    pub jobsrv: JobsrvCfg,
     pub datastore: DataStoreCfg,
 }
 
@@ -82,6 +83,7 @@ impl Default for Config {
             ui: UiCfg::default(),
             upstream: UpstreamCfg::default(),
             memcache: MemcacheCfg::default(),
+            jobsrv: JobsrvCfg::default(),
             datastore: DataStoreCfg::default(),
         }
     }
@@ -279,6 +281,28 @@ impl fmt::Display for MemcacheCfgHosts {
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct JobsrvCfg {
+    pub host: String,
+    pub port: u16,
+}
+
+impl Default for JobsrvCfg {
+    fn default() -> Self {
+        JobsrvCfg {
+            host: String::from("localhost"),
+            port: 5580,
+        }
+    }
+}
+
+impl fmt::Display for JobsrvCfg {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "http://{}:{}", self.host, self.port)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,6 +354,10 @@ mod tests {
         [github]
         api_url = "https://api.github.com"
 
+        [jobsrv]
+        host = "1.2.3.4"
+        port = 1234
+
         [datastore]
         host = "1.1.1.1"
         port = 9000
@@ -369,6 +397,8 @@ mod tests {
             &format!("{}", config.memcache.hosts[0]),
             "memcache://192.168.0.1:12345"
         );
+
+        assert_eq!(&format!("{}", config.jobsrv), "http://1.2.3.4:1234");
 
         assert_eq!(config.upstream.endpoint, String::from("http://example.com"));
         assert_eq!(

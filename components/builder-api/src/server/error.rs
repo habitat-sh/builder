@@ -195,10 +195,18 @@ impl Into<HttpResponse> for Error {
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::ParseIntError(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Protocol(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Error::BuilderCore(ref e) => HttpResponse::new(bldr_core_err_to_http(e)),
 
             // Default
             _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
         }
+    }
+}
+
+fn bldr_core_err_to_http(err: &bldr_core::Error) -> StatusCode {
+    match err {
+        bldr_core::error::Error::RpcError(code, _) => StatusCode::from_u16(*code).unwrap(),
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

@@ -964,7 +964,19 @@ fn do_upload_package_finish(
     let session_name = get_session_user_name(&req, session_id);
 
     match process_upload_for_package_archive(&ident, &mut package, session_id) {
-        Ok(_) => {
+        Ok(pkg) => {
+            if feat::is_enabled(feat::Jobsrv) {
+                let mut job_graph_package = JobGraphPackageCreate::new();
+                job_graph_package.set_package(pkg);
+
+                if let Err(err) =
+                    route_message::<JobGraphPackageCreate, OriginPackage>(&req, &job_graph_package)
+                {
+                    warn!("Failed to insert package into graph: {:?}", err);
+                    return err.into();
+                }
+            }
+
             // Schedule re-build of dependent packages (if requested)
             // Don't schedule builds if the upload is being done by the builder
             if qupload.builder.is_none() && feat::is_enabled(feat::Jobsrv) {
@@ -1236,7 +1248,7 @@ pub fn process_upload_for_package_archive(
     ident: &OriginPackageIdent,
     package: &mut OriginPackageCreate,
     owner_id: u64,
-) -> NetResult<()> {
+) -> NetResult<OriginPackage> {
     // We need to do it this way instead of via route_message because this function can't be passed
     // a Request struct, because it's sometimes called from a background thread, and Request
     // structs are not cloneable.
@@ -1290,24 +1302,7 @@ pub fn process_upload_for_package_archive(
     }
 
     // Re-create origin package as needed (eg, checksum update)
-    match conn.route::<OriginPackageCreate, OriginPackage>(&package) {
-        Ok(pkg) => {
-            let mut job_graph_package = JobGraphPackageCreate::new();
-            job_graph_package.set_package(pkg);
-
-            if let Err(err) = conn.route::<JobGraphPackageCreate, OriginPackage>(&job_graph_package)
-            {
-                warn!("Failed to insert package into graph: {:?}", err);
-                return Err(err);
-            }
-        }
-        Err(err) => {
-            debug!("Failed to create origin package, err: {:?}", err);
-            return Err(err);
-        }
-    }
-
-    Ok(())
+    conn.route::<OriginPackageCreate, OriginPackage>(&package)
 }
 
 pub fn is_a_service(package: &OriginPackage) -> bool {

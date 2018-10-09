@@ -26,9 +26,9 @@ impl LogDirectory {
     /// Create a new `LogDirectory` wrapping `path`.
     pub fn new<T>(path: T) -> Self
     where
-        T: Into<PathBuf>,
+        T: AsRef<Path>,
     {
-        LogDirectory(path.into())
+        LogDirectory(path.as_ref().into())
     }
 
     /// Ensures that the specified log directory can be used.
@@ -40,15 +40,15 @@ impl LogDirectory {
     /// * Path is not writable
     pub fn validate<T>(path: T) -> Result<()>
     where
-        T: AsRef<Path> + Into<PathBuf>,
+        T: AsRef<Path>,
     {
         let meta =
             fs::metadata(&path).map_err(|e| Error::LogDirDoesNotExist(path.as_ref().into(), e))?;
         if !meta.is_dir() {
-            return Err(Error::LogDirIsNotDir(path.into()));
+            return Err(Error::LogDirIsNotDir(path.as_ref().into()));
         }
         if meta.permissions().readonly() {
-            return Err(Error::LogDirNotWritable(path.into()));
+            return Err(Error::LogDirNotWritable(path.as_ref().into()));
         }
         Ok(())
     }

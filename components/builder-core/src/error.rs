@@ -21,6 +21,7 @@ use std::string;
 use base64;
 use chrono;
 use hab_core;
+use protobuf;
 use protocol;
 use reqwest;
 use serde_json;
@@ -28,6 +29,7 @@ use serde_json;
 #[derive(Debug)]
 pub enum Error {
     ApiError(reqwest::StatusCode, String),
+    RpcError(u16, String),
     HttpClient(reqwest::Error),
     IO(io::Error),
     Base64Error(base64::DecodeError),
@@ -36,6 +38,7 @@ pub enum Error {
     EncryptError(String),
     FromUtf8Error(string::FromUtf8Error),
     HabitatCore(hab_core::Error),
+    Protobuf(protobuf::ProtobufError),
     Protocol(protocol::ProtocolError),
     Serialization(serde_json::Error),
     TokenInvalid,
@@ -52,6 +55,7 @@ impl fmt::Display for Error {
                 "Received a non-200 response, status={}, response={:?}",
                 code, response
             ),
+            Error::RpcError(ref code, ref e) => format!("{} {}", code, e),
             Error::HttpClient(ref e) => format!("{}", e),
             Error::IO(ref e) => format!("{}", e),
             Error::Base64Error(ref e) => format!("{}", e),
@@ -60,6 +64,7 @@ impl fmt::Display for Error {
             Error::EncryptError(ref e) => format!("{}", e),
             Error::FromUtf8Error(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
+            Error::Protobuf(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::Serialization(ref e) => format!("{}", e),
             Error::TokenInvalid => format!("Token is invalid"),
@@ -74,6 +79,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::ApiError(_, _) => "Response returned a non-200 status code.",
+            Error::RpcError(_, _) => "Response returned a non-200 status code.",
             Error::HttpClient(ref err) => err.description(),
             Error::IO(ref err) => err.description(),
             Error::Base64Error(ref e) => e.description(),
@@ -82,6 +88,7 @@ impl error::Error for Error {
             Error::EncryptError(_) => "Error encrypting integration",
             Error::FromUtf8Error(ref e) => e.description(),
             Error::HabitatCore(ref err) => err.description(),
+            Error::Protobuf(ref err) => err.description(),
             Error::Protocol(ref err) => err.description(),
             Error::Serialization(ref err) => err.description(),
             Error::TokenInvalid => "Token is invalid",
@@ -94,5 +101,23 @@ impl error::Error for Error {
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error {
         Error::HabitatCore(err)
+    }
+}
+
+impl From<protobuf::ProtobufError> for Error {
+    fn from(err: protobuf::ProtobufError) -> Error {
+        Error::Protobuf(err)
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Error {
+        Error::HttpClient(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Error {
+        Error::Serialization(err)
     }
 }

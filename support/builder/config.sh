@@ -77,7 +77,7 @@ EOT
 
 mkdir -p /hab/svc/builder-jobsrv
 cat <<EOT > /hab/svc/builder-jobsrv/user.toml
-log_level = "info"
+log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error"
 
 [datastore]
 password = "$PGPASSWORD"

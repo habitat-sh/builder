@@ -205,7 +205,7 @@ start-cache() {
 }
 
 declare -A svc_params=(
-  [api]="        -s at-once --bind router:builder-router.default --bind memcached:builder-memcached.default --bind datastore:builder-datastore.default"
+  [api]="        -s at-once --bind router:builder-router.default --bind memcached:builder-memcached.default --bind datastore:builder-datastore.default --bind jobsrv:builder-jobsrv.default"
   [api-proxy]="             --bind http:builder-api.default"
   [jobsrv]="     -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
   [originsrv]="  -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
