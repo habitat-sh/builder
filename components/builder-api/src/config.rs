@@ -365,7 +365,10 @@ mod tests {
         assert_eq!(&format!("{}", config.http.listen), "::1");
 
         assert_eq!(config.memcache.ttl, 11);
-        assert_eq!(&format!("{}", config.memcache.hosts[0]), "memcache://192.168.0.1:12345");
+        assert_eq!(
+            &format!("{}", config.memcache.hosts[0]),
+            "memcache://192.168.0.1:12345"
+        );
 
         assert_eq!(config.upstream.endpoint, String::from("http://example.com"));
         assert_eq!(
