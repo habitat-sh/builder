@@ -65,7 +65,7 @@ describe('Channels API', function () {
     it('requires origin membership to promote a package', function (done) {
       request.put('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213/promote')
         .set('Authorization', global.mystiqueBearer)
-        .expect(403)
+        .expect(401)
         .end(function (err, res) {
           done(err);
         });
@@ -250,7 +250,7 @@ describe('Channels API', function () {
     it('requires origin membership to demote a package', function (done) {
       request.put('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213/demote')
         .set('Authorization', global.mystiqueBearer)
-        .expect(403)
+        .expect(401)
         .end(function (err, res) {
           done(err);
         });

@@ -456,13 +456,11 @@ export class BuilderApiClient {
       })
         .then(response => this.handleUnauthorized(response, reject))
         .then(response => {
-          response.json().then(data => {
-            if (response.ok) {
-              resolve(data.map(o => o.name));
-            } else {
-              reject(new Error(response.statusText));
-            }
-          });
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
         })
         .catch(error => this.handleError(error, reject));
     });

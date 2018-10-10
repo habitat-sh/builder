@@ -281,20 +281,3 @@ export function submitJob(origin: string, pkg: string, token: string) {
       .catch(error => handleError(error, reject));
   });
 }
-
-export function getStats(origin: string) {
-  const url = `${urlPrefix}/depot/pkgs/origins/${origin}/stats`;
-
-  return new Promise((resolve, reject) => {
-    fetch(url)
-      .then(response => handleUnauthorized(response, reject))
-      .then(response => {
-        if (response.ok) {
-          response.json().then(data => resolve(data));
-        } else {
-          reject(new Error(response.statusText));
-        }
-      })
-      .catch(error => handleError(error, reject));
-  });
-}

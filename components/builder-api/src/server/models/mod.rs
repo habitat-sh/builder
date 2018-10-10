@@ -4,6 +4,7 @@
 
 pub mod account;
 pub mod channel;
+pub mod origins;
 
 mod db_id_format {
     use serde::{self, Deserialize, Deserializer, Serializer};

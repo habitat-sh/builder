@@ -360,18 +360,5 @@ describe('Working with packages', function () {
           done(err);
         });
     });
-
-    it('returns package stats', function (done) {
-      request.get('/depot/pkgs/origins/neurosis/stats')
-        .type('application/json')
-        .accept('application/json')
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.body.plans).to.equal(3);
-          expect(res.body.builds).to.equal(0);
-          expect(res.body.unique_packages).to.equal(1);
-          done(err);
-        });
-    });
   });
 });

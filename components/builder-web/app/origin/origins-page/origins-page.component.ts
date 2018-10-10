@@ -95,7 +95,7 @@ export class OriginsPageComponent implements OnInit {
   }
 
   packageCount(item) {
-    const count = item.packageCount;
+    const count = item.package_count;
     return count >= 0 ? count : '-';
   }
 
