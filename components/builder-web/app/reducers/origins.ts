@@ -42,22 +42,10 @@ export default function origins(state = initialState['origins'], action) {
           setIn(['ui', 'mine', 'errorMessage'], action.error.message).
           setIn(['ui', 'mine', 'loading'], false);
       } else {
-        return state.setIn(['mine'], List(action.payload.map(name =>
-          Origin({ name })
+        return state.setIn(['mine'], List(action.payload.map(origin =>
+          Origin({ name: origin.name, package_count: origin.package_count })
         ))).setIn(['ui', 'mine', 'errorMessage'], undefined).
           setIn(['ui', 'mine', 'loading'], false);
-      }
-
-    case actionTypes.SET_PACKAGE_COUNT_FOR_ORIGIN:
-      if (action.payload.origin) {
-        const record = state.getIn(['mine']).find(value => value.get('name') === action.payload.origin);
-        const index = state.getIn(['mine']).indexOf(record);
-        const newRecord = record.merge({ packageCount: action.payload.unique_packages });
-        return state.setIn(['mine', index], newRecord)
-          .setIn(['ui', 'mine', 'errorMessage'], undefined)
-          .setIn(['ui', 'mine', 'loading'], false);
-      } else {
-        return state;
       }
 
     case actionTypes.POPULATE_MY_ORIGIN_INVITATIONS:
@@ -95,8 +83,8 @@ export default function origins(state = initialState['origins'], action) {
       } else {
         return state.setIn(['currentPublicKeys'], List(action.payload)).
           setIn(
-          ['ui', 'current', 'publicKeyListErrorMessage'],
-          undefined
+            ['ui', 'current', 'publicKeyListErrorMessage'],
+            undefined
           );
       }
 
@@ -114,7 +102,7 @@ export default function origins(state = initialState['origins'], action) {
       if (action.error) {
         return state.set('current', Origin()).
           setIn(['ui', 'current', 'errorMessage'],
-          action.error.message).
+            action.error.message).
           setIn(['ui', 'current', 'loading'], false).
           setIn(['ui', 'current', 'exists'], false);
       } else {

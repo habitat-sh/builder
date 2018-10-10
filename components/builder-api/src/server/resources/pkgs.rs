@@ -102,10 +102,6 @@ impl Packages {
                 Method::GET,
                 get_packages_for_origin_package,
             ).route(
-                "/depot/pkgs/origins/{origin}/stats",
-                Method::GET,
-                get_package_stats,
-            ).route(
                 "/depot/pkgs/schedule/{origin}/status",
                 Method::GET,
                 get_origin_schedule_status,
@@ -156,21 +152,6 @@ impl Packages {
 //
 // Route handlers - these functions can return any Responder trait
 //
-// TODO: Move package stats API to originsrv?
-fn get_package_stats(req: HttpRequest<AppState>) -> HttpResponse {
-    let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
-
-    let mut request = JobGraphPackageStatsGet::new();
-    request.set_origin(origin);
-
-    match route_message::<JobGraphPackageStatsGet, JobGraphPackageStats>(&req, &request) {
-        Ok(stats) => HttpResponse::Ok()
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(stats),
-        Err(err) => err.into(),
-    }
-}
-
 fn get_packages_for_origin(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {

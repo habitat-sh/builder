@@ -21,6 +21,6 @@ export const Origin = Record({
   private_key_name: undefined,
   privateKeys: List(),
   publicKeys: List(),
-  packageCount: undefined,
+  package_count: undefined,
   default_package_visibility: undefined
 });
