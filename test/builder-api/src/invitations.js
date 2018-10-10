@@ -56,12 +56,12 @@ describe('Origin Invitations API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.invitations[0].id).to.equal(global.inviteBoboToXmen.id);
-          expect(res.body.invitations[0].account_id).to.equal(global.sessionBobo.id);
-          expect(res.body.invitations[0].account_name).to.equal('bobo');
-          expect(res.body.invitations[0].origin_id).to.equal(global.originXmen.id);
-          expect(res.body.invitations[0].origin_name).to.equal('xmen');
-          expect(res.body.invitations[0].owner_id).to.equal(global.sessionMystique.id);
+          expect(res.body[0].id).to.equal(global.inviteBoboToXmen.id);
+          expect(res.body[0].account_id).to.equal(global.sessionBobo.id);
+          expect(res.body[0].account_name).to.equal('bobo');
+          expect(res.body[0].origin_id).to.equal(global.originXmen.id);
+          expect(res.body[0].origin_name).to.equal('xmen');
+          expect(res.body[0].owner_id).to.equal(global.sessionMystique.id);
           done(err);
         });
     });
@@ -102,7 +102,7 @@ describe('Origin Invitations API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.invitations.length).to.equal(0);
+          expect(res.body.length).to.equal(0);
           done(err);
         });
     });

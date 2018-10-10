@@ -1,12 +1,12 @@
 table! {
-    origin_invitations (id) {
+    origin_invitations {
         id -> BigInt,
-        origin_id -> Nullable<BigInt>,
-        origin_name -> Nullable<Text>,
-        account_id -> Nullable<BigInt>,
-        account_name -> Nullable<Text>,
-        owner_id -> Nullable<BigInt>,
-        ignored -> Nullable<Bool>,
+        origin_id -> BigInt,
+        origin_name -> Text,
+        account_id -> BigInt,
+        account_name -> Text,
+        owner_id -> BigInt,
+        ignored -> Bool,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
     }
