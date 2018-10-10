@@ -14,10 +14,9 @@
 
 use actix_web::http::{Method, StatusCode};
 use actix_web::{App, HttpRequest, HttpResponse};
-use protocol::originsrv::*;
 
 use server::authorize::authorize_session;
-use server::framework::middleware::route_message;
+use server::models::invitations::OriginInvitation;
 use server::models::origins::Origin;
 use server::AppState;
 
@@ -38,18 +37,18 @@ impl User {
 //
 fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(id) => id as i64,
         Err(err) => return err.into(),
     };
 
-    let mut request = AccountInvitationListRequest::new();
-    request.set_account_id(account_id);
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
 
-    match route_message::<AccountInvitationListRequest, AccountInvitationListResponse>(
-        &req, &request,
-    ) {
-        Ok(invites) => HttpResponse::Ok().json(invites),
-        Err(err) => err.into(),
+    match OriginInvitation::list_by_account(account_id, &*conn) {
+        Ok(response) => HttpResponse::Ok().json(response),
+        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
