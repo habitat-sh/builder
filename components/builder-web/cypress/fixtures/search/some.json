@@ -1,0 +1,15 @@
+{
+  "range_start": 0,
+  "range_end": 1,
+  "total_count": 2,
+  "data": [
+    {
+      "name": "gawk",
+      "origin": "core"
+    },
+    {
+      "name": "cacerts",
+      "origin": "core"
+    }
+  ]
+}

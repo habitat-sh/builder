@@ -1,0 +1,207 @@
+{
+  "range_start": 50,
+  "range_end": 99,
+  "total_count": 690,
+  "data": [
+    {
+      "name": "builder-sessionsrv",
+      "origin": "core"
+    },
+    {
+      "name": "builder-web",
+      "origin": "core"
+    },
+    {
+      "name": "builder-worker",
+      "origin": "core"
+    },
+    {
+      "name": "bundler",
+      "origin": "core"
+    },
+    {
+      "name": "busybox",
+      "origin": "core"
+    },
+    {
+      "name": "busybox-static",
+      "origin": "core"
+    },
+    {
+      "name": "bzip2",
+      "origin": "core"
+    },
+    {
+      "name": "bzip2-musl",
+      "origin": "core"
+    },
+    {
+      "name": "c-ares",
+      "origin": "core"
+    },
+    {
+      "name": "cabal-install",
+      "origin": "core"
+    },
+    {
+      "name": "cacerts",
+      "origin": "core"
+    },
+    {
+      "name": "caddy",
+      "origin": "core"
+    },
+    {
+      "name": "cairo",
+      "origin": "core"
+    },
+    {
+      "name": "camlp4",
+      "origin": "core"
+    },
+    {
+      "name": "cargo-nightly",
+      "origin": "core"
+    },
+    {
+      "name": "ccache",
+      "origin": "core"
+    },
+    {
+      "name": "cerebro",
+      "origin": "core"
+    },
+    {
+      "name": "certstrap",
+      "origin": "core"
+    },
+    {
+      "name": "check",
+      "origin": "core"
+    },
+    {
+      "name": "chef-dk",
+      "origin": "core"
+    },
+    {
+      "name": "clang",
+      "origin": "core"
+    },
+    {
+      "name": "clang-tools-extra",
+      "origin": "core"
+    },
+    {
+      "name": "clens",
+      "origin": "core"
+    },
+    {
+      "name": "clingo",
+      "origin": "core"
+    },
+    {
+      "name": "cmake",
+      "origin": "core"
+    },
+    {
+      "name": "cockroach",
+      "origin": "core"
+    },
+    {
+      "name": "composer",
+      "origin": "core"
+    },
+    {
+      "name": "compositeproto",
+      "origin": "core"
+    },
+    {
+      "name": "concourse",
+      "origin": "core"
+    },
+    {
+      "name": "concourse-fly",
+      "origin": "core"
+    },
+    {
+      "name": "consul",
+      "origin": "core"
+    },
+    {
+      "name": "coreutils",
+      "origin": "core"
+    },
+    {
+      "name": "coreutils-static",
+      "origin": "core"
+    },
+    {
+      "name": "cpanminus",
+      "origin": "core"
+    },
+    {
+      "name": "cpio",
+      "origin": "core"
+    },
+    {
+      "name": "cppcheck",
+      "origin": "core"
+    },
+    {
+      "name": "cppunit",
+      "origin": "core"
+    },
+    {
+      "name": "cpputest",
+      "origin": "core"
+    },
+    {
+      "name": "crate",
+      "origin": "core"
+    },
+    {
+      "name": "cuda",
+      "origin": "core"
+    },
+    {
+      "name": "cuda-libs",
+      "origin": "core"
+    },
+    {
+      "name": "curator",
+      "origin": "core"
+    },
+    {
+      "name": "curator4",
+      "origin": "core"
+    },
+    {
+      "name": "curl",
+      "origin": "core"
+    },
+    {
+      "name": "curl-static-musl",
+      "origin": "core"
+    },
+    {
+      "name": "cyrus-sasl",
+      "origin": "core"
+    },
+    {
+      "name": "damageproto",
+      "origin": "core"
+    },
+    {
+      "name": "db",
+      "origin": "core"
+    },
+    {
+      "name": "dbus",
+      "origin": "core"
+    },
+    {
+      "name": "dd-agent",
+      "origin": "core"
+    }
+  ]
+}

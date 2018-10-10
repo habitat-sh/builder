@@ -1,0 +1,207 @@
+{
+  "range_start": 0,
+  "range_end": 49,
+  "total_count": 690,
+  "data": [
+    {
+      "name": "7zip",
+      "origin": "core"
+    },
+    {
+      "name": "LuaJIT",
+      "origin": "core"
+    },
+    {
+      "name": "R",
+      "origin": "core"
+    },
+    {
+      "name": "acbuild",
+      "origin": "core"
+    },
+    {
+      "name": "acl",
+      "origin": "core"
+    },
+    {
+      "name": "airlock",
+      "origin": "core"
+    },
+    {
+      "name": "alex",
+      "origin": "core"
+    },
+    {
+      "name": "alsa-lib",
+      "origin": "core"
+    },
+    {
+      "name": "ansible",
+      "origin": "core"
+    },
+    {
+      "name": "ant",
+      "origin": "core"
+    },
+    {
+      "name": "apr",
+      "origin": "core"
+    },
+    {
+      "name": "apr-util",
+      "origin": "core"
+    },
+    {
+      "name": "artifactory",
+      "origin": "core"
+    },
+    {
+      "name": "artifactory-pro",
+      "origin": "core"
+    },
+    {
+      "name": "aspcud",
+      "origin": "core"
+    },
+    {
+      "name": "aspnet-mvc1",
+      "origin": "core"
+    },
+    {
+      "name": "aspnet-sample",
+      "origin": "core"
+    },
+    {
+      "name": "at-spi2-atk",
+      "origin": "core"
+    },
+    {
+      "name": "at-spi2-core",
+      "origin": "core"
+    },
+    {
+      "name": "atk",
+      "origin": "core"
+    },
+    {
+      "name": "attr",
+      "origin": "core"
+    },
+    {
+      "name": "autoconf",
+      "origin": "core"
+    },
+    {
+      "name": "autogen",
+      "origin": "core"
+    },
+    {
+      "name": "automake",
+      "origin": "core"
+    },
+    {
+      "name": "aws-cli",
+      "origin": "core"
+    },
+    {
+      "name": "bash",
+      "origin": "core"
+    },
+    {
+      "name": "bash-completion",
+      "origin": "core"
+    },
+    {
+      "name": "bash-static",
+      "origin": "core"
+    },
+    {
+      "name": "bats",
+      "origin": "core"
+    },
+    {
+      "name": "bazel",
+      "origin": "core"
+    },
+    {
+      "name": "bc",
+      "origin": "core"
+    },
+    {
+      "name": "bdwgc",
+      "origin": "core"
+    },
+    {
+      "name": "benchmark",
+      "origin": "core"
+    },
+    {
+      "name": "bind",
+      "origin": "core"
+    },
+    {
+      "name": "binutils",
+      "origin": "core"
+    },
+    {
+      "name": "bison",
+      "origin": "core"
+    },
+    {
+      "name": "bison2",
+      "origin": "core"
+    },
+    {
+      "name": "boost",
+      "origin": "core"
+    },
+    {
+      "name": "boost159",
+      "origin": "core"
+    },
+    {
+      "name": "boringssl",
+      "origin": "core"
+    },
+    {
+      "name": "builder-admin",
+      "origin": "core"
+    },
+    {
+      "name": "builder-admin-proxy",
+      "origin": "core"
+    },
+    {
+      "name": "builder-api",
+      "origin": "core"
+    },
+    {
+      "name": "builder-api-proxy",
+      "origin": "core"
+    },
+    {
+      "name": "builder-datastore",
+      "origin": "core"
+    },
+    {
+      "name": "builder-graph",
+      "origin": "core"
+    },
+    {
+      "name": "builder-jobsrv",
+      "origin": "core"
+    },
+    {
+      "name": "builder-originsrv",
+      "origin": "core"
+    },
+    {
+      "name": "builder-router",
+      "origin": "core"
+    },
+    {
+      "name": "builder-scheduler",
+      "origin": "core"
+    }
+  ]
+}

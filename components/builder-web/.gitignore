@@ -5,6 +5,8 @@ assets/app.css.map
 assets/app.js
 assets/app.js.map
 assets/habitat.conf.js
+cypress/screenshots
+cypress/videos
 /habitat.conf.js
 node_modules
 npm-debug.log*
