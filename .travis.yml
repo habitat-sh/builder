@@ -1,210 +1,183 @@
 branches:
   only:
-    - master
+  - master
     - /^sentinel.+$/
     - /^acceptance_deploy.+$/
     - /^test_development-.*$/
     - /^\d+\.\d+\.\d+$/
 
 os: linux
-
 env:
   global:
-    - PATH=$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$HOME/.cargo/bin:$PATH
-    # Habitat Rust program components
-    - _RUST_HAB_BIN_COMPONENTS="components/airlock"
-    # Builder Rust program components
-    - _RUST_BLDR_BIN_COMPONENTS="components/builder-api components/builder-jobsrv components/builder-originsrv components/builder-router components/builder-worker"
-    # Builder Rust crate components
-    - _RUST_BLDR_LIB_COMPONENTS="components/builder-core components/builder-db components/net components/github-api-client components/segment-api-client"
-
-matrix:
+  - PATH=$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$HOME/.cargo/bin:$PATH
+  - _RUST_HAB_BIN_COMPONENTS="components/airlock"
+  - _RUST_BLDR_BIN_COMPONENTS="components/builder-api components/builder-jobsrv components/builder-originsrv
+    components/builder-router components/builder-worker"
+  - _RUST_BLDR_LIB_COMPONENTS="components/builder-core components/builder-db components/net
+    components/github-api-client components/segment-api-client"
   include:
-
-# Testing Jobs
-########################################################################
-
-#
-# Job for linting Habitat shell program components
-#
-    - sudo: false
-      script:
-        - ./test/shellcheck.sh
-
-#
-# Job for testing Habitat Rust program components
-#
-    - language: rust
-      env:
-        - COMPONENTS=bin
-        - AFFECTED_FILES="Cargo.lock"
-        - AFFECTED_DIRS="$_RUST_HAB_BIN_COMPONENTS"
-      rust: 1.29.0
-      sudo: false
-      services:
-        - docker
-      addons:
-        apt:
-          sources:
-            - kalakris-cmake
-          packages:
-            - build-essential
-            - busybox          # Currently only needed for unit tests in the supervisor, sadly.
-            - ca-certificates
-            - cmake
-            - curl
-            - libbz2-dev
-            - liblzma-dev
-            - libssl-dev
-            - pkg-config
-      cache:
-        apt: true
-        cargo: true
-        directories:
-          - "$HOME/pkgs"
-      before_script:
-        - rustup component add rustfmt-preview
-      before_install:
-        - ./support/ci/fast_pass.sh || exit 0
-        - ./support/ci/install_hab.sh
-        - ./support/ci/install_protobuf.sh
-        - ./support/ci/compile_libsodium.sh
-        - ./support/ci/compile_libarchive.sh
-        - ./support/ci/compile_zmq.sh
-        - source ./support/ci/rust_env.sh
-      script:
-        - ./support/ci/rust_tests.sh
-        - ./support/ci/lint.sh
-
-#
-# Job for testing Builder Rust crate components
-#
-    - language: rust
-      env:
-        - COMPONENTS=lib
-        - AFFECTED_FILES="Cargo.lock"
-        - AFFECTED_DIRS="$_RUST_BLDR_LIB_COMPONENTS"
-      rust: 1.29.0
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - kalakris-cmake
-          packages:
-            - build-essential
-            - ca-certificates
-            - cmake
-            - curl
-            - libbz2-dev
-            - liblzma-dev
-            - libssl-dev
-            - pkg-config
-      cache:
-        apt: true
-        cargo: true
-        directories:
-          - "$HOME/pkgs"
-      before_script:
-        - rustup component add rustfmt-preview
-      before_install:
-        - ./support/ci/fast_pass.sh || exit 0
-        - ./support/ci/install_hab.sh
-        - ./support/ci/install_protobuf.sh
-        - ./support/ci/compile_libsodium.sh
-        - ./support/ci/compile_libarchive.sh
-        - ./support/ci/compile_zmq.sh
-        - source ./support/ci/rust_env.sh
-      script:
-        - ./support/ci/rust_tests.sh
-        - ./support/ci/lint.sh
-
-#
-# Job for testing Builder Rust program components
-#
-    - language: rust
-      env:
-        - COMPONENTS=srv
-        - AFFECTED_FILES="Cargo.lock .travis.yml .envrc .studiorc"
-        - AFFECTED_DIRS=".secrets support $_RUST_BLDR_BIN_COMPONENTS $_RUST_BLDR_LIB_COMPONENTS"
-      rust: 1.29.0
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - kalakris-cmake
-          packages:
-            - build-essential
-            - ca-certificates
-            - cmake
-            - curl
-            - libbz2-dev
-            - liblzma-dev
-            - libssl-dev
-            - pkg-config
-      cache:
-        apt: true
-        cargo: true
-        directories:
-          - "$HOME/pkgs"
-      before_script:
-        - rustup component add rustfmt-preview
-      before_install:
-        - ./support/ci/fast_pass.sh || exit 0
-        - ./support/ci/install_hab.sh
-        - ./support/ci/install_protobuf.sh
-        - ./support/ci/compile_libsodium.sh
-        - ./support/ci/compile_libarchive.sh
-        - ./support/ci/compile_zmq.sh
-        - source ./support/ci/rust_env.sh
-        - openssl aes-256-cbc -K $encrypted_builder_github_app_pem_key -iv $encrypted_builder_github_app_pem_iv -in ./support/ci/builder-github-app.pem.enc -out /tmp/builder-github-app.pem -d
-      script:
-        - ./test/builder-api/test.sh
-
-# Web Jobs
-########################################################################
-
-#
-# Job for testing Builder Web components
-#
-    - language: node_js
-      node_js: 8.7.0
-      sudo: false
-      env:
-        - CXX=g++-4.8
-        - AFFECTED_FILES=""
-        - AFFECTED_DIRS="components/builder-web"
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-4.8
-            - wget
-      cache:
-        apt: true
-        directories:
-          - components/builder-web/node_modules
-          - components/builder-web/typings
-      before_install:
-        - ./support/ci/fast_pass.sh || exit 0
-        - npm config set spin=false
-      install:
-        - "(cd components/builder-web && npm install)"
-      script:
-        - "(cd components/builder-web && npm run travis)"
+  - sudo: false
+    script:
+    - "./test/shellcheck.sh"
+  - language: rust
+    env:
+    - COMPONENTS=bin
+    - AFFECTED_FILES="Cargo.lock"
+    - AFFECTED_DIRS="$_RUST_HAB_BIN_COMPONENTS"
+    rust: 1.29.0
+    sudo: false
+    services:
+    - docker
+    addons:
+      apt:
+        sources:
+        - kalakris-cmake
+        packages:
+        - build-essential
+        - busybox
+        - ca-certificates
+        - cmake
+        - curl
+        - libbz2-dev
+        - liblzma-dev
+        - libssl-dev
+        - pkg-config
+    cache:
+      apt: true
+      cargo: true
+      directories:
+      - "$HOME/pkgs"
+    before_script:
+    - rustup component add rustfmt-preview
+    before_install:
+    - "./support/ci/fast_pass.sh || exit 0"
+    - "./support/ci/install_hab.sh"
+    - "./support/ci/install_protobuf.sh"
+    - "./support/ci/compile_libsodium.sh"
+    - "./support/ci/compile_libarchive.sh"
+    - "./support/ci/compile_zmq.sh"
+    - source ./support/ci/rust_env.sh
+    script:
+    - "./support/ci/rust_tests.sh"
+    - "./support/ci/lint.sh"
+  - language: rust
+    env:
+    - COMPONENTS=lib
+    - AFFECTED_FILES="Cargo.lock"
+    - AFFECTED_DIRS="$_RUST_BLDR_LIB_COMPONENTS"
+    rust: 1.29.0
+    sudo: required
+    addons:
+      apt:
+        sources:
+        - kalakris-cmake
+        packages:
+        - build-essential
+        - ca-certificates
+        - cmake
+        - curl
+        - libbz2-dev
+        - liblzma-dev
+        - libssl-dev
+        - pkg-config
+    cache:
+      apt: true
+      cargo: true
+      directories:
+      - "$HOME/pkgs"
+    before_script:
+    - rustup component add rustfmt-preview
+    before_install:
+    - "./support/ci/fast_pass.sh || exit 0"
+    - "./support/ci/install_hab.sh"
+    - "./support/ci/install_protobuf.sh"
+    - "./support/ci/compile_libsodium.sh"
+    - "./support/ci/compile_libarchive.sh"
+    - "./support/ci/compile_zmq.sh"
+    - source ./support/ci/rust_env.sh
+    script:
+    - "./support/ci/rust_tests.sh"
+    - "./support/ci/lint.sh"
+  - language: rust
+    env:
+    - COMPONENTS=srv
+    - AFFECTED_FILES="Cargo.lock .travis.yml .envrc .studiorc"
+    - AFFECTED_DIRS=".secrets support $_RUST_BLDR_BIN_COMPONENTS $_RUST_BLDR_LIB_COMPONENTS"
+    rust: 1.29.0
+    sudo: required
+    addons:
+      apt:
+        sources:
+        - kalakris-cmake
+        packages:
+        - build-essential
+        - ca-certificates
+        - cmake
+        - curl
+        - libbz2-dev
+        - liblzma-dev
+        - libssl-dev
+        - pkg-config
+    cache:
+      apt: true
+      cargo: true
+      directories:
+      - "$HOME/pkgs"
+    before_script:
+    - rustup component add rustfmt-preview
+    before_install:
+    - "./support/ci/fast_pass.sh || exit 0"
+    - "./support/ci/install_hab.sh"
+    - "./support/ci/install_protobuf.sh"
+    - "./support/ci/compile_libsodium.sh"
+    - "./support/ci/compile_libarchive.sh"
+    - "./support/ci/compile_zmq.sh"
+    - source ./support/ci/rust_env.sh
+    - openssl aes-256-cbc -K $encrypted_builder_github_app_pem_key -iv $encrypted_builder_github_app_pem_iv
+      -in ./support/ci/builder-github-app.pem.enc -out /tmp/builder-github-app.pem
+      -d
+    script:
+    - "./test/builder-api/test.sh"
+  - language: node_js
+    node_js: 8.7.0
+    sudo: false
+    env:
+    - CXX=g++-4.8
+    - AFFECTED_FILES=""
+    - AFFECTED_DIRS="components/builder-web"
+    - secure: ZEYG4s7PkPsr9YhD0dgf5INBOSJCo2Zofam+93LEI2B2vEkfW4CYlVFwc3IHOlg10iLZPkqLIAkDGNc8pxSYUtfMuE9P4RCjsITAxVPa/gvQeHIrQNYdWJfG0QnGkd66hl6tdiWA9naJCGTDbnRK3DOimw7Y6O/mLn35Hb4ovdWhiGEI7DnEQ0WoaYjHAsQldciFGmunnUB1aCs6b2LLvQbUjPSxS7yhnx4eIbKZyzX/29rvHpBpC7fAyoDO5LDV+kqf+Hzy6KEmX9iF8TmxSUOguQpauELB+Xoy/XJ2G+8I3rHHwhdS3LeJ7hOQCQSWpiYKKPvkQuSrX4JV/hAAovatvYsYK+F66+vGVKr5SttjlIJVLQWPcp8Ems6JeOBFOqTSLgY/er3wTMQF2VSmrEfjg5ssxjeOOJUWgkVMI6W4lFMw4YDG2r/Sq///3dzakFlxsa1vARf5uD5pkz1HnnO9PEmyGKZrmwF8PdNac8f22lU9CjWgK8/ocv8E/0bRUxVns8b27qaHO5p4dOlI30C56pYssNowEWVER1+EoyysVY2vWGJQoBd2m0mPRGWjVDSAIuHId/8AOLGoF7EsvdD8x4FnTIqEHkm+2HeLIzRw7Ii6jTIyo55VFVrZ8wVfEvxUasqmqns05FvWXOnnQ0Q1VNWFNiwKlYnpL8UcB/8=
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-4.8
+        - wget
+    cache:
+      apt: true
+      directories:
+      - components/builder-web/node_modules
+      - components/builder-web/typings
+    before_install:
+    - "./support/ci/fast_pass.sh || exit 0"
+    - npm config set spin=false
+    install:
+    - "(cd components/builder-web && npm install)"
+    script:
+    - "(cd components/builder-web && npm run travis)"
 notifications:
   webhooks:
     urls:
-      - http://bots.habitat.sh:4567/travis
+    - http://bots.habitat.sh:4567/travis
     on_success: always
     on_failure: always
     on_start: always
   slack:
     template:
-      - "%{repository} (%{commit}) : %{message}"
-      - "Build details: %{build_url}"
-      - "Status: %{result}"
-    secure: "bRaFFuuxhV4bv53JzWRWXqe2vZNfQ3UvhNJnqwxp+hPG6wYxJ8hsvPQtUq7esetDhnlru5aje2tUMioBcZB33ByO/DF4Q52WEi3nwdOmVkcmbn+FJEpCX7y+vfwglzHC1UvtOm2qIaIKjSsWY5vK05Ee5QIZtZtO0Qa6jg9JF521erSYqNV40qJwsEfvsm16RHVuV6tJGmz20EDXt47c3D1aTkhDCtufJWHNOj0pG6nGw7UVlh/xpEm3SikW141s6PtZ8dsG57emYW902s1F1G+DJRGVC0TquatWCqc7PYnmuZMofR01LMfXvya0O6TcXqppHBBm2snnucQeeB+r/tyPJTFulXpUOvDHz/Elhj+Bu6hxOufyWBRQCOnr6ubclxiFYMK4At8qAQE51HjhT4aqfxqHaOZdy2STwi6HPVdQvd8wCVnWYz6DbBLx6c1FBX93uuj/n3nP3LX9+IOc5O/gpHC91m/Fids5QvKVVpKV71ZNMNouJANIw/qAa2bZ6b14RNusUo0zTB4CjzvNbItUNvG5hIhtQXHS3jobfZekYFW42e+jlCMVYpBzSCNi9dwsfXvMsRKoW7Cel5fnscYneCagHbGDC1azi+Uv+dWY13y2MaGFv8QForFt2yQRGHl82ht91sEqrBiF1F4fs9mTBcrLq3oFDrUKKaH87WI="
+    - "%{repository} (%{commit}) : %{message}"
+    - 'Build details: %{build_url}'
+    - 'Status: %{result}'
+    secure: bRaFFuuxhV4bv53JzWRWXqe2vZNfQ3UvhNJnqwxp+hPG6wYxJ8hsvPQtUq7esetDhnlru5aje2tUMioBcZB33ByO/DF4Q52WEi3nwdOmVkcmbn+FJEpCX7y+vfwglzHC1UvtOm2qIaIKjSsWY5vK05Ee5QIZtZtO0Qa6jg9JF521erSYqNV40qJwsEfvsm16RHVuV6tJGmz20EDXt47c3D1aTkhDCtufJWHNOj0pG6nGw7UVlh/xpEm3SikW141s6PtZ8dsG57emYW902s1F1G+DJRGVC0TquatWCqc7PYnmuZMofR01LMfXvya0O6TcXqppHBBm2snnucQeeB+r/tyPJTFulXpUOvDHz/Elhj+Bu6hxOufyWBRQCOnr6ubclxiFYMK4At8qAQE51HjhT4aqfxqHaOZdy2STwi6HPVdQvd8wCVnWYz6DbBLx6c1FBX93uuj/n3nP3LX9+IOc5O/gpHC91m/Fids5QvKVVpKV71ZNMNouJANIw/qAa2bZ6b14RNusUo0zTB4CjzvNbItUNvG5hIhtQXHS3jobfZekYFW42e+jlCMVYpBzSCNi9dwsfXvMsRKoW7Cel5fnscYneCagHbGDC1azi+Uv+dWY13y2MaGFv8QForFt2yQRGHl82ht91sEqrBiF1F4fs9mTBcrLq3oFDrUKKaH87WI=
     on_pull_requests: false
     on_failure: always
     on_success: change
