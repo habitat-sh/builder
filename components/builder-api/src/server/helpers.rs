@@ -30,6 +30,8 @@ use server::authorize::authorize_session;
 use server::error::Result;
 use server::framework::middleware::route_message;
 use server::models::channel::PackageChannelTrigger as PCT;
+use server::models::package::PackageVisibility;
+
 use server::AppState;
 
 //
@@ -183,6 +185,22 @@ pub fn visibility_for_optional_session(
     v
 }
 
+pub fn visibility_for_optional_session_model(
+    req: &HttpRequest<AppState>,
+    optional_session_id: Option<u64>,
+    origin: &str,
+) -> Vec<PackageVisibility> {
+    let mut v = Vec::new();
+    v.push(PackageVisibility::Public);
+
+    if optional_session_id.is_some() && authorize_session(req, Some(&origin)).is_ok() {
+        v.push(PackageVisibility::Hidden);
+        v.push(PackageVisibility::Private);
+    }
+
+    v
+}
+
 // Get channels for a package
 pub fn channels_for_package_ident(
     req: &HttpRequest<AppState>,
@@ -217,6 +235,39 @@ pub fn channels_for_package_ident(
     }
 }
 
+// pub fn channels_for_package_ident_model(
+//     req: &HttpRequest<AppState>,
+//     package: &PackageIdent,
+// ) -> Option<Vec<String>> {
+//     let opt_session_id = match authorize_session(req, None) {
+//         Ok(id) => Some(id),
+//         Err(_) => None,
+//     };
+
+//     let mut opclr = OriginPackageChannelListRequest::new();
+//     opclr.set_ident(package.clone());
+//     opclr.set_visibilities(visibility_for_optional_session(
+//         req,
+//         opt_session_id,
+//         package.get_origin(),
+//     ));
+
+//     match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
+//         req, &opclr,
+//     ) {
+//         Ok(channels) => {
+//             let list: Vec<String> = channels
+//                 .get_channels()
+//                 .iter()
+//                 .map(|channel| channel.get_name().to_string())
+//                 .collect();
+
+//             Some(list)
+//         }
+//         Err(_) => None,
+//     }
+// }
+
 // Get platforms for a package
 pub fn platforms_for_package_ident(
     req: &HttpRequest<AppState>,
@@ -248,6 +299,14 @@ pub fn all_visibilities() -> Vec<OriginPackageVisibility> {
         OriginPackageVisibility::Public,
         OriginPackageVisibility::Private,
         OriginPackageVisibility::Hidden,
+    ]
+}
+
+pub fn all_visibilities_model() -> Vec<PackageVisibility> {
+    vec![
+        PackageVisibility::Public,
+        PackageVisibility::Private,
+        PackageVisibility::Hidden,
     ]
 }
 

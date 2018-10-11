@@ -31,6 +31,9 @@ mkdir -p /hab/svc/builder-api
 cat <<EOT > /hab/svc/builder-api/user.toml
 log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error"
 
+[http]
+handler_count = 15
+
 [oauth]
 provider = "$OAUTH_PROVIDER"
 token_url = "$OAUTH_TOKEN_URL"
@@ -78,6 +81,9 @@ EOT
 mkdir -p /hab/svc/builder-jobsrv
 cat <<EOT > /hab/svc/builder-jobsrv/user.toml
 log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error"
+
+[http]
+handler_count = 15
 
 [datastore]
 password = "$PGPASSWORD"

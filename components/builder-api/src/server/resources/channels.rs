@@ -18,27 +18,29 @@ use actix_web::http::{self, Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
 use diesel::pg::PgConnection;
-use diesel::result::{DatabaseErrorKind, Error::DatabaseError};
+use diesel::result::{DatabaseErrorKind, Error::DatabaseError, Error::NotFound};
 
 use std::ops::Deref;
 
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
+use hab_net::{ErrCode, NetError};
 use protocol::originsrv::*;
 use serde_json;
 
 use super::pkgs::{is_a_service, postprocess_package_list};
 use server::authorize::{authorize_session, get_session_user_name};
-use server::error::Result;
+use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-// TED remove as when we get rid of all the protos
+// TED PROTOCLEANUP remove aliases when we get rid of all the protos
 use server::models::channel::{
     Channel, CreateChannel, DeleteChannel, ListChannels, OriginChannelDemote as OCD,
     OriginChannelPackage as OCPackage, OriginChannelPromote as OCP, PackageChannelAudit as PCA,
     PackageChannelAudit, PackageChannelOperation as PCO,
 };
+use server::models::package::{BuilderPackageIdent, GetPackage, Package};
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -422,7 +424,10 @@ fn get_package_fully_qualified(
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
             .body(json_body),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{:?}", err);
+            err.into()
+        }
     }
 }
 
@@ -498,6 +503,11 @@ fn do_get_channel_package(
     let mut memcache = req.state().memcache.borrow_mut();
     let req_ident = ident.clone();
 
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(e) => return Err(e.into()),
+    };
+
     // TODO: Deprecate target from headers
     let target = match qtarget.target.clone() {
         Some(t) => {
@@ -539,23 +549,30 @@ fn do_get_channel_package(
             };
     }
 
-    let mut request = OriginPackageGet::new();
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        req,
-        opt_session_id,
-        &ident.get_origin(),
-    ));
-    request.set_ident(ident.clone());
-
-    let pkg = match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
+    let pkg = match Package::get(
+        GetPackage {
+            ident: BuilderPackageIdent(ident.clone().into()),
+            visibility: helpers::visibility_for_optional_session_model(
+                req,
+                opt_session_id,
+                &ident.get_origin(),
+            ),
+        },
+        &*conn,
+    ) {
         Ok(pkg) => pkg,
-        Err(err) => return Err(err),
+        Err(NotFound) => {
+            return Err(
+                Error::NetError(NetError::new(ErrCode::ENTITY_NOT_FOUND, "pkg:get:1")).into(),
+            )
+        }
+        Err(err) => return Err(err.into()),
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = helpers::channels_for_package_ident(req, pkg.get_ident());
+    let channels = helpers::channels_for_package_ident(req, &pkg.ident.clone().into());
     pkg_json["channels"] = json!(channels);
-    pkg_json["is_a_service"] = json!(is_a_service(&pkg));
+    pkg_json["is_a_service"] = json!(is_a_service(&pkg.into()));
 
     let json_body = serde_json::to_string(&pkg_json).unwrap();
     memcache.set_package(req_ident.clone().into(), &json_body, &channel, &target);

@@ -29,7 +29,10 @@ extern crate habitat_net as hab_net;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+#[macro_use]
 extern crate postgres;
+#[macro_use]
+extern crate postgres_derive;
 extern crate protobuf;
 extern crate r2d2;
 extern crate serde;

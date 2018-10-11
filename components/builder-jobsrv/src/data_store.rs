@@ -31,11 +31,43 @@ use postgres::rows::Rows;
 use protobuf;
 use protobuf::{ProtobufEnum, RepeatedField};
 use protocol::net::{ErrCode, NetError};
-use protocol::originsrv::Pageable;
+use protocol::originsrv::{OriginPackageVisibility, Pageable};
 use protocol::{jobsrv, originsrv};
 use std::str::FromStr;
 
 use error::{Error, Result};
+
+#[derive(Debug, ToSql, FromSql)]
+#[postgres(name = "origin_package_visibility")]
+pub enum PackageVisibility {
+    #[postgres(name = "public")]
+    Public,
+    #[postgres(name = "private")]
+    Private,
+    #[postgres(name = "hidden")]
+    Hidden,
+}
+
+// TED TODO: PROTOCLEANUP Remove everything below when the protos are gone
+impl From<OriginPackageVisibility> for PackageVisibility {
+    fn from(value: OriginPackageVisibility) -> PackageVisibility {
+        match value {
+            OriginPackageVisibility::Hidden => PackageVisibility::Hidden,
+            OriginPackageVisibility::Private => PackageVisibility::Private,
+            _ => PackageVisibility::Public,
+        }
+    }
+}
+
+impl Into<OriginPackageVisibility> for PackageVisibility {
+    fn into(self) -> OriginPackageVisibility {
+        match self {
+            PackageVisibility::Hidden => OriginPackageVisibility::Hidden,
+            PackageVisibility::Private => OriginPackageVisibility::Private,
+            _ => OriginPackageVisibility::Public,
+        }
+    }
+}
 
 /// DataStore inherints being Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Clone)]
@@ -428,11 +460,15 @@ impl DataStore {
 
     pub fn get_job_graph_package(&self, ident: &str) -> Result<originsrv::OriginPackage> {
         let conn = self.pool.get()?;
-
+        let visibilities = vec![
+            PackageVisibility::Public,
+            PackageVisibility::Private,
+            PackageVisibility::Hidden,
+        ];
         let rows = &conn
             .query(
-                "SELECT * FROM get_origin_package_v4($1, $2)",
-                &[&ident, &String::from("public,private,hidden")],
+                "SELECT * FROM get_origin_package_v5($1, $2)",
+                &[&ident, &visibilities],
             ).map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
@@ -639,20 +675,13 @@ impl DataStore {
         package.set_manifest(row.get("manifest"));
         package.set_config(row.get("config"));
         package.set_target(row.get("target"));
-        let expose: String = row.get("exposes");
-        let mut exposes: Vec<u32> = Vec::new();
-        for ex in expose.split(":") {
-            match ex.parse::<u32>() {
-                Ok(e) => exposes.push(e),
-                Err(_) => {}
-            }
-        }
-        package.set_exposes(exposes);
+        let exposes: Vec<i16> = row.get("exposes");
+        package.set_exposes(exposes.iter().map(|e| *e as u32).collect::<Vec<u32>>());
         package.set_deps(self.into_idents(row.get("deps")));
         package.set_tdeps(self.into_idents(row.get("tdeps")));
 
-        let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility = pv.parse()?;
+        let pv: PackageVisibility = row.get("visibility");
+        let pv2: originsrv::OriginPackageVisibility = pv.into();
         package.set_visibility(pv2);
 
         Ok(package)
@@ -660,13 +689,11 @@ impl DataStore {
 
     fn into_idents(
         &self,
-        column: String,
+        column: Vec<String>,
     ) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
         let mut idents = protobuf::RepeatedField::new();
-        for ident in column.split(":") {
-            if !ident.is_empty() {
-                idents.push(originsrv::OriginPackageIdent::from_str(ident).unwrap());
-            }
+        for ident in column {
+            idents.push(originsrv::OriginPackageIdent::from_str(&ident).unwrap());
         }
         idents
     }

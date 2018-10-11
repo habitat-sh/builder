@@ -27,6 +27,7 @@ log = "*"
 num_cpus = "*"
 protobuf = "*"
 postgres = { version = "*", features = ["with-chrono"] }
+postgres-derive = "*"
 chrono = { version = "*", features = ["serde"] }
 rand = "*"
 r2d2 = "*"
