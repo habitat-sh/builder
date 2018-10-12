@@ -24,3 +24,6 @@ port = {{member.cfg.port}}
 [archive]
 local_dir = "{{pkg.svc_data_path}}"
 {{toToml cfg.archive}}
+
+[http]
+{{toToml cfg.http}}

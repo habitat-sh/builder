@@ -15,11 +15,14 @@
 //! Configuration for a Habitat JobSrv service
 
 use std::env;
-use std::net::{IpAddr, Ipv4Addr};
+use std::io;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
+use std::option::IntoIter;
 use std::path::PathBuf;
 
 use db::config::DataStoreCfg;
 use hab_net::app::config::*;
+use num_cpus;
 use server::log_archiver::ArchiveBackend;
 
 use error::Error;
@@ -29,6 +32,7 @@ use error::Error;
 pub struct Config {
     pub app: AppCfg,
     pub net: NetCfg,
+    pub http: HttpCfg,
     pub datastore: DataStoreCfg,
     /// Directory to which log output of running build processes will
     /// be written. Defaults to the system temp directory. Must exist
@@ -51,6 +55,7 @@ impl Default for Config {
         Config {
             app: AppCfg::default(),
             net: NetCfg::default(),
+            http: HttpCfg::default(),
             datastore: datastore,
             log_dir: env::temp_dir(),
             archive: ArchiveCfg::default(),
@@ -124,6 +129,68 @@ impl Default for NetCfg {
     }
 }
 
+pub trait GatewayCfg {
+    /// Default number of worker threads to simultaneously handle HTTP requests.
+    fn default_handler_count() -> usize {
+        num_cpus::get() * 2
+    }
+
+    /// Number of worker threads to simultaneously handle HTTP requests.
+    fn handler_count(&self) -> usize {
+        Self::default_handler_count()
+    }
+
+    fn listen_addr(&self) -> &IpAddr;
+
+    fn listen_port(&self) -> u16;
+}
+
+impl GatewayCfg for Config {
+    fn handler_count(&self) -> usize {
+        self.http.handler_count
+    }
+
+    fn listen_addr(&self) -> &IpAddr {
+        &self.http.listen
+    }
+
+    fn listen_port(&self) -> u16 {
+        self.http.port
+    }
+}
+
+/// Public listening net address for HTTP requests
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct HttpCfg {
+    pub listen: IpAddr,
+    pub port: u16,
+    pub handler_count: usize,
+    pub keep_alive: usize,
+}
+
+impl Default for HttpCfg {
+    fn default() -> Self {
+        HttpCfg {
+            listen: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            port: 5580,
+            handler_count: Config::default_handler_count(),
+            keep_alive: 60,
+        }
+    }
+}
+
+impl ToSocketAddrs for HttpCfg {
+    type Iter = IntoIter<SocketAddr>;
+
+    fn to_socket_addrs(&self) -> io::Result<IntoIter<SocketAddr>> {
+        match self.listen {
+            IpAddr::V4(ref a) => (*a, self.port).to_socket_addrs(),
+            IpAddr::V6(ref a) => (*a, self.port).to_socket_addrs(),
+        }
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Archive Configuration
 
@@ -166,6 +233,10 @@ mod tests {
     #[test]
     fn config_from_file() {
         let content = r#"
+        [http]
+        listen = "1.2.3.4"
+        port   = 1234
+
         [net]
         worker_command_listen = "1:1:1:1:1:1:1:1"
         worker_command_port = 9000
@@ -193,6 +264,9 @@ mod tests {
         "#;
 
         let config = Config::from_raw(&content).unwrap();
+        assert_eq!(&format!("{}", config.http.listen), "1.2.3.4");
+        assert_eq!(config.http.port, 1234);
+
         assert_eq!(
             &format!("{}", config.net.worker_command_listen),
             "1:1:1:1:1:1:1:1"

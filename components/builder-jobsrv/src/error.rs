@@ -12,9 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use actix_web::http::StatusCode;
+use actix_web::HttpResponse;
+
+use hab_net::{self, ErrCode};
+
+use bldr_core;
 use db;
 use hab_core;
-use hab_net;
 use postgres;
 use protobuf;
 use protocol;
@@ -31,6 +36,7 @@ use zmq;
 #[derive(Debug)]
 pub enum Error {
     BadPort(String),
+    BuilderCore(bldr_core::Error),
     BusyWorkerUpsert(postgres::error::Error),
     BusyWorkerDelete(postgres::error::Error),
     BusyWorkersGet(postgres::error::Error),
@@ -88,6 +94,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
+            Error::BuilderCore(ref e) => format!("{}", e),
             Error::BusyWorkerUpsert(ref e) => {
                 format!("Database error creating or updating a busy worker, {}", e)
             }
@@ -186,6 +193,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
+            Error::BuilderCore(ref err) => err.description(),
             Error::BusyWorkerUpsert(ref err) => err.description(),
             Error::BusyWorkerDelete(ref err) => err.description(),
             Error::BusyWorkersGet(ref err) => err.description(),
@@ -236,6 +244,68 @@ impl error::Error for Error {
             Error::UnknownVCS => "Unknown VCS",
             Error::Zmq(ref err) => err.description(),
         }
+    }
+}
+
+impl Into<HttpResponse> for Error {
+    fn into(self) -> HttpResponse {
+        match self {
+            Error::NetError(ref e) => HttpResponse::build(net_err_to_http(&e)).json(&e),
+            Error::BuilderCore(ref e) => HttpResponse::new(bldr_core_err_to_http(e)),
+
+            // Default
+            _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+}
+
+fn bldr_core_err_to_http(err: &bldr_core::Error) -> StatusCode {
+    match err {
+        bldr_core::error::Error::RpcError(code, _) => StatusCode::from_u16(*code).unwrap(),
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+fn net_err_to_http(err: &hab_net::NetError) -> StatusCode {
+    match err.code() {
+        ErrCode::TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
+        ErrCode::REMOTE_REJECTED => StatusCode::NOT_ACCEPTABLE,
+        ErrCode::ENTITY_NOT_FOUND => StatusCode::NOT_FOUND,
+        ErrCode::ENTITY_CONFLICT => StatusCode::CONFLICT,
+
+        ErrCode::ACCESS_DENIED | ErrCode::SESSION_EXPIRED => StatusCode::UNAUTHORIZED,
+
+        ErrCode::BAD_REMOTE_REPLY | ErrCode::SECRET_KEY_FETCH | ErrCode::VCS_CLONE => {
+            StatusCode::BAD_GATEWAY
+        }
+
+        ErrCode::NO_SHARD | ErrCode::SOCK | ErrCode::REMOTE_UNAVAILABLE => {
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+
+        ErrCode::BAD_TOKEN => StatusCode::FORBIDDEN,
+
+        ErrCode::GROUP_NOT_COMPLETE
+        | ErrCode::BUILD
+        | ErrCode::EXPORT
+        | ErrCode::POST_PROCESSOR
+        | ErrCode::SECRET_KEY_IMPORT
+        | ErrCode::INVALID_INTEGRATIONS => StatusCode::UNPROCESSABLE_ENTITY,
+
+        ErrCode::PARTIAL_JOB_GROUP_PROMOTE => StatusCode::PARTIAL_CONTENT,
+
+        ErrCode::BUG
+        | ErrCode::SYS
+        | ErrCode::DATA_STORE
+        | ErrCode::WORKSPACE_SETUP
+        | ErrCode::REG_CONFLICT
+        | ErrCode::REG_NOT_FOUND => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+impl From<bldr_core::Error> for Error {
+    fn from(err: bldr_core::Error) -> Error {
+        Error::BuilderCore(err)
     }
 }
 

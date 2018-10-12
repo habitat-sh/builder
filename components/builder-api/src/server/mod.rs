@@ -34,6 +34,7 @@ use actix_web::middleware::Logger;
 use actix_web::server::{self, KeepAlive};
 use actix_web::{App, HttpRequest, HttpResponse, Result};
 
+use bldr_core::rpc::RpcClient;
 use github_api_client::GitHubClient;
 use hab_net::socket;
 
@@ -75,6 +76,7 @@ pub struct AppState {
     config: Config,
     packages: S3Handler,
     github: GitHubClient,
+    jobsrv: RpcClient,
     oauth: OAuth2Client,
     segment: SegmentClient,
     upstream: UpstreamClient,
@@ -88,6 +90,7 @@ impl AppState {
             config: config.clone(),
             packages: S3Handler::new(config.s3.clone()),
             github: GitHubClient::new(config.github.clone()),
+            jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
             upstream: UpstreamClient::default(),

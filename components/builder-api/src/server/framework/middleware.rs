@@ -61,11 +61,20 @@ where
 {
     Counter::RouteMessage.increment();
 
-    req.extensions_mut()
-        .get_mut::<RouteClient>()
-        .expect("no XRouteClient extension in request")
-        .route::<M, R>(msg)
-        .map_err(|e| error::Error::NetError(e))
+    if M::protocol() == protocol::Protocol::JobSrv {
+        // Route via Protobuf over HTTP
+        req.state()
+            .jobsrv
+            .rpc::<M, R>(msg)
+            .map_err(error::Error::BuilderCore)
+    } else {
+        // Route via Protobuf over ZMQ
+        req.extensions_mut()
+            .get_mut::<RouteClient>()
+            .expect("no XRouteClient extension in request")
+            .route::<M, R>(msg)
+            .map_err(error::Error::NetError)
+    }
 }
 
 // Optional Authentication - this middleware does not enforce authentication,

@@ -445,42 +445,6 @@ impl DataStore {
         Ok(package)
     }
 
-    pub fn get_job_graph_package_stats(
-        &self,
-        msg: &jobsrv::JobGraphPackageStatsGet,
-    ) -> Result<jobsrv::JobGraphPackageStats> {
-        let conn = self.pool.get()?;
-
-        let origin = msg.get_origin();
-        let rows = &conn
-            .query("SELECT * FROM count_origin_packages_v1($1)", &[&origin])
-            .map_err(Error::JobGraphPackageStats)?;
-        assert!(rows.len() == 1); // should never have more than one
-
-        let package_count: i64 = rows.get(0).get("count_origin_packages_v1");
-
-        let rows = &conn
-            .query("SELECT * FROM count_group_projects_v2($1)", &[&origin])
-            .map_err(Error::JobGraphPackageStats)?;
-        assert!(rows.len() == 1); // should never have more than one
-        let build_count: i64 = rows.get(0).get("count_group_projects_v2");
-
-        let rows = &conn
-            .query(
-                "SELECT * FROM count_unique_origin_packages_v1($1)",
-                &[&origin],
-            ).map_err(Error::JobGraphPackageStats)?;
-        assert!(rows.len() == 1); // should never have more than one
-        let up_count: i64 = rows.get(0).get("count_unique_origin_packages_v1");
-
-        let mut package_stats = jobsrv::JobGraphPackageStats::new();
-        package_stats.set_plans(package_count as u64);
-        package_stats.set_builds(build_count as u64);
-        package_stats.set_unique_packages(up_count as u64);
-
-        Ok(package_stats)
-    }
-
     pub fn is_job_group_active(&self, project_name: &str) -> Result<bool> {
         let conn = self.pool.get()?;
 

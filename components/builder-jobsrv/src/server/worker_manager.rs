@@ -68,6 +68,7 @@ impl WorkerMgrClient {
 impl Default for WorkerMgrClient {
     fn default() -> WorkerMgrClient {
         let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
+        socket.connect(WORKER_MGR_ADDR).unwrap();
         WorkerMgrClient { socket: socket }
     }
 }
@@ -157,7 +158,7 @@ pub struct WorkerMgr {
 }
 
 impl WorkerMgr {
-    pub fn new(cfg: &Config, datastore: DataStore, route_conn: RouteClient) -> Result<Self> {
+    pub fn new(cfg: &Config, datastore: &DataStore, route_conn: RouteClient) -> Result<Self> {
         let hb_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::SUB)?;
         let rq_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER)?;
         let work_mgr_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
@@ -168,7 +169,7 @@ impl WorkerMgr {
         schedule_cli.connect()?;
 
         Ok(WorkerMgr {
-            datastore: datastore,
+            datastore: datastore.clone(),
             key_dir: cfg.key_dir.clone(),
             route_conn: route_conn,
             hb_sock: hb_sock,
@@ -183,7 +184,7 @@ impl WorkerMgr {
         })
     }
 
-    pub fn start(cfg: &Config, datastore: DataStore, conn: RouteClient) -> Result<JoinHandle<()>> {
+    pub fn start(cfg: &Config, datastore: &DataStore, conn: RouteClient) -> Result<JoinHandle<()>> {
         let mut manager = Self::new(cfg, datastore, conn)?;
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new()

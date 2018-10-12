@@ -17,162 +17,158 @@ pub mod log_archiver;
 mod log_directory;
 mod log_ingester;
 mod metrics;
+mod route_broker;
 mod scheduler;
 mod worker_manager;
 
 use std::sync::RwLock;
+use std::thread;
 use time::PreciseTime;
 
+use actix;
+use actix_web::http::{Method, StatusCode};
+use actix_web::middleware::Logger;
+use actix_web::server::{self, KeepAlive};
+use actix_web::{App, HttpRequest, HttpResponse, Json};
+
+use bldr_core::rpc::RpcMessage;
 use bldr_core::target_graph::TargetGraph;
 use hab_net::app::prelude::*;
-use hab_net::conn::RouteClient;
-use protobuf::Message;
-use protocol::jobsrv::*;
+use hab_net::socket;
 
 use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;
 use self::log_ingester::LogIngester;
-use self::scheduler::{ScheduleClient, ScheduleMgr};
-use self::worker_manager::{WorkerMgr, WorkerMgrClient};
-use config::{ArchiveCfg, Config};
+use self::route_broker::RouteBroker;
+use self::scheduler::ScheduleMgr;
+use self::worker_manager::WorkerMgr;
+
+use config::{Config, GatewayCfg};
 use data_store::DataStore;
 use error::{Error, Result};
 
-lazy_static! {
-    static ref DISPATCH_TABLE: DispatchTable<JobSrv> = {
-        let mut map = DispatchTable::new();
-        map.register(JobGet::descriptor_static(), handlers::job_get);
-        map.register(
-            ProjectJobsGet::descriptor_static(),
-            handlers::project_jobs_get,
-        );
-        map.register(JobLogGet::descriptor_static(), handlers::job_log_get);
-        map.register(
-            JobGroupSpec::descriptor_static(),
-            handlers::job_group_create,
-        );
-        map.register(
-            JobGroupCancel::descriptor_static(),
-            handlers::job_group_cancel,
-        );
-        map.register(JobGroupGet::descriptor_static(), handlers::job_group_get);
-        map.register(
-            JobGroupOriginGet::descriptor_static(),
-            handlers::job_group_origin_get,
-        );
-        map.register(
-            JobGraphPackageCreate::descriptor_static(),
-            handlers::job_graph_package_create,
-        );
-        map.register(
-            JobGraphPackagePreCreate::descriptor_static(),
-            handlers::job_graph_package_precreate,
-        );
-        map.register(
-            JobGraphPackageStatsGet::descriptor_static(),
-            handlers::job_graph_package_stats_get,
-        );
-        map.register(
-            JobGraphPackageReverseDependenciesGet::descriptor_static(),
-            handlers::job_graph_package_reverse_dependencies_get,
-        );
-        map
-    };
-}
-
-#[derive(Clone)]
-pub struct InitServerState {
-    archive_cfg: ArchiveCfg,
-    datastore: DataStore,
-    graph: Arc<RwLock<TargetGraph>>,
-    log_dir: Arc<LogDirectory>,
-}
-
-impl InitServerState {
-    fn new(cfg: Config, datastore: DataStore, graph: TargetGraph) -> Result<Self> {
-        LogDirectory::validate(&cfg.log_dir)?;
-        Ok(InitServerState {
-            archive_cfg: cfg.archive,
-            datastore: datastore,
-            graph: Arc::new(RwLock::new(graph)),
-            log_dir: Arc::new(LogDirectory::new(cfg.log_dir)),
-        })
-    }
-}
-
-pub struct ServerState {
+// Application state
+pub struct AppState {
     archiver: Box<LogArchiver>,
     datastore: DataStore,
-    worker_mgr: WorkerMgrClient,
     graph: Arc<RwLock<TargetGraph>>,
-    schedule_cli: ScheduleClient,
-    log_dir: Arc<LogDirectory>,
+    log_dir: LogDirectory,
 }
 
-impl AppState for ServerState {
-    type Error = Error;
-    type InitState = InitServerState;
-
-    fn build(init_state: Self::InitState) -> Result<Self> {
-        let mut state = ServerState {
-            archiver: log_archiver::from_config(&init_state.archive_cfg)?,
-            datastore: init_state.datastore,
-            log_dir: init_state.log_dir,
-            worker_mgr: WorkerMgrClient::default(),
-            graph: init_state.graph,
-            schedule_cli: ScheduleClient::default(),
-        };
-        state.worker_mgr.connect()?;
-        state.schedule_cli.connect()?;
-        Ok(state)
+impl AppState {
+    pub fn new(cfg: &Config, datastore: &DataStore, graph: &Arc<RwLock<TargetGraph>>) -> Self {
+        AppState {
+            archiver: log_archiver::from_config(&cfg.archive).unwrap(),
+            datastore: datastore.clone(),
+            graph: graph.clone(),
+            log_dir: LogDirectory::new(&cfg.log_dir),
+        }
     }
 }
 
-struct JobSrv;
-impl Dispatcher for JobSrv {
-    const APP_NAME: &'static str = "builder-jobsrv";
-    const PROTOCOL: Protocol = Protocol::JobSrv;
+/// Endpoint for determining availability of builder-jobsrv components.
+///
+/// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
+fn status(_req: &HttpRequest<AppState>) -> HttpResponse {
+    HttpResponse::new(StatusCode::OK)
+}
 
-    type Config = Config;
-    type Error = Error;
-    type State = ServerState;
+fn handle_rpc((req, msg): (HttpRequest<AppState>, Json<RpcMessage>)) -> HttpResponse {
+    debug!("Got RPC message, body =\n{:?}", msg);
+    let mut conn = RouteBroker::connect().unwrap(); // Unwrap ok?
 
-    fn app_init(
-        config: Self::Config,
-        router_pipe: Arc<String>,
-    ) -> Result<<Self::State as AppState>::InitState> {
-        let datastore = DataStore::new(&config.datastore)?;
-        let mut graph = TargetGraph::new();
-        let packages = datastore.get_job_graph_packages()?;
-        let start_time = PreciseTime::now();
-        let res = graph.build(packages.into_iter());
-        let end_time = PreciseTime::now();
-        info!("Graph build stats ({} sec):", start_time.to(end_time));
-
-        for stat in res {
-            info!(
-                "Target {}: {} nodes, {} edges",
-                stat.target, stat.node_count, stat.edge_count,
-            );
+    let result = match msg.id.as_str() {
+        "JobGet" => handlers::job_get(&msg, &mut conn, req.state()),
+        "ProjectJobsGet" => handlers::project_jobs_get(&msg, &mut conn, req.state()),
+        "JobLogGet" => handlers::job_log_get(&msg, &mut conn, req.state()),
+        "JobGroupSpec" => handlers::job_group_create(&msg, &mut conn, req.state()),
+        "JobGroupCancel" => handlers::job_group_cancel(&msg, &mut conn, req.state()),
+        "JobGroupGet" => handlers::job_group_get(&msg, &mut conn, req.state()),
+        "JobGroupOriginGet" => handlers::job_group_origin_get(&msg, &mut conn, req.state()),
+        "JobGraphPackageCreate" => handlers::job_graph_package_create(&msg, &mut conn, req.state()),
+        "JobGraphPackagePreCreate" => {
+            handlers::job_graph_package_precreate(&msg, &mut conn, req.state())
+        }
+        "JobGraphPackageReverseDependenciesGet" => {
+            handlers::job_graph_package_reverse_dependencies_get(&msg, &mut conn, req.state())
         }
 
-        let state = InitServerState::new(config.clone(), datastore, graph)?;
+        _ => {
+            let err = format!("Unknown RPC message received: {}", msg.id);
+            error!("{}", err);
+            return HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR, err);
+        }
+    };
 
-        LogIngester::start(&config, state.log_dir.clone(), state.datastore.clone())?;
-        let conn = RouteClient::new()?;
-        conn.connect(&*router_pipe)?;
-        WorkerMgr::start(&config, state.datastore.clone(), conn)?;
-        ScheduleMgr::start(state.datastore.clone(), config.log_path, router_pipe)?;
-        Ok(state)
-    }
-
-    fn dispatch_table() -> &'static DispatchTable<Self> {
-        &DISPATCH_TABLE
+    match result {
+        Ok(m) => HttpResponse::Ok().json(m),
+        Err(e) => e.into(),
     }
 }
 
-pub fn run(config: Config) -> AppResult<(), Error> {
-    app_start::<JobSrv>(config)
+pub fn run(config: Config) -> Result<()> {
+    let sys = actix::System::new("builder-jobsrv");
+    let cfg = Arc::new(config.clone());
+
+    let datastore = DataStore::new(&config.datastore)?;
+    let mut graph = TargetGraph::new();
+    let packages = datastore.get_job_graph_packages()?;
+    let start_time = PreciseTime::now();
+    let res = graph.build(packages.into_iter());
+    let end_time = PreciseTime::now();
+    info!("Graph build stats ({} sec):", start_time.to(end_time));
+
+    for stat in res {
+        info!(
+            "Target {}: {} nodes, {} edges",
+            stat.target, stat.node_count, stat.edge_count,
+        );
+    }
+
+    let graph_arc = Arc::new(RwLock::new(graph));
+    LogDirectory::validate(&config.log_dir)?;
+    let log_dir = LogDirectory::new(&config.log_dir);
+    LogIngester::start(&config, log_dir, datastore.clone())?;
+
+    let c = config.clone();
+    thread::Builder::new()
+        .name("route-broker".to_string())
+        .spawn(move || {
+            RouteBroker::start(socket::srv_ident(), &c.app.routers)
+                .map_err(Error::ConnErr)
+                .unwrap();
+        }).unwrap();
+
+    WorkerMgr::start(&config, &datastore, RouteBroker::connect().unwrap())?;
+    ScheduleMgr::start(
+        &datastore,
+        &config.log_path,
+        RouteBroker::connect().unwrap(),
+    )?;
+
+    info!(
+        "builder-jobsrv listening on {}:{}",
+        cfg.listen_addr(),
+        cfg.listen_port()
+    );
+
+    server::new(move || {
+        let app_state = AppState::new(&config, &datastore, &graph_arc);
+
+        App::with_state(app_state)
+            .middleware(Logger::default().exclude("/status"))
+            .resource("/status", |r| {
+                r.get().f(status);
+                r.head().f(status)
+            }).route("/rpc", Method::POST, handle_rpc)
+    }).workers(cfg.handler_count())
+    .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
+    .bind(cfg.http.clone())
+    .unwrap()
+    .start();
+
+    let _ = sys.run();
+    Ok(())
 }
 
 pub fn migrate(config: Config) -> Result<()> {

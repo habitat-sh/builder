@@ -12,6 +12,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
+actix = "*"
 builder_core = { path = "../builder-core" }
 clippy = {version = "*", optional = true}
 futures = "*"
@@ -21,9 +22,9 @@ env_logger = "*"
 habitat_net = { path = "../net" }
 habitat_builder_db = { path = "../builder-db" }
 habitat-builder-protocol = { path = "../builder-protocol" }
-lazy_static = "*"
 linked-hash-map = "*"
 log = "*"
+num_cpus = "*"
 protobuf = "*"
 postgres = { version = "*", features = ["with-chrono"] }
 chrono = { version = "*", features = ["serde"] }
@@ -36,6 +37,10 @@ time = "*"
 toml = { version = "*", default-features = false }
 diesel = "*"
 diesel_migrations = "*"
+
+[dependencies.actix-web]
+version = "*"
+default-features = false
 
 [dependencies.clap]
 version = "*"

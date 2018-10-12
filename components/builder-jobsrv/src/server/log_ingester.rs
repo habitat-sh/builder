@@ -15,7 +15,7 @@
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::str;
-use std::sync::{mpsc, Arc};
+use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
 use hab_net::socket::DEFAULT_CONTEXT;
@@ -39,14 +39,14 @@ const LOG_COMPLETE: &'static str = "C";
 pub struct LogIngester {
     intake_sock: zmq::Socket,
     msg: zmq::Message,
-    log_dir: Arc<LogDirectory>,
+    log_dir: LogDirectory,
     log_ingestion_addr: String,
     data_store: DataStore,
     archiver: Box<LogArchiver>,
 }
 
 impl LogIngester {
-    pub fn new(config: &Config, log_dir: Arc<LogDirectory>, data_store: DataStore) -> Result<Self> {
+    pub fn new(config: &Config, log_dir: LogDirectory, data_store: DataStore) -> Result<Self> {
         let intake_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER)?;
         intake_sock.set_router_mandatory(true)?;
         Ok(LogIngester {
@@ -61,7 +61,7 @@ impl LogIngester {
 
     pub fn start(
         cfg: &Config,
-        log_dir: Arc<LogDirectory>,
+        log_dir: LogDirectory,
         data_store: DataStore,
     ) -> Result<JoinHandle<()>> {
         let mut ingester = Self::new(cfg, log_dir, data_store)?;
