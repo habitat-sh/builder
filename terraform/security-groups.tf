@@ -123,6 +123,16 @@ resource "aws_security_group" "jobsrv" {
     ]
   }
 
+  ingress {
+    from_port = 5580
+    to_port   = 5580
+    protocol  = "tcp"
+
+    security_groups = [
+      "${aws_security_group.gateway.id}",
+    ]
+  }
+
   tags {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
     X-Environment = "${var.env}"
