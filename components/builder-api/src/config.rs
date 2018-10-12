@@ -64,7 +64,6 @@ pub struct Config {
     pub s3: S3Cfg,
     pub segment: SegmentCfg,
     pub ui: UiCfg,
-    pub upstream: UpstreamCfg,
     pub memcache: MemcacheCfg,
     pub jobsrv: JobsrvCfg,
     pub datastore: DataStoreCfg,
@@ -81,7 +80,6 @@ impl Default for Config {
             s3: S3Cfg::default(),
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
-            upstream: UpstreamCfg::default(),
             memcache: MemcacheCfg::default(),
             jobsrv: JobsrvCfg::default(),
             datastore: DataStoreCfg::default(),
@@ -140,22 +138,6 @@ impl Default for S3Cfg {
             bucket_name: String::from("habitat-builder-artifact-store.default"),
             backend: S3Backend::Minio,
             endpoint: String::from("http://localhost:9000"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct UpstreamCfg {
-    pub endpoint: String,
-    pub origins: Vec<String>,
-}
-
-impl Default for UpstreamCfg {
-    fn default() -> Self {
-        UpstreamCfg {
-            endpoint: String::from("http://localhost"),
-            origins: vec!["core".to_string()],
         }
     }
 }
@@ -317,10 +299,6 @@ mod tests {
         targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
         features_enabled = "foo, bar"
 
-        [upstream]
-        endpoint = "http://example.com"
-        origins = ["foo", "bar"]
-
         [http]
         listen = "0:0:0:0:0:0:0:1"
         port = 9636
@@ -399,12 +377,6 @@ mod tests {
         );
 
         assert_eq!(&format!("{}", config.jobsrv), "http://1.2.3.4:1234");
-
-        assert_eq!(config.upstream.endpoint, String::from("http://example.com"));
-        assert_eq!(
-            config.upstream.origins,
-            vec!["foo".to_string(), "bar".to_string()]
-        );
 
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);

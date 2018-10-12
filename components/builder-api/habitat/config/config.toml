@@ -29,9 +29,6 @@ port = {{member.cfg.port}}
 [ui]
 root = "{{pkg.svc_static_path}}"
 
-[upstream]
-{{toToml cfg.upstream}}
-
 [memcache]
 ttl = {{cfg.memcache.ttl}}
 {{~#each bind.memcached.members as |member|}}

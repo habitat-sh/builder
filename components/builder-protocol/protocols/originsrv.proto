@@ -1,11 +1,6 @@
 syntax = "proto2";
 package originsrv;
 
-message UpstreamRequest {
-  optional OriginPackageIdent ident = 1;
-  optional string target = 2;
-}
-
 message AccountInvitationListRequest {
   optional uint64 account_id = 1;
 }

@@ -146,7 +146,6 @@ You may use the `load_package` helper to specify a package to upload. Ex:
 load_package /hab/cache/artifacts/core-*.hart
 ```
 
-If you are missing packages, see [Setting up an upstream source](#setting-up-a-package-upstream) below.
 
 #### Option A: From the Web UI
 * Navigate to http://${APP_HOSTNAME}/#/pkgs
@@ -173,40 +172,6 @@ You can view the build progress in the web UI or by viewing `/hab/svc/builder-wo
 
 Note: you will need to upload additional packages to the core origin for the `core/nginx` build to succeed. Follow the same procedure as for `core/hab-backline`. Currently `core/gcc` and `core/libedit` are required.
 
-### Setting up a package upstream
-
-It is possible to configure the on-premise builder to point to another Builder depot, such as the hosted Builder, as an 'upstream'. This allows new packages from the upstream to get created in the on-premise instance automatically.
-
-In order to do so, create a file called `at <BUILDER_SRC>/upstream.toml` with the following content:
-
-```
-[api]
-features_enabled = "jobsrv, upstream"
-
-[upstream]
-endpoint = "https://bldr.habitat.sh"
-```
-
-Then, issue the following command:
-```
-
-hab config apply builder-api.default $(date +%s) <BUILDER_SRC>/upstream.toml
-```
-
-_Note: the config can also be added directly to the builder-api `user.toml` by modifying the `support/builder/config.sh` file._
-
-After the config is successfully applied, the services should be configured to use the upstream.
-
-Now, you can test out that the upstream works by trying to install a package that you know exists in the upstream (in the _stable_ channel), but not in the local on-premise builder.
-
-```
-hab pkg install -u http://localhost -z <auth-token> <package>
-```
-
-Initially, you will get a `Package Not Found` error.  Wait for a bit (the package will get synchronized in the background) and try again - this time the install should succeed!
-
-*NOTE*: It is important to understand how the upstream cache is working. Packages that are requested (either via a `hab pkg install`, or even searching or browsing packages in the Web UI) in the local on-premise depot that have newer (or existing) versions in the upstream in the *stable* channel are marked for retrieval in the background. It is only after the background retrieval of the package succeeds that the package then becomes available in the local instance. If there is any failure to retrieve or submit the package, the next retrieval attempt will be triggered only by another request for that package. This functionality is new, and will be refined over time.
-
 ### Receiving metrics
 
 Some services like builder-api and builder-jobsrv send statsd metrics. These are easy to monitor if needed for dev purposes.
@@ -220,7 +185,7 @@ statsd-logger
 Once statsd-logger is running, it should receive and display any metrics sent by the services.
 ### Setting up to run Builder builds in development
 
-Initially, your depot will be empty, which means you won't be able to run a successful build. Minimally, you'll need to upload the current, stable version of `core/hab-backline` (which you'll have installed locally as a result of entering the studio). Follow these steps to prepare an empty, upstream-enabled depot to run successful builds:
+Initially, your depot will be empty, which means you won't be able to run a successful build. Minimally, you'll need to upload the current, stable version of `core/hab-backline` (which you'll have installed locally as a result of entering the studio). Follow these steps to prepare an empty depot to run successful builds:
 
   1. Ensure Builder services are running (e.g., via `start-builder`). `hab svc status` should be able to confirm this.
 
@@ -237,4 +202,4 @@ Initially, your depot will be empty, which means you won't be able to run a succ
       load_package /hab/cache/artifacts/core-hab-backline-0.64.1-20180928012546-x86_64-linux.hart
       ```
 
-You should now be able to connect a plan file, and run a build, of a simple package (e.g., one with no direct dependencies). To build a package with upstream dependencies, connect a plan for the package and request an initial build; the request may fail, but subsequent requests should succeed once its dependencies have been downloaded from the configured upstream depot and installed.
+You should now be able to connect a plan file, and run a build, of a simple package (e.g., one with no direct dependencies).

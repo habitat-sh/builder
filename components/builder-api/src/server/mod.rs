@@ -48,7 +48,6 @@ use self::framework::middleware::{Authentication, XRouteClient};
 use self::services::memcache::MemcacheClient;
 use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
-use self::services::upstream::{UpstreamClient, UpstreamMgr};
 
 use self::resources::authenticate::Authenticate;
 use self::resources::channels::Channels;
@@ -66,8 +65,7 @@ use config::{Config, GatewayCfg};
 features! {
     pub mod feat {
         const List = 0b00000001,
-        const Jobsrv = 0b00000010,
-        const Upstream = 0b00000100
+        const Jobsrv = 0b00000010
     }
 }
 
@@ -79,7 +77,6 @@ pub struct AppState {
     jobsrv: RpcClient,
     oauth: OAuth2Client,
     segment: SegmentClient,
-    upstream: UpstreamClient,
     memcache: RefCell<MemcacheClient>,
     db: DbPool,
 }
@@ -93,7 +90,6 @@ impl AppState {
             jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
-            upstream: UpstreamClient::default(),
             memcache: RefCell::new(MemcacheClient::new(config.memcache.clone())),
             db: db,
         }
@@ -101,11 +97,8 @@ impl AppState {
 }
 
 fn enable_features(config: &Config) {
-    let features: HashMap<_, _> = HashMap::from_iter(vec![
-        ("LIST", feat::List),
-        ("JOBSRV", feat::Jobsrv),
-        ("UPSTREAM", feat::Upstream),
-    ]);
+    let features: HashMap<_, _> =
+        HashMap::from_iter(vec![("LIST", feat::List), ("JOBSRV", feat::Jobsrv)]);
     let features_enabled = config
         .api
         .features_enabled
@@ -142,8 +135,6 @@ pub fn run(config: Config) -> Result<()> {
                 .map_err(Error::Connection)
                 .unwrap();
         }).unwrap();
-
-    UpstreamMgr::start(&config, S3Handler::new(config.s3.to_owned()))?;
 
     let cfg = Arc::new(config.clone());
 
