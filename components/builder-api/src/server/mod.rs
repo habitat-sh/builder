@@ -138,8 +138,7 @@ pub fn run(config: Config) -> Result<()> {
             RouteBroker::start(socket::srv_ident(), c.route_addrs())
                 .map_err(Error::Connection)
                 .unwrap();
-        })
-        .unwrap();
+        }).unwrap();
 
     UpstreamMgr::start(&config, S3Handler::new(config.s3.to_owned()))?;
 
@@ -178,10 +177,10 @@ pub fn run(config: Config) -> Result<()> {
                 r.head().f(status)
             })
     }).workers(cfg.handler_count())
-        .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
-        .bind(cfg.http.clone())
-        .unwrap()
-        .start();
+    .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
+    .bind(cfg.http.clone())
+    .unwrap()
+    .start();
 
     let _ = sys.run();
 
