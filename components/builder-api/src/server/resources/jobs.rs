@@ -131,7 +131,15 @@ fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
 fn get_job_log(
     (pagination, req): (Query<JobLogPagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
-    let job_id = Path::<u64>::extract(&req).unwrap().into_inner(); // Unwrap Ok ?
+    let id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+
+    let job_id = match id_str.parse::<u64>() {
+        Ok(id) => id,
+        Err(e) => {
+            debug!("Error finding id. e = {:?}", e);
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
+    };
 
     match do_get_job_log(&req, job_id, pagination.start) {
         Ok(mut job_log) => {
@@ -167,7 +175,15 @@ fn demote_job_group((req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>)) 
 }
 
 fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
-    let group_id = Path::<u64>::extract(&req).unwrap().into_inner(); // Unwrap Ok ?
+    let id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+
+    let group_id = match id_str.parse::<u64>() {
+        Ok(id) => id,
+        Err(e) => {
+            debug!("Error finding id. e = {:?}", e);
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
+    };
 
     match do_cancel_job_group(&req, group_id) {
         Ok(_) => HttpResponse::NoContent().finish(),
