@@ -1097,13 +1097,7 @@ fn do_get_package(
 
         ident = match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request) {
             Ok(id) => id.into(),
-            Err(err) => {
-                // Notify upstream with a non-fully qualified ident to handle checking
-                // of a package that does not exist in the on-premise depot
-
-                notify_upstream(req, &ident, &target);
-                return Err(err);
-            }
+            Err(err) => return Err(err),
         }
     }
 
@@ -1116,11 +1110,7 @@ fn do_get_package(
     request.set_ident(ident.clone());
 
     match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-        Ok(pkg) => {
-            // Notify upstream with a fully qualified ident
-            notify_upstream(req, &ident, &(PackageTarget::from_str(&pkg.get_target())?));
-            Ok(pkg)
-        }
+        Ok(pkg) => Ok(pkg),
         Err(err) => Err(err),
     }
 }
@@ -1312,12 +1302,4 @@ pub fn is_a_service(package: &OriginPackage) -> bool {
     // determining whether a package is a service from the DB instead of needing
     // to crack the archive file to look for a SVC_USER file
     m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
-}
-
-pub fn notify_upstream(
-    req: &HttpRequest<AppState>,
-    ident: &OriginPackageIdent,
-    target: &PackageTarget,
-) {
-    req.state().upstream.refresh(ident, target).unwrap();
 }

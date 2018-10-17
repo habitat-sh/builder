@@ -32,10 +32,6 @@ secret_key = "password"
 endpoint = "http://localhost:9000"
 bucket_name = "habitat-builder-artifact-store.default"
 
-[upstream]
-endpoint = "http://localhost"
-origins = ["core"]
-
 [memcache]
 ttl = 15
 

@@ -27,7 +27,7 @@ use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 use protocol::originsrv::*;
 use serde_json;
 
-use super::pkgs::{is_a_service, notify_upstream, postprocess_package_list};
+use super::pkgs::{is_a_service, postprocess_package_list};
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::Result;
 use server::framework::headers;
@@ -535,13 +535,7 @@ fn do_get_channel_package(
             match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(req, &request)
             {
                 Ok(id) => id.into(),
-                Err(err) => {
-                    // Notify upstream with a non-fully qualified ident to handle checking
-                    // of a package that does not exist in the on-premise depot
-
-                    notify_upstream(req, &ident, &target);
-                    return Err(err);
-                }
+                Err(err) => return Err(err),
             };
     }
 
@@ -554,11 +548,7 @@ fn do_get_channel_package(
     request.set_ident(ident.clone());
 
     let pkg = match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
-        Ok(pkg) => {
-            // Notify upstream with a fully qualified ident
-            notify_upstream(req, &ident, &(PackageTarget::from_str(&pkg.get_target())?));
-            pkg
-        }
+        Ok(pkg) => pkg,
         Err(err) => return Err(err),
     };
 
