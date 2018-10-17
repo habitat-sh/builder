@@ -15,17 +15,25 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
+#[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_derive_enum;
 extern crate fallible_iterator;
 extern crate fnv;
 extern crate habitat_builder_protocol as protocol;
-extern crate habitat_core as hcore;
+extern crate habitat_core as hab_core;
 extern crate habitat_net as hab_net;
 #[macro_use]
 extern crate log;
+extern crate chrono;
 extern crate num_cpus;
+#[macro_use]
 extern crate postgres;
+#[macro_use]
+extern crate postgres_derive;
 extern crate postgres_shared;
+extern crate protobuf;
 extern crate r2d2;
 extern crate r2d2_postgres;
 extern crate rand;
@@ -40,5 +48,9 @@ pub mod config;
 pub mod diesel_pool;
 pub mod error;
 pub mod migration;
+pub mod models;
 pub mod pool;
+pub mod schema;
 pub mod test;
+
+pub use diesel_pool::DbPool;

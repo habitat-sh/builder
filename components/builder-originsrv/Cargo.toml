@@ -24,7 +24,6 @@ serde = "*"
 serde_derive = "*"
 toml = { version = "*", default-features = false }
 postgres = { version = "*", features = ["with-chrono"] }
-postgres-derive = "*"
 r2d2 = "*"
 diesel = "*"
 diesel_migrations = "*"

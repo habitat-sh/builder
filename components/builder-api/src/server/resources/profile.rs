@@ -21,10 +21,10 @@ use bldr_core;
 use hab_net::NetOk;
 use protocol::originsrv::*;
 
+use db::models::account::{Account as AccountModel, GetAccountById, UpdateAccount};
 use server::authorize::authorize_session;
 use server::error::Result;
 use server::framework::middleware::route_message;
-use server::models::account::{Account as AccountModel, GetAccountById, UpdateAccount};
 use server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -3,7 +3,7 @@ use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::sql_types::{BigInt, Text};
 use diesel::RunQueryDsl;
-use server::schema::account::*;
+use schema::account::*;
 
 // Accounts
 #[derive(Identifiable, Debug, Serialize, QueryableByName)]

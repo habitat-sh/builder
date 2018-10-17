@@ -9,16 +9,20 @@ workspace = "../../"
 clippy = {version = "*", optional = true}
 habitat-builder-protocol = { path = "../builder-protocol" }
 log = "*"
-diesel = { version = "*", features = ["postgres", "r2d2"] }
+diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
+diesel-derive-enum = { version = "*", features = ["postgres"] }
 r2d2 = "*"
 time = "*"
 rand = "*"
 serde = "*"
+chrono = "*"
 serde_derive = "*"
 num_cpus = "*"
+protobuf = "*"
 fnv = "*"
 fallible-iterator = "*"
 postgres = "*"
+postgres-derive = "*"
 postgres-shared = "*"
 r2d2_postgres = "*"
 threadpool = "*"

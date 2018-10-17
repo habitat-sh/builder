@@ -39,15 +39,15 @@ use hab_net::{ErrCode, NetError, NetOk};
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
+use db::models::package::{
+    BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, NewPackage, Package,
+};
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::feat;
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-use server::models::package::{
-    BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, NewPackage, Package,
-};
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -806,10 +806,7 @@ fn do_upload_package_start(
 ) -> Result<(PathBuf, BufWriter<File>)> {
     authorize_session(req, Some(&ident.origin))?;
 
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(e) => return Err(e),
-    };
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     if qupload.forced {
         debug!(
@@ -899,10 +896,7 @@ fn do_upload_package_finish(
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:3");
     }
 
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::InternalServerError().into(),
-    };
+    let conn = req.state().db.get_conn().map_err(Error::DbError).unwrap();
 
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
@@ -996,14 +990,16 @@ fn do_upload_package_finish(
     // Re-create origin package as needed (eg, checksum update)
     match Package::create(package.clone(), &*conn) {
         Ok(pkg) => {
-            let mut job_graph_package = JobGraphPackageCreate::new();
-            job_graph_package.set_package(pkg.into());
+            if feat::is_enabled(feat::Jobsrv) {
+                let mut job_graph_package = JobGraphPackageCreate::new();
+                job_graph_package.set_package(pkg.into());
 
-            if let Err(err) =
-                route_message::<JobGraphPackageCreate, OriginPackage>(&req, &job_graph_package)
-            {
-                warn!("Failed to insert package into graph: {:?}", err);
-                return err.into();
+                if let Err(err) =
+                    route_message::<JobGraphPackageCreate, OriginPackage>(&req, &job_graph_package)
+                {
+                    warn!("Failed to insert package into graph: {:?}", err);
+                    return err.into();
+                }
             }
         }
         Err(_) => return HttpResponse::InternalServerError().into(),
@@ -1093,10 +1089,7 @@ fn do_get_package(
     };
     Counter::GetPackage.increment();
 
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(e) => return Err(e),
-    };
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     let target = match qtarget.target.clone() {
         Some(t) => {
@@ -1118,19 +1111,11 @@ fn do_get_package(
         },
         &*conn,
     ) {
-        Ok(pkg) => {
-            // Notify upstream with a fully qualified ident
-            // notify_upstream(req, &ident, &(PackageTarget::from_str(&pkg.target)?));
-            Ok(pkg)
-        }
+        Ok(pkg) => Ok(pkg),
         Err(NotFound) => {
             Err(Error::NetError(NetError::new(ErrCode::ENTITY_NOT_FOUND, "pkg:latest:1")).into())
         }
         Err(err) => {
-            // Notify upstream with a non-fully qualified ident to handle checking
-            // of a package that does not exist in the on-premise depot
-
-            // notify_upstream(req, &ident, &target);
             debug!("{:?}", err);
             Err(err.into())
         }
@@ -1159,13 +1144,16 @@ pub fn postprocess_package(
 }
 
 pub fn postprocess_package_model(
-    _req: &HttpRequest<AppState>,
+    req: &HttpRequest<AppState>,
     pkg: &Package,
     should_cache: bool,
 ) -> HttpResponse {
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    // let channels = helpers::channels_for_package_ident_model(req, pkg.ident);
-    // pkg_json["channels"] = json!(channels);
+    // Some borrow checker workarounds until more channel code is converted in to model code
+    let pkg_clone = &*pkg.ident;
+    let channels =
+        helpers::channels_for_package_ident(req, &OriginPackageIdent::from(pkg_clone.clone()));
+    pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(is_a_service_model(pkg));
 
     let body = serde_json::to_string(&pkg_json).unwrap();

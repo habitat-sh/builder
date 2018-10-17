@@ -1,5 +1,5 @@
 table! {
-    use server::models::package::PackageVisibilityMapping;
+    use models::package::PackageVisibilityMapping;
     use diesel::sql_types::{Array, BigInt, SmallInt, Text, Nullable, Timestamptz};
     origin_packages {
         id -> BigInt,

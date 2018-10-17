@@ -17,7 +17,7 @@ use diesel::RunQueryDsl;
 use super::db_id_format;
 use hab_core;
 use hab_core::package::{FromArchive, PackageArchive, PackageIdent, PackageTarget};
-use server::schema::package::*;
+use schema::package::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Clone)]
 #[table_name = "origin_packages"]
@@ -73,11 +73,15 @@ pub struct GetPackage {
     pub visibility: Vec<PackageVisibility>,
 }
 
-#[derive(DbEnum, Debug, Serialize, Deserialize, Clone)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Clone, ToSql, FromSql)]
 #[PgType = "origin_package_visibility"]
+#[postgres(name = "origin_package_visibility")]
 pub enum PackageVisibility {
+    #[postgres(name = "public")]
     Public,
+    #[postgres(name = "private")]
     Private,
+    #[postgres(name = "hidden")]
     Hidden,
 }
 

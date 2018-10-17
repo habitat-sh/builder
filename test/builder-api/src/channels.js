@@ -81,6 +81,16 @@ describe('Channels API', function () {
         });
     });
 
+    it('should ignore packages promoted to a channel where the package already exists', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213/promote')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
     it('can promote private packages', function (done) {
       request.put('/depot/channels/neurosis/bar/pkgs/testapp/0.1.3/20171206004121/promote')
         .set('Authorization', global.boboBearer)

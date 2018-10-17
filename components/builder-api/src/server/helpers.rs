@@ -26,11 +26,11 @@ use hab_core::package::PackageTarget;
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
+use db::models::channel::PackageChannelTrigger as PCT;
+use db::models::package::PackageVisibility;
 use server::authorize::authorize_session;
 use server::error::Result;
 use server::framework::middleware::route_message;
-use server::models::channel::PackageChannelTrigger as PCT;
-use server::models::package::PackageVisibility;
 
 use server::AppState;
 
@@ -234,39 +234,6 @@ pub fn channels_for_package_ident(
         Err(_) => None,
     }
 }
-
-// pub fn channels_for_package_ident_model(
-//     req: &HttpRequest<AppState>,
-//     package: &PackageIdent,
-// ) -> Option<Vec<String>> {
-//     let opt_session_id = match authorize_session(req, None) {
-//         Ok(id) => Some(id),
-//         Err(_) => None,
-//     };
-
-//     let mut opclr = OriginPackageChannelListRequest::new();
-//     opclr.set_ident(package.clone());
-//     opclr.set_visibilities(visibility_for_optional_session(
-//         req,
-//         opt_session_id,
-//         package.get_origin(),
-//     ));
-
-//     match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
-//         req, &opclr,
-//     ) {
-//         Ok(channels) => {
-//             let list: Vec<String> = channels
-//                 .get_channels()
-//                 .iter()
-//                 .map(|channel| channel.get_name().to_string())
-//                 .collect();
-
-//             Some(list)
-//         }
-//         Err(_) => None,
-//     }
-// }
 
 // Get platforms for a package
 pub fn platforms_for_package_ident(

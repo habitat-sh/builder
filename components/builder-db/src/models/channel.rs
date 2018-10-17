@@ -6,7 +6,7 @@ use diesel::result::QueryResult;
 use diesel::sql_types::{BigInt, Bool, Text};
 use diesel::RunQueryDsl;
 use hab_core::package::PackageIdent;
-use server::schema::channel::*;
+use schema::channel::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_channels"]

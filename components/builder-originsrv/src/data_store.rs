@@ -22,9 +22,8 @@ use std::str::FromStr;
 use bldr_core::helpers::transition_visibility;
 use chrono::{DateTime, Utc};
 use db::config::DataStoreCfg;
-use db::diesel_pool::DieselPool;
 use db::migration::setup_ids;
-use db::pool::Pool;
+use db::{models::package::PackageVisibility, pool::Pool, DbPool};
 use diesel::result::Error as Dre;
 use diesel::Connection;
 use hab_core::package::PackageIdent;
@@ -33,52 +32,20 @@ use postgres;
 use postgres::rows::Rows;
 use protobuf;
 use protocol::originsrv;
-use protocol::originsrv::{OriginPackageVisibility, Pageable};
+use protocol::originsrv::Pageable;
 
 use error::{SrvError, SrvResult};
-
-#[derive(Debug, ToSql, FromSql)]
-#[postgres(name = "origin_package_visibility")]
-pub enum PackageVisibility {
-    #[postgres(name = "public")]
-    Public,
-    #[postgres(name = "private")]
-    Private,
-    #[postgres(name = "hidden")]
-    Hidden,
-}
-
-// TED TODO: PROTOCLEANUP Remove everything below when the protos are gone
-impl From<OriginPackageVisibility> for PackageVisibility {
-    fn from(value: OriginPackageVisibility) -> PackageVisibility {
-        match value {
-            OriginPackageVisibility::Hidden => PackageVisibility::Hidden,
-            OriginPackageVisibility::Private => PackageVisibility::Private,
-            _ => PackageVisibility::Public,
-        }
-    }
-}
-
-impl Into<OriginPackageVisibility> for PackageVisibility {
-    fn into(self) -> OriginPackageVisibility {
-        match self {
-            PackageVisibility::Hidden => OriginPackageVisibility::Hidden,
-            PackageVisibility::Private => OriginPackageVisibility::Private,
-            _ => OriginPackageVisibility::Public,
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct DataStore {
     pub pool: Pool,
-    pub diesel_pool: DieselPool,
+    pub diesel_pool: DbPool,
 }
 
 impl DataStore {
     pub fn new(cfg: &DataStoreCfg) -> SrvResult<DataStore> {
         let pool = Pool::new(&cfg)?;
-        let diesel_pool = DieselPool::new(&cfg)?;
+        let diesel_pool = DbPool::new(&cfg)?;
         Ok(DataStore {
             pool: pool,
             diesel_pool,
@@ -86,12 +53,12 @@ impl DataStore {
     }
 
     // For testing only
-    pub fn from_pool(pool: Pool, diesel_pool: DieselPool) -> SrvResult<DataStore> {
+    pub fn from_pool(pool: Pool, diesel_pool: DbPool) -> SrvResult<DataStore> {
         Ok(DataStore { pool, diesel_pool })
     }
 
     pub fn setup(&self) -> SrvResult<()> {
-        let conn = self.diesel_pool.get_raw()?;
+        let conn = self.diesel_pool.get_conn()?;
         let _ = conn.transaction::<_, Dre, _>(|| {
             setup_ids(&*conn).unwrap();
             embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();

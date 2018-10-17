@@ -21,9 +21,9 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use db::config::DataStoreCfg;
-use db::diesel_pool::DieselPool;
 use db::migration::setup_ids;
 use db::pool::Pool;
+use db::{models::package::PackageVisibility, DbPool};
 use diesel::result::Error as Dre;
 use diesel::Connection;
 use postgres;
@@ -31,49 +31,17 @@ use postgres::rows::Rows;
 use protobuf;
 use protobuf::{ProtobufEnum, RepeatedField};
 use protocol::net::{ErrCode, NetError};
-use protocol::originsrv::{OriginPackageVisibility, Pageable};
+use protocol::originsrv::Pageable;
 use protocol::{jobsrv, originsrv};
 use std::str::FromStr;
 
 use error::{Error, Result};
 
-#[derive(Debug, ToSql, FromSql)]
-#[postgres(name = "origin_package_visibility")]
-pub enum PackageVisibility {
-    #[postgres(name = "public")]
-    Public,
-    #[postgres(name = "private")]
-    Private,
-    #[postgres(name = "hidden")]
-    Hidden,
-}
-
-// TED TODO: PROTOCLEANUP Remove everything below when the protos are gone
-impl From<OriginPackageVisibility> for PackageVisibility {
-    fn from(value: OriginPackageVisibility) -> PackageVisibility {
-        match value {
-            OriginPackageVisibility::Hidden => PackageVisibility::Hidden,
-            OriginPackageVisibility::Private => PackageVisibility::Private,
-            _ => PackageVisibility::Public,
-        }
-    }
-}
-
-impl Into<OriginPackageVisibility> for PackageVisibility {
-    fn into(self) -> OriginPackageVisibility {
-        match self {
-            PackageVisibility::Hidden => OriginPackageVisibility::Hidden,
-            PackageVisibility::Private => OriginPackageVisibility::Private,
-            _ => OriginPackageVisibility::Public,
-        }
-    }
-}
-
 /// DataStore inherints being Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Clone)]
 pub struct DataStore {
     pool: Pool,
-    diesel_pool: DieselPool,
+    diesel_pool: DbPool,
 }
 
 impl DataStore {
@@ -83,14 +51,14 @@ impl DataStore {
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
     pub fn new(cfg: &DataStoreCfg) -> Result<DataStore> {
         let pool = Pool::new(cfg)?;
-        let diesel_pool = DieselPool::new(&cfg)?;
+        let diesel_pool = DbPool::new(&cfg)?;
         Ok(DataStore { pool, diesel_pool })
     }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
     pub fn from_pool(
         pool: Pool,
-        diesel_pool: DieselPool,
+        diesel_pool: DbPool,
         _: Vec<u32>,
         _: Arc<String>,
     ) -> Result<DataStore> {
@@ -102,7 +70,7 @@ impl DataStore {
     /// This includes all the schema and data migrations, along with stored procedures for data
     /// access.
     pub fn setup(&self) -> Result<()> {
-        let conn = self.diesel_pool.get_raw()?;
+        let conn = self.diesel_pool.get_conn()?;
         let _ = conn.transaction::<_, Dre, _>(|| {
             setup_ids(&*conn).unwrap();
             embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();

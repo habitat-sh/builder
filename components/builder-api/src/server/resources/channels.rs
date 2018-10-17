@@ -35,12 +35,12 @@ use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
 // TED PROTOCLEANUP remove aliases when we get rid of all the protos
-use server::models::channel::{
+use db::models::channel::{
     Channel, CreateChannel, DeleteChannel, ListChannels, OriginChannelDemote as OCD,
     OriginChannelPackage as OCPackage, OriginChannelPromote as OCP, PackageChannelAudit as PCA,
     PackageChannelAudit, PackageChannelOperation as PCO,
 };
-use server::models::package::{BuilderPackageIdent, GetPackage, Package};
+use db::models::package::{BuilderPackageIdent, GetPackage, Package};
 use server::services::metrics::Counter;
 use server::AppState;
 

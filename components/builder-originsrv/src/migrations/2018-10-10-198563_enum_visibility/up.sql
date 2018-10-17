@@ -217,7 +217,7 @@ CREATE OR REPLACE FUNCTION promote_origin_package_v3(in_origin text, in_ident te
     VALUES (
         (SELECT id from get_origin_channel_v1(in_origin, to_channel)),
         (SELECT id from get_origin_package_v5(in_ident, '{public,private,hidden}'))
-    );
+    ) ON CONFLICT DO NOTHING;
 $$;
 CREATE OR REPLACE FUNCTION demote_origin_package_v3(in_origin text, in_ident text, out_channel text) RETURNS void
     LANGUAGE sql

@@ -15,9 +15,9 @@
 use actix_web::http::{Method, StatusCode};
 use actix_web::{App, HttpRequest, HttpResponse};
 
+use db::models::invitations::OriginInvitation;
+use db::models::origins::Origin;
 use server::authorize::authorize_session;
-use server::models::invitations::OriginInvitation;
-use server::models::origins::Origin;
 use server::AppState;
 
 pub struct User {}

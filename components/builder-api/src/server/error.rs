@@ -31,10 +31,10 @@ use serde_json;
 use actix_web;
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
+use db;
 use diesel;
 use protobuf;
 use protocol;
-use r2d2;
 use rusoto_s3;
 use zmq;
 
@@ -48,7 +48,7 @@ pub enum Error {
     Connection(conn::ConnErr),
     BadRequest(String),
     DieselError(diesel::result::Error),
-    DbPoolError(r2d2::Error),
+    DbError(db::error::Error),
     Github(HubError),
     InnerError(io::IntoInnerError<io::BufWriter<fs::File>>),
     Protocol(protocol::ProtocolError),
@@ -88,7 +88,7 @@ impl fmt::Display for Error {
             }
             Error::Connection(ref e) => format!("{}", e),
             Error::DieselError(ref e) => format!("{}", e),
-            Error::DbPoolError(ref e) => format!("{}", e),
+            Error::DbError(ref e) => format!("{}", e),
             Error::Github(ref e) => format!("{}", e),
             Error::InnerError(ref e) => format!("{}", e.error()),
             Error::ParseIntError(ref e) => format!("{}", e),
@@ -131,7 +131,7 @@ impl error::Error for Error {
             Error::CircularDependency(_) => "Circular dependency detected for package upload",
             Error::Connection(ref err) => err.description(),
             Error::DieselError(ref err) => err.description(),
-            Error::DbPoolError(ref err) => err.description(),
+            Error::DbError(ref err) => err.description(),
             Error::Github(ref err) => err.description(),
             Error::InnerError(ref err) => err.error().description(),
             Error::ParseIntError(ref err) => err.description(),
@@ -320,9 +320,9 @@ impl From<protocol::ProtocolError> for Error {
     }
 }
 
-impl From<r2d2::Error> for Error {
-    fn from(err: r2d2::Error) -> Error {
-        Error::DbPoolError(err)
+impl From<db::error::Error> for Error {
+    fn from(err: db::error::Error) -> Error {
+        Error::DbError(err)
     }
 }
 

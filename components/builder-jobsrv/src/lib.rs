@@ -33,10 +33,7 @@ extern crate linked_hash_map;
 #[macro_use]
 extern crate log;
 extern crate num_cpus;
-#[macro_use]
 extern crate postgres;
-#[macro_use]
-extern crate postgres_derive;
 extern crate protobuf;
 extern crate r2d2;
 extern crate rand;
