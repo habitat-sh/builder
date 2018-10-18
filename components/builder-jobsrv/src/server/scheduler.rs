@@ -210,7 +210,6 @@ impl ScheduleMgr {
             // This unwrap is fine, because we just checked our length
             let group = groups.pop().unwrap();
             assert!(group.get_state() == jobsrv::JobGroupState::GroupDispatching);
-
             self.dispatch_group(&group)?;
             self.update_group_state(group.get_id())?;
         }
@@ -309,7 +308,6 @@ impl ScheduleMgr {
                 let mut check_status = true;
                 let package = self.datastore.get_job_graph_package(&project.get_ident())?;
                 let deps = package.get_deps();
-
                 for dep in deps {
                     let name = format!("{}/{}", dep.get_origin(), dep.get_name());
 

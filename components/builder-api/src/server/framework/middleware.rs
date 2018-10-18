@@ -31,9 +31,9 @@ use protocol;
 use protocol::originsrv::*;
 use protocol::Routable;
 
+use db::models::account;
 use hab_net::privilege::FeatureFlags;
 use server::error;
-use server::models::account;
 use server::resources::profile::do_get_access_tokens;
 use server::services::metrics::Counter;
 use server::services::route_broker::RouteBroker;
@@ -189,10 +189,7 @@ pub fn session_create_oauth(
 ) -> error::Result<Session> {
     let mut session = Session::new();
     let mut session_token = SessionToken::new();
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(e) => return Err(e),
-    };
+    let conn = req.state().db.get_conn().map_err(error::Error::DbError)?;
 
     let email = match user.email {
         Some(ref email) => {

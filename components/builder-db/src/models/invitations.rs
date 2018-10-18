@@ -5,7 +5,7 @@ use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::sql_types::BigInt;
 use diesel::RunQueryDsl;
-use server::schema::invitation::*;
+use schema::invitation::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_invitations"]

@@ -22,9 +22,8 @@ use std::str::FromStr;
 use bldr_core::helpers::transition_visibility;
 use chrono::{DateTime, Utc};
 use db::config::DataStoreCfg;
-use db::diesel_pool::DieselPool;
 use db::migration::setup_ids;
-use db::pool::Pool;
+use db::{models::package::PackageVisibility, pool::Pool, DbPool};
 use diesel::result::Error as Dre;
 use diesel::Connection;
 use hab_core::package::PackageIdent;
@@ -40,13 +39,13 @@ use error::{SrvError, SrvResult};
 #[derive(Clone)]
 pub struct DataStore {
     pub pool: Pool,
-    pub diesel_pool: DieselPool,
+    pub diesel_pool: DbPool,
 }
 
 impl DataStore {
     pub fn new(cfg: &DataStoreCfg) -> SrvResult<DataStore> {
         let pool = Pool::new(&cfg)?;
-        let diesel_pool = DieselPool::new(&cfg)?;
+        let diesel_pool = DbPool::new(&cfg)?;
         Ok(DataStore {
             pool: pool,
             diesel_pool,
@@ -54,12 +53,12 @@ impl DataStore {
     }
 
     // For testing only
-    pub fn from_pool(pool: Pool, diesel_pool: DieselPool) -> SrvResult<DataStore> {
+    pub fn from_pool(pool: Pool, diesel_pool: DbPool) -> SrvResult<DataStore> {
         Ok(DataStore { pool, diesel_pool })
     }
 
     pub fn setup(&self) -> SrvResult<()> {
-        let conn = self.diesel_pool.get_raw()?;
+        let conn = self.diesel_pool.get_conn()?;
         let _ = conn.transaction::<_, Dre, _>(|| {
             setup_ids(&*conn).unwrap();
             embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
@@ -125,7 +124,7 @@ impl DataStore {
         let ident = pkg.get_ident();
 
         conn.execute(
-            "SELECT update_origin_package_v1($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+            "SELECT update_origin_package_v2($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
             &[
                 &(pkg.get_id() as i64),
                 &(pkg.get_owner_id() as i64),
@@ -135,10 +134,13 @@ impl DataStore {
                 &pkg.get_manifest(),
                 &pkg.get_config(),
                 &pkg.get_target(),
-                &self.into_delimited(pkg.get_deps().to_vec()),
-                &self.into_delimited(pkg.get_tdeps().to_vec()),
-                &self.into_delimited(pkg.get_exposes().to_vec()),
-                &pkg.get_visibility().to_string(),
+                &self.vec_to_vec_string(pkg.get_deps()),
+                &self.vec_to_vec_string(pkg.get_tdeps()),
+                &pkg.get_exposes()
+                    .iter()
+                    .map(|e| *e as i16)
+                    .collect::<Vec<i16>>(),
+                &PackageVisibility::from(pkg.get_visibility()),
             ],
         ).map_err(SrvError::OriginPackageUpdate)?;
         Ok(())
@@ -176,18 +178,18 @@ impl DataStore {
         // For each row, store its id in our map, keyed on visibility
         for row in rows.iter() {
             let id: i64 = row.get("id");
-            let pv: String = row.get("visibility");
-            let vis: originsrv::OriginPackageVisibility = pv.parse()?;
+            let pv: PackageVisibility = row.get("visibility");
+            let vis: originsrv::OriginPackageVisibility = pv.into();
             let new_vis = transition_visibility(project.get_visibility(), vis);
             map.entry(new_vis).or_insert(Vec::new()).push(id);
         }
 
         // Now do a bulk update for each different visibility
         for (vis, id_vector) in map.iter() {
-            let vis_str = vis.to_string();
+            let pv = PackageVisibility::from(*vis);
             conn.execute(
-                "SELECT update_package_visibility_in_bulk_v1($1, $2)",
-                &[&vis_str, id_vector],
+                "SELECT update_package_visibility_in_bulk_v2($1, $2)",
+                &[&pv, id_vector],
             ).map_err(SrvError::VisibilityCascade)?;
         }
         Ok(())
@@ -1034,7 +1036,7 @@ impl DataStore {
         let ident = opc.get_ident();
 
         let rows = conn.query(
-            "SELECT * FROM insert_origin_package_v4($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+            "SELECT * FROM insert_origin_package_v5($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
             &[
                 &(opc.get_origin_id() as i64),
                 &(opc.get_owner_id() as i64),
@@ -1044,9 +1046,9 @@ impl DataStore {
                 &opc.get_manifest(),
                 &opc.get_config(),
                 &opc.get_target(),
-                &self.into_delimited(opc.get_deps().to_vec()),
-                &self.into_delimited(opc.get_tdeps().to_vec()),
-                &self.into_delimited(opc.get_exposes().to_vec()),
+                &self.vec_to_vec_string(opc.get_deps()),
+                &self.vec_to_vec_string(opc.get_tdeps()),
+                &opc.get_exposes().to_vec(),
                 &opc.get_visibility().to_string()
             ],
         ).map_err(SrvError::OriginPackageCreate)?;
@@ -1062,10 +1064,10 @@ impl DataStore {
 
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_package_v4($1, $2)",
+                "SELECT * FROM get_origin_package_v5($1, $2)",
                 &[
                     &opg.get_ident().to_string(),
-                    &self.vec_to_delimited_string(opg.get_visibilities()),
+                    &self.vec_to_vec_visibilities(opg.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginPackageGet)?;
 
@@ -1085,12 +1087,12 @@ impl DataStore {
         let conn = self.pool.get()?;
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_channel_package_v4($1, $2, $3, $4)",
+                "SELECT * FROM get_origin_channel_package_v5($1, $2, $3, $4)",
                 &[
                     &ocpg.get_ident().get_origin(),
                     &ocpg.get_name(),
                     &ocpg.get_ident().to_string(),
-                    &self.vec_to_delimited_string(ocpg.get_visibilities()),
+                    &self.vec_to_vec_visibilities(ocpg.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginChannelPackageGet)?;
         if rows.len() != 0 {
@@ -1130,11 +1132,11 @@ impl DataStore {
         let conn = self.pool.get()?;
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_package_latest_v5($1, $2, $3)",
+                "SELECT * FROM get_origin_package_latest_v6($1, $2, $3)",
                 &[
                     &self.searchable_ident(opc.get_ident()),
                     &opc.get_target(),
-                    &self.vec_to_delimited_string(opc.get_visibilities()),
+                    &self.vec_to_vec_visibilities(opc.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginPackageLatestGet)?;
         if rows.len() != 0 {
@@ -1152,13 +1154,13 @@ impl DataStore {
         let conn = self.pool.get()?;
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_channel_package_latest_v5($1, $2, $3, $4, $5)",
+                "SELECT * FROM get_origin_channel_package_latest_v6($1, $2, $3, $4, $5)",
                 &[
                     &ocpg.get_ident().get_origin(),
                     &ocpg.get_name(),
                     &self.searchable_ident(ocpg.get_ident()),
                     &ocpg.get_target(),
-                    &self.vec_to_delimited_string(ocpg.get_visibilities()),
+                    &self.vec_to_vec_visibilities(ocpg.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginChannelPackageLatestGet)?;
 
@@ -1178,11 +1180,11 @@ impl DataStore {
 
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_package_versions_for_origin_v7($1, $2, $3)",
+                "SELECT * FROM get_origin_package_versions_for_origin_v8($1, $2, $3)",
                 &[
                     &opvl.get_origin(),
                     &opvl.get_name(),
-                    &self.vec_to_delimited_string(opvl.get_visibilities()),
+                    &self.vec_to_vec_visibilities(opvl.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginPackageVersionList)?;
 
@@ -1224,10 +1226,10 @@ impl DataStore {
 
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_package_platforms_for_package_v4($1, $2)",
+                "SELECT * FROM get_origin_package_platforms_for_package_v5($1, $2)",
                 &[
                     &self.searchable_ident(oppl.get_ident()),
-                    &self.vec_to_delimited_string(oppl.get_visibilities()),
+                    &self.vec_to_vec_visibilities(oppl.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginPackagePlatformList)?;
 
@@ -1249,10 +1251,10 @@ impl DataStore {
 
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_package_channels_for_package_v4($1, $2)",
+                "SELECT * FROM get_origin_package_channels_for_package_v5($1, $2)",
                 &[
                     &self.searchable_ident(opcl.get_ident()),
-                    &self.vec_to_delimited_string(opcl.get_visibilities()),
+                    &self.vec_to_vec_visibilities(opcl.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginPackageChannelList)?;
 
@@ -1279,9 +1281,9 @@ impl DataStore {
         let conn = self.pool.get()?;
 
         let query = if *&opl.get_distinct() {
-            "SELECT * FROM get_origin_packages_for_origin_distinct_v4($1, $2, $3, $4)"
+            "SELECT * FROM get_origin_packages_for_origin_distinct_v5($1, $2, $3, $4)"
         } else {
-            "SELECT * FROM get_origin_packages_for_origin_v5($1, $2, $3, $4)"
+            "SELECT * FROM get_origin_packages_for_origin_v6($1, $2, $3, $4)"
         };
 
         let rows = conn
@@ -1291,7 +1293,7 @@ impl DataStore {
                     &self.searchable_ident(opl.get_ident()),
                     &opl.limit(),
                     &(opl.get_start() as i64),
-                    &self.vec_to_delimited_string(opl.get_visibilities()),
+                    &self.vec_to_vec_visibilities(opl.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginPackageList)?;
 
@@ -1336,12 +1338,12 @@ impl DataStore {
 
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_channel_packages_for_channel_v3($1, $2, $3, $4, $5, $6)",
+                "SELECT * FROM get_origin_channel_packages_for_channel_v4($1, $2, $3, $4, $5, $6)",
                 &[
                     &opl.get_ident().get_origin(),
                     &opl.get_name(),
                     &self.searchable_ident(opl.get_ident()),
-                    &self.vec_to_delimited_string(opl.get_visibilities()),
+                    &self.vec_to_vec_visibilities(opl.get_visibilities()),
                     &opl.limit(),
                     &(opl.get_start() as i64),
                 ],
@@ -1367,12 +1369,12 @@ impl DataStore {
         let conn = self.pool.get()?;
         let rows = conn
             .query(
-                "SELECT * FROM get_origin_packages_unique_for_origin_v4($1, $2, $3, $4)",
+                "SELECT * FROM get_origin_packages_unique_for_origin_v5($1, $2, $3, $4)",
                 &[
                     &opl.get_origin(),
                     &opl.limit(),
                     &(opl.get_start() as i64),
-                    &self.vec_to_delimited_string(opl.get_visibilities()),
+                    &self.vec_to_vec_visibilities(opl.get_visibilities()),
                 ],
             ).map_err(SrvError::OriginPackageUniqueList)?;
 
@@ -1448,14 +1450,6 @@ impl DataStore {
         Ok(response)
     }
 
-    fn into_delimited<T: Display>(&self, parts: Vec<T>) -> String {
-        let mut buffer = String::new();
-        for part in parts.iter() {
-            buffer.push_str(&format!("{}:", part));
-        }
-        buffer
-    }
-
     fn vec_to_delimited_string<T: Display>(&self, parts: &[T]) -> String {
         parts
             .iter()
@@ -1464,15 +1458,26 @@ impl DataStore {
             .join(",")
     }
 
+    fn vec_to_vec_string<T: Display>(&self, parts: &[T]) -> Vec<String> {
+        parts.iter().map(|p| p.to_string()).collect::<Vec<String>>()
+    }
+
+    fn vec_to_vec_visibilities(
+        &self,
+        vis: &[originsrv::OriginPackageVisibility],
+    ) -> Vec<PackageVisibility> {
+        vis.iter()
+            .map(|v| PackageVisibility::from(*v))
+            .collect::<Vec<PackageVisibility>>()
+    }
+
     fn into_idents(
         &self,
-        column: String,
+        column: Vec<String>,
     ) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
         let mut idents = protobuf::RepeatedField::new();
-        for ident in column.split(":") {
-            if !ident.is_empty() {
-                idents.push(originsrv::OriginPackageIdent::from_str(ident).unwrap());
-            }
+        for ident in column {
+            idents.push(originsrv::OriginPackageIdent::from_str(&ident).unwrap());
         }
         idents
     }
@@ -1494,20 +1499,13 @@ impl DataStore {
         package.set_manifest(row.get("manifest"));
         package.set_config(row.get("config"));
         package.set_target(row.get("target"));
-        let expose: String = row.get("exposes");
-        let mut exposes: Vec<u32> = Vec::new();
-        for ex in expose.split(":") {
-            match ex.parse::<u32>() {
-                Ok(e) => exposes.push(e),
-                Err(_) => {}
-            }
-        }
-        package.set_exposes(exposes);
+        let exposes: Vec<i16> = row.get("exposes");
+        package.set_exposes(exposes.iter().map(|e| *e as u32).collect::<Vec<u32>>());
         package.set_deps(self.into_idents(row.get("deps")));
         package.set_tdeps(self.into_idents(row.get("tdeps")));
 
-        let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility = pv.parse()?;
+        let pv: PackageVisibility = row.get("visibility");
+        let pv2: originsrv::OriginPackageVisibility = pv.into();
         package.set_visibility(pv2);
 
         Ok(package)

@@ -22,6 +22,7 @@ use actix_web::http::{self, Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{error, App, AsyncResponder, HttpMessage, HttpRequest, HttpResponse, Path, Query};
 use bytes::Bytes;
+use diesel::result::Error::NotFound;
 use futures::sync::mpsc;
 use futures::{future::ok as fut_ok, Future, Stream};
 use protobuf;
@@ -33,11 +34,14 @@ use uuid::Uuid;
 use bldr_core::helpers::transition_visibility;
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
-use hab_net::{ErrCode, NetError, NetOk, NetResult};
+use hab_net::{ErrCode, NetError, NetOk};
 
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
+use db::models::package::{
+    BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, NewPackage, Package,
+};
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::feat;
@@ -45,7 +49,6 @@ use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
 use server::services::metrics::Counter;
-use server::services::route_broker::RouteBroker;
 use server::AppState;
 
 // Query param containers
@@ -206,12 +209,10 @@ fn get_latest_package_for_origin_package(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
+    let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package(&req, &package, false),
+        Ok(package) => postprocess_package_model(&req, &package, false),
         Err(err) => err.into(),
     }
 }
@@ -223,13 +224,10 @@ fn get_latest_package_for_origin_package_version(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
-    ident.set_version(version);
+    let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package(&req, &package, false),
+        Ok(package) => postprocess_package_model(&req, &package, false),
         Err(err) => err.into(),
     }
 }
@@ -239,14 +237,10 @@ fn get_latest_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) ->
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
-    ident.set_version(version);
-    ident.set_release(release);
+    let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package(&req, &package, true),
+        Ok(package) => postprocess_package_model(&req, &package, true),
         Err(err) => err.into(),
     }
 }
@@ -333,11 +327,7 @@ fn upload_package(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(name);
-    ident.set_version(version);
-    ident.set_release(release);
+    let ident = PackageIdent::new(origin, name, Some(version), Some(release));
 
     if !ident.valid() || !ident.fully_qualified() {
         info!(
@@ -812,14 +802,11 @@ fn do_get_packages(
 fn do_upload_package_start(
     req: &HttpRequest<AppState>,
     qupload: &Query<Upload>,
-    ident: &OriginPackageIdent,
+    ident: &PackageIdent,
 ) -> Result<(PathBuf, BufWriter<File>)> {
-    authorize_session(req, Some(&ident.get_origin()))?;
+    authorize_session(req, Some(&ident.origin))?;
 
-    // Return if we find existing package metadata (unless forced flag specified)
-    let mut ident_req = OriginPackageGet::new();
-    ident_req.set_ident(ident.clone());
-    ident_req.set_visibilities(helpers::all_visibilities());
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     if qupload.forced {
         debug!(
@@ -827,15 +814,21 @@ fn do_upload_package_start(
             ident
         );
     } else {
-        match route_message::<OriginPackageGet, OriginPackage>(&req, &ident_req) {
+        match Package::get(
+            GetPackage {
+                ident: BuilderPackageIdent(ident.clone()),
+                visibility: helpers::all_visibilities_model(),
+            },
+            &*conn,
+        ) {
             Ok(_) => {
                 return Err(Error::NetError(NetError::new(
                     ErrCode::ENTITY_CONFLICT,
                     "ds:up:0",
                 )))
             }
-            Err(Error::NetError(ref err)) if err.get_code() == ErrCode::ENTITY_NOT_FOUND => (),
-            Err(err) => return Err(err),
+            Err(NotFound) => {}
+            Err(err) => return Err(err.into()),
         }
     }
 
@@ -855,7 +848,7 @@ fn do_upload_package_start(
 fn do_upload_package_finish(
     req: HttpRequest<AppState>,
     qupload: Query<Upload>,
-    ident: OriginPackageIdent,
+    ident: PackageIdent,
     temp_path: PathBuf,
 ) -> HttpResponse {
     let mut archive = PackageArchive::new(&temp_path);
@@ -887,10 +880,6 @@ fn do_upload_package_finish(
         return HttpResponse::new(StatusCode::NOT_IMPLEMENTED);
     };
 
-    let mut ident_req = OriginPackageGet::new();
-    ident_req.set_ident(ident.clone());
-    ident_req.set_visibilities(helpers::all_visibilities());
-
     let checksum_from_artifact = match archive.checksum() {
         Ok(cksum) => cksum,
         Err(e) => {
@@ -907,6 +896,8 @@ fn do_upload_package_finish(
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:3");
     }
 
+    let conn = req.state().db.get_conn().map_err(Error::DbError).unwrap();
+
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
         if let Err(e) = check_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
@@ -915,7 +906,7 @@ fn do_upload_package_finish(
     }
 
     let file_path = &req.state().config.api.data_path;
-    let filename = file_path.join(archive_name(&(&ident).into(), &target_from_artifact));
+    let filename = file_path.join(archive_name(&ident, &target_from_artifact));
     let temp_ident = ident.to_owned().into();
 
     match fs::rename(&temp_path, &filename) {
@@ -942,7 +933,7 @@ fn do_upload_package_finish(
     debug!("File added to Depot: {:?}", &filename);
 
     let mut archive = PackageArchive::new(filename.clone());
-    let mut package = match OriginPackageCreate::from_archive(&mut archive) {
+    let mut package = match NewPackage::from_archive(&mut archive) {
         Ok(package) => package,
         Err(e) => {
             debug!("Error building package from archive: {:#?}", e);
@@ -950,11 +941,10 @@ fn do_upload_package_finish(
         }
     };
 
-    if !ident.satisfies(package.get_ident()) {
+    if !ident.satisfies(&*package.ident) {
         debug!(
             "Ident mismatch, expected={:?}, got={:?}",
-            ident,
-            package.get_ident()
+            ident, package.ident
         );
 
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:6");
@@ -963,11 +953,46 @@ fn do_upload_package_finish(
     let session_id = authorize_session(&req, None).unwrap(); // Unwrap Ok
     let session_name = get_session_user_name(&req, session_id);
 
-    match process_upload_for_package_archive(&ident, &mut package, session_id) {
+    package.owner_id = session_id as i64;
+
+    package.origin_id = match helpers::get_origin(&req, ident.origin.clone()) {
+        Ok(origin) => origin.get_id() as i64,
+        Err(e) => return e.into(),
+    };
+
+    // First, try to fetch visibility settings from a project, if one exists
+    let mut project_get = OriginProjectGet::new();
+    let project_name = format!("{}/{}", ident.origin.clone(), ident.name.clone());
+    project_get.set_name(project_name);
+
+    match route_message::<OriginProjectGet, OriginProject>(&req, &project_get) {
+        Ok(proj) => {
+            if proj.has_visibility() {
+                package.visibility = proj.get_visibility().into();
+            }
+        }
+        Err(_) => {
+            // There's no project for this package. No worries - we'll check the origin
+            let mut origin_get = OriginGet::new();
+            origin_get.set_name(ident.origin.to_string());
+
+            match route_message::<OriginGet, Origin>(&req, &origin_get) {
+                Ok(o) => {
+                    if o.has_default_package_visibility() {
+                        package.visibility = o.get_default_package_visibility().into();
+                    }
+                }
+                Err(err) => return err.into(),
+            }
+        }
+    }
+
+    // Re-create origin package as needed (eg, checksum update)
+    match Package::create(package.clone(), &*conn) {
         Ok(pkg) => {
             if feat::is_enabled(feat::Jobsrv) {
                 let mut job_graph_package = JobGraphPackageCreate::new();
-                job_graph_package.set_package(pkg);
+                job_graph_package.set_package(pkg.into());
 
                 if let Err(err) =
                     route_message::<JobGraphPackageCreate, OriginPackage>(&req, &job_graph_package)
@@ -976,66 +1001,57 @@ fn do_upload_package_finish(
                     return err.into();
                 }
             }
-
-            // Schedule re-build of dependent packages (if requested)
-            // Don't schedule builds if the upload is being done by the builder
-            if qupload.builder.is_none() && feat::is_enabled(feat::Jobsrv) {
-                let mut request = JobGroupSpec::new();
-                request.set_origin(ident.get_origin().to_string());
-                request.set_package(ident.get_name().to_string());
-                request.set_target(target_from_artifact.to_string());
-                request.set_deps_only(true);
-                request.set_origin_only(false);
-                request.set_package_only(false);
-                request.set_trigger(JobGroupTrigger::Upload);
-                request.set_requester_id(session_id);
-                request.set_requester_name(session_name);
-
-                match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
-                    Ok(group) => debug!(
-                        "Scheduled reverse dependecy build for {}, group id: {}",
-                        ident,
-                        group.get_id()
-                    ),
-                    Err(Error::NetError(ref err))
-                        if err.get_code() == ErrCode::ENTITY_NOT_FOUND =>
-                    {
-                        debug!("Unable to schedule build for {}, err: {:?}", ident, err)
-                    }
-                    Err(err) => warn!("Unable to schedule build for {}, err: {:?}", ident, err),
-                }
-            }
-
-            match remove_file(&filename) {
-                Ok(_) => debug!(
-                    "Successfully removed cached file after upload. {:?}",
-                    &filename
-                ),
-                Err(e) => warn!(
-                    "Failed to remove cached file after upload: {:?}, {}",
-                    &filename, e
-                ),
-            }
-
-            HttpResponse::Created()
-                .header(http::header::LOCATION, format!("{}", req.uri()))
-                .body(format!("/pkgs/{}/download", package.get_ident()))
         }
-        Err(err) => {
-            debug!(
-                "Ident mismatch, expected={:?}, got={:?}",
+        Err(_) => return HttpResponse::InternalServerError().into(),
+    }
+
+    // Schedule re-build of dependent packages (if requested)
+    // Don't schedule builds if the upload is being done by the builder
+    if qupload.builder.is_none() && feat::is_enabled(feat::Jobsrv) {
+        let mut request = JobGroupSpec::new();
+        request.set_origin(ident.origin.to_string());
+        request.set_package(ident.name.to_string());
+        request.set_target(target_from_artifact.to_string());
+        request.set_deps_only(true);
+        request.set_origin_only(false);
+        request.set_package_only(false);
+        request.set_trigger(JobGroupTrigger::Upload);
+        request.set_requester_id(session_id);
+        request.set_requester_name(session_name);
+
+        match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
+            Ok(group) => debug!(
+                "Scheduled reverse dependecy build for {}, group id: {}",
                 ident,
-                package.get_ident()
-            );
-            Error::NetError(err).into()
+                group.get_id()
+            ),
+            Err(Error::NetError(ref err)) if err.get_code() == ErrCode::ENTITY_NOT_FOUND => {
+                debug!("Unable to schedule build for {}, err: {:?}", ident, err)
+            }
+            Err(err) => warn!("Unable to schedule build for {}, err: {:?}", ident, err),
         }
     }
+
+    match remove_file(&filename) {
+        Ok(_) => debug!(
+            "Successfully removed cached file after upload. {:?}",
+            &filename
+        ),
+        Err(e) => warn!(
+            "Failed to remove cached file after upload: {:?}, {}",
+            &filename, e
+        ),
+    }
+
+    HttpResponse::Created()
+        .header(http::header::LOCATION, format!("{}", req.uri()))
+        .body(format!("/pkgs/{}/download", *package.ident))
 }
 
 fn do_upload_package_async(
     req: HttpRequest<AppState>,
     qupload: Query<Upload>,
-    ident: OriginPackageIdent,
+    ident: PackageIdent,
     temp_path: PathBuf,
     writer: BufWriter<File>,
 ) -> Box<Future<Item = HttpResponse, Error = Error>> {
@@ -1065,53 +1081,44 @@ fn do_upload_package_async(
 fn do_get_package(
     req: &HttpRequest<AppState>,
     qtarget: &Query<Target>,
-    mut ident: OriginPackageIdent,
-) -> Result<OriginPackage> {
+    ident: PackageIdent,
+) -> Result<Package> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(id) => Some(id),
         Err(_) => None,
     };
     Counter::GetPackage.increment();
 
-    // Fully qualify the ident if needed
-    // TODO: Have the OriginPackageLatestGet call just return the package
-    // metadata, thus saving us a second call to actually retrieve the package
-    if !ident.fully_qualified() {
-        // TODO: Deprecate target from headers
-        let target = match qtarget.target.clone() {
-            Some(t) => {
-                debug!("Query requested target = {}", t);
-                PackageTarget::from_str(&t)?
-            }
-            None => helpers::target_from_headers(req),
-        };
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-        let mut request = OriginPackageLatestGet::new();
-        request.set_ident(ident.clone());
-        request.set_target(target.to_string());
-        request.set_visibilities(helpers::visibility_for_optional_session(
-            req,
-            opt_session_id,
-            &ident.get_origin(),
-        ));
-
-        ident = match route_message::<OriginPackageLatestGet, OriginPackageIdent>(req, &request) {
-            Ok(id) => id.into(),
-            Err(err) => return Err(err),
+    let target = match qtarget.target.clone() {
+        Some(t) => {
+            debug!("Query requested target = {}", t);
+            PackageTarget::from_str(&t)?
         }
-    }
+        None => helpers::target_from_headers(req),
+    };
 
-    let mut request = OriginPackageGet::new();
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        req,
-        opt_session_id,
-        &ident.get_origin(),
-    ));
-    request.set_ident(ident.clone());
-
-    match route_message::<OriginPackageGet, OriginPackage>(req, &request) {
+    match Package::get_latest(
+        GetLatestPackage {
+            ident: BuilderPackageIdent(ident.clone()),
+            target: BuilderPackageTarget(target),
+            visibility: helpers::visibility_for_optional_session_model(
+                req,
+                opt_session_id,
+                &ident.origin,
+            ),
+        },
+        &*conn,
+    ) {
         Ok(pkg) => Ok(pkg),
-        Err(err) => Err(err),
+        Err(NotFound) => {
+            Err(Error::NetError(NetError::new(ErrCode::ENTITY_NOT_FOUND, "pkg:latest:1")).into())
+        }
+        Err(err) => {
+            debug!("{:?}", err);
+            Err(err.into())
+        }
     }
 }
 
@@ -1132,6 +1139,28 @@ pub fn postprocess_package(
     HttpResponse::Ok()
         .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
         .header(http::header::ETAG, pkg.get_checksum().to_string())
+        .header(http::header::CACHE_CONTROL, headers::cache(should_cache))
+        .body(body)
+}
+
+pub fn postprocess_package_model(
+    req: &HttpRequest<AppState>,
+    pkg: &Package,
+    should_cache: bool,
+) -> HttpResponse {
+    let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
+    // Some borrow checker workarounds until more channel code is converted in to model code
+    let pkg_clone = &*pkg.ident;
+    let channels =
+        helpers::channels_for_package_ident(req, &OriginPackageIdent::from(pkg_clone.clone()));
+    pkg_json["channels"] = json!(channels);
+    pkg_json["is_a_service"] = json!(is_a_service_model(pkg));
+
+    let body = serde_json::to_string(&pkg_json).unwrap();
+
+    HttpResponse::Ok()
+        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+        .header(http::header::ETAG, pkg.checksum.to_string())
         .header(http::header::CACHE_CONTROL, headers::cache(should_cache))
         .body(body)
 }
@@ -1193,7 +1222,7 @@ fn write_archive_async(mut writer: BufWriter<File>, chunk: Bytes) -> Result<BufW
 
 fn check_circular_deps(
     req: &HttpRequest<AppState>,
-    ident: &OriginPackageIdent,
+    ident: &PackageIdent,
     target: &PackageTarget,
     archive: &mut PackageArchive,
 ) -> Result<()> {
@@ -1234,70 +1263,17 @@ fn check_circular_deps(
     }
 }
 
-pub fn process_upload_for_package_archive(
-    ident: &OriginPackageIdent,
-    package: &mut OriginPackageCreate,
-    owner_id: u64,
-) -> NetResult<OriginPackage> {
-    // We need to do it this way instead of via route_message because this function can't be passed
-    // a Request struct, because it's sometimes called from a background thread, and Request
-    // structs are not cloneable.
-    let mut conn = RouteBroker::connect().unwrap();
-
-    package.set_owner_id(owner_id);
-
-    // Let's make sure this origin actually exists. Yes, I know we have a helper function for this
-    // but it requires the Request struct, which is not available here.
-    let mut request = OriginGet::new();
-    request.set_name(ident.get_origin().to_string());
-    match conn.route::<OriginGet, Origin>(&request) {
-        Ok(origin) => package.set_origin_id(origin.get_id()),
-        Err(err) => return Err(err),
-    }
-
-    // Zero this out initially
-    package.clear_visibility();
-
-    // First, try to fetch visibility settings from a project, if one exists
-    let mut project_get = OriginProjectGet::new();
-    let project_name = format!("{}/{}", ident.get_origin(), ident.get_name());
-    project_get.set_name(project_name);
-
-    match conn.route::<OriginProjectGet, OriginProject>(&project_get) {
-        Ok(proj) => {
-            if proj.has_visibility() {
-                package.set_visibility(proj.get_visibility());
-            }
-        }
-        Err(_) => {
-            // There's no project for this package. No worries - we'll check the origin
-            let mut origin_get = OriginGet::new();
-            origin_get.set_name(ident.get_origin().to_string());
-
-            match conn.route::<OriginGet, Origin>(&origin_get) {
-                Ok(o) => {
-                    if o.has_default_package_visibility() {
-                        package.set_visibility(o.get_default_package_visibility());
-                    }
-                }
-                Err(err) => return Err(err),
-            }
-        }
-    }
-
-    // If, after checking both the project and the origin, there's still no visibility set
-    // (this is highly unlikely), then just make it public.
-    if !package.has_visibility() {
-        package.set_visibility(OriginPackageVisibility::Public);
-    }
-
-    // Re-create origin package as needed (eg, checksum update)
-    conn.route::<OriginPackageCreate, OriginPackage>(&package)
-}
-
 pub fn is_a_service(package: &OriginPackage) -> bool {
     let m = package.get_manifest();
 
+    // TODO: This is a temporary workaround until we plumb in a better solution for
+    // determining whether a package is a service from the DB instead of needing
+    // to crack the archive file to look for a SVC_USER file
+    m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
+}
+
+pub fn is_a_service_model(package: &Package) -> bool {
+    let m = package.manifest.clone();
     // TODO: This is a temporary workaround until we plumb in a better solution for
     // determining whether a package is a service from the DB instead of needing
     // to crack the archive file to look for a SVC_USER file

@@ -24,10 +24,7 @@ extern crate builder_core as bldr_core;
 extern crate bytes;
 extern crate chrono;
 extern crate constant_time_eq;
-#[macro_use]
 extern crate diesel;
-#[macro_use]
-extern crate diesel_derive_enum;
 #[macro_use]
 extern crate features;
 extern crate github_api_client;

@@ -1,5 +1,5 @@
 table! {
-    use server::models::channel::{PackageChannelOperationMapping, PackageChannelTriggerMapping};
+    use models::channel::{PackageChannelOperationMapping, PackageChannelTriggerMapping};
     use diesel::sql_types::{BigInt, Text, Nullable, Timestamptz};
     audit_package (origin_id, package_id, channel_id) {
         origin_id -> BigInt,

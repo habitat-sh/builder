@@ -13,13 +13,10 @@
 // limitations under the License.
 
 pub mod authorize;
-pub mod db;
 pub mod error;
 pub mod framework;
 pub mod helpers;
-pub mod models;
 pub mod resources;
-pub mod schema;
 pub mod services;
 
 use std::cell::RefCell;
@@ -35,13 +32,13 @@ use actix_web::server::{self, KeepAlive};
 use actix_web::{App, HttpRequest, HttpResponse, Result};
 
 use bldr_core::rpc::RpcClient;
+use db::DbPool;
 use github_api_client::GitHubClient;
 use hab_net::socket;
 
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
-use self::db::{init, DbPool};
 use self::error::Error;
 use self::framework::middleware::{Authentication, XRouteClient};
 
@@ -146,7 +143,9 @@ pub fn run(config: Config) -> Result<()> {
 
     // TED TODO: When originsrv gets removed we need to do the migrations here
 
-    let db_pool = init(config.datastore.clone());
+    let db_pool = DbPool::new(&config.datastore.clone())
+        .map_err(Error::DbError)
+        .unwrap();
 
     server::new(move || {
         let app_state = AppState::new(&config, db_pool.clone());

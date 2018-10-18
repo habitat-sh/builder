@@ -26,10 +26,12 @@ use hab_core::package::PackageTarget;
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
+use db::models::channel::PackageChannelTrigger as PCT;
+use db::models::package::PackageVisibility;
 use server::authorize::authorize_session;
 use server::error::Result;
 use server::framework::middleware::route_message;
-use server::models::channel::PackageChannelTrigger as PCT;
+
 use server::AppState;
 
 //
@@ -183,6 +185,22 @@ pub fn visibility_for_optional_session(
     v
 }
 
+pub fn visibility_for_optional_session_model(
+    req: &HttpRequest<AppState>,
+    optional_session_id: Option<u64>,
+    origin: &str,
+) -> Vec<PackageVisibility> {
+    let mut v = Vec::new();
+    v.push(PackageVisibility::Public);
+
+    if optional_session_id.is_some() && authorize_session(req, Some(&origin)).is_ok() {
+        v.push(PackageVisibility::Hidden);
+        v.push(PackageVisibility::Private);
+    }
+
+    v
+}
+
 // Get channels for a package
 pub fn channels_for_package_ident(
     req: &HttpRequest<AppState>,
@@ -248,6 +266,14 @@ pub fn all_visibilities() -> Vec<OriginPackageVisibility> {
         OriginPackageVisibility::Public,
         OriginPackageVisibility::Private,
         OriginPackageVisibility::Hidden,
+    ]
+}
+
+pub fn all_visibilities_model() -> Vec<PackageVisibility> {
+    vec![
+        PackageVisibility::Public,
+        PackageVisibility::Private,
+        PackageVisibility::Hidden,
     ]
 }
 

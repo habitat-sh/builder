@@ -21,9 +21,9 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use db::config::DataStoreCfg;
-use db::diesel_pool::DieselPool;
 use db::migration::setup_ids;
 use db::pool::Pool;
+use db::{models::package::PackageVisibility, DbPool};
 use diesel::result::Error as Dre;
 use diesel::Connection;
 use postgres;
@@ -41,7 +41,7 @@ use error::{Error, Result};
 #[derive(Clone)]
 pub struct DataStore {
     pool: Pool,
-    diesel_pool: DieselPool,
+    diesel_pool: DbPool,
 }
 
 impl DataStore {
@@ -51,14 +51,14 @@ impl DataStore {
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
     pub fn new(cfg: &DataStoreCfg) -> Result<DataStore> {
         let pool = Pool::new(cfg)?;
-        let diesel_pool = DieselPool::new(&cfg)?;
+        let diesel_pool = DbPool::new(&cfg)?;
         Ok(DataStore { pool, diesel_pool })
     }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
     pub fn from_pool(
         pool: Pool,
-        diesel_pool: DieselPool,
+        diesel_pool: DbPool,
         _: Vec<u32>,
         _: Arc<String>,
     ) -> Result<DataStore> {
@@ -70,7 +70,7 @@ impl DataStore {
     /// This includes all the schema and data migrations, along with stored procedures for data
     /// access.
     pub fn setup(&self) -> Result<()> {
-        let conn = self.diesel_pool.get_raw()?;
+        let conn = self.diesel_pool.get_conn()?;
         let _ = conn.transaction::<_, Dre, _>(|| {
             setup_ids(&*conn).unwrap();
             embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
@@ -428,11 +428,15 @@ impl DataStore {
 
     pub fn get_job_graph_package(&self, ident: &str) -> Result<originsrv::OriginPackage> {
         let conn = self.pool.get()?;
-
+        let visibilities = vec![
+            PackageVisibility::Public,
+            PackageVisibility::Private,
+            PackageVisibility::Hidden,
+        ];
         let rows = &conn
             .query(
-                "SELECT * FROM get_origin_package_v4($1, $2)",
-                &[&ident, &String::from("public,private,hidden")],
+                "SELECT * FROM get_origin_package_v5($1, $2)",
+                &[&ident, &visibilities],
             ).map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
@@ -639,20 +643,13 @@ impl DataStore {
         package.set_manifest(row.get("manifest"));
         package.set_config(row.get("config"));
         package.set_target(row.get("target"));
-        let expose: String = row.get("exposes");
-        let mut exposes: Vec<u32> = Vec::new();
-        for ex in expose.split(":") {
-            match ex.parse::<u32>() {
-                Ok(e) => exposes.push(e),
-                Err(_) => {}
-            }
-        }
-        package.set_exposes(exposes);
+        let exposes: Vec<i16> = row.get("exposes");
+        package.set_exposes(exposes.iter().map(|e| *e as u32).collect::<Vec<u32>>());
         package.set_deps(self.into_idents(row.get("deps")));
         package.set_tdeps(self.into_idents(row.get("tdeps")));
 
-        let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility = pv.parse()?;
+        let pv: PackageVisibility = row.get("visibility");
+        let pv2: originsrv::OriginPackageVisibility = pv.into();
         package.set_visibility(pv2);
 
         Ok(package)
@@ -660,13 +657,11 @@ impl DataStore {
 
     fn into_idents(
         &self,
-        column: String,
+        column: Vec<String>,
     ) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
         let mut idents = protobuf::RepeatedField::new();
-        for ident in column.split(":") {
-            if !ident.is_empty() {
-                idents.push(originsrv::OriginPackageIdent::from_str(ident).unwrap());
-            }
+        for ident in column {
+            idents.push(originsrv::OriginPackageIdent::from_str(&ident).unwrap());
         }
         idents
     }

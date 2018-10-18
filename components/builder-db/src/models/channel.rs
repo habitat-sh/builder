@@ -6,7 +6,7 @@ use diesel::result::QueryResult;
 use diesel::sql_types::{BigInt, Bool, Text};
 use diesel::RunQueryDsl;
 use hab_core::package::PackageIdent;
-use server::schema::channel::*;
+use schema::channel::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_channels"]
@@ -100,7 +100,7 @@ pub struct PackageChannelAudit {
 
 impl PackageChannelAudit {
     pub fn audit(pca: PackageChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
-        diesel::sql_query("select * from add_audit_package_entry_v2($1, $2, $3, $4, $5, $6, $7)")
+        diesel::sql_query("select * from add_audit_package_entry_v3($1, $2, $3, $4, $5, $6, $7)")
             .bind::<Text, _>(pca.origin)
             .bind::<Text, _>(pca.ident.to_string())
             .bind::<Text, _>(pca.channel)
@@ -132,14 +132,14 @@ pub struct OriginChannelDemote {
 
 impl OriginChannelPackage {
     pub fn promote(package: OriginChannelPromote, conn: &PgConnection) -> QueryResult<usize> {
-        diesel::sql_query("select * from promote_origin_package_v2($1, $2, $3)")
+        diesel::sql_query("select * from promote_origin_package_v3($1, $2, $3)")
             .bind::<Text, _>(package.origin)
             .bind::<Text, _>(package.ident.to_string())
             .bind::<Text, _>(package.channel)
             .execute(conn)
     }
     pub fn demote(package: OriginChannelDemote, conn: &PgConnection) -> QueryResult<usize> {
-        diesel::sql_query("select * from demote_origin_package_v2($1, $2, $3)")
+        diesel::sql_query("select * from demote_origin_package_v3($1, $2, $3)")
             .bind::<Text, _>(package.origin)
             .bind::<Text, _>(package.ident.to_string())
             .bind::<Text, _>(package.channel)

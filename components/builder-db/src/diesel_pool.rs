@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ops::{Deref, DerefMut};
 use std::thread;
 use std::time::Duration;
 
@@ -20,15 +19,17 @@ use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 
 use config::DataStoreCfg;
-use error::{Error, Result};
+use error::Result;
+
+type PgPool = Pool<ConnectionManager<PgConnection>>;
+
+type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
 
 #[derive(Clone)]
-pub struct DieselPool {
-    inner: Pool<ConnectionManager<PgConnection>>,
-}
+pub struct DbPool(pub PgPool);
 
-impl DieselPool {
-    pub fn new(config: &DataStoreCfg) -> Result<DieselPool> {
+impl DbPool {
+    pub fn new(config: &DataStoreCfg) -> Result<DbPool> {
         loop {
             let manager = ConnectionManager::<PgConnection>::new(config.to_string());
             match Pool::builder()
@@ -36,7 +37,7 @@ impl DieselPool {
                 .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
                 .build(manager)
             {
-                Ok(pool) => return Ok(DieselPool { inner: pool }),
+                Ok(pool) => return Ok(DbPool(pool)),
                 Err(e) => error!(
                     "Error initializing connection pool to Postgres, will retry: {}",
                     e
@@ -46,22 +47,10 @@ impl DieselPool {
         }
     }
 
-    pub fn get_raw(&self) -> Result<PooledConnection<ConnectionManager<PgConnection>>> {
-        let conn = self.inner.get().map_err(Error::ConnectionTimeout)?;
-        Ok(conn)
-    }
-}
-
-impl Deref for DieselPool {
-    type Target = Pool<ConnectionManager<PgConnection>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for DieselPool {
-    fn deref_mut(&mut self) -> &mut Pool<ConnectionManager<PgConnection>> {
-        &mut self.inner
+    pub fn get_conn(&self) -> Result<PgPooledConnection> {
+        match self.0.get() {
+            Ok(conn) => Ok(conn),
+            Err(e) => Err(e.into()),
+        }
     }
 }
