@@ -10,13 +10,13 @@ ALTER TABLE origin_packages ALTER COLUMN visibility SET DATA TYPE origin_package
 ALTER TABLE origin_packages ALTER COLUMN visibility SET DEFAULT 'public'::origin_package_visibility;
 
 ALTER TABLE origin_packages ALTER COLUMN deps SET DATA TYPE text[]
-    USING string_to_array(deps, ':') :: text[];
+    USING string_to_array(RTRIM(deps, ':'), ':') :: text[];
 
 ALTER TABLE origin_packages ALTER COLUMN tdeps SET DATA TYPE text[]
-    USING string_to_array(tdeps, ':') :: text[];
+    USING string_to_array(RTRIM(tdeps, ':'), ':') :: text[];
 
 ALTER TABLE origin_packages ALTER COLUMN exposes SET DATA TYPE smallint[]
-    USING string_to_array(exposes, ':') :: smallint[];
+    USING string_to_array(RTRIM(exposes, ':'), ':') :: smallint[];
 
 CREATE OR REPLACE FUNCTION get_origin_channel_package_latest_v6(op_origin text, op_channel text, op_ident text, op_target text, op_visibilities origin_package_visibility[]) RETURNS SETOF origin_packages
     LANGUAGE sql STABLE
