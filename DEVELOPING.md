@@ -146,6 +146,7 @@ You may use the `load_package` helper to specify a package to upload. Ex:
 load_package /hab/cache/artifacts/core-*.hart
 ```
 
+Alternatively, you can use the `on-prem-archive.sh` script from the on-prem repo to do the initial hydration (and sync) of base packages - see the [Synchronizing Packages](#Synchronizing_Packages) section below.
 
 #### Option A: From the Web UI
 * Navigate to http://${APP_HOSTNAME}/#/pkgs
@@ -183,6 +184,7 @@ statsd-logger
 ```
 
 Once statsd-logger is running, it should receive and display any metrics sent by the services.
+
 ### Setting up to run Builder builds in development
 
 Initially, your depot will be empty, which means you won't be able to run a successful build. Minimally, you'll need to upload the current, stable version of `core/hab-backline` (which you'll have installed locally as a result of entering the studio). Follow these steps to prepare an empty depot to run successful builds:
@@ -203,3 +205,9 @@ Initially, your depot will be empty, which means you won't be able to run a succ
       ```
 
 You should now be able to connect a plan file, and run a build, of a simple package (e.g., one with no direct dependencies).
+
+### Synchronizing Packages
+
+You may want to take advantage of the package synchronization capability that is now available via the `on-prem-archive.sh` script that is located in the [on-prem builder repo](https://github.com/habitat-sh/on-prem-builder/blob/master/scripts/on-prem-archive.sh)
+
+Prior to using the script, you will need to ensure that a few tools are in your path - including curl, git, and b2sum. For details, please see the instructions in the [README](https://github.com/habitat-sh/on-prem-builder/blob/master/README.md).
