@@ -273,6 +273,41 @@ origin() {
   fi
 }
 
+test-builder() {
+    hab sup status
+    if [ $? -eq 0 ]; then
+        cat <<DOCS
+
+*****************"
+Running supervisor detected
+*****************"
+ 
+*****************"
+Terminating running supervisor
+*****************"
+DOCS
+        hab sup term
+        sleep 8
+    fi
+
+    echo ""
+    echo "*****************"
+    echo "Restarting supervisor in test mode"
+    echo "*****************"
+    echo ""
+    HAB_FUNC_TEST=1 sup-run
+    sleep 10
+    echo "*****************"
+    echo "Executing functional tests"
+    echo "*****************"
+    /src/test/builder-api/test.sh
+    echo ""
+    echo "*****************"
+    echo "Returning supervisor to default mode"
+    hab sup term
+    sup-run
+}
+
 function psql() {
   local config_dir port
   config_dir="/hab/svc/builder-datastore/config"
@@ -323,6 +358,7 @@ The following commands are available:
   * psql - wrapper around psql to enable passwordless auth
   * upload_github_keys - internal function to upload github secret keys to the ring
   * configure-minio - internal function to create the default minio bucket
+  * test-builder - internal function to build everything and run functional tests
 5. Docs
   * dev_docs (alias: help)
 DOCS
