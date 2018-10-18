@@ -149,8 +149,9 @@ pub fn job_log_get(
             }
             None => {
                 // The job exists, but there are no logs (either yet, or ever).
-                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-log-get:3");
-                Err(Error::NetError(err))
+                // Just return an empty job log
+                let log = jobsrv::JobLog::new();
+                RpcMessage::make(&log).map_err(Error::BuilderCore)
             }
         }
     }
