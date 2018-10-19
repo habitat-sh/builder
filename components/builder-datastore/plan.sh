@@ -73,6 +73,7 @@ do_unpack() {
 }
 
 do_build() {
+    # shellcheck disable=2154
     # ld manpage: "If -rpath is not used when linking an ELF
     # executable, the contents of the environment variable LD_RUN_PATH
     # will be used if it is defined"
