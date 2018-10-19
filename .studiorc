@@ -280,37 +280,19 @@ origin() {
 }
 
 test-builder() {
-    hab sup status
-    if [ $? -eq 0 ]; then
-        cat <<DOCS
-
-*****************"
-Running supervisor detected
-*****************"
- 
-*****************"
-Terminating running supervisor
-*****************"
-DOCS
-        hab sup term
+    if hab sup status > /dev/null 2>&1; then
+      echo "Stopping supervisor"
+        hab sup term 
         sleep 8
     fi
 
-    echo ""
-    echo "*****************"
-    echo "Restarting supervisor in test mode"
-    echo "*****************"
-    echo ""
+    echo "Starting supervisor in test mode"
     HAB_FUNC_TEST=1 sup-run
     sleep 10
-    echo "*****************"
-    echo "Executing functional tests"
-    echo "*****************"
+
     /src/test/builder-api/test.sh
-    echo ""
-    echo "*****************"
     echo "Returning supervisor to default mode"
-    hab sup term
+    hab sup term > /dev/null 2>&1
     sup-run
 }
 
