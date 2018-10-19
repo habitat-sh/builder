@@ -11,7 +11,7 @@ use diesel::deserialize::{self, FromSql};
 use diesel::pg::{Pg, PgConnection};
 use diesel::result::QueryResult;
 use diesel::serialize::{self, IsNull, Output, ToSql};
-use diesel::sql_types::{Array, BigInt, SmallInt, Text};
+use diesel::sql_types::{Array, BigInt, Integer, Text};
 use diesel::RunQueryDsl;
 
 use super::db_id_format;
@@ -37,7 +37,7 @@ pub struct Package {
     pub target: BuilderPackageTarget,
     pub deps: Vec<BuilderPackageIdent>,
     pub tdeps: Vec<BuilderPackageIdent>,
-    pub exposes: Vec<i16>,
+    pub exposes: Vec<i32>,
     pub visibility: PackageVisibility,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
@@ -57,7 +57,7 @@ pub struct NewPackage {
     pub target: BuilderPackageTarget,
     pub deps: Vec<BuilderPackageIdent>,
     pub tdeps: Vec<BuilderPackageIdent>,
-    pub exposes: Vec<i16>,
+    pub exposes: Vec<i32>,
     pub visibility: PackageVisibility,
 }
 
@@ -114,7 +114,7 @@ impl Package {
             .bind::<Text,_>(package.target)
             .bind::<Array<Text>,_>(package.deps)
             .bind::<Array<Text>,_>(package.tdeps)
-            .bind::<Array<SmallInt>,_>(package.exposes)
+            .bind::<Array<Integer>,_>(package.exposes)
             .bind::<PackageVisibilityMapping,_>(package.visibility)
         .get_result(conn)
     }
@@ -205,8 +205,8 @@ impl FromArchive for NewPackage {
         let exposes = archive
             .exposes()?
             .into_iter()
-            .map(|e| e as i16)
-            .collect::<Vec<i16>>();
+            .map(|e| e as i32)
+            .collect::<Vec<i32>>();
 
         let deps = archive
             .deps()?

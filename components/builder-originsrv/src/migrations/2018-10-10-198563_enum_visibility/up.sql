@@ -15,8 +15,8 @@ ALTER TABLE origin_packages ALTER COLUMN deps SET DATA TYPE text[]
 ALTER TABLE origin_packages ALTER COLUMN tdeps SET DATA TYPE text[]
     USING string_to_array(RTRIM(tdeps, ':'), ':') :: text[];
 
-ALTER TABLE origin_packages ALTER COLUMN exposes SET DATA TYPE smallint[]
-    USING string_to_array(RTRIM(exposes, ':'), ':') :: smallint[];
+ALTER TABLE origin_packages ALTER COLUMN exposes SET DATA TYPE integer[]
+    USING string_to_array(RTRIM(exposes, ':'), ':') :: integer[];
 
 CREATE OR REPLACE FUNCTION get_origin_channel_package_latest_v6(op_origin text, op_channel text, op_ident text, op_target text, op_visibilities origin_package_visibility[]) RETURNS SETOF origin_packages
     LANGUAGE sql STABLE
@@ -176,7 +176,7 @@ CREATE OR REPLACE FUNCTION insert_origin_package_v5 (
   op_target text,
   op_deps text[],
   op_tdeps text[],
-  op_exposes smallint[],
+  op_exposes integer[],
   op_visibility origin_package_visibility
 ) RETURNS SETOF origin_packages AS $$
     DECLARE
@@ -235,7 +235,7 @@ CREATE OR REPLACE FUNCTION update_package_visibility_in_bulk_v2(op_visibility or
     WHERE id IN (SELECT(unnest(op_ids)));
 $$;
 
-CREATE OR REPLACE FUNCTION update_origin_package_v2(op_id bigint, op_owner_id bigint, op_name text, op_ident text, op_checksum text, op_manifest text, op_config text, op_target text, op_deps text[], op_tdeps text[], op_exposes smallint[], op_visibility origin_package_visibility) RETURNS void
+CREATE OR REPLACE FUNCTION update_origin_package_v2(op_id bigint, op_owner_id bigint, op_name text, op_ident text, op_checksum text, op_manifest text, op_config text, op_target text, op_deps text[], op_tdeps text[], op_exposes integer[], op_visibility origin_package_visibility) RETURNS void
     LANGUAGE sql
     AS $$
   UPDATE origin_packages SET

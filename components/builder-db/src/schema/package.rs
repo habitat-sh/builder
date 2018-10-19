@@ -1,6 +1,6 @@
 table! {
     use models::package::PackageVisibilityMapping;
-    use diesel::sql_types::{Array, BigInt, SmallInt, Text, Nullable, Timestamptz};
+    use diesel::sql_types::{Array, BigInt, Integer, Text, Nullable, Timestamptz};
     origin_packages {
         id -> BigInt,
         origin_id -> BigInt,
@@ -14,7 +14,7 @@ table! {
         target -> Text,
         deps -> Array<Text>,
         tdeps -> Array<Text>,
-        exposes -> Array<SmallInt>,
+        exposes -> Array<Integer>,
         visibility -> PackageVisibilityMapping,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
