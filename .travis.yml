@@ -25,14 +25,15 @@ matrix:
 ########################################################################
 
 #
-# Job for linting Habitat shell program components
+# Job for linting Builder shell program components
 #
     - sudo: false
       script:
         - ./test/shellcheck.sh
 
 #
-# Job for testing Habitat Rust program components
+# Job for testing Builder Rust binaries
+# This runs lint and cargo unit tests
 #
     - language: rust
       env:
@@ -49,7 +50,6 @@ matrix:
             - kalakris-cmake
           packages:
             - build-essential
-            - busybox          # Currently only needed for unit tests in the supervisor, sadly.
             - ca-certificates
             - cmake
             - curl
@@ -73,11 +73,12 @@ matrix:
         - ./support/ci/compile_zmq.sh
         - source ./support/ci/rust_env.sh
       script:
-        - ./support/ci/rust_tests.sh
         - ./support/ci/lint.sh
+        - ./support/ci/rust_tests.sh
 
 #
-# Job for testing Builder Rust crate components
+# Job for testing Builder Rust libraries
+# This runs lint and cargo unit tests
 #
     - language: rust
       env:
@@ -115,11 +116,13 @@ matrix:
         - ./support/ci/compile_zmq.sh
         - source ./support/ci/rust_env.sh
       script:
-        - ./support/ci/rust_tests.sh
         - ./support/ci/lint.sh
+        - ./support/ci/rust_tests.sh
 
 #
-# Job for testing Builder Rust program components
+# Job for testing Builder Rust services
+# This runs lint and studio-based end-to-end-tests
+# Cargo unit tests are NOT run
 #
     - language: rust
       env:
@@ -130,17 +133,9 @@ matrix:
       sudo: required
       addons:
         apt:
-          sources:
-            - kalakris-cmake
           packages:
-            - build-essential
             - ca-certificates
-            - cmake
             - curl
-            - libbz2-dev
-            - liblzma-dev
-            - libssl-dev
-            - pkg-config
       cache:
         apt: true
         cargo: true
@@ -151,13 +146,9 @@ matrix:
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
         - ./support/ci/install_hab.sh
-        - ./support/ci/install_protobuf.sh
-        - ./support/ci/compile_libsodium.sh
-        - ./support/ci/compile_libarchive.sh
-        - ./support/ci/compile_zmq.sh
-        - source ./support/ci/rust_env.sh
         - openssl aes-256-cbc -K $encrypted_builder_github_app_pem_key -iv $encrypted_builder_github_app_pem_iv -in ./support/ci/builder-github-app.pem.enc -out /tmp/builder-github-app.pem -d
       script:
+        - ./support/ci/lint.sh
         - ./test/builder-api/test.sh
 
 # Web Jobs

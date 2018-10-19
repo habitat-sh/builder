@@ -22,7 +22,6 @@ find . -type f \
   -and \! -path "*.sample" \
   -and \! -path "*.ps1" \
   -and \! -path "./test/builder-api/node_modules/*" \
-  -and \! -path "./components/builder-api/habitat/hooks/health_check" \
   -and \! -path "./components/builder-api-proxy/habitat/hooks/health_check" \
   -and \! -path "./components/builder-api-proxy/habitat/hooks/init" \
   -and \! -path "./components/builder-minio/habitat/hooks/init" \
