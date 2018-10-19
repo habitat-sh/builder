@@ -88,6 +88,12 @@ build-builder-component() { stop-on-failure _build-builder-component "$@"; }
 
 alias bb=build-builder
 _build-builder() {
+  if ! hab sup status > /dev/null 2>&1; then
+    echo "Starting supervisor"
+    sup-run
+    sleep 5
+  fi
+
   if [[ $(hab sup status) == "No services loaded." ]]; then
     start-builder
   fi
