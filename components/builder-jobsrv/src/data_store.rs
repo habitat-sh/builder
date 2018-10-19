@@ -643,7 +643,7 @@ impl DataStore {
         package.set_manifest(row.get("manifest"));
         package.set_config(row.get("config"));
         package.set_target(row.get("target"));
-        let exposes: Vec<i16> = row.get("exposes");
+        let exposes: Vec<i32> = row.get("exposes");
         package.set_exposes(exposes.iter().map(|e| *e as u32).collect::<Vec<u32>>());
         package.set_deps(self.into_idents(row.get("deps")));
         package.set_tdeps(self.into_idents(row.get("tdeps")));
