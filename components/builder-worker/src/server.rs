@@ -18,7 +18,8 @@ use std::iter::FromIterator;
 use std::sync::Arc;
 
 use hab_core::users;
-use hab_core::util::perm;
+#[cfg(not(windows))]
+use hab_core::util::posix_perm as perm;
 use hab_net;
 use hab_net::socket::DEFAULT_CONTEXT;
 use protocol::{jobsrv, message};

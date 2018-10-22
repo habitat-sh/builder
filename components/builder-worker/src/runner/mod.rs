@@ -34,7 +34,8 @@ use bldr_core::logger::Logger;
 use chrono::Utc;
 use hab_core::os::users;
 use hab_core::package::archive::PackageArchive;
-use hab_core::util::perm;
+#[cfg(not(windows))]
+use hab_core::util::posix_perm as perm;
 use hab_net::socket::DEFAULT_CONTEXT;
 pub use protocol::jobsrv::JobState;
 use protocol::net::{self, ErrCode};

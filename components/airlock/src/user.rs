@@ -45,11 +45,15 @@ pub fn home_dir_for_username(username: &str) -> Result<PathBuf> {
 }
 
 pub fn my_username() -> Result<String> {
-    users::get_effective_username().ok_or(Error::EffectiveUsernameNotFound)
+    users::get_effective_username()
+        .and_then(|os_string| os_string.into_string().ok())
+        .ok_or(Error::EffectiveUsernameNotFound)
 }
 
 pub fn my_groupname() -> Result<String> {
-    users::get_effective_groupname().ok_or(Error::EffectiveGroupnameNotFound)
+    users::get_effective_groupname()
+        .and_then(|os_string| os_string.into_string().ok())
+        .ok_or(Error::EffectiveGroupnameNotFound)
 }
 
 fn user_by_username(username: &str) -> Result<users::User> {

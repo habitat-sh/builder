@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::env;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -98,7 +99,7 @@ pub fn check_user_group_membership(username: &str) -> Result<()> {
     for grp in vec!["tty"].iter() {
         let user_group =
             users::get_group_by_name(grp).ok_or(Error::GroupNotFound(String::from(*grp)))?;
-        if !user_group.members().contains(&user) {
+        if !user_group.members().contains(&OsString::from(&user)) {
             return Err(Error::UserNotInGroup(user, String::from(*grp)));
         }
     }
