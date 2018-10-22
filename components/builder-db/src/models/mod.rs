@@ -7,6 +7,8 @@ pub mod channel;
 pub mod invitations;
 pub mod origins;
 pub mod package;
+pub mod project_integration;
+pub mod projects;
 
 mod db_id_format {
     use serde::{self, Deserialize, Deserializer, Serializer};

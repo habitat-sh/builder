@@ -54,6 +54,7 @@ mkdir -p /hab/svc/builder-api-proxy
 cat <<EOT > /hab/svc/builder-api-proxy/user.toml
 log_level = "info"
 enable_builder = true
+enable_publisher_docker = true
 
 app_url = "http://${APP_HOSTNAME}"
 

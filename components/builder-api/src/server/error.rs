@@ -176,6 +176,7 @@ impl ResponseError for Error {
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::ParseIntError(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Protocol(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(&e)),
 
             // Default
             _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
@@ -196,10 +197,18 @@ impl Into<HttpResponse> for Error {
             Error::ParseIntError(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Protocol(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Error::BuilderCore(ref e) => HttpResponse::new(bldr_core_err_to_http(e)),
+            Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(e)),
 
             // Default
             _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
         }
+    }
+}
+
+fn diesel_err_to_http(err: &diesel::result::Error) -> StatusCode {
+    match err {
+        diesel::result::Error::NotFound => StatusCode::NOT_FOUND,
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

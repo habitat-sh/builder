@@ -68,9 +68,16 @@ pub struct GetLatestPackage {
     pub visibility: Vec<PackageVisibility>,
 }
 
+#[derive(Debug)]
 pub struct GetPackage {
     pub ident: BuilderPackageIdent,
     pub visibility: Vec<PackageVisibility>,
+}
+
+#[derive(Debug)]
+pub struct UpdatePackageVisibility {
+    pub visibility: PackageVisibility,
+    pub ids: Vec<i64>,
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Clone, ToSql, FromSql)]
@@ -91,6 +98,12 @@ impl Package {
             .bind::<Text, _>(req.ident)
             .bind::<Array<PackageVisibilityMapping>, _>(req.visibility)
             .get_result(conn)
+    }
+
+    pub fn get_all(ident: BuilderPackageIdent, conn: &PgConnection) -> QueryResult<Vec<Package>> {
+        diesel::sql_query("select * from get_all_origin_packages_for_ident_v1($1)")
+            .bind::<Text, _>(ident)
+            .get_results(conn)
     }
 
     pub fn get_latest(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
@@ -116,6 +129,16 @@ impl Package {
             .bind::<Array<Integer>,_>(package.exposes)
             .bind::<PackageVisibilityMapping,_>(package.visibility)
         .get_result(conn)
+    }
+
+    pub fn update_visibility(
+        req: UpdatePackageVisibility,
+        conn: &PgConnection,
+    ) -> QueryResult<usize> {
+        diesel::sql_query("select * from update_package_visibility_in_bulk_v2($1, $2)")
+            .bind::<PackageVisibilityMapping, _>(req.visibility)
+            .bind::<Array<BigInt>, _>(req.ids)
+            .execute(conn)
     }
 }
 

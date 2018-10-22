@@ -15,7 +15,7 @@ r2d2 = "*"
 time = "*"
 rand = "*"
 serde = "*"
-chrono = "*"
+chrono = { version = "*", features = ["serde"] }
 serde_derive = "*"
 num_cpus = "*"
 protobuf = "*"
