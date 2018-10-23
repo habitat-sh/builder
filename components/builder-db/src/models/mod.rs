@@ -5,7 +5,7 @@
 pub mod account;
 pub mod channel;
 pub mod invitations;
-pub mod origins;
+pub mod origin;
 pub mod package;
 
 mod db_id_format {

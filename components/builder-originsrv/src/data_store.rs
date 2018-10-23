@@ -931,8 +931,8 @@ impl DataStore {
         origin.set_id(oid as u64);
         origin.set_name(row.get("name"));
 
-        let dpv: String = row.get("default_package_visibility");
-        let new_dpv: originsrv::OriginPackageVisibility = dpv.parse()?;
+        let dpv: PackageVisibility = row.get("default_package_visibility");
+        let new_dpv: originsrv::OriginPackageVisibility = dpv.into();
         origin.set_default_package_visibility(new_dpv);
         let ooid: i64 = row.get("owner_id");
         origin.set_owner_id(ooid as u64);
@@ -948,11 +948,6 @@ impl DataStore {
         origin: &originsrv::OriginCreate,
     ) -> SrvResult<Option<originsrv::Origin>> {
         let conn = self.pool.get()?;
-        let mut dpv = origin.get_default_package_visibility().to_string();
-
-        if dpv.is_empty() {
-            dpv = originsrv::OriginPackageVisibility::default().to_string();
-        }
 
         let rows = conn
             .query(
@@ -961,7 +956,7 @@ impl DataStore {
                     &origin.get_name(),
                     &(origin.get_owner_id() as i64),
                     &origin.get_owner_name(),
-                    &dpv,
+                    &PackageVisibility::from(origin.get_default_package_visibility()),
                 ],
             ).map_err(SrvError::OriginCreate)?;
         if rows.len() == 1 {
@@ -981,11 +976,13 @@ impl DataStore {
 
     pub fn update_origin(&self, ou: &originsrv::OriginUpdate) -> SrvResult<()> {
         let conn = self.pool.get()?;
-        let dpv = ou.get_default_package_visibility().to_string();
 
         conn.execute(
             "SELECT update_origin_v1($1, $2)",
-            &[&(ou.get_id() as i64), &dpv],
+            &[
+                &(ou.get_id() as i64),
+                &PackageVisibility::from(ou.get_default_package_visibility()),
+            ],
         ).map_err(SrvError::OriginUpdate)?;
         Ok(())
     }
@@ -1014,8 +1011,8 @@ impl DataStore {
             origin.set_id(oid as u64);
             origin.set_name(row.get("name"));
             let ooid: i64 = row.get("owner_id");
-            let dpv: String = row.get("default_package_visibility");
-            let new_dpv: originsrv::OriginPackageVisibility = dpv.parse()?;
+            let dpv: PackageVisibility = row.get("default_package_visibility");
+            let new_dpv: originsrv::OriginPackageVisibility = dpv.into();
             origin.set_default_package_visibility(new_dpv);
             origin.set_owner_id(ooid as u64);
             let private_key_name: Option<String> = row.get("private_key_name");

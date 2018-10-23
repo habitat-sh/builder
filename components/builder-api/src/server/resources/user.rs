@@ -16,7 +16,7 @@ use actix_web::http::{Method, StatusCode};
 use actix_web::{App, HttpRequest, HttpResponse};
 
 use db::models::invitations::OriginInvitation;
-use db::models::origins::Origin;
+use db::models::origin::Origin;
 use server::authorize::authorize_session;
 use server::AppState;
 
