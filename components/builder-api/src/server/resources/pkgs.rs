@@ -135,7 +135,7 @@ impl Packages {
             ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                 Method::GET,
-                get_latest_package,
+                get_package,
             ).route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
                 Method::GET,
@@ -232,7 +232,7 @@ fn get_latest_package_for_origin_package_version(
     }
 }
 
-fn get_latest_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
+fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, pkg, version, release) = Path::<(String, String, String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
@@ -1099,25 +1099,49 @@ fn do_get_package(
         None => helpers::target_from_headers(req),
     };
 
-    match Package::get_latest(
-        GetLatestPackage {
-            ident: BuilderPackageIdent(ident.clone()),
-            target: BuilderPackageTarget(target),
-            visibility: helpers::visibility_for_optional_session_model(
-                req,
-                opt_session_id,
-                &ident.origin,
-            ),
-        },
-        &*conn,
-    ) {
-        Ok(pkg) => Ok(pkg),
-        Err(NotFound) => {
-            Err(Error::NetError(NetError::new(ErrCode::ENTITY_NOT_FOUND, "pkg:latest:1")).into())
+    if ident.fully_qualified() {
+        match Package::get(
+            GetPackage {
+                ident: BuilderPackageIdent(ident.clone()),
+                visibility: helpers::visibility_for_optional_session_model(
+                    req,
+                    opt_session_id,
+                    &ident.origin,
+                ),
+            },
+            &*conn,
+        ) {
+            Ok(pkg) => Ok(pkg),
+            Err(NotFound) => {
+                Err(Error::NetError(NetError::new(ErrCode::ENTITY_NOT_FOUND, "pkg:get:1")).into())
+            }
+            Err(err) => {
+                debug!("{:?}", err);
+                Err(err.into())
+            }
         }
-        Err(err) => {
-            debug!("{:?}", err);
-            Err(err.into())
+    } else {
+        match Package::get_latest(
+            GetLatestPackage {
+                ident: BuilderPackageIdent(ident.clone()),
+                target: BuilderPackageTarget(target),
+                visibility: helpers::visibility_for_optional_session_model(
+                    req,
+                    opt_session_id,
+                    &ident.origin,
+                ),
+            },
+            &*conn,
+        ) {
+            Ok(pkg) => Ok(pkg),
+            Err(NotFound) => Err(Error::NetError(NetError::new(
+                ErrCode::ENTITY_NOT_FOUND,
+                "pkg:latest:1",
+            )).into()),
+            Err(err) => {
+                debug!("{:?}", err);
+                Err(err.into())
+            }
         }
     }
 }
