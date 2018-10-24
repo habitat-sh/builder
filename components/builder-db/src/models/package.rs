@@ -94,9 +94,8 @@ impl Package {
     }
 
     pub fn get_latest(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
-        debug!("HERE HERE HERE: {:?}", req);
-        diesel::sql_query("select * from get_origin_package_latest_v6($1, $2, $3)")
-            .bind::<Text, _>(req.ident)
+        diesel::sql_query("select * from get_origin_package_latest_v7($1, $2, $3)")
+            .bind::<Array<Text>, _>(req.ident.parts())
             .bind::<Text, _>(req.target)
             .bind::<Array<PackageVisibilityMapping>, _>(req.visibility)
             .get_result(conn)
@@ -139,6 +138,12 @@ impl ToSql<Text, Pg> for BuilderPackageIdent {
         out.write_all(self.to_string().as_bytes())
             .map(|_| IsNull::No)
             .map_err(Into::into)
+    }
+}
+
+impl BuilderPackageIdent {
+    pub fn parts(self) -> Vec<String> {
+        self.to_string().split("/").map(|s| s.to_string()).collect()
     }
 }
 
