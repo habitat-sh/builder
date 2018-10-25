@@ -170,11 +170,23 @@ impl MemcacheClient {
 
     // These are to make the compiler happy
     fn get_bytes(&mut self, key: &str) -> Option<Vec<u8>> {
-        self.cli.get(key).unwrap()
+        match self.cli.get(key) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                warn!("Error getting key {}: {:?}", key, e);
+                None
+            }
+        }
     }
 
     fn get_string(&mut self, key: &str) -> Option<String> {
-        self.cli.get(key).unwrap()
+        match self.cli.get(key) {
+            Ok(string) => string,
+            Err(e) => {
+                warn!("Error getting key {}: {:?}", key, e);
+                None
+            }
+        }
     }
 }
 
