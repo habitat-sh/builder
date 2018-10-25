@@ -15,6 +15,10 @@ doc = false
 actix = "*"
 builder_core = { path = "../builder-core" }
 clippy = {version = "*", optional = true}
+chrono = { version = "*", features = ["serde"] }
+diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
+diesel-derive-enum = { version = "*", features = ["postgres"] }
+diesel_migrations = "*"
 futures = "*"
 rusoto_core = "0.32.0"
 rusoto_s3 = "0.32.0"
@@ -28,7 +32,6 @@ num_cpus = "*"
 protobuf = "*"
 postgres = { version = "*", features = ["with-chrono"] }
 postgres-derive = "*"
-chrono = { version = "*", features = ["serde"] }
 rand = "*"
 r2d2 = "*"
 serde = "*"
@@ -36,8 +39,6 @@ serde_derive = "*"
 sha2 = "*"
 time = "*"
 toml = { version = "*", default-features = false }
-diesel = "*"
-diesel_migrations = "*"
 
 [dependencies.actix-web]
 version = "*"

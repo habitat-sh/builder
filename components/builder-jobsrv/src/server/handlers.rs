@@ -21,8 +21,10 @@ use std::path::PathBuf;
 
 use bldr_core::rpc::RpcMessage;
 use hab_net::app::prelude::*;
-use hab_net::conn::RouteClient;
 
+use db::models::projects::*;
+
+use diesel;
 use protobuf::RepeatedField;
 use protocol::jobsrv;
 use protocol::net::{self, ErrCode};
@@ -36,7 +38,7 @@ use server::worker_manager::WorkerMgrClient;
 use error::{Error, Result};
 use time::PreciseTime;
 
-pub fn job_get(req: &RpcMessage, _conn: &mut RouteClient, state: &AppState) -> Result<RpcMessage> {
+pub fn job_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGet>()?;
 
     match state.datastore.get_job(&msg) {
@@ -53,11 +55,7 @@ pub fn job_get(req: &RpcMessage, _conn: &mut RouteClient, state: &AppState) -> R
     }
 }
 
-pub fn project_jobs_get(
-    req: &RpcMessage,
-    _conn: &mut RouteClient,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn project_jobs_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::ProjectJobsGet>()?;
     match state.datastore.get_jobs_for_project(&msg) {
         Ok(ref jobs) => {
@@ -73,11 +71,7 @@ pub fn project_jobs_get(
     }
 }
 
-pub fn job_log_get(
-    req: &RpcMessage,
-    _conn: &mut RouteClient,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobLogGet>()?;
     let mut get = jobsrv::JobGet::new();
     get.set_id(msg.get_id());
@@ -180,11 +174,7 @@ fn get_log_content(log_file: &PathBuf, offset: u64) -> Option<Vec<String>> {
     }
 }
 
-pub fn job_group_cancel(
-    req: &RpcMessage,
-    _conn: &mut RouteClient,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_group_cancel(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupCancel>()?;
     debug!("job_group_cancel message: {:?}", msg);
 
@@ -258,29 +248,27 @@ pub fn job_group_cancel(
     RpcMessage::make(&net::NetOk::new()).map_err(Error::BuilderCore)
 }
 
-fn is_project_buildable(conn: &mut RouteClient, project_name: &str) -> bool {
-    let mut project_get = originsrv::OriginProjectGet::new();
-    project_get.set_name(String::from(project_name));
+fn is_project_buildable(state: &AppState, project_name: &str) -> bool {
+    let conn = match state.db.get_conn().map_err(Error::Db) {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return false,
+    };
 
-    match conn.route::<originsrv::OriginProjectGet, originsrv::OriginProject>(&project_get) {
-        Ok(project) => project.get_auto_build(),
+    match Project::get(project_name.to_owned(), &*conn) {
+        Ok(project) => project.auto_build,
+        Err(diesel::result::Error::NotFound) => false,
         Err(err) => {
-            if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
-                false
-            } else {
-                warn!(
-                    "Unable to retrieve project: {:?}, error: {:?}",
-                    project_name, err
-                );
-                false
-            }
+            warn!(
+                "Unable to retrieve project: {:?}, error: {:?}",
+                project_name, err
+            );
+            false
         }
     }
 }
 
 fn populate_build_projects(
     msg: &jobsrv::JobGroupSpec,
-    conn: &mut RouteClient,
     state: &AppState,
     rdeps: &Vec<(String, String)>,
     projects: &mut Vec<(String, String)>,
@@ -298,7 +286,7 @@ fn populate_build_projects(
         // If the project is not linked to Builder, or is not auto-buildable
         // then we will skip it, as well as any later projects that depend on it
         // TODO (SA): Move the project list creation/vetting to background thread
-        if !is_project_buildable(conn, &s.0) {
+        if !is_project_buildable(state, &s.0) {
             debug!(
                 "Project is not linked to Builder or not auto-buildable - not adding: {}",
                 &s.0
@@ -346,11 +334,7 @@ fn populate_build_projects(
     }
 }
 
-pub fn job_group_create(
-    req: &RpcMessage,
-    conn: &mut RouteClient,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupSpec>()?;
     debug!("job_group_create message: {:?}", msg);
 
@@ -397,7 +381,7 @@ pub fn job_group_create(
     debug!("Resolved project name: {} sec\n", start_time.to(end_time));
 
     // Bail if auto-build is false, and the project has not been manually kicked off
-    if !is_project_buildable(conn, &project_name) {
+    if !is_project_buildable(state, &project_name) {
         match msg.get_trigger() {
             jobsrv::JobGroupTrigger::HabClient | jobsrv::JobGroupTrigger::BuilderUI => (),
             _ => {
@@ -431,7 +415,7 @@ pub fn job_group_create(
                     start_time.to(end_time)
                 );
 
-                populate_build_projects(&msg, conn, state, &rdeps, &mut projects);
+                populate_build_projects(&msg, state, &rdeps, &mut projects);
             }
             None => {
                 debug!("Graph rdeps: no entries found");
@@ -484,7 +468,6 @@ pub fn job_group_create(
 
 pub fn job_graph_package_reverse_dependencies_get(
     req: &RpcMessage,
-    _conn: &mut RouteClient,
     state: &AppState,
 ) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGraphPackageReverseDependenciesGet>()?;
@@ -528,11 +511,7 @@ pub fn job_graph_package_reverse_dependencies_get(
     RpcMessage::make(&rd_reply).map_err(Error::BuilderCore)
 }
 
-pub fn job_group_origin_get(
-    req: &RpcMessage,
-    _conn: &mut RouteClient,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_group_origin_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupOriginGet>()?;
 
     match state.datastore.get_job_group_origin(&msg) {
@@ -545,11 +524,7 @@ pub fn job_group_origin_get(
     }
 }
 
-pub fn job_group_get(
-    req: &RpcMessage,
-    _conn: &mut RouteClient,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_group_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupGet>()?;
     debug!("group_get message: {:?}", msg);
 
@@ -574,11 +549,7 @@ pub fn job_group_get(
     }
 }
 
-pub fn job_graph_package_create(
-    req: &RpcMessage,
-    _conn: &mut RouteClient,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGraphPackageCreate>()?;
     let package = msg.get_package();
     // Extend the graph with new package
@@ -607,11 +578,7 @@ pub fn job_graph_package_create(
     RpcMessage::make(package).map_err(Error::BuilderCore)
 }
 
-pub fn job_graph_package_precreate(
-    req: &RpcMessage,
-    _conn: &mut RouteClient,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGraphPackagePreCreate>()?;
     debug!("package_precreate message: {:?}", msg);
     let package: originsrv::OriginPackage = msg.into();

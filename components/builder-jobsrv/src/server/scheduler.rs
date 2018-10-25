@@ -18,15 +18,16 @@ use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
 use chrono::{DateTime, Utc};
-use hab_net::conn::RouteClient;
+use diesel;
 use hab_net::socket::DEFAULT_CONTEXT;
-use hab_net::ErrCode;
 use zmq;
 
 use data_store::DataStore;
+use db::DbPool;
 use error::{Error, Result};
 use protocol::jobsrv;
-use protocol::originsrv;
+
+use db::models::projects::*;
 
 use bldr_core::logger::Logger;
 use bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
@@ -64,16 +65,16 @@ impl Default for ScheduleClient {
 
 pub struct ScheduleMgr {
     datastore: DataStore,
+    db: DbPool,
     logger: Logger,
     msg: zmq::Message,
-    route_conn: RouteClient,
     schedule_cli: ScheduleClient,
     socket: zmq::Socket,
     worker_mgr: WorkerMgrClient,
 }
 
 impl ScheduleMgr {
-    pub fn new<T>(datastore: &DataStore, log_path: T, route_conn: RouteClient) -> Result<Self>
+    pub fn new<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Result<Self>
     where
         T: AsRef<Path>,
     {
@@ -87,25 +88,21 @@ impl ScheduleMgr {
 
         Ok(ScheduleMgr {
             datastore: datastore.clone(),
+            db: db,
             logger: Logger::init(log_path, "builder-scheduler.log"),
             msg: zmq::Message::new()?,
-            route_conn: route_conn,
             schedule_cli: schedule_cli,
             socket: socket,
             worker_mgr: worker_mgr,
         })
     }
 
-    pub fn start<T>(
-        datastore: &DataStore,
-        log_path: T,
-        route_conn: RouteClient,
-    ) -> Result<JoinHandle<()>>
+    pub fn start<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Result<JoinHandle<()>>
     where
         T: AsRef<Path>,
     {
         let (tx, rx) = mpsc::sync_channel(1);
-        let mut schedule_mgr = Self::new(datastore, log_path, route_conn)?;
+        let mut schedule_mgr = Self::new(datastore, db, log_path)?;
         let handle = thread::Builder::new()
             .name("scheduler".to_string())
             .spawn(move || {
@@ -390,35 +387,27 @@ impl ScheduleMgr {
     }
 
     fn schedule_job(&mut self, group_id: u64, project_name: &str) -> Result<Option<jobsrv::Job>> {
-        let mut project_get = originsrv::OriginProjectGet::new();
-        project_get.set_name(String::from(project_name));
+        let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        let project = match self
-            .route_conn
-            .route::<originsrv::OriginProjectGet, originsrv::OriginProject>(&project_get)
-        {
+        let project = match Project::get(project_name.to_owned(), &*conn) {
             Ok(project) => project,
+            Err(diesel::result::Error::NotFound) => {
+                // It's valid to not have a project connected
+                debug!("Unable to retrieve project: {:?} (not found)", project_name);
+                return Ok(None);
+            }
             Err(err) => {
-                if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
-                    // It's valid to not have a project connected
-                    debug!("Unable to retrieve project: {:?} (not found)", project_name);
-                    return Ok(None);
-                } else {
-                    // If we're not able to retrieve the project for other reasons,
-                    // it's likely a legit error - just log it for now, and return
-                    // Ok to keep the scheduler going.  TODO: Tighten this up later
-                    self.log_error(format!(
-                        "Unable to retrieve project: {:?} (group: {}), error: {:?}",
-                        project_name, group_id, err
-                    ));
-                    return Ok(None);
-                }
+                self.log_error(format!(
+                    "Unable to retrieve project: {:?} (group: {}), error: {:?}",
+                    project_name, group_id, err
+                ));
+                return Ok(None);
             }
         };
 
         let mut job_spec = jobsrv::JobSpec::new();
         job_spec.set_owner_id(group_id);
-        job_spec.set_project(project);
+        job_spec.set_project(project.into());
         job_spec.set_channel(bldr_channel_name(group_id));
 
         let mut job: jobsrv::Job = job_spec.into();

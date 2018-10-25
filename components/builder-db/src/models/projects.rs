@@ -5,6 +5,7 @@ use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::sql_types::{BigInt, Bool, Text};
 use diesel::RunQueryDsl;
+use protocol::originsrv;
 use schema::project::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
@@ -105,5 +106,23 @@ impl Project {
         diesel::sql_query("select * from get_origin_project_list_v2($1)")
             .bind::<Text, _>(origin)
             .get_results(conn)
+    }
+}
+
+impl Into<originsrv::OriginProject> for Project {
+    fn into(self) -> originsrv::OriginProject {
+        let mut proj = originsrv::OriginProject::new();
+        proj.set_id(self.id as u64);
+        proj.set_owner_id(self.owner_id as u64);
+        proj.set_origin_id(self.origin_id as u64);
+        proj.set_origin_name(self.origin_name);
+        proj.set_package_name(self.package_name);
+        proj.set_name(self.name);
+        proj.set_plan_path(self.plan_path);
+        proj.set_vcs_type(self.vcs_type);
+        proj.set_vcs_data(self.vcs_data);
+        proj.set_vcs_installation_id(self.vcs_installation_id as u32);
+        proj.set_auto_build(self.auto_build);
+        proj
     }
 }

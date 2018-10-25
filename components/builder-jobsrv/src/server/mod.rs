@@ -33,6 +33,7 @@ use actix_web::{App, HttpRequest, HttpResponse, Json};
 
 use bldr_core::rpc::RpcMessage;
 use bldr_core::target_graph::TargetGraph;
+use db::DbPool;
 use hab_net::app::prelude::*;
 use hab_net::socket;
 
@@ -51,15 +52,22 @@ use error::{Error, Result};
 pub struct AppState {
     archiver: Box<LogArchiver>,
     datastore: DataStore,
+    db: DbPool,
     graph: Arc<RwLock<TargetGraph>>,
     log_dir: LogDirectory,
 }
 
 impl AppState {
-    pub fn new(cfg: &Config, datastore: &DataStore, graph: &Arc<RwLock<TargetGraph>>) -> Self {
+    pub fn new(
+        cfg: &Config,
+        datastore: &DataStore,
+        db: DbPool,
+        graph: &Arc<RwLock<TargetGraph>>,
+    ) -> Self {
         AppState {
             archiver: log_archiver::from_config(&cfg.archive).unwrap(),
             datastore: datastore.clone(),
+            db: db,
             graph: graph.clone(),
             log_dir: LogDirectory::new(&cfg.log_dir),
         }
@@ -75,22 +83,19 @@ fn status(_req: &HttpRequest<AppState>) -> HttpResponse {
 
 fn handle_rpc((req, msg): (HttpRequest<AppState>, Json<RpcMessage>)) -> HttpResponse {
     debug!("Got RPC message, body =\n{:?}", msg);
-    let mut conn = RouteBroker::connect().unwrap(); // Unwrap ok?
 
     let result = match msg.id.as_str() {
-        "JobGet" => handlers::job_get(&msg, &mut conn, req.state()),
-        "ProjectJobsGet" => handlers::project_jobs_get(&msg, &mut conn, req.state()),
-        "JobLogGet" => handlers::job_log_get(&msg, &mut conn, req.state()),
-        "JobGroupSpec" => handlers::job_group_create(&msg, &mut conn, req.state()),
-        "JobGroupCancel" => handlers::job_group_cancel(&msg, &mut conn, req.state()),
-        "JobGroupGet" => handlers::job_group_get(&msg, &mut conn, req.state()),
-        "JobGroupOriginGet" => handlers::job_group_origin_get(&msg, &mut conn, req.state()),
-        "JobGraphPackageCreate" => handlers::job_graph_package_create(&msg, &mut conn, req.state()),
-        "JobGraphPackagePreCreate" => {
-            handlers::job_graph_package_precreate(&msg, &mut conn, req.state())
-        }
+        "JobGet" => handlers::job_get(&msg, req.state()),
+        "ProjectJobsGet" => handlers::project_jobs_get(&msg, req.state()),
+        "JobLogGet" => handlers::job_log_get(&msg, req.state()),
+        "JobGroupSpec" => handlers::job_group_create(&msg, req.state()),
+        "JobGroupCancel" => handlers::job_group_cancel(&msg, req.state()),
+        "JobGroupGet" => handlers::job_group_get(&msg, req.state()),
+        "JobGroupOriginGet" => handlers::job_group_origin_get(&msg, req.state()),
+        "JobGraphPackageCreate" => handlers::job_graph_package_create(&msg, req.state()),
+        "JobGraphPackagePreCreate" => handlers::job_graph_package_precreate(&msg, req.state()),
         "JobGraphPackageReverseDependenciesGet" => {
-            handlers::job_graph_package_reverse_dependencies_get(&msg, &mut conn, req.state())
+            handlers::job_graph_package_reverse_dependencies_get(&msg, req.state())
         }
 
         _ => {
@@ -139,12 +144,17 @@ pub fn run(config: Config) -> Result<()> {
                 .unwrap();
         }).unwrap();
 
-    WorkerMgr::start(&config, &datastore, RouteBroker::connect().unwrap())?;
-    ScheduleMgr::start(
+    let db_pool = DbPool::new(&config.datastore.clone())
+        .map_err(Error::Db)
+        .unwrap();
+
+    WorkerMgr::start(
+        &config,
         &datastore,
-        &config.log_path,
+        db_pool.clone(),
         RouteBroker::connect().unwrap(),
     )?;
+    ScheduleMgr::start(&datastore, db_pool.clone(), &config.log_path)?;
 
     info!(
         "builder-jobsrv listening on {}:{}",
@@ -153,7 +163,7 @@ pub fn run(config: Config) -> Result<()> {
     );
 
     server::new(move || {
-        let app_state = AppState::new(&config, &datastore, &graph_arc);
+        let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
 
         App::with_state(app_state)
             .middleware(Logger::default().exclude("/status"))

@@ -12,26 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::StatusCode;
-use actix_web::HttpResponse;
-
-use hab_net::{self, ErrCode};
-
-use bldr_core;
-use db;
-use hab_core;
-use postgres;
-use protobuf;
-use protocol;
-use r2d2;
-use rusoto_s3;
 use std::error;
 use std::fmt;
 use std::io;
 use std::num;
 use std::path::PathBuf;
 use std::result;
+
+use actix_web::http::StatusCode;
+use actix_web::HttpResponse;
+
+use diesel;
+use postgres;
+use protobuf;
+use r2d2;
+use rusoto_s3;
 use zmq;
+
+use bldr_core;
+use db;
+use hab_core;
+use hab_net::{self, ErrCode};
+use protocol;
 
 #[derive(Debug)]
 pub enum Error {
@@ -47,6 +49,7 @@ pub enum Error {
     DbTransaction(postgres::error::Error),
     DbTransactionStart(postgres::error::Error),
     DbTransactionCommit(postgres::error::Error),
+    DieselError(diesel::result::Error),
     HabitatCore(hab_core::Error),
     InvalidUrl,
     IO(io::Error),
@@ -119,6 +122,7 @@ impl fmt::Display for Error {
             Error::DbTransactionCommit(ref e) => {
                 format!("Failed to commit database transaction, {}", e)
             }
+            Error::DieselError(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::InvalidUrl => format!("Bad URL!"),
             Error::IO(ref e) => format!("{}", e),
@@ -204,6 +208,7 @@ impl error::Error for Error {
             Error::DbTransaction(ref err) => err.description(),
             Error::DbTransactionCommit(ref err) => err.description(),
             Error::DbTransactionStart(ref err) => err.description(),
+            Error::DieselError(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),
             Error::IO(ref err) => err.description(),
             Error::InvalidUrl => "Bad Url!",
@@ -252,6 +257,7 @@ impl Into<HttpResponse> for Error {
         match self {
             Error::NetError(ref e) => HttpResponse::build(net_err_to_http(&e)).json(&e),
             Error::BuilderCore(ref e) => HttpResponse::new(bldr_core_err_to_http(e)),
+            Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(e)),
 
             // Default
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
@@ -262,6 +268,13 @@ impl Into<HttpResponse> for Error {
 fn bldr_core_err_to_http(err: &bldr_core::Error) -> StatusCode {
     match err {
         bldr_core::error::Error::RpcError(code, _) => StatusCode::from_u16(*code).unwrap(),
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+fn diesel_err_to_http(err: &diesel::result::Error) -> StatusCode {
+    match err {
+        diesel::result::Error::NotFound => StatusCode::NOT_FOUND,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
@@ -318,6 +331,12 @@ impl From<hab_core::Error> for Error {
 impl From<db::error::Error> for Error {
     fn from(err: db::error::Error) -> Self {
         Error::Db(err)
+    }
+}
+
+impl From<diesel::result::Error> for Error {
+    fn from(err: diesel::result::Error) -> Error {
+        Error::DieselError(err)
     }
 }
 
