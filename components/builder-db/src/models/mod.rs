@@ -4,6 +4,7 @@
 
 pub mod account;
 pub mod channel;
+pub mod integration;
 pub mod invitations;
 pub mod origins;
 pub mod package;
