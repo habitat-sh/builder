@@ -36,9 +36,9 @@ use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
 // TED PROTOCLEANUP remove aliases when we get rid of all the protos
 use db::models::channel::{
-    Channel, CreateChannel, DeleteChannel, ListChannels, OriginChannelDemote as OCD,
-    OriginChannelPackage as OCPackage, OriginChannelPromote as OCP, PackageChannelAudit as PCA,
-    PackageChannelAudit, PackageChannelOperation as PCO,
+    Channel, CreateChannel, DeleteChannel, GetLatestPackage, ListChannels,
+    OriginChannelDemote as OCD, OriginChannelPackage as OCPackage, OriginChannelPromote as OCP,
+    PackageChannelAudit as PCA, PackageChannelAudit, PackageChannelOperation as PCO,
 };
 use db::models::package::{BuilderPackageIdent, GetPackage, Package};
 use server::services::metrics::Counter;
@@ -232,7 +232,7 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OCPackage::promote(
         OCP {
-            ident: ident.clone(),
+            ident: BuilderPackageIdent(ident.clone()),
             origin: origin.clone(),
             channel: channel.clone(),
         },
@@ -284,7 +284,7 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
     };
     match OCPackage::demote(
         OCD {
-            ident: ident.clone(),
+            ident: BuilderPackageIdent(ident.clone()),
             origin: origin.clone(),
             channel: channel.clone(),
         },
@@ -446,7 +446,7 @@ fn audit_package_rank_change(
 ) -> Result<()> {
     match PackageChannelAudit::audit(
         PCA {
-            ident: ident,
+            ident: BuilderPackageIdent(ident),
             channel: channel,
             operation: operation,
             trigger: helpers::trigger_from_request_model(req),
@@ -491,7 +491,7 @@ fn do_get_channel_packages(
 fn do_get_channel_package(
     req: &HttpRequest<AppState>,
     qtarget: &Query<Target>,
-    mut ident: OriginPackageIdent,
+    ident: OriginPackageIdent,
     channel: String,
 ) -> Result<String> {
     let opt_session_id = match authorize_session(req, None) {
@@ -527,31 +527,11 @@ fn do_get_channel_package(
         }
     };
 
-    // Fully qualify the ident if needed
-    // TODO: Have the OriginPackageLatestGet call just return the package
-    // metadata, thus saving us a second call to actually retrieve the package
-    if !ident.fully_qualified() {
-        let mut request = OriginChannelPackageLatestGet::new();
-        request.set_name(channel.clone());
-        request.set_target(target.to_string());
-        request.set_visibilities(helpers::visibility_for_optional_session(
-            req,
-            opt_session_id,
-            &ident.get_origin(),
-        ));
-        request.set_ident(ident.clone());
-
-        ident =
-            match route_message::<OriginChannelPackageLatestGet, OriginPackageIdent>(req, &request)
-            {
-                Ok(id) => id.into(),
-                Err(err) => return Err(err),
-            };
-    }
-
-    let pkg = match Package::get(
-        GetPackage {
+    let pkg = match Channel::get_latest_package(
+        GetLatestPackage {
             ident: BuilderPackageIdent(ident.clone().into()),
+            channel: channel.clone(),
+            target: target.to_string(),
             visibility: helpers::visibility_for_optional_session_model(
                 req,
                 opt_session_id,
@@ -562,9 +542,10 @@ fn do_get_channel_package(
     ) {
         Ok(pkg) => pkg,
         Err(NotFound) => {
-            return Err(
-                Error::NetError(NetError::new(ErrCode::ENTITY_NOT_FOUND, "pkg:get:1")).into(),
-            )
+            return Err(Error::NetError(NetError::new(
+                ErrCode::ENTITY_NOT_FOUND,
+                "channel_pkg:get_latest:1",
+            )).into())
         }
         Err(err) => return Err(err.into()),
     };

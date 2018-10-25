@@ -744,10 +744,14 @@ impl From<hab_core::package::PackageIdent> for OriginPackageIdent {
         ident.set_origin(value.origin);
         ident.set_name(value.name);
         if let Some(ver) = value.version {
-            ident.set_version(ver);
+            if ver != "" {
+                ident.set_version(ver);
+            }
         }
         if let Some(rel) = value.release {
-            ident.set_release(rel);
+            if rel != "" {
+                ident.set_release(rel);
+            }
         }
         ident
     }
@@ -833,12 +837,14 @@ impl Identifiable for OriginPackageIdent {
 
 impl Into<package::PackageIdent> for OriginPackageIdent {
     fn into(self) -> package::PackageIdent {
-        package::PackageIdent::new(
-            self.get_origin(),
-            self.get_name(),
-            Some(self.get_version()),
-            Some(self.get_release()),
-        )
+        let mut ident = package::PackageIdent::new(self.get_origin(), self.get_name(), None, None);
+        if !self.get_version().is_empty() {
+            ident.version = Some(self.get_version().into());
+        }
+        if !self.get_release().is_empty() {
+            ident.release = Some(self.get_release().into());
+        }
+        ident
     }
 }
 

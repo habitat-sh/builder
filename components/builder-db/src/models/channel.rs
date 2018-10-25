@@ -3,9 +3,9 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
-use diesel::sql_types::{BigInt, Bool, Text};
+use diesel::sql_types::{Array, BigInt, Bool, Text};
 use diesel::RunQueryDsl;
-use hab_core::package::PackageIdent;
+use models::package::{BuilderPackageIdent, Package, PackageVisibility, PackageVisibilityMapping};
 use schema::channel::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
@@ -43,6 +43,14 @@ pub struct DeleteChannel {
     pub channel: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct GetLatestPackage {
+    pub ident: BuilderPackageIdent,
+    pub visibility: Vec<PackageVisibility>,
+    pub channel: String,
+    pub target: String,
+}
+
 impl Channel {
     pub fn list(channel: ListChannels, conn: &PgConnection) -> QueryResult<Vec<Channel>> {
         diesel::sql_query("select * from get_origin_channels_for_origin_v3($1, $2)")
@@ -72,6 +80,17 @@ impl Channel {
             .bind::<Text, _>(channel.origin)
             .execute(conn)
     }
+
+    pub fn get_latest_package(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
+        let ident = req.ident;
+        diesel::sql_query("select * from get_origin_channel_package_latest_v8($1, $2, $3, $4, $5)")
+            .bind::<Text, _>(&ident.origin)
+            .bind::<Text, _>(req.channel)
+            .bind::<Array<Text>, _>(ident.clone().parts())
+            .bind::<Text, _>(req.target)
+            .bind::<Array<PackageVisibilityMapping>, _>(req.visibility)
+            .get_result(conn)
+    }
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize)]
@@ -90,7 +109,7 @@ pub enum PackageChannelOperation {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PackageChannelAudit {
     pub origin: String,
-    pub ident: PackageIdent,
+    pub ident: BuilderPackageIdent,
     pub channel: String,
     pub operation: PackageChannelOperation,
     pub trigger: PackageChannelTrigger,
@@ -120,12 +139,12 @@ pub struct OriginChannelPackage {
 }
 
 pub struct OriginChannelPromote {
-    pub ident: PackageIdent,
+    pub ident: BuilderPackageIdent,
     pub origin: String,
     pub channel: String,
 }
 pub struct OriginChannelDemote {
-    pub ident: PackageIdent,
+    pub ident: BuilderPackageIdent,
     pub origin: String,
     pub channel: String,
 }
