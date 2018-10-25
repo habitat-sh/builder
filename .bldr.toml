@@ -12,6 +12,7 @@ plan_path = "components/builder-api/habitat"
 paths = [
   "components/builder-api/*",
   "components/builder-core/*",
+  "components/builder-db/*",
   "components/builder-depot/*",
   "components/github-api-client/*",
   "components/segment-api-client/*",
