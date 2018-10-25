@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::env;
 
 use actix_web::http::{self, Method, StatusCode};
@@ -23,8 +24,11 @@ use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use bldr_core;
-use hab_core::package::Plan;
-use hab_net::NetOk;
+use hab_core::package::{PackageIdent, Plan};
+
+use db::models::package::*;
+use db::models::project_integration::*;
+use db::models::projects::*;
 
 use server::authorize::authorize_session;
 use server::error::Error;
@@ -32,10 +36,6 @@ use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination};
 use server::AppState;
-
-// A default name for per-project integrations. Currently, there
-// can only be one.
-const DEFAULT_PROJECT_INTEGRATION: &'static str = "default";
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProjectCreateReq {
@@ -102,10 +102,6 @@ impl Projects {
 
 // TODO: the project creation API needs to be simplified
 fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) -> HttpResponse {
-    let mut request = OriginProjectCreate::new();
-    let mut project = OriginProject::new();
-    let mut origin_get = OriginGet::new();
-
     if (body.origin.len() <= 0) || (body.plan_path.len() <= 0) {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -115,33 +111,37 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         Err(err) => return err.into(),
     };
 
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let mut origin_get = OriginGet::new();
+    origin_get.set_name(body.origin.clone());
+    let origin = match route_message::<OriginGet, Origin>(&req, &origin_get) {
+        Ok(response) => response,
+        Err(err) => return err.into(),
+    };
+
     // Test hook - bypass the github dance
     if env::var_os("HAB_FUNC_TEST").is_some() {
         debug!("creating test project");
-        project.set_plan_path(body.plan_path.clone());
-        project.set_vcs_type(String::from("git"));
-        project.set_vcs_data(String::from("https://github.com/habitat-sh/testapp.git"));
-        project.set_vcs_installation_id(body.installation_id);
-        project.set_auto_build(body.auto_build);
-        project.set_owner_id(account_id);
-        project.set_visibility(OriginPackageVisibility::Public);
-        project.set_package_name(String::from("testapp"));
 
-        origin_get.set_name(body.origin.clone());
-        let origin = match route_message::<OriginGet, Origin>(&req, &origin_get) {
-            Ok(response) => response,
-            Err(err) => return err.into(),
+        let new_project = NewProject {
+            owner_id: account_id as i64,
+            origin_name: String::from(origin.get_name()),
+            package_name: String::from("testapp"),
+            plan_path: body.plan_path.clone(),
+            vcs_type: String::from("git"),
+            vcs_data: String::from("https://github.com/habitat-sh/testapp.git"),
+            install_id: body.installation_id as i64,
+            visibility: OriginPackageVisibility::Public.to_string(),
+            auto_build: body.auto_build,
         };
-        project.set_origin_name(String::from(origin.get_name()));
-        project.set_origin_id(origin.get_id());
 
-        request.set_project(project);
-        match route_message::<OriginProjectCreate, OriginProject>(&req, &request) {
+        match Project::create(new_project, &*conn).map_err(Error::DieselError) {
             Ok(project) => return HttpResponse::Created().json(project),
-            Err(err) => {
-                debug!("failed project creation with {:?}", err);
-                return err.into();
-            }
+            Err(err) => return err.into(),
         }
     };
 
@@ -163,38 +163,23 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
-    origin_get.set_name(body.origin.clone());
-    project.set_plan_path(body.plan_path.clone());
-    project.set_vcs_type(String::from("git"));
-    project.set_vcs_installation_id(body.installation_id);
-    project.set_auto_build(body.auto_build);
-
-    match req.state().github.repo(&token, body.repo_id) {
-        Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
+    let vcs_data = match req.state().github.repo(&token, body.repo_id) {
+        Ok(Some(repo)) => repo.clone_url,
         Ok(None) => return HttpResponse::with_body(StatusCode::NOT_FOUND, "rg:pc:2"),
         Err(e) => {
             warn!("Error finding github repo. e = {:?}", e);
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:1");
         }
-    }
-
-    let origin = match route_message::<OriginGet, Origin>(&req, &origin_get) {
-        Ok(response) => response,
-        Err(err) => return err.into(),
     };
 
-    match req
+    let plan = match req
         .state()
         .github
-        .contents(&token, body.repo_id, &project.get_plan_path())
+        .contents(&token, body.repo_id, &body.plan_path)
     {
         Ok(Some(contents)) => match contents.decode() {
             Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
-                Ok(plan) => {
-                    project.set_origin_name(String::from(origin.get_name()));
-                    project.set_origin_id(origin.get_id());
-                    project.set_package_name(String::from(plan.name.trim_matches('"')));
-                }
+                Ok(plan) => plan,
                 Err(e) => {
                     debug!("Error matching Plan. e = {:?}", e);
                     return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:3");
@@ -210,13 +195,21 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
             warn!("Error fetching contents from GH. e = {:?}", e);
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:6");
         }
-    }
+    };
 
-    project.set_owner_id(account_id);
-    project.set_visibility(origin.get_default_package_visibility());
-    request.set_project(project);
+    let new_project = NewProject {
+        owner_id: account_id as i64,
+        origin_name: String::from(origin.get_name()),
+        package_name: String::from(plan.name.trim_matches('"')),
+        plan_path: body.plan_path.clone(),
+        vcs_type: String::from("git"),
+        vcs_data: vcs_data,
+        install_id: body.installation_id as i64,
+        visibility: origin.get_default_package_visibility().to_string(),
+        auto_build: body.auto_build,
+    };
 
-    match route_message::<OriginProjectCreate, OriginProject>(&req, &request) {
+    match Project::create(new_project, &*conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Created().json(project),
         Err(err) => err.into(),
     }
@@ -231,10 +224,14 @@ fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut project_get = OriginProjectGet::new();
-    project_get.set_name(format!("{}/{}", &origin, &name));
+    let project_get = format!("{}/{}", &origin, &name);
 
-    match route_message::<OriginProjectGet, OriginProject>(&req, &project_get) {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    match Project::get(project_get, &*conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Ok().json(project),
         Err(err) => err.into(),
     }
@@ -245,16 +242,18 @@ fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(id) => id,
+    if let Err(err) = authorize_session(&req, Some(&origin)) {
+        return err.into();
+    }
+
+    let project_delete = format!("{}/{}", &origin, &name);
+
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    let mut project_del = OriginProjectDelete::new();
-    project_del.set_name(format!("{}/{}", &origin, &name));
-    project_del.set_requestor_id(account_id);
-
-    match route_message::<OriginProjectDelete, NetOk>(&req, &project_del) {
+    match Project::delete(project_delete, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -270,16 +269,6 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         Err(err) => return err.into(),
     };
 
-    let mut project_get = OriginProjectGet::new();
-    project_get.set_name(format!("{}/{}", &origin, &name));
-
-    let mut project = match route_message::<OriginProjectGet, OriginProject>(&req, &project_get) {
-        Ok(project) => project,
-        Err(err) => return err.into(),
-    };
-
-    let mut request = OriginProjectUpdate::new();
-
     if body.plan_path.len() <= 0 {
         return HttpResponse::with_body(
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -287,20 +276,39 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         );
     }
 
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    // TODO (SA): We should not need to fetch the origin project here.
+    // Simplify origin project update sproc to not require project id,
+    // and to not need to pass in the origin id again
+    let project_get = format!("{}/{}", &origin, &name);
+
+    let project = match Project::get(project_get, &*conn).map_err(Error::DieselError) {
+        Ok(project) => project,
+        Err(err) => return err.into(),
+    };
+
     // Test hook - bypass the github dance
     if env::var_os("HAB_FUNC_TEST").is_some() {
         debug!("updating test project");
-        project.set_auto_build(body.auto_build);
-        project.set_plan_path(body.plan_path.clone());
-        project.set_vcs_installation_id(body.installation_id);
-        project.set_vcs_type(String::from("git"));
-        project.set_vcs_data(String::from("https://github.com/habitat-sh/testapp.git"));
-        project.set_visibility(OriginPackageVisibility::Public);
-        project.set_package_name(String::from("testapp"));
 
-        request.set_requestor_id(account_id);
-        request.set_project(project);
-        match route_message::<OriginProjectUpdate, NetOk>(&req, &request) {
+        let update_project = UpdateProject {
+            id: project.id,
+            origin_id: project.origin_id,
+            owner_id: account_id as i64,
+            package_name: String::from("testapp"),
+            plan_path: body.plan_path.clone(),
+            vcs_type: String::from("git"),
+            vcs_data: String::from("https://github.com/habitat-sh/testapp.git"),
+            install_id: body.installation_id as i64,
+            visibility: OriginPackageVisibility::Public.to_string(),
+            auto_build: body.auto_build,
+        };
+
+        match Project::update(update_project, &*conn).map_err(Error::DieselError) {
             Ok(_) => return HttpResponse::NoContent().finish(),
             Err(err) => return err.into(),
         }
@@ -324,23 +332,19 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         }
     };
 
-    project.set_auto_build(body.auto_build);
-    project.set_plan_path(body.plan_path.clone());
-    project.set_vcs_installation_id(body.installation_id);
-
-    match req.state().github.repo(&token, body.repo_id) {
-        Ok(Some(repo)) => project.set_vcs_data(repo.clone_url),
+    let vcs_data = match req.state().github.repo(&token, body.repo_id) {
+        Ok(Some(repo)) => repo.clone_url,
         Ok(None) => return HttpResponse::with_body(StatusCode::NOT_FOUND, "rg:pu:2"),
         Err(e) => {
             warn!("Error finding GH repo. e = {:?}", e);
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pu:1");
         }
-    }
+    };
 
-    match req
+    let plan = match req
         .state()
         .github
-        .contents(&token, body.repo_id, &project.get_plan_path())
+        .contents(&token, body.repo_id, &body.plan_path)
     {
         Ok(Some(contents)) => match contents.decode() {
             Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
@@ -349,8 +353,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
                     if plan.name != name {
                         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pu:7");
                     }
-                    project.set_origin_name(String::from(origin));
-                    project.set_package_name(String::from(name));
+                    plan
                 }
                 Err(e) => {
                     debug!("Error matching Plan. e = {:?}", e);
@@ -367,12 +370,22 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
             warn!("Erroring fetching contents from GH. e = {:?}", e);
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pu:5");
         }
-    }
+    };
 
-    request.set_requestor_id(account_id);
-    request.set_project(project);
+    let update_project = UpdateProject {
+        id: project.id,
+        owner_id: account_id as i64,
+        origin_id: project.origin_id,
+        package_name: String::from(plan.name.trim_matches('"')),
+        plan_path: body.plan_path.clone(),
+        vcs_type: String::from("git"),
+        vcs_data: vcs_data,
+        install_id: body.installation_id as i64,
+        visibility: project.visibility,
+        auto_build: body.auto_build,
+    };
 
-    match route_message::<OriginProjectUpdate, NetOk>(&req, &request) {
+    match Project::update(update_project, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -380,17 +393,25 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
 
 fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
-    let mut projects_get = OriginProjectListGet::new();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
     }
 
-    projects_get.set_origin(origin);
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    match route_message::<OriginProjectListGet, OriginProjectList>(&req, &projects_get) {
-        Ok(projects) => HttpResponse::Ok().json(projects.get_names()),
-        Err(err) => err.into(),
+    match Project::list(origin, &*conn) {
+        Ok(projects) => {
+            let names: Vec<String> = projects
+                .iter()
+                .map(|ref p| p.package_name.clone())
+                .collect();
+            HttpResponse::Ok().json(names)
+        }
+        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
@@ -476,20 +497,25 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
 
     let _: serde_json::Value = match serde_json::from_str(&body) {
         Ok(v) => v,
-        Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
+        Err(err) => {
+            debug!("Error parsing project integration body, err={:?}", err);
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
     };
 
-    let mut opi = OriginProjectIntegration::new();
-    opi.set_origin(origin.clone());
-    opi.set_name(name.clone());
-    opi.set_integration(integration.clone());
-    opi.set_integration_name(String::from(DEFAULT_PROJECT_INTEGRATION));
-    opi.set_body(body.clone());
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    let mut request = OriginProjectIntegrationCreate::new();
-    request.set_integration(opi);
+    let npi = NewProjectIntegration {
+        origin: origin,
+        name: name,
+        integration: integration,
+        body: body,
+    };
 
-    match route_message::<OriginProjectIntegrationCreate, NetOk>(&req, &request) {
+    match ProjectIntegration::create(npi, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -504,12 +530,18 @@ fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut request = OriginProjectIntegrationDelete::new();
-    request.set_origin(origin.clone());
-    request.set_name(name.clone());
-    request.set_integration(integration.clone());
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    match route_message::<OriginProjectIntegrationDelete, NetOk>(&req, &request) {
+    let dpi = DeleteProjectIntegration {
+        origin: origin,
+        name: name,
+        integration: integration,
+    };
+
+    match ProjectIntegration::delete(dpi, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -524,17 +556,19 @@ fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut opi = OriginProjectIntegration::new();
-    opi.set_origin(origin.clone());
-    opi.set_name(name.clone());
-    opi.set_integration(integration.clone());
-    opi.set_integration_name(String::from(DEFAULT_PROJECT_INTEGRATION));
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    let mut request = OriginProjectIntegrationGet::new();
-    request.set_integration(opi);
+    let gpi = GetProjectIntegration {
+        origin: origin,
+        name: name,
+        integration: integration,
+    };
 
-    match route_message::<OriginProjectIntegrationGet, OriginProjectIntegration>(&req, &request) {
-        Ok(integration) => match serde_json::from_str(&integration.get_body()) {
+    match ProjectIntegration::get(gpi, &*conn).map_err(Error::DieselError) {
+        Ok(integration) => match serde_json::from_str(&integration.body) {
             Ok(v) => {
                 let json_value: serde_json::Value = v;
                 HttpResponse::Ok().json(json_value)
@@ -567,22 +601,72 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
     };
 
-    let mut project_get = OriginProjectGet::new();
-    project_get.set_name(format!("{}/{}", origin, name));
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    match route_message::<OriginProjectGet, OriginProject>(&req, &project_get) {
-        Ok(mut project) => {
-            let real_visibility =
-                bldr_core::helpers::transition_visibility(opv, project.get_visibility());
-            let mut opu = OriginProjectUpdate::new();
-            project.set_visibility(real_visibility);
-            opu.set_project(project);
+    let project_get = format!("{}/{}", &origin, &name);
+    let project = match Project::get(project_get, &*conn).map_err(Error::DieselError) {
+        Ok(project) => project,
+        Err(err) => return err.into(),
+    };
 
-            match route_message::<OriginProjectUpdate, NetOk>(&req, &opu) {
-                Ok(_) => HttpResponse::NoContent().finish(),
-                Err(err) => err.into(),
-            }
-        }
-        Err(err) => err.into(),
+    let real_visibility =
+        bldr_core::helpers::transition_visibility(opv, project.visibility.parse().unwrap());
+
+    let package_name = project.package_name.clone();
+
+    let update_project = UpdateProject {
+        id: project.id,
+        owner_id: project.owner_id,
+        origin_id: project.origin_id,
+        package_name: package_name,
+        plan_path: project.plan_path,
+        vcs_type: project.vcs_type,
+        vcs_data: project.vcs_data,
+        install_id: project.vcs_installation_id,
+        visibility: real_visibility.to_string(),
+        auto_build: project.auto_build,
+    };
+
+    if let Err(err) = Project::update(update_project, &*conn).map_err(Error::DieselError) {
+        return err.into();
     }
+
+    let ident = PackageIdent::new(project.origin_name, project.package_name, None, None);
+    let pkgs =
+        match Package::get_all(BuilderPackageIdent(ident), &*conn).map_err(Error::DieselError) {
+            Ok(pkgs) => pkgs,
+            Err(err) => return err.into(),
+        };
+
+    let mut map = HashMap::new();
+
+    // TODO (SA): This needs to be refactored to all get done in a single transaction
+
+    // For each row, store its id in our map, keyed on visibility
+    for pkg in pkgs {
+        let id = pkg.id;
+        let pv: PackageVisibility = pkg.visibility;
+        let vis: originsrv::OriginPackageVisibility = pv.into();
+        let new_vis =
+            bldr_core::helpers::transition_visibility(project.visibility.parse().unwrap(), vis);
+        map.entry(new_vis).or_insert(Vec::new()).push(id);
+    }
+
+    // Now do a bulk update for each different visibility
+    for (vis, id_vector) in map.iter() {
+        let pv = PackageVisibility::from(*vis);
+        let upv = UpdatePackageVisibility {
+            visibility: pv,
+            ids: id_vector.clone(),
+        };
+
+        if let Err(err) = Package::update_visibility(upv, &*conn).map_err(Error::DieselError) {
+            return err.into();
+        };
+    }
+
+    HttpResponse::NoContent().finish()
 }
