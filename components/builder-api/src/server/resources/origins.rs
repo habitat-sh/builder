@@ -24,6 +24,7 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use actix_web::{AsyncResponder, FutureResponse, HttpMessage};
 use bytes::Bytes;
+use diesel::result::Error::NotFound;
 use futures::future::Future;
 use serde_json;
 
@@ -35,6 +36,11 @@ use hab_net::{ErrCode, NetOk};
 
 use protocol::originsrv::*;
 
+use db::models::origin::{
+    CreateOrigin as CreateOriginMod, GetOrigin as GetOriginMod, Origin as OriginMod,
+    UpdateOrigin as UpdateOriginMod,
+};
+use db::models::package::PackageVisibility;
 use server::authorize::{authorize_session, check_origin_owner, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
@@ -42,27 +48,23 @@ use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination};
 use server::AppState;
 
-// Query param containers
-#[derive(Clone, Serialize, Deserialize)]
-struct OriginCreateReq {
-    #[serde(default)]
-    name: String,
-    #[serde(default)]
-    default_package_visibility: Option<String>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct OriginUpdateReq {
-    #[serde(default)]
-    default_package_visibility: String,
-}
-
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginSecretPayload {
     #[serde(default)]
     name: String,
     #[serde(default)]
     value: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct CreateOriginHandlerReq {
+    pub name: String,
+    pub default_package_visibility: Option<PackageVisibility>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct UpdateOriginHandlerReq {
+    pub default_package_visibility: Option<PackageVisibility>,
 }
 
 pub struct Origins {}
@@ -173,20 +175,30 @@ impl Origins {
 // Route handlers - these functions can return any Responder trait
 //
 fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
-    let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+    let origin_name = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
-    let mut request = OriginGet::new();
-    request.set_name(origin);
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::InternalServerError().into(),
+    };
 
-    match route_message::<OriginGet, Origin>(&req, &request) {
+    match OriginMod::get(
+        GetOriginMod {
+            name: origin_name.clone(),
+        },
+        &*conn,
+    ) {
         Ok(origin) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(origin),
-        Err(err) => err.into(),
+        Err(NotFound) => HttpResponse::NotFound().into(),
+        Err(_) => HttpResponse::InternalServerError().into(),
     }
 }
 
-fn create_origin((req, body): (HttpRequest<AppState>, Json<OriginCreateReq>)) -> HttpResponse {
+fn create_origin(
+    (req, body): (HttpRequest<AppState>, Json<CreateOriginHandlerReq>),
+) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(id) => id,
         Err(err) => return err.into(),
@@ -194,56 +206,62 @@ fn create_origin((req, body): (HttpRequest<AppState>, Json<OriginCreateReq>)) ->
 
     let account_name = get_session_user_name(&req, account_id);
 
-    let mut request = OriginCreate::new();
-    request.set_owner_id(account_id);
-    request.set_owner_name(account_name);
-    request.set_name(body.name.clone());
-
-    if let Some(ref vis) = body.default_package_visibility {
-        let opv = match vis.parse::<OriginPackageVisibility>() {
-            Ok(vis) => vis,
-            Err(err) => return Error::Protocol(err).into(),
-        };
-        request.set_default_package_visibility(opv);
-    }
+    let dpv = match body.clone().default_package_visibility {
+        Some(viz) => viz,
+        None => PackageVisibility::Public,
+    };
 
     if !ident::is_valid_origin_name(&body.name) {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        return HttpResponse::ExpectationFailed().into();
     }
 
-    match route_message::<OriginCreate, Origin>(&req, &request) {
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::InternalServerError().into(),
+    };
+
+    match OriginMod::create(
+        CreateOriginMod {
+            name: body.0.name,
+            owner_id: account_id as i64,
+            owner_name: account_name,
+            default_package_visibility: dpv,
+        },
+        &*conn,
+    ) {
         Ok(origin) => HttpResponse::Created().json(origin),
-        Err(err) => err.into(),
+        Err(_e) => HttpResponse::InternalServerError().into(),
     }
 }
 
-fn update_origin((req, body): (HttpRequest<AppState>, Json<OriginUpdateReq>)) -> HttpResponse {
+fn update_origin(
+    (req, body): (HttpRequest<AppState>, Json<UpdateOriginHandlerReq>),
+) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
     }
 
-    let mut request = OriginUpdate::new();
-    request.set_name(origin.clone());
-
-    let dpv = match body
-        .default_package_visibility
-        .parse::<OriginPackageVisibility>()
-    {
-        Ok(x) => x,
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::InternalServerError().into(),
     };
-    request.set_default_package_visibility(dpv);
 
-    match helpers::get_origin(&req, request.get_name()) {
-        Ok(origin) => request.set_id(origin.get_id()),
-        Err(err) => return err.into(),
-    }
+    let dpv = match body.0.default_package_visibility {
+        Some(viz) => viz,
+        None => PackageVisibility::Public,
+    };
 
-    match route_message::<OriginUpdate, NetOk>(&req, &request) {
-        Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+    match OriginMod::update(
+        UpdateOriginMod {
+            name: origin,
+            default_package_visibility: dpv,
+        },
+        &*conn,
+    ) {
+        Ok(_) => HttpResponse::NoContent().into(),
+        Err(_) => HttpResponse::InternalServerError().into(),
     }
 }
 
@@ -716,7 +734,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest<AppState>) -> HttpResp
         Err(Error::NetError(err)) => {
             // TODO: redesign to not be generating keys during d/l
             if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
-                match generate_origin_encryption_keys(&origin, &req, account_id) {
+                match generate_origin_encryption_keys(&origin.into(), &req, account_id) {
                     Ok(key) => key,
                     Err(Error::NetError(e)) => return Error::NetError(e).into(),
                     Err(_) => unreachable!(),

@@ -33,7 +33,10 @@ describe('Origin API', function () {
       request.get('/depot/origins/neurosis')
         .expect(200)
         .end(function (err, res) {
-          expect(res.body).to.deep.equal(global.originNeurosis);
+          expect(res.body.name).to.equal(global.originNeurosis.name);
+          expect(res.body.id).to.equal(global.originNeurosis.id);
+          expect(res.body.owner_id).to.equal(global.originNeurosis.owner_id);
+          expect(res.body.default_package_visibility).to.equal(global.originNeurosis.default_package_visibility);
           done(err);
         });
     });

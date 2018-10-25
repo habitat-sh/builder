@@ -85,10 +85,13 @@ pub struct UpdatePackageVisibility {
 #[postgres(name = "origin_package_visibility")]
 pub enum PackageVisibility {
     #[postgres(name = "public")]
+    #[serde(rename = "public")]
     Public,
     #[postgres(name = "private")]
+    #[serde(rename = "private")]
     Private,
     #[postgres(name = "hidden")]
+    #[serde(rename = "hidden")]
     Hidden,
 }
 
