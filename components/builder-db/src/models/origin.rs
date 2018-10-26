@@ -62,15 +62,11 @@ pub struct UpdateOrigin {
     pub default_package_visibility: PackageVisibility,
 }
 
-pub struct GetOrigin {
-    pub name: String,
-}
-
 impl Origin {
-    pub fn get(orig: GetOrigin, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
+    pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
         diesel::sql_query(
             "select * from origins_with_secret_key_full_name_v2 where name = $1 limit 1",
-        ).bind::<Text, _>(orig.name)
+        ).bind::<Text, _>(origin)
         .get_result(conn)
     }
 

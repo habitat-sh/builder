@@ -24,6 +24,7 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use actix_web::{AsyncResponder, FutureResponse, HttpMessage};
 use bytes::Bytes;
+use diesel::pg::PgConnection;
 use diesel::result::Error::NotFound;
 use futures::future::Future;
 use serde_json;
@@ -36,11 +37,12 @@ use hab_net::{ErrCode, NetOk};
 
 use protocol::originsrv::*;
 
+use db::models::keys::*;
 use db::models::origin::{
-    CreateOrigin as CreateOriginMod, GetOrigin as GetOriginMod, Origin as OriginMod,
-    UpdateOrigin as UpdateOriginMod,
+    CreateOrigin as CreateOriginMod, Origin as OriginMod, UpdateOrigin as UpdateOriginMod,
 };
 use db::models::package::PackageVisibility;
+
 use server::authorize::{authorize_session, check_origin_owner, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
@@ -182,12 +184,7 @@ fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
         Err(_) => return HttpResponse::InternalServerError().into(),
     };
 
-    match OriginMod::get(
-        GetOriginMod {
-            name: origin_name.clone(),
-        },
-        &*conn,
-    ) {
+    match OriginMod::get(&origin_name, &*conn) {
         Ok(origin) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(origin),
@@ -717,37 +714,26 @@ fn download_latest_origin_encryption_key(req: HttpRequest<AppState>) -> HttpResp
         Err(err) => return err.into(),
     };
 
-    let mut request = OriginPublicEncryptionKeyLatestGet::new();
-    let origin = match helpers::get_origin(&req, &origin) {
-        Ok(mut origin) => {
-            request.set_owner_id(origin.get_owner_id());
-            request.set_origin(origin.get_name().to_string());
-            origin
-        }
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    let key = match route_message::<OriginPublicEncryptionKeyLatestGet, OriginPublicEncryptionKey>(
-        &req, &request,
-    ) {
+    let key = match PublicEncryptionKey::latest(&origin, &*conn) {
         Ok(key) => key,
-        Err(Error::NetError(err)) => {
+        Err(NotFound) => {
             // TODO: redesign to not be generating keys during d/l
-            if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
-                match generate_origin_encryption_keys(&origin.into(), &req, account_id) {
-                    Ok(key) => key,
-                    Err(Error::NetError(e)) => return Error::NetError(e).into(),
-                    Err(_) => unreachable!(),
-                }
-            } else {
-                return Error::NetError(err).into();
+            match generate_origin_encryption_keys(&origin, account_id, &conn) {
+                Ok(key) => key,
+                Err(Error::NetError(e)) => return Error::NetError(e).into(),
+                Err(_) => unreachable!(),
             }
         }
-        Err(err) => return err.into(),
+        Err(err) => return Error::DieselError(err).into(),
     };
 
-    let xfilename = format!("{}-{}.pub", key.get_name(), key.get_revision());
-    download_content_as_file(key.get_body(), xfilename)
+    let xfilename = format!("{}-{}.pub", key.name, key.revision);
+    download_content_as_file(&key.body, xfilename)
 }
 
 fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
@@ -1145,52 +1131,47 @@ fn download_content_as_file(content: &[u8], filename: String) -> HttpResponse {
 }
 
 fn generate_origin_encryption_keys(
-    origin: &Origin,
-    req: &HttpRequest<AppState>,
+    origin: &str,
     session_id: u64,
-) -> Result<OriginPublicEncryptionKey> {
-    debug!("Generate Origin Encryption Keys {:?} for {:?}", req, origin);
+    conn: &PgConnection,
+) -> Result<PublicEncryptionKey> {
+    debug!("Generating encryption keys for {}", origin);
 
-    let mut public_request = OriginPublicEncryptionKeyCreate::new();
-    let mut private_request = OriginPrivateEncryptionKeyCreate::new();
-    let mut public_key = OriginPublicEncryptionKey::new();
-    let mut private_key = OriginPrivateEncryptionKey::new();
+    let origin_id = match OriginMod::get(origin, &*conn) {
+        Ok(origin) => origin.id,
+        Err(err) => return Err(Error::DieselError(err)),
+    };
 
-    public_key.set_owner_id(session_id);
-    private_key.set_owner_id(session_id);
-    public_key.set_name(origin.get_name().to_string());
-    public_key.set_origin_id(origin.get_id());
-    private_key.set_name(origin.get_name().to_string());
-    private_key.set_origin_id(origin.get_id());
+    let pair = BoxKeyPair::generate_pair_for_origin(origin).map_err(Error::HabitatCore)?;
 
-    let pair =
-        BoxKeyPair::generate_pair_for_origin(origin.get_name()).map_err(Error::HabitatCore)?;
-    public_key.set_revision(pair.rev.clone());
-    public_key.set_body(
-        pair.to_public_string()
-            .map_err(Error::HabitatCore)?
-            .into_bytes(),
-    );
-    private_key.set_revision(pair.rev.clone());
-    private_key.set_body(
-        pair.to_secret_string()
-            .map_err(Error::HabitatCore)?
-            .into_bytes(),
-    );
+    let pk_body = pair
+        .to_public_string()
+        .map_err(Error::HabitatCore)?
+        .into_bytes();
 
-    public_request.set_public_encryption_key(public_key);
-    private_request.set_private_encryption_key(private_key);
+    let new_pk = NewPublicEncryptionKey {
+        owner_id: session_id as i64,
+        origin_id: origin_id,
+        name: origin,
+        revision: &pair.rev,
+        body: &pk_body,
+    };
 
-    let key = route_message::<OriginPublicEncryptionKeyCreate, OriginPublicEncryptionKey>(
-        req,
-        &public_request,
-    )?;
-    route_message::<OriginPrivateEncryptionKeyCreate, OriginPrivateEncryptionKey>(
-        req,
-        &private_request,
-    )?;
+    let sk_body = pair
+        .to_secret_string()
+        .map_err(Error::HabitatCore)?
+        .into_bytes();
 
-    Ok(key)
+    let new_sk = NewPrivateEncryptionKey {
+        owner_id: session_id as i64,
+        origin_id: origin_id,
+        name: origin,
+        revision: &pair.rev,
+        body: &sk_body,
+    };
+
+    PrivateEncryptionKey::create(&new_sk, &*conn)?;
+    PublicEncryptionKey::create(&new_pk, &*conn).map_err(Error::DieselError)
 }
 
 fn encrypt(req: &HttpRequest<AppState>, content: &Bytes) -> Result<String> {
