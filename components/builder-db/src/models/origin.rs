@@ -23,6 +23,18 @@ pub struct Origin {
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[table_name = "origins_with_secret_key"]
+pub struct OriginWithSecretKey {
+    #[serde(with = "db_id_format")]
+    pub id: i64,
+    #[serde(with = "db_id_format")]
+    pub owner_id: i64,
+    pub name: String,
+    pub private_key_name: Option<String>,
+    pub default_package_visibility: PackageVisibility,
+}
+
+#[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origins_with_stats"]
 pub struct OriginWithStats {
     #[serde(with = "db_id_format")]
@@ -55,10 +67,11 @@ pub struct GetOrigin {
 }
 
 impl Origin {
-    pub fn get(orig: GetOrigin, conn: &PgConnection) -> QueryResult<Origin> {
-        diesel::sql_query("select * from get_origin_v1($1)")
-            .bind::<Text, _>(orig.name)
-            .get_result(conn)
+    pub fn get(orig: GetOrigin, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
+        diesel::sql_query(
+            "select * from origins_with_secret_key_full_name_v2 where name = $1 limit 1",
+        ).bind::<Text, _>(orig.name)
+        .get_result(conn)
     }
 
     pub fn list(owner_id: i64, conn: &PgConnection) -> QueryResult<Vec<OriginWithStats>> {
