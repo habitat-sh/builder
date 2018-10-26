@@ -93,6 +93,20 @@ describe('Keys API', function () {
           done(err);
         });
     });
+
+    it('retrieves the secret key with origin get request', function (done) {
+      request.get('/depot/origins/neurosis')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.name).to.equal(global.originNeurosis.name);
+          expect(res.body.id).to.equal(global.originNeurosis.id);
+          expect(res.body.owner_id).to.equal(global.originNeurosis.owner_id);
+          expect(res.body.default_package_visibility).to.equal(global.originNeurosis.default_package_visibility);
+          expect(res.body.private_key_name).to.equal(`neurosis-${revision}`);
+          done(err);
+        });
+    });
+
   });
 
   describe('Downloading secret keys', function () {
