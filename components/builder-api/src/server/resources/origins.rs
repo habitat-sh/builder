@@ -42,6 +42,7 @@ use db::models::origin::{
     CreateOrigin as CreateOriginMod, Origin as OriginMod, UpdateOrigin as UpdateOriginMod,
 };
 use db::models::package::PackageVisibility;
+use db::models::secrets::OriginSecret as OriginSecretMod;
 
 use server::authorize::{authorize_session, check_origin_owner, get_session_user_name};
 use server::error::{Error, Result};
@@ -407,16 +408,20 @@ fn list_origin_secrets(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut request = OriginSecretListGet::new();
-    match helpers::get_origin(&req, &origin) {
-        Ok(origin) => request.set_origin_id(origin.get_id()),
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
+    };
 
-    match route_message::<OriginSecretListGet, OriginSecretList>(&req, &request) {
+    let origin_id = match OriginMod::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id,
+        Err(err) => return err.into(),
+    };
+
+    match OriginSecretMod::list(origin_id as i64, &*conn).map_err(Error::DieselError) {
         Ok(list) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(&list.get_secrets()),
+            .json(&list),
         Err(err) => err.into(),
     }
 }
@@ -426,9 +431,10 @@ fn create_origin_secret(
 ) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
-        return err.into();
-    }
+    let _account_id = match authorize_session(&req, Some(&origin)) {
+        Ok(id) => id,
+        Err(err) => return err.into(),
+    };
 
     if body.name.len() <= 0 {
         return HttpResponse::with_body(
@@ -457,31 +463,20 @@ fn create_origin_secret(
 
     debug!("Secret Metadata: {:?}", secret_metadata);
 
-    let mut secret = OriginSecret::new();
-    secret.set_name(body.name.clone());
-    secret.set_value(body.value.clone());
-    let mut db_priv_request = OriginPrivateEncryptionKeyGet::new();
-    let mut db_pub_request = OriginPublicEncryptionKeyGet::new();
-    match helpers::get_origin(&req, origin) {
-        Ok(mut origin) => {
-            let origin_name = origin.take_name();
-            let origin_owner_id = origin.get_owner_id();
-            secret.set_origin_id(origin.get_id());
-            db_priv_request.set_owner_id(origin_owner_id.clone());
-            db_priv_request.set_origin(origin_name.clone());
-            db_pub_request.set_owner_id(origin_owner_id.clone());
-            db_pub_request.set_origin(origin_name.clone());
-        }
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
+    };
+
+    let origin_id = match OriginMod::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id,
+        Err(err) => return err.into(),
+    };
 
     // fetch the private origin encryption key from the database
-    let priv_key = match route_message::<OriginPrivateEncryptionKeyGet, OriginPrivateEncryptionKey>(
-        &req,
-        &db_priv_request,
-    ) {
+    let priv_key = match PrivateEncryptionKey::get(&origin, &*conn).map_err(Error::DieselError) {
         Ok(key) => {
-            let key_str = from_utf8(key.get_body()).unwrap();
+            let key_str = from_utf8(&key.body).unwrap();
             match BoxKeyPair::secret_key_from_str(key_str) {
                 Ok(key) => key,
                 Err(e) => {
@@ -505,17 +500,13 @@ fn create_origin_secret(
         }
     };
 
-    db_pub_request.set_revision(rev.clone());
-
     debug!("Using key {:?}-{:?}", name, &rev);
 
     // fetch the public origin encryption key from the database
-    let pub_key = match route_message::<OriginPublicEncryptionKeyGet, OriginPublicEncryptionKey>(
-        &req,
-        &db_pub_request,
-    ) {
+    let pub_key = match PublicEncryptionKey::get(&origin, &rev, &*conn).map_err(Error::DieselError)
+    {
         Ok(key) => {
-            let key_str = from_utf8(key.get_body()).unwrap();
+            let key_str = from_utf8(&key.body).unwrap();
             match BoxKeyPair::public_key_from_str(key_str) {
                 Ok(key) => key,
                 Err(e) => {
@@ -541,10 +532,9 @@ fn create_origin_secret(
         }
     };
 
-    let mut request = OriginSecretCreate::new();
-    request.set_secret(secret);
-
-    match route_message::<OriginSecretCreate, OriginSecret>(&req, &request) {
+    match OriginSecretMod::create(origin_id as i64, &body.name, &body.value, &*conn)
+        .map_err(Error::DieselError)
+    {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => err.into(),
     }
@@ -559,13 +549,23 @@ fn delete_origin_secret(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let origin_id = match OriginMod::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id,
+        Err(err) => return err.into(),
+    };
+
     let mut request = OriginSecretDelete::new();
     match helpers::get_origin(&req, &origin) {
         Ok(origin) => request.set_origin_id(origin.get_id()),
         Err(err) => return err.into(),
     }
     request.set_name(secret.clone());
-    match route_message::<OriginSecretDelete, NetOk>(&req, &request) {
+    match OriginSecretMod::delete(origin_id as i64, &secret, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => err.into(),
     }

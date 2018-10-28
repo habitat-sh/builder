@@ -125,8 +125,3 @@ impl PrivateEncryptionKey {
         .get_result(conn)
     }
 }
-
-/*
-
-
-*/

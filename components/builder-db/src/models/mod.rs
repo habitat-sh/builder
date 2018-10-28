@@ -11,6 +11,7 @@ pub mod origin;
 pub mod package;
 pub mod project_integration;
 pub mod projects;
+pub mod secrets;
 
 mod db_id_format {
     use serde::{self, Deserialize, Deserializer, Serializer};
