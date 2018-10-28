@@ -9,7 +9,7 @@ use schema::key::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_public_encryption_keys"]
-pub struct PublicEncryptionKey {
+pub struct OriginPublicEncryptionKey {
     #[serde(with = "db_id_format")]
     pub id: i64,
     #[serde(with = "db_id_format")]
@@ -26,7 +26,7 @@ pub struct PublicEncryptionKey {
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_private_encryption_keys"]
-pub struct PrivateEncryptionKey {
+pub struct OriginPrivateEncryptionKey {
     #[serde(with = "db_id_format")]
     pub id: i64,
     #[serde(with = "db_id_format")]
@@ -43,7 +43,7 @@ pub struct PrivateEncryptionKey {
 
 #[derive(Insertable)]
 #[table_name = "origin_public_encryption_keys"]
-pub struct NewPublicEncryptionKey<'a> {
+pub struct NewOriginPublicEncryptionKey<'a> {
     pub owner_id: i64,
     pub origin_id: i64,
     pub name: &'a str,
@@ -53,7 +53,7 @@ pub struct NewPublicEncryptionKey<'a> {
 
 #[derive(Insertable)]
 #[table_name = "origin_private_encryption_keys"]
-pub struct NewPrivateEncryptionKey<'a> {
+pub struct NewOriginPrivateEncryptionKey<'a> {
     pub owner_id: i64,
     pub origin_id: i64,
     pub name: &'a str,
@@ -61,12 +61,12 @@ pub struct NewPrivateEncryptionKey<'a> {
     pub body: &'a [u8],
 }
 
-impl PublicEncryptionKey {
+impl OriginPublicEncryptionKey {
     pub fn get(
         origin: &str,
         revision: &str,
         conn: &PgConnection,
-    ) -> QueryResult<PublicEncryptionKey> {
+    ) -> QueryResult<OriginPublicEncryptionKey> {
         diesel::sql_query("select * from get_origin_public_encryption_key_v1($1, $2)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(revision)
@@ -74,9 +74,9 @@ impl PublicEncryptionKey {
     }
 
     pub fn create(
-        req: &NewPublicEncryptionKey,
+        req: &NewOriginPublicEncryptionKey,
         conn: &PgConnection,
-    ) -> QueryResult<PublicEncryptionKey> {
+    ) -> QueryResult<OriginPublicEncryptionKey> {
         let full_name = format!("{}-{}", req.name, req.revision);
         diesel::sql_query(
             "select * from insert_origin_public_encryption_key_v1($1, $2, $3, $4, $5, $6)",
@@ -89,30 +89,30 @@ impl PublicEncryptionKey {
         .get_result(conn)
     }
 
-    pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<PublicEncryptionKey> {
+    pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPublicEncryptionKey> {
         diesel::sql_query("select * from get_origin_public_encryption_key_latest_v1($1)")
             .bind::<Text, _>(origin)
             .get_result(conn)
     }
 
-    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<PublicEncryptionKey>> {
+    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginPublicEncryptionKey>> {
         diesel::sql_query("select * from get_origin_public_encryption_keys_for_origin_v1($1)")
             .bind::<Text, _>(origin)
             .get_results(conn)
     }
 }
 
-impl PrivateEncryptionKey {
-    pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<PrivateEncryptionKey> {
+impl OriginPrivateEncryptionKey {
+    pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateEncryptionKey> {
         diesel::sql_query("select * from get_origin_private_encryption_key_v1($1)")
             .bind::<Text, _>(origin)
             .get_result(conn)
     }
 
     pub fn create(
-        req: &NewPrivateEncryptionKey,
+        req: &NewOriginPrivateEncryptionKey,
         conn: &PgConnection,
-    ) -> QueryResult<PrivateEncryptionKey> {
+    ) -> QueryResult<OriginPrivateEncryptionKey> {
         let full_name = format!("{}-{}", req.name, req.revision);
         diesel::sql_query(
             "select * from insert_origin_private_encryption_key_v1($1, $2, $3, $4, $5, $6)",

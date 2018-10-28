@@ -35,14 +35,22 @@ use hab_core::crypto::BoxKeyPair;
 use hab_core::package::ident;
 use hab_net::{ErrCode, NetOk};
 
-use protocol::originsrv::*;
-
-use db::models::keys::*;
-use db::models::origin::{
-    CreateOrigin as CreateOriginMod, Origin as OriginMod, UpdateOrigin as UpdateOriginMod,
+use protocol::originsrv::{
+    Account, AccountGet, OriginInvitation, OriginInvitationAcceptRequest, OriginInvitationCreate,
+    OriginInvitationIgnoreRequest, OriginInvitationListRequest, OriginInvitationListResponse,
+    OriginInvitationRescindRequest, OriginKeyIdent, OriginMemberListRequest,
+    OriginMemberListResponse, OriginMemberRemove, OriginPackageUniqueListRequest,
+    OriginPackageUniqueListResponse, OriginPrivateSigningKey, OriginPrivateSigningKeyCreate,
+    OriginPrivateSigningKeyGet, OriginPublicSigningKey, OriginPublicSigningKeyCreate,
+    OriginPublicSigningKeyGet, OriginPublicSigningKeyLatestGet, OriginPublicSigningKeyListRequest,
+    OriginPublicSigningKeyListResponse,
 };
+
+use db::models::integration::*;
+use db::models::keys::*;
+use db::models::origin::*;
 use db::models::package::PackageVisibility;
-use db::models::secrets::OriginSecret as OriginSecretMod;
+use db::models::secrets::*;
 
 use server::authorize::{authorize_session, check_origin_owner, get_session_user_name};
 use server::error::{Error, Result};
@@ -185,7 +193,7 @@ fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
         Err(_) => return HttpResponse::InternalServerError().into(),
     };
 
-    match OriginMod::get(&origin_name, &*conn) {
+    match Origin::get(&origin_name, &*conn) {
         Ok(origin) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(origin),
@@ -218,8 +226,8 @@ fn create_origin(
         Err(_) => return HttpResponse::InternalServerError().into(),
     };
 
-    match OriginMod::create(
-        CreateOriginMod {
+    match Origin::create(
+        CreateOrigin {
             name: body.0.name,
             owner_id: account_id as i64,
             owner_name: account_name,
@@ -251,8 +259,8 @@ fn update_origin(
         None => PackageVisibility::Public,
     };
 
-    match OriginMod::update(
-        UpdateOriginMod {
+    match Origin::update(
+        UpdateOrigin {
             name: origin,
             default_package_visibility: dpv,
         },
@@ -413,12 +421,12 @@ fn list_origin_secrets(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let origin_id = match OriginMod::get(&origin, &*conn).map_err(Error::DieselError) {
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
         Ok(origin) => origin.id,
         Err(err) => return err.into(),
     };
 
-    match OriginSecretMod::list(origin_id as i64, &*conn).map_err(Error::DieselError) {
+    match OriginSecret::list(origin_id as i64, &*conn).map_err(Error::DieselError) {
         Ok(list) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(&list),
@@ -468,27 +476,28 @@ fn create_origin_secret(
         Err(err) => return err.into(),
     };
 
-    let origin_id = match OriginMod::get(&origin, &*conn).map_err(Error::DieselError) {
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
         Ok(origin) => origin.id,
         Err(err) => return err.into(),
     };
 
     // fetch the private origin encryption key from the database
-    let priv_key = match PrivateEncryptionKey::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(key) => {
-            let key_str = from_utf8(&key.body).unwrap();
-            match BoxKeyPair::secret_key_from_str(key_str) {
-                Ok(key) => key,
-                Err(e) => {
-                    return HttpResponse::with_body(
-                        StatusCode::UNPROCESSABLE_ENTITY,
-                        format!("Failed to get secret from payload: {}", e),
-                    );
+    let priv_key =
+        match OriginPrivateEncryptionKey::get(&origin, &*conn).map_err(Error::DieselError) {
+            Ok(key) => {
+                let key_str = from_utf8(&key.body).unwrap();
+                match BoxKeyPair::secret_key_from_str(key_str) {
+                    Ok(key) => key,
+                    Err(e) => {
+                        return HttpResponse::with_body(
+                            StatusCode::UNPROCESSABLE_ENTITY,
+                            format!("Failed to get secret from payload: {}", e),
+                        );
+                    }
                 }
             }
-        }
-        Err(err) => return err.into(),
-    };
+            Err(err) => return err.into(),
+        };
 
     let (name, rev) = match parse_name_with_rev(secret_metadata.sender) {
         Ok(val) => val,
@@ -503,22 +512,22 @@ fn create_origin_secret(
     debug!("Using key {:?}-{:?}", name, &rev);
 
     // fetch the public origin encryption key from the database
-    let pub_key = match PublicEncryptionKey::get(&origin, &rev, &*conn).map_err(Error::DieselError)
-    {
-        Ok(key) => {
-            let key_str = from_utf8(&key.body).unwrap();
-            match BoxKeyPair::public_key_from_str(key_str) {
-                Ok(key) => key,
-                Err(e) => {
-                    return HttpResponse::with_body(
-                        StatusCode::UNPROCESSABLE_ENTITY,
-                        format!("{}", e),
-                    );
+    let pub_key =
+        match OriginPublicEncryptionKey::get(&origin, &rev, &*conn).map_err(Error::DieselError) {
+            Ok(key) => {
+                let key_str = from_utf8(&key.body).unwrap();
+                match BoxKeyPair::public_key_from_str(key_str) {
+                    Ok(key) => key,
+                    Err(e) => {
+                        return HttpResponse::with_body(
+                            StatusCode::UNPROCESSABLE_ENTITY,
+                            format!("{}", e),
+                        );
+                    }
                 }
             }
-        }
-        Err(err) => return err.into(),
-    };
+            Err(err) => return err.into(),
+        };
 
     let box_key_pair = BoxKeyPair::new(name, rev.clone(), Some(pub_key), Some(priv_key));
 
@@ -532,7 +541,7 @@ fn create_origin_secret(
         }
     };
 
-    match OriginSecretMod::create(origin_id as i64, &body.name, &body.value, &*conn)
+    match OriginSecret::create(origin_id as i64, &body.name, &body.value, &*conn)
         .map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::Created().finish(),
@@ -554,18 +563,12 @@ fn delete_origin_secret(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let origin_id = match OriginMod::get(&origin, &*conn).map_err(Error::DieselError) {
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
         Ok(origin) => origin.id,
         Err(err) => return err.into(),
     };
 
-    let mut request = OriginSecretDelete::new();
-    match helpers::get_origin(&req, &origin) {
-        Ok(origin) => request.set_origin_id(origin.get_id()),
-        Err(err) => return err.into(),
-    }
-    request.set_name(secret.clone());
-    match OriginSecretMod::delete(origin_id as i64, &secret, &*conn).map_err(Error::DieselError) {
+    match OriginSecret::delete(origin_id as i64, &secret, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => err.into(),
     }
@@ -719,7 +722,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest<AppState>) -> HttpResp
         Err(err) => return err.into(),
     };
 
-    let key = match PublicEncryptionKey::latest(&origin, &*conn) {
+    let key = match OriginPublicEncryptionKey::latest(&origin, &*conn) {
         Ok(key) => key,
         Err(NotFound) => {
             // TODO: redesign to not be generating keys during d/l
@@ -969,17 +972,18 @@ fn fetch_origin_integrations(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut request = OriginIntegrationRequest::new();
-    request.set_origin(origin);
-    match route_message::<OriginIntegrationRequest, OriginIntegrationResponse>(&req, &request) {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    match OriginIntegration::list_for_origin(&origin, &*conn).map_err(Error::DieselError) {
         Ok(oir) => {
-            let integrations_response: HashMap<String, Vec<String>> = oir
-                .get_integrations()
-                .iter()
-                .fold(HashMap::new(), |mut acc, ref i| {
-                    acc.entry(i.get_integration().to_owned())
+            let integrations_response: HashMap<String, Vec<String>> =
+                oir.iter().fold(HashMap::new(), |mut acc, ref i| {
+                    acc.entry(i.integration.to_owned())
                         .or_insert(Vec::new())
-                        .push(i.get_name().to_owned());
+                        .push(i.name.to_owned());
                     acc
                 });
             HttpResponse::Ok()
@@ -999,13 +1003,22 @@ fn fetch_origin_integration_names(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut request = OriginIntegrationGetNames::new();
-    request.set_origin(origin);
-    request.set_integration(integration);
-    match route_message::<OriginIntegrationGetNames, OriginIntegrationNames>(&req, &request) {
-        Ok(integration) => HttpResponse::Ok()
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(integration),
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    match OriginIntegration::list_for_origin_integration(&origin, &integration, &*conn)
+        .map_err(Error::DieselError)
+    {
+        Ok(integrations) => {
+            let names: Vec<String> = integrations.iter().map(|i| i.name.to_string()).collect();
+            let mut hm: HashMap<String, Vec<String>> = HashMap::new();
+            hm.insert("names".to_string(), names);
+            HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(hm)
+        }
         Err(err) => err.into(),
     }
 }
@@ -1026,20 +1039,24 @@ fn create_origin_integration(req: HttpRequest<AppState>, body: &Bytes) -> HttpRe
         return err.into();
     }
 
-    let mut oi = OriginIntegration::new();
-    oi.set_origin(origin);
-    oi.set_integration(integration);
-    oi.set_name(name);
-
-    match encrypt(&req, &body) {
-        Ok(encrypted) => oi.set_body(encrypted),
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
+    };
 
-    let mut request = OriginIntegrationCreate::new();
-    request.set_integration(oi);
+    let encrypted = match encrypt(&req, &body) {
+        Ok(encrypted) => encrypted,
+        Err(err) => return err.into(),
+    };
 
-    match route_message::<OriginIntegrationCreate, NetOk>(&req, &request) {
+    let noi = NewOriginIntegration {
+        origin: &origin,
+        integration: &integration,
+        name: &name,
+        body: &encrypted,
+    };
+
+    match OriginIntegration::create(&noi, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => err.into(),
     }
@@ -1054,15 +1071,14 @@ fn delete_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut oi = OriginIntegration::new();
-    oi.set_origin(origin);
-    oi.set_integration(integration);
-    oi.set_name(name);
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    let mut request = OriginIntegrationDelete::new();
-    request.set_integration(oi);
-
-    match route_message::<OriginIntegrationDelete, NetOk>(&req, &request) {
+    match OriginIntegration::delete(&origin, &integration, &name, &*conn)
+        .map_err(Error::DieselError)
+    {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -1077,16 +1093,13 @@ fn get_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut oi = OriginIntegration::new();
-    oi.set_origin(origin);
-    oi.set_integration(integration);
-    oi.set_name(name);
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    let mut request = OriginIntegrationGet::new();
-    request.set_integration(oi);
-
-    match route_message::<OriginIntegrationGet, OriginIntegration>(&req, &request) {
-        Ok(integration) => match decrypt(&req, integration.get_body()) {
+    match OriginIntegration::get(&origin, &integration, &name, &*conn).map_err(Error::DieselError) {
+        Ok(integration) => match decrypt(&req, &integration.body) {
             Ok(decrypted) => {
                 let val = serde_json::from_str(&decrypted).unwrap();
                 let mut map: serde_json::Map<String, serde_json::Value> =
@@ -1095,9 +1108,9 @@ fn get_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
                 map.remove("password");
 
                 let sanitized = json!({
-                        "origin": integration.get_origin().to_string(),
-                        "integration": integration.get_integration().to_string(),
-                        "name": integration.get_name().to_string(),
+                        "origin": integration.origin.to_string(),
+                        "integration": integration.integration.to_string(),
+                        "name": integration.name.to_string(),
                         "body": serde_json::to_value(map).unwrap()
                     });
 
@@ -1134,10 +1147,10 @@ fn generate_origin_encryption_keys(
     origin: &str,
     session_id: u64,
     conn: &PgConnection,
-) -> Result<PublicEncryptionKey> {
+) -> Result<OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
 
-    let origin_id = match OriginMod::get(origin, &*conn) {
+    let origin_id = match Origin::get(origin, &*conn) {
         Ok(origin) => origin.id,
         Err(err) => return Err(Error::DieselError(err)),
     };
@@ -1149,7 +1162,7 @@ fn generate_origin_encryption_keys(
         .map_err(Error::HabitatCore)?
         .into_bytes();
 
-    let new_pk = NewPublicEncryptionKey {
+    let new_pk = NewOriginPublicEncryptionKey {
         owner_id: session_id as i64,
         origin_id: origin_id,
         name: origin,
@@ -1162,7 +1175,7 @@ fn generate_origin_encryption_keys(
         .map_err(Error::HabitatCore)?
         .into_bytes();
 
-    let new_sk = NewPrivateEncryptionKey {
+    let new_sk = NewOriginPrivateEncryptionKey {
         owner_id: session_id as i64,
         origin_id: origin_id,
         name: origin,
@@ -1170,8 +1183,8 @@ fn generate_origin_encryption_keys(
         body: &sk_body,
     };
 
-    PrivateEncryptionKey::create(&new_sk, &*conn)?;
-    PublicEncryptionKey::create(&new_pk, &*conn).map_err(Error::DieselError)
+    OriginPrivateEncryptionKey::create(&new_sk, &*conn)?;
+    OriginPublicEncryptionKey::create(&new_pk, &*conn).map_err(Error::DieselError)
 }
 
 fn encrypt(req: &HttpRequest<AppState>, content: &Bytes) -> Result<String> {
