@@ -21,17 +21,23 @@ use std::time::{Duration, Instant};
 use bldr_core;
 use bldr_core::job::Job;
 use bldr_core::metrics::GaugeMetric;
+use db::DbPool;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
 use hab_core::crypto::BoxKeyPair;
 use hab_net::conn::RouteClient;
 use hab_net::socket::DEFAULT_CONTEXT;
 use linked_hash_map::LinkedHashMap;
 use protobuf::{parse_from_bytes, Message, RepeatedField};
+
+use db::models::integration::*;
+use db::models::origin::Origin as OriginMod;
+use db::models::origin::*;
+use db::models::project_integration::*;
+
 use protocol::jobsrv;
+use protocol::originsrv;
 use protocol::originsrv::{
-    Origin, OriginGet, OriginIntegrationRequest, OriginIntegrationResponse,
-    OriginPrivateEncryptionKey, OriginPrivateEncryptionKeyGet, OriginProjectIntegrationRequest,
-    OriginProjectIntegrationResponse, OriginPublicEncryptionKey,
+    OriginPrivateEncryptionKey, OriginPrivateEncryptionKeyGet, OriginPublicEncryptionKey,
     OriginPublicEncryptionKeyLatestGet, OriginSecret, OriginSecretDecrypted, OriginSecretList,
     OriginSecretListGet,
 };
@@ -144,6 +150,7 @@ impl Worker {
 
 pub struct WorkerMgr {
     datastore: DataStore,
+    db: DbPool,
     key_dir: PathBuf,
     route_conn: RouteClient,
     hb_sock: zmq::Socket,
@@ -158,7 +165,12 @@ pub struct WorkerMgr {
 }
 
 impl WorkerMgr {
-    pub fn new(cfg: &Config, datastore: &DataStore, route_conn: RouteClient) -> Result<Self> {
+    pub fn new(
+        cfg: &Config,
+        datastore: &DataStore,
+        db: DbPool,
+        route_conn: RouteClient,
+    ) -> Result<Self> {
         let hb_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::SUB)?;
         let rq_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER)?;
         let work_mgr_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
@@ -170,6 +182,7 @@ impl WorkerMgr {
 
         Ok(WorkerMgr {
             datastore: datastore.clone(),
+            db: db,
             key_dir: cfg.key_dir.clone(),
             route_conn: route_conn,
             hb_sock: hb_sock,
@@ -184,8 +197,13 @@ impl WorkerMgr {
         })
     }
 
-    pub fn start(cfg: &Config, datastore: &DataStore, conn: RouteClient) -> Result<JoinHandle<()>> {
-        let mut manager = Self::new(cfg, datastore, conn)?;
+    pub fn start(
+        cfg: &Config,
+        datastore: &DataStore,
+        db: DbPool,
+        conn: RouteClient,
+    ) -> Result<JoinHandle<()>> {
+        let mut manager = Self::new(cfg, datastore, db, conn)?;
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new()
             .name("worker-manager".to_string())
@@ -480,31 +498,33 @@ impl WorkerMgr {
 
     fn add_integrations_to_job(&mut self, job: &mut Job) {
         let mut integrations = RepeatedField::new();
-        let mut integration_request = OriginIntegrationRequest::new();
         let origin = job.get_project().get_origin_name().to_string();
-        integration_request.set_origin(origin);
 
-        match self
-            .route_conn
-            .route::<OriginIntegrationRequest, OriginIntegrationResponse>(&integration_request)
-        {
+        let conn = match self.db.get_conn().map_err(Error::Db) {
+            Ok(conn) => conn,
+            Err(_) => return,
+        };
+
+        match OriginIntegration::list_for_origin(origin, &*conn).map_err(Error::DieselError) {
             Ok(oir) => {
-                for i in oir.get_integrations() {
-                    let mut oi = i.clone();
-                    let plaintext =
-                        match bldr_core::integrations::decrypt(&self.key_dir, i.get_body()) {
-                            Ok(b) => match String::from_utf8(b) {
-                                Ok(s) => s,
-                                Err(e) => {
-                                    debug!("Error converting to string. e = {:?}", e);
-                                    continue;
-                                }
-                            },
+                for i in oir {
+                    let mut oi = originsrv::OriginIntegration::new();
+                    let plaintext = match bldr_core::integrations::decrypt(&self.key_dir, &i.body) {
+                        Ok(b) => match String::from_utf8(b) {
+                            Ok(s) => s,
                             Err(e) => {
-                                debug!("Error decrypting integration. e = {:?}", e);
+                                debug!("Error converting to string. e = {:?}", e);
                                 continue;
                             }
-                        };
+                        },
+                        Err(e) => {
+                            debug!("Error decrypting integration. e = {:?}", e);
+                            continue;
+                        }
+                    };
+                    oi.set_origin(i.origin);
+                    oi.set_integration(i.integration);
+                    oi.set_name(i.name);
                     oi.set_body(plaintext);
                     integrations.push(oi);
                 }
@@ -519,19 +539,23 @@ impl WorkerMgr {
 
     fn add_project_integrations_to_job(&mut self, job: &mut Job) {
         let mut integrations = RepeatedField::new();
-        let mut req = OriginProjectIntegrationRequest::new();
         let origin = job.get_project().get_origin_name().to_string();
         let name = job.get_project().get_package_name().to_string();
-        req.set_origin(origin);
-        req.set_name(name);
 
-        match self
-            .route_conn
-            .route::<OriginProjectIntegrationRequest, OriginProjectIntegrationResponse>(&req)
-        {
+        let conn = match self.db.get_conn().map_err(Error::Db) {
+            Ok(conn) => conn,
+            Err(_) => return,
+        };
+
+        let req = GetProjectIntegrations {
+            origin: origin,
+            name: name,
+        };
+
+        match ProjectIntegration::list(req, &*conn).map_err(Error::DieselError) {
             Ok(opir) => {
-                for opi in opir.get_integrations() {
-                    integrations.push(opi.clone());
+                for opi in opir {
+                    integrations.push(opi.into());
                 }
                 job.set_project_integrations(integrations);
             }
@@ -544,14 +568,22 @@ impl WorkerMgr {
     fn add_secrets_to_job(&mut self, job: &mut Job) -> Result<()> {
         let mut secrets = RepeatedField::new();
         let mut secrets_request = OriginSecretListGet::new();
-        let mut origin_req = OriginGet::new();
+
         let origin_name = job.get_project().get_origin_name().to_string();
         let origin_owner_id = job.get_project().get_owner_id();
-        origin_req.set_name(origin_name.clone());
-        match self.route_conn.route::<OriginGet, Origin>(&origin_req) {
-            Ok(origin) => secrets_request.set_origin_id(origin.get_id()),
-            Err(e) => return Err(Error::NetError(e)),
-        };
+
+        let conn = self.db.get_conn().map_err(Error::Db)?;
+
+        // TODO (SA) - we shouldn't need to pull the origin here to just get the id
+        match OriginMod::get(
+            GetOrigin {
+                name: origin_name.clone(),
+            },
+            &*conn,
+        ) {
+            Ok(origin) => secrets_request.set_origin_id(origin.id as u64),
+            Err(err) => return Err(Error::DieselError(err)),
+        }
 
         match self
             .route_conn
