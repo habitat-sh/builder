@@ -3,6 +3,7 @@
     "target": "es5",
     "module": "commonjs",
     "moduleResolution": "node",
+    "skipLibCheck": true,
     "sourceMap": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -13,6 +14,10 @@
       "dom"
     ]
   },
+  "include": [
+    "app",
+    "./*.js|ts"
+  ],
   "exclude": [
     "node_modules"
   ]

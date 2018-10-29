@@ -164,6 +164,7 @@ matrix:
         - CXX=g++-4.8
         - AFFECTED_FILES=""
         - AFFECTED_DIRS="components/builder-web"
+        - secure: fXvLiTey3v9LxPnxPJk6QAE5PdJOIEIRihF5hN/UYwhnbjXCVfcz5ODYNvFyeb6OY31/eMMrZ+jHkNyO/VLp2ZL5PjHpoDGH7KJWxTqXQ/yCHMo0jFxHqXcmc+Gi2RKbeBfVnSt4LLNzrN4iAtqG7Pmavfu4t8aZ+O8HsPCAsp8ExsPhWLyPxSJ2YcVF3i9O5P1E8W6SbMj5h4IA0rpwB1imaEdQ7OTKE2+0FpRCxRMD/axW7cnfxiVYt28wCiWh6w3sGw8fYQXHulokLzwvJaUfF2HiMs1b+cAwyOoy0wA59oF7O+kJxPnbFK3mHqsB2lShE6niWMZsfpEKYtLR1hs2owv5MV4rh8f2EnHHa1Gc6FWFW45NI1sksDi6CiC/B4JkhAuyw9o0tJnGgagyKA/c2potSlpB6QmaYR1REy2FqIPliR0xBUB80FngZd7BNRB2ekSae0k4hj7MRqc6e6YJcFR/hsXZ//JuS4CEvFo2KD9CG31WisM7XVrxGCgguRiqR4syrfiwtyLm+SvtzJRL8g2TndhqCOAJTjQzHhb4D/F/E8hLbd2u1tsBJvKKxNshQpwf2dgGv6zZOm68pi1IeLbMZdEpKzszDLI+MPd31GCw20EAjjJno+63zT71JWauZqZZgSWWiof5S4KGVasF4WXtsP9Fg0CEIl8pbJs=
       addons:
         apt:
           sources:
@@ -173,9 +174,6 @@ matrix:
             - wget
       cache:
         apt: true
-        directories:
-          - components/builder-web/node_modules
-          - components/builder-web/typings
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
         - npm config set spin=false

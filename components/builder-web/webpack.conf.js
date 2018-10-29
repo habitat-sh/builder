@@ -50,5 +50,6 @@ module.exports = {
     tslint: {
         emitErrors: true,
         failOnHint: true
-    }
+    },
+    bail: true
 };
