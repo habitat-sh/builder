@@ -17,12 +17,10 @@ pub mod log_archiver;
 mod log_directory;
 mod log_ingester;
 mod metrics;
-mod route_broker;
 mod scheduler;
 mod worker_manager;
 
 use std::sync::RwLock;
-use std::thread;
 use time::PreciseTime;
 
 use actix;
@@ -35,12 +33,10 @@ use bldr_core::rpc::RpcMessage;
 use bldr_core::target_graph::TargetGraph;
 use db::DbPool;
 use hab_net::app::prelude::*;
-use hab_net::socket;
 
 use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;
 use self::log_ingester::LogIngester;
-use self::route_broker::RouteBroker;
 use self::scheduler::ScheduleMgr;
 use self::worker_manager::WorkerMgr;
 
@@ -135,25 +131,11 @@ pub fn run(config: Config) -> Result<()> {
     let log_dir = LogDirectory::new(&config.log_dir);
     LogIngester::start(&config, log_dir, datastore.clone())?;
 
-    let c = config.clone();
-    thread::Builder::new()
-        .name("route-broker".to_string())
-        .spawn(move || {
-            RouteBroker::start(socket::srv_ident(), &c.app.routers)
-                .map_err(Error::ConnErr)
-                .unwrap();
-        }).unwrap();
-
     let db_pool = DbPool::new(&config.datastore.clone())
         .map_err(Error::Db)
         .unwrap();
 
-    WorkerMgr::start(
-        &config,
-        &datastore,
-        db_pool.clone(),
-        RouteBroker::connect().unwrap(),
-    )?;
+    WorkerMgr::start(&config, &datastore, db_pool.clone())?;
     ScheduleMgr::start(&datastore, db_pool.clone(), &config.log_path)?;
 
     info!(

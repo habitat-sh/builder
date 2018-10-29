@@ -24,23 +24,19 @@ use bldr_core::metrics::GaugeMetric;
 use db::DbPool;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
 use hab_core::crypto::BoxKeyPair;
-use hab_net::conn::RouteClient;
 use hab_net::socket::DEFAULT_CONTEXT;
 use linked_hash_map::LinkedHashMap;
 use protobuf::{parse_from_bytes, Message, RepeatedField};
 
 use db::models::integration::*;
-use db::models::origin::Origin as OriginMod;
+use db::models::keys::*;
 use db::models::origin::*;
 use db::models::project_integration::*;
+use db::models::secrets::*;
 
 use protocol::jobsrv;
 use protocol::originsrv;
-use protocol::originsrv::{
-    OriginPrivateEncryptionKey, OriginPrivateEncryptionKeyGet, OriginPublicEncryptionKey,
-    OriginPublicEncryptionKeyLatestGet, OriginSecret, OriginSecretDecrypted, OriginSecretList,
-    OriginSecretListGet,
-};
+
 use zmq;
 
 use config::Config;
@@ -152,7 +148,6 @@ pub struct WorkerMgr {
     datastore: DataStore,
     db: DbPool,
     key_dir: PathBuf,
-    route_conn: RouteClient,
     hb_sock: zmq::Socket,
     rq_sock: zmq::Socket,
     work_mgr_sock: zmq::Socket,
@@ -165,12 +160,7 @@ pub struct WorkerMgr {
 }
 
 impl WorkerMgr {
-    pub fn new(
-        cfg: &Config,
-        datastore: &DataStore,
-        db: DbPool,
-        route_conn: RouteClient,
-    ) -> Result<Self> {
+    pub fn new(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<Self> {
         let hb_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::SUB)?;
         let rq_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER)?;
         let work_mgr_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
@@ -184,7 +174,6 @@ impl WorkerMgr {
             datastore: datastore.clone(),
             db: db,
             key_dir: cfg.key_dir.clone(),
-            route_conn: route_conn,
             hb_sock: hb_sock,
             rq_sock: rq_sock,
             work_mgr_sock: work_mgr_sock,
@@ -197,13 +186,8 @@ impl WorkerMgr {
         })
     }
 
-    pub fn start(
-        cfg: &Config,
-        datastore: &DataStore,
-        db: DbPool,
-        conn: RouteClient,
-    ) -> Result<JoinHandle<()>> {
-        let mut manager = Self::new(cfg, datastore, db, conn)?;
+    pub fn start(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<JoinHandle<()>> {
+        let mut manager = Self::new(cfg, datastore, db)?;
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new()
             .name("worker-manager".to_string())
@@ -505,7 +489,7 @@ impl WorkerMgr {
             Err(_) => return,
         };
 
-        match OriginIntegration::list_for_origin(origin, &*conn).map_err(Error::DieselError) {
+        match OriginIntegration::list_for_origin(&origin, &*conn).map_err(Error::DieselError) {
             Ok(oir) => {
                 for i in oir {
                     let mut oi = originsrv::OriginIntegration::new();
@@ -547,12 +531,7 @@ impl WorkerMgr {
             Err(_) => return,
         };
 
-        let req = GetProjectIntegrations {
-            origin: origin,
-            name: name,
-        };
-
-        match ProjectIntegration::list(req, &*conn).map_err(Error::DieselError) {
+        match ProjectIntegration::list(&origin, &name, &*conn).map_err(Error::DieselError) {
             Ok(opir) => {
                 for opi in opir {
                     integrations.push(opi.into());
@@ -566,83 +545,63 @@ impl WorkerMgr {
     }
 
     fn add_secrets_to_job(&mut self, job: &mut Job) -> Result<()> {
-        let mut secrets = RepeatedField::new();
-        let mut secrets_request = OriginSecretListGet::new();
-
-        let origin_name = job.get_project().get_origin_name().to_string();
-        let origin_owner_id = job.get_project().get_owner_id();
-
+        let origin = job.get_project().get_origin_name().to_string();
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
         // TODO (SA) - we shouldn't need to pull the origin here to just get the id
-        match OriginMod::get(
-            GetOrigin {
-                name: origin_name.clone(),
-            },
-            &*conn,
-        ) {
-            Ok(origin) => secrets_request.set_origin_id(origin.id as u64),
+        let origin_id = match Origin::get(&origin, &*conn) {
+            Ok(origin) => origin.id,
             Err(err) => return Err(Error::DieselError(err)),
-        }
+        };
 
-        match self
-            .route_conn
-            .route::<OriginSecretListGet, OriginSecretList>(&secrets_request)
-        {
-            Ok(osl) => {
-                let secrets_list = osl.get_secrets();
+        let mut secrets = RepeatedField::new();
+
+        match OriginSecret::list(origin_id as i64, &*conn).map_err(Error::DieselError) {
+            Ok(secrets_list) => {
                 if secrets_list.len() > 0 {
-                    let mut db_priv_request = OriginPrivateEncryptionKeyGet::new();
-                    let mut db_pub_request = OriginPublicEncryptionKeyLatestGet::new();
-                    db_priv_request.set_owner_id(origin_owner_id.clone());
-                    db_priv_request.set_origin(origin_name.clone().to_string());
-                    db_pub_request.set_owner_id(origin_owner_id.clone());
-                    db_pub_request.set_origin(origin_name.clone().to_string());
-
                     // fetch the private origin encryption key from the database
-                    let priv_key = match self
-                        .route_conn
-                        .route::<OriginPrivateEncryptionKeyGet, OriginPrivateEncryptionKey>(
-                            &db_priv_request,
-                        ) {
+                    let priv_key = match OriginPrivateEncryptionKey::get(&origin, &*conn)
+                        .map_err(Error::DieselError)
+                    {
                         Ok(key) => {
-                            let key_str = from_utf8(key.get_body()).unwrap();
+                            let key_str = from_utf8(&key.body).unwrap();
                             BoxKeyPair::secret_key_from_str(key_str)?
                         }
-                        Err(err) => return Err(Error::NetError(err)),
+                        Err(err) => return Err(err),
                     };
 
                     // fetch the public origin encryption key from the database
-                    let (name, rev, pub_key) = match self
-                        .route_conn
-                        .route::<OriginPublicEncryptionKeyLatestGet, OriginPublicEncryptionKey>(
-                        &db_pub_request,
-                    ) {
-                        Ok(key) => {
-                            let key_str = from_utf8(key.get_body()).unwrap();
-                            let (name, rev) = match parse_key_str(key_str) {
-                                Ok((_, name_with_rev, _)) => parse_name_with_rev(name_with_rev)?,
-                                Err(e) => return Err(Error::HabitatCore(e)),
-                            };
-                            (name, rev, BoxKeyPair::public_key_from_str(key_str)?)
-                        }
-                        Err(err) => return Err(Error::NetError(err)),
-                    };
+                    let (name, rev, pub_key) =
+                        match OriginPublicEncryptionKey::latest(&origin, &*conn)
+                            .map_err(Error::DieselError)
+                        {
+                            Ok(key) => {
+                                let key_str = from_utf8(&key.body).unwrap();
+                                let (name, rev) = match parse_key_str(key_str) {
+                                    Ok((_, name_with_rev, _)) => {
+                                        parse_name_with_rev(name_with_rev)?
+                                    }
+                                    Err(e) => return Err(Error::HabitatCore(e)),
+                                };
+                                (name, rev, BoxKeyPair::public_key_from_str(key_str)?)
+                            }
+                            Err(err) => return Err(err),
+                        };
 
                     let box_key_pair =
                         BoxKeyPair::new(name, rev.clone(), Some(pub_key), Some(priv_key));
                     for secret in secrets_list {
                         debug!("Adding secret to job: {:?}", secret);
-                        let mut secret_decrypted = OriginSecret::new();
-                        let mut secret_decrypted_wrapper = OriginSecretDecrypted::new();
-                        match BoxKeyPair::secret_metadata(secret.get_value().as_bytes()) {
+                        let mut secret_decrypted = originsrv::OriginSecret::new();
+                        let mut secret_decrypted_wrapper = originsrv::OriginSecretDecrypted::new();
+                        match BoxKeyPair::secret_metadata(secret.value.as_bytes()) {
                             Ok(secret_metadata) => {
                                 match box_key_pair.decrypt(&secret_metadata.ciphertext, None, None)
                                 {
                                     Ok(decrypted_secret) => {
-                                        secret_decrypted.set_id(secret.get_id());
-                                        secret_decrypted.set_origin_id(secret.get_origin_id());
-                                        secret_decrypted.set_name(secret.get_name().to_string());
+                                        secret_decrypted.set_id(secret.id as u64);
+                                        secret_decrypted.set_origin_id(secret.origin_id as u64);
+                                        secret_decrypted.set_name(secret.name.to_string());
                                         secret_decrypted.set_value(
                                             String::from_utf8(decrypted_secret).unwrap(),
                                         );
@@ -665,7 +624,7 @@ impl WorkerMgr {
                 }
                 job.set_secrets(secrets);
             }
-            Err(e) => return Err(Error::NetError(e)),
+            Err(err) => return Err(err),
         }
         Ok(())
     }

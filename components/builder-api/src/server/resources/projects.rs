@@ -509,10 +509,10 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
     };
 
     let npi = NewProjectIntegration {
-        origin: origin,
-        name: name,
-        integration: integration,
-        body: body,
+        origin: &origin,
+        name: &name,
+        integration: &integration,
+        body: &body,
     };
 
     match ProjectIntegration::create(npi, &*conn).map_err(Error::DieselError) {
@@ -535,13 +535,9 @@ fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let dpi = DeleteProjectIntegration {
-        origin: origin,
-        name: name,
-        integration: integration,
-    };
-
-    match ProjectIntegration::delete(dpi, &*conn).map_err(Error::DieselError) {
+    match ProjectIntegration::delete(&origin, &name, &integration, &*conn)
+        .map_err(Error::DieselError)
+    {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -561,13 +557,8 @@ fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let gpi = GetProjectIntegration {
-        origin: origin,
-        name: name,
-        integration: integration,
-    };
-
-    match ProjectIntegration::get(gpi, &*conn).map_err(Error::DieselError) {
+    match ProjectIntegration::get(&origin, &name, &integration, &*conn).map_err(Error::DieselError)
+    {
         Ok(integration) => match serde_json::from_str(&integration.body) {
             Ok(v) => {
                 let json_value: serde_json::Value = v;
