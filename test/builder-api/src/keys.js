@@ -140,6 +140,37 @@ describe('Keys API', function () {
     });
   });
 
+  describe('Downloading encryption keys', function () {
+    it('requires authentication', function (done) {
+      request.get('/depot/origins/neurosis/encryption_key')
+        .expect(401)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('requires membership in the origin', function (done) {
+      request.get('/depot/origins/neurosis/encryption_key')
+        .set('Authorization', global.mystiqueBearer)
+        .expect(403)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('can download the latest encryption public key', function (done) {
+      request.get('/depot/origins/neurosis/encryption_key')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.not.be.empty;
+          done(err);
+        });
+    });
+  });
+
   describe('Generating keys', function () {
     it('requires authentication', function (done) {
       request.post('/depot/origins/neurosis/keys')
