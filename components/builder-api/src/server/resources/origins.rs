@@ -36,13 +36,14 @@ use hab_core::package::ident;
 use hab_net::{ErrCode, NetOk};
 
 use protocol::originsrv::{
-    Account, AccountGet, OriginInvitation, OriginInvitationAcceptRequest, OriginInvitationCreate,
+    OriginInvitation, OriginInvitationAcceptRequest, OriginInvitationCreate,
     OriginInvitationIgnoreRequest, OriginInvitationListRequest, OriginInvitationListResponse,
     OriginInvitationRescindRequest, OriginKeyIdent, OriginMemberListRequest,
     OriginMemberListResponse, OriginMemberRemove, OriginPackageUniqueListRequest,
     OriginPackageUniqueListResponse,
 };
 
+use db::models::account::*;
 use db::models::integration::*;
 use db::models::keys::*;
 use db::models::origin::*;
@@ -223,15 +224,14 @@ fn create_origin(
         Err(_) => return HttpResponse::InternalServerError().into(),
     };
 
-    match Origin::create(
-        CreateOrigin {
-            name: body.0.name,
-            owner_id: account_id as i64,
-            owner_name: account_name,
-            default_package_visibility: dpv,
-        },
-        &*conn,
-    ) {
+    let new_origin = NewOrigin {
+        name: &body.0.name,
+        owner_id: account_id as i64,
+        owner_name: &account_name,
+        default_package_visibility: &dpv,
+    };
+
+    match Origin::create(&new_origin, &*conn) {
         Ok(origin) => HttpResponse::Created().json(origin),
         Err(_e) => HttpResponse::InternalServerError().into(),
     }
@@ -256,13 +256,7 @@ fn update_origin(
         None => PackageVisibility::Public,
     };
 
-    match Origin::update(
-        UpdateOrigin {
-            name: origin,
-            default_package_visibility: dpv,
-        },
-        &*conn,
-    ) {
+    match Origin::update(&origin, dpv, &*conn) {
         Ok(_) => HttpResponse::NoContent().into(),
         Err(_) => HttpResponse::InternalServerError().into(),
     }
@@ -746,14 +740,17 @@ fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
 
     debug!("Creating invitation for user {} origin {}", &user, &origin);
 
-    let mut request = AccountGet::new();
-    let mut invite_request = OriginInvitationCreate::new();
-    request.set_name(user.to_string());
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    match route_message::<AccountGet, Account>(&req, &request) {
-        Ok(mut account) => {
-            invite_request.set_account_id(account.get_id());
-            invite_request.set_account_name(account.take_name());
+    let mut invite_request = OriginInvitationCreate::new();
+
+    match Account::get(&user, &*conn).map_err(Error::DieselError) {
+        Ok(account) => {
+            invite_request.set_account_id(account.id as u64);
+            invite_request.set_account_name(account.name);
         }
         Err(err) => return err.into(),
     };

@@ -20,18 +20,17 @@ use actix_web::{HttpRequest, HttpResponse, Result};
 use base64;
 use protobuf;
 
-use std::ops::Deref;
-
 use bldr_core;
 use bldr_core::metrics::CounterMetric;
 use hab_net::conn::RouteClient;
 use hab_net::{ErrCode, NetError};
 use oauth_client::types::OAuth2User;
 use protocol;
-use protocol::originsrv::*;
+use protocol::originsrv;
 use protocol::Routable;
 
-use db::models::account;
+use db::models::account::*;
+
 use hab_net::privilege::FeatureFlags;
 use server::error;
 use server::resources::profile::do_get_access_tokens;
@@ -99,12 +98,12 @@ impl Middleware<AppState> for Authentication {
             Err(_) => return Ok(Started::Response(HttpResponse::Unauthorized().finish())),
         };
 
-        req.extensions_mut().insert::<Session>(session);
+        req.extensions_mut().insert::<originsrv::Session>(session);
         Ok(Started::Done)
     }
 }
 
-fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Session> {
+fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<originsrv::Session> {
     // Test hook - always create a valid session
     if env::var_os("HAB_FUNC_TEST").is_some() {
         debug!(
@@ -146,10 +145,10 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
             // db to see if we have a valid session token.
             match do_get_access_tokens(&req, session.get_id()) {
                 Ok(access_tokens) => {
-                    assert!(access_tokens.get_tokens().len() <= 1); // Can only have max of 1 for now
-                    match access_tokens.get_tokens().first() {
+                    assert!(access_tokens.len() <= 1); // Can only have max of 1 for now
+                    match access_tokens.first() {
                         Some(access_token) => {
-                            let new_token = access_token.get_token();
+                            let new_token = access_token.token.clone();
                             if token.trim_right_matches('=') != new_token.trim_right_matches('=') {
                                 // Token is valid but revoked or otherwise expired
                                 return Err(error::Error::NetError(NetError::new(
@@ -157,7 +156,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<Sessi
                                     "net:auth:revoked-token",
                                 )));
                             }
-                            memcache.set_session(new_token, &session, None);
+                            memcache.set_session(&new_token, &session, None);
                             return Ok(session);
                         }
                         None => {
@@ -186,9 +185,9 @@ pub fn session_create_oauth(
     oauth_token: &str,
     user: &OAuth2User,
     provider: &str,
-) -> error::Result<Session> {
-    let mut session = Session::new();
-    let mut session_token = SessionToken::new();
+) -> error::Result<originsrv::Session> {
+    let mut session = originsrv::Session::new();
+    let mut session_token = originsrv::SessionToken::new();
     let conn = req.state().db.get_conn().map_err(error::Error::DbError)?;
 
     let email = match user.email {
@@ -199,19 +198,13 @@ pub fn session_create_oauth(
         None => "",
     };
 
-    match account::Account::find_or_create(
-        account::FindOrCreateAccount {
-            name: user.username.to_string(),
-            email: email.to_string(),
-        },
-        conn.deref(),
-    ) {
+    match Account::find_or_create(&user.username, email, &*conn) {
         Ok(account) => {
             session_token.set_account_id(account.id as u64);
             session_token.set_extern_id(user.id.to_string());
             session_token.set_token(oauth_token.to_string().into_bytes());
 
-            match provider.parse::<OAuthProvider>() {
+            match provider.parse::<originsrv::OAuthProvider>() {
                 Ok(p) => session_token.set_provider(p),
                 Err(e) => {
                     warn!(
@@ -250,7 +243,7 @@ pub fn session_create_oauth(
 pub fn session_create_short_circuit(
     req: &HttpRequest<AppState>,
     token: &str,
-) -> error::Result<Session> {
+) -> error::Result<originsrv::Session> {
     let (user, provider) = match token.as_ref() {
         "bobo" => (
             OAuth2User {
@@ -288,7 +281,7 @@ pub fn session_create_short_circuit(
     session_create_oauth(req, token, &user, provider)
 }
 
-fn encode_token(token: &SessionToken) -> String {
+fn encode_token(token: &originsrv::SessionToken) -> String {
     let bytes = protocol::message::encode(token).unwrap(); //Unwrap is safe
     base64::encode(&bytes)
 }

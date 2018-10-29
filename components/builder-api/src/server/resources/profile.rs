@@ -15,16 +15,13 @@
 use actix_web::http::{Method, StatusCode};
 use actix_web::{App, FromRequest, HttpRequest, HttpResponse, Json, Path};
 
-use std::ops::Deref;
-
 use bldr_core;
-use hab_net::NetOk;
-use protocol::originsrv::*;
+use protocol::originsrv;
 
-use db::models::account::{Account as AccountModel, GetAccountById, UpdateAccount};
+use db::models::account::*;
+
 use server::authorize::authorize_session;
-use server::error::Result;
-use server::framework::middleware::route_message;
+use server::error::{Error, Result};
 use server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -56,35 +53,32 @@ impl Profile {
 }
 
 // do_get_access_tokens is used in the framework middleware so it has to be public
-pub fn do_get_access_tokens(req: &HttpRequest<AppState>, account_id: u64) -> Result<AccountTokens> {
-    let mut request = AccountTokensGet::new();
-    request.set_account_id(account_id);
+pub fn do_get_access_tokens(
+    req: &HttpRequest<AppState>,
+    account_id: u64,
+) -> Result<Vec<AccountToken>> {
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-    route_message::<AccountTokensGet, AccountTokens>(&req, &request)
+    AccountToken::list(account_id, &*conn).map_err(Error::DieselError)
 }
 
 //
 // Route handlers - these functions can return any Responder trait
 //
 fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
-    let session_id = match authorize_session(&req, None) {
-        Ok(session_id) => session_id as i64,
+    let account_id = match authorize_session(&req, None) {
+        Ok(id) => id,
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
-    match AccountModel::get_by_id(
-        GetAccountById {
-            id: session_id.clone(),
-        },
-        conn.deref(),
-    ) {
+    match Account::get_by_id(account_id, &*conn).map_err(Error::DieselError) {
         Ok(account) => HttpResponse::Ok().json(account),
-        Err(_e) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => err.into(),
     }
 }
 
@@ -106,43 +100,41 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    // TODO: Provide an API for this
-    let flags = {
-        let extension = req.extensions();
-        let session = extension.get::<Session>().unwrap();
-        session.get_flags()
-    };
-
-    let mut request = AccountGetId::new();
-    request.set_id(account_id);
-
-    let account = match route_message::<AccountGetId, Account>(&req, &request) {
-        Ok(account) => account,
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     // Memcache supports multiple tokens but to preserve legacy behavior
     // we must purge any existing tokens AFTER generating new ones
-    let access_tokens = match do_get_access_tokens(&req, account_id) {
+    let access_tokens = match AccountToken::list(account_id, &*conn).map_err(Error::DieselError) {
         Ok(access_tokens) => access_tokens,
         Err(err) => return err.into(),
     };
 
-    let mut request = AccountTokenCreate::new();
+    // TODO: Provide an API for this
+    let flags = {
+        let extension = req.extensions();
+        let session = extension.get::<originsrv::Session>().unwrap();
+        session.get_flags()
+    };
+
     let token = bldr_core::access_token::generate_user_token(
         &req.state().config.api.key_path,
-        account.get_id(),
+        account_id,
         flags,
     ).unwrap();
 
-    request.set_account_id(account.get_id());
-    request.set_token(token);
+    let new_token = NewAccountToken {
+        account_id: account_id as i64,
+        token: &token,
+    };
 
-    match route_message::<AccountTokenCreate, AccountToken>(&req, &request) {
+    match AccountToken::create(&new_token, &*conn).map_err(Error::DieselError) {
         Ok(account_token) => {
             let mut memcache = req.state().memcache.borrow_mut();
-            for token in access_tokens.get_tokens() {
-                memcache.delete_key(token.get_token())
+            for token in access_tokens {
+                memcache.delete_key(&token.token)
             }
             HttpResponse::Ok().json(account_token)
         }
@@ -162,19 +154,21 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let access_tokens = match do_get_access_tokens(&req, account_id) {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let access_tokens = match AccountToken::list(account_id, &*conn).map_err(Error::DieselError) {
         Ok(access_tokens) => access_tokens,
         Err(err) => return err.into(),
     };
 
-    let mut request = AccountTokenRevoke::new();
-    request.set_id(token_id);
-
-    match route_message::<AccountTokenRevoke, NetOk>(&req, &request) {
+    match AccountToken::delete(token_id, &*conn).map_err(Error::DieselError) {
         Ok(_) => {
             let mut memcache = req.state().memcache.borrow_mut();
-            for token in access_tokens.get_tokens() {
-                memcache.delete_key(token.get_token())
+            for token in access_tokens {
+                memcache.delete_key(&token.token)
             }
             HttpResponse::Ok().finish()
         }
@@ -183,8 +177,8 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> HttpResponse {
-    let session_id = match authorize_session(&req, None) {
-        Ok(session_id) => session_id as i64,
+    let account_id = match authorize_session(&req, None) {
+        Ok(id) => id,
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
@@ -197,14 +191,8 @@ fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> 
         Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    match AccountModel::update(
-        UpdateAccount {
-            id: session_id.clone(),
-            email: body.email.to_owned(),
-        },
-        conn.deref(),
-    ) {
+    match Account::update(account_id, &body.email, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(_e) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => err.into(),
     }
 }
