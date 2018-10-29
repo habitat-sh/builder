@@ -40,10 +40,7 @@ use protocol::originsrv::{
     OriginInvitationIgnoreRequest, OriginInvitationListRequest, OriginInvitationListResponse,
     OriginInvitationRescindRequest, OriginKeyIdent, OriginMemberListRequest,
     OriginMemberListResponse, OriginMemberRemove, OriginPackageUniqueListRequest,
-    OriginPackageUniqueListResponse, OriginPrivateSigningKey, OriginPrivateSigningKeyCreate,
-    OriginPrivateSigningKeyGet, OriginPublicSigningKey, OriginPublicSigningKeyCreate,
-    OriginPublicSigningKeyGet, OriginPublicSigningKeyLatestGet, OriginPublicSigningKeyListRequest,
-    OriginPublicSigningKeyListResponse,
+    OriginPackageUniqueListResponse,
 };
 
 use db::models::integration::*;
@@ -291,27 +288,25 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
 fn list_origin_keys(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
-    let mut request = OriginPublicSigningKeyListRequest::new();
-    match helpers::get_origin(&req, &origin) {
-        Ok(origin) => request.set_origin_id(origin.get_id()),
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
-    match route_message::<OriginPublicSigningKeyListRequest, OriginPublicSigningKeyListResponse>(
-        &req, &request,
-    ) {
+    };
+
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id,
+        Err(err) => return err.into(),
+    };
+
+    match OriginPublicSigningKey::list(origin_id as u64, &*conn).map_err(Error::DieselError) {
         Ok(list) => {
             let list: Vec<OriginKeyIdent> = list
-                .get_keys()
                 .iter()
                 .map(|key| {
                     let mut ident = OriginKeyIdent::new();
-                    ident.set_location(format!(
-                        "/origins/{}/keys/{}",
-                        &key.get_name(),
-                        &key.get_revision()
-                    ));
-                    ident.set_origin(key.get_name().to_string());
-                    ident.set_revision(key.get_revision().to_string());
+                    ident.set_location(format!("/origins/{}/keys/{}", &key.name, &key.revision));
+                    ident.set_origin(key.name.to_string());
+                    ident.set_revision(key.revision.to_string());
                     ident
                 }).collect();
 
@@ -333,15 +328,13 @@ fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpRespon
         Err(err) => return err.into(),
     };
 
-    let mut request = OriginPublicSigningKeyCreate::new();
-    request.set_owner_id(account_id);
-    request.set_revision(revision);
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    match helpers::get_origin(&req, &origin) {
-        Ok(mut origin) => {
-            request.set_name(origin.take_name());
-            request.set_origin_id(origin.get_id());
-        }
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id,
         Err(err) => return err.into(),
     };
 
@@ -359,16 +352,18 @@ fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpRespon
         }
     }
 
-    request.set_body(body.into_bytes());
-    request.set_owner_id(0);
-    match route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(&req, &request) {
+    let new_pk = NewOriginPublicSigningKey {
+        owner_id: account_id as i64,
+        origin_id: origin_id as i64,
+        name: &origin,
+        revision: &revision,
+        body: &body.into_bytes(),
+    };
+
+    match OriginPublicSigningKey::create(&new_pk, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Created()
             .header(http::header::LOCATION, format!("{}", req.uri()))
-            .body(format!(
-                "/origins/{}/keys/{}",
-                &origin,
-                &request.get_revision()
-            )),
+            .body(format!("/origins/{}/keys/{}", &origin, &revision)),
         Err(err) => err.into(),
     }
 }
@@ -378,35 +373,36 @@ fn download_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut request = OriginPublicSigningKeyGet::new();
-    request.set_origin(origin);
-    request.set_revision(revision);
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
     let key =
-        match route_message::<OriginPublicSigningKeyGet, OriginPublicSigningKey>(&req, &request) {
+        match OriginPublicSigningKey::get(&origin, &revision, &*conn).map_err(Error::DieselError) {
             Ok(key) => key,
             Err(err) => return err.into(),
         };
 
-    let xfilename = format!("{}-{}.pub", key.get_name(), key.get_revision());
-    download_content_as_file(key.get_body(), xfilename)
+    let xfilename = format!("{}-{}.pub", key.name, key.revision);
+    download_content_as_file(&key.body, xfilename)
 }
 
 fn download_latest_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
-    let mut request = OriginPublicSigningKeyLatestGet::new();
-    request.set_origin(origin);
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    let key = match route_message::<OriginPublicSigningKeyLatestGet, OriginPublicSigningKey>(
-        &req, &request,
-    ) {
+    let key = match OriginPublicSigningKey::latest(&origin, &*conn).map_err(Error::DieselError) {
         Ok(key) => key,
         Err(err) => return err.into(),
     };
 
-    let xfilename = format!("{}-{}.pub", key.get_name(), key.get_revision());
-    download_content_as_file(key.get_body(), xfilename)
+    let xfilename = format!("{}-{}.pub", key.name, key.revision);
+    download_content_as_file(&key.body, xfilename)
 }
 
 fn list_origin_secrets(req: HttpRequest<AppState>) -> HttpResponse {
@@ -589,17 +585,15 @@ fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> Htt
         Err(err) => return err.into(),
     };
 
-    let mut request = OriginPrivateSigningKeyCreate::new();
-    request.set_owner_id(account_id);
-    request.set_revision(revision);
-
-    match helpers::get_origin(req, &origin) {
-        Ok(mut origin) => {
-            request.set_name(origin.take_name());
-            request.set_origin_id(origin.get_id());
-        }
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
+    };
+
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id,
+        Err(err) => return err.into(),
+    };
 
     match String::from_utf8(body.to_vec()) {
         Ok(content) => match parse_key_str(&content) {
@@ -621,9 +615,15 @@ fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> Htt
         }
     }
 
-    request.set_body(body.to_vec());
-    request.set_owner_id(0);
-    match route_message::<OriginPrivateSigningKeyCreate, OriginPrivateSigningKey>(req, &request) {
+    let new_sk = NewOriginPrivateSigningKey {
+        owner_id: account_id as i64,
+        origin_id: origin_id as i64,
+        name: &origin,
+        revision: &revision,
+        body: body,
+    };
+
+    match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => err.into(),
     }
@@ -636,23 +636,18 @@ fn download_latest_origin_secret_key(req: HttpRequest<AppState>) -> HttpResponse
         return err.into();
     }
 
-    let mut request = OriginPrivateSigningKeyGet::new();
-    match helpers::get_origin(&req, origin) {
-        Ok(mut origin) => {
-            request.set_owner_id(origin.get_owner_id());
-            request.set_origin(origin.take_name());
-        }
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
-    let key = match route_message::<OriginPrivateSigningKeyGet, OriginPrivateSigningKey>(
-        &req, &request,
-    ) {
+    };
+
+    let key = match OriginPrivateSigningKey::get(&origin, &*conn).map_err(Error::DieselError) {
         Ok(key) => key,
         Err(err) => return err.into(),
     };
 
-    let xfilename = format!("{}-{}.sig.key", key.get_name(), key.get_revision());
-    download_content_as_file(key.get_body(), xfilename)
+    let xfilename = format!("{}-{}.sig.key", key.name, key.revision);
+    download_content_as_file(&key.body, xfilename)
 }
 
 fn list_unique_packages(
