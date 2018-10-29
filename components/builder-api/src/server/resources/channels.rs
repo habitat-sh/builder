@@ -40,7 +40,7 @@ use db::models::channel::{
     OriginChannelDemote as OCD, OriginChannelPackage as OCPackage, OriginChannelPromote as OCP,
     PackageChannelAudit as PCA, PackageChannelAudit, PackageChannelOperation as PCO,
 };
-use db::models::package::{BuilderPackageIdent, GetPackage, Package};
+use db::models::package::BuilderPackageIdent;
 use server::services::metrics::Counter;
 use server::AppState;
 

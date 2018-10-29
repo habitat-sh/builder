@@ -85,6 +85,14 @@ pub fn extract_pagination(pagination: &Query<Pagination>) -> (isize, isize) {
     )
 }
 
+// Returns the page number we are currently on and the per_page size
+pub fn extract_pagination_in_pages(pagination: &Query<Pagination>) -> (isize, isize) {
+    (
+        pagination.range / PAGINATION_RANGE_MAX + 1,
+        PAGINATION_RANGE_MAX,
+    )
+}
+
 // TODO: Deprecate getting target from User Agent header
 pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
     let user_agent_header = match req.headers().get(header::USER_AGENT) {
