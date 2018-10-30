@@ -33,11 +33,9 @@ use bldr_core;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
 use hab_core::package::ident;
-use hab_net::NetOk;
 
 use protocol::originsrv::{
-    OriginKeyIdent, OriginMemberListRequest, OriginMemberListResponse, OriginMemberRemove,
-    OriginPackageUniqueListRequest, OriginPackageUniqueListResponse,
+    OriginKeyIdent, OriginPackageUniqueListRequest, OriginPackageUniqueListResponse,
 };
 
 use db::models::account::*;
@@ -902,15 +900,24 @@ fn list_origin_members(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut request = OriginMemberListRequest::new();
-    match helpers::get_origin(&req, &origin) {
-        Ok(origin) => request.set_origin_id(origin.get_id()),
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
-    match route_message::<OriginMemberListRequest, OriginMemberListResponse>(&req, &request) {
-        Ok(list) => HttpResponse::Ok()
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(list),
+    };
+
+    match OriginMember::list(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(list) => {
+            let users: Vec<String> = list.iter().map(|u| u.account_name.to_string()).collect();
+            let origin_id = list[0].origin_id;
+            let json = json!({
+                "origin_id": origin_id.to_string(),
+                "members": serde_json::to_value(users).unwrap()
+            });
+
+            HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(json)
+        }
         Err(err) => err.into(),
     }
 }
@@ -936,22 +943,19 @@ fn origin_member_delete(req: HttpRequest<AppState>) -> HttpResponse {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
-    debug!(
-        "Deleting user name {} for user {} origin {}",
-        &user, &account_id, &origin
-    );
+    debug!("Deleting origin member {} from origin {}", &user, &origin);
 
-    let mut origin_request = OriginMemberRemove::new();
-
-    match helpers::get_origin(&req, origin) {
-        Ok(origin) => {
-            origin_request.set_origin_id(origin.get_id());
-        }
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
-    origin_request.set_account_name(user.to_string());
+    };
 
-    match route_message::<OriginMemberRemove, NetOk>(&req, &origin_request) {
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id as u64,
+        Err(err) => return err.into(),
+    };
+
+    match OriginMember::delete(origin_id, &user, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }

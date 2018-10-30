@@ -1,12 +1,17 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
+
 use diesel;
 use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::sql_types::{BigInt, Text};
 use diesel::RunQueryDsl;
+
 use models::package::{PackageVisibility, PackageVisibilityMapping};
 use protocol::originsrv;
+
+use schema::member::*;
 use schema::origin::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
@@ -46,6 +51,19 @@ pub struct OriginWithStats {
     pub updated_at: Option<NaiveDateTime>,
     pub default_package_visibility: PackageVisibility,
     pub package_count: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Queryable, QueryableByName)]
+#[table_name = "origin_members"]
+pub struct OriginMember {
+    #[serde(with = "db_id_format")]
+    pub origin_id: i64,
+    #[serde(with = "db_id_format")]
+    pub account_id: i64,
+    pub origin_name: String,
+    pub account_name: String,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
 }
 
 // #[derive(Insertable)]
@@ -98,6 +116,27 @@ impl Origin {
             .bind::<BigInt, _>(account_id as i64)
             .execute(conn)
             .and_then(|s| Ok(s > 0))
+    }
+}
+
+impl OriginMember {
+    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginMember>> {
+        use schema::member::origin_members;
+        use schema::origin::origins;
+
+        origin_members::table
+            .select(origin_members::table::all_columns())
+            .inner_join(origins::table)
+            .filter(origins::name.eq(origin))
+            .order(origin_members::account_name.asc())
+            .get_results(conn)
+    }
+
+    pub fn delete(origin_id: u64, account_name: &str, conn: &PgConnection) -> QueryResult<usize> {
+        diesel::sql_query("select * from delete_origin_member_v1($1, $2)")
+            .bind::<BigInt, _>(origin_id as i64)
+            .bind::<Text, _>(account_name)
+            .execute(conn)
     }
 }
 
