@@ -134,7 +134,7 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         Ok(account_token) => {
             let mut memcache = req.state().memcache.borrow_mut();
             for token in access_tokens {
-                memcache.delete_key(&token.token)
+                memcache.delete_session_key(&token.token)
             }
             HttpResponse::Ok().json(account_token)
         }
@@ -168,7 +168,7 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         Ok(_) => {
             let mut memcache = req.state().memcache.borrow_mut();
             for token in access_tokens {
-                memcache.delete_key(&token.token)
+                memcache.delete_session_key(&token.token)
             }
             HttpResponse::Ok().finish()
         }

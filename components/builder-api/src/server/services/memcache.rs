@@ -20,6 +20,7 @@ use memcache;
 use protobuf;
 use protobuf::Message;
 use protocol::originsrv::Session;
+use sha2::{Digest, Sha512};
 
 pub struct MemcacheClient {
     cli: memcache::Client,
@@ -115,14 +116,14 @@ impl MemcacheClient {
     pub fn get_session(&mut self, token: &str) -> Option<Session> {
         trace!("Getting session for user {} from memcached", token);
 
-        match self.get_bytes(&format!("{}", token)) {
+        match self.get_bytes(&hash_key(token)) {
             Some(session) => Some(protobuf::parse_from_bytes(&session).unwrap()),
             None => None,
         }
     }
 
-    pub fn delete_key(&mut self, key: &str) {
-        match self.cli.delete(key) {
+    pub fn delete_session_key(&mut self, key: &str) {
+        match self.cli.delete(&hash_key(key)) {
             Ok(b) => trace!("Deleted key {}, {:?}", key, b),
             Err(e) => warn!("Failed to delete key {}: {}", key, e),
         };
@@ -135,7 +136,7 @@ impl MemcacheClient {
         };
 
         match self.cli.set(
-            token,
+            &hash_key(token),
             session.write_to_bytes().unwrap().as_slice(),
             computed_ttl,
         ) {
@@ -196,4 +197,10 @@ fn package_ns_key(origin: &str, name: &str) -> String {
 
 fn channel_ns_key(origin: &str, channel: &str) -> String {
     format!("channel:{}/{}", origin, channel)
+}
+
+fn hash_key(key: &str) -> String {
+    let mut hasher = Sha512::new();
+    hasher.input(key);
+    format!("{:02x}", hasher.result())
 }

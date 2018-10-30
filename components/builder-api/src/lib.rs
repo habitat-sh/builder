@@ -55,6 +55,7 @@ extern crate r2d2;
 extern crate regex;
 extern crate rusoto_core as rusoto;
 extern crate rusoto_s3;
+extern crate sha2;
 extern crate tempfile;
 extern crate time;
 extern crate toml;
