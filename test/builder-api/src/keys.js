@@ -41,6 +41,17 @@ describe('Keys API', function () {
           done(err);
         });
     });
+
+    it('expects a Conflict result on second upload of same key', function (done) {
+      request.post(`/depot/origins/neurosis/keys/${revision}`)
+        .set('Authorization', global.boboBearer)
+        .send(pubFile)
+        .expect(409)
+        .end(function (err, res) {
+          expect(res.body).to.be.empty;
+          done(err);
+        });
+    });
   });
 
   describe('Downloading public keys', function () {
@@ -90,6 +101,17 @@ describe('Keys API', function () {
         .expect(201)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('expects a Conflict result on second upload of same key', function (done) {
+      request.post(`/depot/origins/neurosis/secret_keys/${revision}`)
+        .set('Authorization', global.boboBearer)
+        .send(secretFile)
+        .expect(409)
+        .end(function (err, res) {
+          expect(res.body).to.be.empty;
           done(err);
         });
     });

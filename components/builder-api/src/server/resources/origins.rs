@@ -18,7 +18,9 @@
 use std::collections::HashMap;
 use std::str::from_utf8;
 
-use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
+use actix_web::http::header::{
+    Charset, ContentDisposition, DispositionParam, DispositionType, ExtendedValue,
+};
 use actix_web::http::{self, Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
@@ -1130,7 +1132,11 @@ fn download_content_as_file(content: &[u8], filename: String) -> HttpResponse {
             http::header::CONTENT_DISPOSITION,
             ContentDisposition {
                 disposition: DispositionType::Attachment,
-                parameters: vec![DispositionParam::Filename(filename.clone())],
+                parameters: vec![DispositionParam::FilenameExt(ExtendedValue {
+                    charset: Charset::Iso_8859_1, // The character set for the bytes of the filename
+                    language_tag: None, // The optional language tag (see `language-tag` crate)
+                    value: filename.as_bytes().to_vec(), // the actual bytes of the filename
+                })],
             },
         ).header(
             http::header::HeaderName::from_static(headers::XFILENAME),
