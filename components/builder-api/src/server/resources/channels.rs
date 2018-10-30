@@ -23,24 +23,21 @@ use diesel::result::{DatabaseErrorKind, Error::DatabaseError, Error::NotFound};
 use std::ops::Deref;
 
 use bldr_core::metrics::CounterMetric;
-use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
+use hab_core::package::{PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError};
-use protocol::originsrv::*;
 use serde_json;
 
-use super::pkgs::{is_a_service, postprocess_package_list};
+use super::pkgs::{is_a_service, postprocess_package_list_model};
+use db::models::channel::{
+    Channel, CreateChannel, DeleteChannel, GetLatestPackage, ListChannelPackages, ListChannels,
+    OriginChannelDemote, OriginChannelPackage, OriginChannelPromote, PackageChannelAudit,
+    PackageChannelOperation,
+};
+use db::models::package::BuilderPackageIdent;
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
-use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-// TED PROTOCLEANUP remove aliases when we get rid of all the protos
-use db::models::channel::{
-    Channel, CreateChannel, DeleteChannel, GetLatestPackage, ListChannels,
-    OriginChannelDemote as OCD, OriginChannelPackage as OCPackage, OriginChannelPromote as OCP,
-    PackageChannelAudit as PCA, PackageChannelAudit, PackageChannelOperation as PCO,
-};
-use db::models::package::BuilderPackageIdent;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -230,8 +227,8 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
         Some(release.clone()),
     );
 
-    match OCPackage::promote(
-        OCP {
+    match OriginChannelPackage::promote(
+        OriginChannelPromote {
             ident: BuilderPackageIdent(ident.clone()),
             origin: origin.clone(),
             channel: channel.clone(),
@@ -243,7 +240,7 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
             &*conn,
             ident,
             channel,
-            PCO::Promote,
+            PackageChannelOperation::Promote,
             origin,
             session_id,
         ) {
@@ -282,8 +279,8 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
         Ok(session_id) => session_id,
         Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
-    match OCPackage::demote(
-        OCD {
+    match OriginChannelPackage::demote(
+        OriginChannelDemote {
             ident: BuilderPackageIdent(ident.clone()),
             origin: origin.clone(),
             channel: channel.clone(),
@@ -296,7 +293,7 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
                 &conn,
                 ident.clone(),
                 channel,
-                PCO::Demote,
+                PackageChannelOperation::Demote,
                 origin,
                 session_id,
             ) {
@@ -320,13 +317,10 @@ fn get_packages_for_origin_channel_package_version(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
-    ident.set_version(version);
+    let ident = PackageIdent::new(origin, pkg, Some(version.clone()), None);
 
     match do_get_channel_packages(&req, &pagination, ident, channel) {
-        Ok(olpr) => postprocess_package_list(&req, &olpr, pagination.distinct),
+        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
         Err(err) => err.into(),
     }
 }
@@ -338,12 +332,10 @@ fn get_packages_for_origin_channel_package(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
+    let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_channel_packages(&req, &pagination, ident, channel) {
-        Ok(olpr) => postprocess_package_list(&req, &olpr, pagination.distinct),
+        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
         Err(err) => err.into(),
     }
 }
@@ -355,11 +347,11 @@ fn get_packages_for_origin_channel(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
+    // It feels 1000x wrong to set the package name to ""
+    let ident = PackageIdent::new(origin, String::from(""), None, None);
 
     match do_get_channel_packages(&req, &pagination, ident, channel) {
-        Ok(olpr) => postprocess_package_list(&req, &olpr, pagination.distinct),
+        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
         Err(err) => err.into(),
     }
 }
@@ -371,9 +363,7 @@ fn get_latest_package_for_origin_channel_package(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
+    let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_channel_package(&req, &qtarget, ident, channel) {
         Ok(json_body) => HttpResponse::Ok()
@@ -391,10 +381,7 @@ fn get_latest_package_for_origin_channel_package_version(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
-    ident.set_version(version);
+    let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
     match do_get_channel_package(&req, &qtarget, ident, channel) {
         Ok(json_body) => HttpResponse::Ok()
@@ -413,11 +400,7 @@ fn get_package_fully_qualified(
             .unwrap()
             .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
-    ident.set_version(version);
-    ident.set_release(release);
+    let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
     match do_get_channel_package(&req, &qtarget, ident, channel) {
         Ok(json_body) => HttpResponse::Ok()
@@ -440,12 +423,12 @@ fn audit_package_rank_change(
     conn: &PgConnection,
     ident: PackageIdent,
     channel: String,
-    operation: PCO,
+    operation: PackageChannelOperation,
     origin: String,
     session_id: u64,
 ) -> Result<()> {
     match PackageChannelAudit::audit(
-        PCA {
+        PackageChannelAudit {
             ident: BuilderPackageIdent(ident),
             channel: channel,
             operation: operation,
@@ -464,34 +447,39 @@ fn audit_package_rank_change(
 fn do_get_channel_packages(
     req: &HttpRequest<AppState>,
     pagination: &Query<Pagination>,
-    ident: OriginPackageIdent,
+    ident: PackageIdent,
     channel: String,
-) -> Result<OriginPackageListResponse> {
+) -> Result<(Vec<BuilderPackageIdent>, i64)> {
     let opt_session_id = match authorize_session(&req, None) {
         Ok(id) => Some(id),
         Err(_) => None,
     };
 
-    let (start, stop) = helpers::extract_pagination(pagination);
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-    let mut request = OriginChannelPackageListRequest::new();
-    request.set_name(channel);
-    request.set_start(start as u64);
-    request.set_stop(stop as u64);
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        &req,
-        opt_session_id,
-        &ident.get_origin(),
-    ));
+    let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
 
-    request.set_ident(ident);
-    route_message::<OriginChannelPackageListRequest, OriginPackageListResponse>(req, &request)
+    Channel::list_packages(
+        ListChannelPackages {
+            ident: BuilderPackageIdent(ident.clone().into()),
+            visibility: helpers::visibility_for_optional_session_model(
+                &req,
+                opt_session_id,
+                &ident.origin,
+            ),
+            origin: ident.origin.to_string(),
+            channel: channel,
+            page: page as i64,
+            limit: per_page as i64,
+        },
+        &*conn,
+    ).map_err(Error::DieselError)
 }
 
 fn do_get_channel_package(
     req: &HttpRequest<AppState>,
     qtarget: &Query<Target>,
-    ident: OriginPackageIdent,
+    ident: PackageIdent,
     channel: String,
 ) -> Result<String> {
     let opt_session_id = match authorize_session(req, None) {
@@ -529,13 +517,13 @@ fn do_get_channel_package(
 
     let pkg = match Channel::get_latest_package(
         GetLatestPackage {
-            ident: BuilderPackageIdent(ident.clone().into()),
+            ident: BuilderPackageIdent(ident.clone()),
             channel: channel.clone(),
             target: target.to_string(),
             visibility: helpers::visibility_for_optional_session_model(
                 req,
                 opt_session_id,
-                &ident.get_origin(),
+                &ident.origin,
             ),
         },
         &*conn,
@@ -556,7 +544,7 @@ fn do_get_channel_package(
     pkg_json["is_a_service"] = json!(is_a_service(&pkg.into()));
 
     let json_body = serde_json::to_string(&pkg_json).unwrap();
-    memcache.set_package(req_ident.clone().into(), &json_body, &channel, &target);
+    memcache.set_package(req_ident.clone(), &json_body, &channel, &target);
 
     Ok(json_body)
 }

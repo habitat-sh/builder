@@ -23,7 +23,7 @@ use hab_core::package::{FromArchive, PackageArchive, PackageIdent, PackageTarget
 use models::pagination::*;
 use schema::package::*;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
 #[table_name = "origin_packages"]
 pub struct Package {
     #[serde(with = "db_id_format")]
