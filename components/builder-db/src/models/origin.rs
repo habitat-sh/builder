@@ -87,6 +87,18 @@ impl Origin {
             .bind::<PackageVisibilityMapping, _>(dpv)
             .execute(conn)
     }
+
+    pub fn check_membership(
+        origin: &str,
+        account_id: u64,
+        conn: &PgConnection,
+    ) -> QueryResult<bool> {
+        diesel::sql_query("select * from check_account_in_origin_members_v1($1, $2)")
+            .bind::<Text, _>(origin)
+            .bind::<BigInt, _>(account_id as i64)
+            .execute(conn)
+            .and_then(|s| Ok(s > 0))
+    }
 }
 
 impl Into<originsrv::Origin> for Origin {

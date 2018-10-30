@@ -16,16 +16,19 @@ use actix_web::HttpRequest;
 use hab_net::privilege::FeatureFlags;
 
 use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
-use protocol::originsrv::*;
+
+use protocol::originsrv;
+
+use db::models::account::*;
+use db::models::origin::*;
 
 use server::error::{Error, Result};
-use server::framework::middleware::route_message;
 use server::AppState;
 
 pub fn authorize_session(req: &HttpRequest<AppState>, origin_opt: Option<&str>) -> Result<u64> {
     let account_id = {
         let extensions = req.extensions();
-        match extensions.get::<Session>() {
+        match extensions.get::<originsrv::Session>() {
             Some(session) => {
                 let flags = FeatureFlags::from_bits(session.get_flags()).unwrap(); // unwrap Ok
                 if flags.contains(FeatureFlags::BUILD_WORKER) {
@@ -37,13 +40,11 @@ pub fn authorize_session(req: &HttpRequest<AppState>, origin_opt: Option<&str>) 
         }
     };
 
-    if let Some(origin) = origin_opt {
-        let mut request = CheckOriginAccessRequest::new();
-        request.set_account_id(account_id);
-        request.set_origin_name(origin.to_string());
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-        match route_message::<CheckOriginAccessRequest, CheckOriginAccessResponse>(req, &request) {
-            Ok(ref response) if response.get_has_access() => (),
+    if let Some(origin) = origin_opt {
+        match Origin::check_membership(origin, account_id, &*conn).map_err(Error::DieselError) {
+            Ok(is_member) if is_member => (),
             _ => return Err(Error::Authorization),
         }
     }
@@ -57,11 +58,16 @@ pub fn get_session_user_name(req: &HttpRequest<AppState>, account_id: u64) -> St
         return BUILDER_ACCOUNT_NAME.to_string();
     }
 
-    let mut msg = AccountGetId::new();
-    msg.set_id(account_id);
+    let conn = match req.state().db.get_conn() {
+        Ok(conn) => conn,
+        Err(err) => {
+            warn!("Failed to get account, id={}, err={:?}", account_id, err);
+            return "".to_string();
+        }
+    };
 
-    match route_message::<AccountGetId, Account>(req, &msg) {
-        Ok(account) => account.get_name().to_string(),
+    match Account::get_by_id(account_id, &*conn) {
+        Ok(account) => account.name.to_string(),
         Err(err) => {
             warn!("Failed to get account, id={}, err={:?}", account_id, err);
             "".to_string()
@@ -74,11 +80,10 @@ pub fn check_origin_owner(
     account_id: u64,
     origin: &str,
 ) -> Result<bool> {
-    let mut request = CheckOriginOwnerRequest::new();
-    request.set_account_id(account_id);
-    request.set_origin_name(origin.to_string());
-    match route_message::<CheckOriginOwnerRequest, CheckOriginOwnerResponse>(req, &request) {
-        Ok(response) => Ok(response.get_is_owner()),
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+
+    match Origin::get(origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => Ok(origin.owner_id == account_id as i64),
         Err(err) => Err(err),
     }
 }
