@@ -8,7 +8,10 @@ use protocol::originsrv::{OriginPackage, OriginPackageIdent, OriginPackageVisibi
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::deserialize::{self, FromSql};
+use diesel::dsl::sql;
+use diesel::pg::expression::dsl::any;
 use diesel::pg::{Pg, PgConnection};
+use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::serialize::{self, IsNull, Output, ToSql};
 use diesel::sql_types::{Array, BigInt, Integer, Text};
@@ -17,9 +20,10 @@ use diesel::RunQueryDsl;
 use super::db_id_format;
 use hab_core;
 use hab_core::package::{FromArchive, PackageArchive, PackageIdent, PackageTarget};
+use models::pagination::*;
 use schema::package::*;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Clone)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone)]
 #[table_name = "origin_packages"]
 pub struct Package {
     #[serde(with = "db_id_format")]
@@ -78,6 +82,13 @@ pub struct GetPackage {
 pub struct UpdatePackageVisibility {
     pub visibility: PackageVisibility,
     pub ids: Vec<i64>,
+}
+
+pub struct ListPackages {
+    pub ident: BuilderPackageIdent,
+    pub visibility: Vec<PackageVisibility>,
+    pub page: i64,
+    pub limit: i64,
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Clone, ToSql, FromSql)]
@@ -143,9 +154,44 @@ impl Package {
             .bind::<Array<BigInt>, _>(req.ids)
             .execute(conn)
     }
+
+    pub fn list(
+        pl: ListPackages,
+        conn: &PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+        use schema::package::origin_packages::dsl::{
+            ident, ident_array, origin_packages, visibility,
+        };
+
+        origin_packages
+            .select(ident)
+            .filter(ident_array.contains(pl.ident.parts()))
+            .filter(visibility.eq(any(pl.visibility)))
+            .order(ident.desc())
+            .paginate(pl.page)
+            .per_page(pl.limit)
+            .load_and_count_records(conn)
+    }
+
+    pub fn list_distinct(
+        pl: ListPackages,
+        conn: &PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+        use schema::package::origin_packages::dsl::{ident_array, origin_packages, visibility};
+        origin_packages
+            .select(sql("concat_ws('/', ident_array[1], ident_array[2])"))
+            .filter(ident_array.contains(pl.ident.parts()))
+            .filter(visibility.eq(any(pl.visibility)))
+            // This is because diesel doesn't yet support group_by
+            // see: https://github.com/diesel-rs/diesel/issues/210
+            .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
+            .paginate(pl.page)
+            .per_page(pl.limit)
+            .load_and_count_records(conn)
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow)]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
 impl FromSql<Text, Pg> for BuilderPackageIdent {
@@ -169,7 +215,13 @@ impl ToSql<Text, Pg> for BuilderPackageIdent {
 
 impl BuilderPackageIdent {
     pub fn parts(self) -> Vec<String> {
-        self.to_string().split("/").map(|s| s.to_string()).collect()
+        self.to_string()
+            .split("/")
+            .map(|s| s.to_string())
+            // We must filter out empty strings from the vec.
+            // This sometimes happens hen the origin or the package name are undefined.
+            .filter(|s| s != "")
+            .collect()
     }
 }
 
@@ -187,7 +239,7 @@ impl Deref for BuilderPackageIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow)]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
 impl FromSql<Text, Pg> for BuilderPackageTarget {

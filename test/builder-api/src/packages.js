@@ -188,6 +188,24 @@ describe('Working with packages', function () {
         });
     });
 
+    it('lists all distinct packages', function (done) {
+      request.get('/depot/pkgs/neurosis?distinct=true')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(1);
+          expect(res.body.total_count).to.equal(2);
+          expect(res.body.data.length).to.equal(2);
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('testapp2');
+          done(err);
+        });
+    });
+
     it('lists all unique package names', function (done) {
       request.get('/depot/neurosis/pkgs')
         .type('application/json')

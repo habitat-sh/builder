@@ -40,7 +40,8 @@ use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use db::models::package::{
-    BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, NewPackage, Package,
+    BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
+    NewPackage, Package,
 };
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
@@ -162,7 +163,7 @@ fn get_packages_for_origin(
     let ident = OriginPackageIdent::from_str(origin.as_str()).unwrap();
 
     match do_get_packages(&req, ident, &pagination) {
-        Ok(olpr) => postprocess_package_list(&req, &olpr, pagination.distinct),
+        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
         Err(err) => err.into(),
     }
 }
@@ -179,7 +180,7 @@ fn get_packages_for_origin_package(
     ident.set_name(pkg);
 
     match do_get_packages(&req, ident, &pagination) {
-        Ok(olpr) => postprocess_package_list(&req, &olpr, pagination.distinct),
+        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
         Err(err) => err.into(),
     }
 }
@@ -197,7 +198,7 @@ fn get_packages_for_origin_package_version(
     ident.set_version(version);
 
     match do_get_packages(&req, ident, &pagination) {
-        Ok(olpr) => postprocess_package_list(&req, &olpr, pagination.distinct),
+        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
         Err(err) => err.into(),
     }
 }
@@ -767,6 +768,70 @@ pub fn postprocess_package_list(
         .body(body)
 }
 
+// TODO : this needs to be re-designed to not fan out
+// Common functionality for pkgs and channel routes
+pub fn postprocess_package_list_model(
+    req: &HttpRequest<AppState>,
+    packages: Vec<BuilderPackageIdent>,
+    count: i64,
+    pagination: Query<Pagination>,
+) -> HttpResponse {
+    let (start, _) = helpers::extract_pagination(&pagination);
+    let pkg_count = packages.len() as isize;
+    let stop = match pkg_count {
+        0 => count,
+        _ => (start + pkg_count - 1) as i64,
+    };
+
+    debug!(
+        "postprocessing package list, start: {}, stop: {}, total_count: {}",
+        start, stop, count
+    );
+
+    let mut results = Vec::new();
+
+    // The idea here is for every package we get back, pull its channels using the zmq API
+    // and accumulate those results. This avoids the N+1 HTTP requests that would be
+    // required to fetch channels for a list of packages in the UI. However, if our request
+    // has been marked as "distinct" then skip this step because it doesn't make sense in
+    // that case. Let's get platforms at the same time.
+    for ident in packages {
+        let mut channels: Option<Vec<String>> = None;
+        let mut platforms: Option<Vec<String>> = None;
+
+        if !pagination.distinct {
+            channels = helpers::channels_for_package_ident(req, &ident.clone().into());
+            platforms = helpers::platforms_for_package_ident(req, &ident.clone().into());
+        }
+
+        let mut pkg_json = serde_json::to_value(ident.clone()).unwrap();
+
+        if channels.is_some() {
+            pkg_json["channels"] = json!(channels);
+        }
+
+        if platforms.is_some() {
+            pkg_json["platforms"] = json!(platforms);
+        }
+
+        results.push(pkg_json);
+    }
+
+    let body =
+        helpers::package_results_json(&results, count as isize, start as isize, stop as isize);
+
+    let mut response = if count as isize > (stop as isize + 1) {
+        HttpResponse::PartialContent()
+    } else {
+        HttpResponse::Ok()
+    };
+
+    response
+        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+        .body(body)
+}
+
 //
 // Internal - these functions should return Result<..>
 //
@@ -774,26 +839,32 @@ fn do_get_packages(
     req: &HttpRequest<AppState>,
     ident: OriginPackageIdent,
     pagination: &Query<Pagination>,
-) -> Result<OriginPackageListResponse> {
+) -> Result<(Vec<BuilderPackageIdent>, i64)> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(id) => Some(id),
         Err(_) => None,
     };
 
-    let (start, stop) = helpers::extract_pagination(pagination);
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-    let mut request = OriginPackageListRequest::new();
-    request.set_start(start as u64);
-    request.set_stop(stop as u64);
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        &req,
-        opt_session_id,
-        &ident.get_origin(),
-    ));
-    request.set_distinct(pagination.distinct);
-    request.set_ident(ident);
+    let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
 
-    route_message::<OriginPackageListRequest, OriginPackageListResponse>(&req, &request)
+    let lpr = ListPackages {
+        ident: BuilderPackageIdent(ident.clone().into()),
+        visibility: helpers::visibility_for_optional_session_model(
+            &req,
+            opt_session_id,
+            &ident.get_origin(),
+        ),
+        page: page as i64,
+        limit: per_page as i64,
+    };
+
+    if pagination.distinct {
+        return Package::list_distinct(lpr, &*conn).map_err(Error::DieselError);
+    }
+
+    Package::list(lpr, &*conn).map_err(Error::DieselError)
 }
 
 //
