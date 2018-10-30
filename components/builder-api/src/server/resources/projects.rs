@@ -21,11 +21,13 @@ use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
 use protocol::jobsrv::*;
-use protocol::originsrv::*;
+use protocol::originsrv;
 
 use bldr_core;
 use hab_core::package::{PackageIdent, Plan};
 
+use db::models::origin::*;
+use db::models::package::PackageVisibility;
 use db::models::package::*;
 use db::models::project_integration::*;
 use db::models::projects::*;
@@ -116,10 +118,8 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         Err(err) => return err.into(),
     };
 
-    let mut origin_get = OriginGet::new();
-    origin_get.set_name(body.origin.clone());
-    let origin = match route_message::<OriginGet, Origin>(&req, &origin_get) {
-        Ok(response) => response,
+    let origin = match Origin::get(&body.origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin,
         Err(err) => return err.into(),
     };
 
@@ -129,13 +129,13 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 
         let new_project = NewProject {
             owner_id: account_id as i64,
-            origin_name: String::from(origin.get_name()),
+            origin_name: String::from(origin.name),
             package_name: String::from("testapp"),
             plan_path: body.plan_path.clone(),
             vcs_type: String::from("git"),
             vcs_data: String::from("https://github.com/habitat-sh/testapp.git"),
             install_id: body.installation_id as i64,
-            visibility: OriginPackageVisibility::Public.to_string(),
+            visibility: originsrv::OriginPackageVisibility::Public.to_string(),
             auto_build: body.auto_build,
         };
 
@@ -197,15 +197,17 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
+    let dpv: originsrv::OriginPackageVisibility = origin.default_package_visibility.into();
+
     let new_project = NewProject {
         owner_id: account_id as i64,
-        origin_name: String::from(origin.get_name()),
+        origin_name: String::from(origin.name),
         package_name: String::from(plan.name.trim_matches('"')),
         plan_path: body.plan_path.clone(),
         vcs_type: String::from("git"),
         vcs_data: vcs_data,
         install_id: body.installation_id as i64,
-        visibility: origin.get_default_package_visibility().to_string(),
+        visibility: dpv.to_string(),
         auto_build: body.auto_build,
     };
 
@@ -304,7 +306,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
             vcs_type: String::from("git"),
             vcs_data: String::from("https://github.com/habitat-sh/testapp.git"),
             install_id: body.installation_id as i64,
-            visibility: OriginPackageVisibility::Public.to_string(),
+            visibility: originsrv::OriginPackageVisibility::Public.to_string(),
             auto_build: body.auto_build,
         };
 
@@ -587,7 +589,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
-    let opv: OriginPackageVisibility = match visibility.parse() {
+    let opv: originsrv::OriginPackageVisibility = match visibility.parse() {
         Ok(o) => o,
         Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
     };

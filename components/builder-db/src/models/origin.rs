@@ -48,18 +48,14 @@ pub struct OriginWithStats {
     pub package_count: i64,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct CreateOrigin {
-    pub name: String,
+// #[derive(Insertable)]
+// #[table_name = "origins"]
+// TODO: Make this directly insertable?
+pub struct NewOrigin<'a> {
+    pub name: &'a str,
     pub owner_id: i64,
-    pub owner_name: String,
-    pub default_package_visibility: PackageVisibility,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct UpdateOrigin {
-    pub name: String,
-    pub default_package_visibility: PackageVisibility,
+    pub owner_name: &'a str,
+    pub default_package_visibility: &'a PackageVisibility,
 }
 
 impl Origin {
@@ -76,19 +72,19 @@ impl Origin {
             .get_results(conn)
     }
 
-    pub fn create(origin: CreateOrigin, conn: &PgConnection) -> QueryResult<Origin> {
+    pub fn create(req: &NewOrigin, conn: &PgConnection) -> QueryResult<Origin> {
         diesel::sql_query("select * from insert_origin_v3($1, $2, $3, $4)")
-            .bind::<Text, _>(origin.name)
-            .bind::<BigInt, _>(origin.owner_id)
-            .bind::<Text, _>(origin.owner_name)
-            .bind::<PackageVisibilityMapping, _>(origin.default_package_visibility)
+            .bind::<Text, _>(req.name)
+            .bind::<BigInt, _>(req.owner_id)
+            .bind::<Text, _>(req.owner_name)
+            .bind::<PackageVisibilityMapping, _>(req.default_package_visibility)
             .get_result(conn)
     }
 
-    pub fn update(origin: UpdateOrigin, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn update(name: &str, dpv: PackageVisibility, conn: &PgConnection) -> QueryResult<usize> {
         diesel::sql_query("select * from update_origin_v2($1, $2)")
-            .bind::<Text, _>(origin.name)
-            .bind::<PackageVisibilityMapping, _>(origin.default_package_visibility)
+            .bind::<Text, _>(name)
+            .bind::<PackageVisibilityMapping, _>(dpv)
             .execute(conn)
     }
 }
