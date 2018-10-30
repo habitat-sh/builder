@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-use actix_web::http::{Method, StatusCode};
+use actix_web::http::{self, Method, StatusCode};
 use actix_web::{App, FromRequest, HttpRequest, HttpResponse, Json, Path};
+use serde_json;
 
 use bldr_core;
 use protocol::originsrv;
@@ -22,6 +23,7 @@ use db::models::account::*;
 
 use server::authorize::authorize_session;
 use server::error::{Error, Result};
+use server::framework::headers;
 use server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -89,7 +91,15 @@ fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     match do_get_access_tokens(&req, account_id) {
-        Ok(account_tokens) => HttpResponse::Ok().json(account_tokens),
+        Ok(tokens) => {
+            let json = json!({
+                           "tokens": serde_json::to_value(tokens).unwrap()
+                       });
+
+            HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(json)
+        }
         Err(err) => err.into(),
     }
 }
