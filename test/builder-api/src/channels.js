@@ -293,7 +293,7 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(49);
+          expect(res.body.range_end).to.equal(0);
           expect(res.body.total_count).to.equal(0);
           expect(res.body.data.length).to.equal(0);
           done(err);

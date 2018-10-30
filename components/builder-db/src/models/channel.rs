@@ -1,14 +1,17 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
 use diesel;
+use diesel::pg::expression::dsl::any;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::sql_types::{Array, BigInt, Bool, Text};
 use diesel::RunQueryDsl;
+use diesel::{ExpressionMethods, PgArrayExpressionMethods, QueryDsl};
 use models::package::{BuilderPackageIdent, Package, PackageVisibility, PackageVisibilityMapping};
+use models::pagination::Paginate;
 use schema::channel::*;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Identifiable)]
 #[table_name = "origin_channels"]
 pub struct Channel {
     #[serde(with = "db_id_format")]
@@ -51,6 +54,15 @@ pub struct GetLatestPackage {
     pub target: String,
 }
 
+pub struct ListChannelPackages {
+    pub ident: BuilderPackageIdent,
+    pub visibility: Vec<PackageVisibility>,
+    pub channel: String,
+    pub origin: String,
+    pub page: i64,
+    pub limit: i64,
+}
+
 impl Channel {
     pub fn list(channel: ListChannels, conn: &PgConnection) -> QueryResult<Vec<Channel>> {
         diesel::sql_query("select * from get_origin_channels_for_origin_v3($1, $2)")
@@ -90,6 +102,29 @@ impl Channel {
             .bind::<Text, _>(req.target)
             .bind::<Array<PackageVisibilityMapping>, _>(req.visibility)
             .get_result(conn)
+    }
+
+    pub fn list_packages(
+        lcp: ListChannelPackages,
+        conn: &PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+        use schema::channel::{origin_channel_packages, origin_channels};
+        use schema::origin::origins;
+        use schema::package::origin_packages;
+
+        origin_packages::table
+            .inner_join(
+                origin_channel_packages::table
+                    .inner_join(origin_channels::table.inner_join(origins::table)),
+            ).filter(origin_packages::ident_array.contains(lcp.ident.parts()))
+            .filter(origin_packages::visibility.eq(any(lcp.visibility)))
+            .filter(origins::name.eq(lcp.origin))
+            .filter(origin_channels::name.eq(lcp.channel))
+            .select(origin_packages::ident)
+            .order(origin_packages::ident.asc())
+            .paginate(lcp.page)
+            .per_page(lcp.limit)
+            .load_and_count_records(conn)
     }
 }
 
