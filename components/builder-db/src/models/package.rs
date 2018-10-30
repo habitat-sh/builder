@@ -22,6 +22,7 @@ use diesel::RunQueryDsl;
 use super::db_id_format;
 use hab_core;
 use hab_core::package::{FromArchive, PackageArchive, PackageIdent, PackageTarget};
+use models::channel::Channel;
 use models::pagination::*;
 use schema::package::*;
 
@@ -92,6 +93,18 @@ pub struct ListPackages {
     pub visibility: Vec<PackageVisibility>,
     pub page: i64,
     pub limit: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[table_name = "origin_package_versions"]
+pub struct OriginPackageVersions {
+    pub origin: String,
+    pub name: String,
+    pub version: String,
+    #[serde(with = "db_id_format")]
+    pub release_count: i64,
+    pub latest: String,
+    pub platforms: Vec<String>,
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, PartialEq, Clone, ToSql, FromSql)]
@@ -210,6 +223,40 @@ impl Package {
             .paginate(pl.page)
             .per_page(pl.limit)
             .load_and_count_records(conn)
+    }
+
+    pub fn list_package_channels(
+        ident: BuilderPackageIdent,
+        visibility: Vec<PackageVisibility>,
+        conn: &PgConnection,
+    ) -> QueryResult<Vec<Channel>> {
+        use schema::channel::origin_channel_packages::dsl::origin_channel_packages;
+        use schema::channel::origin_channels::dsl::{name, origin_channels};
+        use schema::package::origin_packages::dsl::{
+            ident as package_ident, origin_packages, visibility as package_visibility,
+        };
+
+        origin_packages
+            .inner_join(origin_channel_packages.inner_join(origin_channels))
+            .select(origin_channels::all_columns())
+            .filter(package_ident.eq(ident))
+            .filter(package_visibility.eq(any(visibility)))
+            .order(name.desc())
+            .get_results(conn)
+    }
+
+    pub fn list_package_versions(
+        ident: BuilderPackageIdent,
+        visibility: Vec<PackageVisibility>,
+        conn: &PgConnection,
+    ) -> QueryResult<Vec<OriginPackageVersions>> {
+        // So many regrets with this query
+        diesel::sql_query(
+            "select $1 as origin, $2 as name, version, release_count, latest, string_to_array(platforms, ',') as platforms from get_origin_package_versions_for_origin_v8($1, $2, $3)",
+        ).bind::<Text, _>(&ident.origin)
+        .bind::<Text, _>(&ident.name)
+        .bind::<Array<PackageVisibilityMapping>, _>(visibility)
+        .get_results(conn)
     }
 }
 

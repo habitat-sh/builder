@@ -449,39 +449,32 @@ fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
         Err(_) => None,
     };
 
-    let mut request = OriginPackageChannelListRequest::new();
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(name);
-    ident.set_version(version);
-    ident.set_release(release);
+    let ident = PackageIdent::new(origin, name, Some(version), Some(release));
 
     if !ident.fully_qualified() {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        &req,
-        opt_session_id,
-        &ident.get_origin(),
-    ));
-    request.set_ident(ident);
-
-    match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
-        &req, &request,
+    match Package::list_package_channels(
+        BuilderPackageIdent(ident.clone()),
+        helpers::visibility_for_optional_session_model(&req, opt_session_id, &ident.origin),
+        &*conn,
     ) {
         Ok(channels) => {
             let list: Vec<String> = channels
-                .get_channels()
                 .iter()
-                .map(|channel| channel.get_name().to_string())
+                .map(|channel| channel.name.to_string())
                 .collect();
             HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(list)
         }
-        Err(err) => err.into(),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 
@@ -495,26 +488,26 @@ fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
         Err(_) => None,
     };
 
-    let mut request = OriginPackageVersionListRequest::new();
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        &req,
-        opt_session_id,
-        &origin,
-    ));
-    request.set_origin(origin);
-    request.set_name(name);
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
 
-    match route_message::<OriginPackageVersionListRequest, OriginPackageVersionListResponse>(
-        &req, &request,
+    let ident = PackageIdent::new(origin.to_string(), name, None, None);
+
+    match Package::list_package_versions(
+        BuilderPackageIdent(ident),
+        helpers::visibility_for_optional_session_model(&req, opt_session_id, &origin),
+        &*conn,
     ) {
         Ok(packages) => {
-            let body = serde_json::to_string(&packages.get_versions().to_vec()).unwrap();
+            let body = serde_json::to_string(&packages).unwrap();
             HttpResponse::Ok()
                 .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .body(body)
         }
-        Err(err) => err.into(),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 

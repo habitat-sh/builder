@@ -20,3 +20,18 @@ table! {
         updated_at -> Nullable<Timestamptz>,
     }
 }
+
+table! {
+    origin_package_versions (origin, name) {
+        origin -> Text,
+        name -> Text,
+        version -> Text,
+        release_count -> BigInt,
+        latest -> Text,
+        platforms -> Array<Text>,
+    }
+}
+
+use super::origin::origins;
+
+joinable!(origin_packages -> origins (origin_id));
