@@ -85,7 +85,7 @@ impl AccountToken {
             .get_results(conn)
     }
 
-    pub fn create(req: &NewAccountToken, conn: &PgConnection) -> QueryResult<Account> {
+    pub fn create(req: &NewAccountToken, conn: &PgConnection) -> QueryResult<AccountToken> {
         diesel::sql_query("SELECT * FROM insert_account_token_v1($1, $2)")
             .bind::<BigInt, _>(req.account_id)
             .bind::<Text, _>(req.token)

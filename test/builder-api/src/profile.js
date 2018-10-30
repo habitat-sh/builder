@@ -56,4 +56,81 @@ describe('Profile API', function () {
         });
     });
   });
+
+  describe('Generating a personal access token', function () {
+    it('requires authentication', function (done) {
+      request.post('/profile/access-tokens')
+        .type('application/json')
+        .accept('application/json')
+        .expect(401)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
+  it('succeeds', function (done) {
+    request.post('/profile/access-tokens')
+      .set('Authorization', global.boboBearer)
+      .type('application/json')
+      .accept('application/json')
+      .expect(200)
+      .end(function (err, res) {
+        expect(res.body.token).to.not.be.empty;
+        global.boboTokenId = res.body.id;
+        done(err);
+      });
+  });
+
+  describe('Getting a list of access tokens', function () {
+    it('requires authentication', function (done) {
+      request.get('/profile/access-tokens')
+        .type('application/json')
+        .accept('application/json')
+        .expect(401)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
+  it('succeeds', function (done) {
+    request.get('/profile/access-tokens')
+      .set('Authorization', global.boboBearer)
+      .type('application/json')
+      .accept('application/json')
+      .expect(200)
+      .end(function (err, res) {
+        expect(res.body.tokens).to.not.be.empty;
+        expect(res.body.tokens[0].id).to.equal(global.boboTokenId);
+        done(err);
+      });
+  });
+
+  describe('Revoking an access token', function () {
+    it('requires authentication', function (done) {
+      request.delete('/profile/access-tokens/' + global.boboTokenId)
+        .type('application/json')
+        .accept('application/json')
+        .expect(401)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
+  it('succeeds', function (done) {
+    request.delete('/profile/access-tokens/' + global.boboTokenId)
+      .set('Authorization', global.boboBearer)
+      .type('application/json')
+      .accept('application/json')
+      .expect(200)
+      .end(function (err, res) {
+        expect(res.body).to.be.empty;
+        done(err);
+      });
+  });
 });
