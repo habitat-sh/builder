@@ -33,18 +33,16 @@ use bldr_core;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::BoxKeyPair;
 use hab_core::package::ident;
-use hab_net::{ErrCode, NetOk};
+use hab_net::NetOk;
 
 use protocol::originsrv::{
-    OriginInvitation, OriginInvitationAcceptRequest, OriginInvitationCreate,
-    OriginInvitationIgnoreRequest, OriginInvitationListRequest, OriginInvitationListResponse,
-    OriginInvitationRescindRequest, OriginKeyIdent, OriginMemberListRequest,
-    OriginMemberListResponse, OriginMemberRemove, OriginPackageUniqueListRequest,
-    OriginPackageUniqueListResponse,
+    OriginKeyIdent, OriginMemberListRequest, OriginMemberListResponse, OriginMemberRemove,
+    OriginPackageUniqueListRequest, OriginPackageUniqueListResponse,
 };
 
 use db::models::account::*;
 use db::models::integration::*;
+use db::models::invitations::*;
 use db::models::keys::*;
 use db::models::origin::*;
 use db::models::package::PackageVisibility;
@@ -745,36 +743,29 @@ fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let mut invite_request = OriginInvitationCreate::new();
+    let (recipient_id, recipient_name) =
+        match Account::get(&user, &*conn).map_err(Error::DieselError) {
+            Ok(account) => (account.id, account.name),
+            Err(err) => return err.into(),
+        };
 
-    match Account::get(&user, &*conn).map_err(Error::DieselError) {
-        Ok(account) => {
-            invite_request.set_account_id(account.id as u64);
-            invite_request.set_account_name(account.name);
-        }
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id,
         Err(err) => return err.into(),
     };
 
-    match helpers::get_origin(&req, &origin) {
-        Ok(mut origin) => {
-            invite_request.set_origin_id(origin.get_id());
-            invite_request.set_origin_name(origin.take_name());
-        }
-        Err(err) => return err.into(),
-    }
-
-    invite_request.set_owner_id(account_id);
+    let new_invitation = NewOriginInvitation {
+        origin_id: origin_id,
+        origin_name: &origin,
+        account_id: recipient_id,
+        account_name: &recipient_name,
+        owner_id: account_id as i64,
+    };
 
     // store invitations in the originsrv
-    match route_message::<OriginInvitationCreate, OriginInvitation>(&req, &invite_request) {
+    match OriginInvitation::create(&new_invitation, &*conn).map_err(Error::DieselError) {
         Ok(invitation) => HttpResponse::Created().json(&invitation),
-        Err(Error::NetError(err)) => {
-            if err.get_code() == ErrCode::ENTITY_CONFLICT {
-                HttpResponse::NoContent().finish()
-            } else {
-                Error::NetError(err).into()
-            }
-        }
+        // TODO (SA): Check for error case where invitation already exists
         Err(err) => err.into(),
     }
 }
@@ -789,23 +780,22 @@ fn accept_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let mut request = OriginInvitationAcceptRequest::new();
-    request.set_ignore(false);
-    request.set_account_id(account_id);
-    request.set_origin_name(origin);
-
-    match invitation.parse::<u64>() {
-        Ok(invitation_id) => request.set_invite_id(invitation_id),
+    let invitation_id = match invitation.parse::<u64>() {
+        Ok(invitation_id) => invitation_id,
         Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
-    }
+    };
 
     debug!(
         "Accepting invitation for user {} origin {}",
-        &request.get_account_id(),
-        request.get_origin_name()
+        account_id, origin
     );
 
-    match route_message::<OriginInvitationAcceptRequest, NetOk>(&req, &request) {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    match OriginInvitation::accept(invitation_id, false, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -821,22 +811,22 @@ fn ignore_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let mut request = OriginInvitationIgnoreRequest::new();
-    request.set_account_id(account_id);
-
-    match invitation.parse::<u64>() {
-        Ok(invitation_id) => request.set_invitation_id(invitation_id),
+    let invitation_id = match invitation.parse::<u64>() {
+        Ok(invitation_id) => invitation_id,
         Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
-    }
+    };
+
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
     debug!(
         "Ignoring invitation id {} for user {} origin {}",
-        request.get_invitation_id(),
-        request.get_account_id(),
-        &origin
+        invitation_id, account_id, &origin
     );
 
-    match route_message::<OriginInvitationIgnoreRequest, NetOk>(&req, &request) {
+    match OriginInvitation::ignore(invitation_id, account_id, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -852,22 +842,22 @@ fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let mut request = OriginInvitationRescindRequest::new();
-    request.set_owner_id(account_id);
-
-    match invitation.parse::<u64>() {
-        Ok(invitation_id) => request.set_invitation_id(invitation_id),
+    let invitation_id = match invitation.parse::<u64>() {
+        Ok(invitation_id) => invitation_id,
         Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
-    }
+    };
 
     debug!(
         "Rescinding invitation id {} for user {} origin {}",
-        request.get_invitation_id(),
-        request.get_owner_id(),
-        &origin
+        invitation_id, account_id, &origin
     );
 
-    match route_message::<OriginInvitationRescindRequest, NetOk>(&req, &request) {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    match OriginInvitation::rescind(invitation_id, account_id, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -880,17 +870,27 @@ fn list_origin_invitations(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let mut request = OriginInvitationListRequest::new();
-    match helpers::get_origin(&req, &origin) {
-        Ok(origin) => request.set_origin_id(origin.get_id()),
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
-    }
+    };
 
-    match route_message::<OriginInvitationListRequest, OriginInvitationListResponse>(&req, &request)
-    {
-        Ok(list) => HttpResponse::Ok()
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(list),
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id as u64,
+        Err(err) => return err.into(),
+    };
+
+    match OriginInvitation::list_by_origin(origin_id, &*conn).map_err(Error::DieselError) {
+        Ok(list) => {
+            let json = json!({
+                           "origin_id": origin_id.to_string(),
+                           "invitations": serde_json::to_value(list).unwrap()
+                       });
+
+            HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(json)
+        }
         Err(err) => err.into(),
     }
 }
