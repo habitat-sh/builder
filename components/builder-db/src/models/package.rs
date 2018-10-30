@@ -15,6 +15,7 @@ use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::serialize::{self, IsNull, Output, ToSql};
 use diesel::sql_types::{Array, BigInt, Integer, Text};
+use diesel::PgArrayExpressionMethods;
 use diesel::RunQueryDsl;
 
 use super::db_id_format;
@@ -76,6 +77,7 @@ pub struct GetLatestPackage {
 pub struct GetPackage {
     pub ident: BuilderPackageIdent,
     pub visibility: Vec<PackageVisibility>,
+    pub target: BuilderPackageTarget,
 }
 
 #[derive(Debug)]
@@ -108,15 +110,23 @@ pub enum PackageVisibility {
 
 impl Package {
     pub fn get(req: GetPackage, conn: &PgConnection) -> QueryResult<Package> {
-        diesel::sql_query("select * from get_origin_package_v5($1, $2)")
-            .bind::<Text, _>(req.ident)
-            .bind::<Array<PackageVisibilityMapping>, _>(req.visibility)
+        use schema::package::origin_packages::dsl::*;
+
+        origin_packages
+            .filter(ident.eq(req.ident))
+            .filter(visibility.eq(any(req.visibility)))
+            .filter(target.eq(req.target))
             .get_result(conn)
     }
 
-    pub fn get_all(ident: BuilderPackageIdent, conn: &PgConnection) -> QueryResult<Vec<Package>> {
-        diesel::sql_query("select * from get_all_origin_packages_for_ident_v1($1)")
-            .bind::<Text, _>(ident)
+    pub fn get_all(
+        req_ident: BuilderPackageIdent,
+        conn: &PgConnection,
+    ) -> QueryResult<Vec<Package>> {
+        use schema::package::origin_packages::dsl::*;
+
+        origin_packages
+            .filter(ident_array.contains(req_ident.parts()))
             .get_results(conn)
     }
 
@@ -191,7 +201,8 @@ impl Package {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression)]
+#[sql_type = "Text"]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
 impl FromSql<Text, Pg> for BuilderPackageIdent {
@@ -239,7 +250,8 @@ impl Deref for BuilderPackageIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression)]
+#[sql_type = "Text"]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
 impl FromSql<Text, Pg> for BuilderPackageTarget {

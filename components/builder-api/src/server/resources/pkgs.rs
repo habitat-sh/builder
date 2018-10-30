@@ -41,7 +41,7 @@ use protocol::originsrv::*;
 
 use db::models::package::{
     BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
-    NewPackage, Package,
+    NewPackage, Package, PackageVisibility,
 };
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
@@ -55,6 +55,8 @@ use server::AppState;
 // Query param containers
 #[derive(Debug, Deserialize)]
 pub struct Upload {
+    #[serde(default = "default_target")]
+    target: String,
     #[serde(default)]
     checksum: String,
     #[serde(default)]
@@ -252,24 +254,21 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
         .unwrap()
         .into_inner(); // Unwrap Ok
 
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
     let opt_session_id = match authorize_session(&req, None) {
         Ok(id) => Some(id),
         Err(_) => None,
     };
 
-    let mut ident_req = OriginPackageGet::new();
-
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin.to_string());
-    ident.set_name(name.to_string());
-    ident.set_version(version.to_string());
-    ident.set_release(release.to_string());
+    let ident = PackageIdent::new(origin, name, Some(version), Some(release));
 
     let mut vis =
-        helpers::visibility_for_optional_session(&req, opt_session_id, &ident.get_origin());
-    vis.push(OriginPackageVisibility::Hidden);
-    ident_req.set_visibilities(vis);
-    ident_req.set_ident(ident.clone());
+        helpers::visibility_for_optional_session_model(&req, opt_session_id, &ident.origin);
+    vis.push(PackageVisibility::Hidden);
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target.clone() {
@@ -284,23 +283,18 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
-    match route_message::<OriginPackageGet, OriginPackage>(&req, &ident_req) {
+    match Package::get(
+        GetPackage {
+            ident: BuilderPackageIdent(ident.clone()),
+            visibility: vis,
+            target: BuilderPackageTarget(target),
+        },
+        &*conn,
+    ) {
         Ok(package) => {
-            // TODO: Modify OriginPackageGet to take a target param. For now,
-            // just check to make sure the target matches the request
-            if package.get_target() != target.as_ref() {
-                debug!(
-                    "Package target did not match: {} {} {}",
-                    ident,
-                    package.get_target(),
-                    target
-                );
-                return HttpResponse::new(StatusCode::NOT_FOUND);
-            }
-
             let dir =
                 tempdir_in(&req.state().config.api.data_path).expect("Unable to create a tempdir!");
-            let file_path = dir.path().join(archive_name(&(&package).into(), &target));
+            let file_path = dir.path().join(archive_name(&package.ident, &target));
             let temp_ident = ident.to_owned().into();
             match req
                 .state()
@@ -317,7 +311,7 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
                 }
             }
         }
-        Err(err) => err.into(),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 
@@ -889,6 +883,7 @@ fn do_upload_package_start(
             GetPackage {
                 ident: BuilderPackageIdent(ident.clone()),
                 visibility: helpers::all_visibilities_model(),
+                target: BuilderPackageTarget(PackageTarget::from_str(&qupload.target).unwrap()), // Unwrap OK
             },
             &*conn,
         ) {
@@ -1179,6 +1174,7 @@ fn do_get_package(
                     opt_session_id,
                     &ident.origin,
                 ),
+                target: BuilderPackageTarget(target),
             },
             &*conn,
         ) {
