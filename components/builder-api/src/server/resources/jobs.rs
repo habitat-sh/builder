@@ -21,13 +21,17 @@ use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
 use protocol::jobsrv::*;
-use protocol::originsrv::*;
+use protocol::originsrv::{OriginPackageIdent, OriginPackageVisibility};
 
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
-use hab_core::package::{Identifiable, PackageTarget};
+use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError, NetOk};
 
+use db::models::channel::*;
+use db::models::origin::*;
+use db::models::package::*;
 use db::models::projects::*;
+use diesel::result::Error::NotFound;
 
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
@@ -203,68 +207,80 @@ fn do_group_promotion_or_demotion(
     projects: Vec<&JobGroupProject>,
     origin: &str,
     promote: bool,
-) -> Result<Vec<u64>> {
-    authorize_session(req, Some(&origin))?;
+) -> Result<Vec<i64>> {
+    let account_id = authorize_session(req, Some(&origin))?;
 
-    let conn = req.state().db.get_conn()?;
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-    let mut ocg = OriginChannelGet::new();
-    ocg.set_origin_name(origin.to_string());
-    ocg.set_name(channel.to_string());
-
-    let channel = match route_message::<OriginChannelGet, OriginChannel>(req, &ocg) {
+    let channel = match Channel::get(
+        GetChannel {
+            origin: origin.to_string(),
+            channel: channel.to_string(),
+        },
+        &*conn,
+    ) {
         Ok(channel) => channel,
-        Err(Error::NetError(e)) => {
-            if e.get_code() == ErrCode::ENTITY_NOT_FOUND {
-                if channel != STABLE_CHANNEL || channel != UNSTABLE_CHANNEL {
-                    helpers::create_channel(req, &*conn, &origin, channel)?
-                } else {
-                    info!("Unable to retrieve default channel, err: {:?}", e);
-                    return Err(Error::NetError(e));
-                }
+        Err(NotFound) => {
+            if channel != STABLE_CHANNEL || channel != UNSTABLE_CHANNEL {
+                Channel::create(
+                    CreateChannel {
+                        channel: channel.to_string(),
+                        origin: origin.to_string(),
+                        owner_id: account_id as i64,
+                    },
+                    &*conn,
+                )?
             } else {
-                info!("Unable to retrieve channel, err: {:?}", e);
-                return Err(Error::NetError(e));
+                warn!("Unable to retrieve default channel: {}", channel);
+                return Err(Error::DieselError(NotFound));
             }
         }
         Err(e) => {
             info!("Unable to retrieve channel, err: {:?}", e);
-            return Err(e);
+            return Err(Error::DieselError(e));
         }
     };
 
     let mut package_ids = Vec::new();
 
     for project in projects {
-        let opi = OriginPackageIdent::from_str(project.get_ident()).unwrap();
-        let mut opg = OriginPackageGet::new();
-        opg.set_ident(opi);
-        opg.set_visibilities(helpers::all_visibilities());
-
         req.state().memcache.borrow_mut().clear_cache_for_package(
             OriginPackageIdent::from_str(project.get_ident())
                 .unwrap()
                 .into(),
         );
 
-        let op = route_message::<OriginPackageGet, OriginPackage>(req, &opg)?;
-        package_ids.push(op.get_id());
+        // TODO (SA): Expand build targets - currently Builder only supports x86_64-linux
+        let op = Package::get(
+            GetPackage {
+                ident: BuilderPackageIdent(
+                    PackageIdent::from_str(project.get_ident().clone()).unwrap(),
+                ),
+                visibility: helpers::all_visibilities_model(),
+                target: BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap()), // Unwrap OK
+            },
+            &*conn,
+        )?;
+
+        package_ids.push(op.id);
     }
 
     if promote {
-        let mut opgp = OriginPackageGroupPromote::new();
-        opgp.set_channel_id(channel.get_id());
-        opgp.set_package_ids(package_ids.clone());
-        opgp.set_origin(origin.to_string());
-
-        route_message::<OriginPackageGroupPromote, NetOk>(req, &opgp)?;
+        Channel::promote_packages(
+            PromotePackages {
+                channel_id: channel.id,
+                pkg_ids: package_ids.clone(),
+            },
+            &*conn,
+        )?;
     } else {
-        let mut opgp = OriginPackageGroupDemote::new();
-        opgp.set_channel_id(channel.get_id());
-        opgp.set_package_ids(package_ids.clone());
-        opgp.set_origin(origin.to_string());
-
-        route_message::<OriginPackageGroupDemote, NetOk>(req, &opgp)?;
+        Channel::demote_packages(
+            DemotePackages {
+                channel_id: channel.id,
+                pkg_ids: package_ids.clone(),
+            },
+            &*conn,
+        )?;
     }
 
     Ok(package_ids)
@@ -342,50 +358,49 @@ fn promote_or_demote_job_group(
 
     let jgt = helpers::trigger_from_request(req);
     let trigger = PackageChannelTrigger::from(jgt);
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     for (origin, projects) in origin_map.iter() {
         match do_group_promotion_or_demotion(req, channel, projects.to_vec(), &origin, promote) {
             Ok(package_ids) => {
-                let mut pgca = PackageGroupChannelAudit::new();
+                let channel_id = match Channel::get(
+                    GetChannel {
+                        origin: origin.to_string(),
+                        channel: channel.to_string(),
+                    },
+                    &*conn,
+                ) {
+                    Ok(channel) => channel.id,
+                    Err(err) => return Err(Error::DieselError(err)),
+                };
 
-                let mut channel_get = OriginChannelGet::new();
-                channel_get.set_origin_name(origin.clone());
-                channel_get.set_name(channel.to_string());
-                match route_message::<OriginChannelGet, OriginChannel>(req, &channel_get) {
-                    Ok(origin_channel) => pgca.set_channel_id(origin_channel.get_id()),
+                let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
+                    Ok(origin) => origin.id,
                     Err(err) => return Err(err),
-                }
+                };
 
-                let mut origin_get = OriginGet::new();
-                origin_get.set_name(origin.clone());
-                match route_message::<OriginGet, Origin>(req, &origin_get) {
-                    Ok(origin_origin) => pgca.set_origin_id(origin_origin.get_id()),
-                    Err(err) => return Err(err),
-                }
-
-                pgca.set_package_ids(package_ids);
-
-                if promote {
-                    pgca.set_operation(PackageChannelOperation::Promote);
+                let pco = if promote {
+                    PackageChannelOperation::Promote
                 } else {
-                    pgca.set_operation(PackageChannelOperation::Demote);
-                }
+                    PackageChannelOperation::Demote
+                };
 
                 let session_id = authorize_session(req, None).unwrap(); // Unwrap ok
                 let session_name = get_session_user_name(req, session_id);
 
-                pgca.set_trigger(trigger);
-                pgca.set_requester_id(session_id);
-                pgca.set_requester_name(session_name);
-                pgca.set_group_id(group_id);
-
-                route_message::<PackageGroupChannelAudit, NetOk>(req, &pgca)?;
-            }
-            Err(Error::NetError(e)) => {
-                if e.get_code() != ErrCode::ACCESS_DENIED {
-                    warn!("Failed to promote or demote group, err: {:?}", e);
-                    return Err(Error::NetError(e));
-                }
+                PackageGroupChannelAudit::audit(
+                    PackageGroupChannelAudit {
+                        origin_id: origin_id,
+                        channel_id: channel_id,
+                        pkg_ids: package_ids,
+                        operation: pco,
+                        trigger: trigger.clone(),
+                        requester_id: session_id as i64,
+                        requester_name: session_name,
+                        group_id: group_id as i64,
+                    },
+                    &*conn,
+                )?;
             }
             Err(e) => {
                 warn!("Failed to promote or demote group, err: {:?}", e);
