@@ -27,17 +27,16 @@ use hab_core::package::{PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError};
 use serde_json;
 
+use protocol::originsrv;
+
 use super::pkgs::{is_a_service, postprocess_package_list_model};
-use db::models::channel::{
-    Channel, CreateChannel, DeleteChannel, GetLatestPackage, ListChannelPackages, ListChannels,
-    OriginChannelDemote, OriginChannelPackage, OriginChannelPromote, PackageChannelAudit,
-    PackageChannelOperation,
-};
-use db::models::package::BuilderPackageIdent;
+
+use db::models::channel::*;
+use db::models::package::{BuilderPackageIdent, Package};
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
-use server::helpers::{self, Pagination, Target};
+use server::helpers::{self, visibility_for_optional_session_model, Pagination, Target};
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -539,7 +538,7 @@ fn do_get_channel_package(
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = helpers::channels_for_package_ident(req, &pkg.ident.clone().into());
+    let channels = channels_for_package_ident(req, &pkg.ident.clone().into())?;
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(is_a_service(&pkg.into()));
 
@@ -547,4 +546,36 @@ fn do_get_channel_package(
     memcache.set_package(req_ident.clone(), &json_body, &channel, &target);
 
     Ok(json_body)
+}
+
+pub fn channels_for_package_ident(
+    req: &HttpRequest<AppState>,
+    package: &originsrv::OriginPackageIdent,
+) -> Result<Option<Vec<String>>> {
+    let opt_session_id = match authorize_session(req, None) {
+        Ok(id) => Some(id),
+        Err(_) => None,
+    };
+
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(e) => return Err(e.into()),
+    };
+
+    match Package::list_package_channels(
+        BuilderPackageIdent(package.clone().into()),
+        visibility_for_optional_session_model(req, opt_session_id, package.get_origin()),
+        &*conn,
+    ).map_err(Error::DieselError)
+    {
+        Ok(channels) => {
+            let list: Vec<String> = channels
+                .iter()
+                .map(|channel| channel.name.to_string())
+                .collect();
+
+            Ok(Some(list))
+        }
+        Err(err) => Err(err),
+    }
 }
