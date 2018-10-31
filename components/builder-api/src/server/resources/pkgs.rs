@@ -373,38 +373,6 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
-    let mut secret_key_request = OriginPrivateSigningKeyGet::new();
-    let origin = match helpers::get_origin(&req, &origin_name) {
-        Ok(origin) => {
-            secret_key_request.set_owner_id(origin.get_owner_id());
-            secret_key_request.set_origin(origin_name.clone());
-            origin
-        }
-        Err(err) => return err.into(),
-    };
-
-    let need_keys = match route_message::<OriginPrivateSigningKeyGet, OriginPrivateSigningKey>(
-        &req,
-        &secret_key_request,
-    ) {
-        Ok(key) => {
-            let mut pub_key_request = OriginPublicSigningKeyGet::new();
-            pub_key_request.set_origin(origin_name.clone());
-            pub_key_request.set_revision(key.get_revision().to_string());
-            route_message::<OriginPublicSigningKeyGet, OriginPublicSigningKey>(
-                &req,
-                &pub_key_request,
-            ).is_err()
-        }
-        Err(_) => true,
-    };
-
-    if need_keys {
-        if let Err(err) = helpers::generate_origin_keys(&req, account_id, origin) {
-            return err.into();
-        }
-    }
-
     let mut request = JobGroupSpec::new();
     request.set_origin(origin_name);
     request.set_package(package);
