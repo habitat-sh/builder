@@ -16,6 +16,7 @@ use std::str::FromStr;
 
 use actix_web::http::header;
 use actix_web::{HttpRequest, Query};
+use diesel::pg::PgConnection;
 use regex::Regex;
 use serde::Serialize;
 use serde_json;
@@ -26,6 +27,7 @@ use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
 use db::models::channel::PackageChannelTrigger as PCT;
+use db::models::origin::Origin;
 use db::models::package::PackageVisibility;
 use server::authorize::authorize_session;
 use server::error::Result;
@@ -130,15 +132,6 @@ pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
         Ok(t) => t,
         Err(_) => PackageTarget::from_str("x86_64-linux").unwrap(),
     }
-}
-
-pub fn get_origin<T>(req: &HttpRequest<AppState>, origin: T) -> Result<Origin>
-where
-    T: ToString,
-{
-    let mut request = OriginGet::new();
-    request.set_name(origin.to_string());
-    route_message::<OriginGet, Origin>(req, &request)
 }
 
 pub fn visibility_for_optional_session(
@@ -251,17 +244,19 @@ pub fn all_visibilities_model() -> Vec<PackageVisibility> {
 
 pub fn create_channel(
     req: &HttpRequest<AppState>,
+    conn: &PgConnection,
     origin: &str,
     channel: &str,
 ) -> Result<OriginChannel> {
     let session_id = authorize_session(req, Some(&origin))?;
 
-    let mut origin = get_origin(req, origin)?;
+    let origin = Origin::get(origin, conn)?;
+
     let mut request = OriginChannelCreate::new();
 
     request.set_owner_id(session_id);
-    request.set_origin_name(origin.take_name());
-    request.set_origin_id(origin.get_id());
+    request.set_origin_name(origin.name.to_string());
+    request.set_origin_id(origin.id as u64);
     request.set_name(channel.to_string());
 
     route_message::<OriginChannelCreate, OriginChannel>(req, &request)

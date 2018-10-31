@@ -23,7 +23,6 @@ use serde_json;
 use protocol::jobsrv::*;
 use protocol::originsrv;
 
-use bldr_core;
 use hab_core::package::{PackageIdent, Plan};
 
 use db::models::origin::*;
@@ -587,7 +586,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
-    let opv: originsrv::OriginPackageVisibility = match visibility.parse() {
+    let pv: PackageVisibility = match visibility.parse() {
         Ok(o) => o,
         Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
     };
@@ -603,10 +602,6 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let project_visibility = project.visibility.parse().unwrap();
-
-    let real_visibility = bldr_core::helpers::transition_visibility(&opv, &project_visibility);
-
     let package_name = project.package_name.clone();
 
     let update_project = UpdateProject {
@@ -618,7 +613,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         vcs_type: &project.vcs_type,
         vcs_data: &project.vcs_data,
         install_id: project.vcs_installation_id,
-        visibility: &real_visibility.to_string(),
+        visibility: &pv.to_string(),
         auto_build: project.auto_build,
     };
 
@@ -642,8 +637,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         let id = pkg.id;
         let pv: PackageVisibility = pkg.visibility;
         let vis: originsrv::OriginPackageVisibility = pv.into();
-        let new_vis = bldr_core::helpers::transition_visibility(&project_visibility, &vis);
-        map.entry(new_vis).or_insert(Vec::new()).push(id);
+        map.entry(vis).or_insert(Vec::new()).push(id);
     }
 
     // Now do a bulk update for each different visibility
@@ -654,7 +648,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
             ids: id_vector.clone(),
         };
 
-        if let Err(err) = Package::update_visibility(upv, &*conn).map_err(Error::DieselError) {
+        if let Err(err) = Package::update_visibility_bulk(upv, &*conn).map_err(Error::DieselError) {
             return err.into();
         };
     }

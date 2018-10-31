@@ -19,7 +19,6 @@ use std::fmt::Display;
 use std::io;
 use std::str::FromStr;
 
-use bldr_core::helpers::transition_visibility;
 use chrono::{DateTime, Utc};
 use db::config::DataStoreCfg;
 use db::migration::setup_ids;
@@ -180,8 +179,7 @@ impl DataStore {
             let id: i64 = row.get("id");
             let pv: PackageVisibility = row.get("visibility");
             let vis: originsrv::OriginPackageVisibility = pv.into();
-            let new_vis = transition_visibility(&project.get_visibility(), &vis);
-            map.entry(new_vis).or_insert(Vec::new()).push(id);
+            map.entry(vis).or_insert(Vec::new()).push(id);
         }
 
         // Now do a bulk update for each different visibility

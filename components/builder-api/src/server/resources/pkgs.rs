@@ -31,7 +31,6 @@ use tempfile::tempdir_in;
 use url;
 use uuid::Uuid;
 
-use bldr_core::helpers::transition_visibility;
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError, NetOk};
@@ -39,10 +38,13 @@ use hab_net::{ErrCode, NetError, NetOk};
 use protocol::jobsrv::*;
 use protocol::originsrv::*;
 
+use db::models::origin::Origin;
 use db::models::package::{
     BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
     NewPackage, Package, PackageVisibility,
 };
+use db::models::projects::Project;
+
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::feat;
@@ -612,48 +614,35 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
             .unwrap()
             .into_inner(); // Unwrap Ok
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
-        return err.into();
-    }
-
-    // users aren't allowed to set packages to hidden manually
-    if visibility.to_lowercase() == "hidden" {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(name);
-    ident.set_version(version);
-    ident.set_release(release);
+    let ident = PackageIdent::new(origin.clone(), name, Some(version), Some(release));
 
     if !ident.valid() {
         info!("Invalid package identifier: {}", ident);
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
-    let opv: OriginPackageVisibility = match visibility.parse() {
+    let pv: PackageVisibility = match visibility.parse() {
         Ok(o) => o,
         Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
     };
 
-    let mut opg = OriginPackageGet::new();
-    opg.set_ident(ident);
-    opg.set_visibilities(helpers::all_visibilities());
+    if let Err(err) = authorize_session(&req, Some(&origin)) {
+        return err.into();
+    }
 
-    match route_message::<OriginPackageGet, OriginPackage>(&req, &opg) {
-        Ok(mut package) => {
-            let real_visibility = transition_visibility(&opv, &package.get_visibility());
-            let mut opu = OriginPackageUpdate::new();
-            package.set_visibility(real_visibility);
-            opu.set_pkg(package);
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
 
-            match route_message::<OriginPackageUpdate, NetOk>(&req, &opu) {
-                Ok(_) => HttpResponse::Ok().finish(),
-                Err(e) => e.into(),
-            }
-        }
-        Err(e) => e.into(),
+    // users aren't allowed to set packages to hidden manually
+    if visibility.to_lowercase() == "hidden" {
+        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    match Package::update_visibility(pv, BuilderPackageIdent(ident), &*conn) {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(e) => Error::DieselError(e).into(),
     }
 }
 
@@ -982,37 +971,25 @@ fn do_upload_package_finish(
 
     package.owner_id = session_id as i64;
 
-    package.origin_id = match helpers::get_origin(&req, ident.origin.clone()) {
-        Ok(origin) => origin.get_id() as i64,
-        Err(e) => return e.into(),
+    package.origin_id = match Origin::get(&ident.origin, &*conn) {
+        Ok(origin) => origin.id,
+        Err(e) => return Error::DieselError(e).into(),
     };
 
     // First, try to fetch visibility settings from a project, if one exists
-    let mut project_get = OriginProjectGet::new();
     let project_name = format!("{}/{}", ident.origin.clone(), ident.name.clone());
-    project_get.set_name(project_name);
 
-    match route_message::<OriginProjectGet, OriginProject>(&req, &project_get) {
-        Ok(proj) => {
-            if proj.has_visibility() {
-                package.visibility = proj.get_visibility().into();
-            }
-        }
-        Err(_) => {
-            // There's no project for this package. No worries - we'll check the origin
-            let mut origin_get = OriginGet::new();
-            origin_get.set_name(ident.origin.to_string());
-
-            match route_message::<OriginGet, Origin>(&req, &origin_get) {
-                Ok(o) => {
-                    if o.has_default_package_visibility() {
-                        package.visibility = o.get_default_package_visibility().into();
-                    }
-                }
-                Err(err) => return err.into(),
-            }
-        }
-    }
+    package.visibility = match Project::get(&project_name, &*conn) {
+        // TED if this is in-fact optional in the db it should be an option in the model
+        Ok(proj) => match proj.visibility.parse() {
+            Ok(pv) => pv,
+            Err(_) => return HttpResponse::InternalServerError().into(),
+        },
+        Err(_) => match Origin::get(&ident.origin, &*conn) {
+            Ok(o) => o.default_package_visibility,
+            Err(err) => return Error::DieselError(err).into(),
+        },
+    };
 
     // Re-create origin package as needed (eg, checksum update)
     match Package::create(package.clone(), &*conn) {

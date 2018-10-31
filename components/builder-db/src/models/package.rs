@@ -50,6 +50,7 @@ pub struct Package {
     pub updated_at: Option<NaiveDateTime>,
 }
 
+// TED TODO - Remove this and derive AsChangeset above
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NewPackage {
     #[serde(with = "db_id_format")]
@@ -133,6 +134,19 @@ impl fmt::Display for PackageVisibility {
     }
 }
 
+impl FromStr for PackageVisibility {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<PackageVisibility, ()> {
+        match s {
+            "public" => Ok(PackageVisibility::Public),
+            "private" => Ok(PackageVisibility::Private),
+            "hidden" => Ok(PackageVisibility::Hidden),
+            _ => Err(()),
+        }
+    }
+}
+
 impl Package {
     pub fn get(req: GetPackage, conn: &PgConnection) -> QueryResult<Package> {
         use schema::package::origin_packages::dsl::*;
@@ -181,6 +195,18 @@ impl Package {
     }
 
     pub fn update_visibility(
+        vis: PackageVisibility,
+        idt: BuilderPackageIdent,
+        conn: &PgConnection,
+    ) -> QueryResult<usize> {
+        use schema::package::origin_packages::dsl::*;
+
+        diesel::update(origin_packages.filter(ident.eq(idt)))
+            .set(visibility.eq(vis))
+            .execute(conn)
+    }
+
+    pub fn update_visibility_bulk(
         req: UpdatePackageVisibility,
         conn: &PgConnection,
     ) -> QueryResult<usize> {
