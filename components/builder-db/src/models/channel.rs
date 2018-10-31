@@ -9,6 +9,7 @@ use diesel::RunQueryDsl;
 use diesel::{ExpressionMethods, PgArrayExpressionMethods, QueryDsl};
 use models::package::{BuilderPackageIdent, Package, PackageVisibility, PackageVisibilityMapping};
 use models::pagination::Paginate;
+use protocol::jobsrv::JobGroupTrigger;
 use schema::channel::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Identifiable)]
@@ -61,6 +62,16 @@ pub struct ListChannelPackages {
     pub origin: String,
     pub page: i64,
     pub limit: i64,
+}
+
+pub struct PromotePackages {
+    pub channel_id: i64,
+    pub pkg_ids: Vec<i64>,
+}
+
+pub struct DemotePackages {
+    pub channel_id: i64,
+    pub pkg_ids: Vec<i64>,
 }
 
 impl Channel {
@@ -126,13 +137,37 @@ impl Channel {
             .per_page(lcp.limit)
             .load_and_count_records(conn)
     }
+
+    pub fn promote_packages(req: PromotePackages, conn: &PgConnection) -> QueryResult<usize> {
+        diesel::sql_query("select * from promote_origin_package_group_v1($1, $2)")
+            .bind::<BigInt, _>(req.channel_id)
+            .bind::<Array<BigInt>, _>(req.pkg_ids)
+            .execute(conn)
+    }
+
+    pub fn demote_packages(req: DemotePackages, conn: &PgConnection) -> QueryResult<usize> {
+        diesel::sql_query("select * from demote_origin_package_group_v1($1, $2)")
+            .bind::<BigInt, _>(req.channel_id)
+            .bind::<Array<BigInt>, _>(req.pkg_ids)
+            .execute(conn)
+    }
 }
 
-#[derive(DbEnum, Debug, Serialize, Deserialize)]
+#[derive(DbEnum, Debug, Clone, Serialize, Deserialize)]
 pub enum PackageChannelTrigger {
     Unknown,
     BuilderUi,
     HabClient,
+}
+
+impl From<JobGroupTrigger> for PackageChannelTrigger {
+    fn from(value: JobGroupTrigger) -> PackageChannelTrigger {
+        match value {
+            JobGroupTrigger::HabClient => PackageChannelTrigger::HabClient,
+            JobGroupTrigger::BuilderUI => PackageChannelTrigger::BuilderUi,
+            _ => PackageChannelTrigger::Unknown,
+        }
+    }
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize)]
@@ -163,6 +198,34 @@ impl PackageChannelAudit {
             .bind::<BigInt, _>(pca.requester_id)
             .bind::<Text, _>(pca.requester_name)
             .execute(conn)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PackageGroupChannelAudit {
+    pub origin_id: i64,
+    pub channel_id: i64,
+    pub pkg_ids: Vec<i64>,
+    pub operation: PackageChannelOperation,
+    pub trigger: PackageChannelTrigger,
+    pub requester_id: i64,
+    pub requester_name: String,
+    pub group_id: i64,
+}
+
+impl PackageGroupChannelAudit {
+    pub fn audit(req: PackageGroupChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
+        diesel::sql_query(
+            "select * from add_audit_package_group_entry_v1($1, $2, $3, $4, $5, $6, $7, $8)",
+        ).bind::<BigInt, _>(req.origin_id)
+        .bind::<BigInt, _>(req.channel_id)
+        .bind::<Array<BigInt>, _>(req.pkg_ids)
+        .bind::<PackageChannelOperationMapping, _>(req.operation)
+        .bind::<PackageChannelTriggerMapping, _>(req.trigger)
+        .bind::<BigInt, _>(req.requester_id)
+        .bind::<Text, _>(req.requester_name)
+        .bind::<BigInt, _>(req.group_id)
+        .execute(conn)
     }
 }
 
