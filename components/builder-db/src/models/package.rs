@@ -251,6 +251,25 @@ impl Package {
             .load_and_count_records(conn)
     }
 
+    pub fn distinct_for_origin(
+        pl: ListPackages,
+        conn: &PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+        use schema::origin::origins;
+        use schema::package::origin_packages;;
+
+        origin_packages::table
+            .inner_join(origins::table)
+            .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
+            .filter(origins::name.eq(&pl.ident.origin))
+            .filter(origin_packages::visibility.eq(any(pl.visibility)))
+            .filter(sql("TRUE GROUP BY origin_packages.name, origins.name"))
+            .order(origins::name.asc())
+            .paginate(pl.page)
+            .per_page(pl.limit)
+            .load_and_count_records(conn)
+    }
+
     pub fn list_package_channels(
         ident: BuilderPackageIdent,
         visibility: Vec<PackageVisibility>,
