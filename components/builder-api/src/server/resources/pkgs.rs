@@ -49,6 +49,7 @@ use server::feat;
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
+use server::resources::channels::channels_for_package_ident;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -687,7 +688,10 @@ pub fn postprocess_package_list(
         let mut platforms: Option<Vec<String>> = None;
 
         if !distinct {
-            channels = helpers::channels_for_package_ident(req, &package);
+            channels = match channels_for_package_ident(req, &package) {
+                Ok(channels) => channels,
+                Err(_) => None,
+            };
             platforms = helpers::platforms_for_package_ident(req, &package);
         }
 
@@ -755,7 +759,10 @@ pub fn postprocess_package_list_model(
         let mut platforms: Option<Vec<String>> = None;
 
         if !pagination.distinct {
-            channels = helpers::channels_for_package_ident(req, &ident.clone().into());
+            channels = match channels_for_package_ident(req, &ident.clone().into()) {
+                Ok(channels) => channels,
+                Err(_) => None,
+            };
             platforms = helpers::platforms_for_package_ident(req, &ident.clone().into());
         }
 
@@ -1182,7 +1189,10 @@ pub fn postprocess_package(
     should_cache: bool,
 ) -> HttpResponse {
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = helpers::channels_for_package_ident(req, pkg.get_ident());
+    let channels = match channels_for_package_ident(req, pkg.get_ident()) {
+        Ok(channels) => channels,
+        Err(_) => None,
+    };
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(is_a_service(pkg));
 
@@ -1204,7 +1214,10 @@ pub fn postprocess_package_model(
     // Some borrow checker workarounds until more channel code is converted in to model code
     let pkg_clone = &*pkg.ident;
     let channels =
-        helpers::channels_for_package_ident(req, &OriginPackageIdent::from(pkg_clone.clone()));
+        match channels_for_package_ident(req, &OriginPackageIdent::from(pkg_clone.clone())) {
+            Ok(channels) => channels,
+            Err(_) => None,
+        };
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(is_a_service_model(pkg));
 

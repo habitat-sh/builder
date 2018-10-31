@@ -173,40 +173,6 @@ pub fn visibility_for_optional_session_model(
     v
 }
 
-// Get channels for a package
-pub fn channels_for_package_ident(
-    req: &HttpRequest<AppState>,
-    package: &OriginPackageIdent,
-) -> Option<Vec<String>> {
-    let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
-        Err(_) => None,
-    };
-
-    let mut opclr = OriginPackageChannelListRequest::new();
-    opclr.set_ident(package.clone());
-    opclr.set_visibilities(visibility_for_optional_session(
-        req,
-        opt_session_id,
-        package.get_origin(),
-    ));
-
-    match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
-        req, &opclr,
-    ) {
-        Ok(channels) => {
-            let list: Vec<String> = channels
-                .get_channels()
-                .iter()
-                .map(|channel| channel.get_name().to_string())
-                .collect();
-
-            Some(list)
-        }
-        Err(_) => None,
-    }
-}
-
 // Get platforms for a package
 pub fn platforms_for_package_ident(
     req: &HttpRequest<AppState>,
