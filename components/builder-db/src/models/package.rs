@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io::Write;
 use std::ops::Deref;
 use std::str::{self, FromStr};
@@ -93,7 +94,7 @@ pub struct ListPackages {
     pub limit: i64,
 }
 
-#[derive(DbEnum, Debug, Serialize, Deserialize, Clone, ToSql, FromSql)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, PartialEq, Clone, ToSql, FromSql)]
 #[PgType = "origin_package_visibility"]
 #[postgres(name = "origin_package_visibility")]
 pub enum PackageVisibility {
@@ -106,6 +107,17 @@ pub enum PackageVisibility {
     #[postgres(name = "hidden")]
     #[serde(rename = "hidden")]
     Hidden,
+}
+
+impl fmt::Display for PackageVisibility {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let value = match *self {
+            PackageVisibility::Public => "public",
+            PackageVisibility::Private => "private",
+            PackageVisibility::Hidden => "hidden",
+        };
+        write!(f, "{}", value)
+    }
 }
 
 impl Package {

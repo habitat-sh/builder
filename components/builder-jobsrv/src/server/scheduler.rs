@@ -389,7 +389,7 @@ impl ScheduleMgr {
     fn schedule_job(&mut self, group_id: u64, project_name: &str) -> Result<Option<jobsrv::Job>> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        let project = match Project::get(project_name.to_owned(), &*conn) {
+        let project = match Project::get(&project_name, &*conn) {
             Ok(project) => project,
             Err(diesel::result::Error::NotFound) => {
                 // It's valid to not have a project connected

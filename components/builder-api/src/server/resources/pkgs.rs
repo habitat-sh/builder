@@ -650,7 +650,7 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
 
     match route_message::<OriginPackageGet, OriginPackage>(&req, &opg) {
         Ok(mut package) => {
-            let real_visibility = transition_visibility(opv, package.get_visibility());
+            let real_visibility = transition_visibility(&opv, &package.get_visibility());
             let mut opu = OriginPackageUpdate::new();
             package.set_visibility(real_visibility);
             opu.set_pkg(package);

@@ -15,8 +15,8 @@
 use protocol::originsrv::OriginPackageVisibility;
 
 pub fn transition_visibility(
-    incoming: OriginPackageVisibility,
-    existing: OriginPackageVisibility,
+    incoming: &OriginPackageVisibility,
+    existing: &OriginPackageVisibility,
 ) -> OriginPackageVisibility {
     match (existing, incoming) {
         (OriginPackageVisibility::Private, OriginPackageVisibility::Hidden) => {

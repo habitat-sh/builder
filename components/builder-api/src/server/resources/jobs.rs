@@ -27,6 +27,8 @@ use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::package::{Identifiable, PackageTarget};
 use hab_net::{ErrCode, NetError, NetOk};
 
+use db::models::projects::*;
+
 use server::authorize::{authorize_session, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
@@ -439,20 +441,20 @@ fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Resul
     match route_message::<JobGet, Job>(&req, &job_get) {
         Ok(job) => {
             // It's not sufficient to check the project that's on the job itself, since that
-            // project is reconstructed from information available in the jobsrv database and does
+            // project is reconstructed from information available in the database and does
             // not contain things like visibility settings. We need to fetch the project from
-            // originsrv.
-            let mut project_get = OriginProjectGet::new();
-            project_get.set_name(job.get_project().get_name().to_string());
-
-            let project = route_message::<OriginProjectGet, OriginProject>(&req, &project_get)?;
+            // database.
+            // TODO (SA): Update the project information in the job to match the DB
+            let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+            let project = Project::get(job.get_project().get_name(), &*conn)?;
+            let pv: OriginPackageVisibility = project.visibility.parse().unwrap();
 
             if vec![
                 OriginPackageVisibility::Private,
                 OriginPackageVisibility::Hidden,
-            ].contains(&project.get_visibility())
+            ].contains(&pv)
             {
-                authorize_session(req, Some(&project.get_origin_name()))?;
+                authorize_session(req, Some(&project.origin_name))?;
             }
 
             route_message::<JobLogGet, JobLog>(req, &request)

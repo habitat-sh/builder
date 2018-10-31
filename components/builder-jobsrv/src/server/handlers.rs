@@ -254,7 +254,7 @@ fn is_project_buildable(state: &AppState, project_name: &str) -> bool {
         Err(_) => return false,
     };
 
-    match Project::get(project_name.to_owned(), &*conn) {
+    match Project::get(project_name, &*conn) {
         Ok(project) => project.auto_build,
         Err(diesel::result::Error::NotFound) => false,
         Err(err) => {

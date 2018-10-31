@@ -1,4 +1,6 @@
 table! {
+    use diesel::sql_types::{Bool, BigInt, Text, Nullable, Timestamptz};
+
     origin_projects (id) {
         id -> BigInt,
         origin_id -> BigInt,
