@@ -34,25 +34,23 @@ use serde_json;
 use bldr_core;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use hab_core::crypto::{BoxKeyPair, SigKeyPair};
-use hab_core::package::ident;
+use hab_core::package::{ident, PackageIdent};
 
-use protocol::originsrv::{
-    OriginKeyIdent, OriginPackageUniqueListRequest, OriginPackageUniqueListResponse,
-};
+use protocol::originsrv::OriginKeyIdent;
 
 use db::models::account::*;
 use db::models::integration::*;
 use db::models::invitations::*;
 use db::models::keys::*;
 use db::models::origin::*;
-use db::models::package::PackageVisibility;
+use db::models::package::{BuilderPackageIdent, ListPackages, Package, PackageVisibility};
 use db::models::secrets::*;
 
 use server::authorize::{authorize_session, check_origin_owner, get_session_user_name};
 use server::error::{Error, Result};
 use server::framework::headers;
-use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination};
+use server::resources::pkgs::postprocess_package_list_model;
 use server::AppState;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -695,47 +693,25 @@ fn list_unique_packages(
         Err(_) => None,
     };
 
-    let mut request = OriginPackageUniqueListRequest::new();
-    let (start, stop) = helpers::extract_pagination(&pagination);
-    request.set_start(start as u64);
-    request.set_stop(stop as u64);
-    request.set_visibilities(helpers::visibility_for_optional_session(
-        &req,
-        opt_session_id,
-        &origin,
-    ));
-    request.set_origin(origin);
-
-    match route_message::<OriginPackageUniqueListRequest, OriginPackageUniqueListResponse>(
-        &req, &request,
-    ) {
-        Ok(packages) => {
-            debug!(
-                "list_unique_packages start: {}, stop: {}, total count: {}",
-                packages.get_start(),
-                packages.get_stop(),
-                packages.get_count()
-            );
-            let body = helpers::package_results_json(
-                &packages.get_idents().to_vec(),
-                packages.get_count() as isize,
-                packages.get_start() as isize,
-                packages.get_stop() as isize,
-            );
-
-            let mut response = if packages.get_count() as isize > (packages.get_stop() as isize + 1)
-            {
-                HttpResponse::PartialContent()
-            } else {
-                HttpResponse::Ok()
-            };
-
-            response
-                .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .body(body)
-        }
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
+    };
+
+    let ident = PackageIdent::new(origin.clone(), String::from(""), None, None);
+
+    let (page, per_page) = helpers::extract_pagination_in_pages(&pagination);
+
+    let lpr = ListPackages {
+        ident: BuilderPackageIdent(ident.clone().into()),
+        visibility: helpers::visibility_for_optional_session_model(&req, opt_session_id, &origin),
+        page: page as i64,
+        limit: per_page as i64,
+    };
+
+    match Package::distinct_for_origin(lpr, &*conn) {
+        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 
