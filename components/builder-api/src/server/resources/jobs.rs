@@ -206,6 +206,8 @@ fn do_group_promotion_or_demotion(
 ) -> Result<Vec<u64>> {
     authorize_session(req, Some(&origin))?;
 
+    let conn = req.state().db.get_conn()?;
+
     let mut ocg = OriginChannelGet::new();
     ocg.set_origin_name(origin.to_string());
     ocg.set_name(channel.to_string());
@@ -215,7 +217,7 @@ fn do_group_promotion_or_demotion(
         Err(Error::NetError(e)) => {
             if e.get_code() == ErrCode::ENTITY_NOT_FOUND {
                 if channel != STABLE_CHANNEL || channel != UNSTABLE_CHANNEL {
-                    helpers::create_channel(req, &origin, channel)?
+                    helpers::create_channel(req, &*conn, &origin, channel)?
                 } else {
                     info!("Unable to retrieve default channel, err: {:?}", e);
                     return Err(Error::NetError(e));
