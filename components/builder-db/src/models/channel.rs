@@ -11,7 +11,7 @@ use models::package::{BuilderPackageIdent, Package, PackageVisibility, PackageVi
 use models::pagination::Paginate;
 use schema::channel::*;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Identifiable)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Identifiable)]
 #[table_name = "origin_channels"]
 pub struct Channel {
     #[serde(with = "db_id_format")]
