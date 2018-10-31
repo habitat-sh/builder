@@ -129,17 +129,17 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 
         let new_project = NewProject {
             owner_id: account_id as i64,
-            origin_name: String::from(origin.name),
-            package_name: String::from("testapp"),
-            plan_path: body.plan_path.clone(),
-            vcs_type: String::from("git"),
-            vcs_data: String::from("https://github.com/habitat-sh/testapp.git"),
+            origin_name: &origin.name,
+            package_name: "testapp",
+            plan_path: &body.plan_path,
+            vcs_type: "git",
+            vcs_data: "https://github.com/habitat-sh/testapp.git",
             install_id: body.installation_id as i64,
-            visibility: originsrv::OriginPackageVisibility::Public.to_string(),
+            visibility: &originsrv::OriginPackageVisibility::Public.to_string(),
             auto_build: body.auto_build,
         };
 
-        match Project::create(new_project, &*conn).map_err(Error::DieselError) {
+        match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
             Ok(project) => return HttpResponse::Created().json(project),
             Err(err) => return err.into(),
         }
@@ -197,21 +197,19 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
-    let dpv: originsrv::OriginPackageVisibility = origin.default_package_visibility.into();
-
     let new_project = NewProject {
         owner_id: account_id as i64,
-        origin_name: String::from(origin.name),
-        package_name: String::from(plan.name.trim_matches('"')),
-        plan_path: body.plan_path.clone(),
-        vcs_type: String::from("git"),
-        vcs_data: vcs_data,
+        origin_name: &origin.name,
+        package_name: plan.name.trim_matches('"'),
+        plan_path: &body.plan_path,
+        vcs_type: "git",
+        vcs_data: &vcs_data,
         install_id: body.installation_id as i64,
-        visibility: dpv.to_string(),
+        visibility: &origin.default_package_visibility.to_string(),
         auto_build: body.auto_build,
     };
 
-    match Project::create(new_project, &*conn).map_err(Error::DieselError) {
+    match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Created().json(project),
         Err(err) => err.into(),
     }
@@ -233,7 +231,7 @@ fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match Project::get(project_get, &*conn).map_err(Error::DieselError) {
+    match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Ok().json(project),
         Err(err) => err.into(),
     }
@@ -255,7 +253,7 @@ fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match Project::delete(project_delete, &*conn).map_err(Error::DieselError) {
+    match Project::delete(&project_delete, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -288,7 +286,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
     // and to not need to pass in the origin id again
     let project_get = format!("{}/{}", &origin, &name);
 
-    let project = match Project::get(project_get, &*conn).map_err(Error::DieselError) {
+    let project = match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
         Ok(project) => project,
         Err(err) => return err.into(),
     };
@@ -301,16 +299,16 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
             id: project.id,
             origin_id: project.origin_id,
             owner_id: account_id as i64,
-            package_name: String::from("testapp"),
-            plan_path: body.plan_path.clone(),
-            vcs_type: String::from("git"),
-            vcs_data: String::from("https://github.com/habitat-sh/testapp.git"),
+            package_name: "testapp",
+            plan_path: &body.plan_path,
+            vcs_type: "git",
+            vcs_data: "https://github.com/habitat-sh/testapp.git",
             install_id: body.installation_id as i64,
-            visibility: originsrv::OriginPackageVisibility::Public.to_string(),
+            visibility: &originsrv::OriginPackageVisibility::Public.to_string(),
             auto_build: body.auto_build,
         };
 
-        match Project::update(update_project, &*conn).map_err(Error::DieselError) {
+        match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
             Ok(_) => return HttpResponse::NoContent().finish(),
             Err(err) => return err.into(),
         }
@@ -378,16 +376,16 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         id: project.id,
         owner_id: account_id as i64,
         origin_id: project.origin_id,
-        package_name: String::from(plan.name.trim_matches('"')),
-        plan_path: body.plan_path.clone(),
-        vcs_type: String::from("git"),
-        vcs_data: vcs_data,
+        package_name: &plan.name.trim_matches('"'),
+        plan_path: &body.plan_path,
+        vcs_type: "git",
+        vcs_data: &vcs_data,
         install_id: body.installation_id as i64,
-        visibility: project.visibility,
+        visibility: &project.visibility,
         auto_build: body.auto_build,
     };
 
-    match Project::update(update_project, &*conn).map_err(Error::DieselError) {
+    match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -405,7 +403,7 @@ fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match Project::list(origin, &*conn) {
+    match Project::list(&origin, &*conn) {
         Ok(projects) => {
             let names: Vec<String> = projects
                 .iter()
@@ -600,13 +598,14 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     let project_get = format!("{}/{}", &origin, &name);
-    let project = match Project::get(project_get, &*conn).map_err(Error::DieselError) {
+    let project = match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
         Ok(project) => project,
         Err(err) => return err.into(),
     };
 
-    let real_visibility =
-        bldr_core::helpers::transition_visibility(opv, project.visibility.parse().unwrap());
+    let project_visibility = project.visibility.parse().unwrap();
+
+    let real_visibility = bldr_core::helpers::transition_visibility(&opv, &project_visibility);
 
     let package_name = project.package_name.clone();
 
@@ -614,16 +613,16 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         id: project.id,
         owner_id: project.owner_id,
         origin_id: project.origin_id,
-        package_name: package_name,
-        plan_path: project.plan_path,
-        vcs_type: project.vcs_type,
-        vcs_data: project.vcs_data,
+        package_name: &package_name,
+        plan_path: &project.plan_path,
+        vcs_type: &project.vcs_type,
+        vcs_data: &project.vcs_data,
         install_id: project.vcs_installation_id,
-        visibility: real_visibility.to_string(),
+        visibility: &real_visibility.to_string(),
         auto_build: project.auto_build,
     };
 
-    if let Err(err) = Project::update(update_project, &*conn).map_err(Error::DieselError) {
+    if let Err(err) = Project::update(&update_project, &*conn).map_err(Error::DieselError) {
         return err.into();
     }
 
@@ -643,8 +642,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         let id = pkg.id;
         let pv: PackageVisibility = pkg.visibility;
         let vis: originsrv::OriginPackageVisibility = pv.into();
-        let new_vis =
-            bldr_core::helpers::transition_visibility(project.visibility.parse().unwrap(), vis);
+        let new_vis = bldr_core::helpers::transition_visibility(&project_visibility, &vis);
         map.entry(new_vis).or_insert(Vec::new()).push(id);
     }
 

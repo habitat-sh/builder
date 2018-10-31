@@ -33,7 +33,7 @@ use serde_json;
 
 use bldr_core;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
-use hab_core::crypto::BoxKeyPair;
+use hab_core::crypto::{BoxKeyPair, SigKeyPair};
 use hab_core::package::ident;
 
 use protocol::originsrv::{
@@ -268,13 +268,56 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match helpers::get_origin(&req, origin) {
-        Ok(origin) => match helpers::generate_origin_keys(&req, account_id, origin) {
-            Ok(_) => HttpResponse::Created().finish(),
-            Err(err) => err.into(),
-        },
-        Err(err) => err.into(),
+    let pair =
+        SigKeyPair::generate_pair_for_origin(&origin).expect("failed to generate origin key pair");
+
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
+        Ok(origin) => origin.id,
+        Err(err) => return err.into(),
+    };
+
+    let pk_body = match pair.to_public_string().map_err(Error::HabitatCore) {
+        Ok(pk) => pk.into_bytes(),
+        Err(err) => return err.into(),
+    };
+
+    let new_pk = NewOriginPublicSigningKey {
+        owner_id: account_id as i64,
+        origin_id: origin_id as i64,
+        name: &origin,
+        revision: &pair.rev,
+        body: &pk_body,
+    };
+
+    match OriginPublicSigningKey::create(&new_pk, &*conn).map_err(Error::DieselError) {
+        Ok(_) => (),
+        Err(err) => return err.into(),
     }
+
+    let sk_body = match pair.to_secret_string().map_err(Error::HabitatCore) {
+        Ok(sk) => sk.into_bytes(),
+        Err(err) => return err.into(),
+    };
+
+    let new_sk = NewOriginPrivateSigningKey {
+        owner_id: account_id as i64,
+        origin_id: origin_id as i64,
+        name: &origin,
+        revision: &pair.rev,
+        body: &sk_body,
+    };
+
+    match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
+        Ok(_) => (),
+        Err(err) => return err.into(),
+    }
+
+    HttpResponse::Created().finish()
 }
 
 fn list_origin_keys(req: HttpRequest<AppState>) -> HttpResponse {

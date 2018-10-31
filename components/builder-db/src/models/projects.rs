@@ -31,47 +31,45 @@ pub struct Project {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct NewProject {
+pub struct NewProject<'a> {
     pub owner_id: i64,
-    pub origin_name: String,
-    pub package_name: String,
-    pub plan_path: String,
-    pub vcs_type: String,
-    pub vcs_data: String,
+    pub origin_name: &'a str,
+    pub package_name: &'a str,
+    pub plan_path: &'a str,
+    pub vcs_type: &'a str,
+    pub vcs_data: &'a str,
     pub install_id: i64,
-    pub visibility: String,
+    pub visibility: &'a str,
     pub auto_build: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct UpdateProject {
+pub struct UpdateProject<'a> {
     pub id: i64,
     pub owner_id: i64,
     pub origin_id: i64,
-    pub package_name: String,
-    pub plan_path: String,
-    pub vcs_type: String,
-    pub vcs_data: String,
+    pub package_name: &'a str,
+    pub plan_path: &'a str,
+    pub vcs_type: &'a str,
+    pub vcs_data: &'a str,
     pub install_id: i64,
-    pub visibility: String,
+    pub visibility: &'a str,
     pub auto_build: bool,
 }
 
 impl Project {
-    pub fn get(name: String, conn: &PgConnection) -> QueryResult<Project> {
+    pub fn get(name: &str, conn: &PgConnection) -> QueryResult<Project> {
         diesel::sql_query("select * from get_origin_project_v1($1)")
             .bind::<Text, _>(name)
             .get_result(conn)
     }
 
-    pub fn delete(name: String, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(name: &str, conn: &PgConnection) -> QueryResult<usize> {
         diesel::sql_query("select * from delete_origin_project_v1($1)")
             .bind::<Text, _>(name)
             .execute(conn)
     }
 
-    pub fn create(project: NewProject, conn: &PgConnection) -> QueryResult<Project> {
+    pub fn create(project: &NewProject, conn: &PgConnection) -> QueryResult<Project> {
         diesel::sql_query(
             "SELECT * FROM insert_origin_project_v5($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         ).bind::<Text, _>(project.origin_name)
@@ -86,7 +84,7 @@ impl Project {
         .get_result(conn)
     }
 
-    pub fn update(project: UpdateProject, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn update(project: &UpdateProject, conn: &PgConnection) -> QueryResult<usize> {
         diesel::sql_query(
             "SELECT * FROM update_origin_project_v4($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
         ).bind::<BigInt, _>(project.id)
@@ -102,7 +100,7 @@ impl Project {
         .execute(conn)
     }
 
-    pub fn list(origin: String, conn: &PgConnection) -> QueryResult<Vec<Project>> {
+    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<Project>> {
         diesel::sql_query("select * from get_origin_project_list_v2($1)")
             .bind::<Text, _>(origin)
             .get_results(conn)

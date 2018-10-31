@@ -20,7 +20,6 @@ use regex::Regex;
 use serde::Serialize;
 use serde_json;
 
-use hab_core::crypto::SigKeyPair;
 use hab_core::package::PackageTarget;
 
 use protocol::jobsrv::*;
@@ -131,41 +130,6 @@ pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
         Ok(t) => t,
         Err(_) => PackageTarget::from_str("x86_64-linux").unwrap(),
     }
-}
-
-pub fn generate_origin_keys(
-    req: &HttpRequest<AppState>,
-    session_id: u64,
-    origin: Origin,
-) -> Result<()> {
-    let mut public_request = OriginPublicSigningKeyCreate::new();
-    let mut secret_request = OriginPrivateSigningKeyCreate::new();
-    public_request.set_owner_id(session_id);
-    secret_request.set_owner_id(session_id);
-    public_request.set_name(origin.get_name().to_string());
-    public_request.set_origin_id(origin.get_id());
-    secret_request.set_name(origin.get_name().to_string());
-    secret_request.set_origin_id(origin.get_id());
-
-    let pair = SigKeyPair::generate_pair_for_origin(origin.get_name())
-        .expect("failed to generate origin key pair");
-    public_request.set_revision(pair.rev.clone());
-    public_request.set_body(
-        pair.to_public_string()
-            .expect("no public key in generated pair")
-            .into_bytes(),
-    );
-    secret_request.set_revision(pair.rev.clone());
-    secret_request.set_body(
-        pair.to_secret_string()
-            .expect("no secret key in generated pair")
-            .into_bytes(),
-    );
-
-    route_message::<OriginPublicSigningKeyCreate, OriginPublicSigningKey>(req, &public_request)?;
-    route_message::<OriginPrivateSigningKeyCreate, OriginPrivateSigningKey>(req, &secret_request)?;
-
-    Ok(())
 }
 
 pub fn get_origin<T>(req: &HttpRequest<AppState>, origin: T) -> Result<Origin>

@@ -180,7 +180,7 @@ impl DataStore {
             let id: i64 = row.get("id");
             let pv: PackageVisibility = row.get("visibility");
             let vis: originsrv::OriginPackageVisibility = pv.into();
-            let new_vis = transition_visibility(project.get_visibility(), vis);
+            let new_vis = transition_visibility(&project.get_visibility(), &vis);
             map.entry(new_vis).or_insert(Vec::new()).push(id);
         }
 

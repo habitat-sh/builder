@@ -275,6 +275,10 @@ fn bldr_core_err_to_http(err: &bldr_core::Error) -> StatusCode {
 fn diesel_err_to_http(err: &diesel::result::Error) -> StatusCode {
     match err {
         diesel::result::Error::NotFound => StatusCode::NOT_FOUND,
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UniqueViolation,
+            _,
+        ) => StatusCode::CONFLICT,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
