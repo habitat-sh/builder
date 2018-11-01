@@ -177,17 +177,17 @@ pub enum PackageChannelOperation {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PackageChannelAudit {
-    pub origin: String,
+pub struct PackageChannelAudit<'a> {
+    pub origin: &'a str,
     pub ident: BuilderPackageIdent,
-    pub channel: String,
+    pub channel: &'a str,
     pub operation: PackageChannelOperation,
     pub trigger: PackageChannelTrigger,
     pub requester_id: i64,
-    pub requester_name: String,
+    pub requester_name: &'a str,
 }
 
-impl PackageChannelAudit {
+impl<'a> PackageChannelAudit<'a> {
     pub fn audit(pca: PackageChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
         diesel::sql_query("select * from add_audit_package_entry_v3($1, $2, $3, $4, $5, $6, $7)")
             .bind::<Text, _>(pca.origin)
@@ -202,23 +202,23 @@ impl PackageChannelAudit {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PackageGroupChannelAudit {
-    pub origin_id: i64,
-    pub channel_id: i64,
+pub struct PackageGroupChannelAudit<'a> {
+    pub origin: &'a str,
+    pub channel: &'a str,
     pub pkg_ids: Vec<i64>,
     pub operation: PackageChannelOperation,
     pub trigger: PackageChannelTrigger,
     pub requester_id: i64,
-    pub requester_name: String,
+    pub requester_name: &'a str,
     pub group_id: i64,
 }
 
-impl PackageGroupChannelAudit {
+impl<'a> PackageGroupChannelAudit<'a> {
     pub fn audit(req: PackageGroupChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
         diesel::sql_query(
-            "select * from add_audit_package_group_entry_v1($1, $2, $3, $4, $5, $6, $7, $8)",
-        ).bind::<BigInt, _>(req.origin_id)
-        .bind::<BigInt, _>(req.channel_id)
+            "select * from add_audit_package_group_entry_v2($1, $2, $3, $4, $5, $6, $7, $8)",
+        ).bind::<Text, _>(req.origin)
+        .bind::<Text, _>(req.channel)
         .bind::<Array<BigInt>, _>(req.pkg_ids)
         .bind::<PackageChannelOperationMapping, _>(req.operation)
         .bind::<PackageChannelTriggerMapping, _>(req.trigger)

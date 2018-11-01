@@ -429,12 +429,12 @@ fn audit_package_rank_change(
     match PackageChannelAudit::audit(
         PackageChannelAudit {
             ident: BuilderPackageIdent(ident),
-            channel: channel,
+            channel: &channel,
             operation: operation,
             trigger: helpers::trigger_from_request_model(req),
             requester_id: session_id as i64,
-            requester_name: get_session_user_name(req, session_id),
-            origin: origin,
+            requester_name: &get_session_user_name(req, session_id),
+            origin: &origin,
         },
         &*conn,
     ) {
