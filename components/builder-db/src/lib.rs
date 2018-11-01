@@ -19,6 +19,7 @@
 extern crate diesel;
 #[macro_use]
 extern crate diesel_derive_enum;
+extern crate diesel_full_text_search;
 extern crate fallible_iterator;
 extern crate fnv;
 extern crate habitat_builder_protocol as protocol;

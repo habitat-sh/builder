@@ -41,7 +41,7 @@ use protocol::originsrv::*;
 use db::models::origin::Origin;
 use db::models::package::{
     BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
-    NewPackage, Package, PackageVisibility,
+    NewPackage, Package, PackageVisibility, SearchPackages,
 };
 use db::models::projects::Project;
 
@@ -520,33 +520,16 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
     let query = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
     let opt_session_id = match authorize_session(&req, None) {
-        Ok(id) => Some(id),
+        Ok(id) => Some(id as i64),
         Err(_) => None,
     };
 
-    let (start, stop) = helpers::extract_pagination(&pagination);
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    };
 
-    let mut request = OriginPackageSearchRequest::new();
-    request.set_start(start as u64);
-    request.set_stop(stop as u64);
-
-    if let Some(session_id) = opt_session_id {
-        let mut my_origins = MyOriginsRequest::new();
-        my_origins.set_account_id(session_id);
-
-        match route_message::<MyOriginsRequest, MyOriginsResponse>(&req, &my_origins) {
-            Ok(response) => request.set_my_origins(protobuf::RepeatedField::from_vec(
-                response.get_origins().to_vec(),
-            )),
-            Err(e) => {
-                debug!(
-                    "Error fetching origins for account id {}, {}",
-                    session_id, e
-                );
-                return e.into();
-            }
-        }
-    }
+    let (page, per_page) = helpers::extract_pagination_in_pages(&pagination);
 
     // First, try to parse the query like it's a PackageIdent, since it seems reasonable to expect
     // that many people will try searching using that kind of string, e.g. core/redis.  If that
@@ -555,57 +538,40 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
     // the details instead of just names.
     let decoded_query = match url::percent_encoding::percent_decode(query.as_bytes()).decode_utf8()
     {
-        Ok(q) => q.to_string(),
+        Ok(q) => q.to_string().trim_right_matches("/").replace("/", " & "),
         Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
     };
 
-    match PackageIdent::from_str(decoded_query.as_ref()) {
-        Ok(ident) => {
-            request.set_origin(ident.origin().to_string());
-            request.set_query(ident.name().to_string());
-        }
-        Err(_) => {
-            request.set_query(decoded_query);
-        }
+    debug!("search_packages called with: {}", decoded_query);
+
+    if pagination.distinct {
+        return match Package::search_distinct(
+            SearchPackages {
+                query: decoded_query,
+                page: page as i64,
+                limit: per_page as i64,
+                account_id: opt_session_id,
+            },
+            &*conn,
+        ) {
+            Ok((packages, count)) => {
+                postprocess_package_list_model(&req, packages, count, pagination)
+            }
+            Err(err) => Error::DieselError(err).into(),
+        };
     }
 
-    debug!("search_packages called with: {}", request.get_query());
-
-    // Setting distinct to true makes this query ignore any origin set, because it's going to
-    // search both the origin name and the package name for the query string provided. This is
-    // likely sub-optimal for performance but it makes things work right now and we should probably
-    // switch to some kind of full-text search engine in the future anyway.
-    // Also, to get this behavior, you need to ensure that "distinct" is a URL parameter in your
-    // request, e.g. blah?distinct=true
-    request.set_distinct(pagination.distinct);
-
-    match route_message::<OriginPackageSearchRequest, OriginPackageListResponse>(&req, &request) {
-        Ok(packages) => {
-            debug!(
-                "search_packages start: {}, stop: {}, total count: {}",
-                packages.get_start(),
-                packages.get_stop(),
-                packages.get_count()
-            );
-            let body = helpers::package_results_json(
-                &packages.get_idents().to_vec(),
-                packages.get_count() as isize,
-                packages.get_start() as isize,
-                packages.get_stop() as isize,
-            );
-
-            let status = if packages.get_count() as isize > (packages.get_stop() as isize + 1) {
-                StatusCode::PARTIAL_CONTENT
-            } else {
-                StatusCode::OK
-            };
-
-            HttpResponse::build(status)
-                .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .body(body)
-        }
-        Err(err) => err.into(),
+    match Package::search(
+        SearchPackages {
+            query: decoded_query,
+            page: page as i64,
+            limit: per_page as i64,
+            account_id: opt_session_id,
+        },
+        &*conn,
+    ) {
+        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 
@@ -650,71 +616,6 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
 //
 // Public helpers
 //
-
-// TODO : this needs to be re-designed to not fan out
-// Common functionality for pkgs and channel routes
-pub fn postprocess_package_list(
-    req: &HttpRequest<AppState>,
-    oplr: &OriginPackageListResponse,
-    distinct: bool,
-) -> HttpResponse {
-    debug!(
-        "postprocessing package list, start: {}, stop: {}, total_count: {}",
-        oplr.get_start(),
-        oplr.get_stop(),
-        oplr.get_count()
-    );
-
-    let mut results = Vec::new();
-
-    // The idea here is for every package we get back, pull its channels using the zmq API
-    // and accumulate those results. This avoids the N+1 HTTP requests that would be
-    // required to fetch channels for a list of packages in the UI. However, if our request
-    // has been marked as "distinct" then skip this step because it doesn't make sense in
-    // that case. Let's get platforms at the same time.
-    for package in oplr.get_idents().to_vec() {
-        let mut channels: Option<Vec<String>> = None;
-        let mut platforms: Option<Vec<String>> = None;
-
-        if !distinct {
-            channels = match channels_for_package_ident(req, &package) {
-                Ok(channels) => channels,
-                Err(_) => None,
-            };
-            platforms = helpers::platforms_for_package_ident(req, &package);
-        }
-
-        let mut pkg_json = serde_json::to_value(package).unwrap();
-
-        if channels.is_some() {
-            pkg_json["channels"] = json!(channels);
-        }
-
-        if platforms.is_some() {
-            pkg_json["platforms"] = json!(platforms);
-        }
-
-        results.push(pkg_json);
-    }
-
-    let body = helpers::package_results_json(
-        &results,
-        oplr.get_count() as isize,
-        oplr.get_start() as isize,
-        oplr.get_stop() as isize,
-    );
-
-    let mut response = if oplr.get_count() as isize > (oplr.get_stop() as isize + 1) {
-        HttpResponse::PartialContent()
-    } else {
-        HttpResponse::Ok()
-    };
-
-    response
-        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-        .body(body)
-}
 
 // TODO : this needs to be re-designed to not fan out
 // Common functionality for pkgs and channel routes

@@ -139,9 +139,9 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(5);
-          expect(res.body.total_count).to.equal(6);
-          expect(res.body.data.length).to.equal(6);
+          expect(res.body.range_end).to.equal(3);
+          expect(res.body.total_count).to.equal(4);
+          expect(res.body.data.length).to.equal(4);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('testapp');
           expect(res.body.data[0].version).to.equal('0.1.3');
@@ -154,10 +154,28 @@ describe('Working with packages', function () {
           expect(res.body.data[2].name).to.equal('testapp');
           expect(res.body.data[2].version).to.equal('0.1.4');
           expect(res.body.data[2].release).to.equal(release3);
-          expect(res.body.data[5].origin).to.equal('xmen');
-          expect(res.body.data[5].name).to.equal('testapp');
-          expect(res.body.data[5].version).to.equal('0.1.4');
-          expect(res.body.data[5].release).to.equal(release4);
+          expect(res.body.data[3].origin).to.equal('xmen');
+          expect(res.body.data[3].name).to.equal('testapp');
+          expect(res.body.data[3].version).to.equal('0.1.4');
+          expect(res.body.data[3].release).to.equal(release4);
+          done(err);
+        });
+    });
+
+    it('allows me to search for distinct packages', function (done) {
+      request.get('/depot/pkgs/search/testapp?distinct=true')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(1);
+          expect(res.body.total_count).to.equal(2);
+          expect(res.body.data.length).to.equal(2);
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[1].origin).to.equal('xmen');
+          expect(res.body.data[1].name).to.equal('testapp');
           done(err);
         });
     });
