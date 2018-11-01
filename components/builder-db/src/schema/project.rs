@@ -1,5 +1,6 @@
 table! {
     use diesel::sql_types::{Bool, BigInt, Text, Nullable, Timestamptz};
+    use models::package::PackageVisibilityMapping;
 
     origin_projects (id) {
         id -> BigInt,
@@ -11,7 +12,7 @@ table! {
         owner_id -> BigInt,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
-        visibility -> Text,
+        visibility -> PackageVisibilityMapping,
         vcs_type -> Text,
         vcs_data -> Text,
         vcs_installation_id -> BigInt,

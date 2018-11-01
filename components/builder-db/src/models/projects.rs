@@ -5,6 +5,7 @@ use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::sql_types::{BigInt, Bool, Text};
 use diesel::RunQueryDsl;
+use models::package::{PackageVisibility, PackageVisibilityMapping};
 use protocol::originsrv;
 use schema::project::*;
 
@@ -21,7 +22,7 @@ pub struct Project {
     pub package_name: String,
     pub name: String,
     pub plan_path: String,
-    pub visibility: String,
+    pub visibility: PackageVisibility,
     pub vcs_type: String,
     pub vcs_data: String,
     #[serde(with = "db_id_format")]
@@ -39,7 +40,7 @@ pub struct NewProject<'a> {
     pub vcs_type: &'a str,
     pub vcs_data: &'a str,
     pub install_id: i64,
-    pub visibility: &'a str,
+    pub visibility: &'a PackageVisibility,
     pub auto_build: bool,
 }
 
@@ -52,7 +53,7 @@ pub struct UpdateProject<'a> {
     pub vcs_type: &'a str,
     pub vcs_data: &'a str,
     pub install_id: i64,
-    pub visibility: &'a str,
+    pub visibility: &'a PackageVisibility,
     pub auto_build: bool,
 }
 
@@ -71,7 +72,7 @@ impl Project {
 
     pub fn create(project: &NewProject, conn: &PgConnection) -> QueryResult<Project> {
         diesel::sql_query(
-            "SELECT * FROM insert_origin_project_v5($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+            "SELECT * FROM insert_origin_project_v6($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         ).bind::<Text, _>(project.origin_name)
         .bind::<Text, _>(project.package_name)
         .bind::<Text, _>(project.plan_path)
@@ -79,14 +80,14 @@ impl Project {
         .bind::<Text, _>(project.vcs_data)
         .bind::<BigInt, _>(project.owner_id)
         .bind::<BigInt, _>(project.install_id)
-        .bind::<Text, _>(project.visibility)
+        .bind::<PackageVisibilityMapping, _>(project.visibility)
         .bind::<Bool, _>(project.auto_build)
         .get_result(conn)
     }
 
     pub fn update(project: &UpdateProject, conn: &PgConnection) -> QueryResult<usize> {
         diesel::sql_query(
-            "SELECT * FROM update_origin_project_v4($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+            "SELECT * FROM update_origin_project_v5($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
         ).bind::<BigInt, _>(project.id)
         .bind::<BigInt, _>(project.origin_id)
         .bind::<Text, _>(project.package_name)
@@ -95,7 +96,7 @@ impl Project {
         .bind::<Text, _>(project.vcs_data)
         .bind::<BigInt, _>(project.owner_id)
         .bind::<BigInt, _>(project.install_id)
-        .bind::<Text, _>(project.visibility)
+        .bind::<PackageVisibilityMapping, _>(project.visibility)
         .bind::<Bool, _>(project.auto_build)
         .execute(conn)
     }

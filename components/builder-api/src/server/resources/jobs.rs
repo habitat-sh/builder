@@ -21,7 +21,7 @@ use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
 use protocol::jobsrv::*;
-use protocol::originsrv::{OriginPackageIdent, OriginPackageVisibility};
+use protocol::originsrv::OriginPackageIdent;
 
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
@@ -448,12 +448,9 @@ fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Resul
             // TODO (SA): Update the project information in the job to match the DB
             let conn = req.state().db.get_conn().map_err(Error::DbError)?;
             let project = Project::get(job.get_project().get_name(), &*conn)?;
-            let pv: OriginPackageVisibility = project.visibility.parse().unwrap();
 
-            if vec![
-                OriginPackageVisibility::Private,
-                OriginPackageVisibility::Hidden,
-            ].contains(&pv)
+            if vec![PackageVisibility::Private, PackageVisibility::Hidden]
+                .contains(&project.visibility)
             {
                 authorize_session(req, Some(&project.origin_name))?;
             }

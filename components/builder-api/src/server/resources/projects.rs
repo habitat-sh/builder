@@ -135,7 +135,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
             vcs_type: "git",
             vcs_data: "https://github.com/habitat-sh/testapp.git",
             install_id: body.installation_id as i64,
-            visibility: &originsrv::OriginPackageVisibility::Public.to_string(),
+            visibility: &PackageVisibility::Public,
             auto_build: body.auto_build,
         };
 
@@ -205,7 +205,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         vcs_type: "git",
         vcs_data: &vcs_data,
         install_id: body.installation_id as i64,
-        visibility: &origin.default_package_visibility.to_string(),
+        visibility: &origin.default_package_visibility,
         auto_build: body.auto_build,
     };
 
@@ -304,7 +304,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
             vcs_type: "git",
             vcs_data: "https://github.com/habitat-sh/testapp.git",
             install_id: body.installation_id as i64,
-            visibility: &originsrv::OriginPackageVisibility::Public.to_string(),
+            visibility: &PackageVisibility::Public,
             auto_build: body.auto_build,
         };
 
@@ -617,7 +617,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         vcs_type: &project.vcs_type,
         vcs_data: &project.vcs_data,
         install_id: project.vcs_installation_id,
-        visibility: &pv.to_string(),
+        visibility: &pv,
         auto_build: project.auto_build,
     };
 
