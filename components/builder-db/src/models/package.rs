@@ -18,6 +18,7 @@ use diesel::serialize::{self, IsNull, Output, ToSql};
 use diesel::sql_types::{Array, BigInt, Integer, Text};
 use diesel::PgArrayExpressionMethods;
 use diesel::RunQueryDsl;
+use diesel_full_text_search::{to_tsquery, TsQueryExtensions};
 
 use super::db_id_format;
 use hab_core;
@@ -49,6 +50,49 @@ pub struct Package {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
+
+/// We literally never want to select `ident_vector`
+/// so we provide this type and constant to pass to `.select`
+
+type AllColumns = (
+    origin_packages::id,
+    origin_packages::origin_id,
+    origin_packages::owner_id,
+    origin_packages::name,
+    origin_packages::ident,
+    origin_packages::ident_array,
+    origin_packages::checksum,
+    origin_packages::manifest,
+    origin_packages::config,
+    origin_packages::target,
+    origin_packages::deps,
+    origin_packages::tdeps,
+    origin_packages::exposes,
+    origin_packages::visibility,
+    origin_packages::created_at,
+    origin_packages::updated_at,
+);
+
+pub const ALL_COLUMNS: AllColumns = (
+    origin_packages::id,
+    origin_packages::origin_id,
+    origin_packages::owner_id,
+    origin_packages::name,
+    origin_packages::ident,
+    origin_packages::ident_array,
+    origin_packages::checksum,
+    origin_packages::manifest,
+    origin_packages::config,
+    origin_packages::target,
+    origin_packages::deps,
+    origin_packages::tdeps,
+    origin_packages::exposes,
+    origin_packages::visibility,
+    origin_packages::created_at,
+    origin_packages::updated_at,
+);
+
+type All = diesel::dsl::Select<origin_packages::table, AllColumns>;
 
 // TED TODO - Remove this and derive AsChangeset above
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -96,6 +140,12 @@ pub struct ListPackages {
     pub limit: i64,
 }
 
+pub struct SearchPackages {
+    pub query: String,
+    pub account_id: Option<i64>,
+    pub page: i64,
+    pub limit: i64,
+}
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_package_versions"]
 pub struct OriginPackageVersions {
@@ -147,11 +197,21 @@ impl FromStr for PackageVisibility {
     }
 }
 
+impl PackageVisibility {
+    pub fn all() -> Vec<Self> {
+        vec![
+            PackageVisibility::Public,
+            PackageVisibility::Private,
+            PackageVisibility::Hidden,
+        ]
+    }
+}
+
 impl Package {
     pub fn get(req: GetPackage, conn: &PgConnection) -> QueryResult<Package> {
         use schema::package::origin_packages::dsl::*;
 
-        origin_packages
+        Self::all()
             .filter(ident.eq(req.ident))
             .filter(visibility.eq(any(req.visibility)))
             .filter(target.eq(req.target))
@@ -164,7 +224,7 @@ impl Package {
     ) -> QueryResult<Vec<Package>> {
         use schema::package::origin_packages::dsl::*;
 
-        origin_packages
+        Self::all()
             .filter(ident_array.contains(req_ident.parts()))
             .get_results(conn)
     }
@@ -256,7 +316,7 @@ impl Package {
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         use schema::origin::origins;
-        use schema::package::origin_packages;;
+        use schema::package::origin_packages;
 
         origin_packages::table
             .inner_join(origins::table)
@@ -302,6 +362,70 @@ impl Package {
         .bind::<Text, _>(&ident.name)
         .bind::<Array<PackageVisibilityMapping>, _>(visibility)
         .get_results(conn)
+    }
+
+    pub fn search(
+        sp: SearchPackages,
+        conn: &PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+        use schema::origin::origins;
+        use schema::package::origin_packages;
+
+        let mut query = origin_packages::table
+            .inner_join(origins::table)
+            .select(origin_packages::ident)
+            .filter(to_tsquery(sp.query).matches(origin_packages::ident_vector))
+            .order(origin_packages::ident.asc())
+            .into_boxed();
+
+        if let Some(session_id) = sp.account_id {
+            query = query
+                .filter(origin_packages::visibility.eq(any(PackageVisibility::all())))
+                .filter(origins::owner_id.eq(session_id));
+        } else {
+            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+        }
+
+        query
+            .paginate(sp.page)
+            .per_page(sp.limit)
+            .load_and_count_records(conn)
+    }
+
+    // This is me giving up on fighting the typechecker and just duplicating a bunch of code
+    pub fn search_distinct(
+        sp: SearchPackages,
+        conn: &PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+        use schema::origin::origins;
+        use schema::package::origin_packages;
+
+        let mut query = origin_packages::table
+            .inner_join(origins::table)
+            .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
+            .filter(to_tsquery(sp.query).matches(origin_packages::ident_vector))
+            .order(origin_packages::name.asc())
+            .into_boxed();
+
+        if let Some(session_id) = sp.account_id {
+            query = query
+                .filter(origin_packages::visibility.eq(any(PackageVisibility::all())))
+                .filter(origins::owner_id.eq(session_id));
+        } else {
+            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+        }
+
+        // Because of the filter hack it is very important that this be the last filter
+        query = query.filter(sql("TRUE GROUP BY origin_packages.name, origins.name"));
+        query
+            .paginate(sp.page)
+            .per_page(sp.limit)
+            .load_and_count_records(conn)
+    }
+
+    fn all() -> All {
+        use schema::package::origin_packages;
+        origin_packages::table.select(ALL_COLUMNS)
     }
 }
 

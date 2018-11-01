@@ -1,6 +1,7 @@
 table! {
     use models::package::PackageVisibilityMapping;
     use diesel::sql_types::{Array, BigInt, Integer, Text, Nullable, Timestamptz};
+    use diesel_full_text_search::TsVector;
     origin_packages {
         id -> BigInt,
         origin_id -> BigInt,
@@ -18,6 +19,7 @@ table! {
         visibility -> PackageVisibilityMapping,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
+        ident_vector -> TsVector,
     }
 }
 
