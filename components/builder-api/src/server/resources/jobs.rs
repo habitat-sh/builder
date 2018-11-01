@@ -38,6 +38,7 @@ use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Target};
 use server::resources::channels::channels_for_package_ident;
+use server::resources::pkgs::platforms_for_package_ident;
 use server::AppState;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -409,7 +410,7 @@ fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
 
             if job.get_package_ident().fully_qualified() {
                 let channels = channels_for_package_ident(req, job.get_package_ident())?;
-                let platforms = helpers::platforms_for_package_ident(req, job.get_package_ident());
+                let platforms = platforms_for_package_ident(req, job.get_package_ident())?;
                 let mut job_json = serde_json::to_value(job).unwrap();
 
                 if channels.is_some() {

@@ -93,6 +93,11 @@ pub const ALL_COLUMNS: AllColumns = (
 );
 
 type All = diesel::dsl::Select<origin_packages::table, AllColumns>;
+#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+pub struct PackagePlatform {
+    #[sql_type = "Text"]
+    pub target: String,
+}
 
 // TED TODO - Remove this and derive AsChangeset above
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -427,6 +432,25 @@ impl Package {
         use schema::package::origin_packages;
         origin_packages::table.select(ALL_COLUMNS)
     }
+    pub fn list_package_platforms(
+        ident: BuilderPackageIdent,
+        visibilities: Vec<PackageVisibility>,
+        conn: &PgConnection,
+    ) -> QueryResult<Vec<PackagePlatform>> {
+        diesel::sql_query("get_origin_package_platforms_for_package_v6($1, $2)")
+            .bind::<Array<Text>, _>(&searchable_ident(&ident))
+            .bind::<Array<PackageVisibilityMapping>, _>(&visibilities)
+            .get_results(conn)
+    }
+}
+
+fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
+    ident
+        .to_string()
+        .split("/")
+        .map(|s| s.to_string())
+        .filter(|s| s != "")
+        .collect()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression)]
