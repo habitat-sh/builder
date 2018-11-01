@@ -12,6 +12,7 @@ log = "*"
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 diesel-derive-enum = { version = "*", features = ["postgres"] }
 diesel_full_text_search = "*"
+diesel_migrations = "*"
 r2d2 = "*"
 time = "*"
 rand = "*"

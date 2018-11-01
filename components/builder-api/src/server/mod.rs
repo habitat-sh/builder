@@ -32,7 +32,7 @@ use actix_web::server::{self, KeepAlive};
 use actix_web::{App, HttpRequest, HttpResponse, Result};
 
 use bldr_core::rpc::RpcClient;
-use db::DbPool;
+use db::{migration, DbPool};
 use github_api_client::GitHubClient;
 use hab_net::socket;
 
@@ -146,6 +146,8 @@ pub fn run(config: Config) -> Result<()> {
     let db_pool = DbPool::new(&config.datastore.clone())
         .map_err(Error::DbError)
         .unwrap();
+
+    migration::setup(&db_pool.get_conn().unwrap()).unwrap();
 
     server::new(move || {
         let app_state = AppState::new(&config, db_pool.clone());

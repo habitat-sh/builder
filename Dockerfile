@@ -37,7 +37,6 @@ RUN adduser -g tty -h /home/krangschnak -D krangschnak \
   habitat/builder-api \
   habitat/builder-api-proxy \
   habitat/builder-jobsrv \
-  habitat/builder-originsrv \
   habitat/builder-router
 
 RUN /tmp/init-datastore.sh \
@@ -60,8 +59,7 @@ RUN hab svc load habitat/builder-datastore \
   && hab svc load habitat/builder-router \
   && hab svc load habitat/builder-api-proxy --bind http:builder-api.default \
   && hab svc load habitat/builder-api --bind router:builder-router.default \
-  && hab svc load habitat/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
-  && hab svc load habitat/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default
+  && hab svc load habitat/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default
 
 VOLUME ["/hab/svc", "/hab/cache/keys", "/hab/sup"]
 EXPOSE 80 443 9631 9636 9638

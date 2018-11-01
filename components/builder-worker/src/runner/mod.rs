@@ -34,7 +34,7 @@ use bldr_core::logger::Logger;
 use chrono::Utc;
 use hab_core::os::users;
 use hab_core::package::archive::PackageArchive;
-use hab_core::util::perm;
+use hab_core::util::posix_perm;
 use hab_net::socket::DEFAULT_CONTEXT;
 pub use protocol::jobsrv::JobState;
 use protocol::net::{self, ErrCode};
@@ -402,7 +402,7 @@ impl Runner {
                 debug!("Imported origin secret key, dst={:?}.", dst);
                 if self.config.airlock_enabled {
                     if cfg!(not(windows)) {
-                        perm::set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
+                        posix_perm::set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
                     } else {
                         unreachable!();
                     }
@@ -504,7 +504,7 @@ impl Runner {
         // Ensure that data path group ownership is set to the build user and directory perms are
         // `0750`.
         if self.config.airlock_enabled {
-            perm::set_owner(
+            posix_perm::set_owner(
                 &self.config.data_path,
                 users::get_current_username()
                     .unwrap_or(String::from("root"))
@@ -512,7 +512,7 @@ impl Runner {
                 STUDIO_GROUP,
             )?;
             if cfg!(not(windows)) {
-                perm::set_permissions(&self.config.data_path, 0o750)?;
+                posix_perm::set_permissions(&self.config.data_path, 0o750)?;
             } else {
                 unreachable!();
             }
@@ -536,8 +536,8 @@ impl Runner {
 
         if self.config.airlock_enabled {
             if cfg!(not(windows)) {
-                perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
-                perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
+                posix_perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
+                posix_perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
             } else {
                 unreachable!();
             }

@@ -44,7 +44,6 @@ habitat/builder-api/7052/20180208233114         standalone  up     24          4
 habitat/builder-api-proxy/7052/20180208233113   standalone  up     24          45402  builder-api-proxy.default   persistent
 habitat/builder-jobsrv/7049/20180208225208      standalone  up     21          45664  builder-jobsrv.default      persistent
 habitat/builder-datastore/7043/20180208190943   standalone  up     24          45431  builder-datastore.default   persistent
-habitat/builder-originsrv/7049/20180208225209   standalone  up     19          45827  builder-originsrv.default   persistent
 ```
 If we do not build, we'd be testing against the stable package versions of the
 builder components:

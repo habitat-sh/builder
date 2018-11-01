@@ -91,7 +91,6 @@ builder_packages=(habitat/builder-api
                   habitat/builder-api-proxy
                   habitat/builder-datastore
                   habitat/builder-jobsrv
-                  habitat/builder-originsrv
                   habitat/builder-router
                   habitat/builder-worker)
 

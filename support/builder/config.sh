@@ -93,14 +93,6 @@ password = "$PGPASSWORD"
 backend = "local"
 EOT
 
-mkdir -p /hab/svc/builder-originsrv
-cat <<EOT > /hab/svc/builder-originsrv/user.toml
-log_level = "info"
-
-[datastore]
-password = "$PGPASSWORD"
-EOT
-
 mkdir -p /hab/svc/builder-worker
 cat <<EOT > /hab/svc/builder-worker/user.toml
 log_level = "info"
