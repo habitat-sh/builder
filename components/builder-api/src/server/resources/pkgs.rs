@@ -988,10 +988,7 @@ fn do_upload_package_finish(
 
     package.visibility = match Project::get(&project_name, &*conn) {
         // TED if this is in-fact optional in the db it should be an option in the model
-        Ok(proj) => match proj.visibility.parse() {
-            Ok(pv) => pv,
-            Err(_) => return HttpResponse::InternalServerError().into(),
-        },
+        Ok(proj) => proj.visibility,
         Err(_) => match Origin::get(&ident.origin, &*conn) {
             Ok(o) => o.default_package_visibility,
             Err(err) => return Error::DieselError(err).into(),

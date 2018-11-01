@@ -21,14 +21,13 @@ use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
 use protocol::jobsrv::*;
-use protocol::originsrv::{OriginPackageIdent, OriginPackageVisibility};
+use protocol::originsrv::OriginPackageIdent;
 
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError, NetOk};
 
 use db::models::channel::*;
-use db::models::origin::*;
 use db::models::package::*;
 use db::models::projects::*;
 use diesel::result::Error::NotFound;
@@ -363,22 +362,6 @@ fn promote_or_demote_job_group(
     for (origin, projects) in origin_map.iter() {
         match do_group_promotion_or_demotion(req, channel, projects.to_vec(), &origin, promote) {
             Ok(package_ids) => {
-                let channel_id = match Channel::get(
-                    GetChannel {
-                        origin: origin.to_string(),
-                        channel: channel.to_string(),
-                    },
-                    &*conn,
-                ) {
-                    Ok(channel) => channel.id,
-                    Err(err) => return Err(Error::DieselError(err)),
-                };
-
-                let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-                    Ok(origin) => origin.id,
-                    Err(err) => return Err(err),
-                };
-
                 let pco = if promote {
                     PackageChannelOperation::Promote
                 } else {
@@ -390,13 +373,13 @@ fn promote_or_demote_job_group(
 
                 PackageGroupChannelAudit::audit(
                     PackageGroupChannelAudit {
-                        origin_id: origin_id,
-                        channel_id: channel_id,
+                        origin: &origin,
+                        channel: &channel,
                         pkg_ids: package_ids,
                         operation: pco,
                         trigger: trigger.clone(),
                         requester_id: session_id as i64,
-                        requester_name: session_name,
+                        requester_name: &session_name,
                         group_id: group_id as i64,
                     },
                     &*conn,
@@ -465,12 +448,9 @@ fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Resul
             // TODO (SA): Update the project information in the job to match the DB
             let conn = req.state().db.get_conn().map_err(Error::DbError)?;
             let project = Project::get(job.get_project().get_name(), &*conn)?;
-            let pv: OriginPackageVisibility = project.visibility.parse().unwrap();
 
-            if vec![
-                OriginPackageVisibility::Private,
-                OriginPackageVisibility::Hidden,
-            ].contains(&pv)
+            if vec![PackageVisibility::Private, PackageVisibility::Hidden]
+                .contains(&project.visibility)
             {
                 authorize_session(req, Some(&project.origin_name))?;
             }
