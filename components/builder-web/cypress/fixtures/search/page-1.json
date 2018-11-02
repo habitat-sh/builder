@@ -192,6 +192,14 @@
       "origin": "core"
     },
     {
+      "name": "builder-originsrv",
+      "origin": "core"
+    },
+    {
+      "name": "builder-router",
+      "origin": "core"
+    },
+    {
       "name": "builder-scheduler",
       "origin": "core"
     }
