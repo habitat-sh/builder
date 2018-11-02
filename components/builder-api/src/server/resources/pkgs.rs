@@ -653,7 +653,10 @@ pub fn postprocess_package_list_model(
                 Ok(channels) => channels,
                 Err(_) => None,
             };
-            platforms = helpers::platforms_for_package_ident(req, &ident.clone().into());
+            platforms = match platforms_for_package_ident(req, &ident.clone().into()) {
+                Ok(platforms) => platforms,
+                Err(_) => None,
+            };
         }
 
         let mut pkg_json = serde_json::to_value(ident.clone()).unwrap();
@@ -1218,4 +1221,27 @@ pub fn is_a_service_model(package: &Package) -> bool {
     // determining whether a package is a service from the DB instead of needing
     // to crack the archive file to look for a SVC_USER file
     m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
+}
+
+// Get platforms for a package
+pub fn platforms_for_package_ident(
+    req: &HttpRequest<AppState>,
+    package: &OriginPackageIdent,
+) -> Result<Option<Vec<String>>> {
+    let opt_session_id = match authorize_session(req, None) {
+        Ok(id) => Some(id),
+        Err(_) => None,
+    };
+
+    let conn = req.state().db.get_conn()?;
+
+    match Package::list_package_platforms(
+        BuilderPackageIdent(package.clone().into()),
+        helpers::visibility_for_optional_session_model(req, opt_session_id, package.get_origin()),
+        &*conn,
+    ) {
+        Ok(list) => Ok(Some(list.iter().map(|p| p.target.to_string()).collect())),
+        Err(NotFound) => Ok(None),
+        Err(err) => Err(Error::DieselError(err)),
+    }
 }

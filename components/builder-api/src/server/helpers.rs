@@ -28,7 +28,6 @@ use protocol::originsrv::*;
 use db::models::channel::PackageChannelTrigger as PCT;
 use db::models::package::PackageVisibility;
 use server::authorize::authorize_session;
-use server::framework::middleware::route_message;
 
 use server::AppState;
 
@@ -161,32 +160,6 @@ pub fn visibility_for_optional_session_model(
     }
 
     v
-}
-
-// Get platforms for a package
-pub fn platforms_for_package_ident(
-    req: &HttpRequest<AppState>,
-    package: &OriginPackageIdent,
-) -> Option<Vec<String>> {
-    let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
-        Err(_) => None,
-    };
-
-    let mut opplr = OriginPackagePlatformListRequest::new();
-    opplr.set_ident(package.clone());
-    opplr.set_visibilities(visibility_for_optional_session(
-        req,
-        opt_session_id,
-        package.get_origin(),
-    ));
-
-    match route_message::<OriginPackagePlatformListRequest, OriginPackagePlatformListResponse>(
-        req, &opplr,
-    ) {
-        Ok(p) => Some(p.get_platforms().to_vec()),
-        Err(_) => None,
-    }
 }
 
 pub fn all_visibilities() -> Vec<OriginPackageVisibility> {

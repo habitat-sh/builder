@@ -37,6 +37,7 @@ use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination};
 use server::resources::channels::channels_for_package_ident;
+use server::resources::pkgs::platforms_for_package_ident;
 use server::AppState;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -445,7 +446,10 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
                                 Err(_) => None,
                             };
                         let platforms =
-                            helpers::platforms_for_package_ident(&req, &job.get_package_ident());
+                            match platforms_for_package_ident(&req, &job.get_package_ident()) {
+                                Ok(platforms) => platforms,
+                                Err(_) => None,
+                            };
                         let mut job_json = serde_json::to_value(job).unwrap();
 
                         if channels.is_some() {
