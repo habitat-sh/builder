@@ -214,20 +214,14 @@ fn do_group_promotion_or_demotion(
 
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-    let channel = match Channel::get(
-        GetChannel {
-            origin: origin.to_string(),
-            channel: channel.to_string(),
-        },
-        &*conn,
-    ) {
+    let channel = match Channel::get(origin, channel, &*conn) {
         Ok(channel) => channel,
         Err(NotFound) => {
             if channel != STABLE_CHANNEL || channel != UNSTABLE_CHANNEL {
                 Channel::create(
                     CreateChannel {
-                        channel: channel.to_string(),
-                        origin: origin.to_string(),
+                        name: channel,
+                        origin: origin,
                         owner_id: session.get_id() as i64,
                     },
                     &*conn,
@@ -268,21 +262,9 @@ fn do_group_promotion_or_demotion(
     }
 
     if promote {
-        Channel::promote_packages(
-            PromotePackages {
-                channel_id: channel.id,
-                pkg_ids: package_ids.clone(),
-            },
-            &*conn,
-        )?;
+        Channel::promote_packages(channel.id, package_ids.clone(), &*conn)?;
     } else {
-        Channel::demote_packages(
-            DemotePackages {
-                channel_id: channel.id,
-                pkg_ids: package_ids.clone(),
-            },
-            &*conn,
-        )?;
+        Channel::demote_packages(channel.id, package_ids.clone(), &*conn)?;
     }
 
     Ok(package_ids)
@@ -377,7 +359,7 @@ fn promote_or_demote_job_group(
                     PackageGroupChannelAudit {
                         origin: &origin,
                         channel: &channel,
-                        pkg_ids: package_ids,
+                        package_ids: package_ids,
                         operation: pco,
                         trigger: trigger.clone(),
                         requester_id: session.get_id() as i64,
@@ -455,7 +437,7 @@ fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Resul
             if vec![PackageVisibility::Private, PackageVisibility::Hidden]
                 .contains(&project.visibility)
             {
-                authorize_session(req, Some(&project.origin_name))?;
+                authorize_session(req, Some(&project.origin))?;
             }
 
             route_message::<jobsrv::JobLogGet, jobsrv::JobLog>(req, &request)

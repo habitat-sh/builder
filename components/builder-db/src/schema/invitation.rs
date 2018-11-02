@@ -1,8 +1,7 @@
 table! {
     origin_invitations {
         id -> BigInt,
-        origin_id -> BigInt,
-        origin_name -> Text,
+        origin -> Text,
         account_id -> BigInt,
         account_name -> Text,
         owner_id -> BigInt,

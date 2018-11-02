@@ -15,8 +15,7 @@ const projectCreatePayload = {
 
 let projectExpectations = function (res) {
   expect(res.body.id).to.not.be.empty;
-  expect(res.body.origin_id).to.equal(global.originNeurosis.id.toString());
-  expect(res.body.origin_name).to.equal('neurosis');
+  expect(res.body.origin).to.equal(global.originNeurosis.name);
   expect(res.body.package_name).to.equal('testapp');
   expect(res.body.name).to.equal('neurosis/testapp');
   expect(res.body.plan_path).to.equal('plan.sh');
@@ -225,8 +224,7 @@ describe('Projects API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.id).to.not.be.empty;
-          expect(res.body.origin_id).to.equal(global.originNeurosis.id.toString());
-          expect(res.body.origin_name).to.equal('neurosis');
+          expect(res.body.origin).to.equal(global.originNeurosis.name);
           expect(res.body.package_name).to.equal('testapp');
           expect(res.body.name).to.equal('neurosis/testapp');
           expect(res.body.plan_path).to.equal('awesome/plan.sh');

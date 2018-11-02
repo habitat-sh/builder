@@ -221,7 +221,6 @@ fn create_origin(
     let new_origin = NewOrigin {
         name: &body.0.name,
         owner_id: session.get_id() as i64,
-        owner_name: session.get_name(),
         default_package_visibility: &dpv,
     };
 
@@ -272,11 +271,6 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id,
-        Err(err) => return err.into(),
-    };
-
     let pk_body = match pair.to_public_string().map_err(Error::HabitatCore) {
         Ok(pk) => pk.into_bytes(),
         Err(err) => return err.into(),
@@ -284,7 +278,8 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
 
     let new_pk = NewOriginPublicSigningKey {
         owner_id: account_id as i64,
-        origin_id: origin_id as i64,
+        origin: &origin,
+        full_name: &format!("{}-{}", &origin, &pair.rev),
         name: &origin,
         revision: &pair.rev,
         body: &pk_body,
@@ -302,7 +297,8 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
 
     let new_sk = NewOriginPrivateSigningKey {
         owner_id: account_id as i64,
-        origin_id: origin_id as i64,
+        origin: &origin,
+        full_name: &format!("{}-{}", &origin, &pair.rev),
         name: &origin,
         revision: &pair.rev,
         body: &sk_body,
@@ -324,12 +320,7 @@ fn list_origin_keys(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id,
-        Err(err) => return err.into(),
-    };
-
-    match OriginPublicSigningKey::list(origin_id as u64, &*conn).map_err(Error::DieselError) {
+    match OriginPublicSigningKey::list(&origin, &*conn).map_err(Error::DieselError) {
         Ok(list) => {
             let list: Vec<OriginKeyIdent> = list
                 .iter()
@@ -364,11 +355,6 @@ fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpRespon
         Err(err) => return err.into(),
     };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id,
-        Err(err) => return err.into(),
-    };
-
     match parse_key_str(&body) {
         Ok((PairType::Public, _, _)) => {
             debug!("Received a valid public key");
@@ -385,7 +371,8 @@ fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpRespon
 
     let new_pk = NewOriginPublicSigningKey {
         owner_id: account_id as i64,
-        origin_id: origin_id as i64,
+        origin: &origin,
+        full_name: &format!("{}-{}", &origin, &revision),
         name: &origin,
         revision: &revision,
         body: &body.into_bytes(),
@@ -448,12 +435,7 @@ fn list_origin_secrets(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id,
-        Err(err) => return err.into(),
-    };
-
-    match OriginSecret::list(origin_id as i64, &*conn).map_err(Error::DieselError) {
+    match OriginSecret::list(&origin, &*conn).map_err(Error::DieselError) {
         Ok(list) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(&list),
@@ -466,8 +448,8 @@ fn create_origin_secret(
 ) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
-    let _account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(id) => id,
+    let account_id = match authorize_session(&req, Some(&origin)) {
+        Ok(session) => session.get_id() as i64,
         Err(err) => return err.into(),
     };
 
@@ -500,11 +482,6 @@ fn create_origin_secret(
 
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id,
         Err(err) => return err.into(),
     };
 
@@ -568,8 +545,15 @@ fn create_origin_secret(
         }
     };
 
-    match OriginSecret::create(origin_id as i64, &body.name, &body.value, &*conn)
-        .map_err(Error::DieselError)
+    match OriginSecret::create(
+        &NewOriginSecret {
+            origin: &origin,
+            name: &body.name,
+            value: &body.value,
+            owner_id: account_id,
+        },
+        &*conn,
+    ).map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => err.into(),
@@ -590,12 +574,7 @@ fn delete_origin_secret(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id,
-        Err(err) => return err.into(),
-    };
-
-    match OriginSecret::delete(origin_id as i64, &secret, &*conn).map_err(Error::DieselError) {
+    match OriginSecret::delete(&origin, &secret, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => err.into(),
     }
@@ -621,11 +600,6 @@ fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> Htt
         Err(err) => return err.into(),
     };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id,
-        Err(err) => return err.into(),
-    };
-
     match String::from_utf8(body.to_vec()) {
         Ok(content) => match parse_key_str(&content) {
             Ok((PairType::Secret, _, _)) => {
@@ -648,8 +622,9 @@ fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> Htt
 
     let new_sk = NewOriginPrivateSigningKey {
         owner_id: account_id as i64,
-        origin_id: origin_id as i64,
+        origin: &origin,
         name: &origin,
+        full_name: &format!("{}-{}", &origin, &revision),
         revision: &revision,
         body: body,
     };
@@ -766,14 +741,8 @@ fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
             Err(err) => return err.into(),
         };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id,
-        Err(err) => return err.into(),
-    };
-
     let new_invitation = NewOriginInvitation {
-        origin_id: origin_id,
-        origin_name: &origin,
+        origin: &origin,
         account_id: recipient_id,
         account_name: &recipient_name,
         owner_id: account_id as i64,
@@ -823,7 +792,7 @@ fn ignore_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let account_id = match authorize_session(&req, None) {
+    let _ = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
@@ -839,11 +808,11 @@ fn ignore_invitation(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     debug!(
-        "Ignoring invitation id {} for user {} origin {}",
-        invitation_id, account_id, &origin
+        "Ignoring invitation id {} for origin {}",
+        invitation_id, &origin
     );
 
-    match OriginInvitation::ignore(invitation_id, account_id, &*conn).map_err(Error::DieselError) {
+    match OriginInvitation::ignore(invitation_id, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -854,7 +823,7 @@ fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let account_id = match authorize_session(&req, None) {
+    let _ = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
@@ -865,8 +834,8 @@ fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     debug!(
-        "Rescinding invitation id {} for user {} origin {}",
-        invitation_id, account_id, &origin
+        "Rescinding invitation id {} for user from origin {}",
+        invitation_id, &origin
     );
 
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
@@ -874,7 +843,7 @@ fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match OriginInvitation::rescind(invitation_id, account_id, &*conn).map_err(Error::DieselError) {
+    match OriginInvitation::rescind(invitation_id, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -892,15 +861,10 @@ fn list_origin_invitations(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id as u64,
-        Err(err) => return err.into(),
-    };
-
-    match OriginInvitation::list_by_origin(origin_id, &*conn).map_err(Error::DieselError) {
+    match OriginInvitation::list_by_origin(&origin, &*conn).map_err(Error::DieselError) {
         Ok(list) => {
             let json = json!({
-                           "origin_id": origin_id.to_string(),
+                           "origin": &origin,
                            "invitations": serde_json::to_value(list).unwrap()
                        });
 
@@ -925,11 +889,9 @@ fn list_origin_members(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     match OriginMember::list(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(list) => {
-            let users: Vec<String> = list.iter().map(|u| u.account_name.to_string()).collect();
-            let origin_id = list[0].origin_id;
+        Ok(users) => {
             let json = json!({
-                "origin_id": origin_id.to_string(),
+                "origin": &origin,
                 "members": serde_json::to_value(users).unwrap()
             });
 
@@ -967,12 +929,7 @@ fn origin_member_delete(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let origin_id = match Origin::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => origin.id as u64,
-        Err(err) => return err.into(),
-    };
-
-    match OriginMember::delete(origin_id, &user, &*conn).map_err(Error::DieselError) {
+    match OriginMember::delete(&origin, &user, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
@@ -1167,11 +1124,6 @@ fn generate_origin_encryption_keys(
 ) -> Result<OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
 
-    let origin_id = match Origin::get(origin, &*conn) {
-        Ok(origin) => origin.id,
-        Err(err) => return Err(Error::DieselError(err)),
-    };
-
     let pair = BoxKeyPair::generate_pair_for_origin(origin).map_err(Error::HabitatCore)?;
 
     let pk_body = pair
@@ -1181,8 +1133,9 @@ fn generate_origin_encryption_keys(
 
     let new_pk = NewOriginPublicEncryptionKey {
         owner_id: session_id as i64,
-        origin_id: origin_id,
-        name: origin,
+        name: &origin,
+        origin: &origin,
+        full_name: &format!("{}-{}", &origin, &pair.rev),
         revision: &pair.rev,
         body: &pk_body,
     };
@@ -1194,8 +1147,9 @@ fn generate_origin_encryption_keys(
 
     let new_sk = NewOriginPrivateEncryptionKey {
         owner_id: session_id as i64,
-        origin_id: origin_id,
         name: origin,
+        origin: &origin,
+        full_name: &format!("{}-{}", &origin, &pair.rev),
         revision: &pair.rev,
         body: &sk_body,
     };

@@ -3,63 +3,62 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
-use diesel::sql_types::{BigInt, Text};
-use diesel::RunQueryDsl;
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use schema::secrets::*;
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
-#[table_name = "origin_secrets"]
+#[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginSecret {
     #[serde(with = "db_id_format")]
     pub id: i64,
-    #[serde(with = "db_id_format")]
-    pub origin_id: i64,
-    pub owner_id: Option<i64>, // can be null
+    pub owner_id: Option<i64>,
     pub name: String,
     pub value: String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
+}
+
+#[derive(Insertable)]
+#[table_name = "origin_secrets"]
+pub struct NewOriginSecret<'a> {
+    pub owner_id: i64,
+    pub origin: &'a str,
+    pub name: &'a str,
+    pub value: &'a str,
 }
 
 impl OriginSecret {
-    pub fn create(
-        origin_id: i64,
-        name: &str,
-        value: &str,
-        conn: &PgConnection,
-    ) -> QueryResult<usize> {
+    pub fn create(secret: &NewOriginSecret, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        // TODO FIX: We're missing setting the account id here
-        diesel::sql_query("select * from insert_origin_secret_v1($1, $2, $3)")
-            .bind::<BigInt, _>(origin_id)
-            .bind::<Text, _>(name)
-            .bind::<Text, _>(value)
+        diesel::insert_into(origin_secrets::table)
+            .values(secret)
             .execute(conn)
     }
 
-    pub fn get(origin_id: i64, name: &str, conn: &PgConnection) -> QueryResult<OriginSecret> {
+    pub fn get(origin: &str, name: &str, conn: &PgConnection) -> QueryResult<OriginSecret> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_secret_v1($1, $2)")
-            .bind::<BigInt, _>(origin_id)
-            .bind::<Text, _>(name)
+        origin_secrets::table
+            .filter(origin_secrets::name.eq(name))
+            .filter(origin_secrets::origin.eq(origin))
             .get_result(conn)
     }
 
-    pub fn delete(origin_id: i64, name: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(origin: &str, name: &str, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from delete_origin_secret_v1($1, $2)")
-            .bind::<BigInt, _>(origin_id)
-            .bind::<Text, _>(name)
-            .execute(conn)
+        diesel::delete(
+            origin_secrets::table
+                .filter(origin_secrets::name.eq(name))
+                .filter(origin_secrets::origin.eq(origin)),
+        ).execute(conn)
     }
 
-    pub fn list(origin_id: i64, conn: &PgConnection) -> QueryResult<Vec<OriginSecret>> {
+    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginSecret>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_secrets_for_origin_v1($1)")
-            .bind::<BigInt, _>(origin_id)
+        origin_secrets::table
+            .filter(origin_secrets::origin.eq(origin))
             .get_results(conn)
     }
 }

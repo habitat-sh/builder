@@ -1,11 +1,11 @@
 table! {
     origin_channels (id) {
         id -> BigInt,
-        origin_id -> BigInt,
         owner_id -> BigInt,
         name -> Text,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
+        origin -> Text,
     }
 }
 
@@ -23,7 +23,7 @@ use super::package::origin_packages;
 
 joinable!(origin_channel_packages -> origin_packages (package_id));
 joinable!(origin_channel_packages -> origin_channels (channel_id));
-joinable!(origin_channels -> origins (origin_id));
+joinable!(origin_channels -> origins (origin));
 
 allow_tables_to_appear_in_same_query!(
     origin_channels,

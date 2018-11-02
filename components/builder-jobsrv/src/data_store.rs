@@ -633,8 +633,7 @@ impl DataStore {
         let mut package = originsrv::OriginPackage::new();
         let id: i64 = row.get("id");
         package.set_id(id as u64);
-        let origin_id: i64 = row.get("origin_id");
-        package.set_origin_id(origin_id as u64);
+        package.set_origin(row.get("origin"));
         let owner_id: i64 = row.get("owner_id");
         package.set_owner_id(owner_id as u64);
         let ident: String = row.get("ident");

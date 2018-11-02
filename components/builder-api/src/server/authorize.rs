@@ -99,5 +99,5 @@ pub fn check_origin_member(
 ) -> Result<bool> {
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-    Origin::check_membership(origin, account_id, &*conn).map_err(Error::DieselError)
+    Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError)
 }

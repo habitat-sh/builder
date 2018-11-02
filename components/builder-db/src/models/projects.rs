@@ -3,25 +3,22 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
-use diesel::sql_types::{BigInt, Bool, Text};
-use diesel::RunQueryDsl;
-use models::package::{PackageVisibility, PackageVisibilityMapping};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use models::package::PackageVisibility;
 use protocol::originsrv;
-use schema::project::*;
+use schema::project::origin_projects;
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_projects"]
 pub struct Project {
     #[serde(with = "db_id_format")]
     pub id: i64,
-    #[serde(with = "db_id_format")]
-    pub origin_id: i64,
+    pub origin: String,
     #[serde(with = "db_id_format")]
     pub owner_id: i64,
-    pub origin_name: String,
     pub package_name: String,
     pub name: String,
     pub plan_path: String,
@@ -35,27 +32,32 @@ pub struct Project {
     pub updated_at: Option<NaiveDateTime>,
 }
 
+#[derive(Insertable)]
+#[table_name = "origin_projects"]
 pub struct NewProject<'a> {
     pub owner_id: i64,
-    pub origin_name: &'a str,
+    pub origin: &'a str,
+    pub name: &'a str,
     pub package_name: &'a str,
     pub plan_path: &'a str,
     pub vcs_type: &'a str,
     pub vcs_data: &'a str,
-    pub install_id: i64,
+    pub vcs_installation_id: i64,
     pub visibility: &'a PackageVisibility,
     pub auto_build: bool,
 }
 
+#[derive(AsChangeset)]
+#[table_name = "origin_projects"]
 pub struct UpdateProject<'a> {
     pub id: i64,
     pub owner_id: i64,
-    pub origin_id: i64,
+    pub origin: &'a str,
     pub package_name: &'a str,
     pub plan_path: &'a str,
     pub vcs_type: &'a str,
     pub vcs_data: &'a str,
-    pub install_id: i64,
+    pub vcs_installation_id: i64,
     pub visibility: &'a PackageVisibility,
     pub auto_build: bool,
 }
@@ -63,55 +65,34 @@ pub struct UpdateProject<'a> {
 impl Project {
     pub fn get(name: &str, conn: &PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_project_v1($1)")
-            .bind::<Text, _>(name)
+        origin_projects::table
+            .filter(origin_projects::name.eq(name))
             .get_result(conn)
     }
 
     pub fn delete(name: &str, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from delete_origin_project_v1($1)")
-            .bind::<Text, _>(name)
-            .execute(conn)
+        diesel::delete(origin_projects::table.filter(origin_projects::name.eq(name))).execute(conn)
     }
 
     pub fn create(project: &NewProject, conn: &PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
-        diesel::sql_query(
-            "SELECT * FROM insert_origin_project_v6($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-        ).bind::<Text, _>(project.origin_name)
-        .bind::<Text, _>(project.package_name)
-        .bind::<Text, _>(project.plan_path)
-        .bind::<Text, _>(project.vcs_type)
-        .bind::<Text, _>(project.vcs_data)
-        .bind::<BigInt, _>(project.owner_id)
-        .bind::<BigInt, _>(project.install_id)
-        .bind::<PackageVisibilityMapping, _>(project.visibility)
-        .bind::<Bool, _>(project.auto_build)
-        .get_result(conn)
+        diesel::insert_into(origin_projects::table)
+            .values(project)
+            .get_result(conn)
     }
 
     pub fn update(project: &UpdateProject, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query(
-            "SELECT * FROM update_origin_project_v5($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-        ).bind::<BigInt, _>(project.id)
-        .bind::<BigInt, _>(project.origin_id)
-        .bind::<Text, _>(project.package_name)
-        .bind::<Text, _>(project.plan_path)
-        .bind::<Text, _>(project.vcs_type)
-        .bind::<Text, _>(project.vcs_data)
-        .bind::<BigInt, _>(project.owner_id)
-        .bind::<BigInt, _>(project.install_id)
-        .bind::<PackageVisibilityMapping, _>(project.visibility)
-        .bind::<Bool, _>(project.auto_build)
-        .execute(conn)
+        diesel::update(origin_projects::table.find(project.id))
+            .set(project)
+            .execute(conn)
     }
 
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<Project>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_project_list_v2($1)")
-            .bind::<Text, _>(origin)
+        origin_projects::table
+            .filter(origin_projects::origin.eq(origin))
             .get_results(conn)
     }
 }
@@ -121,8 +102,7 @@ impl Into<originsrv::OriginProject> for Project {
         let mut proj = originsrv::OriginProject::new();
         proj.set_id(self.id as u64);
         proj.set_owner_id(self.owner_id as u64);
-        proj.set_origin_id(self.origin_id as u64);
-        proj.set_origin_name(self.origin_name);
+        proj.set_origin_name(self.origin);
         proj.set_package_name(self.package_name);
         proj.set_name(self.name);
         proj.set_plan_path(self.plan_path);

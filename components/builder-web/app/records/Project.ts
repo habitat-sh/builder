@@ -18,15 +18,12 @@ export const Project = Record({
   id: undefined,
   auto_build: undefined,
   name: undefined,
-  origin_id: undefined,
-  origin_name: undefined,
+  origin: undefined,
   owner_id: undefined,
   package_name: undefined,
   plan_path: undefined,
-  vcs_auth_token: undefined,
   vcs_data: undefined,
   vcs_type: undefined,
-  vcs_username: undefined,
   settings: Map(),
   visibility: undefined
 });

@@ -3,15 +3,16 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
-use diesel::sql_types::Text;
-use diesel::RunQueryDsl;
+use diesel::{ExpressionMethods, NullableExpressionMethods, QueryDsl, RunQueryDsl, Table};
 use protocol::originsrv;
-use schema::project_integration::*;
+use schema::integration::origin_integrations;
+use schema::project::origin_projects;
+use schema::project_integration::origin_project_integrations;
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Identifiable)]
 #[table_name = "origin_project_integrations"]
 pub struct ProjectIntegration {
     #[serde(with = "db_id_format")]
@@ -26,9 +27,6 @@ pub struct ProjectIntegration {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-// #[derive(Insertable)]
-// #[table_name = "origin_project_integrations"]
-// TODO : Make this directly insertable?
 pub struct NewProjectIntegration<'a> {
     pub origin: &'a str,
     pub name: &'a str,
@@ -44,10 +42,13 @@ impl ProjectIntegration {
         conn: &PgConnection,
     ) -> QueryResult<ProjectIntegration> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_project_integrations_v2($1, $2, $3)")
-            .bind::<Text, _>(origin)
-            .bind::<Text, _>(name)
-            .bind::<Text, _>(integration)
+        origin_project_integrations::table
+            .inner_join(origin_integrations::table)
+            .inner_join(origin_projects::table)
+            .select(origin_project_integrations::table::all_columns())
+            .filter(origin_project_integrations::origin.eq(origin))
+            .filter(origin_projects::package_name.eq(name))
+            .filter(origin_integrations::name.eq(integration))
             .get_result(conn)
     }
 
@@ -57,9 +58,11 @@ impl ProjectIntegration {
         conn: &PgConnection,
     ) -> QueryResult<Vec<ProjectIntegration>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_project_integrations_for_project_v2($1, $2)")
-            .bind::<Text, _>(origin)
-            .bind::<Text, _>(name)
+        origin_project_integrations::table
+            .inner_join(origin_projects::table)
+            .select(origin_project_integrations::table::all_columns())
+            .filter(origin_project_integrations::origin.eq(origin))
+            .filter(origin_projects::package_name.eq(name))
             .get_results(conn)
     }
 
@@ -70,20 +73,58 @@ impl ProjectIntegration {
         conn: &PgConnection,
     ) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from delete_origin_project_integration_v1($1, $2, $3)")
-            .bind::<Text, _>(origin)
-            .bind::<Text, _>(name)
-            .bind::<Text, _>(integration)
-            .execute(conn)
+        //delete_origin_project_integration_v1
+        diesel::delete(
+            origin_project_integrations::table
+                .filter(origin_project_integrations::origin.eq(origin))
+                .filter(
+                    origin_project_integrations::project_id
+                        .nullable()
+                        .eq(origin_projects::table
+                            .select(origin_projects::id)
+                            .filter(origin_projects::package_name.eq(name))
+                            .single_value()),
+                ).filter(
+                    origin_project_integrations::integration_id.nullable().eq(
+                        origin_integrations::table
+                            .select(origin_integrations::id)
+                            .filter(origin_integrations::name.eq(integration))
+                            .single_value(),
+                    ),
+                ),
+        ).execute(conn)
     }
 
     pub fn create(req: NewProjectIntegration, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT * FROM upsert_origin_project_integration_v3($1, $2, $3, $4)")
-            .bind::<Text, _>(req.origin)
-            .bind::<Text, _>(req.name)
-            .bind::<Text, _>(req.integration)
-            .bind::<Text, _>(req.body)
+        // We currently support running only one publish step per build job. This
+        // temporary fix ensures we store (and can retrieve) only one project integration.
+        // Don't care what the result is here, it's just a precaution
+        let _ = Self::delete(req.origin, req.name, req.integration, conn);
+
+        let project_id = origin_projects::table
+            .select(origin_projects::id)
+            .filter(origin_projects::package_name.eq(req.name))
+            .limit(1)
+            .get_result::<i64>(conn)?;
+
+        let integration_id = origin_integrations::table
+            .select(origin_integrations::id)
+            .filter(origin_integrations::name.eq(req.integration))
+            .limit(1)
+            .get_result::<i64>(conn)?;
+
+        diesel::insert_into(origin_project_integrations::table)
+            .values((
+                origin_project_integrations::origin.eq(req.origin),
+                origin_project_integrations::body.eq(req.body),
+                origin_project_integrations::project_id.eq(project_id),
+                origin_project_integrations::integration_id.eq(integration_id),
+            )).on_conflict((
+                origin_project_integrations::project_id,
+                origin_project_integrations::integration_id,
+            )).do_update()
+            .set(origin_project_integrations::body.eq(req.body))
             .execute(conn)
     }
 }

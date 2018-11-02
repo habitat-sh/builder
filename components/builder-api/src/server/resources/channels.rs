@@ -106,14 +106,7 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
         Err(err) => return err.into(),
     };
 
-    match Channel::list(
-        ListChannels {
-            origin: origin,
-            include_sandbox_channels: sandbox.is_set,
-        },
-        &*conn,
-    ).map_err(Error::DieselError)
-    {
+    match Channel::list(&origin, sandbox.is_set, &*conn).map_err(Error::DieselError) {
         Ok(list) => {
             // TED: This is to maintain backwards API compat while killing some proto definitions
             // currently the output looks like [{"name": "foo"}] when it probably should be ["foo"]
@@ -151,8 +144,8 @@ fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
 
     match Channel::create(
         CreateChannel {
-            channel: channel,
-            origin: origin,
+            name: &channel,
+            origin: &origin,
             owner_id: session_id as i64,
         },
         &*conn,
@@ -188,14 +181,7 @@ fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match Channel::delete(
-        DeleteChannel {
-            origin: origin,
-            channel: channel,
-        },
-        &*conn,
-    ).map_err(Error::DieselError)
-    {
+    match Channel::delete(&origin, &channel, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => err.into(),
     }
@@ -433,7 +419,7 @@ fn audit_package_rank_change(
 ) -> Result<()> {
     match PackageChannelAudit::audit(
         PackageChannelAudit {
-            ident: BuilderPackageIdent(ident),
+            package_ident: BuilderPackageIdent(ident),
             channel: channel,
             operation: operation,
             trigger: helpers::trigger_from_request_model(req),
@@ -464,14 +450,14 @@ fn do_get_channel_packages(
 
     Channel::list_packages(
         ListChannelPackages {
-            ident: BuilderPackageIdent(ident.clone().into()),
-            visibility: helpers::visibility_for_optional_session(
+            ident: &BuilderPackageIdent(ident.clone().into()),
+            visibility: &helpers::visibility_for_optional_session(
                 &req,
                 opt_session_id,
                 &ident.origin,
             ),
-            origin: ident.origin.to_string(),
-            channel: channel,
+            origin: &ident.origin,
+            channel: &channel,
             page: page as i64,
             limit: per_page as i64,
         },
@@ -525,10 +511,10 @@ fn do_get_channel_package(
 
     let pkg = match Channel::get_latest_package(
         GetLatestPackage {
-            ident: BuilderPackageIdent(ident.clone()),
-            channel: channel.clone(),
-            target: target.to_string(),
-            visibility: helpers::visibility_for_optional_session(
+            ident: &BuilderPackageIdent(ident.clone()),
+            channel: &channel,
+            target: &target,
+            visibility: &helpers::visibility_for_optional_session(
                 req,
                 opt_session_id,
                 &ident.origin,

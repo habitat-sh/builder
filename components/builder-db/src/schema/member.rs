@@ -1,14 +1,16 @@
 table! {
-    origin_members (origin_id, account_id) {
-        origin_id -> BigInt,
+    origin_members (origin, account_id) {
         account_id -> BigInt,
-        origin_name -> Text,
-        account_name -> Text,
+        origin -> Text,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
     }
 }
 
-use super::origin::origins;
-joinable!(origin_members -> origins (origin_id));
-allow_tables_to_appear_in_same_query!(origin_members, origins);
+use super::account::accounts;
+use super::origin::{origins, origins_with_stats};
+
+joinable!(origin_members -> origins (origin));
+joinable!(origin_members -> origins_with_stats (origin));
+joinable!(origin_members -> accounts (account_id));
+allow_tables_to_appear_in_same_query!(origin_members, origins, origins_with_stats, accounts);
