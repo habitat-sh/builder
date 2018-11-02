@@ -14,12 +14,6 @@ app_private_key = "{{pkg.svc_files_path}}/builder-github-app.pem"
 [oauth]
 {{toToml cfg.oauth}}
 
-{{~#eachAlive bind.router.members as |member|}}
-[[routers]]
-host = "{{member.sys.ip}}"
-port = {{member.cfg.port}}
-{{~/eachAlive}}
-
 [s3]
 {{toToml cfg.s3}}
 

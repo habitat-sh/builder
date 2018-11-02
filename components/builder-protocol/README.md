@@ -16,11 +16,6 @@ Definitions for network protocol messages and serialization implementations for 
     optional string private_key_name = 4;
   }
 
-  message OriginCreate {
-    optional string name = 1;
-    optional uint64 owner_id = 2;
-    optional string owner_name = 3;
-  }
   ```
 * You will also need to implement some traits on your new messages.  Do this in src/your_protocol.rs
   * items need at least a Persistable trait implemented
@@ -39,12 +34,4 @@ Definitions for network protocol messages and serialization implementations for 
       }
   }
 
-
-  impl Routable for OriginCreate {
-      type H = InstaId;
-
-      fn route_key(&self) -> Option<Self::H> {
-          Some(InstaId(self.get_owner_id()))
-      }
-  }
   ```

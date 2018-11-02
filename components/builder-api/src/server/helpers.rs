@@ -22,8 +22,7 @@ use serde_json;
 
 use hab_core::package::PackageTarget;
 
-use protocol::jobsrv::*;
-use protocol::originsrv::*;
+use protocol::jobsrv;
 
 use db::models::channel::PackageChannelTrigger as PCT;
 use db::models::package::PackageVisibility;
@@ -134,22 +133,6 @@ pub fn visibility_for_optional_session(
     req: &HttpRequest<AppState>,
     optional_session_id: Option<u64>,
     origin: &str,
-) -> Vec<OriginPackageVisibility> {
-    let mut v = Vec::new();
-    v.push(OriginPackageVisibility::Public);
-
-    if optional_session_id.is_some() && authorize_session(req, Some(&origin)).is_ok() {
-        v.push(OriginPackageVisibility::Hidden);
-        v.push(OriginPackageVisibility::Private);
-    }
-
-    v
-}
-
-pub fn visibility_for_optional_session_model(
-    req: &HttpRequest<AppState>,
-    optional_session_id: Option<u64>,
-    origin: &str,
 ) -> Vec<PackageVisibility> {
     let mut v = Vec::new();
     v.push(PackageVisibility::Public);
@@ -162,15 +145,7 @@ pub fn visibility_for_optional_session_model(
     v
 }
 
-pub fn all_visibilities() -> Vec<OriginPackageVisibility> {
-    vec![
-        OriginPackageVisibility::Public,
-        OriginPackageVisibility::Private,
-        OriginPackageVisibility::Hidden,
-    ]
-}
-
-pub fn all_visibilities_model() -> Vec<PackageVisibility> {
+pub fn all_visibilities() -> Vec<PackageVisibility> {
     vec![
         PackageVisibility::Public,
         PackageVisibility::Private,
@@ -178,12 +153,12 @@ pub fn all_visibilities_model() -> Vec<PackageVisibility> {
     ]
 }
 
-pub fn trigger_from_request(req: &HttpRequest<AppState>) -> JobGroupTrigger {
+pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrigger {
     // TODO: the search strings should be configurable.
     match req.headers().get(header::USER_AGENT) {
         Some(ref agent) => match agent.to_str() {
             Ok(s) => if s.starts_with("hab/") {
-                return JobGroupTrigger::HabClient;
+                return jobsrv::JobGroupTrigger::HabClient;
             },
             Err(_) => (),
         },
@@ -194,14 +169,14 @@ pub fn trigger_from_request(req: &HttpRequest<AppState>) -> JobGroupTrigger {
         Some(ref referer) => match referer.to_str() {
             // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
             Ok(s) => if s.contains("http") {
-                return JobGroupTrigger::BuilderUI;
+                return jobsrv::JobGroupTrigger::BuilderUI;
             },
             Err(_) => (),
         },
         None => (),
     }
 
-    JobGroupTrigger::Unknown
+    jobsrv::JobGroupTrigger::Unknown
 }
 
 // TED remove function above when it's no longer used anywhere

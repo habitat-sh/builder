@@ -119,9 +119,11 @@ impl DataStore {
         package.set_deps(self.into_idents(row.get("deps")));
         package.set_tdeps(self.into_idents(row.get("tdeps")));
 
-        let pv: String = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility = pv.parse().unwrap();
-        package.set_visibility(pv2);
+        // let pv: String = row.get("visibility");
+        // TED removing for now to kill the FromString in originsrv
+        // This should get converted to PackageVisibility in the future
+        // let pv2: originsrv::OriginPackageVisibility = pv.parse().unwrap();
+        // package.set_visibility(pv2);
 
         Ok(package)
     }

@@ -28,7 +28,6 @@ use db::config::DataStoreCfg;
 use hab_core;
 use hab_core::config::ConfigFile;
 use hab_core::package::target::{self, PackageTarget};
-use hab_net::app::config::RouterAddr;
 
 use github_api_client::config::GitHubCfg;
 use oauth_client::config::OAuth2Cfg;
@@ -48,9 +47,6 @@ pub trait GatewayCfg {
     fn listen_addr(&self) -> &IpAddr;
 
     fn listen_port(&self) -> u16;
-
-    /// Return a list of router addresses
-    fn route_addrs(&self) -> &[RouterAddr];
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -60,7 +56,6 @@ pub struct Config {
     pub github: GitHubCfg,
     pub http: HttpCfg,
     pub oauth: OAuth2Cfg,
-    pub routers: Vec<RouterAddr>,
     pub s3: S3Cfg,
     pub segment: SegmentCfg,
     pub ui: UiCfg,
@@ -76,7 +71,6 @@ impl Default for Config {
             github: GitHubCfg::default(),
             http: HttpCfg::default(),
             oauth: OAuth2Cfg::default(),
-            routers: vec![RouterAddr::default()],
             s3: S3Cfg::default(),
             segment: SegmentCfg::default(),
             ui: UiCfg::default(),
@@ -179,10 +173,6 @@ impl GatewayCfg for Config {
 
     fn listen_port(&self) -> u16 {
         self.http.port
-    }
-
-    fn route_addrs(&self) -> &[RouterAddr] {
-        self.routers.as_slice()
     }
 }
 
@@ -314,10 +304,6 @@ mod tests {
         [ui]
         root = "/some/path"
 
-        [[routers]]
-        host = "172.18.0.2"
-        port = 9632
-
         [oauth]
         client_id = "0c2f738a7d0bd300de10"
         client_secret = "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
@@ -381,7 +367,6 @@ mod tests {
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);
         assert_eq!(config.http.keep_alive, 30);
-        assert_eq!(&format!("{}", config.routers[0]), "172.18.0.2:9632");
 
         assert_eq!(config.oauth.client_id, "0c2f738a7d0bd300de10");
         assert_eq!(

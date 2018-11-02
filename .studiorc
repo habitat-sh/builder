@@ -99,7 +99,7 @@ _build-builder() {
   fi
 
   if [[ "$#" -eq 0 ]]; then
-    build-builder api jobsrv router worker
+    build-builder api jobsrv worker
     return $?
   fi
 
@@ -141,7 +141,6 @@ _start-builder() {
     configure
     start-builder cache
     start-builder memcached
-    start-builder router
     start-builder api
     start-builder api-proxy
     start-builder jobsrv
@@ -210,10 +209,9 @@ start-cache() {
 }
 
 declare -A svc_params=(
-  [api]="        -s at-once --bind router:builder-router.default --bind memcached:builder-memcached.default --bind datastore:builder-datastore.default --bind jobsrv:builder-jobsrv.default"
+  [api]="        -s at-once --bind memcached:builder-memcached.default --bind datastore:builder-datastore.default --bind jobsrv:builder-jobsrv.default"
   [api-proxy]="             --bind http:builder-api.default"
-  [jobsrv]="     -s at-once --bind router:builder-router.default --bind datastore:builder-datastore.default"
-  [router]="     -s at-once"
+  [jobsrv]="     -s at-once --bind datastore:builder-datastore.default"
   [worker]="     -s at-once --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default"
   [minio]="      -s at-once"
   [memcached]="  -s at-once" 
@@ -221,7 +219,7 @@ declare -A svc_params=(
 
 _stop-builder() {
   if [[ "$#" -eq 0 ]]; then
-    stop-builder cache api api-proxy datastore jobsrv router worker minio memcached
+    stop-builder cache api api-proxy datastore jobsrv worker minio memcached
     return $?
   fi
 
@@ -305,7 +303,7 @@ export -f psql
 
 # Cleanup any development touch files we laid down when checking to see if we could run NO_INSTALL_DEPS
 local_cleanup() {
-  for svc in api api-proxy datastore jobsrv router worker minio; do
+  for svc in api api-proxy datastore jobsrv worker minio; do
     if [ -f "/src/components/builder-${svc}/cleanup" ]; then
       rm "/src/components/builder-${svc}/cleanup"
     fi
@@ -331,14 +329,14 @@ The following commands are available:
   * build-builder (alias: bb) - build Builder components
     USAGE: build-builder [COMPONENT]...
     With no args, build all builder components
-    Valid components: api jobsrv router worker
+    Valid components: api jobsrv worker
 3. Running Builder
   * install-packages - Install all dependent packages
   * start-builder/stop-builder - load/unload Builder services
     USAGE: start-builder [SERVICE]...
             stop-builder [SERVICE]...
     With no args, load/unload all builder services
-    Valid services: api api-proxy cache datastore jobsrv router worker minio
+    Valid services: api api-proxy cache datastore jobsrv worker minio
   * ui-dev-mode - helper to switch the github app to localhost:3000
 4. Helpers
   * psql - wrapper around psql to enable passwordless auth

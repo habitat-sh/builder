@@ -154,46 +154,6 @@ resource "aws_security_group" "jobsrv_client" {
   }
 }
 
-resource "aws_security_group" "router" {
-  name        = "builder-router-${var.env}"
-  description = "Allow traffic to and from Habitat Builder RouteSrv"
-  vpc_id      = "${var.aws_vpc_id}"
-
-  ingress {
-    from_port = 5562
-    to_port   = 5562
-    protocol  = "tcp"
-
-    security_groups = [
-      "${aws_security_group.gateway.id}",
-    ]
-  }
-
-  ingress {
-    from_port = 5562
-    to_port   = 5563
-    protocol  = "tcp"
-
-    security_groups = [
-      "${aws_security_group.service.id}",
-    ]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags {
-    X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
-    X-Application = "builder"
-    X-ManagedBy   = "Terraform"
-  }
-}
-
 resource "aws_security_group" "service" {
   name   = "builder-service-${var.env}"
   vpc_id = "${var.aws_vpc_id}"

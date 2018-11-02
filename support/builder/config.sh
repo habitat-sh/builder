@@ -22,11 +22,6 @@ key_id = "depot"
 secret_key = "password"
 EOT
 
-mkdir -p /hab/svc/builder-router
-cat <<EOT > /hab/svc/builder-router/user.toml
-log_level = "info"
-EOT
-
 mkdir -p /hab/svc/builder-api
 cat <<EOT > /hab/svc/builder-api/user.toml
 log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error"

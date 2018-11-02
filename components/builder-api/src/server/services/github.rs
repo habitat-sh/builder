@@ -28,8 +28,10 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::sign::Signer;
 use protocol::jobsrv::{JobGroup, JobGroupSpec, JobGroupTrigger};
-use protocol::originsrv::{Account, AccountGet, OriginProject, OriginProjectGet};
 use serde_json;
+
+use db::models::account::Account;
+use db::models::projects::Project;
 
 use server::authorize::authorize_session;
 use server::error::Error;
@@ -161,6 +163,11 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
         hook.installation.id
     );
 
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(e) => return Error::DbError(e).into(),
+    };
+
     if hook.commits.is_empty() {
         debug!("GITHUB-WEBHOOK builder_api::github::handle_push: hook commits is empty!");
         return HttpResponse::new(StatusCode::OK);
@@ -180,10 +187,8 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
         }
     };
 
-    let mut account_get = AccountGet::new();
-    account_get.set_name(hook.pusher.name.clone());
-    let account_id = match route_message::<AccountGet, Account>(&req, &account_get) {
-        Ok(account) => Some(account.get_id()),
+    let account_id = match Account::get(&hook.pusher.name.clone(), &*conn) {
+        Ok(account) => Some(account.id as u64),
         Err(_) => None,
     };
 
@@ -211,17 +216,19 @@ fn build_plans(
 ) -> HttpResponse {
     let mut request = JobGroupSpec::new();
 
-    for plan in plans.iter() {
-        let mut project_get = OriginProjectGet::new();
-        project_get.set_name(format!("{}/{}", &plan.origin, &plan.name));
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(e) => return Error::DbError(e).into(),
+    };
 
-        match route_message::<OriginProjectGet, OriginProject>(&req, &project_get) {
+    for plan in plans.iter() {
+        let project_name = format!("{}/{}", &plan.origin, &plan.name);
+        match Project::get(&project_name, &*conn) {
             Ok(project) => {
-                if repo_url != project.get_vcs_data() {
+                if repo_url != project.vcs_data {
                     warn!(
                         "Repo URL ({}) doesn't match project vcs data ({}). Aborting.",
-                        repo_url,
-                        project.get_vcs_data()
+                        repo_url, project.vcs_data
                     );
                     continue;
                 }
@@ -229,8 +236,7 @@ fn build_plans(
             Err(err) => {
                 debug!(
                     "Failed to fetch project (plan may not be connected): {}, {:?}",
-                    project_get.get_name(),
-                    err
+                    project_name, err
                 );
                 continue;
             }

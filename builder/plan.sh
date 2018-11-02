@@ -8,13 +8,11 @@ pkg_services=(
     habitat/builder-api-proxy
     habitat/builder-datastore
     habitat/builder-jobsrv
-    habitat/builder-router
     habitat/builder-worker
 )
 
 pkg_bind_map=(
     [habitat/builder-api-proxy]="http:habitat/builder-api"
-    [habitat/builder-api]="router:habitat/builder-router"
-    [habitat/builder-jobsrv]="router:habitat/builder-router datastore:habitat/builder-datastore"
+    [habitat/builder-jobsrv]="datastore:habitat/builder-datastore"
     [habitat/builder-worker]="jobsrv:habitat/builder-jobsrv depot:habitat/builder-api"
 )

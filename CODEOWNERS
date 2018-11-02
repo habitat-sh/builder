@@ -9,7 +9,6 @@ components/builder-worker/src/main.rs @apriofrost
 components/builder-api/src/main.rs @apriofrost
 components/builder-graph/src/main.rs @apriofrost
 components/builder-jobsrv/src/main.rs @apriofrost
-components/builder-router/src/main.rs @apriofrost
 components/github-api-client @chefsalim @raskchanky
 components/net @chefsalim @raskchanky
 components/oauth-client @chefsalim @raskchanky
