@@ -20,38 +20,38 @@ use users::os::unix::UserExt;
 use {Error, Result};
 
 pub fn check_running_user_is_root() -> Result<()> {
-        if users::get_effective_uid() != 0 {
-                return Err(Error::RootUserRequired);
-        }
-        Ok(())
+    if users::get_effective_uid() != 0 {
+        return Err(Error::RootUserRequired);
+    }
+    Ok(())
 }
 
 pub fn gid_for_groupname(groupname: &str) -> Result<u32> {
-        Ok(users::get_group_by_name(groupname)
-                .ok_or(Error::GroupnameNotFound(String::from(groupname)))?
-                .gid())
+    Ok(users::get_group_by_name(groupname)
+        .ok_or(Error::GroupnameNotFound(String::from(groupname)))?
+        .gid())
 }
 
 pub fn uid_for_username(username: &str) -> Result<u32> {
-        Ok(user_by_username(username)?.uid())
+    Ok(user_by_username(username)?.uid())
 }
 
 pub fn primary_gid_for_username(username: &str) -> Result<u32> {
-        Ok(user_by_username(username)?.primary_group_id())
+    Ok(user_by_username(username)?.primary_group_id())
 }
 
 pub fn home_dir_for_username(username: &str) -> Result<PathBuf> {
-        Ok(PathBuf::from(user_by_username(username)?.home_dir()))
+    Ok(PathBuf::from(user_by_username(username)?.home_dir()))
 }
 
 pub fn my_username() -> Result<String> {
-        users::get_effective_username().ok_or(Error::EffectiveUsernameNotFound)
+    users::get_effective_username().ok_or(Error::EffectiveUsernameNotFound)
 }
 
 pub fn my_groupname() -> Result<String> {
-        users::get_effective_groupname().ok_or(Error::EffectiveGroupnameNotFound)
+    users::get_effective_groupname().ok_or(Error::EffectiveGroupnameNotFound)
 }
 
 fn user_by_username(username: &str) -> Result<users::User> {
-        users::get_user_by_name(username).ok_or(Error::UsernameNotFound(String::from(username)))
+    users::get_user_by_name(username).ok_or(Error::UsernameNotFound(String::from(username)))
 }

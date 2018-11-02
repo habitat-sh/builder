@@ -20,7 +20,7 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use bldr_core::rpc::RpcMessage;
-use hab_net::app::prelude::*;
+use hab_net::NetError;
 
 use db::models::projects::*;
 

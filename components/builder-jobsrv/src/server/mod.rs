@@ -20,7 +20,7 @@ mod metrics;
 mod scheduler;
 mod worker_manager;
 
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use time::PreciseTime;
 
 use actix;
@@ -32,7 +32,6 @@ use actix_web::{App, HttpRequest, HttpResponse, Json};
 use bldr_core::rpc::RpcMessage;
 use bldr_core::target_graph::TargetGraph;
 use db::DbPool;
-use hab_net::app::prelude::*;
 
 use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;

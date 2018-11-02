@@ -22,14 +22,11 @@ pub use protocol::net::{ErrCode, NetOk};
 use protocol::{self, net};
 use zmq;
 
-use conn;
-
 pub type LibResult<T> = Result<T, LibError>;
 pub type NetResult<T> = Result<T, NetError>;
 
 #[derive(Debug)]
 pub enum LibError {
-    Connection(conn::ConnErr),
     IO(io::Error),
     NetError(NetError),
     Protobuf(protobuf::ProtobufError),
@@ -51,7 +48,6 @@ impl LibError {
 impl fmt::Display for LibError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            LibError::Connection(ref e) => format!("{}", e),
             LibError::IO(ref e) => format!("{}", e),
             LibError::NetError(ref e) => format!("{}", e),
             LibError::Protobuf(ref e) => format!("{}", e),
@@ -69,7 +65,6 @@ impl fmt::Display for LibError {
 impl error::Error for LibError {
     fn description(&self) -> &str {
         match *self {
-            LibError::Connection(ref err) => err.description(),
             LibError::IO(ref err) => err.description(),
             LibError::NetError(ref err) => err.description(),
             LibError::Protobuf(ref err) => err.description(),
@@ -78,12 +73,6 @@ impl error::Error for LibError {
             LibError::Sys => "Internal system error",
             LibError::Zmq(ref err) => err.description(),
         }
-    }
-}
-
-impl From<conn::ConnErr> for LibError {
-    fn from(err: conn::ConnErr) -> LibError {
-        LibError::Connection(err)
     }
 }
 

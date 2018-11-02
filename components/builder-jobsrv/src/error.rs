@@ -43,7 +43,6 @@ pub enum Error {
     BusyWorkerDelete(postgres::error::Error),
     BusyWorkersGet(postgres::error::Error),
     CaughtPanic(String, String),
-    ConnErr(hab_net::conn::ConnErr),
     Db(db::error::Error),
     DbPoolTimeout(r2d2::Error),
     DbTransaction(postgres::error::Error),
@@ -110,7 +109,6 @@ impl fmt::Display for Error {
             Error::CaughtPanic(ref msg, ref source) => {
                 format!("Caught a panic: {}. {}", msg, source)
             }
-            Error::ConnErr(ref e) => format!("{}", e),
             Error::Db(ref e) => format!("{}", e),
             Error::DbPoolTimeout(ref e) => {
                 format!("Timeout getting connection from the database pool, {}", e)
@@ -202,7 +200,6 @@ impl error::Error for Error {
             Error::BusyWorkerDelete(ref err) => err.description(),
             Error::BusyWorkersGet(ref err) => err.description(),
             Error::CaughtPanic(_, _) => "Caught a panic",
-            Error::ConnErr(ref err) => err.description(),
             Error::Db(ref err) => err.description(),
             Error::DbPoolTimeout(ref err) => err.description(),
             Error::DbTransaction(ref err) => err.description(),
@@ -353,12 +350,6 @@ impl From<io::Error> for Error {
 impl From<hab_net::NetError> for Error {
     fn from(err: hab_net::NetError) -> Self {
         Error::NetError(err)
-    }
-}
-
-impl From<hab_net::conn::ConnErr> for Error {
-    fn from(err: hab_net::conn::ConnErr) -> Self {
-        Error::ConnErr(err)
     }
 }
 

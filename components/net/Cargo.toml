@@ -9,14 +9,9 @@ clippy = { version = "*", optional = true }
 bitflags = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
-log = "*"
-num_cpus = "*"
 protobuf = "*"
 serde = "*"
 serde_derive = "*"
-time = "*"
-toml = "*"
-uuid = { version = "*", features = ["v4"] }
 zmq = { git = "https://github.com/erickt/rust-zmq", branch = "release/v0.8" }
 
 [dependencies.habitat_core]
