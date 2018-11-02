@@ -63,7 +63,7 @@ fn app<'a, 'b>() -> clap::App<'a, 'b> {
         (@subcommand migrate =>
             (about: "Run database migrations")
             (@arg config: -c --config +takes_value +global
-                "Filepath to configuration file. [default: /hab/svc/builder-originsrv/config.toml]")
+                "Filepath to configuration file. [default: /hab/svc/builder-api/config.toml]")
         )
         (@subcommand start =>
             (about: "Run a Habitat Builder job server")

@@ -91,8 +91,6 @@ builder_packages=(habitat/builder-api
                   habitat/builder-api-proxy
                   habitat/builder-datastore
                   habitat/builder-jobsrv
-                  habitat/builder-originsrv
-                  habitat/builder-router
                   habitat/builder-worker)
 
 # Helper packages. Not all need to to be installed on the same machine,

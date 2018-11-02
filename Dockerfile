@@ -36,9 +36,7 @@ RUN adduser -g tty -h /home/krangschnak -D krangschnak \
   habitat/builder-datastore \
   habitat/builder-api \
   habitat/builder-api-proxy \
-  habitat/builder-jobsrv \
-  habitat/builder-originsrv \
-  habitat/builder-router
+  habitat/builder-jobsrv\
 
 RUN /tmp/init-datastore.sh \
   && APP_HOSTNAME=$APP_HOSTNAME \
@@ -57,11 +55,9 @@ RUN hab pkg exec core/openssl openssl s_client -showcerts -connect $GITHUB_ADDR:
   /usr/local/share/ca-certificates/github.crt && update-ca-certificates
 
 RUN hab svc load habitat/builder-datastore \
-  && hab svc load habitat/builder-router \
   && hab svc load habitat/builder-api-proxy --bind http:builder-api.default \
-  && hab svc load habitat/builder-api --bind router:builder-router.default \
-  && hab svc load habitat/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default \
-  && hab svc load habitat/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default
+  && hab svc load habitat/builder-api --bind datastore:builder-datastore.default \
+  && hab svc load habitat/builder-jobsrv --bind datastore:builder-datastore.default
 
 VOLUME ["/hab/svc", "/hab/cache/keys", "/hab/sup"]
 EXPOSE 80 443 9631 9636 9638

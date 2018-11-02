@@ -20,7 +20,7 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
-use protocol::jobsrv::*;
+use protocol::jobsrv;
 use protocol::originsrv::OriginPackageIdent;
 
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
@@ -103,14 +103,16 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
         None => helpers::target_from_headers(&req),
     };
 
-    let mut rdeps_get = JobGraphPackageReverseDependenciesGet::new();
+    let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGet::new();
     rdeps_get.set_origin(origin);
     rdeps_get.set_name(name);
     rdeps_get.set_target(target.to_string());
 
-    match route_message::<JobGraphPackageReverseDependenciesGet, JobGraphPackageReverseDependencies>(
-        &req, &rdeps_get,
-    ) {
+    match route_message::<
+        jobsrv::JobGraphPackageReverseDependenciesGet,
+        jobsrv::JobGraphPackageReverseDependencies,
+    >(&req, &rdeps_get)
+    {
         Ok(rdeps) => HttpResponse::Ok().json(rdeps),
         Err(err) => err.into(),
     }
@@ -204,7 +206,7 @@ fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
 fn do_group_promotion_or_demotion(
     req: &HttpRequest<AppState>,
     channel: &str,
-    projects: Vec<&JobGroupProject>,
+    projects: Vec<&jobsrv::JobGroupProject>,
     origin: &str,
     promote: bool,
 ) -> Result<Vec<i64>> {
@@ -256,7 +258,7 @@ fn do_group_promotion_or_demotion(
                 ident: BuilderPackageIdent(
                     PackageIdent::from_str(project.get_ident().clone()).unwrap(),
                 ),
-                visibility: helpers::all_visibilities_model(),
+                visibility: helpers::all_visibilities(),
                 target: BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap()), // Unwrap OK
             },
             &*conn,
@@ -303,18 +305,18 @@ fn promote_or_demote_job_group(
         }
     };
 
-    let mut group_get = JobGroupGet::new();
+    let mut group_get = jobsrv::JobGroupGet::new();
     group_get.set_group_id(group_id);
     group_get.set_include_projects(true);
-    let group = route_message::<JobGroupGet, JobGroup>(req, &group_get)?;
+    let group = route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(req, &group_get)?;
 
     // This only makes sense if the group is complete. If the group isn't complete, return now and
     // let the user know. Check the completion state by checking the individual project states,
     // as if this is called by the scheduler it needs to promote/demote the group before marking it
     // Complete.
     if group.get_projects().iter().any(|&ref p| {
-        p.get_state() == JobGroupProjectState::NotStarted
-            || p.get_state() == JobGroupProjectState::InProgress
+        p.get_state() == jobsrv::JobGroupProjectState::NotStarted
+            || p.get_state() == jobsrv::JobGroupProjectState::InProgress
     }) {
         return Err(Error::NetError(NetError::new(
             ErrCode::GROUP_NOT_COMPLETE,
@@ -342,7 +344,7 @@ fn promote_or_demote_job_group(
     // atomically commit the entire promotion/demotion at once, but that would require a cross-shard
     // tool that we don't currently have.
     for project in group.get_projects().into_iter() {
-        if project.get_state() == JobGroupProjectState::Success {
+        if project.get_state() == jobsrv::JobGroupProjectState::Success {
             let ident_str = project.get_ident();
             if has_idents && !ident_map.contains_key(ident_str) {
                 continue;
@@ -399,18 +401,19 @@ fn promote_or_demote_job_group(
 // TODO: this should be redesigned to not have fan-out, and also to return
 // a Job instead of a String
 fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
-    let mut request = JobGet::new();
+    let mut request = jobsrv::JobGet::new();
     request.set_id(job_id);
 
-    match route_message::<JobGet, Job>(req, &request) {
+    match route_message::<jobsrv::JobGet, jobsrv::Job>(req, &request) {
         Ok(job) => {
             debug!("job = {:?}", &job);
 
             authorize_session(req, Some(&job.get_project().get_origin_name()))?;
 
             if job.get_package_ident().fully_qualified() {
-                let channels = channels_for_package_ident(req, job.get_package_ident())?;
-                let platforms = platforms_for_package_ident(req, job.get_package_ident())?;
+                let builder_package_ident = BuilderPackageIdent(job.get_package_ident().into());
+                let channels = channels_for_package_ident(req, &builder_package_ident)?;
+                let platforms = platforms_for_package_ident(req, &builder_package_ident)?;
                 let mut job_json = serde_json::to_value(job).unwrap();
 
                 if channels.is_some() {
@@ -430,9 +433,9 @@ fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
     }
 }
 
-fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Result<JobLog> {
-    let mut job_get = JobGet::new();
-    let mut request = JobLogGet::new();
+fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Result<jobsrv::JobLog> {
+    let mut job_get = jobsrv::JobGet::new();
+    let mut request = jobsrv::JobLogGet::new();
     request.set_start(start);
     request.set_id(job_id);
     job_get.set_id(job_id);
@@ -440,7 +443,7 @@ fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Resul
     // Before fetching the logs, we need to check and see if the logs we want to fetch are for
     // a job that's building a private package, and if so, do we have the right to see said
     // package.
-    match route_message::<JobGet, Job>(&req, &job_get) {
+    match route_message::<jobsrv::JobGet, jobsrv::Job>(&req, &job_get) {
         Ok(job) => {
             // It's not sufficient to check the project that's on the job itself, since that
             // project is reconstructed from information available in the database and does
@@ -456,18 +459,18 @@ fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Resul
                 authorize_session(req, Some(&project.origin_name))?;
             }
 
-            route_message::<JobLogGet, JobLog>(req, &request)
+            route_message::<jobsrv::JobLogGet, jobsrv::JobLog>(req, &request)
         }
         Err(err) => Err(err),
     }
 }
 
 fn do_cancel_job_group(req: &HttpRequest<AppState>, group_id: u64) -> Result<NetOk> {
-    let mut jgg = JobGroupGet::new();
+    let mut jgg = jobsrv::JobGroupGet::new();
     jgg.set_group_id(group_id);
     jgg.set_include_projects(true);
 
-    let group = route_message::<JobGroupGet, JobGroup>(req, &jgg)?;
+    let group = route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(req, &jgg)?;
 
     let name_split: Vec<&str> = group.get_project_name().split("/").collect();
     assert!(name_split.len() == 2);
@@ -475,11 +478,11 @@ fn do_cancel_job_group(req: &HttpRequest<AppState>, group_id: u64) -> Result<Net
     let session_id = authorize_session(req, Some(&name_split[0]))?;
     let session_name = get_session_user_name(req, session_id);
 
-    let mut jgc = JobGroupCancel::new();
+    let mut jgc = jobsrv::JobGroupCancel::new();
     jgc.set_group_id(group_id);
     jgc.set_trigger(helpers::trigger_from_request(req));
     jgc.set_requester_id(session_id);
     jgc.set_requester_name(session_name);
 
-    route_message::<JobGroupCancel, NetOk>(req, &jgc)
+    route_message::<jobsrv::JobGroupCancel, NetOk>(req, &jgc)
 }

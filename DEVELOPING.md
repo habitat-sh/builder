@@ -113,7 +113,7 @@ If you are developing the UI:
 * `origin <name>` - Create the core origin. Default: core
 * `project` - Create a project (you can also configure this in the web UI)
 * `build-builder` - Build all the builder components
-* `build-<component>` - Ex: `build-router` will build the router component for development and load it
+* `build-builder <component>` - Ex: `build-builder api` will build the api component for development and load it
 * `dev_docs` - Print the full set of command docs
 
 ### Generate a Personal Access Token using the web UI

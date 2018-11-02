@@ -38,27 +38,6 @@ paths = [
   "support/ci/builder-base-plan.sh",
 ]
 
-[builder-originsrv]
-plan_path = "components/builder-originsrv/habitat"
-paths = [
-  "components/builder-originsrv/*",
-  "components/builder-protocol/*",
-  "components/builder-db/*",
-  "components/core/*",
-  "components/net/*",
-  "support/ci/builder-base-plan.sh",
-]
-
-[builder-router]
-plan_path = "components/builder-router/habitat"
-paths = [
-  "components/builder-router/*",
-  "components/builder-protocol/*",
-  "components/core/*",
-  "components/net/*",
-  "support/ci/builder-base-plan.sh",
-]
-
 [builder-worker]
 plan_path = "components/builder-worker/habitat"
 paths = [

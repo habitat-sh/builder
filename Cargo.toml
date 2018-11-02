@@ -9,13 +9,10 @@ members = [
   "components/builder-db",
   "components/builder-graph",
   "components/builder-jobsrv",
-  "components/builder-originsrv",
   "components/builder-protocol",
-  "components/builder-router",
   "components/builder-worker",
   "components/github-api-client",
   "components/net",
   "components/oauth-client",
-  "components/op",
   "components/segment-api-client"
 ]

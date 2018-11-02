@@ -22,7 +22,6 @@ use protobuf;
 
 use bldr_core;
 use bldr_core::metrics::CounterMetric;
-use hab_net::conn::RouteClient;
 use hab_net::{ErrCode, NetError};
 use oauth_client::types::OAuth2User;
 use protocol;
@@ -35,22 +34,10 @@ use hab_net::privilege::FeatureFlags;
 use server::error;
 use server::resources::profile::do_get_access_tokens;
 use server::services::metrics::Counter;
-use server::services::route_broker::RouteBroker;
 use server::AppState;
 
 lazy_static! {
     static ref SESSION_DURATION: u32 = 1 * 24 * 60 * 60;
-}
-
-// Router client
-pub struct XRouteClient;
-
-impl<S> Middleware<S> for XRouteClient {
-    fn start(&self, req: &HttpRequest<S>) -> Result<Started> {
-        let conn = RouteBroker::connect().unwrap();
-        req.extensions_mut().insert::<RouteClient>(conn);
-        Ok(Started::Done)
-    }
 }
 
 pub fn route_message<M, R>(req: &HttpRequest<AppState>, msg: &M) -> error::Result<R>
@@ -59,21 +46,11 @@ where
     R: protobuf::Message,
 {
     Counter::RouteMessage.increment();
-
-    if M::protocol() == protocol::Protocol::JobSrv {
-        // Route via Protobuf over HTTP
-        req.state()
-            .jobsrv
-            .rpc::<M, R>(msg)
-            .map_err(error::Error::BuilderCore)
-    } else {
-        // Route via Protobuf over ZMQ
-        req.extensions_mut()
-            .get_mut::<RouteClient>()
-            .expect("no XRouteClient extension in request")
-            .route::<M, R>(msg)
-            .map_err(error::Error::NetError)
-    }
+    // Route via Protobuf over HTTP
+    req.state()
+        .jobsrv
+        .rpc::<M, R>(msg)
+        .map_err(error::Error::BuilderCore)
 }
 
 // Optional Authentication - this middleware does not enforce authentication,

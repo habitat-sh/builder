@@ -18,7 +18,7 @@ use std::iter::FromIterator;
 use std::sync::Arc;
 
 use hab_core::users;
-use hab_core::util::perm;
+use hab_core::util::posix_perm;
 use hab_net;
 use hab_net::socket::DEFAULT_CONTEXT;
 use protocol::{jobsrv, message};
@@ -233,14 +233,14 @@ impl Server {
         // Ensure that data path group ownership is set to the build user and directory perms are
         // `0750`. This allows the namespace files to be accessed and read by the build user
         if cfg!(not(windows)) {
-            perm::set_owner(
+            posix_perm::set_owner(
                 &self.config.data_path,
                 users::get_current_username()
                     .unwrap_or(String::from("root"))
                     .as_str(),
                 studio::STUDIO_GROUP,
             )?;
-            perm::set_permissions(&self.config.data_path, 0o750)?;
+            posix_perm::set_permissions(&self.config.data_path, 0o750)?;
         } else {
             unreachable!();
         }
@@ -256,8 +256,8 @@ impl Server {
                 .map_err(|e| Error::CreateDirectory(parent_path.to_path_buf(), e))?;
         }
         if cfg!(not(windows)) {
-            perm::set_owner(&parent_path, studio::STUDIO_USER, studio::STUDIO_GROUP)?;
-            perm::set_permissions(&parent_path, 0o750)?;
+            posix_perm::set_owner(&parent_path, studio::STUDIO_USER, studio::STUDIO_GROUP)?;
+            posix_perm::set_permissions(&parent_path, 0o750)?;
         } else {
             unreachable!();
         }

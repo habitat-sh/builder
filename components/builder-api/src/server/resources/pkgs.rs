@@ -35,8 +35,8 @@ use bldr_core::metrics::CounterMetric;
 use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError, NetOk};
 
-use protocol::jobsrv::*;
-use protocol::originsrv::*;
+use protocol::jobsrv;
+use protocol::originsrv;
 
 use db::models::origin::Origin;
 use db::models::package::{
@@ -165,7 +165,7 @@ fn get_packages_for_origin(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
-    let ident = OriginPackageIdent::from_str(origin.as_str()).unwrap();
+    let ident = PackageIdent::new(origin, String::from(""), None, None);
 
     match do_get_packages(&req, ident, &pagination) {
         Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
@@ -180,9 +180,7 @@ fn get_packages_for_origin_package(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
+    let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_packages(&req, ident, &pagination) {
         Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
@@ -197,10 +195,7 @@ fn get_packages_for_origin_package_version(
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut ident = OriginPackageIdent::new();
-    ident.set_origin(origin);
-    ident.set_name(pkg);
-    ident.set_version(version);
+    let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
     match do_get_packages(&req, ident, &pagination) {
         Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
@@ -269,8 +264,7 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
 
-    let mut vis =
-        helpers::visibility_for_optional_session_model(&req, opt_session_id, &ident.origin);
+    let mut vis = helpers::visibility_for_optional_session(&req, opt_session_id, &ident.origin);
     vis.push(PackageVisibility::Hidden);
 
     // TODO: Deprecate target from headers
@@ -376,7 +370,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
-    let mut request = JobGroupSpec::new();
+    let mut request = jobsrv::JobGroupSpec::new();
     request.set_origin(origin_name);
     request.set_package(package);
     request.set_target(qschedule.target.clone());
@@ -387,7 +381,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
     request.set_requester_id(account_id);
     request.set_requester_name(account_name.clone());
 
-    match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
+    match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
         Ok(group) => {
             let msg = format!("Scheduled job group for {}", group.get_project_name());
 
@@ -412,11 +406,11 @@ fn get_schedule((qgetschedule, req): (Query<GetSchedule>, HttpRequest<AppState>)
         Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
     };
 
-    let mut request = JobGroupGet::new();
+    let mut request = jobsrv::JobGroupGet::new();
     request.set_group_id(group_id);
     request.set_include_projects(qgetschedule.include_projects);
 
-    match route_message::<JobGroupGet, JobGroup>(&req, &request) {
+    match route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(&req, &request) {
         Ok(group) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(group),
@@ -430,11 +424,12 @@ fn get_origin_schedule_status(
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
     let limit = qoss.limit.parse::<u32>().unwrap_or(10);
 
-    let mut request = JobGroupOriginGet::new();
+    let mut request = jobsrv::JobGroupOriginGet::new();
     request.set_origin(origin);
     request.set_limit(limit);
 
-    match route_message::<JobGroupOriginGet, JobGroupOriginResponse>(&req, &request) {
+    match route_message::<jobsrv::JobGroupOriginGet, jobsrv::JobGroupOriginResponse>(&req, &request)
+    {
         Ok(jgor) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(jgor.get_job_groups()),
@@ -464,8 +459,8 @@ fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
     }
 
     match Package::list_package_channels(
-        BuilderPackageIdent(ident.clone()),
-        helpers::visibility_for_optional_session_model(&req, opt_session_id, &ident.origin),
+        &BuilderPackageIdent(ident.clone()),
+        helpers::visibility_for_optional_session(&req, opt_session_id, &ident.origin),
         &*conn,
     ) {
         Ok(channels) => {
@@ -500,7 +495,7 @@ fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
 
     match Package::list_package_versions(
         BuilderPackageIdent(ident),
-        helpers::visibility_for_optional_session_model(&req, opt_session_id, &origin),
+        helpers::visibility_for_optional_session(&req, opt_session_id, &origin),
         &*conn,
     ) {
         Ok(packages) => {
@@ -692,7 +687,7 @@ pub fn postprocess_package_list_model(
 //
 fn do_get_packages(
     req: &HttpRequest<AppState>,
-    ident: OriginPackageIdent,
+    ident: PackageIdent,
     pagination: &Query<Pagination>,
 ) -> Result<(Vec<BuilderPackageIdent>, i64)> {
     let opt_session_id = match authorize_session(req, None) {
@@ -705,12 +700,8 @@ fn do_get_packages(
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
 
     let lpr = ListPackages {
-        ident: BuilderPackageIdent(ident.clone().into()),
-        visibility: helpers::visibility_for_optional_session_model(
-            &req,
-            opt_session_id,
-            &ident.get_origin(),
-        ),
+        ident: BuilderPackageIdent(ident.clone()),
+        visibility: helpers::visibility_for_optional_session(&req, opt_session_id, &ident.origin),
         page: page as i64,
         limit: per_page as i64,
     };
@@ -743,7 +734,7 @@ fn do_upload_package_start(
         match Package::get(
             GetPackage {
                 ident: BuilderPackageIdent(ident.clone()),
-                visibility: helpers::all_visibilities_model(),
+                visibility: helpers::all_visibilities(),
                 target: BuilderPackageTarget(PackageTarget::from_str(&qupload.target).unwrap()), // Unwrap OK
             },
             &*conn,
@@ -903,11 +894,13 @@ fn do_upload_package_finish(
     match Package::create(package.clone(), &*conn) {
         Ok(pkg) => {
             if feat::is_enabled(feat::Jobsrv) {
-                let mut job_graph_package = JobGraphPackageCreate::new();
+                let mut job_graph_package = jobsrv::JobGraphPackageCreate::new();
                 job_graph_package.set_package(pkg.into());
 
-                if let Err(err) =
-                    route_message::<JobGraphPackageCreate, OriginPackage>(&req, &job_graph_package)
+                if let Err(err) = route_message::<
+                    jobsrv::JobGraphPackageCreate,
+                    originsrv::OriginPackage,
+                >(&req, &job_graph_package)
                 {
                     warn!("Failed to insert package into graph: {:?}", err);
                     return err.into();
@@ -920,18 +913,18 @@ fn do_upload_package_finish(
     // Schedule re-build of dependent packages (if requested)
     // Don't schedule builds if the upload is being done by the builder
     if qupload.builder.is_none() && feat::is_enabled(feat::Jobsrv) {
-        let mut request = JobGroupSpec::new();
+        let mut request = jobsrv::JobGroupSpec::new();
         request.set_origin(ident.origin.to_string());
         request.set_package(ident.name.to_string());
         request.set_target(target_from_artifact.to_string());
         request.set_deps_only(true);
         request.set_origin_only(false);
         request.set_package_only(false);
-        request.set_trigger(JobGroupTrigger::Upload);
+        request.set_trigger(jobsrv::JobGroupTrigger::Upload);
         request.set_requester_id(session_id);
         request.set_requester_name(session_name);
 
-        match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
+        match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
             Ok(group) => debug!(
                 "Scheduled reverse dependecy build for {}, group id: {}",
                 ident,
@@ -1015,7 +1008,7 @@ fn do_get_package(
         match Package::get(
             GetPackage {
                 ident: BuilderPackageIdent(ident.clone()),
-                visibility: helpers::visibility_for_optional_session_model(
+                visibility: helpers::visibility_for_optional_session(
                     req,
                     opt_session_id,
                     &ident.origin,
@@ -1038,7 +1031,7 @@ fn do_get_package(
             GetLatestPackage {
                 ident: BuilderPackageIdent(ident.clone()),
                 target: BuilderPackageTarget(target),
-                visibility: helpers::visibility_for_optional_session_model(
+                visibility: helpers::visibility_for_optional_session(
                     req,
                     opt_session_id,
                     &ident.origin,
@@ -1059,45 +1052,18 @@ fn do_get_package(
     }
 }
 
-// TODO: this needs to be re-designed to not fan out
-// Common functionality for pkgs and channel routes
-pub fn postprocess_package(
-    req: &HttpRequest<AppState>,
-    pkg: &OriginPackage,
-    should_cache: bool,
-) -> HttpResponse {
-    let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = match channels_for_package_ident(req, pkg.get_ident()) {
-        Ok(channels) => channels,
-        Err(_) => None,
-    };
-    pkg_json["channels"] = json!(channels);
-    pkg_json["is_a_service"] = json!(is_a_service(pkg));
-
-    let body = serde_json::to_string(&pkg_json).unwrap();
-
-    HttpResponse::Ok()
-        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-        .header(http::header::ETAG, pkg.get_checksum().to_string())
-        .header(http::header::CACHE_CONTROL, headers::cache(should_cache))
-        .body(body)
-}
-
 pub fn postprocess_package_model(
     req: &HttpRequest<AppState>,
     pkg: &Package,
     should_cache: bool,
 ) -> HttpResponse {
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    // Some borrow checker workarounds until more channel code is converted in to model code
-    let pkg_clone = &*pkg.ident;
-    let channels =
-        match channels_for_package_ident(req, &OriginPackageIdent::from(pkg_clone.clone())) {
-            Ok(channels) => channels,
-            Err(_) => None,
-        };
+    let channels = match channels_for_package_ident(req, &pkg.ident) {
+        Ok(channels) => channels,
+        Err(_) => None,
+    };
     pkg_json["channels"] = json!(channels);
-    pkg_json["is_a_service"] = json!(is_a_service_model(pkg));
+    pkg_json["is_a_service"] = json!(is_a_service(pkg));
 
     let body = serde_json::to_string(&pkg_json).unwrap();
 
@@ -1169,7 +1135,7 @@ fn check_circular_deps(
     target: &PackageTarget,
     archive: &mut PackageArchive,
 ) -> Result<()> {
-    let mut pcr_req = JobGraphPackagePreCreate::new();
+    let mut pcr_req = jobsrv::JobGraphPackagePreCreate::new();
     pcr_req.set_ident(format!("{}", ident));
     pcr_req.set_target(target.to_string());
 
@@ -1188,7 +1154,7 @@ fn check_circular_deps(
     }
     pcr_req.set_deps(pcr_deps);
 
-    match route_message::<JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
+    match route_message::<jobsrv::JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
         Ok(_) => Ok(()),
         Err(Error::NetError(err)) => {
             if err.get_code() == ErrCode::ENTITY_CONFLICT {
@@ -1206,16 +1172,7 @@ fn check_circular_deps(
     }
 }
 
-pub fn is_a_service(package: &OriginPackage) -> bool {
-    let m = package.get_manifest();
-
-    // TODO: This is a temporary workaround until we plumb in a better solution for
-    // determining whether a package is a service from the DB instead of needing
-    // to crack the archive file to look for a SVC_USER file
-    m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
-}
-
-pub fn is_a_service_model(package: &Package) -> bool {
+pub fn is_a_service(package: &Package) -> bool {
     let m = package.manifest.clone();
     // TODO: This is a temporary workaround until we plumb in a better solution for
     // determining whether a package is a service from the DB instead of needing
@@ -1226,7 +1183,7 @@ pub fn is_a_service_model(package: &Package) -> bool {
 // Get platforms for a package
 pub fn platforms_for_package_ident(
     req: &HttpRequest<AppState>,
-    package: &OriginPackageIdent,
+    package: &BuilderPackageIdent,
 ) -> Result<Option<Vec<String>>> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(id) => Some(id),
@@ -1236,8 +1193,8 @@ pub fn platforms_for_package_ident(
     let conn = req.state().db.get_conn()?;
 
     match Package::list_package_platforms(
-        BuilderPackageIdent(package.clone().into()),
-        helpers::visibility_for_optional_session_model(req, opt_session_id, package.get_origin()),
+        package.clone(),
+        helpers::visibility_for_optional_session(req, opt_session_id, &package.origin),
         &*conn,
     ) {
         Ok(list) => Ok(Some(list.iter().map(|p| p.target.to_string()).collect())),

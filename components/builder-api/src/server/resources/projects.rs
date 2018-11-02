@@ -21,7 +21,6 @@ use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
 use protocol::jobsrv::*;
-use protocol::originsrv;
 
 use hab_core::package::{PackageIdent, Plan};
 
@@ -440,13 +439,15 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
                 .iter()
                 .map(|job| {
                     if job.get_state() == JobState::Complete {
+                        let builder_package_ident =
+                            BuilderPackageIdent(job.get_package_ident().into());
                         let channels =
-                            match channels_for_package_ident(&req, &job.get_package_ident()) {
+                            match channels_for_package_ident(&req, &builder_package_ident) {
                                 Ok(channels) => channels,
                                 Err(_) => None,
                             };
                         let platforms =
-                            match platforms_for_package_ident(&req, &job.get_package_ident()) {
+                            match platforms_for_package_ident(&req, &builder_package_ident) {
                                 Ok(platforms) => platforms,
                                 Err(_) => None,
                             };
@@ -642,17 +643,13 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
 
     // For each row, store its id in our map, keyed on visibility
     for pkg in pkgs {
-        let id = pkg.id;
-        let pv: PackageVisibility = pkg.visibility;
-        let vis: originsrv::OriginPackageVisibility = pv.into();
-        map.entry(vis).or_insert(Vec::new()).push(id);
+        map.entry(pkg.visibility).or_insert(Vec::new()).push(pkg.id);
     }
 
     // Now do a bulk update for each different visibility
     for (vis, id_vector) in map.iter() {
-        let pv = PackageVisibility::from(*vis);
         let upv = UpdatePackageVisibility {
-            visibility: pv,
+            visibility: vis.clone(),
             ids: id_vector.clone(),
         };
 

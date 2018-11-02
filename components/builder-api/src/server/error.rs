@@ -23,7 +23,6 @@ use std::string;
 use bldr_core;
 use github_api_client::HubError;
 use hab_core;
-use hab_net::conn;
 use hab_net::{self, ErrCode};
 use oauth_client::error::Error as OAuthError;
 use serde_json;
@@ -45,7 +44,6 @@ pub enum Error {
     Authentication,
     Authorization,
     CircularDependency(String),
-    Connection(conn::ConnErr),
     BadRequest(String),
     DieselError(diesel::result::Error),
     DbError(db::error::Error),
@@ -86,7 +84,6 @@ impl fmt::Display for Error {
             Error::CircularDependency(ref e) => {
                 format!("Circular dependency detected for package upload: {}", e)
             }
-            Error::Connection(ref e) => format!("{}", e),
             Error::DieselError(ref e) => format!("{}", e),
             Error::DbError(ref e) => format!("{}", e),
             Error::Github(ref e) => format!("{}", e),
@@ -129,7 +126,6 @@ impl error::Error for Error {
             Error::Authorization => "User is not authorized to perform operation",
             Error::BadRequest(_) => "Http request formation error",
             Error::CircularDependency(_) => "Circular dependency detected for package upload",
-            Error::Connection(ref err) => err.description(),
             Error::DieselError(ref err) => err.description(),
             Error::DbError(ref err) => err.description(),
             Error::Github(ref err) => err.description(),

@@ -16,7 +16,6 @@ pkg_exports=(
 )
 pkg_exposes=(worker_port worker_heartbeat log_port rpc_port)
 pkg_binds=(
-  [router]="port"
   [datastore]="port"
 )
 bin="bldr-jobsrv"

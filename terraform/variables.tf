@@ -97,10 +97,6 @@ variable "peers" {
   description = "List of addresses for initial Supervisor peer(s)"
 }
 
-variable "router_count" {
-  description = "Number of RouteSrv to start"
-}
-
 variable "jobsrv_worker_count" {
   description = "Number of JobSrv workers to start"
 }

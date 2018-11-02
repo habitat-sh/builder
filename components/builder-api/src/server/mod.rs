@@ -23,7 +23,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::Arc;
-use std::thread;
 
 use actix;
 use actix_web::http::StatusCode;
@@ -32,18 +31,16 @@ use actix_web::server::{self, KeepAlive};
 use actix_web::{App, HttpRequest, HttpResponse, Result};
 
 use bldr_core::rpc::RpcClient;
-use db::DbPool;
+use db::{migration, DbPool};
 use github_api_client::GitHubClient;
-use hab_net::socket;
 
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
 use self::error::Error;
-use self::framework::middleware::{Authentication, XRouteClient};
+use self::framework::middleware::Authentication;
 
 use self::services::memcache::MemcacheClient;
-use self::services::route_broker::RouteBroker;
 use self::services::s3::S3Handler;
 
 use self::resources::authenticate::Authenticate;
@@ -124,14 +121,6 @@ pub fn status(_req: &HttpRequest<AppState>) -> HttpResponse {
 pub fn run(config: Config) -> Result<()> {
     enable_features(&config);
     let sys = actix::System::new("builder-api");
-    let c = config.clone();
-    thread::Builder::new()
-        .name("route-broker".to_string())
-        .spawn(move || {
-            RouteBroker::start(socket::srv_ident(), c.route_addrs())
-                .map_err(Error::Connection)
-                .unwrap();
-        }).unwrap();
 
     let cfg = Arc::new(config.clone());
 
@@ -147,12 +136,13 @@ pub fn run(config: Config) -> Result<()> {
         .map_err(Error::DbError)
         .unwrap();
 
+    migration::setup(&db_pool.get_conn().unwrap()).unwrap();
+
     server::new(move || {
         let app_state = AppState::new(&config, db_pool.clone());
 
         App::with_state(app_state)
             .middleware(Logger::default().exclude("/v1/status"))
-            .middleware(XRouteClient)
             .middleware(Authentication)
             .prefix("/v1")
             .configure(Authenticate::register)

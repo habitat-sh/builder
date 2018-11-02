@@ -1,7 +1,7 @@
 UNAME_S := $(shell uname -s)
 BIN = airlock
 LIB = builder-db builder-core github-api-client net
-SRV = builder-api builder-router builder-jobsrv builder-originsrv builder-worker
+SRV = builder-api builder-jobsrv builder-worker
 ALL = $(BIN) $(LIB) $(SRV)
 
 .DEFAULT_GOAL := build-bin

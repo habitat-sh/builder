@@ -15,7 +15,6 @@
 pub mod jobsrv;
 mod net;
 pub mod originsrv;
-pub mod routesrv;
 
 use std;
 use std::borrow::Cow;

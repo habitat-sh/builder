@@ -20,8 +20,6 @@
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::{Once, ONCE_INIT};
 
-pub use protocol::sharding::SHARD_COUNT;
-
 pub static INIT_TEMPLATE: Once = ONCE_INIT;
 pub static TEST_COUNT: AtomicUsize = ATOMIC_USIZE_INIT;
 

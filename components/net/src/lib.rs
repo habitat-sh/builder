@@ -21,23 +21,14 @@ extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as core;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate log;
-extern crate num_cpus;
 extern crate protobuf;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate time as simple_time;
-extern crate toml;
-extern crate uuid;
 extern crate zmq;
 
-pub mod app;
-pub mod conn;
 pub mod error;
 pub mod privilege;
 pub mod socket;
-pub mod time;
 
 pub use self::error::{ErrCode, NetError, NetOk, NetResult};

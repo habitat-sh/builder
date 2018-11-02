@@ -22,11 +22,6 @@ key_id = "depot"
 secret_key = "password"
 EOT
 
-mkdir -p /hab/svc/builder-router
-cat <<EOT > /hab/svc/builder-router/user.toml
-log_level = "info"
-EOT
-
 mkdir -p /hab/svc/builder-api
 cat <<EOT > /hab/svc/builder-api/user.toml
 log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error"
@@ -91,14 +86,6 @@ password = "$PGPASSWORD"
 
 [archive]
 backend = "local"
-EOT
-
-mkdir -p /hab/svc/builder-originsrv
-cat <<EOT > /hab/svc/builder-originsrv/user.toml
-log_level = "info"
-
-[datastore]
-password = "$PGPASSWORD"
 EOT
 
 mkdir -p /hab/svc/builder-worker

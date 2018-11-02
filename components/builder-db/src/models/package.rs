@@ -163,7 +163,7 @@ pub struct OriginPackageVersions {
     pub platforms: Vec<String>,
 }
 
-#[derive(DbEnum, Debug, Serialize, Deserialize, PartialEq, Clone, ToSql, FromSql)]
+#[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone, ToSql, FromSql)]
 #[PgType = "origin_package_visibility"]
 #[postgres(name = "origin_package_visibility")]
 pub enum PackageVisibility {
@@ -336,7 +336,7 @@ impl Package {
     }
 
     pub fn list_package_channels(
-        ident: BuilderPackageIdent,
+        ident: &BuilderPackageIdent,
         visibility: Vec<PackageVisibility>,
         conn: &PgConnection,
     ) -> QueryResult<Vec<Channel>> {

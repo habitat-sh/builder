@@ -704,7 +704,7 @@ fn list_unique_packages(
 
     let lpr = ListPackages {
         ident: BuilderPackageIdent(ident.clone().into()),
-        visibility: helpers::visibility_for_optional_session_model(&req, opt_session_id, &origin),
+        visibility: helpers::visibility_for_optional_session(&req, opt_session_id, &origin),
         page: page as i64,
         limit: per_page as i64,
     };

@@ -21,7 +21,7 @@ use actix_web::{App, HttpRequest, HttpResponse, Path};
 use hab_net::{ErrCode, NetError};
 use oauth_client::error::Error as OAuthError;
 
-use protocol::originsrv::*;
+use protocol::originsrv;
 
 use server::error::{Error, Result};
 use server::framework::middleware::{session_create_oauth, session_create_short_circuit};
@@ -61,7 +61,7 @@ fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
 //
 // Internal - these functions should return Result<..>
 //
-fn do_authenticate(req: &HttpRequest<AppState>, code: String) -> Result<Session> {
+fn do_authenticate(req: &HttpRequest<AppState>, code: String) -> Result<originsrv::Session> {
     if env::var_os("HAB_FUNC_TEST").is_some() {
         return session_create_short_circuit(req, &code);
     }
