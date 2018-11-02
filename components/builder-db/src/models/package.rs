@@ -210,6 +210,13 @@ impl PackageVisibility {
             PackageVisibility::Hidden,
         ]
     }
+
+    pub fn private() -> Vec<Self> {
+        vec![
+            PackageVisibility::Private,
+            PackageVisibility::Hidden, 
+        ]
+    }
 }
 
 impl Package {
@@ -385,8 +392,9 @@ impl Package {
 
         if let Some(session_id) = sp.account_id {
             query = query
-                .filter(origin_packages::visibility.eq(any(PackageVisibility::all())))
-                .filter(origins::owner_id.eq(session_id));
+                .filter(origin_packages::visibility.eq(any(PackageVisibility::private()))
+                    .and(origins::owner_id.eq(session_id))
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public)));
         } else {
             query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
@@ -414,8 +422,9 @@ impl Package {
 
         if let Some(session_id) = sp.account_id {
             query = query
-                .filter(origin_packages::visibility.eq(any(PackageVisibility::all())))
-                .filter(origins::owner_id.eq(session_id));
+                .filter(origin_packages::visibility.eq(any(PackageVisibility::private()))
+                    .and(origins::owner_id.eq(session_id))
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public)));
         } else {
             query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
