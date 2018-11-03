@@ -32,7 +32,7 @@ use db::models::package::*;
 use db::models::projects::*;
 use diesel::result::Error::NotFound;
 
-use server::authorize::{authorize_session, get_session_user_name};
+use server::authorize::authorize_session;
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::framework::middleware::route_message;
@@ -210,7 +210,7 @@ fn do_group_promotion_or_demotion(
     origin: &str,
     promote: bool,
 ) -> Result<Vec<i64>> {
-    let account_id = authorize_session(req, Some(&origin))?;
+    let session = authorize_session(req, Some(&origin))?;
 
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
@@ -228,7 +228,7 @@ fn do_group_promotion_or_demotion(
                     CreateChannel {
                         channel: channel.to_string(),
                         origin: origin.to_string(),
-                        owner_id: account_id as i64,
+                        owner_id: session.get_id() as i64,
                     },
                     &*conn,
                 )?
@@ -371,8 +371,7 @@ fn promote_or_demote_job_group(
                     PackageChannelOperation::Demote
                 };
 
-                let session_id = authorize_session(req, None).unwrap(); // Unwrap ok
-                let session_name = get_session_user_name(req, session_id);
+                let session = authorize_session(req, None).unwrap(); // Unwrap ok
 
                 PackageGroupChannelAudit::audit(
                     PackageGroupChannelAudit {
@@ -381,8 +380,8 @@ fn promote_or_demote_job_group(
                         pkg_ids: package_ids,
                         operation: pco,
                         trigger: trigger.clone(),
-                        requester_id: session_id as i64,
-                        requester_name: &session_name,
+                        requester_id: session.get_id() as i64,
+                        requester_name: session.get_name(),
                         group_id: group_id as i64,
                     },
                     &*conn,
@@ -475,14 +474,13 @@ fn do_cancel_job_group(req: &HttpRequest<AppState>, group_id: u64) -> Result<Net
     let name_split: Vec<&str> = group.get_project_name().split("/").collect();
     assert!(name_split.len() == 2);
 
-    let session_id = authorize_session(req, Some(&name_split[0]))?;
-    let session_name = get_session_user_name(req, session_id);
+    let session = authorize_session(req, Some(&name_split[0]))?;
 
     let mut jgc = jobsrv::JobGroupCancel::new();
     jgc.set_group_id(group_id);
     jgc.set_trigger(helpers::trigger_from_request(req));
-    jgc.set_requester_id(session_id);
-    jgc.set_requester_name(session_name);
+    jgc.set_requester_id(session.get_id());
+    jgc.set_requester_name(session.get_name().to_string());
 
     route_message::<jobsrv::JobGroupCancel, NetOk>(req, &jgc)
 }

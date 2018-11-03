@@ -109,7 +109,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
     }
 
     let account_id = match authorize_session(&req, Some(&body.origin)) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -265,7 +265,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         .into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 

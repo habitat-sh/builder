@@ -20,8 +20,6 @@ use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
 use diesel::pg::PgConnection;
 use diesel::result::{DatabaseErrorKind, Error::DatabaseError, Error::NotFound};
 
-use std::ops::Deref;
-
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError};
@@ -31,7 +29,7 @@ use super::pkgs::{is_a_service, postprocess_package_list_model};
 
 use db::models::channel::*;
 use db::models::package::{BuilderPackageIdent, Package};
-use server::authorize::{authorize_session, get_session_user_name};
+use server::authorize::authorize_session;
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::helpers::{self, visibility_for_optional_session, Pagination, Target};
@@ -103,9 +101,9 @@ impl Channels {
 fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     match Channel::list(
@@ -113,8 +111,9 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
             origin: origin,
             include_sandbox_channels: sandbox.is_set,
         },
-        conn.deref(),
-    ) {
+        &*conn,
+    ).map_err(Error::DieselError)
+    {
         Ok(list) => {
             // TED: This is to maintain backwards API compat while killing some proto definitions
             // currently the output looks like [{"name": "foo"}] when it probably should be ["foo"]
@@ -131,7 +130,7 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(ident_list)
         }
-        Err(_err) => HttpResponse::InternalServerError().into(),
+        Err(err) => err.into(),
     }
 }
 
@@ -141,22 +140,22 @@ fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
         .into_inner();
 
     let session_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session_id) => session_id as i64,
+        Ok(session) => session.get_id(),
         Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     match Channel::create(
         CreateChannel {
             channel: channel,
             origin: origin,
-            owner_id: session_id,
+            owner_id: session_id as i64,
         },
-        conn.deref(),
+        &*conn,
     ) {
         Ok(channel) => HttpResponse::Created().json(channel),
         Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
@@ -179,25 +178,26 @@ fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
-    };
-
     req.state()
         .memcache
         .borrow_mut()
         .clear_cache_for_channel(&origin, &channel);
+
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
     match Channel::delete(
         DeleteChannel {
             origin: origin,
             channel: channel,
         },
-        conn.deref(),
-    ) {
+        &*conn,
+    ).map_err(Error::DieselError)
+    {
         Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => err.into(),
     }
 }
 
@@ -207,14 +207,9 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
             .unwrap()
             .into_inner();
 
-    let session_id = match authorize_session(&req, Some(&origin)) {
+    let session = match authorize_session(&req, Some(&origin)) {
         Ok(session) => session,
         Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
-    };
-
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
     let ident = PackageIdent::new(
@@ -224,6 +219,11 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
         Some(release.clone()),
     );
 
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
     match OriginChannelPackage::promote(
         OriginChannelPromote {
             ident: BuilderPackageIdent(ident.clone()),
@@ -231,15 +231,17 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
             channel: channel.clone(),
         },
         &*conn,
-    ) {
+    ).map_err(Error::DieselError)
+    {
         Ok(_) => match audit_package_rank_change(
             &req,
             &*conn,
             ident,
-            channel,
+            &channel,
             PackageChannelOperation::Promote,
-            origin,
-            session_id,
+            &origin,
+            session.get_id(),
+            session.get_name(),
         ) {
             Ok(_) => HttpResponse::new(StatusCode::OK),
             Err(err) => {
@@ -247,7 +249,7 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
                 HttpResponse::new(StatusCode::OK)
             }
         },
-        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => err.into(),
     }
 }
 
@@ -261,9 +263,9 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+    let session = match authorize_session(&req, Some(&origin)) {
+        Ok(session) => session,
+        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
     let ident = PackageIdent::new(
@@ -272,10 +274,12 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
         Some(version.clone()),
         Some(release.clone()),
     );
-    let session_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session_id) => session_id,
-        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
     };
+
     match OriginChannelPackage::demote(
         OriginChannelDemote {
             ident: BuilderPackageIdent(ident.clone()),
@@ -283,16 +287,18 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
             channel: channel.clone(),
         },
         &*conn,
-    ) {
+    ).map_err(Error::DieselError)
+    {
         Ok(_) => {
             match audit_package_rank_change(
                 &req,
                 &conn,
                 ident.clone(),
-                channel,
+                &channel,
                 PackageChannelOperation::Demote,
-                origin,
-                session_id,
+                &origin,
+                session.get_id(),
+                session.get_name(),
             ) {
                 Ok(_) => {}
                 Err(err) => warn!("Failed to save rank change to audit log: {}", err),
@@ -303,7 +309,7 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
                 .clear_cache_for_package(ident.clone().into());
             HttpResponse::new(StatusCode::OK)
         }
-        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => err.into(),
     }
 }
 
@@ -419,20 +425,21 @@ fn audit_package_rank_change(
     req: &HttpRequest<AppState>,
     conn: &PgConnection,
     ident: PackageIdent,
-    channel: String,
+    channel: &str,
     operation: PackageChannelOperation,
-    origin: String,
+    origin: &str,
     session_id: u64,
+    user_name: &str,
 ) -> Result<()> {
     match PackageChannelAudit::audit(
         PackageChannelAudit {
             ident: BuilderPackageIdent(ident),
-            channel: &channel,
+            channel: channel,
             operation: operation,
             trigger: helpers::trigger_from_request_model(req),
             requester_id: session_id as i64,
-            requester_name: &get_session_user_name(req, session_id),
-            origin: &origin,
+            requester_name: &user_name,
+            origin: origin,
         },
         &*conn,
     ) {
@@ -448,13 +455,12 @@ fn do_get_channel_packages(
     channel: String,
 ) -> Result<(Vec<BuilderPackageIdent>, i64)> {
     let opt_session_id = match authorize_session(&req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
+    let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
 
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
-
-    let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
 
     Channel::list_packages(
         ListChannelPackages {
@@ -480,18 +486,12 @@ fn do_get_channel_package(
     channel: String,
 ) -> Result<String> {
     let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
     Counter::GetChannelPackage.increment();
 
-    let mut memcache = req.state().memcache.borrow_mut();
     let req_ident = ident.clone();
-
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(e) => return Err(e.into()),
-    };
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target.clone() {
@@ -502,14 +502,25 @@ fn do_get_channel_package(
         None => helpers::target_from_headers(req),
     };
 
-    match memcache.get_package(req_ident.clone().into(), &channel, &target) {
-        Some(pkg_json) => {
-            trace!("Cache Hit!");
-            return Ok(pkg_json);
-        }
-        None => {
-            trace!("Cache Miss!");
-        }
+    // Scope this memcache usage so the reference goes out of
+    // scope before the visibility_for_optional_session call
+    // below
+    {
+        let mut memcache = req.state().memcache.borrow_mut();
+        match memcache.get_package(req_ident.clone().into(), &channel, &target) {
+            Some(pkg_json) => {
+                trace!("Cache Hit!");
+                return Ok(pkg_json);
+            }
+            None => {
+                trace!("Cache Miss!");
+            }
+        };
+    }
+
+    let conn = match req.state().db.get_conn() {
+        Ok(conn_ref) => conn_ref,
+        Err(e) => return Err(e.into()),
     };
 
     let pkg = match Channel::get_latest_package(
@@ -541,7 +552,11 @@ fn do_get_channel_package(
     pkg_json["is_a_service"] = json!(is_a_service(&pkg.into()));
 
     let json_body = serde_json::to_string(&pkg_json).unwrap();
-    memcache.set_package(req_ident.clone(), &json_body, &channel, &target);
+
+    {
+        let mut memcache = req.state().memcache.borrow_mut();
+        memcache.set_package(req_ident.clone(), &json_body, &channel, &target);
+    }
 
     Ok(json_body)
 }
@@ -551,7 +566,7 @@ pub fn channels_for_package_ident(
     package: &BuilderPackageIdent,
 ) -> Result<Option<Vec<String>>> {
     let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 

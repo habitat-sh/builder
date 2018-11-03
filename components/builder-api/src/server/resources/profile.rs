@@ -69,7 +69,7 @@ pub fn do_get_access_tokens(
 //
 fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
@@ -86,7 +86,7 @@ fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
 
 fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -106,7 +106,7 @@ fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
 
 fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -160,7 +160,7 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -188,7 +188,7 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
 
 fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 

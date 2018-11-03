@@ -145,6 +145,25 @@ impl MemcacheClient {
         };
     }
 
+    pub fn set_origin_member(&mut self, origin: &str, account_id: u64, val: bool) {
+        let key = format!("member:{}/{}", origin, account_id);
+
+        match self.cli.set(&key, val, self.ttl * 60) {
+            Ok(_) => trace!(
+                "Saved origin membership {}/{} to memcached!",
+                origin,
+                account_id
+            ),
+            Err(e) => warn!("Failed to save origin membership to memcached: {}", e),
+        }
+    }
+
+    pub fn get_origin_member(&mut self, origin: &str, account_id: u64) -> Option<bool> {
+        let key = format!("member:{}/{}", origin, account_id);
+
+        self.get_bool(&key)
+    }
+
     fn package_namespace(&mut self, origin: &str, name: &str) -> String {
         self.get_namespace(&package_ns_key(origin, name))
     }
@@ -183,6 +202,16 @@ impl MemcacheClient {
     fn get_string(&mut self, key: &str) -> Option<String> {
         match self.cli.get(key) {
             Ok(string) => string,
+            Err(e) => {
+                warn!("Error getting key {}: {:?}", key, e);
+                None
+            }
+        }
+    }
+
+    fn get_bool(&mut self, key: &str) -> Option<bool> {
+        match self.cli.get(key) {
+            Ok(val) => val,
             Err(e) => {
                 warn!("Error getting key {}: {:?}", key, e);
                 None

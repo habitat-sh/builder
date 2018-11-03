@@ -46,7 +46,7 @@ use db::models::origin::*;
 use db::models::package::{BuilderPackageIdent, ListPackages, Package, PackageVisibility};
 use db::models::secrets::*;
 
-use server::authorize::{authorize_session, check_origin_owner, get_session_user_name};
+use server::authorize::{authorize_session, check_origin_owner};
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::helpers::{self, Pagination};
@@ -182,9 +182,9 @@ impl Origins {
 fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
     let origin_name = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::InternalServerError().into(),
+        Err(err) => return err.into(),
     };
 
     match Origin::get(&origin_name, &*conn) {
@@ -192,19 +192,17 @@ fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(origin),
         Err(NotFound) => HttpResponse::NotFound().into(),
-        Err(_) => HttpResponse::InternalServerError().into(),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 
 fn create_origin(
     (req, body): (HttpRequest<AppState>, Json<CreateOriginHandlerReq>),
 ) -> HttpResponse {
-    let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+    let session = match authorize_session(&req, None) {
+        Ok(session) => session,
         Err(err) => return err.into(),
     };
-
-    let account_name = get_session_user_name(&req, account_id);
 
     let dpv = match body.clone().default_package_visibility {
         Some(viz) => viz,
@@ -215,21 +213,21 @@ fn create_origin(
         return HttpResponse::ExpectationFailed().into();
     }
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::InternalServerError().into(),
+        Err(err) => return err.into(),
     };
 
     let new_origin = NewOrigin {
         name: &body.0.name,
-        owner_id: account_id as i64,
-        owner_name: &account_name,
+        owner_id: session.get_id() as i64,
+        owner_name: session.get_name(),
         default_package_visibility: &dpv,
     };
 
-    match Origin::create(&new_origin, &*conn) {
+    match Origin::create(&new_origin, &*conn).map_err(Error::DieselError) {
         Ok(origin) => HttpResponse::Created().json(origin),
-        Err(_e) => HttpResponse::InternalServerError().into(),
+        Err(err) => err.into(),
     }
 }
 
@@ -242,9 +240,9 @@ fn update_origin(
         return err.into();
     }
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::InternalServerError().into(),
+        Err(err) => return err.into(),
     };
 
     let dpv = match body.0.default_package_visibility {
@@ -252,9 +250,9 @@ fn update_origin(
         None => PackageVisibility::Public,
     };
 
-    match Origin::update(&origin, dpv, &*conn) {
+    match Origin::update(&origin, dpv, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().into(),
-        Err(_) => HttpResponse::InternalServerError().into(),
+        Err(err) => err.into(),
     }
 }
 
@@ -262,7 +260,7 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -357,7 +355,7 @@ fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpRespon
         .into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -614,7 +612,7 @@ fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> Htt
     let (origin, revision) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(req, Some(&origin)) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -689,7 +687,7 @@ fn list_unique_packages(
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
     let opt_session_id = match authorize_session(&req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 
@@ -719,7 +717,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest<AppState>) -> HttpResp
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -751,7 +749,7 @@ fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
         .into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -795,7 +793,7 @@ fn accept_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         .into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -826,7 +824,7 @@ fn ignore_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         .into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -857,7 +855,7 @@ fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
         .into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -948,19 +946,17 @@ fn origin_member_delete(req: HttpRequest<AppState>) -> HttpResponse {
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(id) => id,
+    let session = match authorize_session(&req, Some(&origin)) {
+        Ok(session) => session,
         Err(err) => return err.into(),
     };
 
-    let account_name = get_session_user_name(&req, account_id);
-
-    if !check_origin_owner(&req, account_id, &origin).unwrap_or(false) {
+    if !check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
     // Do not allow the owner to be removed which would orphan the origin
-    if user == account_name {
+    if user == session.get_name() {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 

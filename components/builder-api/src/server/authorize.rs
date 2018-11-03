@@ -15,64 +15,59 @@
 use actix_web::HttpRequest;
 use hab_net::privilege::FeatureFlags;
 
-use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
-
 use protocol::originsrv;
 
-use db::models::account::*;
 use db::models::origin::*;
 
 use server::error::{Error, Result};
 use server::AppState;
 
-pub fn authorize_session(req: &HttpRequest<AppState>, origin_opt: Option<&str>) -> Result<u64> {
-    let account_id = {
+pub fn authorize_session(
+    req: &HttpRequest<AppState>,
+    origin_opt: Option<&str>,
+) -> Result<originsrv::Session> {
+    let session = {
         let extensions = req.extensions();
         match extensions.get::<originsrv::Session>() {
             Some(session) => {
                 let flags = FeatureFlags::from_bits(session.get_flags()).unwrap(); // unwrap Ok
                 if flags.contains(FeatureFlags::BUILD_WORKER) {
-                    return Ok(session.get_id());
+                    return Ok(session.clone());
                 }
-                session.get_id()
+                session.clone()
             }
             None => return Err(Error::Authentication),
         }
     };
 
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
-
     if let Some(origin) = origin_opt {
-        match Origin::check_membership(origin, account_id, &*conn).map_err(Error::DieselError) {
-            Ok(is_member) if is_member => (),
+        let mut memcache = req.state().memcache.borrow_mut();
+
+        match memcache.get_origin_member(origin, session.get_id()) {
+            Some(val) => {
+                if val {
+                    return Ok(session);
+                } else {
+                    return Err(Error::Authorization);
+                }
+            }
+            None => (),
+        }
+
+        match check_origin_member(req, origin, session.get_id()) {
+            Ok(is_member) => {
+                memcache.set_origin_member(origin, session.get_id(), is_member);
+
+                match is_member {
+                    true => (),
+                    false => return Err(Error::Authorization),
+                }
+            }
             _ => return Err(Error::Authorization),
         }
     }
 
-    Ok(account_id)
-}
-
-// TODO - Merge into authorize_session when we are able to cache the name
-pub fn get_session_user_name(req: &HttpRequest<AppState>, account_id: u64) -> String {
-    if account_id == BUILDER_ACCOUNT_ID {
-        return BUILDER_ACCOUNT_NAME.to_string();
-    }
-
-    let conn = match req.state().db.get_conn() {
-        Ok(conn) => conn,
-        Err(err) => {
-            warn!("Failed to get account, id={}, err={:?}", account_id, err);
-            return "".to_string();
-        }
-    };
-
-    match Account::get_by_id(account_id, &*conn) {
-        Ok(account) => account.name.to_string(),
-        Err(err) => {
-            warn!("Failed to get account, id={}, err={:?}", account_id, err);
-            "".to_string()
-        }
-    }
+    Ok(session)
 }
 
 pub fn check_origin_owner(
@@ -86,4 +81,14 @@ pub fn check_origin_owner(
         Ok(origin) => Ok(origin.owner_id == account_id as i64),
         Err(err) => Err(err),
     }
+}
+
+pub fn check_origin_member(
+    req: &HttpRequest<AppState>,
+    origin: &str,
+    account_id: u64,
+) -> Result<bool> {
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+
+    Origin::check_membership(origin, account_id, &*conn).map_err(Error::DieselError)
 }
