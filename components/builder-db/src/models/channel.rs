@@ -12,6 +12,9 @@ use models::pagination::Paginate;
 use protocol::jobsrv::JobGroupTrigger;
 use schema::channel::*;
 
+use bldr_core::metrics::CounterMetric;
+use metrics::Counter;
+
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Identifiable)]
 #[table_name = "origin_channels"]
 pub struct Channel {
@@ -76,6 +79,7 @@ pub struct DemotePackages {
 
 impl Channel {
     pub fn list(channel: ListChannels, conn: &PgConnection) -> QueryResult<Vec<Channel>> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_channels_for_origin_v3($1, $2)")
             .bind::<Text, _>(channel.origin)
             .bind::<Bool, _>(channel.include_sandbox_channels)
@@ -83,6 +87,7 @@ impl Channel {
     }
 
     pub fn get(channel: GetChannel, conn: &PgConnection) -> QueryResult<Channel> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_channel_v1($1, $2)")
             .bind::<Text, _>(channel.origin)
             .bind::<Text, _>(channel.channel)
@@ -90,6 +95,7 @@ impl Channel {
     }
 
     pub fn create(channel: CreateChannel, conn: &PgConnection) -> QueryResult<Channel> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from insert_origin_channel_v2($1, $2, $3)")
             .bind::<Text, _>(channel.origin)
             .bind::<BigInt, _>(channel.owner_id)
@@ -98,6 +104,7 @@ impl Channel {
     }
 
     pub fn delete(channel: DeleteChannel, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from delete_origin_channel_v2($1, $2)")
             .bind::<Text, _>(channel.channel)
             .bind::<Text, _>(channel.origin)
@@ -105,6 +112,7 @@ impl Channel {
     }
 
     pub fn get_latest_package(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
+        Counter::DBCall.increment();
         let ident = req.ident;
         diesel::sql_query("select * from get_origin_channel_package_latest_v8($1, $2, $3, $4, $5)")
             .bind::<Text, _>(&ident.origin)
@@ -119,6 +127,8 @@ impl Channel {
         lcp: ListChannelPackages,
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+        Counter::DBCall.increment();
+
         use schema::channel::{origin_channel_packages, origin_channels};
         use schema::origin::origins;
         use schema::package::origin_packages;
@@ -139,6 +149,7 @@ impl Channel {
     }
 
     pub fn promote_packages(req: PromotePackages, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from promote_origin_package_group_v1($1, $2)")
             .bind::<BigInt, _>(req.channel_id)
             .bind::<Array<BigInt>, _>(req.pkg_ids)
@@ -146,6 +157,7 @@ impl Channel {
     }
 
     pub fn demote_packages(req: DemotePackages, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from demote_origin_package_group_v1($1, $2)")
             .bind::<BigInt, _>(req.channel_id)
             .bind::<Array<BigInt>, _>(req.pkg_ids)
@@ -189,6 +201,7 @@ pub struct PackageChannelAudit<'a> {
 
 impl<'a> PackageChannelAudit<'a> {
     pub fn audit(pca: PackageChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from add_audit_package_entry_v3($1, $2, $3, $4, $5, $6, $7)")
             .bind::<Text, _>(pca.origin)
             .bind::<Text, _>(pca.ident.to_string())
@@ -215,6 +228,7 @@ pub struct PackageGroupChannelAudit<'a> {
 
 impl<'a> PackageGroupChannelAudit<'a> {
     pub fn audit(req: PackageGroupChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query(
             "select * from add_audit_package_group_entry_v2($1, $2, $3, $4, $5, $6, $7, $8)",
         ).bind::<Text, _>(req.origin)
@@ -249,6 +263,7 @@ pub struct OriginChannelDemote {
 
 impl OriginChannelPackage {
     pub fn promote(package: OriginChannelPromote, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from promote_origin_package_v3($1, $2, $3)")
             .bind::<Text, _>(package.origin)
             .bind::<Text, _>(package.ident.to_string())
@@ -256,6 +271,7 @@ impl OriginChannelPackage {
             .execute(conn)
     }
     pub fn demote(package: OriginChannelDemote, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from demote_origin_package_v3($1, $2, $3)")
             .bind::<Text, _>(package.origin)
             .bind::<Text, _>(package.ident.to_string())

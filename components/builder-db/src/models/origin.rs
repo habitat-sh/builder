@@ -14,6 +14,9 @@ use protocol::originsrv;
 use schema::member::*;
 use schema::origin::*;
 
+use bldr_core::metrics::CounterMetric;
+use metrics::Counter;
+
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origins"]
 pub struct Origin {
@@ -78,6 +81,7 @@ pub struct NewOrigin<'a> {
 
 impl Origin {
     pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
+        Counter::DBCall.increment();
         diesel::sql_query(
             "select * from origins_with_secret_key_full_name_v2 where name = $1 limit 1",
         ).bind::<Text, _>(origin)
@@ -85,12 +89,14 @@ impl Origin {
     }
 
     pub fn list(owner_id: i64, conn: &PgConnection) -> QueryResult<Vec<OriginWithStats>> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from my_origins_with_stats_v2($1)")
             .bind::<BigInt, _>(owner_id)
             .get_results(conn)
     }
 
     pub fn create(req: &NewOrigin, conn: &PgConnection) -> QueryResult<Origin> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from insert_origin_v3($1, $2, $3, $4)")
             .bind::<Text, _>(req.name)
             .bind::<BigInt, _>(req.owner_id)
@@ -100,6 +106,7 @@ impl Origin {
     }
 
     pub fn update(name: &str, dpv: PackageVisibility, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from update_origin_v2($1, $2)")
             .bind::<Text, _>(name)
             .bind::<PackageVisibilityMapping, _>(dpv)
@@ -111,6 +118,7 @@ impl Origin {
         account_id: u64,
         conn: &PgConnection,
     ) -> QueryResult<bool> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from check_account_in_origin_members_v1($1, $2)")
             .bind::<Text, _>(origin)
             .bind::<BigInt, _>(account_id as i64)
@@ -124,6 +132,7 @@ impl OriginMember {
         use schema::member::origin_members;
         use schema::origin::origins;
 
+        Counter::DBCall.increment();
         origin_members::table
             .select(origin_members::table::all_columns())
             .inner_join(origins::table)
@@ -133,6 +142,7 @@ impl OriginMember {
     }
 
     pub fn delete(origin_id: u64, account_name: &str, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from delete_origin_member_v1($1, $2)")
             .bind::<BigInt, _>(origin_id as i64)
             .bind::<Text, _>(account_name)

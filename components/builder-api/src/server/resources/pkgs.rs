@@ -45,7 +45,7 @@ use db::models::package::{
 };
 use db::models::projects::Project;
 
-use server::authorize::{authorize_session, get_session_user_name};
+use server::authorize::authorize_session;
 use server::error::{Error, Result};
 use server::feat;
 use server::framework::headers;
@@ -258,7 +258,7 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
     };
 
     let opt_session_id = match authorize_session(&req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 
@@ -357,12 +357,10 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let account_id = match authorize_session(&req, Some(&origin_name)) {
-        Ok(id) => id,
+    let session = match authorize_session(&req, Some(&origin_name)) {
+        Ok(session) => session,
         Err(err) => return err.into(),
     };
-
-    let account_name = get_session_user_name(&req, account_id);
 
     // We only support building for Linux x64 only currently
     if qschedule.target != "x86_64-linux" {
@@ -378,8 +376,8 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
     request.set_origin_only(qschedule.origin_only.is_some());
     request.set_package_only(qschedule.package_only.is_some());
     request.set_trigger(helpers::trigger_from_request(&req));
-    request.set_requester_id(account_id);
-    request.set_requester_name(account_name.clone());
+    request.set_requester_id(session.get_id());
+    request.set_requester_name(session.get_name().to_string());
 
     match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
         Ok(group) => {
@@ -387,7 +385,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
 
             // We don't really want to abort anything just because a call to segment failed. Let's
             // just log it and move on.
-            if let Err(e) = req.state().segment.track(&account_name, &msg) {
+            if let Err(e) = req.state().segment.track(&session.get_name(), &msg) {
                 warn!("Error tracking scheduling of job group in segment, {}", e);
             }
 
@@ -443,7 +441,7 @@ fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
         .into_inner(); // Unwrap Ok
 
     let opt_session_id = match authorize_session(&req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 
@@ -482,7 +480,7 @@ fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
         .into_inner(); // Unwrap Ok
 
     let opt_session_id = match authorize_session(&req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 
@@ -515,7 +513,7 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
     let query = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
     let opt_session_id = match authorize_session(&req, None) {
-        Ok(id) => Some(id as i64),
+        Ok(session) => Some(session.get_id() as i64),
         Err(_) => None,
     };
 
@@ -691,13 +689,13 @@ fn do_get_packages(
     pagination: &Query<Pagination>,
 ) -> Result<(Vec<BuilderPackageIdent>, i64)> {
     let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
-
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
+
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     let lpr = ListPackages {
         ident: BuilderPackageIdent(ident.clone()),
@@ -814,8 +812,6 @@ fn do_upload_package_finish(
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:3");
     }
 
-    let conn = req.state().db.get_conn().map_err(Error::DbError).unwrap();
-
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
         if let Err(e) = check_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
@@ -868,10 +864,14 @@ fn do_upload_package_finish(
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:6");
     }
 
-    let session_id = authorize_session(&req, None).unwrap(); // Unwrap Ok
-    let session_name = get_session_user_name(&req, session_id);
+    let session = authorize_session(&req, None).unwrap(); // Unwrap Ok
 
-    package.owner_id = session_id as i64;
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn) => conn,
+        Err(err) => return err.into(),
+    };
+
+    package.owner_id = session.get_id() as i64;
 
     package.origin_id = match Origin::get(&ident.origin, &*conn) {
         Ok(origin) => origin.id,
@@ -891,7 +891,7 @@ fn do_upload_package_finish(
     };
 
     // Re-create origin package as needed (eg, checksum update)
-    match Package::create(package.clone(), &*conn) {
+    match Package::create(package.clone(), &*conn).map_err(Error::DieselError) {
         Ok(pkg) => {
             if feat::is_enabled(feat::Jobsrv) {
                 let mut job_graph_package = jobsrv::JobGraphPackageCreate::new();
@@ -907,7 +907,7 @@ fn do_upload_package_finish(
                 }
             }
         }
-        Err(_) => return HttpResponse::InternalServerError().into(),
+        Err(err) => return err.into(),
     }
 
     // Schedule re-build of dependent packages (if requested)
@@ -921,8 +921,8 @@ fn do_upload_package_finish(
         request.set_origin_only(false);
         request.set_package_only(false);
         request.set_trigger(jobsrv::JobGroupTrigger::Upload);
-        request.set_requester_id(session_id);
-        request.set_requester_name(session_name);
+        request.set_requester_id(session.get_id());
+        request.set_requester_name(session.get_name().to_string());
 
         match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
             Ok(group) => debug!(
@@ -989,7 +989,7 @@ fn do_get_package(
     ident: PackageIdent,
 ) -> Result<Package> {
     let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
     Counter::GetPackage.increment();
@@ -1180,13 +1180,12 @@ pub fn is_a_service(package: &Package) -> bool {
     m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
 }
 
-// Get platforms for a package
 pub fn platforms_for_package_ident(
     req: &HttpRequest<AppState>,
     package: &BuilderPackageIdent,
 ) -> Result<Option<Vec<String>>> {
     let opt_session_id = match authorize_session(req, None) {
-        Ok(id) => Some(id),
+        Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 

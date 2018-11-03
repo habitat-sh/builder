@@ -27,6 +27,9 @@ use models::channel::Channel;
 use models::pagination::*;
 use schema::package::*;
 
+use bldr_core::metrics::CounterMetric;
+use metrics::Counter;
+
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
 #[table_name = "origin_packages"]
 pub struct Package {
@@ -212,10 +215,7 @@ impl PackageVisibility {
     }
 
     pub fn private() -> Vec<Self> {
-        vec![
-            PackageVisibility::Private,
-            PackageVisibility::Hidden, 
-        ]
+        vec![PackageVisibility::Private, PackageVisibility::Hidden]
     }
 }
 
@@ -223,6 +223,7 @@ impl Package {
     pub fn get(req: GetPackage, conn: &PgConnection) -> QueryResult<Package> {
         use schema::package::origin_packages::dsl::*;
 
+        Counter::DBCall.increment();
         Self::all()
             .filter(ident.eq(req.ident))
             .filter(visibility.eq(any(req.visibility)))
@@ -236,12 +237,14 @@ impl Package {
     ) -> QueryResult<Vec<Package>> {
         use schema::package::origin_packages::dsl::*;
 
+        Counter::DBCall.increment();
         Self::all()
             .filter(ident_array.contains(req_ident.parts()))
             .get_results(conn)
     }
 
     pub fn get_latest(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_package_latest_v7($1, $2, $3)")
             .bind::<Array<Text>, _>(req.ident.parts())
             .bind::<Text, _>(req.target)
@@ -250,6 +253,7 @@ impl Package {
     }
 
     pub fn create(package: NewPackage, conn: &PgConnection) -> QueryResult<Package> {
+        Counter::DBCall.increment();
         diesel::sql_query("SELECT * FROM insert_origin_package_v5($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
             .bind::<BigInt,_>(package.origin_id)
             .bind::<BigInt,_>(package.owner_id)
@@ -273,6 +277,7 @@ impl Package {
     ) -> QueryResult<usize> {
         use schema::package::origin_packages::dsl::*;
 
+        Counter::DBCall.increment();
         diesel::update(origin_packages.filter(ident.eq(idt)))
             .set(visibility.eq(vis))
             .execute(conn)
@@ -282,6 +287,7 @@ impl Package {
         req: UpdatePackageVisibility,
         conn: &PgConnection,
     ) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from update_package_visibility_in_bulk_v2($1, $2)")
             .bind::<PackageVisibilityMapping, _>(req.visibility)
             .bind::<Array<BigInt>, _>(req.ids)
@@ -296,6 +302,7 @@ impl Package {
             ident, ident_array, origin_packages, visibility,
         };
 
+        Counter::DBCall.increment();
         origin_packages
             .select(ident)
             .filter(ident_array.contains(pl.ident.parts()))
@@ -311,6 +318,8 @@ impl Package {
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         use schema::package::origin_packages::dsl::{ident_array, origin_packages, visibility};
+
+        Counter::DBCall.increment();
         origin_packages
             .select(sql("concat_ws('/', ident_array[1], ident_array[2])"))
             .filter(ident_array.contains(pl.ident.parts()))
@@ -330,6 +339,7 @@ impl Package {
         use schema::origin::origins;
         use schema::package::origin_packages;
 
+        Counter::DBCall.increment();
         origin_packages::table
             .inner_join(origins::table)
             .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
@@ -353,6 +363,7 @@ impl Package {
             ident as package_ident, origin_packages, visibility as package_visibility,
         };
 
+        Counter::DBCall.increment();
         origin_packages
             .inner_join(origin_channel_packages.inner_join(origin_channels))
             .select(origin_channels::all_columns())
@@ -367,6 +378,7 @@ impl Package {
         visibility: Vec<PackageVisibility>,
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginPackageVersions>> {
+        Counter::DBCall.increment();
         // So many regrets with this query
         diesel::sql_query(
             "select $1 as origin, $2 as name, version, release_count, latest, string_to_array(platforms, ',') as platforms from get_origin_package_versions_for_origin_v8($1, $2, $3)",
@@ -383,6 +395,7 @@ impl Package {
         use schema::origin::origins;
         use schema::package::origin_packages;
 
+        Counter::DBCall.increment();
         let mut query = origin_packages::table
             .inner_join(origins::table)
             .select(origin_packages::ident)
@@ -391,10 +404,12 @@ impl Package {
             .into_boxed();
 
         if let Some(session_id) = sp.account_id {
-            query = query
-                .filter(origin_packages::visibility.eq(any(PackageVisibility::private()))
+            query = query.filter(
+                origin_packages::visibility
+                    .eq(any(PackageVisibility::private()))
                     .and(origins::owner_id.eq(session_id))
-                    .or(origin_packages::visibility.eq(PackageVisibility::Public)));
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+            );
         } else {
             query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
@@ -410,6 +425,7 @@ impl Package {
         sp: SearchPackages,
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+        Counter::DBCall.increment();
         use schema::origin::origins;
         use schema::package::origin_packages;
 
@@ -421,10 +437,12 @@ impl Package {
             .into_boxed();
 
         if let Some(session_id) = sp.account_id {
-            query = query
-                .filter(origin_packages::visibility.eq(any(PackageVisibility::private()))
+            query = query.filter(
+                origin_packages::visibility
+                    .eq(any(PackageVisibility::private()))
                     .and(origins::owner_id.eq(session_id))
-                    .or(origin_packages::visibility.eq(PackageVisibility::Public)));
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+            );
         } else {
             query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }

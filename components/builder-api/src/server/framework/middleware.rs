@@ -21,6 +21,7 @@ use base64;
 use protobuf;
 
 use bldr_core;
+use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
 use bldr_core::metrics::CounterMetric;
 use hab_net::{ErrCode, NetError};
 use oauth_client::types::OAuth2User;
@@ -32,7 +33,6 @@ use db::models::account::*;
 
 use hab_net::privilege::FeatureFlags;
 use server::error;
-use server::resources::profile::do_get_access_tokens;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -107,20 +107,23 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
             }
             // Pull the session out of the current token provided so we can validate
             // it against the db's tokens
-            let session = bldr_core::access_token::validate_access_token(
+            let mut session = bldr_core::access_token::validate_access_token(
                 &req.state().config.api.key_path,
                 token,
             ).map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
 
-            if session.get_id() == bldr_core::access_token::BUILDER_ACCOUNT_ID {
+            if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");
+                session.set_name(BUILDER_ACCOUNT_NAME.to_owned());
                 memcache.set_session(token, &session, None);
                 return Ok(session);
             }
 
             // If we can't find a token in the cache, we need to round-trip to the
             // db to see if we have a valid session token.
-            match do_get_access_tokens(&req, session.get_id()) {
+            let conn = req.state().db.get_conn().map_err(error::Error::DbError)?;
+
+            match AccountToken::list(session.get_id(), &*conn).map_err(error::Error::DieselError) {
                 Ok(access_tokens) => {
                     assert!(access_tokens.len() <= 1); // Can only have max of 1 for now
                     match access_tokens.first() {
@@ -133,6 +136,12 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
                                     "net:auth:revoked-token",
                                 )));
                             }
+
+                            let account = Account::get_by_id(session.get_id(), &*conn)
+                                .map_err(error::Error::DieselError)?;
+                            session.set_name(account.name);
+                            session.set_email(account.email);
+
                             memcache.set_session(&new_token, &session, None);
                             return Ok(session);
                         }

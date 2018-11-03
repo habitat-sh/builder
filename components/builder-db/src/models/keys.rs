@@ -7,6 +7,9 @@ use diesel::sql_types::{BigInt, Binary, Text};
 use diesel::RunQueryDsl;
 use schema::key::*;
 
+use bldr_core::metrics::CounterMetric;
+use metrics::Counter;
+
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_public_encryption_keys"]
 pub struct OriginPublicEncryptionKey {
@@ -121,6 +124,7 @@ impl OriginPublicEncryptionKey {
         revision: &str,
         conn: &PgConnection,
     ) -> QueryResult<OriginPublicEncryptionKey> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_public_encryption_key_v1($1, $2)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(revision)
@@ -131,6 +135,7 @@ impl OriginPublicEncryptionKey {
         req: &NewOriginPublicEncryptionKey,
         conn: &PgConnection,
     ) -> QueryResult<OriginPublicEncryptionKey> {
+        Counter::DBCall.increment();
         let full_name = format!("{}-{}", req.name, req.revision);
         diesel::sql_query(
             "select * from insert_origin_public_encryption_key_v1($1, $2, $3, $4, $5, $6)",
@@ -144,12 +149,14 @@ impl OriginPublicEncryptionKey {
     }
 
     pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPublicEncryptionKey> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_public_encryption_key_latest_v1($1)")
             .bind::<Text, _>(origin)
             .get_result(conn)
     }
 
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginPublicEncryptionKey>> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_public_encryption_keys_for_origin_v1($1)")
             .bind::<Text, _>(origin)
             .get_results(conn)
@@ -158,6 +165,7 @@ impl OriginPublicEncryptionKey {
 
 impl OriginPrivateEncryptionKey {
     pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateEncryptionKey> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_private_encryption_key_v1($1)")
             .bind::<Text, _>(origin)
             .get_result(conn)
@@ -167,6 +175,7 @@ impl OriginPrivateEncryptionKey {
         req: &NewOriginPrivateEncryptionKey,
         conn: &PgConnection,
     ) -> QueryResult<OriginPrivateEncryptionKey> {
+        Counter::DBCall.increment();
         let full_name = format!("{}-{}", req.name, req.revision);
         diesel::sql_query(
             "select * from insert_origin_private_encryption_key_v1($1, $2, $3, $4, $5, $6)",
@@ -186,6 +195,7 @@ impl OriginPublicSigningKey {
         revision: &str,
         conn: &PgConnection,
     ) -> QueryResult<OriginPublicSigningKey> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_public_key_v1($1, $2)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(revision)
@@ -196,6 +206,7 @@ impl OriginPublicSigningKey {
         req: &NewOriginPublicSigningKey,
         conn: &PgConnection,
     ) -> QueryResult<OriginPublicSigningKey> {
+        Counter::DBCall.increment();
         let full_name = format!("{}-{}", req.name, req.revision);
         diesel::sql_query("select * from insert_origin_public_key_v1($1, $2, $3, $4, $5, $6)")
             .bind::<BigInt, _>(req.origin_id)
@@ -208,12 +219,14 @@ impl OriginPublicSigningKey {
     }
 
     pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPublicSigningKey> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_public_key_latest_v1($1)")
             .bind::<Text, _>(origin)
             .get_result(conn)
     }
 
     pub fn list(origin_id: u64, conn: &PgConnection) -> QueryResult<Vec<OriginPublicSigningKey>> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_public_keys_for_origin_v1($1)")
             .bind::<BigInt, _>(origin_id as i64)
             .get_results(conn)
@@ -222,6 +235,7 @@ impl OriginPublicSigningKey {
 
 impl OriginPrivateSigningKey {
     pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateSigningKey> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_secret_key_v1($1)")
             .bind::<Text, _>(origin)
             .get_result(conn)
@@ -231,6 +245,7 @@ impl OriginPrivateSigningKey {
         req: &NewOriginPrivateSigningKey,
         conn: &PgConnection,
     ) -> QueryResult<OriginPrivateSigningKey> {
+        Counter::DBCall.increment();
         let full_name = format!("{}-{}", req.name, req.revision);
         diesel::sql_query("select * from insert_origin_secret_key_v1($1, $2, $3, $4, $5, $6)")
             .bind::<BigInt, _>(req.origin_id)

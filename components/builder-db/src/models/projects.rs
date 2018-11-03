@@ -9,6 +9,9 @@ use models::package::{PackageVisibility, PackageVisibilityMapping};
 use protocol::originsrv;
 use schema::project::*;
 
+use bldr_core::metrics::CounterMetric;
+use metrics::Counter;
+
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_projects"]
 pub struct Project {
@@ -59,18 +62,21 @@ pub struct UpdateProject<'a> {
 
 impl Project {
     pub fn get(name: &str, conn: &PgConnection) -> QueryResult<Project> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_project_v1($1)")
             .bind::<Text, _>(name)
             .get_result(conn)
     }
 
     pub fn delete(name: &str, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from delete_origin_project_v1($1)")
             .bind::<Text, _>(name)
             .execute(conn)
     }
 
     pub fn create(project: &NewProject, conn: &PgConnection) -> QueryResult<Project> {
+        Counter::DBCall.increment();
         diesel::sql_query(
             "SELECT * FROM insert_origin_project_v6($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         ).bind::<Text, _>(project.origin_name)
@@ -86,6 +92,7 @@ impl Project {
     }
 
     pub fn update(project: &UpdateProject, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query(
             "SELECT * FROM update_origin_project_v5($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
         ).bind::<BigInt, _>(project.id)
@@ -102,6 +109,7 @@ impl Project {
     }
 
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<Project>> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_project_list_v2($1)")
             .bind::<Text, _>(origin)
             .get_results(conn)

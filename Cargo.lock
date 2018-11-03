@@ -1015,6 +1015,7 @@ dependencies = [
 name = "habitat_builder_db"
 version = "0.0.0"
 dependencies = [
+ "builder_core 0.0.0",
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.302 (registry+https://github.com/rust-lang/crates.io-index)",
  "diesel 1.3.3 (registry+https://github.com/rust-lang/crates.io-index)",

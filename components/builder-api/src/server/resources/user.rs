@@ -37,7 +37,7 @@ impl User {
 //
 fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id,
+        Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
@@ -54,7 +54,7 @@ fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
 
 fn get_origins(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
-        Ok(id) => id as i64,
+        Ok(session) => session.get_id() as i64,
         Err(err) => return err.into(),
     };
 

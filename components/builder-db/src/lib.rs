@@ -22,6 +22,7 @@ extern crate diesel_derive_enum;
 extern crate diesel_full_text_search;
 #[macro_use]
 extern crate diesel_migrations;
+extern crate builder_core as bldr_core;
 extern crate fallible_iterator;
 extern crate fnv;
 extern crate habitat_builder_protocol as protocol;
@@ -50,6 +51,7 @@ extern crate url;
 pub mod config;
 pub mod diesel_pool;
 pub mod error;
+pub mod metrics;
 pub mod migration;
 pub mod models;
 pub mod pool;
