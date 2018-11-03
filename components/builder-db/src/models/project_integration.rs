@@ -8,6 +8,9 @@ use diesel::RunQueryDsl;
 use protocol::originsrv;
 use schema::project_integration::*;
 
+use bldr_core::metrics::CounterMetric;
+use metrics::Counter;
+
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_project_integrations"]
 pub struct ProjectIntegration {
@@ -40,6 +43,7 @@ impl ProjectIntegration {
         integration: &str,
         conn: &PgConnection,
     ) -> QueryResult<ProjectIntegration> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_project_integrations_v2($1, $2, $3)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(name)
@@ -52,6 +56,7 @@ impl ProjectIntegration {
         name: &str,
         conn: &PgConnection,
     ) -> QueryResult<Vec<ProjectIntegration>> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_project_integrations_for_project_v2($1, $2)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(name)
@@ -64,6 +69,7 @@ impl ProjectIntegration {
         integration: &str,
         conn: &PgConnection,
     ) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from delete_origin_project_integration_v1($1, $2, $3)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(name)
@@ -72,6 +78,7 @@ impl ProjectIntegration {
     }
 
     pub fn create(req: NewProjectIntegration, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("SELECT * FROM upsert_origin_project_integration_v3($1, $2, $3, $4)")
             .bind::<Text, _>(req.origin)
             .bind::<Text, _>(req.name)

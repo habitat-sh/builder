@@ -7,6 +7,9 @@ use diesel::sql_types::Text;
 use diesel::RunQueryDsl;
 use schema::integration::*;
 
+use bldr_core::metrics::CounterMetric;
+use metrics::Counter;
+
 #[derive(Debug, Serialize, Deserialize, QueryableByName)]
 #[table_name = "origin_integrations"]
 pub struct OriginIntegration {
@@ -31,6 +34,7 @@ pub struct NewOriginIntegration<'a> {
 
 impl OriginIntegration {
     pub fn create(req: &NewOriginIntegration, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from upsert_origin_integration_v1($1, $2, $3, $4)")
             .bind::<Text, _>(req.origin)
             .bind::<Text, _>(req.integration)
@@ -45,6 +49,7 @@ impl OriginIntegration {
         name: &str,
         conn: &PgConnection,
     ) -> QueryResult<OriginIntegration> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_integration_v1($1, $2, $3)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(integration)
@@ -58,6 +63,7 @@ impl OriginIntegration {
         name: &str,
         conn: &PgConnection,
     ) -> QueryResult<usize> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from delete_origin_integration_v1($1, $2, $3)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(integration)
@@ -70,6 +76,7 @@ impl OriginIntegration {
         integration: &str,
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginIntegration>> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_integrations_v1($1, $2)")
             .bind::<Text, _>(origin)
             .bind::<Text, _>(integration)
@@ -80,6 +87,7 @@ impl OriginIntegration {
         origin: &str,
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginIntegration>> {
+        Counter::DBCall.increment();
         diesel::sql_query("select * from get_origin_integrations_for_origin_v1($1)")
             .bind::<Text, _>(origin)
             .get_results(conn)
