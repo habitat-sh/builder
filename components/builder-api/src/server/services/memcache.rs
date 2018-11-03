@@ -159,6 +159,12 @@ impl MemcacheClient {
     }
 
     pub fn get_origin_member(&mut self, origin: &str, account_id: u64) -> Option<bool> {
+        trace!(
+            "Getting origin membership for {} {} from memcached",
+            origin,
+            account_id
+        );
+
         let key = format!("member:{}/{}", origin, account_id);
 
         self.get_bool(&key)

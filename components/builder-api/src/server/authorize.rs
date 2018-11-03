@@ -45,13 +45,22 @@ pub fn authorize_session(
 
         match memcache.get_origin_member(origin, session.get_id()) {
             Some(val) => {
+                trace!(
+                    "Origin membership {} {} Cache Hit!",
+                    origin,
+                    session.get_id()
+                );
                 if val {
                     return Ok(session);
                 } else {
                     return Err(Error::Authorization);
                 }
             }
-            None => (),
+            None => trace!(
+                "Origin membership {} {} Cache Miss!",
+                origin,
+                session.get_id()
+            ),
         }
 
         match check_origin_member(req, origin, session.get_id()) {

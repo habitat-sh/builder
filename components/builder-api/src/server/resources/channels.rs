@@ -509,11 +509,11 @@ fn do_get_channel_package(
         let mut memcache = req.state().memcache.borrow_mut();
         match memcache.get_package(req_ident.clone().into(), &channel, &target) {
             Some(pkg_json) => {
-                trace!("Cache Hit!");
+                trace!("Channel package {} {} Cache Hit!", channel, ident);
                 return Ok(pkg_json);
             }
             None => {
-                trace!("Cache Miss!");
+                trace!("Channel package {} {} Cache Miss!", channel, ident);
             }
         };
     }
