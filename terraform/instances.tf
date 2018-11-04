@@ -56,6 +56,11 @@ resource "aws_instance" "api" {
   }
 
   provisioner "file" {
+    source = "${path.module}/files/mcache.yaml"
+    destination = "/tmp/mcache.yaml"
+  }
+
+  provisioner "file" {
     source = "${path.module}/files/nginx.logrotate"
     destination = "/tmp/nginx.logrotate"
   }
@@ -63,6 +68,7 @@ resource "aws_instance" "api" {
   provisioner "remote-exec" {
     inline = [
       "sudo cp /tmp/nginx.yaml /etc/dd-agent/conf.d/nginx.yaml",
+      "sudo cp /tmp/mcache.yaml /etc/dd-agent/conf.d/mcache.yaml",
       "sudo cp /tmp/nginx.logrotate /etc/logrotate.d/nginx",
       "sudo /etc/init.d/datadog-agent start"
     ]
