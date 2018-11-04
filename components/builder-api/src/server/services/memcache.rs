@@ -21,6 +21,10 @@ use protobuf;
 use protobuf::Message;
 use protocol::originsrv::Session;
 use sha2::{Digest, Sha512};
+use time::PreciseTime;
+
+use super::metrics::Histogram;
+use bldr_core::metrics::HistogramMetric;
 
 pub struct MemcacheClient {
     cli: memcache::Client,
@@ -29,8 +33,11 @@ pub struct MemcacheClient {
 
 impl MemcacheClient {
     pub fn new(config: MemcacheCfg) -> Self {
-        let memcache_host_strings: Vec<String> =
-            config.hosts.iter().map(|h| format!("{}", h)).collect();
+        let memcache_host_strings: Vec<String> = config
+            .hosts
+            .iter()
+            .map(|h| format!("{}?tcp_nodelay=true", h)) // tcp_nodelay is a significant perf gain
+            .collect();
         let memcache_hosts: Vec<&str> = memcache_host_strings.iter().map(AsRef::as_ref).collect();
         MemcacheClient {
             cli: memcache::Client::new(memcache_hosts).unwrap(),
@@ -92,6 +99,7 @@ impl MemcacheClient {
             package.to_string()
         );
 
+        let start_time = PreciseTime::now();
         match self.get_string(&format!(
             "{}/{}/{}:{}:{}",
             target,
@@ -100,7 +108,15 @@ impl MemcacheClient {
             channel_namespace,
             package_namespace
         )) {
-            Some(json_body) => Some(json_body),
+            Some(json_body) => {
+                let end_time = PreciseTime::now();
+                trace!(
+                    "Memcache get_package time: {} ms",
+                    start_time.to(end_time).num_milliseconds()
+                );
+                Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+                Some(json_body)
+            }
             None => None,
         }
     }
@@ -114,10 +130,19 @@ impl MemcacheClient {
     }
 
     pub fn get_session(&mut self, token: &str) -> Option<Session> {
-        trace!("Getting session for user {} from memcached", token);
+        trace!("Getting session for token {} from memcached", token);
 
+        let start_time = PreciseTime::now();
         match self.get_bytes(&hash_key(token)) {
-            Some(session) => Some(protobuf::parse_from_bytes(&session).unwrap()),
+            Some(session) => {
+                let end_time = PreciseTime::now();
+                trace!(
+                    "Memcache get_session time: {} ms",
+                    start_time.to(end_time).num_milliseconds()
+                );
+                Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+                Some(protobuf::parse_from_bytes(&session).unwrap())
+            }
             None => None,
         }
     }
@@ -140,8 +165,8 @@ impl MemcacheClient {
             session.write_to_bytes().unwrap().as_slice(),
             computed_ttl,
         ) {
-            Ok(_) => trace!("Saved token to memcached!"),
-            Err(e) => warn!("Failed to save token to memcached: {}", e),
+            Ok(_) => trace!("Saved session to memcached!"),
+            Err(e) => warn!("Failed to save session to memcached: {}", e),
         };
     }
 
@@ -167,7 +192,16 @@ impl MemcacheClient {
 
         let key = format!("member:{}/{}", origin, account_id);
 
-        self.get_bool(&key)
+        let start_time = PreciseTime::now();
+        let ret = self.get_bool(&key);
+        let end_time = PreciseTime::now();
+        trace!(
+            "Memcache get_origin_member time: {} ms",
+            start_time.to(end_time).num_milliseconds()
+        );
+        Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+
+        ret
     }
 
     fn package_namespace(&mut self, origin: &str, name: &str) -> String {

@@ -49,3 +49,17 @@ impl metrics::Metric for Counter {
         }
     }
 }
+
+pub enum Histogram {
+    MemcacheCallTime,
+}
+
+impl metrics::HistogramMetric for Histogram {}
+
+impl metrics::Metric for Histogram {
+    fn id(&self) -> Cow<'static, str> {
+        match *self {
+            Histogram::MemcacheCallTime => "memcache.call-time".into(),
+        }
+    }
+}
