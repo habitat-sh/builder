@@ -969,18 +969,13 @@ fn do_upload_package_async(
         .fold(writer, write_archive_async)
         // `Future::and_then` can be used to merge an asynchronous workflow with a
         // synchronous workflow
-        .and_then(|writer| {
-            match writer.into_inner() {
-                Ok(f) => {
-                    f.sync_all()?;
-                    Ok( do_upload_package_finish(req, qupload, ident, temp_path))
-                },
-                Err(err) => {
-                    Err(Error::InnerError(err))
-                }
+        .and_then(|writer| match writer.into_inner() {
+            Ok(f) => {
+                f.sync_all()?;
+                Ok(do_upload_package_finish(req, qupload, ident, temp_path))
             }
-        })
-        .responder()
+            Err(err) => Err(Error::InnerError(err)),
+        }).responder()
 }
 
 fn do_get_package(
