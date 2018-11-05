@@ -17,8 +17,7 @@ pub struct OriginSecret {
     pub id: i64,
     #[serde(with = "db_id_format")]
     pub origin_id: i64,
-    #[serde(with = "db_id_format")]
-    pub owner_id: i64,
+    pub owner_id: Option<i64>, // can be null
     pub name: String,
     pub value: String,
     pub created_at: Option<NaiveDateTime>,
