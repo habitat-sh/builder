@@ -464,7 +464,7 @@ impl Package {
         visibilities: Vec<PackageVisibility>,
         conn: &PgConnection,
     ) -> QueryResult<Vec<PackagePlatform>> {
-        diesel::sql_query("get_origin_package_platforms_for_package_v6($1, $2)")
+        diesel::sql_query("select * from get_origin_package_platforms_for_package_v6($1, $2)")
             .bind::<Array<Text>, _>(&searchable_ident(&ident))
             .bind::<Array<PackageVisibilityMapping>, _>(&visibilities)
             .get_results(conn)
