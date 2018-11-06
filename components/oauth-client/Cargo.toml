@@ -11,6 +11,8 @@ reqwest = "0.8.1"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
+env_proxy = "*"
+url = "*"
 
 # For metrics library
 [dependencies.builder_core]
