@@ -6,11 +6,13 @@ workspace = "../../"
 
 [dependencies]
 base64 = "*"
+env_proxy = "*"
 reqwest = "0.8.1"
 log = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
+url = "*"
 
 [[bin]]
 name = "segment-client"
