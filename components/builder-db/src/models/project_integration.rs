@@ -73,7 +73,6 @@ impl ProjectIntegration {
         conn: &PgConnection,
     ) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        //delete_origin_project_integration_v1
         diesel::delete(
             origin_project_integrations::table
                 .filter(origin_project_integrations::origin.eq(origin))

@@ -259,7 +259,7 @@ impl Package {
         {
             Ok(pkg) => pkg,
             Err(e) => {
-                debug!("PACKAGE ERROR: {:?}", e);
+                debug!("CREATE PACKAGE ERROR: {:?}", e);
                 return Err(e);
             }
         };
