@@ -21,8 +21,16 @@
 // able to be promoted (e.g. they might have failed or been skipped). "group_id" is the ID of the
 // job group that was to be promoted and "projects" is a vector of strings representing the idents
 // of all of the failed projects.
+use hab_core::package::{PackageIdent, PackageTarget};
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PartialJobGroupPromote {
     pub group_id: u64,
     pub failed_projects: Vec<String>,
+}
+
+pub trait Package {
+    fn get_deps(&self) -> Vec<PackageIdent>;
+    fn get_ident(&self) -> PackageIdent;
+    fn get_target(&self) -> PackageTarget;
 }

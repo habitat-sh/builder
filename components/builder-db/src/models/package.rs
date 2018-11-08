@@ -25,9 +25,12 @@ use hab_core;
 use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
 use models::channel::{Channel, OriginChannelPackage, OriginChannelPromote};
 use models::pagination::*;
-use schema::package::*;
 
-use bldr_core::metrics::CounterMetric;
+use schema::channel::{origin_channel_packages, origin_channels};
+use schema::origin::origins;
+use schema::package::{origin_package_versions, origin_packages};
+
+use bldr_core::{data_structures::Package as CorePackage, metrics::CounterMetric};
 use metrics::Counter;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
@@ -225,15 +228,18 @@ impl Package {
             .get_result(conn)
     }
 
-    pub fn get_all(
+    pub fn get_all(conn: &PgConnection) -> QueryResult<Vec<Package>> {
+        Counter::DBCall.increment();
+        Self::all().get_results(conn)
+    }
+
+    pub fn get_all_for_ident(
         req_ident: BuilderPackageIdent,
         conn: &PgConnection,
     ) -> QueryResult<Vec<Package>> {
-        use schema::package::origin_packages::dsl::*;
-
         Counter::DBCall.increment();
         Self::all()
-            .filter(ident_array.contains(req_ident.parts()))
+            .filter(origin_packages::ident_array.contains(req_ident.parts()))
             .get_results(conn)
     }
 
@@ -280,11 +286,9 @@ impl Package {
         idt: BuilderPackageIdent,
         conn: &PgConnection,
     ) -> QueryResult<usize> {
-        use schema::package::origin_packages::dsl::*;
-
         Counter::DBCall.increment();
-        diesel::update(origin_packages.filter(ident.eq(idt)))
-            .set(visibility.eq(vis))
+        diesel::update(origin_packages::table.filter(origin_packages::ident.eq(idt)))
+            .set(origin_packages::visibility.eq(vis))
             .execute(conn)
     }
 
@@ -302,16 +306,12 @@ impl Package {
         pl: ListPackages,
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
-        use schema::package::origin_packages::dsl::{
-            ident, ident_array, origin_packages, visibility,
-        };
-
         Counter::DBCall.increment();
-        origin_packages
-            .select(ident)
-            .filter(ident_array.contains(pl.ident.parts()))
-            .filter(visibility.eq(any(pl.visibility)))
-            .order(ident.desc())
+        origin_packages::table
+            .select(origin_packages::ident)
+            .filter(origin_packages::ident_array.contains(pl.ident.parts()))
+            .filter(origin_packages::visibility.eq(any(pl.visibility)))
+            .order(origin_packages::ident.desc())
             .paginate(pl.page)
             .per_page(pl.limit)
             .load_and_count_records(conn)
@@ -321,14 +321,12 @@ impl Package {
         pl: ListPackages,
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
-        use schema::package::origin_packages::dsl::{ident_array, origin_packages, visibility};
-
         Counter::DBCall.increment();
-        origin_packages
+        origin_packages::table
             .select(sql(
                 "concat_ws('/', ident_array[1], ident_array[2]) as ident",
-            )).filter(ident_array.contains(pl.ident.parts()))
-            .filter(visibility.eq(any(pl.visibility)))
+            )).filter(origin_packages::ident_array.contains(pl.ident.parts()))
+            .filter(origin_packages::visibility.eq(any(pl.visibility)))
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210
             .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
@@ -343,7 +341,6 @@ impl Package {
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         use schema::origin::origins;
-        use schema::package::origin_packages;
 
         Counter::DBCall.increment();
         origin_packages::table
@@ -363,19 +360,13 @@ impl Package {
         visibility: Vec<PackageVisibility>,
         conn: &PgConnection,
     ) -> QueryResult<Vec<Channel>> {
-        use schema::channel::origin_channel_packages::dsl::origin_channel_packages;
-        use schema::channel::origin_channels::dsl::{name, origin_channels};
-        use schema::package::origin_packages::dsl::{
-            ident as package_ident, origin_packages, visibility as package_visibility,
-        };
-
         Counter::DBCall.increment();
-        origin_packages
-            .inner_join(origin_channel_packages.inner_join(origin_channels))
-            .select(origin_channels::all_columns())
-            .filter(package_ident.eq(ident))
-            .filter(package_visibility.eq(any(visibility)))
-            .order(name.desc())
+        origin_packages::table
+            .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
+            .select(origin_channels::table::all_columns())
+            .filter(origin_packages::ident.eq(ident))
+            .filter(origin_packages::visibility.eq(any(visibility)))
+            .order(origin_channels::name.desc())
             .get_results(conn)
     }
 
@@ -432,8 +423,6 @@ impl Package {
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
-        use schema::origin::origins;
-        use schema::package::origin_packages;
 
         let mut query = origin_packages::table
             .inner_join(origins::table)
@@ -462,9 +451,9 @@ impl Package {
     }
 
     pub fn all() -> All {
-        use schema::package::origin_packages;
         origin_packages::table.select(ALL_COLUMNS)
     }
+
     pub fn list_package_platforms(
         ident: BuilderPackageIdent,
         visibilities: Vec<PackageVisibility>,
@@ -485,6 +474,20 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
         .map(|s| s.to_string())
         .filter(|s| s != "")
         .collect()
+}
+
+impl CorePackage for Package {
+    fn get_ident(&self) -> PackageIdent {
+        self.ident.0.clone()
+    }
+
+    fn get_deps(&self) -> Vec<PackageIdent> {
+        self.deps.clone().iter().map(|d| d.0.clone()).collect()
+    }
+
+    fn get_target(&self) -> PackageTarget {
+        self.target.0.clone()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression)]

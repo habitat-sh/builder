@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use bldr_core::rpc::RpcMessage;
 use hab_net::NetError;
 
+use db::models::package::Package;
 use db::models::projects::*;
 
 use diesel;
@@ -549,7 +550,7 @@ pub fn job_group_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     }
 }
 
-pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
+pub fn job_graph_package_create(req: &Package, state: &AppState) -> Result<Package> {
     let msg = req.parse::<jobsrv::JobGraphPackageCreate>()?;
     let package = msg.get_package();
     // Extend the graph with new package
@@ -578,7 +579,7 @@ pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<Rp
     RpcMessage::make(package).map_err(Error::BuilderCore)
 }
 
-pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
+pub fn job_graph_package_precreate(req: &Package, state: &AppState) -> Result<Package> {
     let msg = req.parse::<jobsrv::JobGraphPackagePreCreate>()?;
     debug!("package_precreate message: {:?}", msg);
     let package: originsrv::OriginPackage = msg.into();

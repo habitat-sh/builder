@@ -31,6 +31,8 @@ use actix_web::{App, HttpRequest, HttpResponse, Json};
 
 use bldr_core::rpc::RpcMessage;
 use bldr_core::target_graph::TargetGraph;
+
+use db::models::package::Package;
 use db::DbPool;
 
 use self::log_archiver::LogArchiver;
@@ -87,8 +89,11 @@ fn handle_rpc((req, msg): (HttpRequest<AppState>, Json<RpcMessage>)) -> HttpResp
         "JobGroupCancel" => handlers::job_group_cancel(&msg, req.state()),
         "JobGroupGet" => handlers::job_group_get(&msg, req.state()),
         "JobGroupOriginGet" => handlers::job_group_origin_get(&msg, req.state()),
-        "JobGraphPackageCreate" => handlers::job_graph_package_create(&msg, req.state()),
-        "JobGraphPackagePreCreate" => handlers::job_graph_package_precreate(&msg, req.state()),
+        // The idea here is to get a regular route hander that takes a json package message
+        // and knows how to convert it into a package struct, do it's graph thing
+        // then return the package
+        // "JobGraphPackageCreate" => handlers::job_graph_package_create(&msg, req.state()),
+        // "JobGraphPackagePreCreate" => handlers::job_graph_package_precreate(&msg, req.state()),
         "JobGraphPackageReverseDependenciesGet" => {
             handlers::job_graph_package_reverse_dependencies_get(&msg, req.state())
         }
@@ -110,11 +115,16 @@ pub fn run(config: Config) -> Result<()> {
     let sys = actix::System::new("builder-jobsrv");
     let cfg = Arc::new(config.clone());
 
+    let db_pool = DbPool::new(&config.datastore.clone())
+        .map_err(Error::Db)
+        .unwrap();
+
     let datastore = DataStore::new(&config.datastore)?;
     let mut graph = TargetGraph::new();
-    let packages = datastore.get_job_graph_packages()?;
+    let packages = Package::get_all(&*db_pool.get_conn()?)?;
+    // let packages = datastore.get_job_graph_packages()?;
     let start_time = PreciseTime::now();
-    let res = graph.build(packages.into_iter());
+    let res = graph.build(packages);
     let end_time = PreciseTime::now();
     info!("Graph build stats ({} sec):", start_time.to(end_time));
 
@@ -129,10 +139,6 @@ pub fn run(config: Config) -> Result<()> {
     LogDirectory::validate(&config.log_dir)?;
     let log_dir = LogDirectory::new(&config.log_dir);
     LogIngester::start(&config, log_dir, datastore.clone())?;
-
-    let db_pool = DbPool::new(&config.datastore.clone())
-        .map_err(Error::Db)
-        .unwrap();
 
     WorkerMgr::start(&config, &datastore, db_pool.clone())?;
     ScheduleMgr::start(&datastore, db_pool.clone(), &config.log_path)?;

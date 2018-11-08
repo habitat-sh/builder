@@ -639,11 +639,12 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
     }
 
     let ident = PackageIdent::new(project.origin.clone(), project.package_name, None, None);
-    let pkgs =
-        match Package::get_all(BuilderPackageIdent(ident), &*conn).map_err(Error::DieselError) {
-            Ok(pkgs) => pkgs,
-            Err(err) => return err.into(),
-        };
+    let pkgs = match Package::get_all_for_ident(BuilderPackageIdent(ident), &*conn)
+        .map_err(Error::DieselError)
+    {
+        Ok(pkgs) => pkgs,
+        Err(err) => return err.into(),
+    };
 
     let mut map = HashMap::new();
 
