@@ -121,7 +121,7 @@ pub fn repo_file_content(req: HttpRequest<AppState>) -> HttpResponse {
 
     let github = &req.state().github;
     let (install_id, repo_id, path) = Path::<(u32, u32, String)>::extract(&req)
-        .unwrap()  // Unwrap ok?
+        .unwrap() // Unwrap ok?
         .into_inner();
 
     let token = {
