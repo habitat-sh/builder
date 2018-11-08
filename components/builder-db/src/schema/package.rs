@@ -4,7 +4,6 @@ table! {
     use diesel_full_text_search::TsVector;
     origin_packages {
         id -> BigInt,
-        origin_id -> BigInt,
         owner_id -> BigInt,
         name -> Text,
         ident -> Text,
@@ -19,11 +18,14 @@ table! {
         visibility -> PackageVisibilityMapping,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
+        origin -> Text,
         ident_vector -> TsVector,
     }
 }
 
 table! {
+    use models::package::PackageVisibilityMapping;
+    use diesel::sql_types::{Array, BigInt, Text};
     origin_package_versions (origin, name) {
         origin -> Text,
         name -> Text,
@@ -31,9 +33,11 @@ table! {
         release_count -> BigInt,
         latest -> Text,
         platforms -> Array<Text>,
+        visibility -> PackageVisibilityMapping,
     }
 }
 
-use super::origin::origins;
+use super::origin::{origins, origins_with_stats};
 
-joinable!(origin_packages -> origins (origin_id));
+joinable!(origin_packages -> origins (origin));
+joinable!(origin_packages -> origins_with_stats (origin));

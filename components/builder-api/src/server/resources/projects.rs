@@ -118,6 +118,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         Err(err) => return err.into(),
     };
 
+    // Do we really need this? Maybe to validate the origin exists?
     let origin = match Origin::get(&body.origin, &*conn).map_err(Error::DieselError) {
         Ok(origin) => origin,
         Err(err) => return err.into(),
@@ -129,19 +130,23 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 
         let new_project = NewProject {
             owner_id: account_id as i64,
-            origin_name: &origin.name,
+            origin: &origin.name,
             package_name: "testapp",
+            name: &format!("{}/{}", &origin.name, "testapp"),
             plan_path: &body.plan_path,
             vcs_type: "git",
             vcs_data: "https://github.com/habitat-sh/testapp.git",
-            install_id: body.installation_id as i64,
+            vcs_installation_id: body.installation_id as i64,
             visibility: &PackageVisibility::Public,
             auto_build: body.auto_build,
         };
 
         match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
             Ok(project) => return HttpResponse::Created().json(project),
-            Err(err) => return err.into(),
+            Err(err) => {
+                debug!("ERROR: {:?}", err);
+                return err.into();
+            }
         }
     };
 
@@ -197,14 +202,17 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
+    let package_name = plan.name.trim_matches('"');
+
     let new_project = NewProject {
         owner_id: account_id as i64,
-        origin_name: &origin.name,
-        package_name: plan.name.trim_matches('"'),
+        origin: &origin.name,
+        package_name: package_name,
+        name: &format!("{}/{}", &origin.name, package_name),
         plan_path: &body.plan_path,
         vcs_type: "git",
         vcs_data: &vcs_data,
-        install_id: body.installation_id as i64,
+        vcs_installation_id: body.installation_id as i64,
         visibility: &origin.default_package_visibility,
         auto_build: body.auto_build,
     };
@@ -297,13 +305,13 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
 
         let update_project = UpdateProject {
             id: project.id,
-            origin_id: project.origin_id,
+            origin: &project.origin,
             owner_id: account_id as i64,
             package_name: "testapp",
             plan_path: &body.plan_path,
             vcs_type: "git",
             vcs_data: "https://github.com/habitat-sh/testapp.git",
-            install_id: body.installation_id as i64,
+            vcs_installation_id: body.installation_id as i64,
             visibility: &PackageVisibility::Public,
             auto_build: body.auto_build,
         };
@@ -375,12 +383,12 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
     let update_project = UpdateProject {
         id: project.id,
         owner_id: account_id as i64,
-        origin_id: project.origin_id,
+        origin: &project.origin,
         package_name: &plan.name.trim_matches('"'),
         plan_path: &body.plan_path,
         vcs_type: "git",
         vcs_data: &vcs_data,
-        install_id: body.installation_id as i64,
+        vcs_installation_id: body.installation_id as i64,
         visibility: &project.visibility,
         auto_build: body.auto_build,
     };
@@ -616,12 +624,12 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
     let update_project = UpdateProject {
         id: project.id,
         owner_id: project.owner_id,
-        origin_id: project.origin_id,
+        origin: &project.origin,
         package_name: &package_name,
         plan_path: &project.plan_path,
         vcs_type: &project.vcs_type,
         vcs_data: &project.vcs_data,
-        install_id: project.vcs_installation_id,
+        vcs_installation_id: project.vcs_installation_id,
         visibility: &pv,
         auto_build: project.auto_build,
     };
@@ -630,7 +638,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let ident = PackageIdent::new(project.origin_name, project.package_name, None, None);
+    let ident = PackageIdent::new(project.origin.clone(), project.package_name, None, None);
     let pkgs =
         match Package::get_all(BuilderPackageIdent(ident), &*conn).map_err(Error::DieselError) {
             Ok(pkgs) => pkgs,

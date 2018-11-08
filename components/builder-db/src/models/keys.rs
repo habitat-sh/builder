@@ -3,21 +3,18 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
-use diesel::sql_types::{BigInt, Binary, Text};
-use diesel::RunQueryDsl;
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use schema::key::*;
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_public_encryption_keys"]
 pub struct OriginPublicEncryptionKey {
     #[serde(with = "db_id_format")]
     pub id: i64,
     #[serde(with = "db_id_format")]
-    pub origin_id: i64,
-    #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
     pub revision: String,
@@ -25,16 +22,15 @@ pub struct OriginPublicEncryptionKey {
     pub body: Vec<u8>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_private_encryption_keys"]
 pub struct OriginPrivateEncryptionKey {
     #[serde(with = "db_id_format")]
     pub id: i64,
     #[serde(with = "db_id_format")]
-    pub origin_id: i64,
-    #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
     pub revision: String,
@@ -42,16 +38,15 @@ pub struct OriginPrivateEncryptionKey {
     pub body: Vec<u8>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_secret_keys"]
 pub struct OriginPrivateSigningKey {
     #[serde(with = "db_id_format")]
     pub id: i64,
     #[serde(with = "db_id_format")]
-    pub origin_id: i64,
-    #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
     pub revision: String,
@@ -59,16 +54,15 @@ pub struct OriginPrivateSigningKey {
     pub body: Vec<u8>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_public_keys"]
 pub struct OriginPublicSigningKey {
     #[serde(with = "db_id_format")]
     pub id: i64,
     #[serde(with = "db_id_format")]
-    pub origin_id: i64,
-    #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
     pub revision: String,
@@ -76,46 +70,51 @@ pub struct OriginPublicSigningKey {
     pub body: Vec<u8>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
 }
 
 #[derive(Insertable)]
 #[table_name = "origin_public_encryption_keys"]
 pub struct NewOriginPublicEncryptionKey<'a> {
     pub owner_id: i64,
-    pub origin_id: i64,
     pub name: &'a str,
+    pub full_name: &'a str,
     pub revision: &'a str,
     pub body: &'a [u8],
+    pub origin: &'a str,
 }
 
 #[derive(Insertable)]
 #[table_name = "origin_private_encryption_keys"]
 pub struct NewOriginPrivateEncryptionKey<'a> {
     pub owner_id: i64,
-    pub origin_id: i64,
     pub name: &'a str,
+    pub full_name: &'a str,
     pub revision: &'a str,
     pub body: &'a [u8],
+    pub origin: &'a str,
 }
 
 #[derive(Insertable)]
 #[table_name = "origin_secret_keys"]
 pub struct NewOriginPrivateSigningKey<'a> {
     pub owner_id: i64,
-    pub origin_id: i64,
     pub name: &'a str,
+    pub full_name: &'a str,
     pub revision: &'a str,
     pub body: &'a [u8],
+    pub origin: &'a str,
 }
 
 #[derive(Insertable)]
 #[table_name = "origin_public_keys"]
 pub struct NewOriginPublicSigningKey<'a> {
     pub owner_id: i64,
-    pub origin_id: i64,
     pub name: &'a str,
+    pub full_name: &'a str,
     pub revision: &'a str,
     pub body: &'a [u8],
+    pub origin: &'a str,
 }
 
 impl OriginPublicEncryptionKey {
@@ -125,9 +124,11 @@ impl OriginPublicEncryptionKey {
         conn: &PgConnection,
     ) -> QueryResult<OriginPublicEncryptionKey> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_public_encryption_key_v1($1, $2)")
-            .bind::<Text, _>(origin)
-            .bind::<Text, _>(revision)
+        origin_public_encryption_keys::table
+            .filter(origin_public_encryption_keys::origin.eq(origin))
+            .filter(origin_public_encryption_keys::revision.eq(revision))
+            .limit(1)
+            .order(origin_public_encryption_keys::revision.desc())
             .get_result(conn)
     }
 
@@ -136,29 +137,25 @@ impl OriginPublicEncryptionKey {
         conn: &PgConnection,
     ) -> QueryResult<OriginPublicEncryptionKey> {
         Counter::DBCall.increment();
-        let full_name = format!("{}-{}", req.name, req.revision);
-        diesel::sql_query(
-            "select * from insert_origin_public_encryption_key_v1($1, $2, $3, $4, $5, $6)",
-        ).bind::<BigInt, _>(req.origin_id)
-        .bind::<BigInt, _>(req.owner_id)
-        .bind::<Text, _>(req.name)
-        .bind::<Text, _>(req.revision)
-        .bind::<Text, _>(full_name)
-        .bind::<Binary, _>(req.body)
-        .get_result(conn)
+        diesel::insert_into(origin_public_encryption_keys::table)
+            .values(req)
+            .get_result(conn)
     }
 
     pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPublicEncryptionKey> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_public_encryption_key_latest_v1($1)")
-            .bind::<Text, _>(origin)
+        origin_public_encryption_keys::table
+            .filter(origin_public_encryption_keys::origin.eq(origin))
+            .limit(1)
+            .order(origin_public_encryption_keys::revision.desc())
             .get_result(conn)
     }
 
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginPublicEncryptionKey>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_public_encryption_keys_for_origin_v1($1)")
-            .bind::<Text, _>(origin)
+        origin_public_encryption_keys::table
+            .filter(origin_public_encryption_keys::origin.eq(origin))
+            .order(origin_public_encryption_keys::revision.desc())
             .get_results(conn)
     }
 }
@@ -166,8 +163,11 @@ impl OriginPublicEncryptionKey {
 impl OriginPrivateEncryptionKey {
     pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateEncryptionKey> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_private_encryption_key_v1($1)")
-            .bind::<Text, _>(origin)
+        // This is really latest because you're not allowed to get old keys
+        origin_private_encryption_keys::table
+            .filter(origin_private_encryption_keys::origin.eq(origin))
+            .limit(1)
+            .order(origin_private_encryption_keys::full_name.desc())
             .get_result(conn)
     }
 
@@ -176,16 +176,9 @@ impl OriginPrivateEncryptionKey {
         conn: &PgConnection,
     ) -> QueryResult<OriginPrivateEncryptionKey> {
         Counter::DBCall.increment();
-        let full_name = format!("{}-{}", req.name, req.revision);
-        diesel::sql_query(
-            "select * from insert_origin_private_encryption_key_v1($1, $2, $3, $4, $5, $6)",
-        ).bind::<BigInt, _>(req.origin_id)
-        .bind::<BigInt, _>(req.owner_id)
-        .bind::<Text, _>(req.name)
-        .bind::<Text, _>(req.revision)
-        .bind::<Text, _>(full_name)
-        .bind::<Binary, _>(req.body)
-        .get_result(conn)
+        diesel::insert_into(origin_private_encryption_keys::table)
+            .values(req)
+            .get_result(conn)
     }
 }
 
@@ -196,9 +189,11 @@ impl OriginPublicSigningKey {
         conn: &PgConnection,
     ) -> QueryResult<OriginPublicSigningKey> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_public_key_v1($1, $2)")
-            .bind::<Text, _>(origin)
-            .bind::<Text, _>(revision)
+        origin_public_keys::table
+            .filter(origin_public_keys::origin.eq(origin))
+            .filter(origin_public_keys::revision.eq(revision))
+            .limit(1)
+            .order(origin_public_keys::revision.desc())
             .get_result(conn)
     }
 
@@ -207,28 +202,25 @@ impl OriginPublicSigningKey {
         conn: &PgConnection,
     ) -> QueryResult<OriginPublicSigningKey> {
         Counter::DBCall.increment();
-        let full_name = format!("{}-{}", req.name, req.revision);
-        diesel::sql_query("select * from insert_origin_public_key_v1($1, $2, $3, $4, $5, $6)")
-            .bind::<BigInt, _>(req.origin_id)
-            .bind::<BigInt, _>(req.owner_id)
-            .bind::<Text, _>(req.name)
-            .bind::<Text, _>(req.revision)
-            .bind::<Text, _>(full_name)
-            .bind::<Binary, _>(req.body)
+        diesel::insert_into(origin_public_keys::table)
+            .values(req)
             .get_result(conn)
     }
 
     pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPublicSigningKey> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_public_key_latest_v1($1)")
-            .bind::<Text, _>(origin)
+        origin_public_keys::table
+            .filter(origin_public_keys::origin.eq(origin))
+            .limit(1)
+            .order(origin_public_keys::revision.desc())
             .get_result(conn)
     }
 
-    pub fn list(origin_id: u64, conn: &PgConnection) -> QueryResult<Vec<OriginPublicSigningKey>> {
+    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginPublicSigningKey>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_public_keys_for_origin_v1($1)")
-            .bind::<BigInt, _>(origin_id as i64)
+        origin_public_keys::table
+            .filter(origin_public_keys::origin.eq(origin))
+            .order(origin_public_keys::revision.desc())
             .get_results(conn)
     }
 }
@@ -236,8 +228,11 @@ impl OriginPublicSigningKey {
 impl OriginPrivateSigningKey {
     pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateSigningKey> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_secret_key_v1($1)")
-            .bind::<Text, _>(origin)
+        // This is really latest because you're not allowed to get old keys
+        origin_secret_keys::table
+            .filter(origin_secret_keys::origin.eq(origin))
+            .limit(1)
+            .order(origin_secret_keys::full_name.desc())
             .get_result(conn)
     }
 
@@ -246,14 +241,8 @@ impl OriginPrivateSigningKey {
         conn: &PgConnection,
     ) -> QueryResult<OriginPrivateSigningKey> {
         Counter::DBCall.increment();
-        let full_name = format!("{}-{}", req.name, req.revision);
-        diesel::sql_query("select * from insert_origin_secret_key_v1($1, $2, $3, $4, $5, $6)")
-            .bind::<BigInt, _>(req.origin_id)
-            .bind::<BigInt, _>(req.owner_id)
-            .bind::<Text, _>(req.name)
-            .bind::<Text, _>(req.revision)
-            .bind::<Text, _>(full_name)
-            .bind::<Binary, _>(req.body)
+        diesel::insert_into(origin_secret_keys::table)
+            .values(req)
             .get_result(conn)
     }
 }

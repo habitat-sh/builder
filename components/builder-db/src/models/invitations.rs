@@ -3,21 +3,18 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
-use diesel::sql_types::{BigInt, Bool, Text};
-use diesel::RunQueryDsl;
-use schema::invitation::*;
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use schema::invitation::origin_invitations;
+use schema::member::origin_members;
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
-#[table_name = "origin_invitations"]
+#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
 pub struct OriginInvitation {
     #[serde(with = "db_id_format")]
     pub id: i64,
-    #[serde(with = "db_id_format")]
-    pub origin_id: i64,
-    pub origin_name: String,
+    pub origin: String,
     #[serde(with = "db_id_format")]
     pub account_id: i64,
     pub account_name: String,
@@ -31,8 +28,7 @@ pub struct OriginInvitation {
 #[derive(Insertable)]
 #[table_name = "origin_invitations"]
 pub struct NewOriginInvitation<'a> {
-    pub origin_id: i64,
-    pub origin_name: &'a str,
+    pub origin: &'a str,
     pub account_id: i64,
     pub account_name: &'a str,
     pub owner_id: i64,
@@ -41,22 +37,15 @@ pub struct NewOriginInvitation<'a> {
 impl OriginInvitation {
     pub fn create(req: &NewOriginInvitation, conn: &PgConnection) -> QueryResult<OriginInvitation> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from insert_origin_invitation_v1($1, $2, $3, $4, $5)")
-            .bind::<BigInt, _>(req.origin_id)
-            .bind::<Text, _>(req.origin_name)
-            .bind::<BigInt, _>(req.account_id)
-            .bind::<Text, _>(req.account_name)
-            .bind::<BigInt, _>(req.owner_id)
+        diesel::insert_into(origin_invitations::table)
+            .values(req)
             .get_result(conn)
     }
 
-    pub fn list_by_origin(
-        origin_id: u64,
-        conn: &PgConnection,
-    ) -> QueryResult<Vec<OriginInvitation>> {
+    pub fn list_by_origin(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginInvitation>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_invitations_for_origin_v1($1)")
-            .bind::<BigInt, _>(origin_id as i64)
+        origin_invitations::table
+            .filter(origin_invitations::origin.eq(origin))
             .get_results(conn)
     }
 
@@ -65,32 +54,39 @@ impl OriginInvitation {
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginInvitation>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_invitations_for_account_v1($1)")
-            .bind::<BigInt, _>(owner_id as i64)
+        origin_invitations::table
+            .filter(origin_invitations::account_id.eq(owner_id as i64))
+            .filter(origin_invitations::ignored.eq(false))
             .get_results(conn)
     }
 
     pub fn accept(invite_id: u64, ignore: bool, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from accept_origin_invitation_v1($1, $2)")
-            .bind::<BigInt, _>(invite_id as i64)
-            .bind::<Bool, _>(ignore)
-            .execute(conn)
+        let invitation = origin_invitations::table.find(invite_id as i64);
+        if ignore {
+            return diesel::update(invitation)
+                .set(origin_invitations::ignored.eq(ignore))
+                .execute(conn);
+        }
+
+        diesel::insert_into(origin_members::table)
+            .values(invitation.select((origin_invitations::account_id, origin_invitations::origin)))
+            .into_columns((origin_members::account_id, origin_members::origin))
+            .on_conflict_do_nothing()
+            .execute(conn)?;
+
+        diesel::delete(invitation).execute(conn)
     }
 
-    pub fn ignore(invite_id: u64, account_id: u64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn ignore(invite_id: u64, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from ignore_origin_invitation_v1($1, $2)")
-            .bind::<BigInt, _>(invite_id as i64)
-            .bind::<BigInt, _>(account_id as i64)
-            .execute(conn)
+        return diesel::update(origin_invitations::table.find(invite_id as i64))
+            .set(origin_invitations::ignored.eq(true))
+            .execute(conn);
     }
 
-    pub fn rescind(invite_id: u64, account_id: u64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn rescind(invite_id: u64, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from rescind_origin_invitation_v1($1, $2)")
-            .bind::<BigInt, _>(invite_id as i64)
-            .bind::<BigInt, _>(account_id as i64)
-            .execute(conn)
+        diesel::delete(origin_invitations::table.find(invite_id as i64)).execute(conn)
     }
 }

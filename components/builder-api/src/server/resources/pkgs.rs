@@ -872,11 +872,7 @@ fn do_upload_package_finish(
     };
 
     package.owner_id = session.get_id() as i64;
-
-    package.origin_id = match Origin::get(&ident.origin, &*conn) {
-        Ok(origin) => origin.id,
-        Err(e) => return Error::DieselError(e).into(),
-    };
+    package.origin = ident.clone().origin;
 
     // First, try to fetch visibility settings from a project, if one exists
     let project_name = format!("{}/{}", ident.origin.clone(), ident.name.clone());
@@ -1191,7 +1187,7 @@ pub fn platforms_for_package_ident(
         helpers::visibility_for_optional_session(req, opt_session_id, &package.origin),
         &*conn,
     ) {
-        Ok(list) => Ok(Some(list.iter().map(|p| p.target.to_string()).collect())),
+        Ok(list) => Ok(Some(list.iter().map(|p| p.to_string()).collect())),
         Err(NotFound) => Ok(None),
         Err(err) => Err(Error::DieselError(err)),
     }

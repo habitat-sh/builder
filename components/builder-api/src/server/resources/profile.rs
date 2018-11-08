@@ -69,7 +69,7 @@ pub fn do_get_access_tokens(
 //
 fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.get_id() as i64,
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 

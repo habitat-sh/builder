@@ -3,15 +3,13 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
-use diesel::sql_types::Text;
-use diesel::RunQueryDsl;
-use schema::integration::*;
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use schema::integration::origin_integrations;
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
-#[table_name = "origin_integrations"]
+#[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginIntegration {
     #[serde(with = "db_id_format")]
     pub id: i64,
@@ -35,11 +33,8 @@ pub struct NewOriginIntegration<'a> {
 impl OriginIntegration {
     pub fn create(req: &NewOriginIntegration, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from upsert_origin_integration_v1($1, $2, $3, $4)")
-            .bind::<Text, _>(req.origin)
-            .bind::<Text, _>(req.integration)
-            .bind::<Text, _>(req.name)
-            .bind::<Text, _>(req.body)
+        diesel::insert_into(origin_integrations::table)
+            .values(req)
             .execute(conn)
     }
 
@@ -50,10 +45,10 @@ impl OriginIntegration {
         conn: &PgConnection,
     ) -> QueryResult<OriginIntegration> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_integration_v1($1, $2, $3)")
-            .bind::<Text, _>(origin)
-            .bind::<Text, _>(integration)
-            .bind::<Text, _>(name)
+        origin_integrations::table
+            .filter(origin_integrations::origin.eq(origin))
+            .filter(origin_integrations::name.eq(name))
+            .filter(origin_integrations::integration.eq(integration))
             .get_result(conn)
     }
 
@@ -64,11 +59,12 @@ impl OriginIntegration {
         conn: &PgConnection,
     ) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from delete_origin_integration_v1($1, $2, $3)")
-            .bind::<Text, _>(origin)
-            .bind::<Text, _>(integration)
-            .bind::<Text, _>(name)
-            .execute(conn)
+        diesel::delete(
+            origin_integrations::table
+                .filter(origin_integrations::origin.eq(origin))
+                .filter(origin_integrations::name.eq(name))
+                .filter(origin_integrations::integration.eq(integration)),
+        ).execute(conn)
     }
 
     pub fn list_for_origin_integration(
@@ -77,9 +73,9 @@ impl OriginIntegration {
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginIntegration>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_integrations_v1($1, $2)")
-            .bind::<Text, _>(origin)
-            .bind::<Text, _>(integration)
+        origin_integrations::table
+            .filter(origin_integrations::origin.eq(origin))
+            .filter(origin_integrations::integration.eq(integration))
             .get_results(conn)
     }
 
@@ -88,8 +84,8 @@ impl OriginIntegration {
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginIntegration>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_integrations_for_origin_v1($1)")
-            .bind::<Text, _>(origin)
+        origin_integrations::table
+            .filter(origin_integrations::origin.eq(origin))
             .get_results(conn)
     }
 }

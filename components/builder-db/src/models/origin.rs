@@ -5,23 +5,21 @@ use diesel;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::QueryResult;
-use diesel::sql_types::{BigInt, Text};
-use diesel::RunQueryDsl;
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 
-use models::package::{PackageVisibility, PackageVisibilityMapping};
+use models::channel::{Channel, CreateChannel};
+use models::package::PackageVisibility;
 use protocol::originsrv;
 
-use schema::member::*;
-use schema::origin::*;
+use schema::member::origin_members;
+use schema::origin::{origins, origins_with_secret_key, origins_with_stats};
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origins"]
 pub struct Origin {
-    #[serde(with = "db_id_format")]
-    pub id: i64,
     #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
@@ -30,11 +28,8 @@ pub struct Origin {
     pub default_package_visibility: PackageVisibility,
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
-#[table_name = "origins_with_secret_key"]
+#[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginWithSecretKey {
-    #[serde(with = "db_id_format")]
-    pub id: i64,
     #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
@@ -42,11 +37,8 @@ pub struct OriginWithSecretKey {
     pub default_package_visibility: PackageVisibility,
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
-#[table_name = "origins_with_stats"]
+#[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginWithStats {
-    #[serde(with = "db_id_format")]
-    pub id: i64,
     #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
@@ -56,104 +48,133 @@ pub struct OriginWithStats {
     pub package_count: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Queryable, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, Queryable, QueryableByName, Insertable)]
 #[table_name = "origin_members"]
 pub struct OriginMember {
     #[serde(with = "db_id_format")]
-    pub origin_id: i64,
-    #[serde(with = "db_id_format")]
     pub account_id: i64,
-    pub origin_name: String,
-    pub account_name: String,
+    pub origin: String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
 
-// #[derive(Insertable)]
-// #[table_name = "origins"]
-// TODO: Make this directly insertable?
+#[derive(Insertable)]
+#[table_name = "origins"]
 pub struct NewOrigin<'a> {
     pub name: &'a str,
     pub owner_id: i64,
-    pub owner_name: &'a str,
     pub default_package_visibility: &'a PackageVisibility,
 }
 
 impl Origin {
     pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
         Counter::DBCall.increment();
-        diesel::sql_query(
-            "select * from origins_with_secret_key_full_name_v2 where name = $1 limit 1",
-        ).bind::<Text, _>(origin)
-        .get_result(conn)
+        origins_with_secret_key::table
+            .find(origin)
+            .limit(1)
+            .get_result(conn)
     }
 
     pub fn list(owner_id: i64, conn: &PgConnection) -> QueryResult<Vec<OriginWithStats>> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from my_origins_with_stats_v2($1)")
-            .bind::<BigInt, _>(owner_id)
+        origins_with_stats::table
+            .inner_join(origin_members::table)
+            .select(origins_with_stats::table::all_columns())
+            .filter(origin_members::account_id.eq(owner_id))
+            .order(origins_with_stats::name.asc())
             .get_results(conn)
     }
 
     pub fn create(req: &NewOrigin, conn: &PgConnection) -> QueryResult<Origin> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from insert_origin_v3($1, $2, $3, $4)")
-            .bind::<Text, _>(req.name)
-            .bind::<BigInt, _>(req.owner_id)
-            .bind::<Text, _>(req.owner_name)
-            .bind::<PackageVisibilityMapping, _>(req.default_package_visibility)
-            .get_result(conn)
+        let new_origin = diesel::insert_into(origins::table)
+            .values(req)
+            .get_result(conn)?;
+
+        OriginMember::add(req.name, req.owner_id, conn)?;
+        Channel::create(
+            CreateChannel {
+                name: "unstable",
+                owner_id: req.owner_id,
+                origin: req.name,
+            },
+            conn,
+        )?;
+        Channel::create(
+            CreateChannel {
+                name: "stable",
+                owner_id: req.owner_id,
+                origin: req.name,
+            },
+            conn,
+        )?;
+
+        Ok(new_origin)
     }
 
     pub fn update(name: &str, dpv: PackageVisibility, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from update_origin_v2($1, $2)")
-            .bind::<Text, _>(name)
-            .bind::<PackageVisibilityMapping, _>(dpv)
+        diesel::update(origins::table.find(name))
+            .set(origins::default_package_visibility.eq(dpv))
             .execute(conn)
     }
 
     pub fn check_membership(
         origin: &str,
-        account_id: u64,
+        account_id: i64,
         conn: &PgConnection,
     ) -> QueryResult<bool> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from check_account_in_origin_members_v1($1, $2)")
-            .bind::<Text, _>(origin)
-            .bind::<BigInt, _>(account_id as i64)
+        origin_members::table
+            .filter(origin_members::origin.eq(origin))
+            .filter(origin_members::account_id.eq(account_id))
             .execute(conn)
             .and_then(|s| Ok(s > 0))
     }
 }
 
 impl OriginMember {
-    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginMember>> {
+    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<String>> {
+        use schema::account::accounts;
         use schema::member::origin_members;
-        use schema::origin::origins;
 
         Counter::DBCall.increment();
         origin_members::table
-            .select(origin_members::table::all_columns())
-            .inner_join(origins::table)
-            .filter(origins::name.eq(origin))
-            .order(origin_members::account_name.asc())
+            .inner_join(accounts::table)
+            .select(accounts::name)
+            .filter(origin_members::origin.eq(origin))
+            .order(accounts::name.asc())
             .get_results(conn)
     }
 
-    pub fn delete(origin_id: u64, account_name: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(origin: &str, account_name: &str, conn: &PgConnection) -> QueryResult<usize> {
+        use schema::account::accounts;
+
         Counter::DBCall.increment();
-        diesel::sql_query("select * from delete_origin_member_v1($1, $2)")
-            .bind::<BigInt, _>(origin_id as i64)
-            .bind::<Text, _>(account_name)
-            .execute(conn)
+        diesel::delete(
+            origin_members::table
+                .filter(origin_members::origin.eq(origin))
+                .filter(
+                    origin_members::account_id.nullable().eq(accounts::table
+                        .select(accounts::id)
+                        .filter(accounts::name.eq(account_name))
+                        .single_value()),
+                ),
+        ).execute(conn)
+    }
+
+    pub fn add(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        diesel::insert_into(origin_members::table)
+            .values((
+                origin_members::origin.eq(origin),
+                origin_members::account_id.eq(account_id),
+            )).execute(conn)
     }
 }
 
 impl Into<originsrv::Origin> for Origin {
     fn into(self) -> originsrv::Origin {
         let mut orig = originsrv::Origin::new();
-        orig.set_id(self.id as u64);
         orig.set_owner_id(self.owner_id as u64);
         orig.set_name(self.name);
         orig.set_default_package_visibility(self.default_package_visibility.into());
@@ -164,7 +185,6 @@ impl Into<originsrv::Origin> for Origin {
 impl From<originsrv::Origin> for Origin {
     fn from(origin: originsrv::Origin) -> Origin {
         Origin {
-            id: origin.get_id() as i64,
             owner_id: origin.get_owner_id() as i64,
             name: origin.get_name().to_string(),
             default_package_visibility: PackageVisibility::from(

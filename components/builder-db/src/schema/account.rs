@@ -1,8 +1,8 @@
 table! {
     accounts (id) {
         id -> BigInt,
-        name -> Text,
         email -> Text,
+        name -> Text,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
     }

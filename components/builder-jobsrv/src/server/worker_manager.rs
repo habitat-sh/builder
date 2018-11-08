@@ -30,7 +30,6 @@ use protobuf::{parse_from_bytes, Message, RepeatedField};
 
 use db::models::integration::*;
 use db::models::keys::*;
-use db::models::origin::*;
 use db::models::project_integration::*;
 use db::models::secrets::*;
 
@@ -548,15 +547,9 @@ impl WorkerMgr {
         let origin = job.get_project().get_origin_name().to_string();
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        // TODO (SA) - we shouldn't need to pull the origin here to just get the id
-        let origin_id = match Origin::get(&origin, &*conn) {
-            Ok(origin) => origin.id,
-            Err(err) => return Err(Error::DieselError(err)),
-        };
-
         let mut secrets = RepeatedField::new();
 
-        match OriginSecret::list(origin_id as i64, &*conn).map_err(Error::DieselError) {
+        match OriginSecret::list(&origin, &*conn).map_err(Error::DieselError) {
             Ok(secrets_list) => {
                 if secrets_list.len() > 0 {
                     // fetch the private origin encryption key from the database
@@ -600,7 +593,7 @@ impl WorkerMgr {
                                 {
                                     Ok(decrypted_secret) => {
                                         secret_decrypted.set_id(secret.id as u64);
-                                        secret_decrypted.set_origin_id(secret.origin_id as u64);
+                                        secret_decrypted.set_origin(secret.origin);
                                         secret_decrypted.set_name(secret.name.to_string());
                                         secret_decrypted.set_value(
                                             String::from_utf8(decrypted_secret).unwrap(),

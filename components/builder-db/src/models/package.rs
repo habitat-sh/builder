@@ -15,15 +15,15 @@ use diesel::pg::{Pg, PgConnection};
 use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::serialize::{self, IsNull, Output, ToSql};
-use diesel::sql_types::{Array, BigInt, Integer, Text};
+use diesel::sql_types::Text;
 use diesel::PgArrayExpressionMethods;
 use diesel::RunQueryDsl;
 use diesel_full_text_search::{to_tsquery, TsQueryExtensions};
 
 use super::db_id_format;
 use hab_core;
-use hab_core::package::{FromArchive, PackageArchive, PackageIdent, PackageTarget};
-use models::channel::Channel;
+use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
+use models::channel::{Channel, OriginChannelPackage, OriginChannelPromote};
 use models::pagination::*;
 use schema::package::*;
 
@@ -35,8 +35,6 @@ use metrics::Counter;
 pub struct Package {
     #[serde(with = "db_id_format")]
     pub id: i64,
-    #[serde(with = "db_id_format")]
-    pub origin_id: i64,
     #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
@@ -52,6 +50,7 @@ pub struct Package {
     pub visibility: PackageVisibility,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
 }
 
 /// We literally never want to select `ident_vector`
@@ -59,7 +58,6 @@ pub struct Package {
 
 type AllColumns = (
     origin_packages::id,
-    origin_packages::origin_id,
     origin_packages::owner_id,
     origin_packages::name,
     origin_packages::ident,
@@ -74,11 +72,11 @@ type AllColumns = (
     origin_packages::visibility,
     origin_packages::created_at,
     origin_packages::updated_at,
+    origin_packages::origin,
 );
 
 pub const ALL_COLUMNS: AllColumns = (
     origin_packages::id,
-    origin_packages::origin_id,
     origin_packages::owner_id,
     origin_packages::name,
     origin_packages::ident,
@@ -93,24 +91,20 @@ pub const ALL_COLUMNS: AllColumns = (
     origin_packages::visibility,
     origin_packages::created_at,
     origin_packages::updated_at,
+    origin_packages::origin,
 );
 
 type All = diesel::dsl::Select<origin_packages::table, AllColumns>;
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
-pub struct PackagePlatform {
-    #[sql_type = "Text"]
-    pub target: String,
-}
 
-// TED TODO - Remove this and derive AsChangeset above
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Insertable)]
+#[table_name = "origin_packages"]
 pub struct NewPackage {
-    #[serde(with = "db_id_format")]
-    pub origin_id: i64,
+    pub origin: String,
     #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub name: String,
     pub ident: BuilderPackageIdent,
+    pub ident_array: Vec<String>,
     pub checksum: String,
     pub manifest: String,
     pub config: String,
@@ -154,8 +148,7 @@ pub struct SearchPackages {
     pub page: i64,
     pub limit: i64,
 }
-#[derive(Debug, Serialize, Deserialize, QueryableByName)]
-#[table_name = "origin_package_versions"]
+#[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginPackageVersions {
     pub origin: String,
     pub name: String,
@@ -164,6 +157,7 @@ pub struct OriginPackageVersions {
     pub release_count: i64,
     pub latest: String,
     pub platforms: Vec<String>,
+    pub visibility: PackageVisibility,
 }
 
 #[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone, ToSql, FromSql)]
@@ -245,29 +239,40 @@ impl Package {
 
     pub fn get_latest(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from get_origin_package_latest_v7($1, $2, $3)")
-            .bind::<Array<Text>, _>(req.ident.parts())
-            .bind::<Text, _>(req.target)
-            .bind::<Array<PackageVisibilityMapping>, _>(req.visibility)
+        Self::all()
+            .filter(origin_packages::ident_array.contains(req.ident.parts()))
+            .filter(origin_packages::target.eq(req.target))
+            .filter(origin_packages::visibility.eq(any(req.visibility)))
+            .order(sql::<Package>(
+                "to_semver(ident_array[3]) desc, ident_array[4] desc",
+            )).limit(1)
             .get_result(conn)
     }
 
     pub fn create(package: NewPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT * FROM insert_origin_package_v5($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
-            .bind::<BigInt,_>(package.origin_id)
-            .bind::<BigInt,_>(package.owner_id)
-            .bind::<Text,_>(package.name)
-            .bind::<Text,_>(package.ident)
-            .bind::<Text,_>(package.checksum)
-            .bind::<Text,_>(package.manifest)
-            .bind::<Text,_>(package.config)
-            .bind::<Text,_>(package.target)
-            .bind::<Array<Text>,_>(package.deps)
-            .bind::<Array<Text>,_>(package.tdeps)
-            .bind::<Array<Integer>,_>(package.exposes)
-            .bind::<PackageVisibilityMapping,_>(package.visibility)
-        .get_result(conn)
+        let package = match diesel::insert_into(origin_packages::table)
+            .values(&package)
+            .returning(ALL_COLUMNS)
+            .on_conflict_do_nothing()
+            .get_result::<Package>(conn)
+        {
+            Ok(pkg) => pkg,
+            Err(e) => {
+                debug!("CREATE PACKAGE ERROR: {:?}", e);
+                return Err(e);
+            }
+        };
+
+        OriginChannelPackage::promote(
+            OriginChannelPromote {
+                ident: package.ident.clone(),
+                origin: package.origin.clone(),
+                channel: String::from("unstable"),
+            },
+            conn,
+        )?;
+        Ok(package)
     }
 
     pub fn update_visibility(
@@ -288,9 +293,8 @@ impl Package {
         conn: &PgConnection,
     ) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("select * from update_package_visibility_in_bulk_v2($1, $2)")
-            .bind::<PackageVisibilityMapping, _>(req.visibility)
-            .bind::<Array<BigInt>, _>(req.ids)
+        diesel::update(origin_packages::table.filter(origin_packages::id.eq_any(req.ids)))
+            .set(origin_packages::visibility.eq(req.visibility))
             .execute(conn)
     }
 
@@ -379,13 +383,13 @@ impl Package {
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginPackageVersions>> {
         Counter::DBCall.increment();
-        // So many regrets with this query
-        diesel::sql_query(
-            "select $1 as origin, $2 as name, version, release_count, latest, string_to_array(platforms, ',') as platforms from get_origin_package_versions_for_origin_v8($1, $2, $3)",
-        ).bind::<Text, _>(&ident.origin)
-        .bind::<Text, _>(&ident.name)
-        .bind::<Array<PackageVisibilityMapping>, _>(visibility)
-        .get_results(conn)
+
+        origin_package_versions::table
+            .filter(origin_package_versions::origin.eq(ident.origin()))
+            .filter(origin_package_versions::name.eq(ident.name()))
+            .filter(origin_package_versions::visibility.eq(any(visibility)))
+            .order(origin_package_versions::version.desc())
+            .get_results(conn)
     }
 
     pub fn search(
@@ -455,7 +459,7 @@ impl Package {
             .load_and_count_records(conn)
     }
 
-    fn all() -> All {
+    pub fn all() -> All {
         use schema::package::origin_packages;
         origin_packages::table.select(ALL_COLUMNS)
     }
@@ -463,10 +467,11 @@ impl Package {
         ident: BuilderPackageIdent,
         visibilities: Vec<PackageVisibility>,
         conn: &PgConnection,
-    ) -> QueryResult<Vec<PackagePlatform>> {
-        diesel::sql_query("select * from get_origin_package_platforms_for_package_v6($1, $2)")
-            .bind::<Array<Text>, _>(&searchable_ident(&ident))
-            .bind::<Array<PackageVisibilityMapping>, _>(&visibilities)
+    ) -> QueryResult<Vec<BuilderPackageTarget>> {
+        origin_packages::table
+            .select(origin_packages::target)
+            .filter(origin_packages::ident_array.contains(&searchable_ident(&ident)))
+            .filter(origin_packages::visibility.eq(any(visibilities)))
             .get_results(conn)
     }
 }
@@ -598,6 +603,8 @@ impl FromArchive for NewPackage {
         // necessarially requred for a valid package
         Ok(NewPackage {
             ident: ident.clone(),
+            ident_array: ident.clone().parts(),
+            origin: ident.origin().to_string(),
             manifest: archive.manifest()?,
             target: BuilderPackageTarget(archive.target()?),
             deps: deps,
@@ -606,7 +613,6 @@ impl FromArchive for NewPackage {
             config: config,
             checksum: archive.checksum()?,
             name: ident.name.to_string(),
-            origin_id: 999999999999,
             owner_id: 999999999999,
             visibility: PackageVisibility::Public,
         })
@@ -653,7 +659,6 @@ impl Into<OriginPackage> for Package {
         op.set_exposes(exposes);
         op.set_config(self.config);
         op.set_checksum(self.checksum);
-        op.set_origin_id(self.origin_id as u64);
         op.set_owner_id(self.owner_id as u64);
         op.set_visibility(self.visibility.into());
         op

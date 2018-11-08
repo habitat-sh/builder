@@ -137,7 +137,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
                                 )));
                             }
 
-                            let account = Account::get_by_id(session.get_id(), &*conn)
+                            let account = Account::get_by_id(session.get_id() as i64, &*conn)
                                 .map_err(error::Error::DieselError)?;
                             session.set_name(account.name);
                             session.set_email(account.email);
@@ -184,7 +184,13 @@ pub fn session_create_oauth(
         None => "",
     };
 
-    match Account::find_or_create(&user.username, email, &*conn) {
+    match Account::find_or_create(
+        &NewAccount {
+            name: &user.username,
+            email: email,
+        },
+        &*conn,
+    ) {
         Ok(account) => {
             session_token.set_account_id(account.id as u64);
             session_token.set_extern_id(user.id.to_string());

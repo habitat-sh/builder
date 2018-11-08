@@ -1,17 +1,14 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
-use diesel;
-use diesel::pg::PgConnection;
-use diesel::result::QueryResult;
-use diesel::sql_types::{BigInt, Text};
-use diesel::RunQueryDsl;
-use schema::account::*;
+use diesel::{
+    self, pg::PgConnection, result::QueryResult, ExpressionMethods, QueryDsl, RunQueryDsl,
+};
+use schema::account::{account_tokens, accounts};
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
 
-#[derive(Identifiable, Debug, Serialize, QueryableByName)]
-#[table_name = "accounts"]
+#[derive(Debug, Identifiable, Serialize, Queryable)]
 pub struct Account {
     #[serde(with = "db_id_format")]
     pub id: i64,
@@ -21,7 +18,7 @@ pub struct Account {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-#[derive(Identifiable, Debug, Serialize, QueryableByName)]
+#[derive(Identifiable, Debug, Serialize, Queryable)]
 #[table_name = "account_tokens"]
 pub struct AccountToken {
     #[serde(with = "db_id_format")]
@@ -42,39 +39,42 @@ pub struct NewAccount<'a> {
 impl Account {
     pub fn get(name: &str, conn: &PgConnection) -> QueryResult<Account> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT * FROM get_account_by_name_v1($1)")
-            .bind::<Text, _>(name)
+        accounts::table
+            .filter(accounts::name.eq(name))
             .get_result(conn)
     }
 
-    pub fn get_by_id(id: u64, conn: &PgConnection) -> QueryResult<Account> {
+    pub fn get_by_id(id: i64, conn: &PgConnection) -> QueryResult<Account> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT * FROM get_account_by_id_v1($1)")
-            .bind::<BigInt, _>(id as i64)
-            .get_result(conn)
+        accounts::table.find(id).get_result(conn)
     }
 
     pub fn create(account: &NewAccount, conn: &PgConnection) -> QueryResult<Account> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT * FROM select_or_insert_account_v1($1, $2)")
-            .bind::<Text, _>(account.name)
-            .bind::<Text, _>(account.email)
+        diesel::insert_into(accounts::table)
+            .values(account)
             .get_result(conn)
     }
 
-    pub fn find_or_create(name: &str, email: &str, conn: &PgConnection) -> QueryResult<Account> {
+    pub fn find_or_create(account: &NewAccount, conn: &PgConnection) -> QueryResult<Account> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT * FROM select_or_insert_account_v1($1, $2)")
-            .bind::<Text, _>(name)
-            .bind::<Text, _>(email)
+        match diesel::insert_into(accounts::table)
+            .values(account)
+            .on_conflict(accounts::name)
+            .do_nothing()
             .get_result(conn)
+        {
+            Ok(account) => Ok(account),
+            Err(_) => accounts::table
+                .filter(accounts::name.eq(account.name))
+                .get_result(conn),
+        }
     }
 
     pub fn update(id: u64, email: &str, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT update_account_v1($1, $2)")
-            .bind::<BigInt, _>(id as i64)
-            .bind::<Text, _>(email)
+        diesel::update(accounts::table.find(id as i64))
+            .set(accounts::email.eq(email))
             .execute(conn)
     }
 }
@@ -89,23 +89,20 @@ pub struct NewAccountToken<'a> {
 impl AccountToken {
     pub fn list(account_id: u64, conn: &PgConnection) -> QueryResult<Vec<AccountToken>> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT * FROM get_account_tokens_v1($1)")
-            .bind::<BigInt, _>(account_id as i64)
+        account_tokens::table
+            .filter(account_tokens::account_id.eq(account_id as i64))
             .get_results(conn)
     }
 
     pub fn create(req: &NewAccountToken, conn: &PgConnection) -> QueryResult<AccountToken> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT * FROM insert_account_token_v1($1, $2)")
-            .bind::<BigInt, _>(req.account_id)
-            .bind::<Text, _>(req.token)
+        diesel::insert_into(account_tokens::table)
+            .values(req)
             .get_result(conn)
     }
 
     pub fn delete(id: u64, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT revoke_account_token_v1($1)")
-            .bind::<BigInt, _>(id as i64)
-            .execute(conn)
+        diesel::delete(account_tokens::table.find(id as i64)).execute(conn)
     }
 }

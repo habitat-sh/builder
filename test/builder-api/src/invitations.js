@@ -29,7 +29,7 @@ describe('Origin Invitations API', function () {
         .expect(201)
         .end(function (err, res) {
           expect(res.body.account_id).to.equal(global.sessionBobo.id);
-          expect(res.body.origin_id).to.equal(global.originXmen.id);
+          expect(res.body.origin).to.equal(global.originXmen.name);
           expect(res.body.owner_id).to.equal(global.sessionMystique.id);
           global.inviteBoboToXmen = res.body;
           done(err);
@@ -44,8 +44,7 @@ describe('Origin Invitations API', function () {
           expect(res.body.invitations[0].id).to.equal(global.inviteBoboToXmen.id);
           expect(res.body.invitations[0].account_id).to.equal(global.sessionBobo.id);
           expect(res.body.invitations[0].account_name).to.equal('bobo');
-          expect(res.body.invitations[0].origin_id).to.equal(global.originXmen.id);
-          expect(res.body.invitations[0].origin_name).to.equal('xmen');
+          expect(res.body.invitations[0].origin).to.equal(global.originXmen.name);
           expect(res.body.invitations[0].owner_id).to.equal(global.sessionMystique.id);
           done(err);
         });
@@ -59,8 +58,7 @@ describe('Origin Invitations API', function () {
           expect(res.body[0].id).to.equal(global.inviteBoboToXmen.id);
           expect(res.body[0].account_id).to.equal(global.sessionBobo.id);
           expect(res.body[0].account_name).to.equal('bobo');
-          expect(res.body[0].origin_id).to.equal(global.originXmen.id);
-          expect(res.body[0].origin_name).to.equal('xmen');
+          expect(res.body[0].origin).to.equal(global.originXmen.name);
           expect(res.body[0].owner_id).to.equal(global.sessionMystique.id);
           done(err);
         });
@@ -152,7 +150,7 @@ describe('Related Origin API functions', function () {
         .set('Authorization', global.mystiqueBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.origin_id).to.equal(global.originXmen.id);
+          expect(res.body.origin).to.equal(global.originXmen.name);
           expect(res.body.members).to.deep.equal(['bobo', 'mystique']);
           done(err);
         });
@@ -202,7 +200,7 @@ describe('Related Origin API functions', function () {
         .set('Authorization', global.mystiqueBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.origin_id).to.equal(global.originXmen.id);
+          expect(res.body.origin).to.equal(global.originXmen.name);
           expect(res.body.members).to.deep.equal(['mystique']);
           done(err);
         });

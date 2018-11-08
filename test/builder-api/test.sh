@@ -12,17 +12,12 @@ clean_test_artifacts() {
   origins=( neurosis xmen )
 
   # clean origins
-  local origins origin_id_tables origin_tables
-  origin_id_tables=( origin_secrets origin_private_encryption_keys origin_public_encryption_keys origin_members origin_channels origin_invitations origin_packages origin_projects origin_public_keys origin_secret_keys )
-  origin_tables=( origin_integrations origin_project_integrations )
+  local origins origin_tables
+  origin_tables=( origin_integrations origin_project_integrations origin_secrets origin_private_encryption_keys origin_public_encryption_keys origin_members origin_channels origin_invitations origin_packages origin_projects origin_public_keys origin_secret_keys audit_package audit_package_group)
   sql=
 
   for origin in "${origins[@]}"; do
-    sql+="DELETE FROM origin_channel_packages WHERE channel_id IN (SELECT id FROM origin_channels WHERE origin_id=(SELECT id FROM origins WHERE name='$origin'));"
-
-    for table in "${origin_id_tables[@]}"; do
-      sql+="DELETE FROM $table WHERE origin_id=(SELECT id FROM origins WHERE name='$origin');"
-    done
+    sql+="DELETE FROM origin_channel_packages WHERE channel_id IN (SELECT id FROM origin_channels WHERE origin='$origin');"
 
     for table in "${origin_tables[@]}"; do
       sql+="DELETE FROM $table WHERE origin='$origin';"
