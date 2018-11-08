@@ -219,22 +219,26 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
         &*conn,
     ).map_err(Error::DieselError)
     {
-        Ok(_) => match audit_package_rank_change(
-            &req,
-            &*conn,
-            ident,
-            &channel,
-            PackageChannelOperation::Promote,
-            &origin,
-            session.get_id(),
-            session.get_name(),
-        ) {
-            Ok(_) => HttpResponse::new(StatusCode::OK),
-            Err(err) => {
-                warn!("Failed to save rank change to audit log: {}", err);
-                HttpResponse::new(StatusCode::OK)
-            }
-        },
+        Ok(_) => {
+            match audit_package_rank_change(
+                &req,
+                &*conn,
+                ident.clone(),
+                &channel,
+                PackageChannelOperation::Promote,
+                &origin,
+                session.get_id(),
+                session.get_name(),
+            ) {
+                Ok(_) => {}
+                Err(err) => warn!("Failed to save rank change to audit log: {}", err),
+            };
+            req.state()
+                .memcache
+                .borrow_mut()
+                .clear_cache_for_package(ident.clone().into());
+            HttpResponse::new(StatusCode::OK)
+        }
         Err(err) => err.into(),
     }
 }
