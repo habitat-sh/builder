@@ -478,17 +478,3 @@ where
 {
     message.write_to_bytes().map_err(ProtocolError::Encode)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn route_info_build() {
-        let mut msg = originsrv::AccountGet::new();
-        msg.set_name("reset".to_string());
-        let route_info = RouteInfo::build(&msg);
-        assert_eq!(route_info.protocol(), net::Protocol::OriginSrv);
-        assert_eq!(route_info.hash().map(|x| x % 128), Some(96));
-    }
-}
