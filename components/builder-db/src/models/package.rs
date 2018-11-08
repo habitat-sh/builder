@@ -325,12 +325,14 @@ impl Package {
 
         Counter::DBCall.increment();
         origin_packages
-            .select(sql("concat_ws('/', ident_array[1], ident_array[2])"))
-            .filter(ident_array.contains(pl.ident.parts()))
+            .select(sql(
+                "concat_ws('/', ident_array[1], ident_array[2]) as ident",
+            )).filter(ident_array.contains(pl.ident.parts()))
             .filter(visibility.eq(any(pl.visibility)))
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210
             .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
+            .order(sql::<BuilderPackageIdent>("ident ASC"))
             .paginate(pl.page)
             .per_page(pl.limit)
             .load_and_count_records(conn)
