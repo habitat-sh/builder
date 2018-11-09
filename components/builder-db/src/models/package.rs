@@ -28,7 +28,7 @@ use models::pagination::*;
 
 use schema::channel::{origin_channel_packages, origin_channels};
 use schema::origin::origins;
-use schema::package::{origin_package_versions, origin_packages};
+use schema::package::{origin_package_versions, origin_packages, packages_with_channel_platform};
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
@@ -54,6 +54,30 @@ pub struct Package {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub origin: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Queryable, Clone)]
+pub struct PackagesWithChannelPlatform {
+    #[serde(with = "db_id_format")]
+    pub id: i64,
+    #[serde(with = "db_id_format")]
+    pub owner_id: i64,
+    pub name: String,
+    pub ident: BuilderPackageIdent,
+    pub ident_array: Vec<String>,
+    pub checksum: String,
+    pub manifest: String,
+    pub config: String,
+    pub target: BuilderPackageTarget,
+    pub deps: Vec<BuilderPackageIdent>,
+    pub tdeps: Vec<BuilderPackageIdent>,
+    pub exposes: Vec<i32>,
+    pub visibility: PackageVisibility,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
+    pub channels: Vec<String>,
+    pub platforms: Vec<String>,
 }
 
 /// We literally never want to select `ident_vector`
@@ -310,13 +334,13 @@ impl Package {
     pub fn list(
         pl: ListPackages,
         conn: &PgConnection,
-    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    ) -> QueryResult<(Vec<PackagesWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
-        origin_packages::table
-            .select(origin_packages::ident)
-            .filter(origin_packages::ident_array.contains(pl.ident.parts()))
-            .filter(origin_packages::visibility.eq(any(pl.visibility)))
-            .order(origin_packages::ident.desc())
+
+        packages_with_channel_platform::table
+            .filter(packages_with_channel_platform::ident_array.contains(pl.ident.parts()))
+            .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+            .order(packages_with_channel_platform::ident.desc())
             .paginate(pl.page)
             .per_page(pl.limit)
             .load_and_count_records(conn)

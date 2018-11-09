@@ -41,7 +41,7 @@ use protocol::originsrv;
 use db::models::origin::Origin;
 use db::models::package::{
     BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
-    NewPackage, Package, PackageVisibility, SearchPackages,
+    NewPackage, Package, PackageVisibility, PackagesWithChannelPlatform, SearchPackages,
 };
 use db::models::projects::Project;
 
@@ -614,7 +614,7 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
 // Common functionality for pkgs and channel routes
 pub fn postprocess_package_list_model(
     req: &HttpRequest<AppState>,
-    packages: Vec<BuilderPackageIdent>,
+    packages: Vec<PackagesWithChannelPlatform>,
     count: i64,
     pagination: Query<Pagination>,
 ) -> HttpResponse {
@@ -630,43 +630,45 @@ pub fn postprocess_package_list_model(
         start, stop, count
     );
 
-    let mut results = Vec::new();
+    // let mut results = Vec::new();
 
-    // The idea here is for every package we get back, pull its channels using the zmq API
-    // and accumulate those results. This avoids the N+1 HTTP requests that would be
-    // required to fetch channels for a list of packages in the UI. However, if our request
-    // has been marked as "distinct" then skip this step because it doesn't make sense in
-    // that case. Let's get platforms at the same time.
-    for ident in packages {
-        let mut channels: Option<Vec<String>> = None;
-        let mut platforms: Option<Vec<String>> = None;
+    // // The idea here is for every package we get back, pull its channels using the zmq API
+    // // and accumulate those results. This avoids the N+1 HTTP requests that would be
+    // // required to fetch channels for a list of packages in the UI. However, if our request
+    // // has been marked as "distinct" then skip this step because it doesn't make sense in
+    // // that case. Let's get platforms at the same time.
+    // for ident in packages {
+    //     let mut channels: Option<Vec<String>> = None;
+    //     let mut platforms: Option<Vec<String>> = None;
 
-        if !pagination.distinct {
-            channels = match channels_for_package_ident(req, &ident.clone().into()) {
-                Ok(channels) => channels,
-                Err(_) => None,
-            };
-            platforms = match platforms_for_package_ident(req, &ident.clone().into()) {
-                Ok(platforms) => platforms,
-                Err(_) => None,
-            };
-        }
+    //     if !pagination.distinct {
+    //         channels = match channels_for_package_ident(req, &ident.clone().into()) {
+    //             Ok(channels) => channels,
+    //             Err(_) => None,
+    //         };
+    //         platforms = match platforms_for_package_ident(req, &ident.clone().into()) {
+    //             Ok(platforms) => platforms,
+    //             Err(_) => None,
+    //         };
+    //     }
 
-        let mut pkg_json = serde_json::to_value(ident.clone()).unwrap();
+    //     let mut pkg_json = serde_json::to_value(ident.clone()).unwrap();
 
-        if channels.is_some() {
-            pkg_json["channels"] = json!(channels);
-        }
+    //     if channels.is_some() {
+    //         pkg_json["channels"] = json!(channels);
+    //     }
 
-        if platforms.is_some() {
-            pkg_json["platforms"] = json!(platforms);
-        }
+    //     if platforms.is_some() {
+    //         pkg_json["platforms"] = json!(platforms);
+    //     }
 
-        results.push(pkg_json);
-    }
+    //     results.push(pkg_json);
+    // }
+
+    packages = packages.iter().map(|p| p.platforms.dedup()).collect();
 
     let body =
-        helpers::package_results_json(&results, count as isize, start as isize, stop as isize);
+        helpers::package_results_json(&packages, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
