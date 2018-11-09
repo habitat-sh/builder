@@ -13,8 +13,8 @@
 // limitations under the License.
 
 import {
-    AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, Output,
-    SimpleChanges, ViewChild
+  AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, Output,
+  SimpleChanges, ViewChild
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material';
@@ -260,7 +260,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
     this.selectedPath = this.project.plan_path;
     this.selectedRepo = this.parseGitHubUrl(this.project.vcs_data);
-    const [ org, name ] = this.selectedRepo.split('/');
+    const [org, name] = this.selectedRepo.split('/');
 
     // This looks a bit weird, but it allows us to scroll the selected
     // org and repo into view. What we're doing is asking to be notified
@@ -321,12 +321,12 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   saveConnection() {
     if (this.project) {
       this.store.dispatch(updateProject(this.project.name, this.planTemplate, this.token, (result) => {
-        this.handleSaved(result.success, this.project.origin_name, this.project.package_name);
+        this.handleSaved(result.success, this.project.origin, this.project.package_name);
       }));
     }
     else {
       this.store.dispatch(addProject(this.planTemplate, this.token, (result) => {
-        this.handleSaved(result.success, result.response.origin_name, result.response.package_name);
+        this.handleSaved(result.success, result.response.origin, result.response.package_name);
       }));
     }
   }
