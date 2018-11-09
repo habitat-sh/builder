@@ -98,6 +98,9 @@ impl AccountToken {
         Counter::DBCall.increment();
         diesel::insert_into(account_tokens::table)
             .values(req)
+            .on_conflict(account_tokens::account_id)
+            .do_update()
+            .set(account_tokens::token.eq(req.token))
             .get_result(conn)
     }
 
