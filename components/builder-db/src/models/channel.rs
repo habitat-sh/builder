@@ -68,8 +68,8 @@ impl Channel {
             .select(origin_channels::table::all_columns())
             .filter(origin_channels::origin.eq(origin))
             .into_boxed();
-        if include_sandbox_channels {
-            query = query.filter(origin_channels::name.like("bldr-%"));
+        if !include_sandbox_channels {
+            query = query.filter(origin_channels::name.not_like("bldr-%"));
         }
         query.order(origin_channels::name.asc()).get_results(conn)
     }

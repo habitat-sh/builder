@@ -40,7 +40,7 @@ use server::AppState;
 #[derive(Debug, Default, Clone, Deserialize)]
 struct SandboxBool {
     #[serde(default)]
-    is_set: bool,
+    sandbox: bool,
 }
 
 pub struct Channels;
@@ -106,7 +106,7 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
         Err(err) => return err.into(),
     };
 
-    match Channel::list(&origin, sandbox.is_set, &*conn).map_err(Error::DieselError) {
+    match Channel::list(&origin, sandbox.sandbox, &*conn).map_err(Error::DieselError) {
         Ok(list) => {
             // TED: This is to maintain backwards API compat while killing some proto definitions
             // currently the output looks like [{"name": "foo"}] when it probably should be ["foo"]
