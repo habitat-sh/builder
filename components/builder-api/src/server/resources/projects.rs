@@ -136,7 +136,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
             plan_path: &body.plan_path,
             vcs_type: "git",
             vcs_data: "https://github.com/habitat-sh/testapp.git",
-            vcs_installation_id: body.installation_id as i64,
+            vcs_installation_id: Some(body.installation_id as i64),
             visibility: &PackageVisibility::Public,
             auto_build: body.auto_build,
         };
@@ -212,7 +212,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         plan_path: &body.plan_path,
         vcs_type: "git",
         vcs_data: &vcs_data,
-        vcs_installation_id: body.installation_id as i64,
+        vcs_installation_id: Some(body.installation_id as i64),
         visibility: &origin.default_package_visibility,
         auto_build: body.auto_build,
     };
@@ -311,7 +311,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
             plan_path: &body.plan_path,
             vcs_type: "git",
             vcs_data: "https://github.com/habitat-sh/testapp.git",
-            vcs_installation_id: body.installation_id as i64,
+            vcs_installation_id: Some(body.installation_id as i64),
             visibility: &PackageVisibility::Public,
             auto_build: body.auto_build,
         };
@@ -388,7 +388,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         plan_path: &body.plan_path,
         vcs_type: "git",
         vcs_data: &vcs_data,
-        vcs_installation_id: body.installation_id as i64,
+        vcs_installation_id: Some(body.installation_id as i64),
         visibility: &project.visibility,
         auto_build: body.auto_build,
     };

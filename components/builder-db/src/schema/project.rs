@@ -12,7 +12,7 @@ table! {
         visibility -> PackageVisibilityMapping,
         vcs_type -> Text,
         vcs_data -> Text,
-        vcs_installation_id -> BigInt,
+        vcs_installation_id -> Nullable<BigInt>,
         auto_build -> Bool,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
