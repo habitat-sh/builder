@@ -436,9 +436,14 @@ fn list_origin_secrets(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     match OriginSecret::list(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(list) => HttpResponse::Ok()
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-            .json(&list),
+        Ok(list) => {
+            // Need to map to different struct for hab cli backward compat
+            let new_list: Vec<OriginSecretWithOriginId> =
+                list.into_iter().map(|s| s.into()).collect();
+            HttpResponse::Ok()
+                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .json(&new_list)
+        }
         Err(err) => err.into(),
     }
 }
