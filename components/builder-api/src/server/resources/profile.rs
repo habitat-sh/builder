@@ -196,9 +196,9 @@ fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> 
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     match Account::update(account_id, &body.email, &*conn).map_err(Error::DieselError) {

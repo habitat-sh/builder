@@ -52,7 +52,7 @@ export class OriginsPageComponent implements OnInit {
       i['isInvite'] = true;
       return i;
     });
-    return mine.concat(invites).sortBy(item => item.name || item.origin_name);
+    return mine.concat(invites).sortBy(item => item.name || item.origin);
   }
 
   get token() {
@@ -65,7 +65,7 @@ export class OriginsPageComponent implements OnInit {
 
   accept(item) {
     this.store.dispatch(acceptOriginInvitation(
-      item.id, item.origin_name, this.token
+      item.id, item.origin, this.token
     ));
   }
 
@@ -79,13 +79,13 @@ export class OriginsPageComponent implements OnInit {
 
     this.confirm(data, () => {
       this.store.dispatch(ignoreOriginInvitation(
-        item.id, item.origin_name, this.token
+        item.id, item.origin, this.token
       ));
     });
   }
 
   name(item) {
-    return item.name || item.origin_name;
+    return item.name || item.origin;
   }
 
   navigateTo(item) {
