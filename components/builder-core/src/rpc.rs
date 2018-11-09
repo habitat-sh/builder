@@ -86,20 +86,20 @@ impl RpcClient {
         let id = req.descriptor().name().to_owned();
         let body = req.write_to_bytes()?;
         let msg = RpcMessage { id: id, body: body };
-        debug!("Sending RPC Message: {:?}", msg);
+        debug!("Sending RPC Message: {}", msg.id);
 
         let json = serde_json::to_string(&msg)?;
         let mut res = self.cli.post(&self.endpoint).body(json).send()?;
-        debug!("Got http response status: {}", res.status());
+        debug!("Got RPC response status: {}", res.status());
 
         let mut s = String::new();
         res.read_to_string(&mut s).map_err(Error::IO)?;
-        debug!("Got http response body: {}", s);
+        trace!("Got http response body: {}", s);
 
         match res.status() {
             StatusCode::Ok => {
                 let resp_json: RpcMessage = serde_json::from_str(&s)?;
-                debug!("Got JSON: {:?}", resp_json);
+                trace!("Got RPC JSON: {:?}", resp_json);
 
                 let resp_msg = protobuf::parse_from_bytes::<T>(&resp_json.body)?;
                 Ok(resp_msg)

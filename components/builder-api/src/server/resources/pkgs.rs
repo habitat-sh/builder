@@ -58,8 +58,8 @@ use server::AppState;
 // Query param containers
 #[derive(Debug, Deserialize)]
 pub struct Upload {
-    #[serde(default = "default_target")]
-    target: String,
+    #[serde(default)]
+    target: Option<String>,
     #[serde(default)]
     checksum: String,
     #[serde(default)]
@@ -268,10 +268,10 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
     vis.push(PackageVisibility::Hidden);
 
     // TODO: Deprecate target from headers
-    let target = match qtarget.target.clone() {
-        Some(t) => {
+    let target = match qtarget.target {
+        Some(ref t) => {
             debug!("Query requested target = {}", t);
-            PackageTarget::from_str(&t).unwrap() // Unwrap Ok ?
+            PackageTarget::from_str(t).unwrap() // Unwrap Ok ?
         }
         None => helpers::target_from_headers(&req),
     };
@@ -729,11 +729,19 @@ fn do_upload_package_start(
             ident
         );
     } else {
+        let target = match qupload.target {
+            Some(ref t) => {
+                debug!("Query requested target = {}", t);
+                PackageTarget::from_str(t)?
+            }
+            None => helpers::target_from_headers(req),
+        };
+
         match Package::get(
             GetPackage {
                 ident: BuilderPackageIdent(ident.clone()),
                 visibility: helpers::all_visibilities(),
-                target: BuilderPackageTarget(PackageTarget::from_str(&qupload.target).unwrap()), // Unwrap OK
+                target: BuilderPackageTarget(PackageTarget::from_str(&target).unwrap()), // Unwrap OK
             },
             &*conn,
         ) {
@@ -987,8 +995,8 @@ fn do_get_package(
 
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-    let target = match qtarget.target.clone() {
-        Some(t) => {
+    let target = match qtarget.target {
+        Some(ref t) => {
             debug!("Query requested target = {}", t);
             PackageTarget::from_str(&t)?
         }
