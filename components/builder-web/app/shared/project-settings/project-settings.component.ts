@@ -132,6 +132,35 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     return this.store.getState().gitHub.files;
   }
 
+  get gitHubAppNote() {
+
+    let note = `In order to connect a plan file in your repo,
+      you must first install the Builder GitHub app
+      and allow access to that repository.`;
+
+    if (this.gitHubAppInstalled) {
+      note = `If you don't see one or more of your organizations
+        or repositories listed below, you may need to adjust the
+        settings of the Builder GitHub app.`;
+    }
+
+    return note;
+  }
+
+  get gitHubAppLabel() {
+    let label = 'Install';
+
+    if (this.gitHubAppInstalled) {
+      label = 'Open';
+    }
+
+    return label;
+  }
+
+  get gitHubAppInstalled() {
+    return !this.loadingInstallations && this.installations.size > 0;
+  }
+
   get hasPrivateKey() {
     const currentOrigin = this.store.getState().origins.current;
     return currentOrigin.name === this.origin && !!currentOrigin.private_key_name;
