@@ -21,6 +21,15 @@ pub struct OriginSecret {
     pub origin: String,
 }
 
+// This is the struct the hab client expects
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OriginSecretWithOriginId {
+    pub id: String,
+    pub origin_id: String,
+    pub name: String,
+    pub value: String,
+}
+
 #[derive(Insertable)]
 #[table_name = "origin_secrets"]
 pub struct NewOriginSecret<'a> {
@@ -60,5 +69,16 @@ impl OriginSecret {
         origin_secrets::table
             .filter(origin_secrets::origin.eq(origin))
             .get_results(conn)
+    }
+}
+
+impl From<OriginSecret> for OriginSecretWithOriginId {
+    fn from(value: OriginSecret) -> OriginSecretWithOriginId {
+        OriginSecretWithOriginId {
+            id: format!("{}", value.id),
+            origin_id: "0".to_string(),
+            name: value.name,
+            value: value.value,
+        }
     }
 }
