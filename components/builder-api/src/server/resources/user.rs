@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::{Method, StatusCode};
+use actix_web::http::Method;
 use actix_web::{App, HttpRequest, HttpResponse};
 
 use db::models::invitations::OriginInvitation;
 use db::models::origin::Origin;
 use server::authorize::authorize_session;
+use server::error::Error;
 use server::AppState;
 
 pub struct User {}
@@ -41,14 +42,14 @@ fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     match OriginInvitation::list_by_account(account_id, &*conn) {
         Ok(response) => HttpResponse::Ok().json(response),
-        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 
@@ -58,13 +59,13 @@ fn get_origins(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     match Origin::list(account_id, &*conn) {
         Ok(response) => HttpResponse::Ok().json(response),
-        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => Error::DieselError(err).into(),
     }
 }

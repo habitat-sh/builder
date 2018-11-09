@@ -419,7 +419,7 @@ fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
                 .collect();
             HttpResponse::Ok().json(names)
         }
-        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 

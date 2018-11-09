@@ -252,9 +252,9 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     let opt_session_id = match authorize_session(&req, None) {
@@ -445,9 +445,9 @@ fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
         Err(_) => None,
     };
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
@@ -484,9 +484,9 @@ fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
         Err(_) => None,
     };
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     let ident = PackageIdent::new(origin.to_string(), name, None, None);
@@ -517,9 +517,9 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
         Err(_) => None,
     };
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     let (page, per_page) = helpers::extract_pagination_in_pages(&pagination);
@@ -590,9 +590,9 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(_) => return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => return err.into(),
     };
 
     // users aren't allowed to set packages to hidden manually

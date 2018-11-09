@@ -154,7 +154,7 @@ fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
         Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
             HttpResponse::Conflict().into()
         }
-        Err(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => Error::DieselError(err).into(),
     }
 }
 
