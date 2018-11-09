@@ -996,16 +996,9 @@ fn do_get_package(
     };
 
     if ident.fully_qualified() {
-        match Package::get(
-            GetPackage {
-                ident: BuilderPackageIdent(ident.clone()),
-                visibility: helpers::visibility_for_optional_session(
-                    req,
-                    opt_session_id,
-                    &ident.origin,
-                ),
-                target: BuilderPackageTarget(target),
-            },
+        match Package::get_without_target(
+            BuilderPackageIdent(ident.clone()),
+            helpers::visibility_for_optional_session(req, opt_session_id, &ident.origin),
             &*conn,
         ) {
             Ok(pkg) => Ok(pkg),
