@@ -46,17 +46,16 @@
   </div>
   <div class="connecting" *ngIf="connecting">
     <form [formGroup]="form" #formValues="ngForm">
-      <div class="note">
+      <div class="note" *ngIf="!loadingInstallations">
         <div class="icon">
           <hab-icon symbol="github"></hab-icon>
         </div>
         <div class="info">
-          In order to connect a plan file in your repo, you must first install the Habitat Builder GitHub app and allow access to that
-          repository.
+          {{ gitHubAppNote }}
         </div>
         <div class="cta">
           <a href="{{ config['github_app_url'] }}" mat-raised-button color="accent" class="button" target="_blank">
-            Install GitHub App
+            {{ gitHubAppLabel }} GitHub App
           </a>
         </div>
       </div>
