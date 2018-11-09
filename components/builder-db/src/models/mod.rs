@@ -31,3 +31,27 @@ mod db_id_format {
         s.parse::<i64>().map_err(serde::de::Error::custom)
     }
 }
+
+mod db_optional_id_format {
+    use serde::{self, Deserialize, Deserializer, Serializer};
+    pub fn serialize<S>(id: &Option<i64>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = match id {
+            Some(s) => s.to_string(),
+            None => String::from(""),
+        };
+        serializer.serialize_str(&s)
+    }
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.parse::<i64>().map_err(serde::de::Error::custom) {
+            Ok(s) => Ok(Some(s)),
+            Err(e) => Err(e),
+        }
+    }
+}

@@ -1,4 +1,4 @@
-use super::db_id_format;
+use super::{db_id_format, db_optional_id_format};
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
@@ -25,8 +25,8 @@ pub struct Project {
     pub visibility: PackageVisibility,
     pub vcs_type: String,
     pub vcs_data: String,
-    #[serde(with = "db_id_format")]
-    pub vcs_installation_id: i64,
+    #[serde(with = "db_optional_id_format")]
+    pub vcs_installation_id: Option<i64>,
     pub auto_build: bool,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
@@ -42,7 +42,7 @@ pub struct NewProject<'a> {
     pub plan_path: &'a str,
     pub vcs_type: &'a str,
     pub vcs_data: &'a str,
-    pub vcs_installation_id: i64,
+    pub vcs_installation_id: Option<i64>,
     pub visibility: &'a PackageVisibility,
     pub auto_build: bool,
 }
@@ -57,7 +57,7 @@ pub struct UpdateProject<'a> {
     pub plan_path: &'a str,
     pub vcs_type: &'a str,
     pub vcs_data: &'a str,
-    pub vcs_installation_id: i64,
+    pub vcs_installation_id: Option<i64>,
     pub visibility: &'a PackageVisibility,
     pub auto_build: bool,
 }
@@ -108,7 +108,9 @@ impl Into<originsrv::OriginProject> for Project {
         proj.set_plan_path(self.plan_path);
         proj.set_vcs_type(self.vcs_type);
         proj.set_vcs_data(self.vcs_data);
-        proj.set_vcs_installation_id(self.vcs_installation_id as u32);
+        if let Some(install_id) = self.vcs_installation_id {
+            proj.set_vcs_installation_id(install_id as u32);
+        }
         proj.set_auto_build(self.auto_build);
         proj
     }
