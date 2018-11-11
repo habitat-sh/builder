@@ -92,10 +92,10 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
         .into_inner(); // Unwrap Ok
 
     // TODO: Deprecate target from headers
-    let target = match qtarget.target.clone() {
-        Some(t) => {
+    let target = match qtarget.target {
+        Some(ref t) => {
             debug!("Query requested target = {}", t);
-            match PackageTarget::from_str(&t) {
+            match PackageTarget::from_str(t) {
                 Ok(t) => t,
                 Err(err) => return Error::HabitatCore(err).into(),
             }
