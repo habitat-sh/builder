@@ -41,7 +41,7 @@ use protocol::originsrv;
 use db::models::origin::Origin;
 use db::models::package::{
     BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
-    NewPackage, Package, PackageVisibility, SearchPackages,
+    NewPackage, Package, PackageIdentWithChannelPlatform, PackageVisibility, SearchPackages,
 };
 use db::models::projects::Project;
 
@@ -161,6 +161,7 @@ impl Packages {
 //
 // Route handlers - these functions can return any Responder trait
 //
+
 fn get_packages_for_origin(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -168,7 +169,9 @@ fn get_packages_for_origin(
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
     match do_get_packages(&req, ident, &pagination) {
-        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Ok((packages, count)) => {
+            postprocess_extended_package_list(&req, packages, count, pagination)
+        }
         Err(err) => err.into(),
     }
 }
@@ -183,7 +186,9 @@ fn get_packages_for_origin_package(
     let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_packages(&req, ident, &pagination) {
-        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Ok((packages, count)) => {
+            postprocess_extended_package_list(&req, packages, count, pagination)
+        }
         Err(err) => err.into(),
     }
 }
@@ -198,7 +203,9 @@ fn get_packages_for_origin_package_version(
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
     match do_get_packages(&req, ident, &pagination) {
-        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Ok((packages, count)) => {
+            postprocess_extended_package_list(&req, packages, count, pagination)
+        }
         Err(err) => err.into(),
     }
 }
@@ -547,9 +554,7 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
             },
             &*conn,
         ) {
-            Ok((packages, count)) => {
-                postprocess_package_list_model(&req, packages, count, pagination)
-            }
+            Ok((packages, count)) => postprocess_package_list(&req, packages, count, pagination),
             Err(err) => Error::DieselError(err).into(),
         };
     }
@@ -563,7 +568,7 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
         },
         &*conn,
     ) {
-        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Ok((packages, count)) => postprocess_package_list(&req, packages, count, pagination),
         Err(err) => Error::DieselError(err).into(),
     }
 }
@@ -610,10 +615,8 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
 // Public helpers
 //
 
-// TODO : this needs to be re-designed to not fan out
-// Common functionality for pkgs and channel routes
-pub fn postprocess_package_list_model(
-    req: &HttpRequest<AppState>,
+pub fn postprocess_package_list(
+    _req: &HttpRequest<AppState>,
     packages: Vec<BuilderPackageIdent>,
     count: i64,
     pagination: Query<Pagination>,
@@ -630,43 +633,41 @@ pub fn postprocess_package_list_model(
         start, stop, count
     );
 
-    let mut results = Vec::new();
+    let body =
+        helpers::package_results_json(&packages, count as isize, start as isize, stop as isize);
 
-    // The idea here is for every package we get back, pull its channels using the zmq API
-    // and accumulate those results. This avoids the N+1 HTTP requests that would be
-    // required to fetch channels for a list of packages in the UI. However, if our request
-    // has been marked as "distinct" then skip this step because it doesn't make sense in
-    // that case. Let's get platforms at the same time.
-    for ident in packages {
-        let mut channels: Option<Vec<String>> = None;
-        let mut platforms: Option<Vec<String>> = None;
+    let mut response = if count as isize > (stop as isize + 1) {
+        HttpResponse::PartialContent()
+    } else {
+        HttpResponse::Ok()
+    };
 
-        if !pagination.distinct {
-            channels = match channels_for_package_ident(req, &ident.clone().into()) {
-                Ok(channels) => channels,
-                Err(_) => None,
-            };
-            platforms = match platforms_for_package_ident(req, &ident.clone().into()) {
-                Ok(platforms) => platforms,
-                Err(_) => None,
-            };
-        }
+    response
+        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+        .body(body)
+}
 
-        let mut pkg_json = serde_json::to_value(ident.clone()).unwrap();
+pub fn postprocess_extended_package_list(
+    _req: &HttpRequest<AppState>,
+    packages: Vec<PackageIdentWithChannelPlatform>,
+    count: i64,
+    pagination: Query<Pagination>,
+) -> HttpResponse {
+    let (start, _) = helpers::extract_pagination(&pagination);
+    let pkg_count = packages.len() as isize;
+    let stop = match pkg_count {
+        0 => count,
+        _ => (start + pkg_count - 1) as i64,
+    };
 
-        if channels.is_some() {
-            pkg_json["channels"] = json!(channels);
-        }
-
-        if platforms.is_some() {
-            pkg_json["platforms"] = json!(platforms);
-        }
-
-        results.push(pkg_json);
-    }
+    debug!(
+        "postprocessing extended package list, start: {}, stop: {}, total_count: {}",
+        start, stop, count
+    );
 
     let body =
-        helpers::package_results_json(&results, count as isize, start as isize, stop as isize);
+        helpers::package_results_json(&packages, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
@@ -687,7 +688,7 @@ fn do_get_packages(
     req: &HttpRequest<AppState>,
     ident: PackageIdent,
     pagination: &Query<Pagination>,
-) -> Result<(Vec<BuilderPackageIdent>, i64)> {
+) -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
@@ -705,10 +706,24 @@ fn do_get_packages(
     };
 
     if pagination.distinct {
-        return Package::list_distinct(lpr, &*conn).map_err(Error::DieselError);
+        match Package::list_distinct(lpr, &*conn).map_err(Error::DieselError) {
+            Ok((packages, count)) => {
+                let ident_pkgs: Vec<PackageIdentWithChannelPlatform> =
+                    packages.into_iter().map(|p| p.into()).collect();
+                return Ok((ident_pkgs, count));
+            }
+            Err(e) => return Err(e),
+        }
     }
 
-    Package::list(lpr, &*conn).map_err(Error::DieselError)
+    match Package::list(lpr, &*conn).map_err(Error::DieselError) {
+        Ok((packages, count)) => {
+            let ident_pkgs: Vec<PackageIdentWithChannelPlatform> =
+                packages.into_iter().map(|p| p.into()).collect();
+            Ok((ident_pkgs, count))
+        }
+        Err(e) => Err(e),
+    }
 }
 
 //

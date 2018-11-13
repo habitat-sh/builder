@@ -28,7 +28,7 @@ use models::pagination::*;
 
 use schema::channel::{origin_channel_packages, origin_channels};
 use schema::origin::origins;
-use schema::package::{origin_package_versions, origin_packages};
+use schema::package::{origin_package_versions, origin_packages, packages_with_channel_platform};
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
@@ -54,6 +54,41 @@ pub struct Package {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub origin: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
+#[table_name = "packages_with_channel_platform"]
+pub struct PackageWithChannelPlatform {
+    #[serde(with = "db_id_format")]
+    pub id: i64,
+    #[serde(with = "db_id_format")]
+    pub owner_id: i64,
+    pub name: String,
+    pub ident: BuilderPackageIdent,
+    pub ident_array: Vec<String>,
+    pub checksum: String,
+    pub manifest: String,
+    pub config: String,
+    pub target: BuilderPackageTarget,
+    pub deps: Vec<BuilderPackageIdent>,
+    pub tdeps: Vec<BuilderPackageIdent>,
+    pub exposes: Vec<i32>,
+    pub visibility: PackageVisibility,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
+    pub channels: Vec<String>,
+    pub platforms: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct PackageIdentWithChannelPlatform {
+    pub origin: String,
+    pub name: String,
+    pub version: Option<String>,
+    pub release: Option<String>,
+    pub channels: Vec<String>,
+    pub platforms: Vec<String>,
 }
 
 /// We literally never want to select `ident_vector`
@@ -262,18 +297,11 @@ impl Package {
 
     pub fn create(package: NewPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        let package = match diesel::insert_into(origin_packages::table)
+        let package = diesel::insert_into(origin_packages::table)
             .values(&package)
             .returning(ALL_COLUMNS)
             .on_conflict_do_nothing()
-            .get_result::<Package>(conn)
-        {
-            Ok(pkg) => pkg,
-            Err(e) => {
-                debug!("CREATE PACKAGE ERROR: {:?}", e);
-                return Err(e);
-            }
-        };
+            .get_result::<Package>(conn)?;
 
         OriginChannelPackage::promote(
             OriginChannelPromote {
@@ -310,13 +338,13 @@ impl Package {
     pub fn list(
         pl: ListPackages,
         conn: &PgConnection,
-    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    ) -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
-        origin_packages::table
-            .select(origin_packages::ident)
-            .filter(origin_packages::ident_array.contains(pl.ident.parts()))
-            .filter(origin_packages::visibility.eq(any(pl.visibility)))
-            .order(origin_packages::ident.desc())
+
+        packages_with_channel_platform::table
+            .filter(packages_with_channel_platform::ident_array.contains(pl.ident.parts()))
+            .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+            .order(packages_with_channel_platform::ident.desc())
             .paginate(pl.page)
             .per_page(pl.limit)
             .load_and_count_records(conn)
@@ -667,4 +695,33 @@ fn into_idents(column: Vec<BuilderPackageIdent>) -> protobuf::RepeatedField<Orig
         idents.push(ident.into());
     }
     idents
+}
+
+impl Into<PackageIdentWithChannelPlatform> for PackageWithChannelPlatform {
+    fn into(self) -> PackageIdentWithChannelPlatform {
+        let mut platforms = self.platforms.clone();
+        platforms.dedup();
+
+        PackageIdentWithChannelPlatform {
+            origin: self.ident.origin.clone(),
+            name: self.ident.name.clone(),
+            version: self.ident.version.clone(),
+            release: self.ident.release.clone(),
+            channels: self.channels,
+            platforms: platforms,
+        }
+    }
+}
+
+impl Into<PackageIdentWithChannelPlatform> for BuilderPackageIdent {
+    fn into(self) -> PackageIdentWithChannelPlatform {
+        PackageIdentWithChannelPlatform {
+            origin: self.origin.clone(),
+            name: self.name.clone(),
+            version: self.version.clone(),
+            release: self.release.clone(),
+            channels: Vec::new(),
+            platforms: Vec::new(),
+        }
+    }
 }

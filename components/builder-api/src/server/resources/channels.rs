@@ -25,7 +25,7 @@ use hab_core::package::{PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError};
 use serde_json;
 
-use super::pkgs::{is_a_service, postprocess_package_list_model};
+use super::pkgs::is_a_service;
 
 use db::models::channel::*;
 use db::models::package::{BuilderPackageIdent, Package};
@@ -313,7 +313,9 @@ fn get_packages_for_origin_channel_package_version(
     let ident = PackageIdent::new(origin, pkg, Some(version.clone()), None);
 
     match do_get_channel_packages(&req, &pagination, ident, channel) {
-        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Ok((packages, count)) => {
+            postprocess_channel_package_list(&req, packages, count, pagination)
+        }
         Err(err) => err.into(),
     }
 }
@@ -328,7 +330,9 @@ fn get_packages_for_origin_channel_package(
     let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_channel_packages(&req, &pagination, ident, channel) {
-        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Ok((packages, count)) => {
+            postprocess_channel_package_list(&req, packages, count, pagination)
+        }
         Err(err) => err.into(),
     }
 }
@@ -344,7 +348,9 @@ fn get_packages_for_origin_channel(
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
     match do_get_channel_packages(&req, &pagination, ident, channel) {
-        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Ok((packages, count)) => {
+            postprocess_channel_package_list(&req, packages, count, pagination)
+        }
         Err(err) => err.into(),
     }
 }
@@ -581,4 +587,39 @@ pub fn channels_for_package_ident(
         }
         Err(err) => Err(err),
     }
+}
+
+// Helper
+
+fn postprocess_channel_package_list(
+    _req: &HttpRequest<AppState>,
+    packages: Vec<BuilderPackageIdent>,
+    count: i64,
+    pagination: Query<Pagination>,
+) -> HttpResponse {
+    let (start, _) = helpers::extract_pagination(&pagination);
+    let pkg_count = packages.len() as isize;
+    let stop = match pkg_count {
+        0 => count,
+        _ => (start + pkg_count - 1) as i64,
+    };
+
+    debug!(
+        "postprocessing channel package list, start: {}, stop: {}, total_count: {}",
+        start, stop, count
+    );
+
+    let body =
+        helpers::package_results_json(&packages, count as isize, start as isize, stop as isize);
+
+    let mut response = if count as isize > (stop as isize + 1) {
+        HttpResponse::PartialContent()
+    } else {
+        HttpResponse::Ok()
+    };
+
+    response
+        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+        .body(body)
 }
