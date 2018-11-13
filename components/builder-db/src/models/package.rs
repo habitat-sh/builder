@@ -56,8 +56,9 @@ pub struct Package {
     pub origin: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Clone)]
-pub struct PackagesWithChannelPlatform {
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
+#[table_name = "packages_with_channel_platform"]
+pub struct PackageWithChannelPlatform {
     #[serde(with = "db_id_format")]
     pub id: i64,
     #[serde(with = "db_id_format")]
@@ -76,6 +77,16 @@ pub struct PackagesWithChannelPlatform {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub origin: String,
+    pub channels: Vec<String>,
+    pub platforms: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct PackageIdentWithChannelPlatform {
+    pub origin: String,
+    pub name: String,
+    pub version: Option<String>,
+    pub release: Option<String>,
     pub channels: Vec<String>,
     pub platforms: Vec<String>,
 }
@@ -286,18 +297,11 @@ impl Package {
 
     pub fn create(package: NewPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        let package = match diesel::insert_into(origin_packages::table)
+        let package = diesel::insert_into(origin_packages::table)
             .values(&package)
             .returning(ALL_COLUMNS)
             .on_conflict_do_nothing()
-            .get_result::<Package>(conn)
-        {
-            Ok(pkg) => pkg,
-            Err(e) => {
-                debug!("CREATE PACKAGE ERROR: {:?}", e);
-                return Err(e);
-            }
-        };
+            .get_result::<Package>(conn)?;
 
         OriginChannelPackage::promote(
             OriginChannelPromote {
@@ -334,7 +338,7 @@ impl Package {
     pub fn list(
         pl: ListPackages,
         conn: &PgConnection,
-    ) -> QueryResult<(Vec<PackagesWithChannelPlatform>, i64)> {
+    ) -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
 
         packages_with_channel_platform::table
@@ -691,4 +695,33 @@ fn into_idents(column: Vec<BuilderPackageIdent>) -> protobuf::RepeatedField<Orig
         idents.push(ident.into());
     }
     idents
+}
+
+impl Into<PackageIdentWithChannelPlatform> for PackageWithChannelPlatform {
+    fn into(self) -> PackageIdentWithChannelPlatform {
+        let mut platforms = self.platforms.clone();
+        platforms.dedup();
+
+        PackageIdentWithChannelPlatform {
+            origin: self.ident.origin.clone(),
+            name: self.ident.name.clone(),
+            version: self.ident.version.clone(),
+            release: self.ident.release.clone(),
+            channels: self.channels,
+            platforms: platforms,
+        }
+    }
+}
+
+impl Into<PackageIdentWithChannelPlatform> for BuilderPackageIdent {
+    fn into(self) -> PackageIdentWithChannelPlatform {
+        PackageIdentWithChannelPlatform {
+            origin: self.origin.clone(),
+            name: self.name.clone(),
+            version: self.version.clone(),
+            release: self.release.clone(),
+            channels: Vec::new(),
+            platforms: Vec::new(),
+        }
+    }
 }

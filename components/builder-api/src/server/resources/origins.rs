@@ -50,7 +50,7 @@ use server::authorize::{authorize_session, check_origin_owner};
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::helpers::{self, Pagination};
-use server::resources::pkgs::postprocess_package_list_model;
+use server::resources::pkgs::postprocess_package_list;
 use server::AppState;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -688,7 +688,7 @@ fn list_unique_packages(
     };
 
     match Package::distinct_for_origin(lpr, &*conn) {
-        Ok((packages, count)) => postprocess_package_list_model(&req, packages, count, pagination),
+        Ok((packages, count)) => postprocess_package_list(&req, packages, count, pagination),
         Err(err) => Error::DieselError(err).into(),
     }
 }

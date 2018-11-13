@@ -2,6 +2,7 @@
 CREATE OR REPLACE VIEW packages_with_channel_platform AS
     SELECT 
         op.id,
+        op.owner_id,
         op.name,
         op.ident,
         op.ident_array,
