@@ -41,7 +41,8 @@ use protocol::originsrv;
 use db::models::origin::Origin;
 use db::models::package::{
     BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
-    NewPackage, Package, PackageIdentWithChannelPlatform, PackageVisibility, SearchPackages,
+    NewPackage, Package, PackageIdentWithChannelPlatform, PackageVisibility,
+    PackageWithChannelPlatform, SearchPackages,
 };
 use db::models::projects::Project;
 
@@ -51,7 +52,6 @@ use server::feat;
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
-use server::resources::channels::channels_for_package_ident;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -220,7 +220,7 @@ fn get_latest_package_for_origin_package(
     let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package_model(&req, &package, false),
+        Ok(package) => postprocess_package_model(&package, false),
         Err(err) => err.into(),
     }
 }
@@ -235,7 +235,7 @@ fn get_latest_package_for_origin_package_version(
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package_model(&req, &package, false),
+        Ok(package) => postprocess_package_model(&package, false),
         Err(err) => err.into(),
     }
 }
@@ -248,7 +248,7 @@ fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpRe
     let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package_model(&req, &package, true),
+        Ok(package) => postprocess_package_model(&package, true),
         Err(err) => err.into(),
     }
 }
@@ -1001,7 +1001,7 @@ fn do_get_package(
     req: &HttpRequest<AppState>,
     qtarget: &Query<Target>,
     ident: PackageIdent,
-) -> Result<Package> {
+) -> Result<PackageWithChannelPlatform> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
@@ -1060,16 +1060,10 @@ fn do_get_package(
 }
 
 pub fn postprocess_package_model(
-    req: &HttpRequest<AppState>,
-    pkg: &Package,
+    pkg: &PackageWithChannelPlatform,
     should_cache: bool,
 ) -> HttpResponse {
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = match channels_for_package_ident(req, &pkg.ident) {
-        Ok(channels) => channels,
-        Err(_) => None,
-    };
-    pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
 
     let body = serde_json::to_string(&pkg_json).unwrap();
