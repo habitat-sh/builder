@@ -25,8 +25,6 @@ use hab_core::package::{PackageIdent, PackageTarget};
 use hab_net::{ErrCode, NetError};
 use serde_json;
 
-use super::pkgs::is_a_service;
-
 use db::models::channel::*;
 use db::models::package::{BuilderPackageIdent, Package};
 use server::authorize::authorize_session;
@@ -543,9 +541,7 @@ fn do_get_channel_package(
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident.clone())?;
-    pkg_json["channels"] = json!(channels);
-    pkg_json["is_a_service"] = json!(is_a_service(&pkg.into()));
+    pkg_json["is_a_service"] = json!(pkg.is_a_service());
 
     let json_body = serde_json::to_string(&pkg_json).unwrap();
 
