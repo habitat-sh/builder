@@ -211,6 +211,18 @@ describe('Jobs API', function () {
         });
     });
 
+    it('returns a NotFound for a non-existent job id', function (done) {
+      request.get(`/jobs/123456`)
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .expect(404)
+        .end(function (err, res) {
+          expect(res.body).to.be.empty;
+          done(err);
+        });
+    });
+
     it('succeeds', function (done) {
       request.get(`/jobs/${global.neurosisTestappJob.id}`)
         .type('application/json')
@@ -306,6 +318,17 @@ describe('Jobs API', function () {
           .expect(400)
           .end(function (err, res) {
             expect(res.text).to.be.empty;
+            done(err);
+          });
+      });
+
+      it('returns a NotFound for a non-existent job log', function (done) {
+        request.get(`/jobs/123456/log`)
+          .accept('application/json')
+          .set('Authorization', global.boboBearer)
+          .expect(404)
+          .end(function (err, res) {
+            expect(res.body).to.be.empty;
             done(err);
           });
       });
