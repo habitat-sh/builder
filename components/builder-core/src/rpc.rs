@@ -104,7 +104,7 @@ impl RpcClient {
                 let resp_msg = protobuf::parse_from_bytes::<T>(&resp_json.body)?;
                 Ok(resp_msg)
             }
-            status => Err(Error::ApiError(status, s)),
+            status => Err(Error::RpcError(status.as_u16(), s)),
         }
     }
 }
