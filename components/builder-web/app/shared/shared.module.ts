@@ -39,6 +39,7 @@ import { JobStatusLabelComponent } from './job-status-label/job-status-label.com
 import { PackageListComponent } from './package-list/package-list.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { PlatformIconComponent } from './platform-icon/platform-icon.component';
+import { VisibilityIconComponent } from './visibility-icon/visibility-icon.component';
 import { VisibilitySelectorComponent } from './visibility-selector/visibility-selector.component';
 import { KeysPipe } from './pipes/keys.pipe';
 import { SimpleConfirmDialog } from './dialog/simple-confirm/simple-confirm.dialog';
@@ -79,6 +80,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     PackageListComponent,
     ProjectSettingsComponent,
     PlatformIconComponent,
+    VisibilityIconComponent,
     VisibilitySelectorComponent,
     SimpleConfirmDialog,
     JobNoticeComponent,
@@ -106,6 +108,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     MatRadioButton,
     MatSlideToggle,
     PackageListComponent,
+    VisibilityIconComponent,
     VisibilitySelectorComponent,
     ProjectSettingsComponent,
     PlatformIconComponent,

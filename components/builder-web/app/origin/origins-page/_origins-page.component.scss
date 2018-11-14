@@ -2,6 +2,12 @@
 
   .nav-list {
     font-size: $base-font-size;
+
+    h4, .column {
+      &:not(:first-child) {
+        text-align: center;
+      }
+    }
   }
 
   .invitation {

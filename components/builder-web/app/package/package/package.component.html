@@ -1,6 +1,7 @@
 <header>
   <h1>
     <hab-package-breadcrumbs [ident]="ident"></hab-package-breadcrumbs>
+    <hab-visibility-icon [visibility]="visibility" *ngIf="isOriginMember" prefix="Default Package Visibility:"></hab-visibility-icon>
   </h1>
   <h2>package</h2>
 </header>

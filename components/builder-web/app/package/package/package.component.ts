@@ -112,6 +112,10 @@ export class PackageComponent implements OnInit, OnDestroy {
     return this.store.getState().session.token;
   }
 
+  get visibility() {
+    return this.store.getState().projects.current.visibility;
+  }
+
   onRouteActivate(routedComponent) {
     this.showSidebar = false;
     this.showActiveJob = false;

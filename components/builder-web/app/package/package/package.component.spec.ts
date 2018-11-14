@@ -64,6 +64,11 @@ describe('PackageComponent', () => {
           current: {
             exists: true
           }
+        },
+        current: {
+          visibility: 'private',
+          vcs_data: 'https://github.com/cnunciato/testapp.git',
+          auto_rebuild: false
         }
       },
       session: {
@@ -83,7 +88,8 @@ describe('PackageComponent', () => {
         PackageComponent,
         MockComponent({ selector: 'hab-package-breadcrumbs', inputs: ['ident'] }),
         MockComponent({ selector: 'hab-package-sidebar', inputs: ['origin', 'name', 'building', 'buildable'] }),
-        MockComponent({ selector: 'hab-job-notice', inputs: ['job'] })
+        MockComponent({ selector: 'hab-job-notice', inputs: ['job'] }),
+        MockComponent({ selector: 'hab-visibility-icon', inputs: ['visibility', 'prefix'] })
       ],
       providers: [
         { provide: ActivatedRoute, useClass: MockRoute },

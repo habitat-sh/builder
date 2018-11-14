@@ -48,7 +48,9 @@ describe('PackageSidebarComponent', () => {
       declarations: [
         PackageSidebarComponent,
         MockComponent({ selector: 'hab-copyable', inputs: ['style', 'text'] }),
-        MockComponent({ selector: 'hab-platform-icon', inputs: ['platform'] })
+        MockComponent({ selector: 'hab-platform-icon', inputs: ['platform'] }),
+        MockComponent({ selector: 'hab-icon', inputs: ['symbol'] }),
+        MockComponent({ selector: 'hab-visibility-icon', inputs: ['visibility', 'prefix'] })
       ],
       providers: [
         { provide: AppStore, useClass: MockAppStore }
@@ -72,6 +74,13 @@ describe('PackageSidebarComponent', () => {
               version: '1.11.10'
             }
           }
+        },
+      },
+      projects: {
+        current: {
+          visibility: 'private',
+          vcs_data: 'https://github.com/cnunciato/testapp.git',
+          auto_rebuild: false
         }
       },
       session: {

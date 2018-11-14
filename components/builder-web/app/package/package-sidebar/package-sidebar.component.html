@@ -5,6 +5,25 @@
       {{ buildButtonLabel }}
     </button>
   </section>
+  <section *ngIf="buildable">
+    <h3>Settings</h3>
+    <ul>
+      <li>
+        <hab-icon symbol="github"></hab-icon> {{ repoName }}
+        <a href="{{ repoUrl }}" target="_blank" title="View GitHub Repo">
+          <hab-icon symbol="open-in-new"></hab-icon>
+        </a>
+      </li>
+      <li>
+        <hab-icon symbol="loading"></hab-icon>
+        Auto-build {{ autoBuildSetting }}
+      </li>
+      <li>
+        <hab-visibility-icon [visibility]="project.visibility" prefix="Default Package Visibility:"></hab-visibility-icon>
+        {{ project.visibility | titlecase }} packages
+      </li>
+    </ul>
+  </section>
   <section class="platforms">
     <h3>Supported Platforms</h3>
     <p *ngIf="platforms.length === 0">
