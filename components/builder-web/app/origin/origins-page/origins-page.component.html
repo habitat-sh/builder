@@ -29,12 +29,16 @@
             <li class="heading">
               <h4>Origin Name</h4>
               <h4>Packages</h4>
+              <h4>Default Visibility</h4>
               <h4></h4>
             </li>
             <li class="item" [class.invitation]="isInvitation(item)" *ngFor="let item of origins" (click)="navigateTo(item)">
               <a>
                 <span class="column name">{{ name(item) }}</span>
                 <span class="column package-count">{{ packageCount(item) }}</span>
+                <span class="column visibility">
+                  <hab-icon [symbol]="visibilityIcon(item)" [title]="visibilityLabel(item)"></hab-icon>
+                </span>
                 <span class="column actions">
                   <span *ngIf="isInvitation(item)">
                     <span class="action" (click)="accept(item)">

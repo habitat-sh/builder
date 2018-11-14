@@ -53,17 +53,15 @@
           </div>
         </div>
         <div class="jobgroup-overview-item">
-          <ng-container *ngIf="true">
-            <h4 class="jobgroup-overview-item-title">&nbsp;</h4>
-            <div class="jobgroup-overview-item-value">
-              <span class="jobgroup-actions">
-                <a *ngIf="pendingCount > 0" class="cancel" (click)="cancel(id)">
-                  <hab-icon symbol="no"></hab-icon>
-                  Cancel remaining jobs
-                </a>
-              </span>
-            </div>
-          </ng-container>
+          <h4 class="jobgroup-overview-item-title">&nbsp;</h4>
+          <div class="jobgroup-overview-item-value">
+            <span class="jobgroup-actions">
+              <a *ngIf="pendingCount > 0" class="cancel" (click)="cancel(id)">
+                <hab-icon symbol="no"></hab-icon>
+                Cancel remaining jobs
+              </a>
+            </span>
+          </div>
         </div>
       </section>
     </section>

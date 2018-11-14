@@ -1,6 +1,9 @@
 <div class="origin-page-component">
   <header>
-    <h1>{{ origin.name }}</h1>
+    <h1>
+      {{ origin.name }}
+      <hab-visibility-icon [visibility]="origin.default_package_visibility" *ngIf="memberOfOrigin" prefix="Default Package Visibility:"></hab-visibility-icon>
+    </h1>
     <h2>origin</h2>
   </header>
   <nav class="tabs" mat-tab-nav-bar>

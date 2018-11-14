@@ -99,6 +99,14 @@ export class OriginsPageComponent implements OnInit {
     return count >= 0 ? count : '-';
   }
 
+  visibilityIcon(item) {
+    return item.default_package_visibility === 'public' ? 'public' : 'lock';
+  }
+
+  visibilityLabel(item) {
+    return item.default_package_visibility === 'public' ? 'Public' : 'Private';
+  }
+
   isInvitation(item) {
     return !!item.isInvite;
   }

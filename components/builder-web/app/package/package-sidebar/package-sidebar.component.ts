@@ -74,9 +74,24 @@ export class PackageSidebarComponent implements OnChanges {
     return this.store.getState().packages.ui.latestInChannel.stable.loading;
   }
 
+  get project() {
+    return this.store.getState().projects.current;
+  }
 
   get runCommand() {
     return `hab start ${this.origin}/${this.name}`;
+  }
+
+  get autoBuildSetting() {
+    return this.project.auto_build ? 'enabled' : 'disabled';
+  }
+
+  get repoName() {
+    return (this.project.vcs_data.match(/github.com\/(.+)\.git$/) || [''])[1] || '';
+  }
+
+  get repoUrl() {
+    return this.project.vcs_data.replace('.git', '');
   }
 
   get platforms() {

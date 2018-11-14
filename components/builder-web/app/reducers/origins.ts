@@ -43,9 +43,14 @@ export default function origins(state = initialState['origins'], action) {
           setIn(['ui', 'mine', 'loading'], false);
       } else {
         return state.setIn(['mine'], List(action.payload.map(origin =>
-          Origin({ name: origin.name, package_count: origin.package_count })
-        ))).setIn(['ui', 'mine', 'errorMessage'], undefined).
-          setIn(['ui', 'mine', 'loading'], false);
+          Origin({
+            name: origin.name,
+            package_count: origin.package_count,
+            default_package_visibility: origin.default_package_visibility
+          })
+        )))
+        .setIn(['ui', 'mine', 'errorMessage'], undefined)
+        .setIn(['ui', 'mine', 'loading'], false);
       }
 
     case actionTypes.POPULATE_MY_ORIGIN_INVITATIONS:
