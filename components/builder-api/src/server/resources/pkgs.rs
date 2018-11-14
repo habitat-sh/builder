@@ -1070,7 +1070,7 @@ pub fn postprocess_package_model(
         Err(_) => None,
     };
     pkg_json["channels"] = json!(channels);
-    pkg_json["is_a_service"] = json!(is_a_service(pkg));
+    pkg_json["is_a_service"] = json!(pkg.is_a_service());
 
     let body = serde_json::to_string(&pkg_json).unwrap();
 
@@ -1177,14 +1177,6 @@ fn check_circular_deps(
         }
         Err(err) => return Err(err),
     }
-}
-
-pub fn is_a_service(package: &Package) -> bool {
-    let m = package.manifest.clone();
-    // TODO: This is a temporary workaround until we plumb in a better solution for
-    // determining whether a package is a service from the DB instead of needing
-    // to crack the archive file to look for a SVC_USER file
-    m.contains("pkg_exposes") || m.contains("pkg_binds") || m.contains("pkg_exports")
 }
 
 pub fn platforms_for_package_ident(

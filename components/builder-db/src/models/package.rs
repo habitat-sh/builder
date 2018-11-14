@@ -492,6 +492,26 @@ impl Package {
             .filter(origin_packages::visibility.eq(any(visibilities)))
             .get_results(conn)
     }
+
+    pub fn is_a_service(&self) -> bool {
+        // TODO: This is a temporary workaround until we plumb in a better solution for
+        // determining whether a package is a service from the DB instead of needing
+        // to crack the archive file to look for a SVC_USER file
+        self.manifest.contains("pkg_exposes")
+            || self.manifest.contains("pkg_binds")
+            || self.manifest.contains("pkg_exports")
+    }
+}
+
+impl PackageWithChannelPlatform {
+    pub fn is_a_service(&self) -> bool {
+        // TODO: This is a temporary workaround until we plumb in a better solution for
+        // determining whether a package is a service from the DB instead of needing
+        // to crack the archive file to look for a SVC_USER file
+        self.manifest.contains("pkg_exposes")
+            || self.manifest.contains("pkg_binds")
+            || self.manifest.contains("pkg_exports")
+    }
 }
 
 fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
