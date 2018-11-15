@@ -31,11 +31,12 @@ use tempfile::tempdir_in;
 use url;
 use uuid::Uuid;
 
+use bldr_core::error::Error::RpcError;
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
-use hab_net::{ErrCode, NetError, NetOk};
 
 use protocol::jobsrv;
+use protocol::net::NetOk;
 use protocol::originsrv;
 
 use db::models::origin::Origin;
@@ -344,7 +345,7 @@ fn upload_package(
                 .clear_cache_for_package(ident.clone().into());
             do_upload_package_async(req, qupload, ident, temp_path, writer)
         }
-        Err(Error::NetError(ref err)) if err.get_code() == ErrCode::ENTITY_CONFLICT => {
+        Err(Error::Conflict) => {
             debug!(
                 "Failed to upload package {}, metadata already exists",
                 &ident
@@ -760,12 +761,7 @@ fn do_upload_package_start(
             },
             &*conn,
         ) {
-            Ok(_) => {
-                return Err(Error::NetError(NetError::new(
-                    ErrCode::ENTITY_CONFLICT,
-                    "ds:up:0",
-                )))
-            }
+            Ok(_) => return Err(Error::Conflict),
             Err(NotFound) => {}
             Err(err) => return Err(err.into()),
         }
@@ -837,8 +833,10 @@ fn do_upload_package_finish(
 
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
-        if let Err(e) = check_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
-            return e.into();
+        match has_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
+            Ok(val) if val == true => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
+            Err(err) => return err.into(),
+            _ => (),
         }
     }
 
@@ -949,8 +947,10 @@ fn do_upload_package_finish(
                 ident,
                 group.get_id()
             ),
-            Err(Error::NetError(ref err)) if err.get_code() == ErrCode::ENTITY_NOT_FOUND => {
-                debug!("Unable to schedule build for {}, err: {:?}", ident, err)
+            Err(Error::BuilderCore(RpcError(code, _)))
+                if StatusCode::from_u16(code).unwrap() == StatusCode::NOT_FOUND =>
+            {
+                debug!("Unable to schedule build for {} (not found)", ident)
             }
             Err(err) => warn!("Unable to schedule build for {}, err: {:?}", ident, err),
         }
@@ -1025,9 +1025,7 @@ fn do_get_package(
             &*conn,
         ) {
             Ok(pkg) => Ok(pkg),
-            Err(NotFound) => {
-                Err(Error::NetError(NetError::new(ErrCode::ENTITY_NOT_FOUND, "pkg:get:1")).into())
-            }
+            Err(NotFound) => Err(Error::NotFound).into(),
             Err(err) => {
                 debug!("{:?}", err);
                 Err(err.into())
@@ -1047,10 +1045,7 @@ fn do_get_package(
             &*conn,
         ) {
             Ok(pkg) => Ok(pkg),
-            Err(NotFound) => Err(Error::NetError(NetError::new(
-                ErrCode::ENTITY_NOT_FOUND,
-                "pkg:latest:1",
-            )).into()),
+            Err(NotFound) => Err(Error::NotFound).into(),
             Err(err) => {
                 debug!("{:?}", err);
                 Err(err.into())
@@ -1130,12 +1125,12 @@ fn write_archive_async(mut writer: BufWriter<File>, chunk: Bytes) -> Result<BufW
     Ok(writer)
 }
 
-fn check_circular_deps(
+fn has_circular_deps(
     req: &HttpRequest<AppState>,
     ident: &PackageIdent,
     target: &PackageTarget,
     archive: &mut PackageArchive,
-) -> Result<()> {
+) -> Result<bool> {
     let mut pcr_req = jobsrv::JobGraphPackagePreCreate::new();
     pcr_req.set_ident(format!("{}", ident));
     pcr_req.set_target(target.to_string());
@@ -1156,20 +1151,14 @@ fn check_circular_deps(
     pcr_req.set_deps(pcr_deps);
 
     match route_message::<jobsrv::JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
-        Ok(_) => Ok(()),
-        Err(Error::NetError(err)) => {
-            if err.get_code() == ErrCode::ENTITY_CONFLICT {
-                debug!(
-                    "Failed package circular dependency check: {}, err: {:?}",
-                    ident, err
-                );
-                return Err(Error::CircularDependency(ident.to_string()));
-            } else {
-                warn!("Error checking circular dependency, err={:?}", err);
-            }
-            return Err(Error::NetError(err));
+        Ok(_) => Ok(false),
+        Err(Error::BuilderCore(RpcError(code, _)))
+            if StatusCode::from_u16(code).unwrap() == StatusCode::CONFLICT =>
+        {
+            debug!("Failed package circular dependency check for {}", ident);
+            Ok(true)
         }
-        Err(err) => return Err(err),
+        Err(err) => Err(err),
     }
 }
 

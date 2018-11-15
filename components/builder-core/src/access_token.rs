@@ -15,10 +15,11 @@
 use chrono::LocalResult::Single;
 use chrono::{self, Duration, TimeZone, Utc};
 use error::{Error, Result};
-use hab_net::privilege::FeatureFlags;
 use integrations::{decrypt, encrypt, validate};
 use protocol::{message, originsrv};
 use std::path::PathBuf;
+
+use super::privilege::FeatureFlags;
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
 pub const BUILDER_ACCOUNT_NAME: &'static str = "BUILDER";

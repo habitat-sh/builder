@@ -22,7 +22,6 @@ use diesel::result::{DatabaseErrorKind, Error::DatabaseError, Error::NotFound};
 
 use bldr_core::metrics::CounterMetric;
 use hab_core::package::{PackageIdent, PackageTarget};
-use hab_net::{ErrCode, NetError};
 use serde_json;
 
 use db::models::channel::*;
@@ -532,10 +531,7 @@ fn do_get_channel_package(
     ) {
         Ok(pkg) => pkg,
         Err(NotFound) => {
-            return Err(Error::NetError(NetError::new(
-                ErrCode::ENTITY_NOT_FOUND,
-                "channel_pkg:get_latest:1",
-            )).into())
+            return Err(Error::NotFound);
         }
         Err(err) => return Err(err.into()),
     };

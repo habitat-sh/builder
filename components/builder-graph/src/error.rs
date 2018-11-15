@@ -19,21 +19,18 @@ use std::result;
 
 use db;
 use hab_core;
-use hab_net;
 use postgres;
 use protobuf;
 use r2d2;
 
 #[derive(Debug)]
 pub enum Error {
-    BadPort(String),
     Db(db::error::Error),
     DbPoolTimeout(r2d2::Error),
     DbTransaction(postgres::error::Error),
     HabitatCore(hab_core::Error),
     IO(io::Error),
     JobGraphPackagesGet(postgres::error::Error),
-    NetError(hab_net::NetError),
     Protobuf(protobuf::ProtobufError),
     UnknownJobGraphPackage,
 }
@@ -43,7 +40,6 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::Db(ref e) => format!("{}", e),
             Error::DbPoolTimeout(ref e) => {
                 format!("Timeout getting connection from the database pool, {}", e)
@@ -54,7 +50,6 @@ impl fmt::Display for Error {
             Error::JobGraphPackagesGet(ref e) => {
                 format!("Database error retrieving packages, {}", e)
             }
-            Error::NetError(ref e) => format!("{}", e),
             Error::Protobuf(ref e) => format!("{}", e),
             Error::UnknownJobGraphPackage => format!("Unknown Package"),
         };
@@ -65,14 +60,12 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::Db(ref err) => err.description(),
             Error::DbPoolTimeout(ref err) => err.description(),
             Error::DbTransaction(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),
             Error::IO(ref err) => err.description(),
             Error::JobGraphPackagesGet(ref err) => err.description(),
-            Error::NetError(ref err) => err.description(),
             Error::Protobuf(ref err) => err.description(),
             Error::UnknownJobGraphPackage => "Unknown Package",
         }
@@ -94,12 +87,6 @@ impl From<db::error::Error> for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::IO(err)
-    }
-}
-
-impl From<hab_net::NetError> for Error {
-    fn from(err: hab_net::NetError) -> Self {
-        Error::NetError(err)
     }
 }
 

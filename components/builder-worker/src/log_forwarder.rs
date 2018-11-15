@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use bldr_core::logger::Logger;
+use bldr_core::socket::DEFAULT_CONTEXT;
 use config::Config;
 use error::{Error, Result};
-use hab_net::socket::DEFAULT_CONTEXT;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;

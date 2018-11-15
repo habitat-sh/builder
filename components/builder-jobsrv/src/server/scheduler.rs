@@ -19,7 +19,6 @@ use std::thread::{self, JoinHandle};
 
 use chrono::{DateTime, Utc};
 use diesel;
-use hab_net::socket::DEFAULT_CONTEXT;
 use zmq;
 
 use data_store::DataStore;
@@ -31,6 +30,7 @@ use db::models::projects::*;
 
 use bldr_core::logger::Logger;
 use bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
+use bldr_core::socket::DEFAULT_CONTEXT;
 use hab_core::channel::bldr_channel_name;
 
 use super::metrics::{Counter, Gauge, Histogram};

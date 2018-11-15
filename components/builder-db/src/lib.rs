@@ -27,7 +27,6 @@ extern crate fallible_iterator;
 extern crate fnv;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
-extern crate habitat_net as hab_net;
 #[macro_use]
 extern crate log;
 extern crate chrono;

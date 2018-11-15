@@ -16,7 +16,7 @@ use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use hab_net::socket::DEFAULT_CONTEXT;
+use bldr_core::socket::DEFAULT_CONTEXT;
 use protocol::{jobsrv as proto, message};
 use zmq;
 

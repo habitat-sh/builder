@@ -28,7 +28,6 @@ extern crate diesel_migrations;
 extern crate habitat_builder_db as db;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
-extern crate habitat_net as hab_net;
 extern crate linked_hash_map;
 #[macro_use]
 extern crate log;

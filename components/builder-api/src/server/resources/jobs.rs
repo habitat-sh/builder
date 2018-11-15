@@ -21,11 +21,11 @@ use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
 use protocol::jobsrv;
+use protocol::net::NetOk;
 use protocol::originsrv::OriginPackageIdent;
 
 use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
-use hab_net::{ErrCode, NetError, NetOk};
 
 use db::models::channel::*;
 use db::models::package::*;
@@ -283,7 +283,7 @@ fn promote_or_demote_job_group(
         Ok(g) => g,
         Err(err) => {
             debug!("Error parsing group id: '{}': {:?}", group_id_str, err);
-            return Err(Error::ParseIntError(err));
+            return Err(Error::BadRequest);
         }
     };
 
@@ -300,10 +300,7 @@ fn promote_or_demote_job_group(
         p.get_state() == jobsrv::JobGroupProjectState::NotStarted
             || p.get_state() == jobsrv::JobGroupProjectState::InProgress
     }) {
-        return Err(Error::NetError(NetError::new(
-            ErrCode::GROUP_NOT_COMPLETE,
-            "hg:promote-or-demote-job-group:0",
-        )));
+        return Err(Error::Unprocessable);
     }
 
     let mut origin_map = HashMap::new();

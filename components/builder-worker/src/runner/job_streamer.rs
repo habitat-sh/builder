@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use bldr_core::logger::Logger;
-use hab_net::socket::DEFAULT_CONTEXT;
+use bldr_core::socket::DEFAULT_CONTEXT;
 use protobuf::Message;
 use protocol::jobsrv::{JobLogChunk, JobLogComplete};
 use zmq;
