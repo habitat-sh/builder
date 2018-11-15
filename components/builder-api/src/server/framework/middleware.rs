@@ -23,7 +23,8 @@ use protobuf;
 use bldr_core;
 use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
 use bldr_core::metrics::CounterMetric;
-use hab_net::{ErrCode, NetError};
+use bldr_core::privilege::FeatureFlags;
+
 use oauth_client::types::OAuth2User;
 use protocol;
 use protocol::originsrv;
@@ -31,7 +32,6 @@ use protocol::Routable;
 
 use db::models::account::*;
 
-use hab_net::privilege::FeatureFlags;
 use server::error;
 use server::services::metrics::Counter;
 use server::AppState;
@@ -100,17 +100,14 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
             trace!("Session {} Cache Miss!", token);
             if !bldr_core::access_token::is_access_token(token) {
                 // No token in cache and not a PAT - bail
-                return Err(error::Error::NetError(NetError::new(
-                    ErrCode::BAD_TOKEN,
-                    "net:auth:expired-token",
-                )));
+                return Err(error::Error::Authorization);
             }
             // Pull the session out of the current token provided so we can validate
             // it against the db's tokens
             let mut session = bldr_core::access_token::validate_access_token(
                 &req.state().config.api.key_path,
                 token,
-            ).map_err(|_| NetError::new(ErrCode::BAD_TOKEN, "net:auth:bad-token"))?;
+            ).map_err(|_| error::Error::Authorization)?;
 
             if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");
@@ -131,10 +128,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
                             let new_token = access_token.token.clone();
                             if token.trim_right_matches('=') != new_token.trim_right_matches('=') {
                                 // Token is valid but revoked or otherwise expired
-                                return Err(error::Error::NetError(NetError::new(
-                                    ErrCode::BAD_TOKEN,
-                                    "net:auth:revoked-token",
-                                )));
+                                return Err(error::Error::Authorization);
                             }
 
                             let account = Account::get_by_id(session.get_id() as i64, &*conn)
@@ -147,19 +141,13 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
                         }
                         None => {
                             // We have no tokens in the database for this user
-                            return Err(error::Error::NetError(NetError::new(
-                                ErrCode::BAD_TOKEN,
-                                "net:auth:revoked-token",
-                            )));
+                            return Err(error::Error::Authorization);
                         }
                     }
                 }
                 Err(_) => {
                     // Failed to fetch tokens from the database for this user
-                    return Err(error::Error::NetError(NetError::new(
-                        ErrCode::BAD_TOKEN,
-                        "net:auth:revoked-token",
-                    )));
+                    return Err(error::Error::Authorization);
                 }
             }
         }
@@ -203,10 +191,7 @@ pub fn session_create_oauth(
                         "Error parsing oauth provider: provider={}, err={:?}",
                         provider, e
                     );
-                    return Err(error::Error::NetError(NetError::new(
-                        ErrCode::BUG,
-                        "session_create_oauth:1",
-                    )));
+                    return Err(error::Error::System);
                 }
             }
 
@@ -263,10 +248,7 @@ pub fn session_create_short_circuit(
         ),
         user => {
             error!("Unexpected short circuit token {:?}", user);
-            return Err(error::Error::NetError(NetError::new(
-                ErrCode::BUG,
-                "net:session-short-circuit:unknown-token",
-            )));
+            return Err(error::Error::System);
         }
     };
 

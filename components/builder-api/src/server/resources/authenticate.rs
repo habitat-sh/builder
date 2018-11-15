@@ -14,11 +14,10 @@
 
 use std::env;
 
-use actix_web::http::Method;
+use actix_web::http::{Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path};
 
-use hab_net::{ErrCode, NetError};
 use oauth_client::error::Error as OAuthError;
 
 use protocol::originsrv;
@@ -47,13 +46,12 @@ fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
 
     match do_authenticate(&req, code) {
         Ok(session) => HttpResponse::Ok().json(session),
-        Err(Error::OAuth(OAuthError::HttpResponse(code, response))) => {
-            let msg = format!("{}-{}", code, response);
-            Error::NetError(NetError::new(ErrCode::ACCESS_DENIED, msg)).into()
+        Err(Error::OAuth(OAuthError::HttpResponse(_code, _response))) => {
+            HttpResponse::new(StatusCode::UNAUTHORIZED)
         }
         Err(e) => {
             warn!("Oauth client error, {:?}", e);
-            Error::NetError(NetError::new(ErrCode::BAD_REMOTE_REPLY, "rg:auth:1")).into()
+            e.into()
         }
     }
 }

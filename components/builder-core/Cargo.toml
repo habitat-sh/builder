@@ -6,11 +6,13 @@ workspace = "../../"
 
 [dependencies]
 base64 = "*"
+bitflags = "*"
 chrono = { version = "*", features = ["serde"] }
 clippy = { version = "*", optional = true }
 dogstatsd = "*"
 glob = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
+lazy_static = "*"
 libarchive = "*"
 log = "*"
 petgraph = "*"
@@ -24,9 +26,7 @@ toml = { version = "*", default-features = false }
 walkdir = "*"
 reqwest = "0.8.1"
 hyper = "^0.11.9"
+zmq = { git = "https://github.com/erickt/rust-zmq", branch = "release/v0.8" }
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/core.git"
-
-[dependencies.habitat_net]
-path = "../net"

@@ -21,7 +21,10 @@ extern crate dogstatsd;
 extern crate glob;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as hab_core;
-extern crate habitat_net as hab_net;
+#[macro_use]
+extern crate bitflags;
+#[macro_use]
+extern crate lazy_static;
 #[macro_use]
 extern crate log;
 extern crate petgraph;
@@ -39,11 +42,11 @@ extern crate toml;
 extern crate walkdir;
 #[macro_use]
 extern crate hyper;
+extern crate zmq;
 
 pub mod access_token;
 pub mod api_client;
 pub mod build_config;
-pub mod data_structures;
 pub mod error;
 pub mod integrations;
 pub mod job;
@@ -51,8 +54,10 @@ pub mod keys;
 pub mod logger;
 pub mod metrics;
 pub mod package_graph;
+pub mod privilege;
 pub mod rdeps;
 pub mod rpc;
+pub mod socket;
 pub mod target_graph;
 
 pub use error::Error;

@@ -45,6 +45,3 @@ git = "https://github.com/habitat-sh/core.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
-
-[dependencies.habitat_net]
-path = "../net"

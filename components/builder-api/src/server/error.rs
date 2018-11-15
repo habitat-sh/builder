@@ -16,14 +16,12 @@ use std::error;
 use std::fmt;
 use std::fs;
 use std::io;
-use std::num;
 use std::result;
 use std::string;
 
 use bldr_core;
 use github_api_client::HubError;
 use hab_core;
-use hab_net::{self, ErrCode};
 use oauth_client::error::Error as OAuthError;
 use serde_json;
 
@@ -33,43 +31,36 @@ use actix_web::{HttpResponse, ResponseError};
 use db;
 use diesel;
 use protobuf;
-use protocol;
 use rusoto_s3;
-use zmq;
 
-// TODO: We've probably gone overboard with the number of errors we
-// are wrapping - review whether we need more than one error per module
 #[derive(Debug)]
 pub enum Error {
     Authentication,
     Authorization,
-    CircularDependency(String),
-    BadRequest(String),
-    DieselError(diesel::result::Error),
-    DbError(db::error::Error),
-    Github(HubError),
-    InnerError(io::IntoInnerError<io::BufWriter<fs::File>>),
-    Protocol(protocol::ProtocolError),
-    HabitatCore(hab_core::Error),
-    IO(io::Error),
-    NetError(hab_net::NetError),
-    ParseIntError(num::ParseIntError),
-    PayloadError(actix_web::error::PayloadError),
-    Protobuf(protobuf::ProtobufError),
-    UnknownGitHubEvent(String),
-    Zmq(zmq::Error),
-    CreateBucketError(rusoto_s3::CreateBucketError),
+    BadRequest,
     BuilderCore(bldr_core::Error),
+    Conflict,
+    CreateBucketError(rusoto_s3::CreateBucketError),
+    DbError(db::error::Error),
+    DieselError(diesel::result::Error),
+    Github(HubError),
+    HabitatCore(hab_core::Error),
     HeadObject(rusoto_s3::HeadObjectError),
+    InnerError(io::IntoInnerError<io::BufWriter<fs::File>>),
+    IO(io::Error),
     ListBuckets(rusoto_s3::ListBucketsError),
     MultipartCompletion(rusoto_s3::CompleteMultipartUploadError),
     MultipartUploadReq(rusoto_s3::CreateMultipartUploadError),
+    NotFound,
     OAuth(OAuthError),
-    PackageUpload(rusoto_s3::PutObjectError),
     PackageDownload(rusoto_s3::GetObjectError),
+    PackageUpload(rusoto_s3::PutObjectError),
     PartialUpload(rusoto_s3::UploadPartError),
+    PayloadError(actix_web::error::PayloadError),
+    Protobuf(protobuf::ProtobufError),
     SerdeJson(serde_json::Error),
-    UnsupportedPlatform(String),
+    System,
+    Unprocessable,
     Utf8(string::FromUtf8Error),
 }
 
@@ -80,39 +71,30 @@ impl fmt::Display for Error {
         let msg = match *self {
             Error::Authentication => "User is not authenticated".to_string(),
             Error::Authorization => "User is not authorized to perform operation".to_string(),
-            Error::BadRequest(ref e) => format!("{}", e),
-            Error::CircularDependency(ref e) => {
-                format!("Circular dependency detected for package upload: {}", e)
-            }
-            Error::DieselError(ref e) => format!("{}", e),
-            Error::DbError(ref e) => format!("{}", e),
-            Error::Github(ref e) => format!("{}", e),
-            Error::InnerError(ref e) => format!("{}", e.error()),
-            Error::ParseIntError(ref e) => format!("{}", e),
-            Error::PayloadError(ref e) => format!("{}", e),
-            Error::Protocol(ref e) => format!("{}", e),
-            Error::HabitatCore(ref e) => format!("{}", e),
-            Error::IO(ref e) => format!("{}", e),
-            Error::NetError(ref e) => format!("{}", e),
-            Error::OAuth(ref e) => format!("{}", e),
-            Error::Protobuf(ref e) => format!("{}", e),
-            Error::UnknownGitHubEvent(ref e) => {
-                format!("Unknown or unsupported GitHub event, {}", e)
-            }
-            Error::Zmq(ref e) => format!("{}", e),
-            Error::CreateBucketError(ref e) => format!("{}", e),
+            Error::BadRequest => "Bad request".to_string(),
             Error::BuilderCore(ref e) => format!("{}", e),
+            Error::Conflict => "Entity conflict".to_string(),
+            Error::CreateBucketError(ref e) => format!("{}", e),
+            Error::DbError(ref e) => format!("{}", e),
+            Error::DieselError(ref e) => format!("{}", e),
+            Error::Github(ref e) => format!("{}", e),
+            Error::HabitatCore(ref e) => format!("{}", e),
             Error::HeadObject(ref e) => format!("{}", e),
+            Error::InnerError(ref e) => format!("{}", e.error()),
+            Error::IO(ref e) => format!("{}", e),
             Error::ListBuckets(ref e) => format!("{}", e),
             Error::MultipartCompletion(ref e) => format!("{}", e),
             Error::MultipartUploadReq(ref e) => format!("{}", e),
-            Error::PackageUpload(ref e) => format!("{}", e),
+            Error::NotFound => "Entity not found".to_string(),
+            Error::OAuth(ref e) => format!("{}", e),
             Error::PackageDownload(ref e) => format!("{}", e),
+            Error::PackageUpload(ref e) => format!("{}", e),
             Error::PartialUpload(ref e) => format!("{}", e),
+            Error::PayloadError(ref e) => format!("{}", e),
+            Error::Protobuf(ref e) => format!("{}", e),
             Error::SerdeJson(ref e) => format!("{}", e),
-            Error::UnsupportedPlatform(ref e) => {
-                format!("Unsupported platform or architecture: {}", e)
-            }
+            Error::System => "Internal error".to_string(),
+            Error::Unprocessable => "Unprocessable entity".to_string(),
             Error::Utf8(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
@@ -124,35 +106,30 @@ impl error::Error for Error {
         match *self {
             Error::Authentication => "User is not authenticated",
             Error::Authorization => "User is not authorized to perform operation",
-            Error::BadRequest(_) => "Http request formation error",
-            Error::CircularDependency(_) => "Circular dependency detected for package upload",
-            Error::DieselError(ref err) => err.description(),
-            Error::DbError(ref err) => err.description(),
-            Error::Github(ref err) => err.description(),
-            Error::InnerError(ref err) => err.error().description(),
-            Error::ParseIntError(ref err) => err.description(),
-            Error::PayloadError(_) => "Http request stream error",
-            Error::Protocol(ref err) => err.description(),
-            Error::HabitatCore(ref err) => err.description(),
-            Error::IO(ref err) => err.description(),
-            Error::NetError(ref err) => err.description(),
-            Error::OAuth(ref err) => err.description(),
-            Error::Protobuf(ref err) => err.description(),
-            Error::UnknownGitHubEvent(_) => {
-                "Unknown or unsupported GitHub event received in request"
-            }
-            Error::Zmq(ref err) => err.description(),
-            Error::CreateBucketError(ref err) => err.description(),
+            Error::BadRequest => "Http request formation error",
             Error::BuilderCore(ref err) => err.description(),
+            Error::Conflict => "Entity conflict",
+            Error::CreateBucketError(ref err) => err.description(),
+            Error::DbError(ref err) => err.description(),
+            Error::DieselError(ref err) => err.description(),
+            Error::Github(ref err) => err.description(),
+            Error::HabitatCore(ref err) => err.description(),
             Error::HeadObject(ref err) => err.description(),
+            Error::InnerError(ref err) => err.error().description(),
+            Error::IO(ref err) => err.description(),
             Error::ListBuckets(ref err) => err.description(),
             Error::MultipartCompletion(ref err) => err.description(),
             Error::MultipartUploadReq(ref err) => err.description(),
-            Error::PackageUpload(ref err) => err.description(),
+            Error::NotFound => "Entity not found",
+            Error::OAuth(ref err) => err.description(),
             Error::PackageDownload(ref err) => err.description(),
+            Error::PackageUpload(ref err) => err.description(),
             Error::PartialUpload(ref err) => err.description(),
+            Error::PayloadError(_) => "Http request stream error",
+            Error::Protobuf(ref err) => err.description(),
             Error::SerdeJson(ref err) => err.description(),
-            Error::UnsupportedPlatform(_) => "Unsupported platform or architecture",
+            Error::System => "Internal error",
+            Error::Unprocessable => "Unprocessable entity",
             Error::Utf8(ref err) => err.description(),
         }
     }
@@ -163,16 +140,14 @@ impl ResponseError for Error {
         match self {
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
-            Error::BadRequest(ref err) => {
-                HttpResponse::with_body(StatusCode::BAD_REQUEST, err.to_owned())
-            }
+            Error::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Error::Conflict => HttpResponse::new(StatusCode::CONFLICT),
             Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
-            Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
-            Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::NotFound => HttpResponse::new(StatusCode::NOT_FOUND),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
-            Error::ParseIntError(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
-            Error::Protocol(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(&e)),
+            Error::System => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Error::Unprocessable => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
 
             // Default
             _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
@@ -185,15 +160,15 @@ impl Into<HttpResponse> for Error {
         match self {
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
-            Error::BadRequest(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Error::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Error::Conflict => HttpResponse::new(StatusCode::CONFLICT),
             Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
-            Error::CircularDependency(_) => HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
-            Error::NetError(ref e) => HttpResponse::new(net_err_to_http(&e)),
+            Error::NotFound => HttpResponse::new(StatusCode::NOT_FOUND),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
-            Error::ParseIntError(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
-            Error::Protocol(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Error::BuilderCore(ref e) => HttpResponse::new(bldr_core_err_to_http(e)),
             Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(e)),
+            Error::System => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Error::Unprocessable => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
 
             // Default
             _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
@@ -216,43 +191,6 @@ fn bldr_core_err_to_http(err: &bldr_core::Error) -> StatusCode {
     match err {
         bldr_core::error::Error::RpcError(code, _) => StatusCode::from_u16(*code).unwrap(),
         _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
-}
-
-fn net_err_to_http(err: &hab_net::NetError) -> StatusCode {
-    match err.code() {
-        ErrCode::TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
-        ErrCode::REMOTE_REJECTED => StatusCode::NOT_ACCEPTABLE,
-        ErrCode::ENTITY_NOT_FOUND => StatusCode::NOT_FOUND,
-        ErrCode::ENTITY_CONFLICT => StatusCode::CONFLICT,
-
-        ErrCode::ACCESS_DENIED | ErrCode::SESSION_EXPIRED => StatusCode::UNAUTHORIZED,
-
-        ErrCode::BAD_REMOTE_REPLY | ErrCode::SECRET_KEY_FETCH | ErrCode::VCS_CLONE => {
-            StatusCode::BAD_GATEWAY
-        }
-
-        ErrCode::NO_SHARD | ErrCode::SOCK | ErrCode::REMOTE_UNAVAILABLE => {
-            StatusCode::SERVICE_UNAVAILABLE
-        }
-
-        ErrCode::BAD_TOKEN => StatusCode::FORBIDDEN,
-
-        ErrCode::GROUP_NOT_COMPLETE
-        | ErrCode::BUILD
-        | ErrCode::EXPORT
-        | ErrCode::POST_PROCESSOR
-        | ErrCode::SECRET_KEY_IMPORT
-        | ErrCode::INVALID_INTEGRATIONS => StatusCode::UNPROCESSABLE_ENTITY,
-
-        ErrCode::PARTIAL_JOB_GROUP_PROMOTE => StatusCode::PARTIAL_CONTENT,
-
-        ErrCode::BUG
-        | ErrCode::SYS
-        | ErrCode::DATA_STORE
-        | ErrCode::WORKSPACE_SETUP
-        | ErrCode::REG_CONFLICT
-        | ErrCode::REG_NOT_FOUND => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
@@ -288,23 +226,12 @@ impl From<io::IntoInnerError<io::BufWriter<fs::File>>> for Error {
     }
 }
 
-impl From<hab_net::NetError> for Error {
-    fn from(err: hab_net::NetError) -> Self {
-        Error::NetError(err)
-    }
-}
-
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::IO(err)
     }
 }
 
-impl From<num::ParseIntError> for Error {
-    fn from(err: num::ParseIntError) -> Self {
-        Error::ParseIntError(err)
-    }
-}
 impl From<OAuthError> for Error {
     fn from(err: OAuthError) -> Error {
         Error::OAuth(err)
@@ -323,12 +250,6 @@ impl From<protobuf::ProtobufError> for Error {
     }
 }
 
-impl From<protocol::ProtocolError> for Error {
-    fn from(err: protocol::ProtocolError) -> Error {
-        Error::Protocol(err)
-    }
-}
-
 impl From<db::error::Error> for Error {
     fn from(err: db::error::Error) -> Error {
         Error::DbError(err)
@@ -344,11 +265,5 @@ impl From<serde_json::Error> for Error {
 impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error {
         Error::Utf8(err)
-    }
-}
-
-impl From<zmq::Error> for Error {
-    fn from(err: zmq::Error) -> Error {
-        Error::Zmq(err)
     }
 }

@@ -52,7 +52,10 @@ impl FromStr for GitHubEvent {
         match event {
             "ping" => Ok(GitHubEvent::Ping),
             "push" => Ok(GitHubEvent::Push),
-            _ => Err(Error::UnknownGitHubEvent(event.to_string())),
+            _ => {
+                warn!("Received an unknown github event type");
+                Err(Error::BadRequest)
+            }
         }
     }
 }
@@ -66,7 +69,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
                 Ok(value) => value,
                 Err(err) => {
                     warn!("Unable to read XGithubEvent header, {:?}", err);
-                    return Error::BadRequest(err.to_string()).into();
+                    return Error::BadRequest.into();
                 }
             };
 
@@ -75,11 +78,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
                 Err(err) => return err.into(),
             }
         }
-        None => {
-            return Error::BadRequest(
-                "An unknown value was passed in for XGitHubEvent header!".to_string(),
-            ).into()
-        }
+        None => return Error::BadRequest.into(),
     };
 
     // Authenticate the hook
@@ -88,7 +87,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
         Some(ref sig) => sig.clone(),
         None => {
             warn!("Received a GitHub hook with no signature");
-            return Error::BadRequest("Recieved a GitHub hook with no signature".to_string()).into();
+            return Error::BadRequest.into();
         }
     };
 
@@ -105,7 +104,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
             "Web hook signatures don't match. GH = {:?}, Our = {:?}",
             gh_signature, computed_signature
         );
-        return Error::BadRequest("Webhook signatures don't match!".to_string()).into();
+        return Error::BadRequest.into();
     }
 
     match event {

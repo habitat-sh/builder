@@ -17,10 +17,10 @@ use std::fs;
 use std::iter::FromIterator;
 use std::sync::Arc;
 
+use bldr_core;
+use bldr_core::socket::DEFAULT_CONTEXT;
 use hab_core::users;
 use hab_core::util::posix_perm;
-use hab_net;
-use hab_net::socket::DEFAULT_CONTEXT;
 use protocol::{jobsrv, message};
 use zmq;
 
@@ -56,7 +56,7 @@ pub struct Server {
 
 impl Server {
     pub fn new(config: Config) -> Result<Self> {
-        let net_ident = hab_net::socket::srv_ident();
+        let net_ident = bldr_core::socket::srv_ident();
         let fe_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
         let hb_cli = HeartbeatCli::new(net_ident.clone());
         let runner_cli = RunnerCli::new();

@@ -15,7 +15,7 @@
 use std::cell::UnsafeCell;
 use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
 
-use core::os;
+use hab_core::os;
 use zmq;
 
 lazy_static! {

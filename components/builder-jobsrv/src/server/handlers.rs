@@ -20,14 +20,13 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use bldr_core::rpc::RpcMessage;
-use hab_net::NetError;
 
 use db::models::projects::*;
 
 use diesel;
 use protobuf::RepeatedField;
 use protocol::jobsrv;
-use protocol::net::{self, ErrCode};
+use protocol::net;
 use protocol::originsrv;
 
 use super::AppState;
@@ -43,14 +42,10 @@ pub fn job_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
 
     match state.datastore.get_job(&msg) {
         Ok(Some(ref job)) => RpcMessage::make(job).map_err(Error::BuilderCore),
-        Ok(None) => {
-            let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-get:1");
-            Err(Error::NetError(err))
-        }
+        Ok(None) => Err(Error::NotFound),
         Err(e) => {
-            let err = NetError::new(ErrCode::DATA_STORE, "jb:job-get:2");
-            error!("{}, {}", err, e);
-            Err(Error::NetError(err))
+            warn!("job_get error: {:?}", e);
+            Err(Error::System)
         }
     }
 }
@@ -64,9 +59,8 @@ pub fn project_jobs_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
             RpcMessage::make(jobs).map_err(Error::BuilderCore)
         }
         Err(e) => {
-            let err = NetError::new(ErrCode::DATA_STORE, "jb:project-jobs-get:1");
-            error!("{}, {}", err, e);
-            Err(Error::NetError(err))
+            warn!("project_jobs_get error: {:?}", e);
+            Err(Error::System)
         }
     }
 }
@@ -77,14 +71,10 @@ pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     get.set_id(msg.get_id());
     let job = match state.datastore.get_job(&get) {
         Ok(Some(job)) => job,
-        Ok(None) => {
-            let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-log-get:1");
-            return Err(Error::NetError(err));
-        }
+        Ok(None) => return Err(Error::NotFound),
         Err(e) => {
-            let err = NetError::new(ErrCode::DATA_STORE, "jb:job-log-get:2");
-            error!("{}, {}", err, e);
-            return Err(Error::NetError(err));
+            warn!("job_log_get error: {:?}", e);
+            return Err(Error::System);
         }
     };
 
@@ -118,13 +108,9 @@ pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
 
                 // TODO: Need to return a different error here... it's
                 // not quite ENTITY_NOT_FOUND
-                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-log-get:5");
-                Err(Error::NetError(err))
+                Err(Error::NotFound)
             }
-            Err(_) => {
-                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-log-get:4");
-                Err(Error::NetError(err))
-            }
+            Err(_) => Err(Error::NotFound),
         }
     } else {
         // retrieve fragment from on-disk file
@@ -186,10 +172,7 @@ pub fn job_group_cancel(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     let group = match state.datastore.get_job_group(&jgc) {
         Ok(group_opt) => match group_opt {
             Some(group) => group,
-            None => {
-                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-cancel:1");
-                return Err(Error::NetError(err));
-            }
+            None => return Err(Error::NotFound),
         },
         Err(err) => {
             warn!(
@@ -197,8 +180,7 @@ pub fn job_group_cancel(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
                 msg.get_group_id(),
                 err
             );
-            let err = NetError::new(ErrCode::DATA_STORE, "jb:job-group-cancel:2");
-            return Err(Error::NetError(err));
+            return Err(Error::System);
         }
     };
 
@@ -340,8 +322,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
 
     // Check that the target is supported - currently only x86_64-linux buildable
     if msg.get_target() != "x86_64-linux" {
-        let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-create:1");
-        return Err(Error::NetError(err));
+        return Err(Error::NotFound);
     }
 
     let project_name = format!("{}/{}", msg.get_origin(), msg.get_package());
@@ -360,8 +341,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
                     "JobGroupSpec, no graph found for target {}",
                     msg.get_target()
                 );
-                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-create:2");
-                return Err(Error::NetError(err));
+                return Err(Error::NotFound);
             }
         };
 
@@ -385,8 +365,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         match msg.get_trigger() {
             jobsrv::JobGroupTrigger::HabClient | jobsrv::JobGroupTrigger::BuilderUI => (),
             _ => {
-                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-create:3");
-                return Err(Error::NetError(err));
+                return Err(Error::NotFound);
             }
         }
     }
@@ -482,8 +461,7 @@ pub fn job_graph_package_reverse_dependencies_get(
                 "JobGraphPackageReverseDependenciesGet, no graph found for target {}",
                 msg.get_target()
             );
-            let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:reverse-dependencies-get:1");
-            return Err(Error::NetError(err));
+            return Err(Error::NotFound);
         }
     };
 
@@ -517,9 +495,8 @@ pub fn job_group_origin_get(req: &RpcMessage, state: &AppState) -> Result<RpcMes
     match state.datastore.get_job_group_origin(&msg) {
         Ok(ref jgor) => RpcMessage::make(jgor).map_err(Error::BuilderCore),
         Err(e) => {
-            let err = NetError::new(ErrCode::DATA_STORE, "jb:job-group-origin-get:1");
-            error!("{}, {}", err, e);
-            Err(Error::NetError(err))
+            warn!("job_group_origin_get error: {:?}", e);
+            Err(Error::System)
         }
     }
 }
@@ -542,10 +519,7 @@ pub fn job_group_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
 
     match group_opt {
         Some(group) => RpcMessage::make(&group).map_err(Error::BuilderCore),
-        None => {
-            let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-group-get:1");
-            Err(Error::NetError(err))
-        }
+        None => Err(Error::NotFound),
     }
 }
 
@@ -561,8 +535,7 @@ pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<Rp
                 "JobGraphPackageCreate, no graph found for target {}",
                 package.get_target()
             );
-            let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-graph-package-create:1");
-            return Err(Error::NetError(err));
+            return Err(Error::NotFound);
         }
     };
     let start_time = PreciseTime::now();
@@ -593,8 +566,7 @@ pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result
                     "JobGraphPackagePreCreate, no graph found for target {}",
                     package.get_target()
                 );
-                let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "jb:job-graph-package-pc:1");
-                return Err(Error::NetError(err));
+                return Err(Error::NotFound);
             }
         };
 
@@ -614,7 +586,6 @@ pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result
     if can_extend {
         RpcMessage::make(&net::NetOk::new()).map_err(Error::BuilderCore)
     } else {
-        let err = NetError::new(ErrCode::ENTITY_CONFLICT, "jb:job-graph-package-pc:2");
-        Err(Error::NetError(err))
+        Err(Error::Conflict)
     }
 }

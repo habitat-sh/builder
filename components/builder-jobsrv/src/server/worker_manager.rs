@@ -21,10 +21,10 @@ use std::time::{Duration, Instant};
 use bldr_core;
 use bldr_core::job::Job;
 use bldr_core::metrics::GaugeMetric;
+use bldr_core::socket::DEFAULT_CONTEXT;
 use db::DbPool;
 use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
 use hab_core::crypto::BoxKeyPair;
-use hab_net::socket::DEFAULT_CONTEXT;
 use linked_hash_map::LinkedHashMap;
 use protobuf::{parse_from_bytes, Message, RepeatedField};
 

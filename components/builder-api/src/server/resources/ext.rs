@@ -79,20 +79,14 @@ pub fn validate_registry_credentials(
 fn do_validate_registry_credentials(body: Json<Body>, registry_type: String) -> Result<()> {
     if body.username.is_none() || body.password.is_none() {
         debug!("Error: Missing username or password");
-        return Err(Error::BadRequest(
-            "Error: Missing username or password".to_string(),
-        ));
+        return Err(Error::BadRequest);
     }
 
     let url = match body.url {
         Some(ref url) => url.to_string(),
         None => match registry_type.as_ref() {
             "docker" => "https://hub.docker.com/v2".to_string(),
-            _ => {
-                return Err(Error::BadRequest(
-                    "Error: No supported registry type found in request!".to_string(),
-                ))
-            }
+            _ => return Err(Error::BadRequest),
         },
     };
 
@@ -105,10 +99,7 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: String) -> 
         Ok(c) => c,
         Err(e) => {
             debug!("Error: Unable to create HTTP client: {}", e);
-            return Err(Error::BadRequest(format!(
-                "Error: unable to create HTTP client: {}",
-                e
-            )));
+            return Err(Error::BadRequest);
         }
     };
 
@@ -125,10 +116,7 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: String) -> 
             hyper::status::StatusCode::Ok => Ok(()),
             _ => {
                 debug!("Non-OK Response: {}", &response.status);
-                Err(Error::BadRequest(format!(
-                    "Non-OK Response: {}",
-                    &response.status
-                )))
+                Err(Error::BadRequest)
             }
         },
         Err(e) => {

@@ -712,8 +712,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest<AppState>) -> HttpResp
             // TODO: redesign to not be generating keys during d/l
             match generate_origin_encryption_keys(&origin, account_id, &conn) {
                 Ok(key) => key,
-                Err(Error::NetError(e)) => return Error::NetError(e).into(),
-                Err(_) => unreachable!(),
+                Err(err) => return err.into(),
             }
         }
         Err(err) => return Error::DieselError(err).into(),

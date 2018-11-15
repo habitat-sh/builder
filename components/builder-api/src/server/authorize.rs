@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use actix_web::HttpRequest;
-use hab_net::privilege::FeatureFlags;
+use bldr_core::privilege::*;
 
 use protocol::originsrv;
 
@@ -31,7 +31,7 @@ pub fn authorize_session(
         match extensions.get::<originsrv::Session>() {
             Some(session) => {
                 let flags = FeatureFlags::from_bits(session.get_flags()).unwrap(); // unwrap Ok
-                if flags.contains(FeatureFlags::BUILD_WORKER) {
+                if flags.contains(BUILD_WORKER) {
                     return Ok(session.clone());
                 }
                 session.clone()

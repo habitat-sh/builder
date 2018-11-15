@@ -23,7 +23,6 @@ futures = "*"
 rusoto_core = "0.32.0"
 rusoto_s3 = "0.32.0"
 env_logger = "*"
-habitat_net = { path = "../net" }
 habitat_builder_db = { path = "../builder-db" }
 habitat-builder-protocol = { path = "../builder-protocol" }
 linked-hash-map = "*"

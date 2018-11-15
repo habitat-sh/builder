@@ -18,7 +18,7 @@ use std::str;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
-use hab_net::socket::DEFAULT_CONTEXT;
+use bldr_core::socket::DEFAULT_CONTEXT;
 use protobuf::parse_from_bytes;
 use protocol::jobsrv::{JobLogChunk, JobLogComplete};
 use server::log_archiver::{self, LogArchiver};

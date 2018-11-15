@@ -32,17 +32,16 @@ use zmq;
 use bldr_core;
 use db;
 use hab_core;
-use hab_net::{self, ErrCode};
 use protocol;
 
 #[derive(Debug)]
 pub enum Error {
-    BadPort(String),
     BuilderCore(bldr_core::Error),
     BusyWorkerUpsert(postgres::error::Error),
     BusyWorkerDelete(postgres::error::Error),
     BusyWorkersGet(postgres::error::Error),
     CaughtPanic(String, String),
+    Conflict,
     Db(db::error::Error),
     DbPoolTimeout(r2d2::Error),
     DbTransaction(postgres::error::Error),
@@ -76,11 +75,12 @@ pub enum Error {
     LogDirDoesNotExist(PathBuf, io::Error),
     LogDirIsNotDir(PathBuf),
     LogDirNotWritable(PathBuf),
-    NetError(hab_net::NetError),
+    NotFound,
     ParseVCSInstallationId(num::ParseIntError),
     ProjectJobsGet(postgres::error::Error),
     Protobuf(protobuf::ProtobufError),
     Protocol(protocol::ProtocolError),
+    System,
     UnknownVCS,
     UnknownJobGroup,
     UnknownJobGroupState,
@@ -95,7 +95,6 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::BuilderCore(ref e) => format!("{}", e),
             Error::BusyWorkerUpsert(ref e) => {
                 format!("Database error creating or updating a busy worker, {}", e)
@@ -106,6 +105,7 @@ impl fmt::Display for Error {
             Error::BusyWorkersGet(ref e) => {
                 format!("Database error retrieving busy workers, {}", e)
             }
+            Error::Conflict => "Entity conflict".to_string(),
             Error::CaughtPanic(ref msg, ref source) => {
                 format!("Caught a panic: {}. {}", msg, source)
             }
@@ -170,7 +170,7 @@ impl fmt::Display for Error {
             Error::LogDirNotWritable(ref path) => {
                 format!("Build log directory {:?} is not writable!", path)
             }
-            Error::NetError(ref e) => format!("{}", e),
+            Error::NotFound => "Entity not found".to_string(),
             Error::ParseVCSInstallationId(ref e) => {
                 format!("VCS installation id could not be parsed as u64, {}", e)
             }
@@ -179,6 +179,7 @@ impl fmt::Display for Error {
             Error::ProjectJobsGet(ref e) => {
                 format!("Database error getting jobs for project, {}", e)
             }
+            Error::System => "Internal error".to_string(),
             Error::UnknownJobGroup => format!("Unknown Group"),
             Error::UnknownJobGroupState => format!("Unknown Group State"),
             Error::UnknownJobGraphPackage => format!("Unknown Package"),
@@ -194,12 +195,12 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::BuilderCore(ref err) => err.description(),
             Error::BusyWorkerUpsert(ref err) => err.description(),
             Error::BusyWorkerDelete(ref err) => err.description(),
             Error::BusyWorkersGet(ref err) => err.description(),
             Error::CaughtPanic(_, _) => "Caught a panic",
+            Error::Conflict => "Entity conflict",
             Error::Db(ref err) => err.description(),
             Error::DbPoolTimeout(ref err) => err.description(),
             Error::DbTransaction(ref err) => err.description(),
@@ -233,11 +234,12 @@ impl error::Error for Error {
             Error::LogDirDoesNotExist(_, ref err) => err.description(),
             Error::LogDirIsNotDir(_) => "Build log directory is not a directory",
             Error::LogDirNotWritable(_) => "Build log directory is not writable",
-            Error::NetError(ref err) => err.description(),
+            Error::NotFound => "Entity not found",
             Error::ParseVCSInstallationId(_) => "VCS installation id could not be parsed as u64",
             Error::ProjectJobsGet(ref err) => err.description(),
             Error::Protobuf(ref err) => err.description(),
             Error::Protocol(ref err) => err.description(),
+            Error::System => "Internal error",
             Error::UnknownJobState(ref err) => err.description(),
             Error::UnknownJobGroup => "Unknown Group",
             Error::UnknownJobGroupState => "Unknown Group State",
@@ -252,9 +254,11 @@ impl error::Error for Error {
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {
-            Error::NetError(ref e) => HttpResponse::build(net_err_to_http(&e)).json(&e),
             Error::BuilderCore(ref e) => HttpResponse::new(bldr_core_err_to_http(e)),
+            Error::Conflict => HttpResponse::new(StatusCode::CONFLICT),
             Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(e)),
+            Error::NotFound => HttpResponse::new(StatusCode::NOT_FOUND),
+            Error::System => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
 
             // Default
             _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
@@ -277,43 +281,6 @@ fn diesel_err_to_http(err: &diesel::result::Error) -> StatusCode {
             _,
         ) => StatusCode::CONFLICT,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
-}
-
-fn net_err_to_http(err: &hab_net::NetError) -> StatusCode {
-    match err.code() {
-        ErrCode::TIMEOUT => StatusCode::GATEWAY_TIMEOUT,
-        ErrCode::REMOTE_REJECTED => StatusCode::NOT_ACCEPTABLE,
-        ErrCode::ENTITY_NOT_FOUND => StatusCode::NOT_FOUND,
-        ErrCode::ENTITY_CONFLICT => StatusCode::CONFLICT,
-
-        ErrCode::ACCESS_DENIED | ErrCode::SESSION_EXPIRED => StatusCode::UNAUTHORIZED,
-
-        ErrCode::BAD_REMOTE_REPLY | ErrCode::SECRET_KEY_FETCH | ErrCode::VCS_CLONE => {
-            StatusCode::BAD_GATEWAY
-        }
-
-        ErrCode::NO_SHARD | ErrCode::SOCK | ErrCode::REMOTE_UNAVAILABLE => {
-            StatusCode::SERVICE_UNAVAILABLE
-        }
-
-        ErrCode::BAD_TOKEN => StatusCode::FORBIDDEN,
-
-        ErrCode::GROUP_NOT_COMPLETE
-        | ErrCode::BUILD
-        | ErrCode::EXPORT
-        | ErrCode::POST_PROCESSOR
-        | ErrCode::SECRET_KEY_IMPORT
-        | ErrCode::INVALID_INTEGRATIONS => StatusCode::UNPROCESSABLE_ENTITY,
-
-        ErrCode::PARTIAL_JOB_GROUP_PROMOTE => StatusCode::PARTIAL_CONTENT,
-
-        ErrCode::BUG
-        | ErrCode::SYS
-        | ErrCode::DATA_STORE
-        | ErrCode::WORKSPACE_SETUP
-        | ErrCode::REG_CONFLICT
-        | ErrCode::REG_NOT_FOUND => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
@@ -344,12 +311,6 @@ impl From<diesel::result::Error> for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::IO(err)
-    }
-}
-
-impl From<hab_net::NetError> for Error {
-    fn from(err: hab_net::NetError) -> Self {
-        Error::NetError(err)
     }
 }
 
