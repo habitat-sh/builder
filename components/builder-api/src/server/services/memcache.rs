@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::SystemTime;
-
 use config::MemcacheCfg;
 use hab_core::package::PackageIdent;
 use memcache;
 use protobuf;
 use protobuf::Message;
 use protocol::originsrv::Session;
+use rand::{self, Rng};
 use sha2::{Digest, Sha512};
 use time::PreciseTime;
 
@@ -220,13 +219,11 @@ impl MemcacheClient {
     }
 
     fn reset_namespace(&mut self, namespace_key: &str) -> String {
-        let epoch = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        self.cli.set(namespace_key, epoch, self.ttl * 60).unwrap();
-        self.cli.flush().unwrap();
-        format!("{}", epoch)
+        let mut rng = rand::thread_rng();
+        let val: u64 = rng.gen();
+        trace!("Reset namespace {} to {}", namespace_key, val);
+        self.cli.set(namespace_key, val, self.ttl * 60).unwrap();
+        format!("{}", val)
     }
 
     // These are to make the compiler happy

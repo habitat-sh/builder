@@ -42,8 +42,7 @@ use protocol::originsrv;
 use db::models::origin::Origin;
 use db::models::package::{
     BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
-    NewPackage, Package, PackageIdentWithChannelPlatform, PackageVisibility,
-    PackageWithChannelPlatform, SearchPackages,
+    NewPackage, Package, PackageIdentWithChannelPlatform, PackageVisibility, SearchPackages,
 };
 use db::models::projects::Project;
 
@@ -1043,7 +1042,13 @@ fn do_get_package(
         match memcache.get_package(ident.clone().into(), "unstable", &target) {
             Some(pkg_json) => {
                 trace!("Package {} {} Cache Hit!", ident, target);
-                let p: PackageWithChannelPlatform = serde_json::from_str(&pkg_json)?;
+                let p: Package = match serde_json::from_str(&pkg_json) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        debug!("Unable to deserialize package json, err={:?}", e);
+                        return Err(Error::SerdeJson(e));
+                    }
+                };
                 if p.visibility != PackageVisibility::Public
                     && (opt_session_id.is_none()
                         || !check_origin_member(req, &p.origin, opt_session_id.unwrap())?)
