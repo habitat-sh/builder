@@ -434,7 +434,7 @@ impl Package {
             .filter(origin_package_versions::origin.eq(ident.origin()))
             .filter(origin_package_versions::name.eq(ident.name()))
             .filter(origin_package_versions::visibility.eq(any(visibility)))
-            .order(origin_package_versions::version.desc())
+            .order(sql::<OriginPackageVersions>("to_semver(version) desc"))
             .get_results(conn)
     }
 
