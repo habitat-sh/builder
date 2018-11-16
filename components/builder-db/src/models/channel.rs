@@ -9,13 +9,13 @@ use diesel::{
     ExpressionMethods, NullableExpressionMethods, PgArrayExpressionMethods, QueryDsl, RunQueryDsl,
     Table, TextExpressionMethods,
 };
-use models::package::{BuilderPackageIdent, PackageVisibility, PackageWithChannelPlatform};
+use models::package::{BuilderPackageIdent, Package, PackageVisibility};
 use models::pagination::Paginate;
 use protocol::jobsrv::JobGroupTrigger;
 use schema::audit::{audit_package, audit_package_group};
 use schema::channel::{origin_channel_packages, origin_channels};
 use schema::origin::origins;
-use schema::package::{origin_packages, packages_with_channel_platform};
+use schema::package::origin_packages;
 
 use bldr_core::metrics::CounterMetric;
 use metrics::Counter;
@@ -98,20 +98,18 @@ impl Channel {
         ).execute(conn)
     }
 
-    pub fn get_latest_package(
-        req: GetLatestPackage,
-        conn: &PgConnection,
-    ) -> QueryResult<PackageWithChannelPlatform> {
+    pub fn get_latest_package(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let ident = req.ident;
 
-        packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::origin.eq(&ident.origin))
-            .filter(packages_with_channel_platform::target.eq(req.target))
-            .filter(packages_with_channel_platform::visibility.eq(any(req.visibility)))
-            .filter(packages_with_channel_platform::ident_array.contains(ident.clone().parts()))
-            .filter(packages_with_channel_platform::channels.contains(vec![req.channel]))
-            .order(sql::<PackageWithChannelPlatform>(
+        Package::all()
+            .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
+            .filter(origin_packages::origin.eq(&ident.origin))
+            .filter(origin_channels::name.eq(req.channel))
+            .filter(origin_packages::target.eq(req.target))
+            .filter(origin_packages::visibility.eq(any(req.visibility)))
+            .filter(origin_packages::ident_array.contains(ident.clone().parts()))
+            .order(sql::<Package>(
                 "to_semver(ident_array[3]) desc, ident_array[4] desc",
             )).limit(1)
             .get_result(conn)

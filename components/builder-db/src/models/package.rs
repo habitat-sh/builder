@@ -258,11 +258,11 @@ impl Package {
         ident: BuilderPackageIdent,
         visibility: Vec<PackageVisibility>,
         conn: &PgConnection,
-    ) -> QueryResult<PackageWithChannelPlatform> {
+    ) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::ident.eq(ident))
-            .filter(packages_with_channel_platform::visibility.eq(any(visibility)))
+        Self::all()
+            .filter(origin_packages::ident.eq(ident))
+            .filter(origin_packages::visibility.eq(any(visibility)))
             .get_result(conn)
     }
 
@@ -285,16 +285,13 @@ impl Package {
             .get_results(conn)
     }
 
-    pub fn get_latest(
-        req: GetLatestPackage,
-        conn: &PgConnection,
-    ) -> QueryResult<PackageWithChannelPlatform> {
+    pub fn get_latest(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::ident_array.contains(req.ident.parts()))
-            .filter(packages_with_channel_platform::target.eq(req.target))
-            .filter(packages_with_channel_platform::visibility.eq(any(req.visibility)))
-            .order(sql::<PackageWithChannelPlatform>(
+        Self::all()
+            .filter(origin_packages::ident_array.contains(req.ident.parts()))
+            .filter(origin_packages::target.eq(req.target))
+            .filter(origin_packages::visibility.eq(any(req.visibility)))
+            .order(sql::<Package>(
                 "to_semver(ident_array[3]) desc, ident_array[4] desc",
             )).limit(1)
             .get_result(conn)

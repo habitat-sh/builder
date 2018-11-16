@@ -546,6 +546,9 @@ fn do_get_channel_package(
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
+    let channels = channels_for_package_ident(req, &pkg.ident.clone())?;
+
+    pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
 
     let json_body = serde_json::to_string(&pkg_json).unwrap();
