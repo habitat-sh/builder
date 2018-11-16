@@ -42,6 +42,7 @@ extern crate log;
 extern crate oauth_client;
 extern crate openssl;
 extern crate protobuf;
+extern crate rand;
 extern crate segment_api_client;
 extern crate serde;
 #[macro_use]
