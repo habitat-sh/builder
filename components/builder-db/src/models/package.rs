@@ -7,6 +7,8 @@ use protobuf;
 use protocol::originsrv::{OriginPackage, OriginPackageIdent, OriginPackageVisibility};
 
 use chrono::NaiveDateTime;
+use time::PreciseTime;
+
 use diesel;
 use diesel::deserialize::{self, FromSql};
 use diesel::dsl::sql;
@@ -30,8 +32,8 @@ use schema::channel::{origin_channel_packages, origin_channels};
 use schema::origin::origins;
 use schema::package::{origin_package_versions, origin_packages, packages_with_channel_platform};
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use bldr_core::metrics::{CounterMetric, HistogramMetric};
+use metrics::{Counter, Histogram};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
 #[table_name = "origin_packages"]
@@ -258,11 +260,11 @@ impl Package {
         ident: BuilderPackageIdent,
         visibility: Vec<PackageVisibility>,
         conn: &PgConnection,
-    ) -> QueryResult<PackageWithChannelPlatform> {
+    ) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::ident.eq(ident))
-            .filter(packages_with_channel_platform::visibility.eq(any(visibility)))
+        Self::all()
+            .filter(origin_packages::ident.eq(ident))
+            .filter(origin_packages::visibility.eq(any(visibility)))
             .get_result(conn)
     }
 
@@ -285,19 +287,27 @@ impl Package {
             .get_results(conn)
     }
 
-    pub fn get_latest(
-        req: GetLatestPackage,
-        conn: &PgConnection,
-    ) -> QueryResult<PackageWithChannelPlatform> {
+    pub fn get_latest(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::ident_array.contains(req.ident.parts()))
-            .filter(packages_with_channel_platform::target.eq(req.target))
-            .filter(packages_with_channel_platform::visibility.eq(any(req.visibility)))
-            .order(sql::<PackageWithChannelPlatform>(
+        let start_time = PreciseTime::now();
+
+        let result = Self::all()
+            .filter(origin_packages::ident_array.contains(req.ident.parts()))
+            .filter(origin_packages::target.eq(req.target))
+            .filter(origin_packages::visibility.eq(any(req.visibility)))
+            .order(sql::<Package>(
                 "to_semver(ident_array[3]) desc, ident_array[4] desc",
             )).limit(1)
-            .get_result(conn)
+            .get_result(conn);
+
+        let end_time = PreciseTime::now();
+        trace!(
+            "DBCall package::get_latest time: {} ms",
+            start_time.to(end_time).num_milliseconds()
+        );
+        Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+
+        result
     }
 
     pub fn create(package: NewPackage, conn: &PgConnection) -> QueryResult<Package> {

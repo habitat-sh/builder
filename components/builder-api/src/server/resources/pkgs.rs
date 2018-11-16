@@ -53,6 +53,7 @@ use server::feat;
 use server::framework::headers;
 use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination, Target};
+use server::resources::channels::channels_for_package_ident;
 use server::services::metrics::Counter;
 use server::AppState;
 
@@ -1093,6 +1094,9 @@ fn do_get_package(
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
+    let channels = channels_for_package_ident(req, &pkg.ident.clone())?;
+
+    pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
 
     let json_body = serde_json::to_string(&pkg_json).unwrap();
