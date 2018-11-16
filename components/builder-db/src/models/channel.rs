@@ -1,5 +1,7 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
+use time::PreciseTime;
+
 use diesel;
 use diesel::dsl::sql;
 use diesel::pg::expression::dsl::any;
@@ -9,6 +11,7 @@ use diesel::{
     ExpressionMethods, NullableExpressionMethods, PgArrayExpressionMethods, QueryDsl, RunQueryDsl,
     Table, TextExpressionMethods,
 };
+
 use models::package::{BuilderPackageIdent, Package, PackageVisibility};
 use models::pagination::Paginate;
 use protocol::jobsrv::JobGroupTrigger;
@@ -17,8 +20,8 @@ use schema::channel::{origin_channel_packages, origin_channels};
 use schema::origin::origins;
 use schema::package::origin_packages;
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use bldr_core::metrics::{CounterMetric, HistogramMetric};
+use metrics::{Counter, Histogram};
 
 #[derive(AsExpression, Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
@@ -101,8 +104,9 @@ impl Channel {
     pub fn get_latest_package(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let ident = req.ident;
+        let start_time = PreciseTime::now();
 
-        Package::all()
+        let result = Package::all()
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
             .filter(origin_packages::origin.eq(&ident.origin))
             .filter(origin_channels::name.eq(req.channel))
@@ -112,7 +116,16 @@ impl Channel {
             .order(sql::<Package>(
                 "to_semver(ident_array[3]) desc, ident_array[4] desc",
             )).limit(1)
-            .get_result(conn)
+            .get_result(conn);
+
+        let end_time = PreciseTime::now();
+        trace!(
+            "DBCall channel::get_latest_package time: {} ms",
+            start_time.to(end_time).num_milliseconds()
+        );
+        Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+
+        result
     }
 
     pub fn list_packages(

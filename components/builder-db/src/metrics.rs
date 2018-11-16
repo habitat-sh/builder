@@ -31,3 +31,17 @@ impl metrics::Metric for Counter {
         }
     }
 }
+
+pub enum Histogram {
+    DbCallTime,
+}
+
+impl metrics::HistogramMetric for Histogram {}
+
+impl metrics::Metric for Histogram {
+    fn id(&self) -> Cow<'static, str> {
+        match *self {
+            Histogram::DbCallTime => "db-call.call-time".into(),
+        }
+    }
+}
