@@ -25,8 +25,10 @@ use hab_core::package::{PackageIdent, PackageTarget};
 use serde_json;
 
 use db::models::channel::*;
-use db::models::package::{BuilderPackageIdent, Package};
-use server::authorize::authorize_session;
+use db::models::package::{
+    BuilderPackageIdent, Package, PackageVisibility, PackageWithChannelPlatform,
+};
+use server::authorize::{authorize_session, check_origin_member};
 use server::error::{Error, Result};
 use server::framework::headers;
 use server::helpers::{self, visibility_for_optional_session, Pagination, Target};
@@ -503,6 +505,13 @@ fn do_get_channel_package(
         match memcache.get_package(req_ident.clone().into(), &channel, &target) {
             Some(pkg_json) => {
                 trace!("Channel package {} {} Cache Hit!", channel, ident);
+                let p: PackageWithChannelPlatform = serde_json::from_str(&pkg_json)?;
+                if p.visibility != PackageVisibility::Public
+                    && (opt_session_id.is_none()
+                        || !check_origin_member(req, &p.origin, opt_session_id.unwrap())?)
+                {
+                    return Err(Error::NotFound);
+                }
                 return Ok(pkg_json);
             }
             None => {
