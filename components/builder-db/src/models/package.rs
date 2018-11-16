@@ -56,7 +56,9 @@ pub struct Package {
     pub origin: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
+#[derive(
+    Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable, PartialEq,
+)]
 #[table_name = "packages_with_channel_platform"]
 pub struct PackageWithChannelPlatform {
     #[serde(with = "db_id_format")]
@@ -344,13 +346,20 @@ impl Package {
     ) -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
 
-        packages_with_channel_platform::table
+        let (mut pkgs, _) = packages_with_channel_platform::table
             .filter(packages_with_channel_platform::ident_array.contains(pl.ident.parts()))
             .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
             .order(packages_with_channel_platform::ident.desc())
             .paginate(pl.page)
             .per_page(pl.limit)
-            .load_and_count_records(conn)
+            .load_and_count_records(conn)?;
+
+        // Note: dedup here as packages_with_channel_platform can return
+        // duplicate rows. TODO: Look for a performant Postgresql fix
+        // and possibly rethink the channels design
+        pkgs.dedup();
+        let new_count = pkgs.len() as i64;
+        Ok((pkgs, new_count))
     }
 
     pub fn list_distinct(
@@ -526,7 +535,7 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
         .collect()
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression, PartialEq)]
 #[sql_type = "Text"]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
@@ -575,7 +584,7 @@ impl Deref for BuilderPackageIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression, PartialEq)]
 #[sql_type = "Text"]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
