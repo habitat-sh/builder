@@ -225,6 +225,7 @@ impl MemcacheClient {
             .unwrap()
             .as_secs();
         self.cli.set(namespace_key, epoch, self.ttl * 60).unwrap();
+        self.cli.flush().unwrap();
         format!("{}", epoch)
     }
 

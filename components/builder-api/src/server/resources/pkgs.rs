@@ -47,7 +47,7 @@ use db::models::package::{
 };
 use db::models::projects::Project;
 
-use server::authorize::authorize_session;
+use server::authorize::{authorize_session, check_origin_member};
 use server::error::{Error, Result};
 use server::feat;
 use server::framework::headers;
@@ -221,7 +221,10 @@ fn get_latest_package_for_origin_package(
     let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package_model(&package, false),
+        Ok(json_body) => HttpResponse::Ok()
+            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+            .header(http::header::CACHE_CONTROL, headers::cache(false))
+            .body(json_body),
         Err(err) => err.into(),
     }
 }
@@ -236,7 +239,10 @@ fn get_latest_package_for_origin_package_version(
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package_model(&package, false),
+        Ok(json_body) => HttpResponse::Ok()
+            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+            .header(http::header::CACHE_CONTROL, headers::cache(false))
+            .body(json_body),
         Err(err) => err.into(),
     }
 }
@@ -249,7 +255,10 @@ fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpRe
     let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
     match do_get_package(&req, &qtarget, ident) {
-        Ok(package) => postprocess_package_model(&package, true),
+        Ok(json_body) => HttpResponse::Ok()
+            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+            .header(http::header::CACHE_CONTROL, headers::cache(true))
+            .body(json_body),
         Err(err) => err.into(),
     }
 }
@@ -606,8 +615,15 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
-    match Package::update_visibility(pv, BuilderPackageIdent(ident), &*conn) {
-        Ok(_) => HttpResponse::Ok().finish(),
+    match Package::update_visibility(pv, BuilderPackageIdent(ident.clone()), &*conn) {
+        Ok(_) => {
+            trace!("Clearing cache for {}", ident);
+            req.state()
+                .memcache
+                .borrow_mut()
+                .clear_cache_for_package(ident.into());
+            HttpResponse::Ok().finish()
+        }
         Err(e) => Error::DieselError(e).into(),
     }
 }
@@ -1001,7 +1017,7 @@ fn do_get_package(
     req: &HttpRequest<AppState>,
     qtarget: &Query<Target>,
     ident: PackageIdent,
-) -> Result<PackageWithChannelPlatform> {
+) -> Result<String> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
@@ -1018,17 +1034,40 @@ fn do_get_package(
         None => helpers::target_from_headers(req),
     };
 
-    if ident.fully_qualified() {
+    // Scope this memcache usage so the reference goes out of
+    // scope before the visibility_for_optional_session call
+    // below
+    {
+        let mut memcache = req.state().memcache.borrow_mut();
+        match memcache.get_package(ident.clone().into(), "unstable", &target) {
+            Some(pkg_json) => {
+                trace!("Package {} {} Cache Hit!", ident, target);
+                let p: PackageWithChannelPlatform = serde_json::from_str(&pkg_json)?;
+                if p.visibility != PackageVisibility::Public
+                    && (opt_session_id.is_none()
+                        || !check_origin_member(req, &p.origin, opt_session_id.unwrap())?)
+                {
+                    return Err(Error::NotFound);
+                }
+                return Ok(pkg_json);
+            }
+            None => {
+                trace!("Package {} {} Cache Miss!", ident, target);
+            }
+        };
+    }
+
+    let pkg = if ident.fully_qualified() {
         match Package::get_without_target(
             BuilderPackageIdent(ident.clone()),
             helpers::visibility_for_optional_session(req, opt_session_id, &ident.origin),
             &*conn,
         ) {
-            Ok(pkg) => Ok(pkg),
-            Err(NotFound) => Err(Error::NotFound).into(),
+            Ok(pkg) => pkg,
+            Err(NotFound) => return Err(Error::NotFound).into(),
             Err(err) => {
                 debug!("{:?}", err);
-                Err(err.into())
+                return Err(err.into());
             }
         }
     } else {
@@ -1044,30 +1083,26 @@ fn do_get_package(
             },
             &*conn,
         ) {
-            Ok(pkg) => Ok(pkg),
-            Err(NotFound) => Err(Error::NotFound).into(),
+            Ok(pkg) => pkg,
+            Err(NotFound) => return Err(Error::NotFound).into(),
             Err(err) => {
                 debug!("{:?}", err);
-                Err(err.into())
+                return Err(err.into());
             }
         }
-    }
-}
+    };
 
-pub fn postprocess_package_model(
-    pkg: &PackageWithChannelPlatform,
-    should_cache: bool,
-) -> HttpResponse {
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
 
-    let body = serde_json::to_string(&pkg_json).unwrap();
+    let json_body = serde_json::to_string(&pkg_json).unwrap();
 
-    HttpResponse::Ok()
-        .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-        .header(http::header::ETAG, pkg.checksum.to_string())
-        .header(http::header::CACHE_CONTROL, headers::cache(should_cache))
-        .body(body)
+    {
+        let mut memcache = req.state().memcache.borrow_mut();
+        memcache.set_package(ident.clone(), &json_body, "unstable", &target);
+    }
+
+    Ok(json_body)
 }
 
 //
