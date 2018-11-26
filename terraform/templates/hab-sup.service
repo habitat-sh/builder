@@ -7,6 +7,7 @@ Environment=HAB_STATS_ADDR=localhost:8125
 ExecStartPre=/bin/bash -c "/bin/systemctl set-environment SSL_CERT_FILE=$(hab pkg path core/cacerts)/ssl/cert.pem"
 ExecStart=/bin/hab run ${flags}
 KillMode=process
+LimitNOFILE=65535
 
 [Install]
 WantedBy=default.target
