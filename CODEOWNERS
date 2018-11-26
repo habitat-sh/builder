@@ -1,10 +1,10 @@
 * @chefsalim @raskchanky
-components/airlock @chefsalim @raskchanky @fnichol @elliott-davis
+components/airlock @chefsalim @raskchanky @fnichol
 components/airlock/src/command @apriofrost
 components/airlock/src/main.rs @apriofrost
-components/builder-* @chefsalim @raskchanky @reset @elliott-davis @eeyun
-components/builder-web @chefsalim @cnunciato @raskchanky @mgamini @elliott-davis
-components/builder-worker @chefsalim @raskchanky @reset @elliott-davis @fnichol
+components/builder-* @chefsalim @raskchanky @reset @eeyun
+components/builder-web @chefsalim @cnunciato @raskchanky @mgamini
+components/builder-worker @chefsalim @raskchanky @reset @fnichol
 components/builder-worker/src/main.rs @apriofrost
 components/builder-api/src/main.rs @apriofrost
 components/builder-graph/src/main.rs @apriofrost
@@ -15,6 +15,6 @@ components/oauth-client @chefsalim @raskchanky
 components/op @chefsalim @raskchanky
 components/op/src/main.rs @apriofrost
 components/segment-api-client @chefsalim @raskchanky
-support @fnichol @chefsalim @raskchanky @baumanj @elliott-davis
+support @fnichol @chefsalim @raskchanky @baumanj
 tools @baumanj @chefsalim @christophermaier @eeyun @raskchanky @fnichol
-.studiorc @chefsalim @elliott-davis @raskchanky
+.studiorc @chefsalim @raskchanky
