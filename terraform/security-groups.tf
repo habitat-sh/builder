@@ -66,6 +66,13 @@ resource "aws_security_group" "gateway" {
     ]
   }
 
+  ingress {
+    from_port = 11211
+    to_port   = 11211
+    protocol  = "tcp"
+    self      = true
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
