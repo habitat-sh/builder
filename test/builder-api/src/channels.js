@@ -159,18 +159,18 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(1);
-          expect(res.body.total_count).to.equal(2);
-          expect(res.body.data.length).to.equal(2);
+          expect(res.body.range_end).to.equal(2);
+          expect(res.body.total_count).to.equal(3);
+          expect(res.body.data.length).to.equal(3);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('testapp');
           expect(res.body.data[0].version).to.equal('0.1.3');
-          expect(res.body.data[0].release).to.equal('20171206004121');
+          expect(res.body.data[0].release).to.equal('20181116180420');
           expect(res.body.data[1].platforms[0]).to.equal('x86_64-linux');
           expect(res.body.data[1].origin).to.equal('neurosis');
           expect(res.body.data[1].name).to.equal('testapp');
           expect(res.body.data[1].version).to.equal('0.1.3');
-          expect(res.body.data[1].release).to.equal('20171205003213');
+          expect(res.body.data[1].release).to.equal('20171206004121');
           expect(res.body.data[1].platforms[0]).to.equal('x86_64-linux');
           done(err);
         });
