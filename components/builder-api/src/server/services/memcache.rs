@@ -32,6 +32,7 @@ pub struct MemcacheClient {
 
 impl MemcacheClient {
     pub fn new(config: MemcacheCfg) -> Self {
+        trace!("Creating memcache client, hosts: {:?}", config.hosts);
         let memcache_host_strings: Vec<String> = config
             .hosts
             .iter()
