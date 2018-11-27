@@ -43,11 +43,11 @@ impl OAuth2Client {
         client.default_headers(headers);
 
         let url = Url::parse(&config.token_url).expect("valid oauth url must be configured");
-        debug!("Checking proxy for url: {:?}", url);
+        trace!("Checking proxy for url: {:?}", url);
 
         if let Some(proxy_url) = env_proxy::for_url(&url).to_string() {
             if url.scheme() == "http" {
-                debug!("Setting http_proxy to {}", proxy_url);
+                trace!("Setting http_proxy to {}", proxy_url);
                 match reqwest::Proxy::http(&proxy_url) {
                     Ok(p) => {
                         client.proxy(p);
@@ -57,7 +57,7 @@ impl OAuth2Client {
             }
 
             if url.scheme() == "https" {
-                debug!("Setting https proxy to {}", proxy_url);
+                trace!("Setting https proxy to {}", proxy_url);
                 match reqwest::Proxy::https(&proxy_url) {
                     Ok(p) => {
                         client.proxy(p);
@@ -66,7 +66,7 @@ impl OAuth2Client {
                 }
             }
         } else {
-            debug!("No proxy configured for url: {:?}", url);
+            trace!("No proxy configured for url: {:?}", url);
         }
 
         let provider: Box<OAuth2Provider> = match &config.provider[..] {
