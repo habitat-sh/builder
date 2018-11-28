@@ -31,7 +31,7 @@ pub fn authorize_session(
         match extensions.get::<originsrv::Session>() {
             Some(session) => {
                 let flags = FeatureFlags::from_bits(session.get_flags()).unwrap(); // unwrap Ok
-                if flags.contains(BUILD_WORKER) {
+                if flags.contains(FeatureFlags::BUILD_WORKER) {
                     return Ok(session.clone());
                 }
                 session.clone()
