@@ -37,7 +37,7 @@ use server::services::metrics::Counter;
 use server::AppState;
 
 lazy_static! {
-    static ref SESSION_DURATION: u32 = 1 * 24 * 60 * 60;
+    static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;
 }
 
 pub fn route_message<M, R>(req: &HttpRequest<AppState>, msg: &M) -> error::Result<R>
