@@ -17,7 +17,7 @@ import { Subscription } from 'rxjs';
 import { AppStore } from './app.store';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { URLSearchParams } from '@angular/http';
-import { Router } from '@angular/router';
+import { Router, NavigationStart } from '@angular/router';
 import { identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
   routeChange, loadOAuthProvider, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
 
@@ -42,7 +42,9 @@ export class AppComponent implements OnInit, OnDestroy {
     // Whenever the Angular route has an event, dispatch an event with the new
     // route data.
     this.sub = this.router.events.subscribe(event => {
-      store.dispatch(routeChange(event));
+      if (event instanceof NavigationStart) {
+        store.dispatch(routeChange(event));
+      }
 
       // Clear the package search when the route changes
       store.dispatch(setPackagesSearchQuery(''));
