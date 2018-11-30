@@ -30,6 +30,7 @@ pub struct DbPool(pub PgPool);
 
 impl DbPool {
     pub fn new(config: &DataStoreCfg) -> Result<DbPool> {
+        debug!("Creating new DbPool, config: {:?}", config);
         loop {
             let manager = ConnectionManager::<PgConnection>::new(config.to_string());
             match Pool::builder()

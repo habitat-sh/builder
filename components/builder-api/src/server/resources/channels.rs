@@ -550,7 +550,7 @@ fn do_get_channel_package(
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident.clone())?;
+    let channels = channels_for_package_ident(req, &pkg.ident.clone(), &*conn)?;
 
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
@@ -568,15 +568,11 @@ fn do_get_channel_package(
 pub fn channels_for_package_ident(
     req: &HttpRequest<AppState>,
     package: &BuilderPackageIdent,
+    conn: &PgConnection,
 ) -> Result<Option<Vec<String>>> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
-    };
-
-    let conn = match req.state().db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(e) => return Err(e.into()),
     };
 
     match Package::list_package_channels(
