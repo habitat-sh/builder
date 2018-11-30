@@ -389,8 +389,9 @@ fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
             authorize_session(req, Some(&job.get_project().get_origin_name()))?;
 
             if job.get_package_ident().fully_qualified() {
+                let conn = req.state().db.get_conn().map_err(Error::DbError)?;
                 let builder_package_ident = BuilderPackageIdent(job.get_package_ident().into());
-                let channels = channels_for_package_ident(req, &builder_package_ident)?;
+                let channels = channels_for_package_ident(req, &builder_package_ident, &*conn)?;
                 let platforms = platforms_for_package_ident(req, &builder_package_ident)?;
                 let mut job_json = serde_json::to_value(job).unwrap();
 

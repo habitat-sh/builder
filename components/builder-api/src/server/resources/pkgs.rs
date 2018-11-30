@@ -1099,7 +1099,7 @@ fn do_get_package(
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident.clone())?;
+    let channels = channels_for_package_ident(req, &pkg.ident.clone(), &*conn)?;
 
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());

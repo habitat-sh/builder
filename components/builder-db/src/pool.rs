@@ -36,6 +36,7 @@ impl fmt::Debug for Pool {
 
 impl Pool {
     pub fn new(config: &DataStoreCfg) -> Result<Pool> {
+        debug!("Creating new Pool, config: {:?}", config);
         loop {
             let manager = PostgresConnectionManager::new(config, TlsMode::None)
                 .map_err(Error::PostgresConnect)?;
