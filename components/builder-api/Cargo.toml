@@ -17,7 +17,6 @@ bytes = "*"
 base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
-constant_time_eq = "*"
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 diesel-derive-enum = { version = "*", features = ["postgres"] }
