@@ -19,10 +19,9 @@ use actix_web::{error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Path
 
 use bldr_core::build_config::{BuildCfg, BLDR_CFG};
 use bldr_core::metrics::CounterMetric;
-use constant_time_eq::constant_time_eq;
 use github_api_client::types::GitHubWebhookPush;
 use github_api_client::{AppToken, GitHubClient};
-use hab_core::package::Plan;
+use hab_core::{crypto, package::Plan};
 use hex;
 use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
@@ -99,7 +98,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
     let hmac = signer.sign_to_vec().unwrap();
     let computed_signature = format!("sha1={}", &hex::encode(hmac));
 
-    if !constant_time_eq(gh_signature.as_bytes(), computed_signature.as_bytes()) {
+    if !crypto::secure_eq(&gh_signature, &computed_signature) {
         warn!(
             "Web hook signatures don't match. GH = {:?}, Our = {:?}",
             gh_signature, computed_signature
