@@ -514,6 +514,10 @@ fn do_get_channel_package(
                     && (opt_session_id.is_none()
                         || !check_origin_member(req, &p.origin, opt_session_id.unwrap())?)
                 {
+                    trace!(
+                        "Found package in cache, but privacy check failed: {}",
+                        req_ident
+                    );
                     return Err(Error::NotFound);
                 }
                 return Ok(pkg_json);

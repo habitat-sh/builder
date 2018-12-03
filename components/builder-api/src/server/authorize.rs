@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use actix_web::HttpRequest;
+use bldr_core::access_token::BUILDER_ACCOUNT_ID;
 use bldr_core::privilege::*;
 
 use protocol::originsrv;
@@ -97,7 +98,12 @@ pub fn check_origin_member(
     origin: &str,
     account_id: u64,
 ) -> Result<bool> {
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+    let result = if account_id == BUILDER_ACCOUNT_ID {
+        Ok(true)
+    } else {
+        let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+        Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError)
+    };
 
-    Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError)
+    result
 }
