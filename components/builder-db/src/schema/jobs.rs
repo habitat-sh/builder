@@ -11,7 +11,7 @@ table! {
         project_plan_path -> Text,
         vcs -> Text,
         vcs_arguments-> Array<Text>,
-        net_error_code -> Integer,
+        net_error_code -> Nullable<Integer>,
         net_error_msg -> Nullable<Text>,
         scheduler_sync -> Bool,
         created_at -> Nullable<Timestamptz>,

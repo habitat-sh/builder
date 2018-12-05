@@ -9,6 +9,7 @@ use protocol::jobsrv;
 use protocol::net;
 use protocol::originsrv;
 
+use models::pagination::Paginate;
 use schema::jobs::jobs;
 
 use bldr_core::metrics::CounterMetric;
@@ -30,7 +31,7 @@ pub struct Job {
     pub project_plan_path: String,
     pub vcs: String,
     pub vcs_arguments: Vec<String>,
-    pub net_error_code: i32,
+    pub net_error_code: Option<i32>,
     pub net_error_msg: Option<String>,
     pub scheduler_sync: bool,
     pub created_at: Option<DateTime<Utc>>,
@@ -44,10 +45,24 @@ pub struct Job {
     pub worker: Option<String>,
 }
 
+pub struct ListProjectJobs {
+    pub name: String,
+    pub page: i64,
+    pub limit: i64,
+}
+
 impl Job {
     pub fn get(id: i64, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
         jobs::table.filter(jobs::id.eq(id)).get_result(conn)
+    }
+
+    pub fn list(lpj: ListProjectJobs, conn: &PgConnection) -> QueryResult<(Vec<Job>, i64)> {
+        jobs::table
+            .filter(jobs::project_name.eq(lpj.name))
+            .paginate(lpj.page)
+            .per_page(lpj.limit)
+            .load_and_count_records(conn)
     }
 }
 
@@ -113,7 +128,7 @@ impl Into<jobsrv::Job> for Job {
         if let Some(err_msg) = self.net_error_msg {
             let mut err = net::NetError::new();
 
-            if let Some(net_err_code) = net::ErrCode::from_i32(self.net_error_code) {
+            if let Some(net_err_code) = net::ErrCode::from_i32(self.net_error_code.unwrap()) {
                 err.set_code(net_err_code);
                 err.set_msg(err_msg);
                 job.set_error(err);

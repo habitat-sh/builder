@@ -20,10 +20,11 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
-use protocol::jobsrv::*;
+use protocol::jobsrv;
 
 use hab_core::package::{PackageIdent, Plan};
 
+use db::models::jobs::*;
 use db::models::origin::*;
 use db::models::package::PackageVisibility;
 use db::models::package::*;
@@ -33,7 +34,6 @@ use db::models::projects::*;
 use server::authorize::authorize_session;
 use server::error::Error;
 use server::framework::headers;
-use server::framework::middleware::route_message;
 use server::helpers::{self, Pagination};
 use server::AppState;
 
@@ -426,35 +426,47 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    let mut jobs_get = ProjectJobsGet::new();
-
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
     }
 
-    let (start, stop) = helpers::extract_pagination(&pagination);
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
 
-    jobs_get.set_name(format!("{}/{}", origin, name));
-    jobs_get.set_start(start as u64);
-    jobs_get.set_stop(stop as u64);
+    let (page, per_page) = helpers::extract_pagination_in_pages(&pagination);
+    assert!(page >= 1);
 
-    match route_message::<ProjectJobsGet, ProjectJobsGetResponse>(&req, &jobs_get) {
-        Ok(response) => {
-            let list: Vec<serde_json::Value> = response
-                .get_jobs()
-                .iter()
-                .map(|job| serde_json::to_value(job).unwrap())
-                .collect();
+    let lpr = ListProjectJobs {
+        name: format!("{}/{}", origin, name),
+        page: page as i64,
+        limit: per_page as i64,
+    };
+
+    match Job::list(lpr, &*conn).map_err(Error::DieselError) {
+        Ok((jobs, total_count)) => {
+            let start = (page - 1) * per_page;
+            let stop = match jobs.len() {
+                0 => per_page - 1,
+                len => (start + (len as isize) - 1),
+            };
+
+            let list: Vec<serde_json::Value> = jobs
+                .into_iter()
+                .map(|job| {
+                    let protojob: jobsrv::Job = job.into();
+                    serde_json::to_value(protojob).unwrap()
+                }).collect();
 
             let body = helpers::package_results_json(
                 &list,
-                response.get_count() as isize,
-                response.get_start() as isize,
-                response.get_stop() as isize,
+                total_count as isize,
+                start as isize,
+                stop as isize,
             );
 
-            let mut response = if response.get_count() as isize > (response.get_stop() as isize + 1)
-            {
+            let mut response = if total_count as isize > (stop + 1) {
                 HttpResponse::PartialContent()
             } else {
                 HttpResponse::Ok()
