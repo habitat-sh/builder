@@ -50,21 +50,6 @@ pub fn job_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     }
 }
 
-pub fn project_jobs_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
-    let msg = req.parse::<jobsrv::ProjectJobsGet>()?;
-    match state.datastore.get_jobs_for_project(&msg) {
-        Ok(ref jobs) => {
-            // NOTE: Currently no difference between "project has no jobs" and "no
-            // such project"
-            RpcMessage::make(jobs).map_err(Error::BuilderCore)
-        }
-        Err(e) => {
-            warn!("project_jobs_get error: {:?}", e);
-            Err(Error::System)
-        }
-    }
-}
-
 pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobLogGet>()?;
     let mut get = jobsrv::JobGet::new();

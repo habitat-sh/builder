@@ -28,6 +28,7 @@ use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 
 use db::models::channel::*;
+use db::models::jobs::*;
 use db::models::package::*;
 use db::models::projects::*;
 use diesel::result::Error::NotFound;
@@ -379,17 +380,14 @@ fn promote_or_demote_job_group(
 // TODO: this should be redesigned to not have fan-out, and also to return
 // a Job instead of a String
 fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
-    let mut request = jobsrv::JobGet::new();
-    request.set_id(job_id);
+    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
-    match route_message::<jobsrv::JobGet, jobsrv::Job>(req, &request) {
+    match Job::get(job_id as i64, &*conn) {
         Ok(job) => {
-            debug!("job = {:?}", &job);
-
+            let job: jobsrv::Job = job.into();
             authorize_session(req, Some(&job.get_project().get_origin_name()))?;
 
             if job.get_package_ident().fully_qualified() {
-                let conn = req.state().db.get_conn().map_err(Error::DbError)?;
                 let builder_package_ident = BuilderPackageIdent(job.get_package_ident().into());
                 let channels = channels_for_package_ident(req, &builder_package_ident, &*conn)?;
                 let platforms = platforms_for_package_ident(req, &builder_package_ident)?;
@@ -408,7 +406,7 @@ fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
                 Ok(serde_json::to_string(&job).unwrap())
             }
         }
-        Err(err) => Err(err),
+        Err(err) => Err(Error::DieselError(err)),
     }
 }
 

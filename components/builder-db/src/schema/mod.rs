@@ -7,6 +7,7 @@ pub mod audit;
 pub mod channel;
 pub mod integration;
 pub mod invitation;
+pub mod jobs;
 pub mod key;
 pub mod member;
 pub mod origin;
