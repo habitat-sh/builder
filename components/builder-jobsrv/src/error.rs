@@ -77,7 +77,6 @@ pub enum Error {
     LogDirNotWritable(PathBuf),
     NotFound,
     ParseVCSInstallationId(num::ParseIntError),
-    ProjectJobsGet(postgres::error::Error),
     Protobuf(protobuf::ProtobufError),
     Protocol(protocol::ProtocolError),
     System,
@@ -176,9 +175,6 @@ impl fmt::Display for Error {
             }
             Error::Protobuf(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
-            Error::ProjectJobsGet(ref e) => {
-                format!("Database error getting jobs for project, {}", e)
-            }
             Error::System => "Internal error".to_string(),
             Error::UnknownJobGroup => format!("Unknown Group"),
             Error::UnknownJobGroupState => format!("Unknown Group State"),
@@ -236,7 +232,6 @@ impl error::Error for Error {
             Error::LogDirNotWritable(_) => "Build log directory is not writable",
             Error::NotFound => "Entity not found",
             Error::ParseVCSInstallationId(_) => "VCS installation id could not be parsed as u64",
-            Error::ProjectJobsGet(ref err) => err.description(),
             Error::Protobuf(ref err) => err.description(),
             Error::Protocol(ref err) => err.description(),
             Error::System => "Internal error",

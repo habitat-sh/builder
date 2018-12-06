@@ -18,7 +18,6 @@ use std::str::FromStr;
 
 use message::originsrv::OriginPackage;
 use message::{Persistable, Routable};
-use originsrv::Pageable;
 use protobuf::RepeatedField;
 use regex::Regex;
 use serde::ser::SerializeStruct;
@@ -72,25 +71,6 @@ impl Routable for Job {
 
     fn route_key(&self) -> Option<Self::H> {
         Some(InstaId(self.get_id()))
-    }
-}
-
-// Note: Given that we only run a single JobServer, the specific
-// routing key for this message isn't really important (everything is
-// going to route to the same, single place anyway). If we ever do run
-// multiple JobServers, though, this may need to be revisited (as will
-// other corners of the code).
-impl Routable for ProjectJobsGet {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_name().to_string())
-    }
-}
-
-impl Pageable for ProjectJobsGet {
-    fn get_range(&self) -> [u64; 2] {
-        [self.get_start(), self.get_stop()]
     }
 }
 
@@ -152,17 +132,6 @@ impl Serialize for Job {
             strukt.serialize_field("channel", self.get_channel())?;
         }
 
-        strukt.end()
-    }
-}
-
-impl Serialize for ProjectJobsGetResponse {
-    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut strukt = serializer.serialize_struct("project_jobs_get_response", 1)?;
-        strukt.serialize_field("jobs", self.get_jobs())?;
         strukt.end()
     }
 }

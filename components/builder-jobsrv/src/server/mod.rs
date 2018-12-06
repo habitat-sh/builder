@@ -81,7 +81,6 @@ fn handle_rpc((req, msg): (HttpRequest<AppState>, Json<RpcMessage>)) -> HttpResp
 
     let result = match msg.id.as_str() {
         "JobGet" => handlers::job_get(&msg, req.state()),
-        "ProjectJobsGet" => handlers::project_jobs_get(&msg, req.state()),
         "JobLogGet" => handlers::job_log_get(&msg, req.state()),
         "JobGroupSpec" => handlers::job_group_create(&msg, req.state()),
         "JobGroupCancel" => handlers::job_group_cancel(&msg, req.state()),

@@ -27,11 +27,9 @@ use db::{models::package::PackageVisibility, DbPool};
 use diesel::result::Error as Dre;
 use diesel::Connection;
 use postgres;
-use postgres::rows::Rows;
 use protobuf;
 use protobuf::{ProtobufEnum, RepeatedField};
 use protocol::net::{ErrCode, NetError};
-use protocol::originsrv::Pageable;
 use protocol::{jobsrv, originsrv};
 use std::str::FromStr;
 
@@ -145,42 +143,6 @@ impl DataStore {
             return Ok(Some(job));
         }
         Ok(None)
-    }
-
-    /// Get the 50 most recently-created jobs for a given project
-    /// (specified as an origin-qualified name, e.g., "core/nginx").
-    ///
-    /// # Errors
-    ///
-    /// * If a connection cannot be gotten from the pool
-    /// * If a row returned cannot be translated into a Job
-    pub fn get_jobs_for_project(
-        &self,
-        project: &jobsrv::ProjectJobsGet,
-    ) -> Result<jobsrv::ProjectJobsGetResponse> {
-        let conn = self.pool.get()?;
-        let rows = &conn
-            .query(
-                "SELECT * FROM get_jobs_for_project_v2($1, $2, $3)",
-                &[
-                    &(project.get_name()),
-                    &project.limit(),
-                    &(project.get_start() as i64),
-                ],
-            ).map_err(Error::ProjectJobsGet)?;
-
-        let mut jobs = protobuf::RepeatedField::new();
-        let mut response = jobsrv::ProjectJobsGetResponse::new();
-        response.set_start(project.get_start());
-        response.set_stop(self.last_index(project, &rows));
-
-        for row in rows {
-            let count: i64 = row.get("total_count");
-            response.set_count(count as u64);
-            jobs.push(row_to_job(&row)?)
-        }
-        response.set_jobs(jobs);
-        Ok(response)
     }
 
     /// Get the next pending job from the list of pending jobs
@@ -333,14 +295,6 @@ impl DataStore {
         conn.execute("SELECT mark_as_archived_v1($1)", &[&(job_id as i64)])
             .map_err(Error::JobMarkArchived)?;
         Ok(())
-    }
-
-    fn last_index<P: originsrv::Pageable>(&self, list_request: &P, rows: &Rows) -> u64 {
-        if rows.len() == 0 {
-            list_request.get_range()[1]
-        } else {
-            list_request.get_range()[0] + (rows.len() as u64) - 1
-        }
     }
 
     /// Create or update a busy worker

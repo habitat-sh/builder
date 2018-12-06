@@ -60,6 +60,7 @@ impl Job {
     pub fn list(lpj: ListProjectJobs, conn: &PgConnection) -> QueryResult<(Vec<Job>, i64)> {
         jobs::table
             .filter(jobs::project_name.eq(lpj.name))
+            .order(jobs::created_at.desc())
             .paginate(lpj.page)
             .per_page(lpj.limit)
             .load_and_count_records(conn)
@@ -77,8 +78,6 @@ impl Into<jobsrv::Job> for Job {
 
         job.set_created_at(self.created_at.unwrap().to_rfc3339());
 
-        // Note: these may be null (e.g., a job is scheduled, but hasn't
-        // started; a job has started and is currently running)
         if let Some(start) = self.build_started_at {
             job.set_build_started_at(start.to_rfc3339());
         }
@@ -86,7 +85,6 @@ impl Into<jobsrv::Job> for Job {
             job.set_build_finished_at(stop.to_rfc3339());
         }
 
-        // package_ident will only be present if the build succeeded
         if let Some(ident_str) = self.package_ident {
             let ident: originsrv::OriginPackageIdent = ident_str.parse().unwrap();
             job.set_package_ident(ident);
@@ -95,12 +93,6 @@ impl Into<jobsrv::Job> for Job {
         let mut project = originsrv::OriginProject::new();
         project.set_id(self.project_id as u64);
 
-        // only 'project_name' exists in the jobs table, but it's just
-        // "origin/name", so we can set those fields in the Project
-        // struct.
-        //
-        // 'package_ident' may be null, though, so we shouldn't use it to
-        // get the origin and name.
         let name = self.project_name.clone();
         let name_for_split = self.project_name.clone();
         let name_split: Vec<&str> = name_for_split.split("/").collect();

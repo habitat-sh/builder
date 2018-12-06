@@ -77,19 +77,6 @@ message JobSpec {
   optional string channel = 3;
 }
 
-message ProjectJobsGet {
-  optional string name = 1;
-  optional uint64 start = 2;
-  optional uint64 stop = 3;
-}
-
-message ProjectJobsGetResponse {
-  repeated Job jobs = 1;
-  optional uint64 start = 2;
-  optional uint64 stop = 3;
-  optional uint64 count = 4;
-}
-
 message JobLogChunk {
   optional uint64 job_id = 1;
   optional uint64 seq = 2; // Chunk ordering (line number)
