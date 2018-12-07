@@ -12,22 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use config::OAuth2Cfg;
+use crate::config::OAuth2Cfg;
+use crate::error::Result;
+use crate::types::*;
+
 use env_proxy;
-use error::Result;
 use reqwest::{self, header};
-use types::*;
 use url::Url;
 
-use a2::A2;
-use active_directory::ActiveDirectory;
-use azure_ad::AzureAD;
-use bitbucket::Bitbucket;
+use crate::a2::A2;
+use crate::active_directory::ActiveDirectory;
+use crate::azure_ad::AzureAD;
+use crate::bitbucket::Bitbucket;
+use crate::github::GitHub;
+use crate::gitlab::GitLab;
+use crate::metrics::Counter;
+use crate::okta::Okta;
+
 use builder_core::metrics::CounterMetric;
-use github::GitHub;
-use gitlab::GitLab;
-use metrics::Counter;
-use okta::Okta;
 
 pub struct OAuth2Client {
     inner: reqwest::Client,

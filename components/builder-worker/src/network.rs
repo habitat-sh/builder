@@ -16,7 +16,7 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
 #[derive(Debug)]
 pub struct NetworkNamespace(PathBuf);

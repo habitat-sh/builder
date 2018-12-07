@@ -17,11 +17,11 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
+use crate::hab_core::config::ConfigFile;
+use crate::hab_core::url;
 use github_api_client::config::GitHubCfg;
-use hab_core::config::ConfigFile;
-use hab_core::url;
 
-use error::Error;
+use crate::error::Error;
 
 pub type JobSrvCfg = Vec<JobSrvAddr>;
 

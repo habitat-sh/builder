@@ -176,7 +176,7 @@ start-builder() { stop-on-failure _start-builder "$@"; }
 _load-if-not-loaded() {
   local pkg_ident
   pkg_ident=$1
-  if hab sup status "$pkg_ident" > /dev/null; then
+  if hab sup status "$pkg_ident" > /dev/null 2>&1; then
     echo "$pkg_ident is already loaded"
   else
     hab svc load "$@"
@@ -185,7 +185,8 @@ _load-if-not-loaded() {
 load-if-not-loaded() { stop-on-failure _load-if-not-loaded "$@"; }
 
 start-datastore() {
-if hab sup status habitat/builder-datastore > /dev/null; then
+  echo "Starting datastore"
+  if hab sup status habitat/builder-datastore > /dev/null 2>&1; then
     echo "habitat/builder-datastore is already loaded"
   else
     init-datastore
@@ -227,6 +228,7 @@ _stop-builder() {
     if [ $component == cache ]; then
       hab svc unload core/sccache
     else
+      echo "Unloading builder-$component"
       hab svc unload habitat/builder-$component
     fi
   done

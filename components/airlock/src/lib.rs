@@ -12,15 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate dirs;
-extern crate errno;
-extern crate libc;
 #[macro_use]
 extern crate log;
-extern crate pnet_datalink;
-extern crate rand;
-extern crate unshare;
-extern crate users;
 
 pub mod command;
 mod coreutils;
@@ -33,5 +26,5 @@ mod pty;
 mod user;
 mod util;
 
-pub use error::{Error, Result};
-pub use fs_root::{FsRoot, FsRootPolicy};
+pub use crate::error::{Error, Result};
+pub use crate::fs_root::{FsRoot, FsRootPolicy};

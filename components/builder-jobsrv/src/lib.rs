@@ -15,41 +15,25 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
-extern crate actix;
-extern crate actix_web;
-extern crate builder_core as bldr_core;
-extern crate chrono;
-extern crate diesel;
-extern crate futures;
-extern crate rusoto_core as rusoto;
-extern crate rusoto_s3;
 #[macro_use]
 extern crate diesel_migrations;
-extern crate habitat_builder_db as db;
-extern crate habitat_builder_protocol as protocol;
-extern crate habitat_core as hab_core;
-extern crate linked_hash_map;
 #[macro_use]
 extern crate log;
-extern crate num_cpus;
-extern crate postgres;
-extern crate protobuf;
-extern crate r2d2;
-extern crate rand;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate sha2;
-extern crate time;
-extern crate toml;
-extern crate zmq;
+
+use builder_core as bldr_core;
+use habitat_builder_db as db;
+use habitat_builder_protocol as protocol;
+use habitat_core as hab_core;
+use rusoto_core as rusoto;
 
 pub mod config;
 pub mod data_store;
 pub mod error;
 pub mod server;
 
-pub use self::config::Config;
-pub use self::error::{Error, Result};
+pub use crate::config::Config;
+pub use crate::error::{Error, Result};
 
 pub const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));

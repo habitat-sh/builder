@@ -17,16 +17,16 @@
 
 #[macro_use]
 extern crate clap;
-extern crate env_logger;
-extern crate habitat_builder_worker as worker;
-extern crate habitat_core as hab_core;
 #[macro_use]
 extern crate log;
 
 use std::process;
 
-use hab_core::config::ConfigFile;
-use worker::{server, Config, Error, Result};
+use habitat_builder_worker as worker;
+use habitat_core as hab_core;
+
+use crate::hab_core::config::ConfigFile;
+use crate::worker::{server, Config, Error, Result};
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &'static str = "/hab/svc/builder-worker/config.toml";

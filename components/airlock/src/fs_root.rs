@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
-use {Error, Result};
+use crate::error::{Error, Result};
 
 const NUM_RETRIES: u32 = 1 << 31;
 const NUM_RAND_CHARS: usize = 12;

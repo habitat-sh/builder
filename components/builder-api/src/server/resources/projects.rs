@@ -20,22 +20,22 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
-use protocol::jobsrv;
+use crate::protocol::jobsrv;
 
-use hab_core::package::{PackageIdent, Plan};
+use crate::hab_core::package::{PackageIdent, Plan};
 
-use db::models::jobs::*;
-use db::models::origin::*;
-use db::models::package::PackageVisibility;
-use db::models::package::*;
-use db::models::project_integration::*;
-use db::models::projects::*;
+use crate::db::models::jobs::*;
+use crate::db::models::origin::*;
+use crate::db::models::package::PackageVisibility;
+use crate::db::models::package::*;
+use crate::db::models::project_integration::*;
+use crate::db::models::projects::*;
 
-use server::authorize::authorize_session;
-use server::error::Error;
-use server::framework::headers;
-use server::helpers::{self, Pagination};
-use server::AppState;
+use crate::server::authorize::authorize_session;
+use crate::server::error::Error;
+use crate::server::framework::headers;
+use crate::server::helpers::{self, Pagination};
+use crate::server::AppState;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProjectCreateReq {
@@ -80,15 +80,18 @@ impl Projects {
                 "/projects/{origin}/{name}/integrations/{integration}/default",
                 Method::GET,
                 get_integration,
-            ).route(
+            )
+            .route(
                 "/projects/{origin}/{name}/integrations/{integration}/default",
                 Method::PUT,
                 create_integration,
-            ).route(
+            )
+            .route(
                 "/projects/{origin}/{name}/integrations/{integration}/default",
                 Method::DELETE,
                 delete_integration,
-            ).route(
+            )
+            .route(
                 "/projects/{origin}/{name}/{visibility}",
                 Method::PATCH,
                 toggle_privacy,
@@ -457,7 +460,8 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
                 .map(|job| {
                     let protojob: jobsrv::Job = job.into();
                     serde_json::to_value(protojob).unwrap()
-                }).collect();
+                })
+                .collect();
 
             let body = helpers::package_results_json(
                 &list,

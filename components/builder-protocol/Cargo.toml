@@ -5,6 +5,7 @@ authors = ["Adam Jacob <adam@chef.io>", "Jamie Winsor <reset@chef.io>", "Fletche
 description = "Habitat Builder Network Server Protocol"
 build = "build.rs"
 workspace = "../../"
+edition = "2018"
 
 [dependencies]
 clippy = { version = "*", optional = true }

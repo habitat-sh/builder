@@ -4,10 +4,11 @@ use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use schema::secrets::*;
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use crate::schema::secrets::*;
+
+use crate::bldr_core::metrics::CounterMetric;
+use crate::metrics::Counter;
 
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginSecret {
@@ -61,7 +62,8 @@ impl OriginSecret {
             origin_secrets::table
                 .filter(origin_secrets::name.eq(name))
                 .filter(origin_secrets::origin.eq(origin)),
-        ).execute(conn)
+        )
+        .execute(conn)
     }
 
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginSecret>> {

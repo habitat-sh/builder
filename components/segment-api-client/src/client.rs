@@ -13,16 +13,16 @@
 // limitations under the License.
 
 use env_proxy;
-use url::Url;
-
-use config::SegmentCfg;
-use error::{SegmentError, SegmentResult};
 use serde_json;
+use url::Url;
 
 use reqwest::header::{qitem, Accept, Authorization, Basic, ContentType, Headers, UserAgent};
 use reqwest::mime;
 use reqwest::Client;
 use reqwest::{Proxy, Response};
+
+use crate::config::SegmentCfg;
+use crate::error::{SegmentError, SegmentResult};
 
 const USER_AGENT: &'static str = "Habitat-Builder";
 

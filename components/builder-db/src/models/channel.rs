@@ -12,16 +12,16 @@ use diesel::{
     Table, TextExpressionMethods,
 };
 
-use models::package::{BuilderPackageIdent, Package, PackageVisibility};
-use models::pagination::Paginate;
-use protocol::jobsrv::JobGroupTrigger;
-use schema::audit::{audit_package, audit_package_group};
-use schema::channel::{origin_channel_packages, origin_channels};
-use schema::origin::origins;
-use schema::package::origin_packages;
+use crate::models::package::{BuilderPackageIdent, Package, PackageVisibility};
+use crate::models::pagination::Paginate;
+use crate::protocol::jobsrv::JobGroupTrigger;
+use crate::schema::audit::{audit_package, audit_package_group};
+use crate::schema::channel::{origin_channel_packages, origin_channels};
+use crate::schema::origin::origins;
+use crate::schema::package::origin_packages;
 
-use bldr_core::metrics::{CounterMetric, HistogramMetric};
-use metrics::{Counter, Histogram};
+use crate::bldr_core::metrics::{CounterMetric, HistogramMetric};
+use crate::metrics::{Counter, Histogram};
 
 #[derive(AsExpression, Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
@@ -98,7 +98,8 @@ impl Channel {
             origin_channels::table
                 .filter(origin_channels::origin.eq(origin))
                 .filter(origin_channels::name.eq(channel)),
-        ).execute(conn)
+        )
+        .execute(conn)
     }
 
     pub fn get_latest_package(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
@@ -115,7 +116,8 @@ impl Channel {
             .filter(origin_packages::ident_array.contains(ident.clone().parts()))
             .order(sql::<Package>(
                 "to_semver(ident_array[3]) desc, ident_array[4] desc",
-            )).limit(1)
+            ))
+            .limit(1)
             .get_result(conn);
 
         let end_time = PreciseTime::now();
@@ -138,7 +140,8 @@ impl Channel {
             .inner_join(
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
-            ).filter(origin_packages::ident_array.contains(lcp.ident.clone().parts()))
+            )
+            .filter(origin_packages::ident_array.contains(lcp.ident.clone().parts()))
             .filter(origin_packages::visibility.eq(any(lcp.visibility)))
             .filter(origins::name.eq(lcp.origin))
             .filter(origin_channels::name.eq(lcp.channel))
@@ -162,7 +165,8 @@ impl Channel {
                     origin_channel_packages::package_id.eq(id),
                     origin_channel_packages::channel_id.eq(channel_id),
                 )
-            }).collect();
+            })
+            .collect();
         diesel::insert_into(origin_channel_packages::table)
             .values(insert)
             .execute(conn)
@@ -178,7 +182,8 @@ impl Channel {
             origin_channel_packages::table
                 .filter(origin_channel_packages::channel_id.eq(channel_id))
                 .filter(origin_channel_packages::package_id.eq(any(package_ids))),
-        ).execute(conn)
+        )
+        .execute(conn)
     }
 }
 
@@ -287,7 +292,8 @@ impl OriginChannelPackage {
             .values((
                 origin_channel_packages::channel_id.eq(channel_id),
                 origin_channel_packages::package_id.eq(package_id),
-            )).on_conflict_do_nothing()
+            ))
+            .on_conflict_do_nothing()
             .execute(conn)
     }
     pub fn demote(package: OriginChannelDemote, conn: &PgConnection) -> QueryResult<usize> {
@@ -302,7 +308,8 @@ impl OriginChannelPackage {
                             .filter(origin_channels::name.eq(package.channel))
                             .filter(origin_channels::origin.eq(package.origin))
                             .single_value()),
-                ).filter(
+                )
+                .filter(
                     origin_channel_packages::package_id
                         .nullable()
                         .eq(origin_packages::table
@@ -310,6 +317,7 @@ impl OriginChannelPackage {
                             .filter(origin_packages::ident.eq(package.ident.to_string()))
                             .single_value()),
                 ),
-        ).execute(conn)
+        )
+        .execute(conn)
     }
 }

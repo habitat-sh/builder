@@ -12,22 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate base64;
 #[macro_use]
 extern crate log;
-extern crate reqwest;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-extern crate env_proxy;
-extern crate url;
 
 pub mod client;
 pub mod config;
 pub mod error;
 
-pub use client::SegmentClient;
-pub use config::SegmentCfg;
-pub use error::{SegmentError, SegmentResult};
+pub use crate::client::SegmentClient;
+pub use crate::config::SegmentCfg;
+pub use crate::error::{SegmentError, SegmentResult};

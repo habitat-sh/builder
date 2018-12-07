@@ -15,11 +15,12 @@
 use actix_web::http::Method;
 use actix_web::{App, HttpRequest, HttpResponse};
 
-use db::models::invitations::OriginInvitation;
-use db::models::origin::Origin;
-use server::authorize::authorize_session;
-use server::error::Error;
-use server::AppState;
+use crate::db::models::invitations::OriginInvitation;
+use crate::db::models::origin::Origin;
+
+use crate::server::authorize::authorize_session;
+use crate::server::error::Error;
+use crate::server::AppState;
 
 pub struct User {}
 

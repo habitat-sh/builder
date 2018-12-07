@@ -18,29 +18,29 @@ use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use bldr_core;
-use bldr_core::job::Job;
-use bldr_core::metrics::GaugeMetric;
-use bldr_core::socket::DEFAULT_CONTEXT;
-use db::DbPool;
-use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
-use hab_core::crypto::BoxKeyPair;
+use crate::bldr_core;
+use crate::bldr_core::job::Job;
+use crate::bldr_core::metrics::GaugeMetric;
+use crate::bldr_core::socket::DEFAULT_CONTEXT;
+use crate::db::DbPool;
+use crate::hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
+use crate::hab_core::crypto::BoxKeyPair;
 use linked_hash_map::LinkedHashMap;
 use protobuf::{parse_from_bytes, Message, RepeatedField};
 
-use db::models::integration::*;
-use db::models::keys::*;
-use db::models::project_integration::*;
-use db::models::secrets::*;
+use crate::db::models::integration::*;
+use crate::db::models::keys::*;
+use crate::db::models::project_integration::*;
+use crate::db::models::secrets::*;
 
-use protocol::jobsrv;
-use protocol::originsrv;
+use crate::protocol::jobsrv;
+use crate::protocol::originsrv;
 
 use zmq;
 
-use config::Config;
-use data_store::DataStore;
-use error::{Error, Result};
+use crate::config::Config;
+use crate::data_store::DataStore;
+use crate::error::{Error, Result};
 
 use super::metrics::Gauge;
 use super::scheduler::ScheduleClient;
@@ -192,7 +192,8 @@ impl WorkerMgr {
             .name("worker-manager".to_string())
             .spawn(move || {
                 manager.run(tx).unwrap();
-            }).unwrap();
+            })
+            .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("worker-manager thread startup error, err={}", e),

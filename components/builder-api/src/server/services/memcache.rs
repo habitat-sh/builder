@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use config::MemcacheCfg;
-use hab_core::package::PackageIdent;
 use memcache;
 use protobuf;
 use protobuf::Message;
-use protocol::originsrv::Session;
 use rand::{self, Rng};
 use sha2::{Digest, Sha512};
 use time::PreciseTime;
 
 use super::metrics::Histogram;
-use bldr_core::metrics::HistogramMetric;
+
+use crate::bldr_core::metrics::HistogramMetric;
+use crate::config::MemcacheCfg;
+use crate::hab_core::package::PackageIdent;
+use crate::protocol::originsrv::Session;
 
 pub struct MemcacheClient {
     cli: memcache::Client,

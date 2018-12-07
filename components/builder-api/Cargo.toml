@@ -5,6 +5,7 @@ authors = ["Adam Jacob <adam@chef.io>", "Jamie Winsor <reset@chef.io>", "Fletche
 description = "Habitat-Builder HTTP API gateway"
 build = "../build-builder.rs"
 workspace = "../../"
+edition = "2018"
 
 [[bin]]
 name = "bldr-api"

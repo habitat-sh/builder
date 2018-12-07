@@ -31,21 +31,21 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use super::metrics::Counter;
-use bldr_core::metrics::CounterMetric;
-use hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
-
 use futures::{Future, Stream};
-use rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
+use time::PreciseTime;
+
 use rusoto_s3::{
     CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart, CreateBucketRequest,
     CreateMultipartUploadRequest, GetObjectRequest, HeadObjectRequest, PutObjectRequest, S3Client,
     UploadPartRequest, S3,
 };
-use time::PreciseTime;
 
-use super::super::error::{Error, Result};
-use config::{S3Backend, S3Cfg};
+use super::metrics::Counter;
+use crate::bldr_core::metrics::CounterMetric;
+use crate::config::{S3Backend, S3Cfg};
+use crate::hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
+use crate::rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
+use crate::server::error::{Error, Result};
 
 // This const is equal to 6MB which is slightly above
 // the minimum limit for a multipart upload request
@@ -252,7 +252,7 @@ impl S3Handler {
                 let mut part_num: i64 = 0;
                 let mut should_break = false;
                 loop {
-                    let mut length;
+                    let length;
                     {
                         let buffer = reader.fill_buf().map_err(Error::IO)?;
                         length = buffer.len();
@@ -282,7 +282,7 @@ impl S3Handler {
                     }
                 }
 
-                let mut completion = CompleteMultipartUploadRequest {
+                let completion = CompleteMultipartUploadRequest {
                     key: key.to_string(),
                     bucket: self.bucket.clone(),
                     multipart_upload: Some(CompletedMultipartUpload { parts: Some(p) }),
@@ -352,7 +352,7 @@ fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use hab_core;
+    use crate::hab_core;
 
     #[test]
     fn s3_key_fully_qualified_ident() {

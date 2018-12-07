@@ -1,5 +1,5 @@
 table! {
-    use models::package::PackageVisibilityMapping;
+    use crate::models::package::PackageVisibilityMapping;
     use diesel::sql_types::{BigInt, Text, Nullable, Timestamptz};
     origins (name) {
         owner_id -> BigInt,
@@ -11,7 +11,7 @@ table! {
 }
 
 table! {
-    use models::package::PackageVisibilityMapping;
+    use crate::models::package::PackageVisibilityMapping;
     use diesel::sql_types::{BigInt, Text, Nullable};
     origins_with_secret_key (name) {
         owner_id -> BigInt,
@@ -22,7 +22,7 @@ table! {
 }
 
 table! {
-    use models::package::PackageVisibilityMapping;
+    use crate::models::package::PackageVisibilityMapping;
     use diesel::sql_types::{BigInt, Text, Nullable, Timestamptz};
     origins_with_stats (name) {
         owner_id -> BigInt,

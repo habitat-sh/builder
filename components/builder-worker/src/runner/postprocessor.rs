@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bldr_core::logger::Logger;
-use config::Config;
-use error::Result;
-use hab_core::package::archive::PackageArchive;
+use crate::bldr_core::logger::Logger;
+use crate::config::Config;
+use crate::error::Result;
+use crate::hab_core::package::archive::PackageArchive;
 
 use super::publisher::Publisher;
 use super::workspace::Workspace;

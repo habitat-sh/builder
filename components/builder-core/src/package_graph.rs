@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use hab_core::package::PackageIdent;
 use petgraph::algo::{connected_components, is_cyclic_directed};
 use petgraph::graph::NodeIndex;
 use petgraph::{Direction, Graph};
-use protocol::originsrv;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::str::FromStr;
 
-use rdeps::rdeps;
+use crate::hab_core::package::PackageIdent;
+use crate::protocol::originsrv;
+use crate::rdeps::rdeps;
 
 #[derive(Debug)]
 pub struct Stats {
@@ -239,11 +239,13 @@ impl PackageGraph {
 
         match self.package_map.get(name) {
             Some(&(_, pkg_node)) => match rdeps(&self.graph, pkg_node) {
-                Ok(deps) => for n in deps {
-                    let name = self.package_names[n].clone();
-                    let ident = format!("{}", self.latest_map.get(&name).unwrap());
-                    v.push((name, ident));
-                },
+                Ok(deps) => {
+                    for n in deps {
+                        let name = self.package_names[n].clone();
+                        let ident = format!("{}", self.latest_map.get(&name).unwrap());
+                        v.push((name, ident));
+                    }
+                }
                 Err(e) => panic!("Error: {:?}", e),
             },
             None => return None,
@@ -261,9 +263,11 @@ impl PackageGraph {
             debug!("{}", pkg_name);
 
             match rdeps(&self.graph, node) {
-                Ok(v) => for n in v {
-                    debug!("|_ {}", self.package_names[n]);
-                },
+                Ok(v) => {
+                    for n in v {
+                        debug!("|_ {}", self.package_names[n]);
+                    }
+                }
                 Err(e) => panic!("Error: {:?}", e),
             }
         }

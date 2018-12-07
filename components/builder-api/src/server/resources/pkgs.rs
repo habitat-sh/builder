@@ -31,30 +31,32 @@ use tempfile::tempdir_in;
 use url;
 use uuid::Uuid;
 
-use bldr_core::error::Error::RpcError;
-use bldr_core::metrics::CounterMetric;
-use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
+use crate::bldr_core::error::Error::RpcError;
+use crate::bldr_core::metrics::CounterMetric;
+use crate::hab_core::package::{
+    FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget,
+};
 
-use protocol::jobsrv;
-use protocol::net::NetOk;
-use protocol::originsrv;
+use crate::protocol::jobsrv;
+use crate::protocol::net::NetOk;
+use crate::protocol::originsrv;
 
-use db::models::origin::Origin;
-use db::models::package::{
+use crate::db::models::origin::Origin;
+use crate::db::models::package::{
     BuilderPackageIdent, BuilderPackageTarget, GetLatestPackage, GetPackage, ListPackages,
     NewPackage, Package, PackageIdentWithChannelPlatform, PackageVisibility, SearchPackages,
 };
-use db::models::projects::Project;
+use crate::db::models::projects::Project;
 
-use server::authorize::{authorize_session, check_origin_member};
-use server::error::{Error, Result};
-use server::feat;
-use server::framework::headers;
-use server::framework::middleware::route_message;
-use server::helpers::{self, Pagination, Target};
-use server::resources::channels::channels_for_package_ident;
-use server::services::metrics::Counter;
-use server::AppState;
+use crate::server::authorize::{authorize_session, check_origin_member};
+use crate::server::error::{Error, Result};
+use crate::server::feat;
+use crate::server::framework::headers;
+use crate::server::framework::middleware::route_message;
+use crate::server::helpers::{self, Pagination, Target};
+use crate::server::resources::channels::channels_for_package_ident;
+use crate::server::services::metrics::Counter;
+use crate::server::AppState;
 
 // Query param containers
 #[derive(Debug, Deserialize)]
@@ -111,47 +113,58 @@ impl Packages {
                 "/depot/pkgs/{origin}/{pkg}",
                 Method::GET,
                 get_packages_for_origin_package,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/schedule/{origin}/status",
                 Method::GET,
                 get_origin_schedule_status,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/schedule/{origin}/{pkg}",
                 Method::POST,
                 schedule_job_group,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/latest",
                 Method::GET,
                 get_latest_package_for_origin_package,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/versions",
                 Method::GET,
                 list_package_versions,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/{version}",
                 Method::GET,
                 get_packages_for_origin_package_version,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/latest",
                 Method::GET,
                 get_latest_package_for_origin_package_version,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                 Method::POST,
                 upload_package,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                 Method::GET,
                 get_package,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
                 Method::GET,
                 download_package,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/channels",
                 Method::GET,
                 get_package_channels,
-            ).route(
+            )
+            .route(
                 "/depot/pkgs/{origin}/{pkg}/{version}/{release}/{visibility}",
                 Method::PATCH,
                 package_privacy_toggle,
@@ -1010,7 +1023,8 @@ fn do_upload_package_async(
                 Ok(do_upload_package_finish(req, qupload, ident, temp_path))
             }
             Err(err) => Err(Error::InnerError(err)),
-        }).responder()
+        })
+        .responder()
 }
 
 fn do_get_package(
@@ -1149,10 +1163,12 @@ fn download_response_for_archive(archive: PackageArchive, file_path: PathBuf) ->
                 disposition: DispositionType::Attachment,
                 parameters: vec![DispositionParam::Filename(filename)],
             },
-        ).header(
+        )
+        .header(
             http::header::HeaderName::from_static(headers::XFILENAME),
             archive.file_name(),
-        ).set(ContentType::octet_stream())
+        )
+        .set(ContentType::octet_stream())
         .header(http::header::CACHE_CONTROL, headers::cache(true))
         .streaming(rx_body.map_err(|_| error::ErrorBadRequest("bad request")))
 }

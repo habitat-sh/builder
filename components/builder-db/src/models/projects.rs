@@ -4,12 +4,13 @@ use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use models::package::PackageVisibility;
-use protocol::originsrv;
-use schema::project::origin_projects;
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use crate::models::package::PackageVisibility;
+use crate::protocol::originsrv;
+use crate::schema::project::origin_projects;
+
+use crate::bldr_core::metrics::CounterMetric;
+use crate::metrics::Counter;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_projects"]

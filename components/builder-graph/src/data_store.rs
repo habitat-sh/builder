@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::str::FromStr;
 use std::sync::Arc;
 
-use config::Config;
-use db::pool::Pool;
-use error::{Error, Result};
 use postgres;
 use protobuf;
 use protobuf::RepeatedField;
-use protocol::originsrv;
-use std::str::FromStr;
+
+use crate::config::Config;
+use crate::db::pool::Pool;
+use crate::error::{Error, Result};
+use crate::protocol::originsrv;
 
 // DataStore inherits Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Debug, Clone)]

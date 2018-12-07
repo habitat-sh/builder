@@ -5,15 +5,15 @@ use diesel::result::QueryResult;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use protobuf::ProtobufEnum;
 
-use protocol::jobsrv;
-use protocol::net;
-use protocol::originsrv;
+use crate::protocol::jobsrv;
+use crate::protocol::net;
+use crate::protocol::originsrv;
 
-use models::pagination::Paginate;
-use schema::jobs::jobs;
+use crate::models::pagination::Paginate;
+use crate::schema::jobs::jobs;
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use crate::bldr_core::metrics::CounterMetric;
+use crate::metrics::Counter;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "jobs"]

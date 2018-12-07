@@ -29,10 +29,10 @@ use r2d2;
 use rusoto_s3;
 use zmq;
 
-use bldr_core;
-use db;
-use hab_core;
-use protocol;
+use crate::bldr_core;
+use crate::db;
+use crate::hab_core;
+use crate::protocol;
 
 #[derive(Debug)]
 pub enum Error {

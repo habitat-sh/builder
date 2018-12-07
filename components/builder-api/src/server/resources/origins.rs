@@ -31,27 +31,27 @@ use diesel::result::Error::NotFound;
 use futures::future::Future;
 use serde_json;
 
-use bldr_core;
-use hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
-use hab_core::crypto::{BoxKeyPair, SigKeyPair};
-use hab_core::package::{ident, PackageIdent};
+use crate::bldr_core;
+use crate::hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
+use crate::hab_core::crypto::{BoxKeyPair, SigKeyPair};
+use crate::hab_core::package::{ident, PackageIdent};
 
-use protocol::originsrv::OriginKeyIdent;
+use crate::protocol::originsrv::OriginKeyIdent;
 
-use db::models::account::*;
-use db::models::integration::*;
-use db::models::invitations::*;
-use db::models::keys::*;
-use db::models::origin::*;
-use db::models::package::{BuilderPackageIdent, ListPackages, Package, PackageVisibility};
-use db::models::secrets::*;
+use crate::db::models::account::*;
+use crate::db::models::integration::*;
+use crate::db::models::invitations::*;
+use crate::db::models::keys::*;
+use crate::db::models::origin::*;
+use crate::db::models::package::{BuilderPackageIdent, ListPackages, Package, PackageVisibility};
+use crate::db::models::secrets::*;
 
-use server::authorize::{authorize_session, check_origin_owner};
-use server::error::{Error, Result};
-use server::framework::headers;
-use server::helpers::{self, Pagination};
-use server::resources::pkgs::postprocess_package_list;
-use server::AppState;
+use crate::server::authorize::{authorize_session, check_origin_owner};
+use crate::server::error::{Error, Result};
+use crate::server::framework::headers;
+use crate::server::helpers::{self, Pagination};
+use crate::server::resources::pkgs::postprocess_package_list;
+use crate::server::AppState;
 
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginSecretPayload {
@@ -87,88 +87,109 @@ impl Origins {
                 "/depot/origins/{origin}/users",
                 Method::GET,
                 list_origin_members,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/users/{user}",
                 http::Method::DELETE,
                 origin_member_delete,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/invitations",
                 Method::GET,
                 list_origin_invitations,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/users/{username}/invitations",
                 Method::POST,
                 invite_to_origin,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/invitations/{invitation_id}",
                 Method::PUT,
                 accept_invitation,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/invitations/{invitation_id}",
                 Method::DELETE,
                 rescind_invitation,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/invitations/{invitation_id}/ignore",
                 Method::PUT,
                 ignore_invitation,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/keys/latest",
                 Method::GET,
                 download_latest_origin_key,
-            ).route("/depot/origins/{origin}/keys", Method::POST, create_keys)
+            )
+            .route("/depot/origins/{origin}/keys", Method::POST, create_keys)
             .route(
                 "/depot/origins/{origin}/keys",
                 Method::GET,
                 list_origin_keys,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/keys/{revision}",
                 http::Method::POST,
                 upload_origin_key,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/keys/{revision}",
                 http::Method::GET,
                 download_origin_key,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/secret",
                 Method::GET,
                 list_origin_secrets,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/secret",
                 Method::POST,
                 create_origin_secret,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/encryption_key",
                 Method::GET,
                 download_latest_origin_encryption_key,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/integrations",
                 Method::GET,
                 fetch_origin_integrations,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/secret/{secret}",
                 Method::DELETE,
                 delete_origin_secret,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/secret_keys/latest",
                 Method::GET,
                 download_latest_origin_secret_key,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/secret_keys/{revision}",
                 Method::POST,
                 upload_origin_secret_key,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/integrations/{integration}/names",
                 Method::GET,
                 fetch_origin_integration_names,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/integrations/{integration}/{name}",
                 Method::GET,
                 get_origin_integration,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/integrations/{integration}/{name}",
                 Method::DELETE,
                 delete_origin_integration,
-            ).route(
+            )
+            .route(
                 "/depot/origins/{origin}/integrations/{integration}/{name}",
                 Method::PUT,
                 create_origin_integration_async,
@@ -330,7 +351,8 @@ fn list_origin_keys(req: HttpRequest<AppState>) -> HttpResponse {
                     ident.set_origin(key.name.to_string());
                     ident.set_revision(key.revision.to_string());
                     ident
-                }).collect();
+                })
+                .collect();
 
             HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
@@ -558,7 +580,8 @@ fn create_origin_secret(
             owner_id: account_id,
         },
         &*conn,
-    ).map_err(Error::DieselError)
+    )
+    .map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => err.into(),
@@ -868,9 +891,9 @@ fn list_origin_invitations(req: HttpRequest<AppState>) -> HttpResponse {
     match OriginInvitation::list_by_origin(&origin, &*conn).map_err(Error::DieselError) {
         Ok(list) => {
             let json = json!({
-                           "origin": &origin,
-                           "invitations": serde_json::to_value(list).unwrap()
-                       });
+                "origin": &origin,
+                "invitations": serde_json::to_value(list).unwrap()
+            });
 
             HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
@@ -1082,11 +1105,11 @@ fn get_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
                 map.remove("password");
 
                 let sanitized = json!({
-                        "origin": integration.origin.to_string(),
-                        "integration": integration.integration.to_string(),
-                        "name": integration.name.to_string(),
-                        "body": serde_json::to_value(map).unwrap()
-                    });
+                    "origin": integration.origin.to_string(),
+                    "integration": integration.integration.to_string(),
+                    "name": integration.name.to_string(),
+                    "body": serde_json::to_value(map).unwrap()
+                });
 
                 HttpResponse::Ok()
                     .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
@@ -1114,10 +1137,12 @@ fn download_content_as_file(content: &[u8], filename: String) -> HttpResponse {
                     value: filename.as_bytes().to_vec(), // the actual bytes of the filename
                 })],
             },
-        ).header(
+        )
+        .header(
             http::header::HeaderName::from_static(headers::XFILENAME),
             filename,
-        ).header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+        )
+        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
         .body(Bytes::from(content))
 }
 

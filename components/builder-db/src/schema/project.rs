@@ -1,6 +1,6 @@
 table! {
     use diesel::sql_types::{Bool, BigInt, Text, Nullable, Timestamptz};
-    use models::package::PackageVisibilityMapping;
+    use crate::models::package::PackageVisibilityMapping;
 
     origin_projects (id) {
         id -> BigInt,

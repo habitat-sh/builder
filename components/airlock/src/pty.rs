@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use errno;
 use libc;
 
-use {Error, Result};
+use crate::error::{Error, Result};
 
 const DEFAULT_PTMX: &'static str = "/dev/ptmx";
 

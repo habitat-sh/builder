@@ -4,10 +4,10 @@ use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use schema::integration::origin_integrations;
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use crate::bldr_core::metrics::CounterMetric;
+use crate::metrics::Counter;
+use crate::schema::integration::origin_integrations;
 
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginIntegration {
@@ -64,7 +64,8 @@ impl OriginIntegration {
                 .filter(origin_integrations::origin.eq(origin))
                 .filter(origin_integrations::name.eq(name))
                 .filter(origin_integrations::integration.eq(integration)),
-        ).execute(conn)
+        )
+        .execute(conn)
     }
 
     pub fn list_for_origin_integration(

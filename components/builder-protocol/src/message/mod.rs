@@ -25,9 +25,10 @@ use std::str::FromStr;
 use fnv::FnvHasher;
 use protobuf::{self, Clear};
 
+use crate::error::ProtocolError;
+use crate::sharding::InstaId;
+
 pub use self::net::{ErrCode, NetError, NetOk, Protocol};
-use error::ProtocolError;
-use sharding::InstaId;
 
 const MAX_BODY_LEN: usize = (128 * 1024) * 8;
 const MAX_IDENTITIES: usize = 10;

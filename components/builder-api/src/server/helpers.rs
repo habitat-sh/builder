@@ -20,15 +20,13 @@ use regex::Regex;
 use serde::Serialize;
 use serde_json;
 
-use hab_core::package::PackageTarget;
+use crate::hab_core::package::PackageTarget;
+use crate::protocol::jobsrv;
 
-use protocol::jobsrv;
-
-use db::models::channel::PackageChannelTrigger as PCT;
-use db::models::package::PackageVisibility;
-use server::authorize::authorize_session;
-
-use server::AppState;
+use crate::db::models::channel::PackageChannelTrigger as PCT;
+use crate::db::models::package::PackageVisibility;
+use crate::server::authorize::authorize_session;
+use crate::server::AppState;
 
 //
 // TO DO - this module should not just be a grab bag of stuff
@@ -157,9 +155,11 @@ pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrig
     // TODO: the search strings should be configurable.
     match req.headers().get(header::USER_AGENT) {
         Some(ref agent) => match agent.to_str() {
-            Ok(s) => if s.starts_with("hab/") {
-                return jobsrv::JobGroupTrigger::HabClient;
-            },
+            Ok(s) => {
+                if s.starts_with("hab/") {
+                    return jobsrv::JobGroupTrigger::HabClient;
+                }
+            }
             Err(_) => (),
         },
         None => (),
@@ -168,9 +168,11 @@ pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrig
     match req.headers().get(header::REFERER) {
         Some(ref referer) => match referer.to_str() {
             // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
-            Ok(s) => if s.contains("http") {
-                return jobsrv::JobGroupTrigger::BuilderUI;
-            },
+            Ok(s) => {
+                if s.contains("http") {
+                    return jobsrv::JobGroupTrigger::BuilderUI;
+                }
+            }
             Err(_) => (),
         },
         None => (),
@@ -184,9 +186,11 @@ pub fn trigger_from_request_model(req: &HttpRequest<AppState>) -> PCT {
     // TODO: the search strings should be configurable.
     match req.headers().get(header::USER_AGENT) {
         Some(ref agent) => match agent.to_str() {
-            Ok(s) => if s.starts_with("hab/") {
-                return PCT::HabClient;
-            },
+            Ok(s) => {
+                if s.starts_with("hab/") {
+                    return PCT::HabClient;
+                }
+            }
             Err(_) => (),
         },
         None => (),
@@ -195,9 +199,11 @@ pub fn trigger_from_request_model(req: &HttpRequest<AppState>) -> PCT {
     match req.headers().get(header::REFERER) {
         Some(ref referer) => match referer.to_str() {
             // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
-            Ok(s) => if s.contains("http") {
-                return PCT::BuilderUi;
-            },
+            Ok(s) => {
+                if s.contains("http") {
+                    return PCT::BuilderUi;
+                }
+            }
             Err(_) => (),
         },
         None => (),

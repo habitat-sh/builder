@@ -17,24 +17,24 @@ use std::env;
 use actix_web::http;
 use actix_web::middleware::{Middleware, Started};
 use actix_web::{HttpRequest, HttpResponse, Result};
+
 use base64;
+use oauth_client::types::OAuth2User;
 use protobuf;
 
-use bldr_core;
-use bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
-use bldr_core::metrics::CounterMetric;
-use bldr_core::privilege::FeatureFlags;
+use crate::bldr_core;
+use crate::bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
+use crate::bldr_core::metrics::CounterMetric;
+use crate::bldr_core::privilege::FeatureFlags;
 
-use oauth_client::types::OAuth2User;
-use protocol;
-use protocol::originsrv;
-use protocol::Routable;
+use crate::db::models::account::*;
+use crate::protocol;
+use crate::protocol::originsrv;
+use crate::protocol::Routable;
 
-use db::models::account::*;
-
-use server::error;
-use server::services::metrics::Counter;
-use server::AppState;
+use crate::server::error;
+use crate::server::services::metrics::Counter;
+use crate::server::AppState;
 
 lazy_static! {
     static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;
@@ -107,7 +107,8 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
             let mut session = bldr_core::access_token::validate_access_token(
                 &req.state().config.api.key_path,
                 token,
-            ).map_err(|_| error::Error::Authorization)?;
+            )
+            .map_err(|_| error::Error::Authorization)?;
 
             if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");

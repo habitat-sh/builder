@@ -21,7 +21,7 @@ use reqwest::{Client, StatusCode};
 use protobuf;
 use serde_json;
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
 // RPC message, transport as JSON over HTTP
 #[derive(Clone, Serialize, Deserialize, Debug)]

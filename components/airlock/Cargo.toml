@@ -4,6 +4,7 @@ version = "0.0.0"
 authors = ["Fletcher Nichol <fnichol@habitat.sh>"]
 build = "../build-builder.rs"
 workspace = "../../"
+edition = "2018"
 
 [lib]
 name = "airlock"

@@ -15,40 +15,32 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
-extern crate builder_core as bldr_core;
-extern crate clap;
-extern crate copperline;
-extern crate env_logger;
-extern crate habitat_builder_db as db;
-extern crate habitat_builder_protocol as protocol;
-extern crate habitat_core as hab_core;
-
 #[macro_use]
 extern crate log;
-extern crate petgraph;
-extern crate postgres;
-extern crate protobuf;
-extern crate r2d2;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate time;
-extern crate walkdir;
+
+use builder_core as bldr_core;
+use habitat_builder_db as db;
+use habitat_builder_protocol as protocol;
+use habitat_core as hab_core;
 
 pub mod config;
 pub mod data_store;
 pub mod error;
 
-use bldr_core::package_graph::PackageGraph;
-use clap::{App, Arg};
-use config::Config;
-use copperline::Copperline;
-use data_store::DataStore;
-use hab_core::config::ConfigFile;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
+
+use clap::{App, Arg};
+use copperline::Copperline;
 use time::PreciseTime;
+
+use crate::bldr_core::package_graph::PackageGraph;
+use crate::config::Config;
+use crate::data_store::DataStore;
+use crate::hab_core::config::ConfigFile;
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
@@ -63,7 +55,8 @@ fn main() {
                 .help("Filepath to configuration file")
                 .required(false)
                 .index(1),
-        ).get_matches();
+        )
+        .get_matches();
 
     let config = match matches.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
@@ -394,20 +387,22 @@ fn check_package(
     filter: &str,
 ) {
     match datastore.get_job_graph_package(ident) {
-        Ok(package) => for dep in package.get_deps() {
-            if dep.to_string().starts_with(filter) {
-                let name = short_name(&dep.to_string());
-                {
-                    let entry = deps_map.entry(name).or_insert(dep.to_string());
-                    if *entry != dep.to_string() {
-                        println!("Conflict: {}", ident);
-                        println!("  {}", *entry);
-                        println!("  {}", dep);
+        Ok(package) => {
+            for dep in package.get_deps() {
+                if dep.to_string().starts_with(filter) {
+                    let name = short_name(&dep.to_string());
+                    {
+                        let entry = deps_map.entry(name).or_insert(dep.to_string());
+                        if *entry != dep.to_string() {
+                            println!("Conflict: {}", ident);
+                            println!("  {}", *entry);
+                            println!("  {}", dep);
+                        }
                     }
+                    check_package(datastore, deps_map, &dep.to_string(), filter);
                 }
-                check_package(datastore, deps_map, &dep.to_string(), filter);
             }
-        },
+        }
         Err(_) => println!("No matching package found for {}", ident),
     };
 }

@@ -27,14 +27,15 @@ use std::process::Child;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use bldr_core::logger::Logger;
-use bldr_core::socket::DEFAULT_CONTEXT;
 use protobuf::Message;
-use protocol::jobsrv::{JobLogChunk, JobLogComplete};
 use zmq;
 
+use crate::bldr_core::logger::Logger;
+use crate::bldr_core::socket::DEFAULT_CONTEXT;
+use crate::protocol::jobsrv::{JobLogChunk, JobLogComplete};
+
 use super::workspace::Workspace;
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
 /// Streams the contents of a Builder job to a remote target. The contents of the stream consist of
 /// consuming the output streams of child processes (such as `hab-studio`,

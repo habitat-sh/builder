@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate base64;
-extern crate builder_core;
-extern crate frank_jwt as jwt;
-extern crate reqwest;
 #[macro_use]
 extern crate log;
-extern crate regex;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-extern crate time;
+
+use frank_jwt as jwt;
 
 pub mod client;
 pub mod config;
@@ -32,7 +27,7 @@ pub mod error;
 pub mod metrics;
 pub mod types;
 
-pub use client::AppToken;
-pub use client::GitHubClient;
-pub use config::GitHubCfg;
-pub use error::{HubError, HubResult};
+pub use crate::client::AppToken;
+pub use crate::client::GitHubClient;
+pub use crate::config::GitHubCfg;
+pub use crate::error::{HubError, HubResult};

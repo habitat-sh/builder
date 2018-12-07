@@ -14,8 +14,8 @@
 
 use reqwest;
 
-use config::OAuth2Cfg;
-use error::Result;
+use crate::config::OAuth2Cfg;
+use crate::error::Result;
 
 pub struct OAuth2User {
     pub id: String,
@@ -24,5 +24,10 @@ pub struct OAuth2User {
 }
 
 pub trait OAuth2Provider: Sync + Send {
-    fn authenticate(&self, &OAuth2Cfg, &reqwest::Client, &str) -> Result<(String, OAuth2User)>;
+    fn authenticate(
+        &self,
+        config: &OAuth2Cfg,
+        client: &reqwest::Client,
+        code: &str,
+    ) -> Result<(String, OAuth2User)>;
 }

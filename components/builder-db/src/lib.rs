@@ -19,33 +19,20 @@
 extern crate diesel;
 #[macro_use]
 extern crate diesel_derive_enum;
-extern crate diesel_full_text_search;
 #[macro_use]
 extern crate diesel_migrations;
-extern crate builder_core as bldr_core;
-extern crate fallible_iterator;
-extern crate fnv;
-extern crate habitat_builder_protocol as protocol;
-extern crate habitat_core as hab_core;
 #[macro_use]
 extern crate log;
-extern crate chrono;
-extern crate num_cpus;
 #[macro_use]
 extern crate postgres;
 #[macro_use]
 extern crate postgres_derive;
-extern crate postgres_shared;
-extern crate protobuf;
-extern crate r2d2;
-extern crate r2d2_postgres;
-extern crate rand;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate threadpool;
-extern crate time;
-extern crate url;
+
+use builder_core as bldr_core;
+use habitat_builder_protocol as protocol;
+use habitat_core as hab_core;
 
 pub mod config;
 pub mod diesel_pool;
@@ -56,4 +43,4 @@ pub mod models;
 pub mod pool;
 pub mod schema;
 
-pub use diesel_pool::DbPool;
+pub use crate::diesel_pool::DbPool;

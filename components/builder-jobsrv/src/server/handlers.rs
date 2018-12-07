@@ -19,23 +19,22 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
-use bldr_core::rpc::RpcMessage;
-
-use db::models::projects::*;
-
 use diesel;
 use protobuf::RepeatedField;
-use protocol::jobsrv;
-use protocol::net;
-use protocol::originsrv;
+use time::PreciseTime;
+
+use crate::bldr_core::rpc::RpcMessage;
+use crate::db::models::projects::*;
 
 use super::AppState;
+use crate::protocol::jobsrv;
+use crate::protocol::net;
+use crate::protocol::originsrv;
 
-use server::scheduler::ScheduleClient;
-use server::worker_manager::WorkerMgrClient;
+use crate::server::scheduler::ScheduleClient;
+use crate::server::worker_manager::WorkerMgrClient;
 
-use error::{Error, Result};
-use time::PreciseTime;
+use crate::error::{Error, Result};
 
 pub fn job_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGet>()?;

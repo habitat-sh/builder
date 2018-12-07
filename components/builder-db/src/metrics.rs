@@ -15,7 +15,7 @@
 //! Centralized definition of all Builder API metrics that we
 //! wish to track.
 
-use bldr_core::metrics;
+use crate::bldr_core::metrics;
 use std::borrow::Cow;
 
 pub enum Counter {

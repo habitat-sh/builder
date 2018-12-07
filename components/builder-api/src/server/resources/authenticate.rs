@@ -20,11 +20,10 @@ use actix_web::{App, HttpRequest, HttpResponse, Path};
 
 use oauth_client::error::Error as OAuthError;
 
-use protocol::originsrv;
-
-use server::error::{Error, Result};
-use server::framework::middleware::{session_create_oauth, session_create_short_circuit};
-use server::AppState;
+use crate::protocol::originsrv;
+use crate::server::error::{Error, Result};
+use crate::server::framework::middleware::{session_create_oauth, session_create_short_circuit};
+use crate::server::AppState;
 
 pub struct Authenticate {}
 

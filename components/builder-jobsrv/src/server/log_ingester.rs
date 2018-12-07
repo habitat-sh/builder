@@ -18,16 +18,17 @@ use std::str;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
-use bldr_core::socket::DEFAULT_CONTEXT;
 use protobuf::parse_from_bytes;
-use protocol::jobsrv::{JobLogChunk, JobLogComplete};
-use server::log_archiver::{self, LogArchiver};
-use server::log_directory::LogDirectory;
 use zmq;
 
-use config::Config;
-use data_store::DataStore;
-use error::Result;
+use crate::bldr_core::socket::DEFAULT_CONTEXT;
+use crate::protocol::jobsrv::{JobLogChunk, JobLogComplete};
+use crate::server::log_archiver::{self, LogArchiver};
+use crate::server::log_directory::LogDirectory;
+
+use crate::config::Config;
+use crate::data_store::DataStore;
+use crate::error::Result;
 
 /// ZMQ protocol frame to indicate a log line is being sent
 const LOG_LINE: &'static str = "L";
@@ -70,7 +71,8 @@ impl LogIngester {
             .name("log-ingester".to_string())
             .spawn(move || {
                 ingester.run(tx).unwrap();
-            }).unwrap();
+            })
+            .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("log-ingester thread startup error, err={}", e),

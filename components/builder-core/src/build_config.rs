@@ -21,12 +21,12 @@ use std::str::FromStr;
 use std::string::ToString;
 
 use glob;
-use hab_core::channel::UNSTABLE_CHANNEL;
-use hab_core::config::ConfigFile;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use toml;
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
+use crate::hab_core::channel::UNSTABLE_CHANNEL;
+use crate::hab_core::config::ConfigFile;
 
 /// Postprocessing config file name
 pub const BLDR_CFG: &'static str = ".bldr.toml";

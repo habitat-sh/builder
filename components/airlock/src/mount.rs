@@ -20,7 +20,7 @@ use std::ptr;
 use errno;
 use libc;
 
-use {Error, Result};
+use crate::error::{Error, Result};
 
 #[derive(Debug)]
 pub enum Mount {

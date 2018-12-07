@@ -15,34 +15,22 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
-extern crate base64;
-extern crate chrono;
-extern crate dogstatsd;
-extern crate glob;
-extern crate habitat_builder_protocol as protocol;
-extern crate habitat_core as hab_core;
 #[macro_use]
 extern crate bitflags;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate petgraph;
-extern crate protobuf;
-extern crate rand;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate reqwest;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate serde_json;
-extern crate time;
-extern crate toml;
-extern crate walkdir;
 #[macro_use]
 extern crate hyper;
-extern crate zmq;
+
+use habitat_builder_protocol as protocol;
+use habitat_core as hab_core;
 
 pub mod access_token;
 pub mod api_client;
@@ -60,4 +48,4 @@ pub mod rpc;
 pub mod socket;
 pub mod target_graph;
 
-pub use error::Error;
+pub use crate::error::Error;

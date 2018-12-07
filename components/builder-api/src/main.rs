@@ -17,10 +17,6 @@
 
 #[macro_use]
 extern crate clap;
-extern crate diesel;
-extern crate env_logger;
-extern crate habitat_builder_api as bldr_api;
-extern crate habitat_core as hab_core;
 #[macro_use]
 extern crate log;
 
@@ -29,9 +25,12 @@ use std::path::PathBuf;
 use std::process;
 use std::str::FromStr;
 
-use bldr_api::config::Config;
-use bldr_api::server;
-use hab_core::config::ConfigFile;
+use habitat_builder_api as bldr_api;
+use habitat_core as hab_core;
+
+use crate::bldr_api::config::Config;
+use crate::bldr_api::server;
+use crate::hab_core::config::ConfigFile;
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &'static str = "/hab/svc/builder-api/config.toml";

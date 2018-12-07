@@ -15,16 +15,12 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
-extern crate fnv;
-extern crate habitat_core as hab_core;
 #[macro_use]
 extern crate lazy_static;
-extern crate protobuf;
-extern crate regex;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate time;
+
+use habitat_core as hab_core;
 
 pub mod error;
 pub mod jobsrv;
@@ -33,6 +29,6 @@ pub mod net;
 pub mod originsrv;
 pub mod sharding;
 
-pub use self::error::{ProtocolError, ProtocolResult};
-pub use self::message::{Message, Persistable, Protocol, Routable, RouteKey};
-pub use self::sharding::{InstaId, ShardId};
+pub use crate::error::{ProtocolError, ProtocolResult};
+pub use crate::message::{Message, Persistable, Protocol, Routable, RouteKey};
+pub use crate::sharding::{InstaId, ShardId};

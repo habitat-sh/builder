@@ -17,17 +17,17 @@
 
 #[macro_use]
 extern crate clap;
-extern crate env_logger;
-extern crate habitat_builder_jobsrv as jobsrv;
-extern crate habitat_core as hab_core;
 #[macro_use]
 extern crate log;
+
+use habitat_builder_jobsrv as jobsrv;
+use habitat_core as hab_core;
 
 use std::error;
 use std::process;
 
-use hab_core::config::ConfigFile;
-use jobsrv::{Config, Result};
+use crate::hab_core::config::ConfigFile;
+use crate::jobsrv::{Config, Result};
 
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &'static str = "/hab/svc/builder-jobsrv/config.toml";

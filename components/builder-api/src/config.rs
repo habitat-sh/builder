@@ -24,14 +24,14 @@ use std::path::PathBuf;
 
 use num_cpus;
 
-use db::config::DataStoreCfg;
-use hab_core;
-use hab_core::config::ConfigFile;
-use hab_core::package::target::{self, PackageTarget};
-
 use github_api_client::config::GitHubCfg;
 use oauth_client::config::OAuth2Cfg;
 use segment_api_client::SegmentCfg;
+
+use crate::db::config::DataStoreCfg;
+use crate::hab_core;
+use crate::hab_core::config::ConfigFile;
+use crate::hab_core::package::target::{self, PackageTarget};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.

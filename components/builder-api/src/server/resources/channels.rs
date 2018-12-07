@@ -19,19 +19,20 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Path, Query};
 use diesel::pg::PgConnection;
 use diesel::result::{DatabaseErrorKind, Error::DatabaseError, Error::NotFound};
-
-use bldr_core::metrics::CounterMetric;
-use hab_core::package::{PackageIdent, PackageTarget};
 use serde_json;
 
-use db::models::channel::*;
-use db::models::package::{BuilderPackageIdent, Package, PackageVisibility};
-use server::authorize::{authorize_session, check_origin_member};
-use server::error::{Error, Result};
-use server::framework::headers;
-use server::helpers::{self, visibility_for_optional_session, Pagination, Target};
-use server::services::metrics::Counter;
-use server::AppState;
+use crate::bldr_core::metrics::CounterMetric;
+use crate::hab_core::package::{PackageIdent, PackageTarget};
+
+use crate::db::models::channel::*;
+use crate::db::models::package::{BuilderPackageIdent, Package, PackageVisibility};
+
+use crate::server::authorize::{authorize_session, check_origin_member};
+use crate::server::error::{Error, Result};
+use crate::server::framework::headers;
+use crate::server::helpers::{self, visibility_for_optional_session, Pagination, Target};
+use crate::server::services::metrics::Counter;
+use crate::server::AppState;
 
 // Query param containers
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -52,39 +53,48 @@ impl Channels {
                 "/depot/channels/{origin}/{channel}",
                 Method::POST,
                 create_channel,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}",
                 Method::DELETE,
                 delete_channel,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}/pkgs",
                 Method::GET,
                 get_packages_for_origin_channel,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}",
                 Method::GET,
                 get_packages_for_origin_channel_package,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/latest",
                 Method::GET,
                 get_latest_package_for_origin_channel_package,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}",
                 Method::GET,
                 get_packages_for_origin_channel_package_version,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/latest",
                 Method::GET,
                 get_latest_package_for_origin_channel_package_version,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}",
                 Method::GET,
                 get_package_fully_qualified,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/promote",
                 Method::PUT,
                 promote_package,
-            ).route(
+            )
+            .route(
                 "/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/demote",
                 Method::PUT,
                 demote_package,
@@ -115,7 +125,8 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
                 .iter()
                 .map(|channel| Temp {
                     name: channel.name.clone(),
-                }).collect();
+                })
+                .collect();
             HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(ident_list)
@@ -214,7 +225,8 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
             channel: channel.clone(),
         },
         &*conn,
-    ).map_err(Error::DieselError)
+    )
+    .map_err(Error::DieselError)
     {
         Ok(_) => {
             match audit_package_rank_change(
@@ -274,7 +286,8 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
             channel: channel.clone(),
         },
         &*conn,
-    ).map_err(Error::DieselError)
+    )
+    .map_err(Error::DieselError)
     {
         Ok(_) => {
             match audit_package_rank_change(
@@ -469,7 +482,8 @@ fn do_get_channel_packages(
             limit: per_page as i64,
         },
         &*conn,
-    ).map_err(Error::DieselError)
+    )
+    .map_err(Error::DieselError)
 }
 
 fn do_get_channel_package(
@@ -583,7 +597,8 @@ pub fn channels_for_package_ident(
         package,
         visibility_for_optional_session(req, opt_session_id, &package.clone().origin),
         &*conn,
-    ).map_err(Error::DieselError)
+    )
+    .map_err(Error::DieselError)
     {
         Ok(channels) => {
             let list: Vec<String> = channels

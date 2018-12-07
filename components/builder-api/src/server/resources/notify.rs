@@ -15,8 +15,8 @@
 use actix_web::http::Method;
 use actix_web::{App, HttpRequest, HttpResponse};
 
-use server::services::github;
-use server::AppState;
+use crate::server::services::github;
+use crate::server::AppState;
 
 pub struct Notify;
 

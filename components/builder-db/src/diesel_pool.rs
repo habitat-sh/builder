@@ -18,8 +18,8 @@ use std::time::Duration;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 
-use config::DataStoreCfg;
-use error::Result;
+use crate::config::DataStoreCfg;
+use crate::error::Result;
 
 type PgPool = Pool<ConnectionManager<PgConnection>>;
 
