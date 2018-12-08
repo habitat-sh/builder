@@ -5,6 +5,7 @@ authors = ["Adam Jacob <adam@chef.io>", "Jamie Winsor <reset@chef.io>", "Fletche
 description = "Habitat-Builder Worker"
 build = "build.rs"
 workspace = "../../"
+edition = "2018"
 
 [[bin]]
 name = "bldr-worker"

@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bldr_core::api_client::ApiClient;
-use bldr_core::logger::Logger;
-use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
-use hab_core::package::archive::PackageArchive;
+use retry::retry;
+
+use crate::bldr_core::api_client::ApiClient;
+use crate::bldr_core::logger::Logger;
+use crate::hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
+use crate::hab_core::package::archive::PackageArchive;
 
 use super::{RETRIES, RETRY_WAIT};
-use error::{Error, Result};
-use retry::retry;
+use crate::error::{Error, Result};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct Publisher {

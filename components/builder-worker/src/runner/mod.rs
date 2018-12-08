@@ -27,31 +27,36 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 
-use bldr_core;
-use bldr_core::api_client::ApiClient;
-use bldr_core::job::Job;
-use bldr_core::logger::Logger;
-use bldr_core::socket::DEFAULT_CONTEXT;
 use chrono::Utc;
-use hab_core::os::users;
-use hab_core::package::archive::PackageArchive;
-use hab_core::util::posix_perm;
-pub use protocol::jobsrv::JobState;
-use protocol::net::{self, ErrCode};
-use protocol::originsrv::OriginPackageIdent;
-use protocol::{jobsrv, message};
+use retry::retry;
 use zmq;
+
+use crate::bldr_core;
+use crate::bldr_core::api_client::ApiClient;
+use crate::bldr_core::job::Job;
+use crate::bldr_core::logger::Logger;
+use crate::bldr_core::socket::DEFAULT_CONTEXT;
+
+use crate::hab_core::os::users;
+use crate::hab_core::package::archive::PackageArchive;
+use crate::hab_core::util::posix_perm;
+
+pub use crate::protocol::jobsrv::JobState;
+use crate::protocol::net::{self, ErrCode};
+use crate::protocol::originsrv::OriginPackageIdent;
+use crate::protocol::{jobsrv, message};
 
 use self::docker::DockerExporter;
 use self::job_streamer::{JobStreamer, Section};
 use self::postprocessor::post_process;
 use self::studio::{key_path, Studio, STUDIO_GROUP, STUDIO_USER};
 use self::workspace::Workspace;
-use config::Config;
-use error::{Error, Result};
-use network::NetworkNamespace;
-use retry::retry;
-use vcs::VCS;
+
+use crate::config::Config;
+use crate::error::{Error, Result};
+use crate::network::NetworkNamespace;
+
+use crate::vcs::VCS;
 
 // TODO fn: copied from `components/common/src/ui.rs`. As this component doesn't currently depend
 // on habitat_common it didnt' seem worth it to add a dependency for only this constant. Probably
@@ -223,7 +228,8 @@ impl Runner {
             self.workspace.src(),
             studio::studio_uid(),
             studio::studio_gid(),
-        ).err()
+        )
+        .err()
         {
             let msg = format!(
                 "Failed to change ownership of source repository for {}, err={:?}",
@@ -438,7 +444,8 @@ impl Runner {
             &self.bldr_token,
             self.config.airlock_enabled,
             network_namespace,
-        ).build(streamer)?;
+        )
+        .build(streamer)?;
 
         if fs::rename(self.workspace.src().join("results"), self.workspace.out()).is_err() {
             return Err(Error::BuildFailure(status.code().unwrap_or(-2)));
@@ -466,7 +473,8 @@ impl Runner {
                     &self.workspace,
                     &self.config.bldr_url,
                     &self.bldr_token,
-                ).export(streamer)?;
+                )
+                .export(streamer)?;
 
                 if !status.success() {
                     return Err(Error::ExportFailure(status.code().unwrap_or(-1)));
@@ -669,7 +677,8 @@ impl RunnerMgr {
             .name("runner".to_string())
             .spawn(move || {
                 runner.run(tx).unwrap();
-            }).unwrap();
+            })
+            .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("runner thread startup error, err={}", e),

@@ -18,17 +18,17 @@ use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::sync::Mutex;
 
-use hab_core::channel::{BLDR_CHANNEL_ENVVAR, STABLE_CHANNEL};
-use hab_core::env;
-use hab_core::fs;
-use hab_core::url::BLDR_URL_ENVVAR;
-use hab_core::AUTH_TOKEN_ENVVAR;
+use crate::hab_core::channel::{BLDR_CHANNEL_ENVVAR, STABLE_CHANNEL};
+use crate::hab_core::env;
+use crate::hab_core::fs;
+use crate::hab_core::url::BLDR_URL_ENVVAR;
+use crate::hab_core::AUTH_TOKEN_ENVVAR;
 
-use error::{Error, Result};
-use network::NetworkNamespace;
-use runner::job_streamer::JobStreamer;
-use runner::workspace::Workspace;
-use runner::{NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
+use crate::error::{Error, Result};
+use crate::network::NetworkNamespace;
+use crate::runner::job_streamer::JobStreamer;
+use crate::runner::workspace::Workspace;
+use crate::runner::{NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 
 pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
 pub static STUDIO_GID: AtomicUsize = ATOMIC_USIZE_INIT;

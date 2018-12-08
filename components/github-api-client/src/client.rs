@@ -25,13 +25,13 @@ use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers, UserAgent};
 use reqwest::mime;
 use reqwest::{Client, Proxy, Response, StatusCode};
 
-use jwt::{self, Algorithm};
+use crate::jwt::{self, Algorithm};
 use serde_json;
 
-use config::GitHubCfg;
-use error::{HubError, HubResult};
-use metrics::Counter;
-use types::*;
+use crate::config::GitHubCfg;
+use crate::error::{HubError, HubResult};
+use crate::metrics::Counter;
+use crate::types::*;
 
 const USER_AGENT: &'static str = "Habitat-Builder";
 
@@ -286,13 +286,14 @@ where
         &key_path.as_ref().to_path_buf(),
         &payload,
         Algorithm::RS256,
-    ).map_err(HubError::JWT)
+    )
+    .map_err(HubError::JWT)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use config;
+    use crate::config;
     use std::env;
 
     #[test]

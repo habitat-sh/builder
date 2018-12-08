@@ -18,7 +18,7 @@ use std::path::Path;
 
 use errno;
 
-use {Error, Result};
+use crate::error::{Error, Result};
 
 pub fn pivot_root<N, P>(new_root: N, put_old: P) -> Result<()>
 where

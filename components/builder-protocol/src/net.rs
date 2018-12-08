@@ -19,8 +19,8 @@ use protobuf::ProtobufEnum;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use error::ProtocolError;
-pub use message::{ErrCode, Message, NetError, NetOk, Protocol, RouteInfo, Txn};
+use crate::error::ProtocolError;
+pub use crate::message::{ErrCode, Message, NetError, NetOk, Protocol, RouteInfo, Txn};
 
 pub fn err<T>(code: ErrCode, msg: T) -> NetError
 where

@@ -18,12 +18,12 @@ use std::process::{self, Command};
 
 use unshare::{self, Namespace};
 
-use namespace;
-use user;
-use util;
-use FsRoot;
+use crate::fs_root::FsRoot;
+use crate::namespace;
+use crate::user;
+use crate::util;
 
-use {Error, Result};
+use crate::error::{Error, Result};
 
 pub fn run(
     fs_root: FsRoot,

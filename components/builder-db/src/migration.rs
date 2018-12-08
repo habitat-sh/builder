@@ -19,7 +19,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::result::Error as Dre;
 use diesel::{sql_query, Connection};
 
-use error::Result;
+use crate::error::Result;
 
 embed_migrations!("src/migrations");
 
@@ -46,7 +46,8 @@ pub fn setup_ids(conn: &PgConnection) -> Result<()> {
                     result := result | (seq_id << 13);
                 END;
                 $$ LANGUAGE PLPGSQL;"#,
-    ).execute(conn)
+    )
+    .execute(conn)
     .unwrap();
     Ok(())
 }

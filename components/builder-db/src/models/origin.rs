@@ -7,15 +7,15 @@ use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 
-use models::channel::{Channel, CreateChannel};
-use models::package::PackageVisibility;
-use protocol::originsrv;
+use crate::models::channel::{Channel, CreateChannel};
+use crate::models::package::PackageVisibility;
+use crate::protocol::originsrv;
 
-use schema::member::origin_members;
-use schema::origin::{origins, origins_with_secret_key, origins_with_stats};
+use crate::schema::member::origin_members;
+use crate::schema::origin::{origins, origins_with_secret_key, origins_with_stats};
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use crate::bldr_core::metrics::CounterMetric;
+use crate::metrics::Counter;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origins"]
@@ -135,8 +135,8 @@ impl Origin {
 
 impl OriginMember {
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<String>> {
-        use schema::account::accounts;
-        use schema::member::origin_members;
+        use crate::schema::account::accounts;
+        use crate::schema::member::origin_members;
 
         Counter::DBCall.increment();
         origin_members::table
@@ -148,7 +148,7 @@ impl OriginMember {
     }
 
     pub fn delete(origin: &str, account_name: &str, conn: &PgConnection) -> QueryResult<usize> {
-        use schema::account::accounts;
+        use crate::schema::account::accounts;
 
         Counter::DBCall.increment();
         diesel::delete(
@@ -160,7 +160,8 @@ impl OriginMember {
                         .filter(accounts::name.eq(account_name))
                         .single_value()),
                 ),
-        ).execute(conn)
+        )
+        .execute(conn)
     }
 
     pub fn add(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
@@ -168,7 +169,8 @@ impl OriginMember {
             .values((
                 origin_members::origin.eq(origin),
                 origin_members::account_id.eq(account_id),
-            )).execute(conn)
+            ))
+            .execute(conn)
     }
 }
 

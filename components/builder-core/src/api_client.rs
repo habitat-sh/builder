@@ -25,8 +25,8 @@ use reqwest::mime;
 use reqwest::{Body, Client, Method, Proxy, Response, StatusCode};
 use serde_json;
 
-use error::{Error, Result};
-use hab_core::package::{self, Identifiable, PackageArchive};
+use crate::error::{Error, Result};
+use crate::hab_core::package::{self, Identifiable, PackageArchive};
 
 header! { (XFileName, "X-Filename") => [String] }
 

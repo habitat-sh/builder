@@ -21,8 +21,8 @@ use errno;
 use libc;
 use unshare;
 
-use user;
-use {Error, Result};
+use crate::error::{Error, Result};
+use crate::user;
 
 const MIN_SUB_RANGE: u32 = 65536;
 
@@ -156,7 +156,8 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
         .ok_or(Error::FileEntryNotFound(
             String::from(entry),
             path.to_string_lossy().into(),
-        ))?.parse()
+        ))?
+        .parse()
         .map_err(|_err| {
             Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())
         })?;
@@ -166,7 +167,8 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
         .ok_or(Error::FileEntryNotFound(
             String::from(entry),
             path.to_string_lossy().into(),
-        ))?.parse()
+        ))?
+        .parse()
         .map_err(|_err| {
             Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())
         })?;

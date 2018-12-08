@@ -3,6 +3,7 @@ name = "github-api-client"
 version = "0.0.0"
 authors = ["Jamie Winsor <reset@habitat.sh>", "Josh Black <raskchanky@gmail.com>"]
 workspace = "../../"
+edition = "2018"
 
 [dependencies]
 base64 = "*"

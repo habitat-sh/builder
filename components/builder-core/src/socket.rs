@@ -15,8 +15,9 @@
 use std::cell::UnsafeCell;
 use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
 
-use hab_core::os;
 use zmq;
+
+use crate::hab_core::os;
 
 lazy_static! {
     /// A threadsafe shared ZMQ context for consuming services.

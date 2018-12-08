@@ -4,10 +4,10 @@ use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use schema::key::*;
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use crate::bldr_core::metrics::CounterMetric;
+use crate::metrics::Counter;
+use crate::schema::key::*;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_public_encryption_keys"]

@@ -17,8 +17,9 @@ use std::fmt;
 use std::io;
 use std::result;
 
-use db;
-use hab_core;
+use crate::db;
+use crate::hab_core;
+
 use postgres;
 use protobuf;
 use r2d2;

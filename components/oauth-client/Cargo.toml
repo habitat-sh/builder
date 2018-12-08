@@ -4,6 +4,7 @@ version = "0.0.0"
 authors = ["Josh Black <raskchanky@gmail.com>"]
 description = "OAuth Client"
 workspace = "../../"
+edition = "2018"
 
 [dependencies]
 log = "*"

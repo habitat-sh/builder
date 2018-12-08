@@ -29,9 +29,9 @@ use actix_web::middleware::Logger;
 use actix_web::server::{self, KeepAlive};
 use actix_web::{App, HttpRequest, HttpResponse, Json};
 
-use bldr_core::rpc::RpcMessage;
-use bldr_core::target_graph::TargetGraph;
-use db::DbPool;
+use crate::bldr_core::rpc::RpcMessage;
+use crate::bldr_core::target_graph::TargetGraph;
+use crate::db::DbPool;
 
 use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;
@@ -39,9 +39,9 @@ use self::log_ingester::LogIngester;
 use self::scheduler::ScheduleMgr;
 use self::worker_manager::WorkerMgr;
 
-use config::{Config, GatewayCfg};
-use data_store::DataStore;
-use error::{Error, Result};
+use crate::config::{Config, GatewayCfg};
+use crate::data_store::DataStore;
+use crate::error::{Error, Result};
 
 // Application state
 pub struct AppState {
@@ -150,8 +150,10 @@ pub fn run(config: Config) -> Result<()> {
             .resource("/status", |r| {
                 r.get().f(status);
                 r.head().f(status)
-            }).route("/rpc", Method::POST, handle_rpc)
-    }).workers(cfg.handler_count())
+            })
+            .route("/rpc", Method::POST, handle_rpc)
+    })
+    .workers(cfg.handler_count())
     .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
     .bind(cfg.http.clone())
     .unwrap()

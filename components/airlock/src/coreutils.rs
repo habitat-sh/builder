@@ -18,7 +18,7 @@ use std::path::Path;
 
 use libc;
 
-use Result;
+use crate::error::Result;
 
 pub fn chmod<P: AsRef<Path>>(path: P, mode: u32) -> Result<()> {
     let md = path.as_ref().metadata()?;

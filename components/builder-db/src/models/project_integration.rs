@@ -4,13 +4,14 @@ use diesel;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::{ExpressionMethods, NullableExpressionMethods, QueryDsl, RunQueryDsl, Table};
-use protocol::originsrv;
-use schema::integration::origin_integrations;
-use schema::project::origin_projects;
-use schema::project_integration::origin_project_integrations;
 
-use bldr_core::metrics::CounterMetric;
-use metrics::Counter;
+use crate::protocol::originsrv;
+use crate::schema::integration::origin_integrations;
+use crate::schema::project::origin_projects;
+use crate::schema::project_integration::origin_project_integrations;
+
+use crate::bldr_core::metrics::CounterMetric;
+use crate::metrics::Counter;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Identifiable)]
 #[table_name = "origin_project_integrations"]
@@ -83,7 +84,8 @@ impl ProjectIntegration {
                             .select(origin_projects::id)
                             .filter(origin_projects::package_name.eq(name))
                             .single_value()),
-                ).filter(
+                )
+                .filter(
                     origin_project_integrations::integration_id.nullable().eq(
                         origin_integrations::table
                             .select(origin_integrations::id)
@@ -91,7 +93,8 @@ impl ProjectIntegration {
                             .single_value(),
                     ),
                 ),
-        ).execute(conn)
+        )
+        .execute(conn)
     }
 
     pub fn create(req: NewProjectIntegration, conn: &PgConnection) -> QueryResult<usize> {
@@ -119,10 +122,12 @@ impl ProjectIntegration {
                 origin_project_integrations::body.eq(req.body),
                 origin_project_integrations::project_id.eq(project_id),
                 origin_project_integrations::integration_id.eq(integration_id),
-            )).on_conflict((
+            ))
+            .on_conflict((
                 origin_project_integrations::project_id,
                 origin_project_integrations::integration_id,
-            )).do_update()
+            ))
+            .do_update()
             .set(origin_project_integrations::body.eq(req.body))
             .execute(conn)
     }

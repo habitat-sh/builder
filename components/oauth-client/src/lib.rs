@@ -12,16 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate builder_core;
 #[macro_use]
 extern crate log;
-extern crate reqwest;
-extern crate serde;
+
 #[macro_use]
 extern crate serde_derive;
-extern crate env_proxy;
-extern crate serde_json;
-extern crate url;
 
 pub mod a2;
 pub mod active_directory;

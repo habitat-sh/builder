@@ -16,15 +16,15 @@ use actix_web::http::{Method, StatusCode};
 use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
 
-use http_client::ApiClient;
 use hyper;
 use hyper::header::{Accept, ContentType};
-
 use serde_json;
-use server::authorize::authorize_session;
-use server::error::{Error, Result};
-use server::services::github;
-use server::AppState;
+
+use crate::http_client::ApiClient;
+use crate::server::authorize::authorize_session;
+use crate::server::error::{Error, Result};
+use crate::server::services::github;
+use crate::server::AppState;
 
 const PRODUCT: &'static str = "builder-api";
 const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
@@ -47,7 +47,8 @@ impl Ext {
             "/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
             Method::GET,
             github::repo_file_content,
-        ).route(
+        )
+        .route(
             "/ext/integrations/{registry_type}/credentials/validate",
             Method::POST,
             validate_registry_credentials,

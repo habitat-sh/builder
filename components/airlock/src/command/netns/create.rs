@@ -24,12 +24,12 @@ use std::time::Duration;
 use pnet_datalink as pnet;
 use pnet_datalink::NetworkInterface;
 
-use coreutils::touch;
-use mount::{self, Mount};
-use namespace;
-use user;
-use util;
-use {Error, Result};
+use crate::coreutils::touch;
+use crate::error::{Error, Result};
+use crate::mount::{self, Mount};
+use crate::namespace;
+use crate::user;
+use crate::util;
 
 pub fn run<P: AsRef<Path>>(ns_dir: P, user: &str, interface: &str, gateway: &str) -> Result<()> {
     user::check_running_user_is_root()?;

@@ -20,27 +20,27 @@ use actix_web::FromRequest;
 use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
 use serde_json;
 
-use protocol::jobsrv;
-use protocol::net::NetOk;
-use protocol::originsrv::OriginPackageIdent;
+use crate::protocol::jobsrv;
+use crate::protocol::net::NetOk;
+use crate::protocol::originsrv::OriginPackageIdent;
 
-use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
-use hab_core::package::{Identifiable, PackageIdent, PackageTarget};
+use crate::hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
+use crate::hab_core::package::{Identifiable, PackageIdent, PackageTarget};
 
-use db::models::channel::*;
-use db::models::jobs::*;
-use db::models::package::*;
-use db::models::projects::*;
+use crate::db::models::channel::*;
+use crate::db::models::jobs::*;
+use crate::db::models::package::*;
+use crate::db::models::projects::*;
 use diesel::result::Error::NotFound;
 
-use server::authorize::authorize_session;
-use server::error::{Error, Result};
-use server::framework::headers;
-use server::framework::middleware::route_message;
-use server::helpers::{self, Target};
-use server::resources::channels::channels_for_package_ident;
-use server::resources::pkgs::platforms_for_package_ident;
-use server::AppState;
+use crate::server::authorize::authorize_session;
+use crate::server::error::{Error, Result};
+use crate::server::framework::headers;
+use crate::server::framework::middleware::route_message;
+use crate::server::helpers::{self, Target};
+use crate::server::resources::channels::channels_for_package_ident;
+use crate::server::resources::pkgs::platforms_for_package_ident;
+use crate::server::AppState;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GroupPromoteReq {
@@ -73,11 +73,13 @@ impl Jobs {
             "/jobs/group/{id}/promote/{channel}",
             Method::POST,
             promote_job_group,
-        ).route(
+        )
+        .route(
             "/jobs/group/{id}/demote/{channel}",
             Method::POST,
             demote_job_group,
-        ).route("/jobs/group/{id}/cancel", Method::POST, cancel_job_group)
+        )
+        .route("/jobs/group/{id}/cancel", Method::POST, cancel_job_group)
         .route("/rdeps/{origin}/{name}", Method::GET, get_rdeps)
         .route("/jobs/{id}", Method::GET, get_job)
         .route("/jobs/{id}/log", Method::GET, get_job_log)

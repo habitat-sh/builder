@@ -20,11 +20,12 @@ use std::string;
 
 use base64;
 use chrono;
-use hab_core;
 use protobuf;
-use protocol;
 use reqwest;
 use serde_json;
+
+use crate::hab_core;
+use crate::protocol;
 
 #[derive(Debug)]
 pub enum Error {

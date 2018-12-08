@@ -20,17 +20,17 @@ use std::process;
 use std::result;
 use std::sync::mpsc;
 
-use bldr_core;
 use git2;
 use github_api_client;
-use hab_core;
 use protobuf;
-use protocol;
 use retry;
 use url;
 use zmq;
 
-use runner::studio;
+use crate::bldr_core;
+use crate::hab_core;
+use crate::protocol;
+use crate::runner::studio;
 
 pub type Result<T> = result::Result<T, Error>;
 

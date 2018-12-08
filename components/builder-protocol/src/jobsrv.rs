@@ -16,17 +16,19 @@ use std::fmt;
 use std::result;
 use std::str::FromStr;
 
-use message::originsrv::OriginPackage;
-use message::{Persistable, Routable};
 use protobuf::RepeatedField;
 use regex::Regex;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use sharding::InstaId;
 
-use error::ProtocolError;
-pub use message::jobsrv::*;
-pub use message::originsrv;
+use crate::error::ProtocolError;
+use crate::message::originsrv::OriginPackage;
+use crate::message::{Persistable, Routable};
+use crate::sharding::InstaId;
+
+pub use crate::message::jobsrv::*;
+pub use crate::message::originsrv;
+
 pub const GITHUB_PUSH_NOTIFY_ID: u64 = 23;
 
 impl Into<Job> for JobSpec {

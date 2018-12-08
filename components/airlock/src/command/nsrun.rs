@@ -23,11 +23,11 @@ use std::process::{Command, Stdio};
 use dirs;
 use libc;
 
-use coreutils::{chmod, mkdir_p, rmdir, symlink, touch, umask};
-use filesystem;
-use mount::{self, Mount};
-use pty;
-use {Error, Result};
+use crate::coreutils::{chmod, mkdir_p, rmdir, symlink, touch, umask};
+use crate::error::{Error, Result};
+use crate::filesystem;
+use crate::mount::{self, Mount};
+use crate::pty;
 
 const ROOTFS_DIRS: &'static [&'static str] = &[
     "etc",

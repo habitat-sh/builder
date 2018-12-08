@@ -15,8 +15,8 @@
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-use protocol::jobsrv;
-use protocol::originsrv;
+use crate::protocol::jobsrv;
+use crate::protocol::originsrv;
 
 #[derive(Clone)]
 pub struct Job(jobsrv::Job);
@@ -71,7 +71,8 @@ impl fmt::Debug for Job {
                 r.set_name(i.get_name().to_string());
                 r.set_body("[secure]".to_string());
                 r
-            }).collect();
+            })
+            .collect();
 
         f.debug_struct("Job")
             .field("id", &self.0.get_id())

@@ -18,11 +18,11 @@ use std::fmt;
 use std::io;
 
 use base64;
-use jwt;
 use reqwest;
 use serde_json;
 
-use types;
+use crate::jwt;
+use crate::types;
 
 pub type HubResult<T> = Result<T, HubError>;
 

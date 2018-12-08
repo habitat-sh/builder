@@ -68,8 +68,8 @@ pub fn rdeps(g: &Graph<GType, GType>, n: NodeIndex) -> Result<Vec<GType>, GraphE
 
 #[cfg(test)]
 mod tests {
+    use crate::rdeps::*;
     use petgraph::Graph;
-    use rdeps::*;
 
     #[test]
     fn fails_with_cyclic_graph() {

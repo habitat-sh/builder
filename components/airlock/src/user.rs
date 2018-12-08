@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use users;
 use users::os::unix::UserExt;
 
-use {Error, Result};
+use crate::error::{Error, Result};
 
 pub fn check_running_user_is_root() -> Result<()> {
     if users::get_effective_uid() != 0 {

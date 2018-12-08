@@ -30,8 +30,8 @@ use actix_web::middleware::Logger;
 use actix_web::server::{self, KeepAlive};
 use actix_web::{App, HttpRequest, HttpResponse, Result};
 
-use bldr_core::rpc::RpcClient;
-use db::{migration, DbPool};
+use crate::bldr_core::rpc::RpcClient;
+use crate::db::{migration, DbPool};
 use github_api_client::GitHubClient;
 
 use oauth_client::client::OAuth2Client;
@@ -54,7 +54,7 @@ use self::resources::profile::Profile;
 use self::resources::projects::Projects;
 use self::resources::user::User;
 
-use config::{Config, GatewayCfg};
+use crate::config::{Config, GatewayCfg};
 
 features! {
     pub mod feat {
@@ -159,7 +159,8 @@ pub fn run(config: Config) -> Result<()> {
                 r.get().f(status);
                 r.head().f(status)
             })
-    }).workers(cfg.handler_count())
+    })
+    .workers(cfg.handler_count())
     .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
     .bind(cfg.http.clone())
     .unwrap()

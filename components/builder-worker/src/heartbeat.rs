@@ -16,12 +16,13 @@ use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use bldr_core::socket::DEFAULT_CONTEXT;
-use protocol::{jobsrv as proto, message};
 use zmq;
 
-use config::Config;
-use error::Result;
+use crate::bldr_core::socket::DEFAULT_CONTEXT;
+use crate::protocol::{jobsrv as proto, message};
+
+use crate::config::Config;
+use crate::error::Result;
 
 /// Polling timeout for HeartbeatMgr
 const HEARTBEAT_MS: i64 = 30_000;
@@ -144,7 +145,8 @@ impl HeartbeatMgr {
             .name("heartbeat".to_string())
             .spawn(move || {
                 heartbeat.run(tx, jobsrv_addrs).unwrap();
-            }).unwrap();
+            })
+            .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("heartbeat thread startup error, err={}", e),

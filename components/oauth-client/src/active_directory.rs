@@ -17,9 +17,9 @@ use reqwest::mime;
 use reqwest::Client;
 use serde_json;
 
-use config::OAuth2Cfg;
-use error::{Error, Result};
-use types::*;
+use crate::config::OAuth2Cfg;
+use crate::error::{Error, Result};
+use crate::types::*;
 
 pub struct ActiveDirectory;
 

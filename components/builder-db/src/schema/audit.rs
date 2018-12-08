@@ -1,5 +1,5 @@
 table! {
-    use models::channel::{PackageChannelOperationMapping, PackageChannelTriggerMapping};
+    use crate::models::channel::{PackageChannelOperationMapping, PackageChannelTriggerMapping};
     use diesel::sql_types::{BigInt, Text, Nullable, Timestamptz};
     audit_package (origin, package_ident, channel) {
         package_ident -> Text,
@@ -14,7 +14,7 @@ table! {
 }
 
 table! {
-    use models::channel::{PackageChannelOperationMapping, PackageChannelTriggerMapping};
+    use crate::models::channel::{PackageChannelOperationMapping, PackageChannelTriggerMapping};
     use diesel::sql_types::{BigInt, Array, Text, Nullable, Timestamptz};
     audit_package_group (origin, channel) {
         channel -> Text,

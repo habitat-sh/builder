@@ -13,15 +13,14 @@
 // limitations under the License.
 
 use actix_web::HttpRequest;
-use bldr_core::access_token::BUILDER_ACCOUNT_ID;
-use bldr_core::privilege::*;
 
-use protocol::originsrv;
+use crate::bldr_core::access_token::BUILDER_ACCOUNT_ID;
+use crate::bldr_core::privilege::*;
+use crate::db::models::origin::*;
+use crate::protocol::originsrv;
 
-use db::models::origin::*;
-
-use server::error::{Error, Result};
-use server::AppState;
+use crate::server::error::{Error, Result};
+use crate::server::AppState;
 
 pub fn authorize_session(
     req: &HttpRequest<AppState>,

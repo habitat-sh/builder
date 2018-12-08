@@ -19,11 +19,11 @@ use std::process;
 
 use unshare::{self, Namespace};
 
-use coreutils::{mkdir_p, touch};
-use namespace;
-use user;
-use util;
-use Result;
+use crate::coreutils::{mkdir_p, touch};
+use crate::error::Result;
+use crate::namespace;
+use crate::user;
+use crate::util;
 
 pub fn run<P: AsRef<Path>>(
     ns_dir: P,

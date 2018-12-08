@@ -16,7 +16,7 @@ use std::fmt;
 
 use base64;
 
-use error::{HubError, HubResult};
+use crate::error::{HubError, HubResult};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct App {

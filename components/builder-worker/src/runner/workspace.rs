@@ -16,10 +16,10 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-use hab_core::package::{PackageArchive, PackageIdent};
+use crate::hab_core::package::{PackageArchive, PackageIdent};
 
 use super::Job;
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
 pub struct Workspace {
     pub job: Job,

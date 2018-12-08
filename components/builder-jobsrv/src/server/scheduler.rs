@@ -21,17 +21,17 @@ use chrono::{DateTime, Utc};
 use diesel;
 use zmq;
 
-use data_store::DataStore;
-use db::DbPool;
-use error::{Error, Result};
-use protocol::jobsrv;
+use crate::data_store::DataStore;
+use crate::db::DbPool;
+use crate::error::{Error, Result};
+use crate::protocol::jobsrv;
 
-use db::models::projects::*;
+use crate::db::models::projects::*;
 
-use bldr_core::logger::Logger;
-use bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
-use bldr_core::socket::DEFAULT_CONTEXT;
-use hab_core::channel::bldr_channel_name;
+use crate::bldr_core::logger::Logger;
+use crate::bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
+use crate::bldr_core::socket::DEFAULT_CONTEXT;
+use crate::hab_core::channel::bldr_channel_name;
 
 use super::metrics::{Counter, Gauge, Histogram};
 use super::worker_manager::WorkerMgrClient;
@@ -107,7 +107,8 @@ impl ScheduleMgr {
             .name("scheduler".to_string())
             .spawn(move || {
                 schedule_mgr.run(tx).unwrap();
-            }).unwrap();
+            })
+            .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("scheduler thread startup error, err={}", e),

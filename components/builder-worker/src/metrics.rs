@@ -15,8 +15,9 @@
 //! Centralized definition of all Builder Worker metrics that we wish
 //! to track.
 
-use bldr_core::metrics;
 use std::borrow::Cow;
+
+use crate::bldr_core::metrics;
 
 pub type InstallationId = u32;
 

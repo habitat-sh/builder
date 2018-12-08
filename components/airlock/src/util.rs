@@ -19,7 +19,7 @@ use std::process::Command;
 use users;
 use users::os::unix::GroupExt;
 
-use {Error, Result};
+use crate::error::{Error, Result};
 
 pub const IP_PKG: &'static str = "core/iproute2";
 pub const DEBUG_ENVVARS: &'static [&'static str] = &["RUST_LOG", "DEBUG"];

@@ -18,7 +18,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 
-use protocol::jobsrv::{Job, JobGroup, JobGroupProject};
+use crate::protocol::jobsrv::{Job, JobGroup, JobGroupProject};
 
 pub struct Logger {
     file: File,

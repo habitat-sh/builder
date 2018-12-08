@@ -1,10 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+sleep 5
+
 pwfile=/hab/svc/builder-datastore/config/pwfile
 while [ ! -f $pwfile ] \
-&&    hab sup status habitat/builder-datastore > /dev/null
+&&  hab sup status habitat/builder-datastore > /dev/null 2>&1;
 do
+  echo "Waiting for password"
   sleep 2
 done
 
@@ -12,6 +15,7 @@ if [ -f $pwfile ]; then
   export PGPASSWORD
   PGPASSWORD=$(cat $pwfile)
 else
+  hab sup status
   echo "ERROR: $0: $pwfile does not exist and habitat/builder-datastore is not running"
   exit 1
 fi

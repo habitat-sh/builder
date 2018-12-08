@@ -15,9 +15,9 @@
 use std::path::Path;
 
 use super::publisher::Publisher;
-use config::Config;
-use error::{Error, Result};
-use hab_core::config::ConfigFile;
+use crate::config::Config;
+use crate::error::{Error, Result};
+use crate::hab_core::config::ConfigFile;
 
 // TODO (SA) - Toml-based publishing has been removed, and is not hooked up to
 // the post-processor currently. Keeping the code around to re-enable

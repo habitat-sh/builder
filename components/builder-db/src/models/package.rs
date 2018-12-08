@@ -3,10 +3,8 @@ use std::io::Write;
 use std::ops::Deref;
 use std::str::{self, FromStr};
 
-use protobuf;
-use protocol::originsrv::{OriginPackage, OriginPackageIdent, OriginPackageVisibility};
-
 use chrono::NaiveDateTime;
+use protobuf;
 use time::PreciseTime;
 
 use diesel;
@@ -23,17 +21,22 @@ use diesel::RunQueryDsl;
 use diesel_full_text_search::{to_tsquery, TsQueryExtensions};
 
 use super::db_id_format;
-use hab_core;
-use hab_core::package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget};
-use models::channel::{Channel, OriginChannelPackage, OriginChannelPromote};
-use models::pagination::*;
+use crate::hab_core;
+use crate::hab_core::package::{
+    FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget,
+};
+use crate::models::channel::{Channel, OriginChannelPackage, OriginChannelPromote};
+use crate::models::pagination::*;
 
-use schema::channel::{origin_channel_packages, origin_channels};
-use schema::origin::origins;
-use schema::package::{origin_package_versions, origin_packages, packages_with_channel_platform};
+use crate::schema::channel::{origin_channel_packages, origin_channels};
+use crate::schema::origin::origins;
+use crate::schema::package::{
+    origin_package_versions, origin_packages, packages_with_channel_platform,
+};
 
-use bldr_core::metrics::{CounterMetric, HistogramMetric};
-use metrics::{Counter, Histogram};
+use crate::bldr_core::metrics::{CounterMetric, HistogramMetric};
+use crate::metrics::{Counter, Histogram};
+use crate::protocol::originsrv::{OriginPackage, OriginPackageIdent, OriginPackageVisibility};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
 #[table_name = "origin_packages"]
@@ -297,7 +300,8 @@ impl Package {
             .filter(origin_packages::visibility.eq(any(req.visibility)))
             .order(sql::<Package>(
                 "to_semver(ident_array[3]) desc, ident_array[4] desc",
-            )).limit(1)
+            ))
+            .limit(1)
             .get_result(conn);
 
         let end_time = PreciseTime::now();
@@ -380,7 +384,8 @@ impl Package {
         origin_packages::table
             .select(sql(
                 "concat_ws('/', ident_array[1], ident_array[2]) as ident",
-            )).filter(origin_packages::ident_array.contains(pl.ident.parts()))
+            ))
+            .filter(origin_packages::ident_array.contains(pl.ident.parts()))
             .filter(origin_packages::visibility.eq(any(pl.visibility)))
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210

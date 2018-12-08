@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use hab_core::package::PackageTarget;
-use package_graph::PackageGraph;
-use protocol::originsrv;
 use std::collections::HashMap;
 use std::iter::Iterator;
 use std::str::FromStr;
+
+use crate::hab_core::package::PackageTarget;
+use crate::package_graph::PackageGraph;
+use crate::protocol::originsrv;
 
 pub struct TargetGraphStats {
     pub target: PackageTarget,

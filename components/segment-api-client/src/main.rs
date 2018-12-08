@@ -15,13 +15,13 @@
 // NOTE: This is only here to allow manual testing of the API client.
 #[macro_use]
 extern crate log;
-extern crate segment_api_client as segment;
+use segment_api_client as segment;
 
 use std::env;
 use std::process::exit;
 
-use segment::client::SegmentClient;
-use segment::config::SegmentCfg;
+use crate::segment::client::SegmentClient;
+use crate::segment::config::SegmentCfg;
 
 fn main() {
     let mut config = SegmentCfg::default();

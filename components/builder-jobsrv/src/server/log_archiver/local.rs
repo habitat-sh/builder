@@ -22,9 +22,10 @@
 //! the root of the archive on the filesystem. This is the same
 //! approach taken by Chef's `bookshelf` cookbook storage engine.
 
-use config::ArchiveCfg;
-use error::Result;
-use server::log_directory::LogDirectory;
+use crate::config::ArchiveCfg;
+use crate::error::Result;
+use crate::server::log_directory::LogDirectory;
+
 use sha2::{Digest, Sha256};
 use std::fs::{self, OpenOptions};
 use std::io::Read;

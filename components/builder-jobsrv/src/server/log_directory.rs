@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use error::{Error, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use crate::error::{Error, Result};
 
 /// Encapsulates the local filesystem directory in which in-process
 /// build job logs will be collected prior to being sent to long-term

@@ -17,9 +17,9 @@ use std::process::Command;
 
 use serde_json::{self, Value as JsonValue};
 
-use error::{Error, Result};
-use runner::docker::DockerExporterSpec;
-use runner::workspace::Workspace;
+use crate::error::{Error, Result};
+use crate::runner::docker::DockerExporterSpec;
+use crate::runner::workspace::Workspace;
 
 // TODO fn: The horror... well, it's not that bad. There isn't a quick win for recursive chown'ing
 // a path, so we'll use the `chown` binary as provided by busybox and guarenteed by the Supervisor.
@@ -198,7 +198,8 @@ pub fn docker_exporter_spec(workspace: &Workspace) -> DockerExporterSpec {
             .first()
             .expect("Project integrations must not be empty")
             .get_body(),
-    ).expect("Project integrations body must be JSON");
+    )
+    .expect("Project integrations body must be JSON");
 
     let custom_tag = get_optional_args(&opts, String::from("custom_tag"));
     let registry_url = get_optional_args(&creds, String::from("registry_url"));

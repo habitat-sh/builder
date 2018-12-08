@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use dogstatsd::{Client, Options};
-use hab_core::env;
 use std::borrow::{Borrow, Cow};
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
 use std::sync::{Once, ONCE_INIT};
 use std::thread;
+
+use crate::hab_core::env;
 
 // Statsd Application name
 pub const APP_NAME: &'static str = "bldr";

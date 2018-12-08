@@ -16,15 +16,15 @@ use actix_web::http::{self, Method, StatusCode};
 use actix_web::{App, FromRequest, HttpRequest, HttpResponse, Json, Path};
 use serde_json;
 
-use bldr_core;
-use protocol::originsrv;
+use crate::bldr_core;
+use crate::protocol::originsrv;
 
-use db::models::account::*;
+use crate::db::models::account::*;
 
-use server::authorize::authorize_session;
-use server::error::{Error, Result};
-use server::framework::headers;
-use server::AppState;
+use crate::server::authorize::authorize_session;
+use crate::server::error::{Error, Result};
+use crate::server::framework::headers;
+use crate::server::AppState;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {
@@ -46,7 +46,8 @@ impl Profile {
                 "/profile/access-tokens",
                 Method::POST,
                 generate_access_token,
-            ).route(
+            )
+            .route(
                 "/profile/access-tokens/{id}",
                 Method::DELETE,
                 revoke_access_token,
@@ -93,8 +94,8 @@ fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
     match do_get_access_tokens(&req, account_id) {
         Ok(tokens) => {
             let json = json!({
-                           "tokens": serde_json::to_value(tokens).unwrap()
-                       });
+                "tokens": serde_json::to_value(tokens).unwrap()
+            });
 
             HttpResponse::Ok()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
@@ -133,7 +134,8 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         &req.state().config.api.key_path,
         account_id,
         flags,
-    ).unwrap();
+    )
+    .unwrap();
 
     let new_token = NewAccountToken {
         account_id: account_id as i64,

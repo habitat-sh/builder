@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bldr_core::logger::Logger;
-use bldr_core::socket::DEFAULT_CONTEXT;
-use config::Config;
-use error::{Error, Result};
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
+
 use zmq;
+
+use crate::bldr_core::logger::Logger;
+use crate::bldr_core::socket::DEFAULT_CONTEXT;
+use crate::config::Config;
+use crate::error::{Error, Result};
 
 /// In-memory zmq address for LogForwarder
 pub const INPROC_ADDR: &'static str = "inproc://logger";
@@ -60,7 +62,8 @@ impl LogForwarder {
             .name("log".to_string())
             .spawn(move || {
                 log.run(tx, jobsrv_addrs).unwrap();
-            }).unwrap();
+            })
+            .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("log thread startup error, err={}", e),

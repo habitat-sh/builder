@@ -19,9 +19,9 @@ use std::path::Path;
 
 use base64;
 
-use error::{Error, Result};
-use hab_core::crypto::BoxKeyPair;
-use keys;
+use crate::error::{Error, Result};
+use crate::hab_core::crypto::BoxKeyPair;
+use crate::keys;
 
 // TBD - these functions should take keys directly instead of key directory.
 
