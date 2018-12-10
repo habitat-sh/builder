@@ -30,7 +30,6 @@ use crate::bldr_core::privilege::FeatureFlags;
 use crate::db::models::account::*;
 use crate::protocol;
 use crate::protocol::originsrv;
-use crate::protocol::Routable;
 
 use crate::server::error;
 use crate::server::services::metrics::Counter;
@@ -40,16 +39,16 @@ lazy_static! {
     static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;
 }
 
-pub fn route_message<M, R>(req: &HttpRequest<AppState>, msg: &M) -> error::Result<R>
+pub fn route_message<R, T>(req: &HttpRequest<AppState>, msg: &R) -> error::Result<T>
 where
-    M: Routable,
     R: protobuf::Message,
+    T: protobuf::Message,
 {
     Counter::RouteMessage.increment();
     // Route via Protobuf over HTTP
     req.state()
         .jobsrv
-        .rpc::<M, R>(msg)
+        .rpc::<R, T>(msg)
         .map_err(error::Error::BuilderCore)
 }
 
