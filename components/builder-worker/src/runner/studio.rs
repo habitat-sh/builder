@@ -32,9 +32,9 @@ use crate::runner::{NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 
 pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
 pub static STUDIO_GID: AtomicUsize = ATOMIC_USIZE_INIT;
-pub const DEBUG_ENVVARS: &'static [&'static str] = &["RUST_LOG", "DEBUG"];
-pub const STUDIO_USER: &'static str = "krangschnak";
-pub const STUDIO_GROUP: &'static str = "krangschnak";
+pub const DEBUG_ENVVARS: &[&str] = &["RUST_LOG", "DEBUG"];
+pub const STUDIO_USER: &str = "krangschnak";
+pub const STUDIO_GROUP: &str = "krangschnak";
 
 lazy_static! {
     /// Absolute path to the Studio program
@@ -94,7 +94,10 @@ impl<'a> Studio<'a> {
         if let Some(val) = env::var_os(RUNNER_DEBUG_ENVVAR) {
             cmd.env("DEBUG", val);
         }
-        cmd.env("PATH", env::var("PATH").unwrap_or(String::from(""))); // Sets `$PATH`
+        cmd.env(
+            "PATH",
+            env::var("PATH").unwrap_or_else(|_| String::from("")),
+        ); // Sets `$PATH`
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
 
@@ -216,7 +219,7 @@ pub fn key_path() -> PathBuf {
 
 /// Returns a path argument suitable to pass to a Studio build command.
 fn build_path(plan_path: &str) -> String {
-    let mut parts: Vec<_> = plan_path.split("/").collect();
+    let mut parts: Vec<_> = plan_path.split('/').collect();
     if parts.last().map_or("", |p| *p) == "plan.sh" {
         parts.pop();
     }

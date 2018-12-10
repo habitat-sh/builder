@@ -31,9 +31,9 @@ use crate::data_store::DataStore;
 use crate::error::Result;
 
 /// ZMQ protocol frame to indicate a log line is being sent
-const LOG_LINE: &'static str = "L";
+const LOG_LINE: &str = "L";
 /// ZMQ protocol frame to indicate a log has finished
-const LOG_COMPLETE: &'static str = "C";
+const LOG_COMPLETE: &str = "C";
 
 /// Listens for log messages from builders and consolidates output for
 /// both streaming to clients and long-term storage.
@@ -47,17 +47,17 @@ pub struct LogIngester {
 }
 
 impl LogIngester {
-    pub fn new(config: &Config, log_dir: LogDirectory, data_store: DataStore) -> Result<Self> {
-        let intake_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER)?;
-        intake_sock.set_router_mandatory(true)?;
-        Ok(LogIngester {
-            intake_sock: intake_sock,
-            msg: zmq::Message::new()?,
-            log_dir: log_dir,
+    pub fn new(config: &Config, log_dir: LogDirectory, data_store: DataStore) -> Self {
+        let intake_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER).unwrap();
+        intake_sock.set_router_mandatory(true).unwrap();
+        LogIngester {
+            intake_sock,
+            msg: zmq::Message::new().unwrap(),
+            log_dir,
             log_ingestion_addr: config.net.log_ingestion_addr(),
-            data_store: data_store,
-            archiver: log_archiver::from_config(&config.archive)?,
-        })
+            data_store,
+            archiver: log_archiver::from_config(&config.archive).unwrap(),
+        }
     }
 
     pub fn start(
@@ -65,12 +65,12 @@ impl LogIngester {
         log_dir: LogDirectory,
         data_store: DataStore,
     ) -> Result<JoinHandle<()>> {
-        let mut ingester = Self::new(cfg, log_dir, data_store)?;
+        let mut ingester = Self::new(cfg, log_dir, data_store);
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new()
             .name("log-ingester".to_string())
             .spawn(move || {
-                ingester.run(tx).unwrap();
+                ingester.run(&tx).unwrap();
             })
             .unwrap();
         match rx.recv() {
@@ -79,7 +79,7 @@ impl LogIngester {
         }
     }
 
-    fn run(&mut self, rz: mpsc::SyncSender<()>) -> Result<()> {
+    fn run(&mut self, rz: &mpsc::SyncSender<()>) -> Result<()> {
         println!("Listening for log data on {}", self.log_ingestion_addr);
         self.intake_sock.bind(&self.log_ingestion_addr)?;
         rz.send(()).unwrap();
@@ -108,7 +108,7 @@ impl LogIngester {
 
                             match open {
                                 Ok(mut file) => {
-                                    file.write(chunk.get_content().as_bytes())?;
+                                    let _ = file.write(chunk.get_content().as_bytes())?;
                                     file.flush()?;
                                 }
                                 Err(e) => {

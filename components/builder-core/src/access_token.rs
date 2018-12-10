@@ -23,13 +23,13 @@ use crate::integrations::{decrypt, encrypt, validate};
 use crate::protocol::{message, originsrv};
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
-pub const BUILDER_ACCOUNT_NAME: &'static str = "BUILDER";
+pub const BUILDER_ACCOUNT_NAME: &str = "BUILDER";
 
 // Access token prefix rules:
 // MUST CONTAIN AN *INVALID* base-64 character
 // MUST NOT CONTAIN shell special characters (eg, !)
 // SHOULD be URL-safe (just in case)
-const ACCESS_TOKEN_PREFIX: &'static str = "_";
+const ACCESS_TOKEN_PREFIX: &str = "_";
 
 const BUILDER_TOKEN_LIFETIME_HOURS: i64 = 2;
 
@@ -59,7 +59,7 @@ pub fn generate_access_token(
 ) -> Result<String> {
     let expires = Utc::now()
         .checked_add_signed(lifetime)
-        .unwrap_or(chrono::MAX_DATE.and_hms(0, 0, 0))
+        .unwrap_or_else(|| chrono::MAX_DATE.and_hms(0, 0, 0))
         .timestamp();
 
     let mut token = originsrv::AccessToken::new();

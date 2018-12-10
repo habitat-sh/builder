@@ -97,7 +97,7 @@ impl ProjectIntegration {
         .execute(conn)
     }
 
-    pub fn create(req: NewProjectIntegration, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn create(req: &NewProjectIntegration, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         // We currently support running only one publish step per build job. This
         // temporary fix ensures we store (and can retrieve) only one project integration.

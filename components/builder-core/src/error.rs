@@ -61,16 +61,16 @@ impl fmt::Display for Error {
             Error::IO(ref e) => format!("{}", e),
             Error::Base64Error(ref e) => format!("{}", e),
             Error::ChronoError(ref e) => format!("{}", e),
-            Error::DecryptError(ref e) => format!("{}", e),
-            Error::EncryptError(ref e) => format!("{}", e),
+            Error::DecryptError(ref e) => e.to_string(),
+            Error::EncryptError(ref e) => e.to_string(),
             Error::FromUtf8Error(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::Protobuf(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::Serialization(ref e) => format!("{}", e),
-            Error::TokenInvalid => format!("Token is invalid"),
-            Error::TokenExpired => format!("Token is expired"),
-            Error::BadResponse => format!("Response missing required fields"),
+            Error::TokenInvalid => "Token is invalid".to_string(),
+            Error::TokenExpired => "Token is expired".to_string(),
+            Error::BadResponse => "Response missing required fields".to_string(),
         };
         write!(f, "{}", msg)
     }

@@ -29,8 +29,8 @@ use std::process;
 use crate::hab_core::config::ConfigFile;
 use crate::jobsrv::{Config, Result};
 
-const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
-const CFG_DEFAULT_PATH: &'static str = "/hab/svc/builder-jobsrv/config.toml";
+const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-jobsrv/config.toml";
 
 fn main() {
     env_logger::init();
@@ -38,17 +38,17 @@ fn main() {
     debug!("CLI matches: {:?}", matches);
     let (subcmd, config) = match subcmd_and_config_from_args(&matches) {
         Ok((s, c)) => (s, c),
-        Err(e) => return exit_with(e, 1),
+        Err(e) => return exit_with(&e, 1),
     };
 
     match subcmd {
-        "migrate" => match jobsrv::server::migrate(config) {
+        "migrate" => match jobsrv::server::migrate(&config) {
             Ok(_) => process::exit(0),
-            Err(e) => exit_with(e, 1),
+            Err(e) => exit_with(&e, 1),
         },
         "start" => match jobsrv::server::run(config) {
             Ok(_) => process::exit(0),
-            Err(e) => exit_with(e, 1),
+            Err(e) => exit_with(&e, 1),
         },
         _ => unreachable!(),
     }
@@ -78,12 +78,12 @@ fn subcmd_and_config_from_args<'a>(matches: &'a clap::ArgMatches) -> Result<(&'a
     let args = matches.subcommand_matches(cmd).unwrap();
     let config = match args.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path)?,
-        None => Config::from_file(CFG_DEFAULT_PATH).unwrap_or(Config::default()),
+        None => Config::from_file(CFG_DEFAULT_PATH).unwrap_or_default(),
     };
     Ok((cmd, config))
 }
 
-fn exit_with<T>(err: T, code: i32)
+fn exit_with<T>(err: &T, code: i32)
 where
     T: error::Error,
 {

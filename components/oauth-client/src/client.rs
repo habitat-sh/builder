@@ -84,8 +84,8 @@ impl OAuth2Client {
 
         OAuth2Client {
             inner: client.build().unwrap(),
-            config: config,
-            provider: provider,
+            config,
+            provider,
         }
     }
 

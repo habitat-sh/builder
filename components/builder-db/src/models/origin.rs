@@ -93,7 +93,7 @@ impl Origin {
 
         OriginMember::add(req.name, req.owner_id, conn)?;
         Channel::create(
-            CreateChannel {
+            &CreateChannel {
                 name: "unstable",
                 owner_id: req.owner_id,
                 origin: req.name,
@@ -101,7 +101,7 @@ impl Origin {
             conn,
         )?;
         Channel::create(
-            CreateChannel {
+            &CreateChannel {
                 name: "stable",
                 owner_id: req.owner_id,
                 origin: req.name,

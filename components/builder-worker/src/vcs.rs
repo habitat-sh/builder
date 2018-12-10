@@ -60,10 +60,10 @@ impl VCS {
         installation_id: Option<u32>,
     ) -> Self {
         VCS {
-            vcs_type: vcs_type,
-            data: data,
+            vcs_type,
+            data,
             github_client: GitHubClient::new(config),
-            installation_id: installation_id,
+            installation_id,
         }
     }
 
@@ -91,26 +91,25 @@ impl VCS {
                         let t = self
                             .github_client
                             .app_installation_token(id)
-                            .map_err(|e| Error::GithubAppAuthErr(e))?;
+                            .map_err(Error::GithubAppAuthErr)?;
                         Counter::GitAuthenticatedClone.increment();
                         Some(t.inner_token().to_string())
                     }
                 };
                 debug!(
                     "GITHUB-CALL builder_worker::vcs::clone: cloning git repository, url={}, path={:?}",
-                    self.url(token.clone())?,
+                    self.url(&token)?,
                     path
                 );
-                git2::Repository::clone(&(self.url(token)?).as_str(), path)
-                    .map_err(|e| Error::Git(e))?;
+                git2::Repository::clone(&(self.url(&token)?).as_str(), path).map_err(Error::Git)?;
                 Ok(())
             }
             _ => panic!("Unknown vcs type"),
         }
     }
 
-    pub fn url(&self, token: Option<String>) -> Result<Url> {
-        let mut url = Url::parse(self.data.as_str()).map_err(|e| Error::UrlParseError(e))?;
+    pub fn url(&self, token: &Option<String>) -> Result<Url> {
+        let mut url = Url::parse(self.data.as_str()).map_err(Error::UrlParseError)?;
         if self.data.starts_with("https://") {
             if let Some(ref tok) = token {
                 url.set_username("x-access-token")

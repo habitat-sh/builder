@@ -31,7 +31,7 @@ impl Job {
             .0
             .get_project()
             .get_name()
-            .split("/")
+            .split('/')
             .collect::<Vec<&str>>();
         assert!(
             items.len() == 2,

@@ -45,7 +45,7 @@ pub struct S3Archiver {
 }
 
 impl S3Archiver {
-    pub fn new(config: &ArchiveCfg) -> Result<S3Archiver> {
+    pub fn new(config: &ArchiveCfg) -> Self {
         let key = config
             .key
             .as_ref()
@@ -69,10 +69,7 @@ impl S3Archiver {
         let cred_provider = StaticProvider::new_minimal(key, secret);
         let client = S3Client::new(RequestDispatcher::default(), cred_provider, region);
 
-        Ok(S3Archiver {
-            client: client,
-            bucket: bucket,
-        })
+        S3Archiver { client, bucket }
     }
 
     /// Generates the bucket key under which the job log will be

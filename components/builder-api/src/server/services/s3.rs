@@ -75,10 +75,7 @@ impl S3Handler {
         let client = S3Client::new(RequestDispatcher::default(), cred_provider, region);
         let bucket = config.bucket_name;
 
-        S3Handler {
-            client: client,
-            bucket: bucket,
-        }
+        S3Handler { client, bucket }
     }
 
     // This function checks whether or not the
@@ -89,16 +86,14 @@ impl S3Handler {
         let artifactbucket = self.bucket.to_owned();
         match self.client.list_buckets().sync() {
             Ok(bucket_list) => match bucket_list.buckets {
-                Some(buckets) => {
-                    return Ok(buckets
-                        .iter()
-                        .any(|ref x| x.name.clone().unwrap() == artifactbucket))
-                }
+                Some(buckets) => Ok(buckets
+                    .iter()
+                    .any(|ref x| x.name.clone().unwrap() == artifactbucket)),
                 None => Ok(false),
             },
             Err(e) => {
                 debug!("{:?}", e);
-                return Err(Error::ListBuckets(e));
+                Err(Error::ListBuckets(e))
             }
         }
     }
@@ -142,7 +137,7 @@ impl S3Handler {
         &self,
         hart_path: &PathBuf,
         ident: &PackageIdent,
-        target: &PackageTarget,
+        target: PackageTarget,
     ) -> Result<()> {
         Counter::UploadRequests.increment();
         let key = s3_key(ident, target)?;
@@ -154,10 +149,10 @@ impl S3Handler {
         let fqpi = hart_path.clone().into_os_string().into_string().unwrap();
 
         if size < MINLIMIT {
-            self.single_upload(&key, file, fqpi)
+            self.single_upload(&key, file, &fqpi)
                 .and_then(move |_| self.object_exists(&key))
         } else {
-            self.multipart_upload(&key, file, fqpi)
+            self.multipart_upload(&key, file, &fqpi)
                 .and_then(move |_| self.object_exists(&key))
         }
     }
@@ -166,7 +161,7 @@ impl S3Handler {
         &self,
         loc: &PathBuf,
         ident: &PackageIdent,
-        target: &PackageTarget,
+        target: PackageTarget,
     ) -> Result<PackageArchive> {
         Counter::DownloadRequests.increment();
         let mut request = GetObjectRequest::default();
@@ -188,15 +183,15 @@ impl S3Handler {
 
         let file = body.expect("Downloaded pkg archive empty!").concat2();
         match write_archive(&loc, &file.wait().unwrap()) {
-            Ok(result) => return Ok(result),
+            Ok(result) => Ok(result),
             Err(e) => {
                 warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
-                return Err(e);
+                Err(e)
             }
         }
     }
 
-    fn single_upload<P: Into<PathBuf>>(&self, key: &str, hart: File, path_attr: P) -> Result<()>
+    fn single_upload<P: Into<PathBuf>>(&self, key: &str, hart: File, path_attr: &P) -> Result<()>
     where
         P: Display,
     {
@@ -230,7 +225,7 @@ impl S3Handler {
         }
     }
 
-    fn multipart_upload<P: Into<PathBuf>>(&self, key: &str, hart: File, path_attr: P) -> Result<()>
+    fn multipart_upload<P: Into<PathBuf>>(&self, key: &str, hart: File, path_attr: &P) -> Result<()>
     where
         P: Display,
     {
@@ -316,11 +311,11 @@ impl S3Handler {
 
 // Helper function for programmatic creation of
 // the s3 object key
-fn s3_key(ident: &PackageIdent, target: &PackageTarget) -> Result<String> {
+fn s3_key(ident: &PackageIdent, target: PackageTarget) -> Result<String> {
     // Calling this method first ensures that the ident is fully qualified and the correct errors
     // are returned in case of failure
     let hart_name = ident
-        .archive_name_with_target(target)
+        .archive_name_with_target(&target)
         .map_err(Error::HabitatCore)?;
 
     Ok(format!(
@@ -366,7 +361,7 @@ mod test {
                 "bend-sinister/the-other-way/1.0.0/20180701122201/x86_64/linux",
                 "bend-sinister-the-other-way-1.0.0-20180701122201-x86_64-linux.hart"
             ),
-            s3_key(&ident, &target).unwrap()
+            s3_key(&ident, target).unwrap()
         );
     }
 
@@ -375,7 +370,7 @@ mod test {
         let ident = PackageIdent::from_str("acme/not-enough").unwrap();
         let target = PackageTarget::from_str("x86_64-linux").unwrap();
 
-        match s3_key(&ident, &target) {
+        match s3_key(&ident, target) {
             Err(Error::HabitatCore(hab_core::Error::FullyQualifiedPackageIdentRequired(i))) => {
                 assert_eq!("acme/not-enough", i)
             }

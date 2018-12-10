@@ -13,11 +13,11 @@
 // limitations under the License.
 
 /// URL to GitHub API endpoint
-pub const DEFAULT_GITHUB_API_URL: &'static str = "https://api.github.com";
+pub const DEFAULT_GITHUB_API_URL: &str = "https://api.github.com";
 /// Default github application id created in the habitat-sh org
 pub const DEFAULT_GITHUB_APP_ID: u32 = 5629;
 /// Webhook secret token
-pub const DEV_GITHUB_WEBHOOK_SECRET: &'static str = "58d4afaf5e5617ab0f8c39e505605e78a054d003";
+pub const DEV_GITHUB_WEBHOOK_SECRET: &str = "58d4afaf5e5617ab0f8c39e505605e78a054d003";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]

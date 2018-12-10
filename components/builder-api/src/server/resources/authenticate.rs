@@ -39,11 +39,12 @@ impl Authenticate {
 //
 // Route handlers - these functions can return any Responder trait
 //
+#[allow(clippy::needless_pass_by_value)]
 fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
     let code = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
     debug!("authenticate called, code = {}", code);
 
-    match do_authenticate(&req, code) {
+    match do_authenticate(&req, &code) {
         Ok(session) => HttpResponse::Ok().json(session),
         Err(Error::OAuth(OAuthError::HttpResponse(_code, _response))) => {
             HttpResponse::new(StatusCode::UNAUTHORIZED)
@@ -58,13 +59,13 @@ fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
 //
 // Internal - these functions should return Result<..>
 //
-fn do_authenticate(req: &HttpRequest<AppState>, code: String) -> Result<originsrv::Session> {
+fn do_authenticate(req: &HttpRequest<AppState>, code: &str) -> Result<originsrv::Session> {
     if env::var_os("HAB_FUNC_TEST").is_some() {
-        return session_create_short_circuit(req, &code);
+        return session_create_short_circuit(req, code);
     }
 
     let oauth = &req.state().oauth;
-    let (token, user) = oauth.authenticate(&code)?;
+    let (token, user) = oauth.authenticate(code)?;
     let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
 
     let id_str = session.get_id().to_string();

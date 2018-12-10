@@ -25,17 +25,10 @@ pub enum ProtocolError {
     BadJobGroupState(String),
     BadJobState(String),
     BadOriginPackageVisibility(String),
-    BadPackageChannelOperation(String),
-    BadPackageChannelTrigger(String),
-    BadSearchEntity(String),
-    BadSearchKey(String),
     Decode(protobuf::ProtobufError),
     Encode(protobuf::ProtobufError),
     IdentityDecode(FromUtf8Error),
-    MsgNotInitialized,
-    NoControlFrame(String),
     NoProtocol(String),
-    NoTxn,
 }
 
 pub type ProtocolResult<T> = result::Result<T, ProtocolError>;
@@ -51,34 +44,14 @@ impl fmt::Display for ProtocolError {
             ProtocolError::BadOriginPackageVisibility(ref e) => {
                 format!("Bad Origin Package Visibility {}", e)
             }
-            ProtocolError::BadPackageChannelOperation(ref e) => {
-                format!("Bad Package Channel Operation {}", e)
-            }
-            ProtocolError::BadPackageChannelTrigger(ref e) => {
-                format!("Bad Package Channel Trigger {}", e)
-            }
-            ProtocolError::BadSearchEntity(ref e) => {
-                format!("Search not implemented for entity, {}", e)
-            }
-            ProtocolError::BadSearchKey(ref e) => {
-                format!("Search not implemented for entity with key, {}", e)
-            }
             ProtocolError::Decode(ref e) => format!("Unable to decode protocol message, {}", e),
             ProtocolError::Encode(ref e) => format!("Unable to encode protocol message, {}", e),
             ProtocolError::IdentityDecode(ref e) => {
                 format!("Unable to decode identity message part, {}", e)
             }
-            ProtocolError::MsgNotInitialized => {
-                format!("Message not ready for transport, is it missing it's header?")
-            }
-            ProtocolError::NoControlFrame(ref e) => format!(
-                "No `routesrv::ControlFrame` matches the given string, {}",
-                e
-            ),
             ProtocolError::NoProtocol(ref e) => {
                 format!("No `net::Protocol` matching given string, {}", e)
             }
-            ProtocolError::NoTxn => format!("Message is not transactional"),
         };
         write!(f, "{}", msg)
     }
@@ -93,25 +66,10 @@ impl error::Error for ProtocolError {
             ProtocolError::BadOriginPackageVisibility(_) => {
                 "Origin package visibility cannot be parsed"
             }
-            ProtocolError::BadPackageChannelOperation(_) => {
-                "Package Channel Operation cannot be parsed"
-            }
-            ProtocolError::BadPackageChannelTrigger(_) => {
-                "Package Channel Trigger cannot be parsed"
-            }
-            ProtocolError::BadSearchEntity(_) => "Search not implemented for entity.",
-            ProtocolError::BadSearchKey(_) => "Entity not indexed by the given key.",
             ProtocolError::Decode(_) => "Unable to decode protocol message",
             ProtocolError::Encode(_) => "Unable to encode protocol message",
             ProtocolError::IdentityDecode(_) => "Unable to decode identity message part",
-            ProtocolError::MsgNotInitialized => {
-                "Message not ready for transport, is it missing it's header?"
-            }
-            ProtocolError::NoControlFrame(_) => {
-                "No `routesrv::ControlFrame` matches the given string"
-            }
             ProtocolError::NoProtocol(_) => "No `net::Protocol` matches the given string",
-            ProtocolError::NoTxn => "Message is not transactional",
         }
     }
 }

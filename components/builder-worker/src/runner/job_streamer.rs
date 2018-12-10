@@ -13,13 +13,13 @@
 // limitations under the License.
 
 /// ZMQ socket address
-const INPROC_ADDR: &'static str = "inproc://logger";
+const INPROC_ADDR: &str = "inproc://logger";
 /// ZMQ protocol frame to indicate a log line is being sent
-const LOG_LINE: &'static str = "L";
+const LOG_LINE: &str = "L";
 /// ZMQ protocol frame to indicate a log has finished
-const LOG_COMPLETE: &'static str = "C";
+const LOG_COMPLETE: &str = "C";
 /// End-of-line marker
-const EOL_MARKER: &'static str = "\n";
+const EOL_MARKER: &str = "\n";
 
 use std::fmt;
 use std::io::{BufRead, BufReader, Read};
@@ -64,19 +64,21 @@ impl JobStreamer {
     /// # Errors
     ///
     /// * If the stream target could not be written to
-    pub fn new(workspace: &Workspace) -> Result<Self> {
+    pub fn new(workspace: &Workspace) -> Self {
         let streamer = JobStreamer {
             id: workspace.job.get_id(),
             target: Arc::new(Mutex::new(StreamTarget::new(workspace))),
             finished: false,
         };
+
         streamer
             .target
             .lock()
             .expect("Stream target mutex is poisoned!")
-            .stream_line(streamer.id, format!("builder_log::start::{}", streamer.id))?;
+            .stream_line(streamer.id, format!("builder_log::start::{}", streamer.id))
+            .unwrap();
 
-        Ok(streamer)
+        streamer
     }
 
     /// Starts a log section and returns a `LogSection` instance which can be "end"-ed.
@@ -252,10 +254,10 @@ impl StreamTarget {
 
         self.sock
             .send_str(LOG_LINE, zmq::SNDMORE)
-            .map_err(|e| Error::StreamTargetSend(e))?;
+            .map_err(Error::StreamTargetSend)?;
         self.sock
             .send(chunk.write_to_bytes().unwrap().as_slice(), 0)
-            .map_err(|e| Error::StreamTargetSend(e))?;
+            .map_err(Error::StreamTargetSend)?;
 
         Ok(())
     }
@@ -275,10 +277,10 @@ impl StreamTarget {
 
         self.sock
             .send_str(LOG_COMPLETE, zmq::SNDMORE)
-            .map_err(|e| Error::StreamTargetSend(e))?;
+            .map_err(Error::StreamTargetSend)?;
         self.sock
             .send(complete.write_to_bytes().unwrap().as_slice(), 0)
-            .map_err(|e| Error::StreamTargetSend(e))?;
+            .map_err(Error::StreamTargetSend)?;
 
         Ok(())
     }
@@ -399,6 +401,7 @@ impl Drop for LogSection {
 /// # Errors
 ///
 /// * If the stream target could not be written to
+#[allow(clippy::needless_pass_by_value)]
 fn consume_stream<R: Read>(target: Arc<Mutex<StreamTarget>>, id: u64, reader: R) -> Result<()> {
     let reader = BufReader::new(reader);
     for line in reader.lines() {

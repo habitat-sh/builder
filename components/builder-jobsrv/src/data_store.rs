@@ -49,20 +49,15 @@ impl DataStore {
     ///
     /// * Can fail if the pool cannot be created
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
-    pub fn new(cfg: &DataStoreCfg) -> Result<DataStore> {
-        let pool = Pool::new(cfg)?;
-        let diesel_pool = DbPool::new(&cfg)?;
-        Ok(DataStore { pool, diesel_pool })
+    pub fn new(cfg: &DataStoreCfg) -> Self {
+        let pool = Pool::new(cfg);
+        let diesel_pool = DbPool::new(&cfg);
+        DataStore { pool, diesel_pool }
     }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
-    pub fn from_pool(
-        pool: Pool,
-        diesel_pool: DbPool,
-        _: Vec<u32>,
-        _: Arc<String>,
-    ) -> Result<DataStore> {
-        Ok(DataStore { pool, diesel_pool })
+    pub fn from_pool(pool: Pool, diesel_pool: DbPool, _: Vec<u32>, _: Arc<String>) -> Self {
+        DataStore { pool, diesel_pool }
     }
 
     /// Setup the datastore.
@@ -121,9 +116,9 @@ impl DataStore {
                 )
                 .map_err(Error::JobCreate)?;
             let job = row_to_job(&rows.get(0))?;
-            return Ok(job);
+            Ok(job)
         } else {
-            return Err(Error::UnknownVCS);
+            Err(Error::UnknownVCS)
         }
     }
 
@@ -142,11 +137,14 @@ impl DataStore {
                 &[&(get_job.get_id() as i64)],
             )
             .map_err(Error::JobGet)?;
-        for row in rows {
+
+        if !rows.is_empty() {
+            let row = rows.get(0);
             let job = row_to_job(&row)?;
-            return Ok(Some(job));
+            Ok(Some(job))
+        } else {
+            Ok(None)
         }
-        Ok(None)
     }
 
     /// Get the next pending job from the list of pending jobs
@@ -163,7 +161,7 @@ impl DataStore {
             .query("SELECT * FROM next_pending_job_v1($1)", &[&worker])
             .map_err(Error::JobPending)?;
 
-        if rows.len() != 0 {
+        if !rows.is_empty() {
             let row = rows.get(0);
             let job = row_to_job(&row)?;
             Ok(Some(job))
@@ -320,7 +318,8 @@ impl DataStore {
             ],
         )
         .map_err(Error::BusyWorkerUpsert)?;
-        return Ok(());
+
+        Ok(())
     }
 
     /// Delete a busy worker
@@ -338,7 +337,7 @@ impl DataStore {
         )
         .map_err(Error::BusyWorkerDelete)?;
 
-        return Ok(());
+        Ok(())
     }
 
     /// Get a list of busy workers
@@ -360,7 +359,7 @@ impl DataStore {
             workers.push(bw);
         }
 
-        return Ok(workers);
+        Ok(workers)
     }
 
     pub fn get_job_graph_packages(&self) -> Result<RepeatedField<originsrv::OriginPackage>> {
@@ -420,7 +419,7 @@ impl DataStore {
             .map_err(Error::JobGroupGet)?;
 
         // If we get any rows back, we found one or more active groups
-        Ok(rows.len() >= 1)
+        Ok(!rows.is_empty())
     }
 
     pub fn get_queued_job_group(&self, project_name: &str) -> Result<Option<jobsrv::JobGroup>> {
@@ -447,7 +446,7 @@ impl DataStore {
             )
             .map_err(Error::JobGroupGet)?;
 
-        assert!(project_rows.len() > 0); // should at least have one
+        assert!(!project_rows.is_empty()); // should at least have one
         let projects = self.rows_to_job_group_projects(&project_rows)?;
 
         group.set_projects(projects);
@@ -588,7 +587,7 @@ impl DataStore {
                 )
                 .map_err(Error::JobGroupGet)?;
 
-            assert!(project_rows.len() > 0); // should at least have one
+            assert!(!project_rows.is_empty()); // should at least have one
             let projects = self.rows_to_job_group_projects(&project_rows)?;
 
             group.set_projects(projects);
@@ -612,8 +611,8 @@ impl DataStore {
         package.set_target(row.get("target"));
         let exposes: Vec<i32> = row.get("exposes");
         package.set_exposes(exposes.iter().map(|e| *e as u32).collect::<Vec<u32>>());
-        package.set_deps(self.into_idents(row.get("deps")));
-        package.set_tdeps(self.into_idents(row.get("tdeps")));
+        package.set_deps(Self::dep_to_idents(row.get("deps")));
+        package.set_tdeps(Self::dep_to_idents(row.get("tdeps")));
 
         let pv: PackageVisibility = row.get("visibility");
         let pv2: originsrv::OriginPackageVisibility = pv.into();
@@ -622,8 +621,7 @@ impl DataStore {
         Ok(package)
     }
 
-    fn into_idents(
-        &self,
+    fn dep_to_idents(
         column: Vec<String>,
     ) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
         let mut idents = protobuf::RepeatedField::new();
@@ -883,7 +881,7 @@ fn row_to_job(row: &postgres::rows::Row) -> Result<jobsrv::Job> {
     // get the origin and name.
     let name: String = row.get("project_name");
     let name_for_split = name.clone();
-    let name_split: Vec<&str> = name_for_split.split("/").collect();
+    let name_split: Vec<&str> = name_for_split.split('/').collect();
     project.set_origin_name(name_split[0].to_string());
     project.set_package_name(name_split[1].to_string());
     project.set_name(name);
@@ -898,7 +896,7 @@ fn row_to_job(row: &postgres::rows::Row) -> Result<jobsrv::Job> {
             let mut vcsa: Vec<Option<String>> = row.get("vcs_arguments");
             project.set_vcs_type(String::from("git"));
             project.set_vcs_data(vcsa.remove(0).expect("expected vcs data"));
-            if vcsa.len() > 0 {
+            if !vcsa.is_empty() {
                 if let Some(install_id) = vcsa.remove(0) {
                     project.set_vcs_installation_id(
                         install_id

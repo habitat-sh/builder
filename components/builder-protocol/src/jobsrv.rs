@@ -255,7 +255,7 @@ impl Into<OriginPackage> for JobGraphPackagePreCreate {
     fn into(self) -> OriginPackage {
         let mut package = OriginPackage::new();
 
-        let name = format!("{}", self.get_ident());
+        let name = self.get_ident().to_string();
         let target = self.get_target().to_string();
 
         let deps = self

@@ -95,7 +95,7 @@ impl Into<jobsrv::Job> for Job {
 
         let name = self.project_name.clone();
         let name_for_split = self.project_name.clone();
-        let name_split: Vec<&str> = name_for_split.split("/").collect();
+        let name_split: Vec<&str> = name_for_split.split('/').collect();
         project.set_origin_name(name_split[0].to_string());
         project.set_package_name(name_split[1].to_string());
         project.set_name(name);
@@ -108,7 +108,7 @@ impl Into<jobsrv::Job> for Job {
                 let mut vcsa: Vec<String> = self.vcs_arguments;
                 project.set_vcs_type(String::from("git"));
                 project.set_vcs_data(vcsa.remove(0));
-                if vcsa.len() > 0 {
+                if !vcsa.is_empty() {
                     let install_id = vcsa.remove(0);
                     project.set_vcs_installation_id(install_id.parse::<u32>().unwrap());
                 }

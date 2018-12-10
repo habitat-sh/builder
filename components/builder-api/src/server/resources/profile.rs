@@ -68,6 +68,7 @@ pub fn do_get_access_tokens(
 //
 // Route handlers - these functions can return any Responder trait
 //
+#[allow(clippy::needless_pass_by_value)]
 fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id() as i64,
@@ -85,6 +86,7 @@ fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
@@ -105,6 +107,7 @@ fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
@@ -154,6 +157,7 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     let token_id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
     let token_id = match token_id_str.parse::<u64>() {
@@ -188,13 +192,14 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    if body.email.len() <= 0 {
+    if body.email.is_empty() {
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 

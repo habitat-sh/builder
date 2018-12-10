@@ -37,8 +37,8 @@ pub fn post_process(
 
     let mut publisher = Publisher {
         enabled: config.auto_publish,
-        url: url,
-        channel_opt: channel_opt,
+        url,
+        channel_opt,
     };
 
     debug!("Starting post processing");

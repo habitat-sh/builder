@@ -76,7 +76,7 @@ impl OAuth2Provider for A2 {
         client: &Client,
         code: &str,
     ) -> Result<(String, OAuth2User)> {
-        let url = format!("{}", config.token_url);
+        let url = config.token_url.to_string();
         let params = format!(
             "client_id={}&client_secret={}&grant_type=authorization_code&code={}&redirect_uri={}",
             config.client_id, config.client_secret, code, config.redirect_url

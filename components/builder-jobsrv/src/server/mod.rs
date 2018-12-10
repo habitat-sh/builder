@@ -41,7 +41,7 @@ use self::worker_manager::WorkerMgr;
 
 use crate::config::{Config, GatewayCfg};
 use crate::data_store::DataStore;
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 // Application state
 pub struct AppState {
@@ -62,7 +62,7 @@ impl AppState {
         AppState {
             archiver: log_archiver::from_config(&cfg.archive).unwrap(),
             datastore: datastore.clone(),
-            db: db,
+            db,
             graph: graph.clone(),
             log_dir: LogDirectory::new(&cfg.log_dir),
         }
@@ -109,7 +109,7 @@ pub fn run(config: Config) -> Result<()> {
     let sys = actix::System::new("builder-jobsrv");
     let cfg = Arc::new(config.clone());
 
-    let datastore = DataStore::new(&config.datastore)?;
+    let datastore = DataStore::new(&config.datastore);
     let mut graph = TargetGraph::new();
     let packages = datastore.get_job_graph_packages()?;
     let start_time = PreciseTime::now();
@@ -129,9 +129,7 @@ pub fn run(config: Config) -> Result<()> {
     let log_dir = LogDirectory::new(&config.log_dir);
     LogIngester::start(&config, log_dir, datastore.clone())?;
 
-    let db_pool = DbPool::new(&config.datastore.clone())
-        .map_err(Error::Db)
-        .unwrap();
+    let db_pool = DbPool::new(&config.datastore.clone());
 
     WorkerMgr::start(&config, &datastore, db_pool.clone())?;
     ScheduleMgr::start(&datastore, db_pool.clone(), &config.log_path)?;
@@ -163,7 +161,7 @@ pub fn run(config: Config) -> Result<()> {
     Ok(())
 }
 
-pub fn migrate(config: Config) -> Result<()> {
-    let ds = DataStore::new(&config.datastore)?;
+pub fn migrate(config: &Config) -> Result<()> {
+    let ds = DataStore::new(&config.datastore);
     ds.setup()
 }

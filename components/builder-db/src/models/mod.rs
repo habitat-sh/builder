@@ -17,13 +17,17 @@ pub mod secrets;
 
 mod db_id_format {
     use serde::{self, Deserialize, Deserializer, Serializer};
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn serialize<S>(id: &i64, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let s = format!("{}", id.to_string());
+        let s = id.to_string();
         serializer.serialize_str(&s)
     }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
     where
         D: Deserializer<'de>,

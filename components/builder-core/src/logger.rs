@@ -45,7 +45,7 @@ impl Logger {
 
         self.file
             .write_all(fmt_msg.as_bytes())
-            .expect(&format!("Logger unable to write to {:?}", self.file));
+            .unwrap_or_else(|_| panic!("Logger unable to write to {:?}", self.file));
     }
 
     // Log format (fields are comma-separated)

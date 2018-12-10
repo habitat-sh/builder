@@ -85,10 +85,10 @@ impl Channel {
             .get_result(conn)
     }
 
-    pub fn create(channel: CreateChannel, conn: &PgConnection) -> QueryResult<Channel> {
+    pub fn create(channel: &CreateChannel, conn: &PgConnection) -> QueryResult<Channel> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_channels::table)
-            .values(&channel)
+            .values(channel)
             .get_result(conn)
     }
 
@@ -102,7 +102,7 @@ impl Channel {
         .execute(conn)
     }
 
-    pub fn get_latest_package(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
+    pub fn get_latest_package(req: &GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let ident = req.ident;
         let start_time = PreciseTime::now();
@@ -131,7 +131,7 @@ impl Channel {
     }
 
     pub fn list_packages(
-        lcp: ListChannelPackages,
+        lcp: &ListChannelPackages,
         conn: &PgConnection,
     ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
@@ -154,7 +154,7 @@ impl Channel {
 
     pub fn promote_packages(
         channel_id: i64,
-        package_ids: Vec<i64>,
+        package_ids: &[i64],
         conn: &PgConnection,
     ) -> QueryResult<usize> {
         Counter::DBCall.increment();
@@ -174,7 +174,7 @@ impl Channel {
 
     pub fn demote_packages(
         channel_id: i64,
-        package_ids: Vec<i64>,
+        package_ids: &[i64],
         conn: &PgConnection,
     ) -> QueryResult<usize> {
         Counter::DBCall.increment();
@@ -223,10 +223,10 @@ pub struct PackageChannelAudit<'a> {
 }
 
 impl<'a> PackageChannelAudit<'a> {
-    pub fn audit(pca: PackageChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn audit(pca: &PackageChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_package::table)
-            .values(&pca)
+            .values(pca)
             .execute(conn)
     }
 }

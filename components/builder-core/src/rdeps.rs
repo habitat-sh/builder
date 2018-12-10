@@ -49,7 +49,7 @@ pub fn rdeps(g: &Graph<GType, GType>, n: NodeIndex) -> Result<Vec<GType>, GraphE
 
     // Collect BFS nodes in topological order
     let start: usize = n.index();
-    let mut curr: usize = *topo_map.get(&start).unwrap(); // Where to start in topo array
+    let mut curr: usize = topo_map[&start]; // Where to start in topo array
 
     let mut bfs_set: HashSet<&usize> = bfs.iter().collect();
     let mut v: Vec<GType> = Vec::new();
@@ -60,7 +60,7 @@ pub fn rdeps(g: &Graph<GType, GType>, n: NodeIndex) -> Result<Vec<GType>, GraphE
             v.push(t[curr]);
             bfs_set.remove(&t[curr]);
         }
-        curr = curr + 1;
+        curr += 1;
     }
 
     Ok(v)

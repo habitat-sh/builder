@@ -33,7 +33,7 @@ use crate::error::{HubError, HubResult};
 use crate::metrics::Counter;
 use crate::types::*;
 
-const USER_AGENT: &'static str = "Habitat-Builder";
+const USER_AGENT: &str = "Habitat-Builder";
 
 pub type TokenString = String;
 pub type InstallationId = u32;
@@ -268,7 +268,7 @@ struct RepositoryList {
     pub repositories: Vec<Repository>,
 }
 
-fn generate_app_token<T, U>(key_path: T, app_id: U) -> HubResult<String>
+fn generate_app_token<T, U>(key_path: T, app_id: &U) -> HubResult<String>
 where
     T: AsRef<Path>,
     U: ToString,

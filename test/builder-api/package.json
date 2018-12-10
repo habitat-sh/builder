@@ -4,7 +4,7 @@
   "description": "Habitat API Tests",
   "main": "index.js",
   "scripts": {
-    "mocha": "mocha --require src/helpers --reporter spec src/api.js --bail",
+    "mocha": "mocha --require src/helpers --reporter spec src/api.js",
     "test": "./test.sh"
   },
   "author": "The Habitat Humans",

@@ -30,7 +30,7 @@ use crate::hab_core::package::{self, Identifiable, PackageArchive};
 
 header! { (XFileName, "X-Filename") => [String] }
 
-const USER_AGENT: &'static str = "Habitat-Builder";
+const USER_AGENT: &str = "Habitat-Builder";
 
 #[derive(Clone, Deserialize)]
 pub struct PackageIdent {
@@ -122,7 +122,7 @@ impl ApiClient {
         let url_path = format!("{}/v1/{}", self.url, url);
         let mut query = HashMap::new();
         query.insert("target", target);
-        let mut resp = self.http_call(Method::Get, &url_path, None, token, query)?;
+        let mut resp = self.http_call(Method::Get, &url_path, None, token, &query)?;
 
         let mut body = String::new();
         resp.read_to_string(&mut body).map_err(Error::IO)?;
@@ -153,8 +153,8 @@ impl ApiClient {
         let mut qparams = HashMap::new();
         qparams.insert("target", target);
 
-        match self.download(url, qparams, dst_path.as_ref(), token) {
-            Ok(file) => Ok(PackageArchive::new(PathBuf::from(file))),
+        match self.download(url, &qparams, dst_path.as_ref(), token) {
+            Ok(file) => Ok(PackageArchive::new(file)),
             Err(e) => Err(e),
         }
     }
@@ -162,13 +162,13 @@ impl ApiClient {
     fn download(
         &self,
         url: &str,
-        qparams: HashMap<&str, &str>,
+        qparams: &HashMap<&str, &str>,
         dst_path: &Path,
         token: Option<&str>,
     ) -> Result<PathBuf> {
         let url_path = format!("{}/v1/{}", self.url, url);
 
-        let mut resp = self.http_call(Method::Get, &url_path, None, token, qparams)?;
+        let mut resp = self.http_call(Method::Get, &url_path, None, token, &qparams)?;
         debug!("Response: {:?}", resp);
 
         if resp.status() != StatusCode::Ok {
@@ -222,7 +222,7 @@ impl ApiClient {
 
         let body = Body::sized(file, file_size);
 
-        let resp = self.http_call(Method::Post, &url_path, Some(body), Some(token), qparams)?;
+        let resp = self.http_call(Method::Post, &url_path, Some(body), Some(token), &qparams)?;
 
         match resp.status() {
             StatusCode::Created | StatusCode::Conflict => (), // Conflict means package already uploaded - return Ok
@@ -243,7 +243,7 @@ impl ApiClient {
     {
         self.download(
             &origin_secret_keys_latest(origin),
-            HashMap::new(),
+            &HashMap::new(),
             dst_path.as_ref(),
             Some(token),
         )
@@ -253,7 +253,7 @@ impl ApiClient {
         let url_path = format!("{}/v1/depot/channels/{}/{}", self.url, origin, channel);
         debug!("Creating channel, path: {:?}", url_path);
 
-        let resp = self.http_call(Method::Post, &url_path, None, Some(token), HashMap::new())?;
+        let resp = self.http_call(Method::Post, &url_path, None, Some(token), &HashMap::new())?;
 
         match resp.status() {
             StatusCode::Created | StatusCode::Conflict => (), // Conflict means channel already created - return Ok
@@ -274,7 +274,7 @@ impl ApiClient {
         );
         debug!("Promoting package {}", ident);
 
-        let resp = self.http_call(Method::Put, &url_path, None, Some(token), HashMap::new())?;
+        let resp = self.http_call(Method::Put, &url_path, None, Some(token), &HashMap::new())?;
 
         if resp.status() != StatusCode::Ok {
             return Err(err_from_response(resp));
@@ -289,7 +289,7 @@ impl ApiClient {
         url: &str,
         body: Option<Body>,
         token: Option<U>,
-        qparams: HashMap<&str, &str>,
+        qparams: &HashMap<&str, &str>,
     ) -> Result<Response>
     where
         U: ToString,
@@ -305,7 +305,7 @@ impl ApiClient {
             self.inner
                 .request(method, url)
                 .headers(headers)
-                .query(&qparams)
+                .query(qparams)
                 .body(body.unwrap())
                 .send()
                 .map_err(Error::HttpClient)
@@ -313,7 +313,7 @@ impl ApiClient {
             self.inner
                 .request(method, url)
                 .headers(headers)
-                .query(&qparams)
+                .query(qparams)
                 .send()
                 .map_err(Error::HttpClient)
         }

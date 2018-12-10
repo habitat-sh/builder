@@ -15,8 +15,8 @@
 bitflags! {
     #[derive(Default)]
     pub struct FeatureFlags: u32 {
-        const ADMIN = 0b00000001;
-        const EARLY_ACCESS = 0b00000010;
-        const BUILD_WORKER = 0b00000100;
+        const ADMIN = 0b0000_0001;
+        const EARLY_ACCESS = 0b0000_0010;
+        const BUILD_WORKER = 0b0000_0100;
     }
 }

@@ -93,7 +93,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
     match memcache.get_session(token) {
         Some(session) => {
             trace!("Session {} Cache Hit!", token);
-            return Ok(session);
+            Ok(session)
         }
         None => {
             trace!("Session {} Cache Miss!", token);
@@ -137,17 +137,17 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
                             session.set_email(account.email);
 
                             memcache.set_session(&new_token, &session, None);
-                            return Ok(session);
+                            Ok(session)
                         }
                         None => {
                             // We have no tokens in the database for this user
-                            return Err(error::Error::Authorization);
+                            Err(error::Error::Authorization)
                         }
                     }
                 }
                 Err(_) => {
                     // Failed to fetch tokens from the database for this user
-                    return Err(error::Error::Authorization);
+                    Err(error::Error::Authorization)
                 }
             }
         }
@@ -175,7 +175,7 @@ pub fn session_create_oauth(
     match Account::find_or_create(
         &NewAccount {
             name: &user.username,
-            email: email,
+            email,
         },
         &*conn,
     ) {
@@ -221,7 +221,7 @@ pub fn session_create_short_circuit(
     req: &HttpRequest<AppState>,
     token: &str,
 ) -> error::Result<originsrv::Session> {
-    let (user, provider) = match token.as_ref() {
+    let (user, provider) = match token {
         "bobo" => (
             OAuth2User {
                 id: "0".to_string(),

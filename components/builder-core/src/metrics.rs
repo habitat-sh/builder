@@ -21,10 +21,10 @@ use std::thread;
 use crate::hab_core::env;
 
 // Statsd Application name
-pub const APP_NAME: &'static str = "bldr";
+pub const APP_NAME: &str = "bldr";
 
 // Statsd Listener Address
-pub const STATS_ENV: &'static str = "HAB_STATS_ADDR";
+pub const STATS_ENV: &str = "HAB_STATS_ADDR";
 
 pub type ApiEndpoint = &'static str;
 pub type InstallationId = u32;
@@ -140,7 +140,7 @@ fn init() -> Sender<MetricTuple> {
 
     thread::Builder::new()
         .name("metrics".to_string())
-        .spawn(move || receive(rztx, rx))
+        .spawn(move || receive(&rztx, &rx))
         .expect("couldn't start metrics thread");
 
     match rzrx.recv() {
@@ -150,15 +150,15 @@ fn init() -> Sender<MetricTuple> {
 }
 
 // receive runs in a separate thread and processes all metrics events
-fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
+fn receive(rz: &SyncSender<()>, rx: &Receiver<MetricTuple>) {
     let mut client = statsd_client();
     rz.send(()).unwrap(); // Blocks until the matching receive is called
 
     loop {
         let (mtyp, mop, mid, mval, mtags): MetricTuple = rx.recv().unwrap();
 
-        match client {
-            Some(ref mut cli) => match mtyp {
+        if let Some(ref mut cli) = client {
+            match mtyp {
                 MetricType::Counter => {
                     match mop {
                         MetricOperation::Increment => {
@@ -187,8 +187,7 @@ fn receive(rz: SyncSender<()>, rx: Receiver<MetricTuple>) {
                     }
                     _ => warn!("Unexpected metric operation!"),
                 },
-            },
-            None => (),
+            }
         }
     }
 }

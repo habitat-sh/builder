@@ -36,4 +36,4 @@ pub mod server;
 pub use crate::config::Config;
 pub use crate::error::{Error, Result};
 
-pub const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+pub const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));

@@ -16,7 +16,7 @@ use std::path::Path;
 
 use super::publisher::Publisher;
 use crate::config::Config;
-use crate::error::{Error, Result};
+use crate::error::Error;
 use crate::hab_core::config::ConfigFile;
 
 // TODO (SA) - Toml-based publishing has been removed, and is not hooked up to
@@ -25,7 +25,7 @@ use crate::hab_core::config::ConfigFile;
 
 /// Postprocessing config file name
 #[allow(dead_code)]
-const CONFIG_FILE: &'static str = "builder.toml";
+const CONFIG_FILE: &str = "builder.toml";
 
 #[derive(Default, Deserialize, Debug)]
 #[serde(default)]
@@ -43,21 +43,20 @@ struct TomlPublish {
 
 impl TomlPublishBuilder {
     #[allow(dead_code)]
-    fn new(toml_path: &Path) -> Result<Self> {
-        let builder = if toml_path.exists() {
+    fn new(toml_path: &Path) -> Self {
+        if toml_path.exists() {
             debug!("Found toml config at {}", toml_path.display());
-            TomlPublishBuilder::from_file(toml_path)?
+            TomlPublishBuilder::from_file(toml_path).unwrap()
         } else {
             TomlPublishBuilder::default()
-        };
-        Ok(builder)
+        }
     }
 
     #[allow(dead_code)]
     fn build(self, config: &Config) -> Publisher {
         Publisher {
             enabled: self.publish.enabled.unwrap_or(config.auto_publish),
-            url: self.publish.url.unwrap_or(config.bldr_url.clone()),
+            url: self.publish.url.unwrap_or_else(|| config.bldr_url.clone()),
             channel_opt: self.publish.channel,
         }
     }
@@ -70,7 +69,7 @@ impl ConfigFile for TomlPublishBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hab_core::config::ConfigFile;
+    use crate::hab_core::config::ConfigFile;
 
     #[test]
     fn test_publish_config_from_toml() {

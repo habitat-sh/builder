@@ -24,7 +24,7 @@ use crate::config::Config;
 use crate::error::{Error, Result};
 
 /// In-memory zmq address for LogForwarder
-pub const INPROC_ADDR: &'static str = "inproc://logger";
+pub const INPROC_ADDR: &str = "inproc://logger";
 
 pub struct LogForwarder {
     /// The socket on which log data is received from workers.
@@ -37,31 +37,31 @@ pub struct LogForwarder {
 }
 
 impl LogForwarder {
-    pub fn new(config: &Config) -> Result<Self> {
-        let intake_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::PULL)?;
-        let output_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
-        output_sock.set_sndhwm(5000)?;
-        output_sock.set_linger(5000)?;
-        output_sock.set_immediate(true)?;
+    pub fn new(config: &Config) -> Self {
+        let intake_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::PULL).unwrap();
+        let output_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
+        output_sock.set_sndhwm(5000).unwrap();
+        output_sock.set_linger(5000).unwrap();
+        output_sock.set_immediate(true).unwrap();
 
         let mut logger = Logger::init(&config.log_path, "log_forwarder.log");
         logger.log_ident("log_forwarder");
 
-        Ok(LogForwarder {
-            intake_sock: intake_sock,
-            output_sock: output_sock,
-            logger: logger,
-        })
+        LogForwarder {
+            intake_sock,
+            output_sock,
+            logger,
+        }
     }
 
     pub fn start(config: &Config) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(0);
-        let mut log = Self::new(config).unwrap();
+        let mut log = Self::new(config);
         let jobsrv_addrs = config.jobsrv_addrs();
         let handle = thread::Builder::new()
             .name("log".to_string())
             .spawn(move || {
-                log.run(tx, jobsrv_addrs).unwrap();
+                log.run(&tx, &jobsrv_addrs).unwrap();
             })
             .unwrap();
         match rx.recv() {
@@ -72,8 +72,8 @@ impl LogForwarder {
 
     pub fn run(
         &mut self,
-        rz: mpsc::SyncSender<()>,
-        addrs: Vec<(String, String, String)>,
+        rz: &mpsc::SyncSender<()>,
+        addrs: &[(String, String, String)],
     ) -> Result<()> {
         if addrs.len() == 1 {
             let (_, _, ref log) = addrs[0];

@@ -24,7 +24,7 @@ use reqwest::{Proxy, Response};
 use crate::config::SegmentCfg;
 use crate::error::{SegmentError, SegmentResult};
 
-const USER_AGENT: &'static str = "Habitat-Builder";
+const USER_AGENT: &str = "Habitat-Builder";
 
 #[derive(Clone, Debug)]
 pub struct SegmentClient {

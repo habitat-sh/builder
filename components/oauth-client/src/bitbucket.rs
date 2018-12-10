@@ -79,7 +79,7 @@ impl OAuth2Provider for Bitbucket {
         client: &Client,
         code: &str,
     ) -> Result<(String, OAuth2User)> {
-        let url = format!("{}", config.token_url);
+        let url = config.token_url.to_string();
         let params = format!("grant_type=authorization_code&code={}", code);
 
         let mut headers = Headers::new();

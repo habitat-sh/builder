@@ -29,6 +29,7 @@ impl Notify {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn notify((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
     github::handle_event(req, body)
 }

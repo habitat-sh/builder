@@ -29,7 +29,7 @@ type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
 pub struct DbPool(pub PgPool);
 
 impl DbPool {
-    pub fn new(config: &DataStoreCfg) -> Result<DbPool> {
+    pub fn new(config: &DataStoreCfg) -> Self {
         debug!("Creating new DbPool, config: {:?}", config);
         loop {
             let manager = ConnectionManager::<PgConnection>::new(config.to_string());
@@ -38,7 +38,7 @@ impl DbPool {
                 .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
                 .build(manager)
             {
-                Ok(pool) => return Ok(DbPool(pool)),
+                Ok(pool) => return DbPool(pool),
                 Err(e) => error!(
                     "Error initializing connection pool to Postgres, will retry: {}",
                     e

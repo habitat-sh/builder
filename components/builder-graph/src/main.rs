@@ -42,7 +42,7 @@ use crate::config::Config;
 use crate::data_store::DataStore;
 use crate::hab_core::config::ConfigFile;
 
-const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 fn main() {
     env_logger::init();
@@ -67,7 +67,7 @@ fn main() {
 
     println!("Connecting to {}", config.datastore.database);
 
-    let datastore = DataStore::new(&config).unwrap();
+    let datastore = DataStore::new(&config);
     datastore.setup().unwrap();
 
     println!("Building graph... please wait.");
@@ -103,7 +103,7 @@ fn main() {
 
         let v: Vec<&str> = cmd.trim_right().split_whitespace().collect();
 
-        if v.len() > 0 {
+        if !v.is_empty() {
             match v[0].to_lowercase().as_str() {
                 "help" => do_help(),
                 "stats" => do_stats(&graph),
@@ -221,7 +221,7 @@ fn do_top(graph: &PackageGraph, count: usize) {
     for (name, count) in top {
         println!("{}: {}", name, count);
     }
-    println!("");
+    println!();
 }
 
 fn do_find(graph: &PackageGraph, phrase: &str, max: usize) {
@@ -242,7 +242,7 @@ fn do_find(graph: &PackageGraph, phrase: &str, max: usize) {
         }
     }
 
-    println!("");
+    println!();
 }
 
 fn do_resolve(graph: &PackageGraph, name: &str) {
@@ -257,7 +257,7 @@ fn do_resolve(graph: &PackageGraph, name: &str) {
         None => println!("No matching packages found"),
     }
 
-    println!("");
+    println!();
 }
 
 fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
@@ -281,7 +281,7 @@ fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
                 filtered.drain(max..);
             }
 
-            if filter.len() > 0 {
+            if !filter.is_empty() {
                 println!("Results filtered by: {}", filter);
             }
 
@@ -292,11 +292,11 @@ fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
         None => println!("No entries found"),
     }
 
-    println!("");
+    println!();
 }
 
 fn resolve_name(graph: &PackageGraph, name: &str) -> String {
-    let parts: Vec<&str> = name.split("/").collect();
+    let parts: Vec<&str> = name.split('/').collect();
     if parts.len() == 2 {
         match graph.resolve(name) {
             Some(s) => s,
@@ -322,7 +322,7 @@ fn do_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str
                 start_time.to(end_time)
             );
 
-            if filter.len() > 0 {
+            if !filter.is_empty() {
                 println!("Results filtered by: {}\n", filter);
             }
 
@@ -335,11 +335,11 @@ fn do_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str
         Err(_) => println!("No matching package found"),
     }
 
-    println!("");
+    println!();
 }
 
 fn short_name(ident: &str) -> String {
-    let parts: Vec<&str> = ident.split("/").collect();
+    let parts: Vec<&str> = ident.split('/').collect();
     assert!(parts.len() >= 2);
     format!("{}/{}", parts[0], parts[1])
 }
@@ -352,7 +352,7 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
 
     match datastore.get_job_graph_package(&ident) {
         Ok(package) => {
-            if filter.len() > 0 {
+            if !filter.is_empty() {
                 println!("Checks filtered by: {}\n", filter);
             }
 
@@ -367,7 +367,7 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
                 }
             }
 
-            println!("");
+            println!();
 
             for new_dep in new_deps {
                 check_package(datastore, &mut deps_map, &new_dep, filter);
@@ -392,7 +392,7 @@ fn check_package(
                 if dep.to_string().starts_with(filter) {
                     let name = short_name(&dep.to_string());
                     {
-                        let entry = deps_map.entry(name).or_insert(dep.to_string());
+                        let entry = deps_map.entry(name).or_insert_with(|| dep.to_string());
                         if *entry != dep.to_string() {
                             println!("Conflict: {}", ident);
                             println!("  {}", *entry);
@@ -415,7 +415,7 @@ fn do_export(graph: &PackageGraph, filename: &str, filter: &str) {
 
     let mut file = File::create(filename).expect("Failed to initialize file");
 
-    if filter.len() > 0 {
+    if !filter.is_empty() {
         println!("Checks filtered by: {}\n", filter);
     }
 

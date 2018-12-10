@@ -104,8 +104,9 @@ impl Projects {
 //
 
 // TODO: the project creation API needs to be simplified
+#[allow(clippy::needless_pass_by_value)]
 fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) -> HttpResponse {
-    if (body.origin.len() <= 0) || (body.plan_path.len() <= 0) {
+    if body.origin.is_empty() || body.plan_path.is_empty() {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
@@ -137,7 +138,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
             plan_path: &body.plan_path,
             vcs_type: "git",
             vcs_data: "https://github.com/habitat-sh/testapp.git",
-            vcs_installation_id: Some(body.installation_id as i64),
+            vcs_installation_id: Some(i64::from(body.installation_id)),
             visibility: &PackageVisibility::Public,
             auto_build: body.auto_build,
         };
@@ -208,12 +209,12 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
     let new_project = NewProject {
         owner_id: account_id as i64,
         origin: &origin.name,
-        package_name: package_name,
+        package_name,
         name: &format!("{}/{}", &origin.name, package_name),
         plan_path: &body.plan_path,
         vcs_type: "git",
         vcs_data: &vcs_data,
-        vcs_installation_id: Some(body.installation_id as i64),
+        vcs_installation_id: Some(i64::from(body.installation_id)),
         visibility: &origin.default_package_visibility,
         auto_build: body.auto_build,
     };
@@ -224,6 +225,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -246,6 +248,7 @@ fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -268,6 +271,7 @@ fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) -> HttpResponse {
     let (origin, name) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -278,7 +282,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         Err(err) => return err.into(),
     };
 
-    if body.plan_path.len() <= 0 {
+    if body.plan_path.is_empty() {
         return HttpResponse::with_body(
             StatusCode::UNPROCESSABLE_ENTITY,
             "Missing value for field: `plan_path`",
@@ -312,7 +316,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
             plan_path: &body.plan_path,
             vcs_type: "git",
             vcs_data: "https://github.com/habitat-sh/testapp.git",
-            vcs_installation_id: Some(body.installation_id as i64),
+            vcs_installation_id: Some(i64::from(body.installation_id)),
             visibility: &PackageVisibility::Public,
             auto_build: body.auto_build,
         };
@@ -389,7 +393,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         plan_path: &body.plan_path,
         vcs_type: "git",
         vcs_data: &vcs_data,
-        vcs_installation_id: Some(body.installation_id as i64),
+        vcs_installation_id: Some(i64::from(body.installation_id)),
         visibility: &project.visibility,
         auto_build: body.auto_build,
     };
@@ -400,6 +404,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -424,6 +429,7 @@ fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, name) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -485,6 +491,7 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
     let (origin, name, integration) = Path::<(String, String, String)>::extract(&req)
         .unwrap()
@@ -494,7 +501,7 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
         return err.into();
     }
 
-    if body.len() <= 0 {
+    if body.is_empty() {
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
@@ -518,12 +525,13 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
         body: &body,
     };
 
-    match ProjectIntegration::create(npi, &*conn).map_err(Error::DieselError) {
+    match ProjectIntegration::create(&npi, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name, integration) = Path::<(String, String, String)>::extract(&req)
         .unwrap()
@@ -546,6 +554,7 @@ fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name, integration) = Path::<(String, String, String)>::extract(&req)
         .unwrap()
@@ -576,6 +585,7 @@ fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name, visibility) = Path::<(String, String, String)>::extract(&req)
         .unwrap()
@@ -638,7 +648,9 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
 
     // For each row, store its id in our map, keyed on visibility
     for pkg in pkgs {
-        map.entry(pkg.visibility).or_insert(Vec::new()).push(pkg.id);
+        map.entry(pkg.visibility)
+            .or_insert_with(Vec::new)
+            .push(pkg.id);
     }
 
     // Now do a bulk update for each different visibility

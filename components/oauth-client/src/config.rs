@@ -13,19 +13,19 @@
 // limitations under the License.
 
 /// URL to GitHub User endpoint
-pub const DEFAULT_GITHUB_USERINFO_URL: &'static str = "https://api.github.com/user";
+pub const DEFAULT_GITHUB_USERINFO_URL: &str = "https://api.github.com/user";
 /// URL to GitHub Token endpoint
-pub const DEFAULT_GITHUB_TOKEN_URL: &'static str = "https://github.com/login/oauth/access_token";
+pub const DEFAULT_GITHUB_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
 
 /// Default Client ID providing a value in development environments only.
 ///
 /// See https://developer.github.com/apps
-pub const DEV_GITHUB_CLIENT_ID: &'static str = "Iv1.732260b62f84db15";
+pub const DEV_GITHUB_CLIENT_ID: &str = "Iv1.732260b62f84db15";
 
 /// Default Client Secret providing a value in development environments only.
 ///
 /// See https://developer.github.com/apps
-pub const DEV_GITHUB_CLIENT_SECRET: &'static str = "fc7654ed8c65ccfe014cd339a55e3538f935027a";
+pub const DEV_GITHUB_CLIENT_SECRET: &str = "fc7654ed8c65ccfe014cd339a55e3538f935027a";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]

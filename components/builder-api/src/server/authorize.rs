@@ -67,9 +67,8 @@ pub fn authorize_session(
             Ok(is_member) => {
                 memcache.set_origin_member(origin, session.get_id(), is_member);
 
-                match is_member {
-                    true => (),
-                    false => return Err(Error::Authorization),
+                if !is_member {
+                    return Err(Error::Authorization);
                 }
             }
             _ => return Err(Error::Authorization),
@@ -97,12 +96,10 @@ pub fn check_origin_member(
     origin: &str,
     account_id: u64,
 ) -> Result<bool> {
-    let result = if account_id == BUILDER_ACCOUNT_ID {
+    if account_id == BUILDER_ACCOUNT_ID {
         Ok(true)
     } else {
         let conn = req.state().db.get_conn().map_err(Error::DbError)?;
         Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError)
-    };
-
-    result
+    }
 }

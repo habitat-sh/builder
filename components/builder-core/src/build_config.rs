@@ -29,8 +29,8 @@ use crate::hab_core::channel::UNSTABLE_CHANNEL;
 use crate::hab_core::config::ConfigFile;
 
 /// Postprocessing config file name
-pub const BLDR_CFG: &'static str = ".bldr.toml";
-pub const DEFAULT_CHANNEL: &'static str = UNSTABLE_CHANNEL;
+pub const BLDR_CFG: &str = ".bldr.toml";
+pub const DEFAULT_CHANNEL: &str = UNSTABLE_CHANNEL;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BuildCfg(HashMap<String, ProjectCfg>);
@@ -130,7 +130,7 @@ impl FromStr for Pattern {
     fn from_str(value: &str) -> result::Result<Self, Self::Err> {
         let inner: glob::Pattern = FromStr::from_str(value)?;
         Ok(Pattern {
-            inner: inner,
+            inner,
             options: Pattern::default_options(),
         })
     }
@@ -194,7 +194,7 @@ impl ProjectCfg {
             return false;
         }
         let plan_pattern = Pattern::from_str(&self.plan_path.join("*").to_string_lossy())
-            .unwrap_or(Self::default_plan_pattern());
+            .unwrap_or_else(|_| Self::default_plan_pattern());
         paths.iter().any(|p| {
             plan_pattern.matches(p.as_ref()) || self.paths.iter().any(|i| i.matches(p.as_ref()))
         })

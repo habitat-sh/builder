@@ -52,7 +52,7 @@ impl fmt::Display for Error {
                 format!("Database error retrieving packages, {}", e)
             }
             Error::Protobuf(ref e) => format!("{}", e),
-            Error::UnknownJobGraphPackage => format!("Unknown Package"),
+            Error::UnknownJobGraphPackage => "Unknown Package".to_string(),
         };
         write!(f, "{}", msg)
     }

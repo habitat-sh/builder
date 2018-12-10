@@ -55,7 +55,7 @@ impl Default for Config {
         Config {
             net: NetCfg::default(),
             http: HttpCfg::default(),
-            datastore: datastore,
+            datastore,
             log_dir: env::temp_dir(),
             archive: ArchiveCfg::default(),
             key_dir: PathBuf::from("/hab/svc/hab-depot/files"),

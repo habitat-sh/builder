@@ -32,6 +32,7 @@ lazy_static! {
 
 /// This is a wrapper to provide interior mutability of an underlying `zmq::Context` and allows
 /// for sharing/sending of a `zmq::Context` between threads.
+#[derive(Default)]
 pub struct SocketContext(UnsafeCell<zmq::Context>);
 
 impl SocketContext {
@@ -39,6 +40,7 @@ impl SocketContext {
         SocketContext(UnsafeCell::new(zmq::Context::new()))
     }
 
+    #[allow(clippy::mut_from_ref)]
     pub fn as_mut(&self) -> &mut zmq::Context {
         unsafe { &mut *self.0.get() }
     }

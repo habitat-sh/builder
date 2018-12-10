@@ -37,14 +37,14 @@ impl DataStore {
     ///
     /// * Can fail if the pool cannot be created
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
-    pub fn new(config: &Config) -> Result<DataStore> {
-        let pool = Pool::new(&config.datastore)?;
-        Ok(DataStore { pool: pool })
+    pub fn new(config: &Config) -> Self {
+        let pool = Pool::new(&config.datastore);
+        DataStore { pool }
     }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
     pub fn from_pool(pool: Pool, _: Arc<String>) -> Result<DataStore> {
-        Ok(DataStore { pool: pool })
+        Ok(DataStore { pool })
     }
 
     /// Setup the datastore.
@@ -109,15 +109,15 @@ impl DataStore {
         package.set_target(row.get("target"));
         let expose: String = row.get("exposes");
         let mut exposes: Vec<u32> = Vec::new();
-        for ex in expose.split(":") {
-            match ex.parse::<u32>() {
-                Ok(e) => exposes.push(e),
-                Err(_) => {}
+        for ex in expose.split(':') {
+            if let Ok(e) = ex.parse::<u32>() {
+                exposes.push(e)
             }
         }
+
         package.set_exposes(exposes);
-        package.set_deps(self.into_idents(row.get("deps")));
-        package.set_tdeps(self.into_idents(row.get("tdeps")));
+        package.set_deps(Self::dep_to_idents(row.get("deps")));
+        package.set_tdeps(Self::dep_to_idents(row.get("tdeps")));
 
         // let pv: String = row.get("visibility");
         // TED removing for now to kill the FromString in originsrv
@@ -128,12 +128,10 @@ impl DataStore {
         Ok(package)
     }
 
-    fn into_idents(
-        &self,
-        column: String,
-    ) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
+    #[allow(clippy::needless_pass_by_value)]
+    fn dep_to_idents(column: String) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
         let mut idents = protobuf::RepeatedField::new();
-        for ident in column.split(":") {
+        for ident in column.split(':') {
             if !ident.is_empty() {
                 idents.push(originsrv::OriginPackageIdent::from_str(ident).unwrap());
             }
