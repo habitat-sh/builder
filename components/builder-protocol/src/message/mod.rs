@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[allow(renamed_and_removed_lints)]
 pub mod jobsrv;
+#[allow(renamed_and_removed_lints)]
 pub mod net;
+#[allow(renamed_and_removed_lints)]
 pub mod originsrv;
 
 use protobuf;

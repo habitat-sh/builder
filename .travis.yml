@@ -63,7 +63,7 @@ matrix:
         directories:
           - "$HOME/pkgs"
       before_script:
-        - rustup component add rustfmt-preview
+        - rustup component add rustfmt
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
         - ./support/ci/install_hab.sh
@@ -106,7 +106,7 @@ matrix:
         directories:
           - "$HOME/pkgs"
       before_script:
-        - rustup component add rustfmt-preview
+        - rustup component add rustfmt
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
         - ./support/ci/install_hab.sh
@@ -118,6 +118,46 @@ matrix:
       script:
         - ./support/ci/lint.sh
         - ./support/ci/rust_tests.sh
+
+#
+# Job for linting with clippy
+#
+    - language: rust
+      env:
+        - AFFECTED_FILES=""
+        - AFFECTED_DIRS="$_RUST_HAB_BIN_COMPONENTS $_RUST_BLDR_BIN_COMPONENTS $_RUST_BLDR_LIB_COMPONENTS"
+      rust: 1.31.0
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - kalakris-cmake
+          packages:
+            - build-essential
+            - ca-certificates
+            - cmake
+            - curl
+            - libbz2-dev
+            - liblzma-dev
+            - libssl-dev
+            - pkg-config
+      cache:
+        apt: true
+        cargo: true
+        directories:
+          - "$HOME/pkgs"
+      before_script:
+        - rustup component add clippy
+      before_install:
+        - ./support/ci/fast_pass.sh || exit 0
+        - ./support/ci/install_hab.sh
+        - ./support/ci/install_protobuf.sh
+        - ./support/ci/compile_libsodium.sh
+        - ./support/ci/compile_libarchive.sh
+        - ./support/ci/compile_zmq.sh
+        - source ./support/ci/rust_env.sh
+      script:
+        - cargo clippy -- -D warnings
 
 #
 # Job for testing Builder Rust services
@@ -142,7 +182,7 @@ matrix:
         directories:
           - "$HOME/pkgs"
       before_script:
-        - rustup component add rustfmt-preview
+        - rustup component add rustfmt
       before_install:
         - ./support/ci/fast_pass.sh || exit 0
         - ./support/ci/install_hab.sh
