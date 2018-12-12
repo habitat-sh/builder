@@ -26,6 +26,7 @@ pub struct TargetGraphStats {
     pub edge_count: usize,
 }
 
+#[derive(Default)]
 pub struct TargetGraph {
     graphs: HashMap<PackageTarget, PackageGraph>,
 }
@@ -42,7 +43,7 @@ impl TargetGraph {
             );
         }
 
-        TargetGraph { graphs: graphs }
+        TargetGraph { graphs }
     }
 
     pub fn graph(&self, target_str: &str) -> Option<&PackageGraph> {
@@ -76,11 +77,8 @@ impl TargetGraph {
         T: Iterator<Item = originsrv::OriginPackage>,
     {
         for p in packages {
-            match self.graph_mut(p.get_target()) {
-                Some(ref mut graph) => {
-                    graph.extend(&p);
-                }
-                None => (),
+            if let Some(ref mut graph) = self.graph_mut(p.get_target()) {
+                graph.extend(&p);
             }
         }
 
@@ -88,7 +86,7 @@ impl TargetGraph {
         for (target, graph) in self.graphs.iter() {
             let stats = graph.stats();
             let ts = TargetGraphStats {
-                target: target.clone(),
+                target: *target,
                 node_count: stats.node_count,
                 edge_count: stats.edge_count,
             };

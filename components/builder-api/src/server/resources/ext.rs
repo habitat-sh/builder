@@ -26,8 +26,8 @@ use crate::server::error::{Error, Result};
 use crate::server::services::github;
 use crate::server::AppState;
 
-const PRODUCT: &'static str = "builder-api";
-const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+const PRODUCT: &str = "builder-api";
+const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 #[derive(Deserialize, Serialize)]
 pub struct Body {
@@ -59,6 +59,7 @@ impl Ext {
 //
 // Route handlers - these functions can return any Responder trait
 //
+#[allow(clippy::needless_pass_by_value)]
 pub fn validate_registry_credentials(
     (req, body): (HttpRequest<AppState>, Json<Body>),
 ) -> HttpResponse {
@@ -68,7 +69,7 @@ pub fn validate_registry_credentials(
 
     let registry_type = Path::<(String)>::extract(&req).unwrap().into_inner();
 
-    match do_validate_registry_credentials(body, registry_type) {
+    match do_validate_registry_credentials(body, &registry_type) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => err.into(),
     }
@@ -77,7 +78,7 @@ pub fn validate_registry_credentials(
 //
 // Internal Functions - These functions are business logic for any handlers
 //
-fn do_validate_registry_credentials(body: Json<Body>, registry_type: String) -> Result<()> {
+fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Result<()> {
     if body.username.is_none() || body.password.is_none() {
         debug!("Error: Missing username or password");
         return Err(Error::BadRequest);
@@ -85,7 +86,7 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: String) -> 
 
     let url = match body.url {
         Some(ref url) => url.to_string(),
-        None => match registry_type.as_ref() {
+        None => match registry_type {
             "docker" => "https://hub.docker.com/v2".to_string(),
             _ => return Err(Error::BadRequest),
         },

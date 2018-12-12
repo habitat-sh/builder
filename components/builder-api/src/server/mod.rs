@@ -37,7 +37,6 @@ use github_api_client::GitHubClient;
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
-use self::error::Error;
 use self::framework::middleware::Authentication;
 
 use self::services::memcache::MemcacheClient;
@@ -58,8 +57,8 @@ use crate::config::{Config, GatewayCfg};
 
 features! {
     pub mod feat {
-        const List = 0b00000001,
-        const Jobsrv = 0b00000010
+        const List = 0b0000_0001,
+        const Jobsrv = 0b0000_0010
     }
 }
 
@@ -84,8 +83,8 @@ impl AppState {
             jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
             oauth: OAuth2Client::new(config.oauth.clone()),
             segment: SegmentClient::new(config.segment.clone()),
-            memcache: RefCell::new(MemcacheClient::new(config.memcache.clone())),
-            db: db,
+            memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
+            db,
         }
     }
 }
@@ -96,12 +95,12 @@ fn enable_features(config: &Config) {
     let features_enabled = config
         .api
         .features_enabled
-        .split(",")
+        .split(',')
         .map(|f| f.trim().to_uppercase());
     for key in features_enabled {
         if features.contains_key(key.as_str()) {
             info!("Enabling feature: {}", key);
-            feat::enable(features.get(key.as_str()).unwrap().clone());
+            feat::enable(features[key.as_str()]);
         }
     }
 
@@ -132,9 +131,7 @@ pub fn run(config: Config) -> Result<()> {
 
     // TED TODO: When originsrv gets removed we need to do the migrations here
 
-    let db_pool = DbPool::new(&config.datastore.clone())
-        .map_err(Error::DbError)
-        .unwrap();
+    let db_pool = DbPool::new(&config.datastore.clone());
 
     migration::setup(&db_pool.get_conn().unwrap()).unwrap();
 

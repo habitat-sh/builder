@@ -176,20 +176,22 @@ impl Packages {
 // Route handlers - these functions can return any Responder trait
 //
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_packages_for_origin(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
-    match do_get_packages(&req, ident, &pagination) {
+    match do_get_packages(&req, &ident, &pagination) {
         Ok((packages, count)) => {
-            postprocess_extended_package_list(&req, packages, count, pagination)
+            postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_packages_for_origin_package(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -199,14 +201,15 @@ fn get_packages_for_origin_package(
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
-    match do_get_packages(&req, ident, &pagination) {
+    match do_get_packages(&req, &ident, &pagination) {
         Ok((packages, count)) => {
-            postprocess_extended_package_list(&req, packages, count, pagination)
+            postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_packages_for_origin_package_version(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -216,14 +219,15 @@ fn get_packages_for_origin_package_version(
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
-    match do_get_packages(&req, ident, &pagination) {
+    match do_get_packages(&req, &ident, &pagination) {
         Ok((packages, count)) => {
-            postprocess_extended_package_list(&req, packages, count, pagination)
+            postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_latest_package_for_origin_package(
     (qtarget, req): (Query<Target>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -233,7 +237,7 @@ fn get_latest_package_for_origin_package(
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
-    match do_get_package(&req, &qtarget, ident) {
+    match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => HttpResponse::Ok()
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
@@ -242,6 +246,7 @@ fn get_latest_package_for_origin_package(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_latest_package_for_origin_package_version(
     (qtarget, req): (Query<Target>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -251,7 +256,7 @@ fn get_latest_package_for_origin_package_version(
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
-    match do_get_package(&req, &qtarget, ident) {
+    match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => HttpResponse::Ok()
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
@@ -260,6 +265,7 @@ fn get_latest_package_for_origin_package_version(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, pkg, version, release) = Path::<(String, String, String, String)>::extract(&req)
         .unwrap()
@@ -267,7 +273,7 @@ fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpRe
 
     let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
-    match do_get_package(&req, &qtarget, ident) {
+    match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => HttpResponse::Ok()
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(true))
@@ -277,6 +283,7 @@ fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpRe
 }
 
 // TODO : Convert to async
+#[allow(clippy::needless_pass_by_value)]
 fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, name, version, release) = Path::<(String, String, String, String)>::extract(&req)
         .unwrap()
@@ -321,20 +328,20 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
         Ok(package) => {
             let dir =
                 tempdir_in(&req.state().config.api.data_path).expect("Unable to create a tempdir!");
-            let file_path = dir.path().join(archive_name(&package.ident, &target));
-            let temp_ident = ident.to_owned().into();
+            let file_path = dir.path().join(archive_name(&package.ident, target));
+            let temp_ident = ident.to_owned();
             match req
                 .state()
                 .packages
-                .download(&file_path, &temp_ident, &target)
+                .download(&file_path, &temp_ident, target)
             {
-                Ok(archive) => download_response_for_archive(archive, file_path),
+                Ok(archive) => download_response_for_archive(&archive, &file_path),
                 Err(e) => {
                     warn!(
                         "Failed to download package, ident={}, err={:?}",
                         temp_ident, e
                     );
-                    return HttpResponse::new(StatusCode::NOT_FOUND);
+                    HttpResponse::new(StatusCode::NOT_FOUND)
                 }
             }
         }
@@ -342,6 +349,7 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn upload_package(
     (qupload, req): (Query<Upload>, HttpRequest<AppState>),
 ) -> Box<Future<Item = HttpResponse, Error = Error>> {
@@ -364,7 +372,7 @@ fn upload_package(
             req.state()
                 .memcache
                 .borrow_mut()
-                .clear_cache_for_package(ident.clone().into());
+                .clear_cache_for_package(&ident);
             do_upload_package_async(req, qupload, ident, temp_path, writer)
         }
         Err(Error::Conflict) => {
@@ -382,6 +390,7 @@ fn upload_package(
 }
 
 // TODO REVIEW: should this path be under jobs instead?
+#[allow(clippy::needless_pass_by_value)]
 fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin_name, package) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -427,6 +436,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_schedule((qgetschedule, req): (Query<GetSchedule>, HttpRequest<AppState>)) -> HttpResponse {
     let group_id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
     let group_id = match group_id_str.parse::<u64>() {
@@ -446,6 +456,7 @@ fn get_schedule((qgetschedule, req): (Query<GetSchedule>, HttpRequest<AppState>)
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_origin_schedule_status(
     (qoss, req): (Query<OriginScheduleStatus>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -465,6 +476,7 @@ fn get_origin_schedule_status(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name, version, release) = Path::<(String, String, String, String)>::extract(&req)
         .unwrap()
@@ -504,6 +516,7 @@ fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -522,7 +535,7 @@ fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
     let ident = PackageIdent::new(origin.to_string(), name, None, None);
 
     match Package::list_package_versions(
-        BuilderPackageIdent(ident),
+        &BuilderPackageIdent(ident),
         helpers::visibility_for_optional_session(&req, opt_session_id, &origin),
         &*conn,
     ) {
@@ -537,6 +550,7 @@ fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> HttpResponse {
     Counter::SearchPackages.increment();
 
@@ -561,7 +575,7 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
     // the details instead of just names.
     let decoded_query = match url::percent_encoding::percent_decode(query.as_bytes()).decode_utf8()
     {
-        Ok(q) => q.to_string().trim_right_matches("/").replace("/", " & "),
+        Ok(q) => q.to_string().trim_right_matches('/').replace("/", " & "),
         Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
     };
 
@@ -577,7 +591,7 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
             },
             &*conn,
         ) {
-            Ok((packages, count)) => postprocess_package_list(&req, packages, count, pagination),
+            Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
             Err(err) => Error::DieselError(err).into(),
         };
     }
@@ -591,11 +605,12 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
         },
         &*conn,
     ) {
-        Ok((packages, count)) => postprocess_package_list(&req, packages, count, pagination),
+        Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
         Err(err) => Error::DieselError(err).into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, name, version, release, visibility) =
         Path::<(String, String, String, String, String)>::extract(&req)
@@ -634,7 +649,7 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
             req.state()
                 .memcache
                 .borrow_mut()
-                .clear_cache_for_package(ident.into());
+                .clear_cache_for_package(&ident);
             HttpResponse::Ok().finish()
         }
         Err(e) => Error::DieselError(e).into(),
@@ -647,11 +662,11 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
 
 pub fn postprocess_package_list(
     _req: &HttpRequest<AppState>,
-    packages: Vec<BuilderPackageIdent>,
+    packages: &[BuilderPackageIdent],
     count: i64,
-    pagination: Query<Pagination>,
+    pagination: &Query<Pagination>,
 ) -> HttpResponse {
-    let (start, _) = helpers::extract_pagination(&pagination);
+    let (start, _) = helpers::extract_pagination(pagination);
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
         0 => count,
@@ -680,11 +695,11 @@ pub fn postprocess_package_list(
 
 pub fn postprocess_extended_package_list(
     _req: &HttpRequest<AppState>,
-    packages: Vec<PackageIdentWithChannelPlatform>,
+    packages: &[PackageIdentWithChannelPlatform],
     count: i64,
-    pagination: Query<Pagination>,
+    pagination: &Query<Pagination>,
 ) -> HttpResponse {
-    let (start, _) = helpers::extract_pagination(&pagination);
+    let (start, _) = helpers::extract_pagination(pagination);
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
         0 => count,
@@ -716,7 +731,7 @@ pub fn postprocess_extended_package_list(
 //
 fn do_get_packages(
     req: &HttpRequest<AppState>,
-    ident: PackageIdent,
+    ident: &PackageIdent,
     pagination: &Query<Pagination>,
 ) -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
     let opt_session_id = match authorize_session(req, None) {
@@ -809,11 +824,12 @@ fn do_upload_package_start(
 }
 
 // TODO: Break this up further, convert S3 upload to async
+#[allow(clippy::cyclomatic_complexity)]
 fn do_upload_package_finish(
-    req: HttpRequest<AppState>,
-    qupload: Query<Upload>,
-    ident: PackageIdent,
-    temp_path: PathBuf,
+    req: &HttpRequest<AppState>,
+    qupload: &Query<Upload>,
+    ident: &PackageIdent,
+    temp_path: &PathBuf,
 ) -> HttpResponse {
     let mut archive = PackageArchive::new(&temp_path);
 
@@ -862,16 +878,16 @@ fn do_upload_package_finish(
 
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
-        match has_circular_deps(&req, &ident, &target_from_artifact, &mut archive) {
-            Ok(val) if val == true => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
+        match has_circular_deps(&req, ident, target_from_artifact, &mut archive) {
+            Ok(val) if val => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Err(err) => return err.into(),
             _ => (),
         }
     }
 
     let file_path = &req.state().config.api.data_path;
-    let filename = file_path.join(archive_name(&ident, &target_from_artifact));
-    let temp_ident = ident.to_owned().into();
+    let filename = file_path.join(archive_name(&ident, target_from_artifact));
+    let temp_ident = ident.to_owned();
 
     match fs::rename(&temp_path, &filename) {
         Ok(_) => {}
@@ -888,7 +904,7 @@ fn do_upload_package_finish(
     if let Err(err) = req
         .state()
         .packages
-        .upload(&filename, &temp_ident, &target_from_artifact)
+        .upload(&filename, &temp_ident, target_from_artifact)
     {
         warn!("Unable to upload archive to s3!");
         return err.into();
@@ -937,7 +953,7 @@ fn do_upload_package_finish(
     };
 
     // Re-create origin package as needed (eg, checksum update)
-    match Package::create(package.clone(), &*conn).map_err(Error::DieselError) {
+    match Package::create(&package, &*conn).map_err(Error::DieselError) {
         Ok(pkg) => {
             if feat::is_enabled(feat::Jobsrv) {
                 let mut job_graph_package = jobsrv::JobGraphPackageCreate::new();
@@ -1017,10 +1033,10 @@ fn do_upload_package_async(
         .fold(writer, write_archive_async)
         // `Future::and_then` can be used to merge an asynchronous workflow with a
         // synchronous workflow
-        .and_then(|writer| match writer.into_inner() {
+        .and_then(move |writer| match writer.into_inner() {
             Ok(f) => {
                 f.sync_all()?;
-                Ok(do_upload_package_finish(req, qupload, ident, temp_path))
+                Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path))
             }
             Err(err) => Err(Error::InnerError(err)),
         })
@@ -1030,7 +1046,7 @@ fn do_upload_package_async(
 fn do_get_package(
     req: &HttpRequest<AppState>,
     qtarget: &Query<Target>,
-    ident: PackageIdent,
+    ident: &PackageIdent,
 ) -> Result<String> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(session) => Some(session.get_id()),
@@ -1053,7 +1069,7 @@ fn do_get_package(
     // below
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        match memcache.get_package(ident.clone().into(), "unstable", &target) {
+        match memcache.get_package(&ident, "unstable", &target) {
             Some(pkg_json) => {
                 trace!("Package {} {} Cache Hit!", ident, target);
                 let p: Package = match serde_json::from_str(&pkg_json) {
@@ -1084,7 +1100,7 @@ fn do_get_package(
             &*conn,
         ) {
             Ok(pkg) => pkg,
-            Err(NotFound) => return Err(Error::NotFound).into(),
+            Err(NotFound) => return Err(Error::NotFound),
             Err(err) => {
                 debug!("{:?}", err);
                 return Err(err.into());
@@ -1104,7 +1120,7 @@ fn do_get_package(
             &*conn,
         ) {
             Ok(pkg) => pkg,
-            Err(NotFound) => return Err(Error::NotFound).into(),
+            Err(NotFound) => return Err(Error::NotFound),
             Err(err) => {
                 debug!("{:?}", err);
                 return Err(err.into());
@@ -1122,7 +1138,7 @@ fn do_get_package(
 
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        memcache.set_package(ident.clone(), &json_body, "unstable", &target);
+        memcache.set_package(&ident, &json_body, "unstable", &target);
     }
 
     Ok(json_body)
@@ -1134,14 +1150,15 @@ fn do_get_package(
 
 // Return a formatted string representing the filename of an archive for the given package
 // identifier pieces.
-fn archive_name(ident: &PackageIdent, target: &PackageTarget) -> PathBuf {
-    PathBuf::from(ident.archive_name_with_target(target).expect(&format!(
-        "Package ident should be fully qualified, ident={}",
-        &ident
-    )))
+fn archive_name(ident: &PackageIdent, target: PackageTarget) -> PathBuf {
+    PathBuf::from(
+        ident.archive_name_with_target(&target).unwrap_or_else(|_| {
+            panic!("Package ident should be fully qualified, ident={}", &ident)
+        }),
+    )
 }
 
-fn download_response_for_archive(archive: PackageArchive, file_path: PathBuf) -> HttpResponse {
+fn download_response_for_archive(archive: &PackageArchive, file_path: &PathBuf) -> HttpResponse {
     let filename = archive.file_name();
     let file = match File::open(&file_path) {
         Ok(f) => f,
@@ -1173,6 +1190,7 @@ fn download_response_for_archive(archive: PackageArchive, file_path: PathBuf) ->
         .streaming(rx_body.map_err(|_| error::ErrorBadRequest("bad request")))
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn write_archive_async(mut writer: BufWriter<File>, chunk: Bytes) -> Result<BufWriter<File>> {
     debug!("Writing file upload chunk, size: {}", chunk.len());
     match writer.write(&chunk) {
@@ -1188,7 +1206,7 @@ fn write_archive_async(mut writer: BufWriter<File>, chunk: Bytes) -> Result<BufW
 fn has_circular_deps(
     req: &HttpRequest<AppState>,
     ident: &PackageIdent,
-    target: &PackageTarget,
+    target: PackageTarget,
     archive: &mut PackageArchive,
 ) -> Result<bool> {
     let mut pcr_req = jobsrv::JobGraphPackagePreCreate::new();
@@ -1234,7 +1252,7 @@ pub fn platforms_for_package_ident(
     let conn = req.state().db.get_conn()?;
 
     match Package::list_package_platforms(
-        package.clone(),
+        &package,
         helpers::visibility_for_optional_session(req, opt_session_id, &package.origin),
         &*conn,
     ) {

@@ -37,6 +37,7 @@ impl User {
 //
 // Route handlers - these functions can return any Responder trait
 //
+#[allow(clippy::needless_pass_by_value)]
 fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
@@ -54,6 +55,7 @@ fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_origins(req: HttpRequest<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id() as i64,

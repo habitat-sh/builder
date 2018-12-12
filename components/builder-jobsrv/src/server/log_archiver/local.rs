@@ -38,13 +38,13 @@ pub struct LocalArchiver(PathBuf);
 
 impl LocalArchiver {
     // CM TODO: Implement an error type for bad configuration
-    pub fn new(config: &ArchiveCfg) -> Result<LocalArchiver> {
+    pub fn new(config: &ArchiveCfg) -> Self {
         let archive_dir = config
             .local_dir
             .as_ref()
             .expect("Missing local archive directory!");
-        LogDirectory::validate(archive_dir)?;
-        Ok(LocalArchiver(archive_dir.clone()))
+        LogDirectory::validate(archive_dir).unwrap();
+        LocalArchiver(archive_dir.clone())
     }
 
     /// Generate the path that a given job's logs will be stored

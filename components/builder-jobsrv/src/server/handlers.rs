@@ -67,13 +67,11 @@ pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
             Ok(lines) => {
                 let start = msg.get_start();
                 let num_lines = lines.len() as u64;
-                let segment;
-
-                if start > num_lines - 1 {
-                    segment = vec![];
+                let segment = if start > num_lines - 1 {
+                    vec![]
                 } else {
-                    segment = lines[start as usize..].to_vec();
-                }
+                    lines[start as usize..].to_vec()
+                };
 
                 let mut log = jobsrv::JobLog::new();
                 let log_content = RepeatedField::from_vec(segment);
@@ -177,7 +175,7 @@ pub fn job_group_cancel(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     for project in group
         .get_projects()
         .iter()
-        .filter(|&ref p| p.get_state() == jobsrv::JobGroupProjectState::InProgress)
+        .filter(|p| p.get_state() == jobsrv::JobGroupProjectState::InProgress)
     {
         let job_id = project.get_job_id();
         let mut req = jobsrv::JobGet::new();
@@ -236,7 +234,7 @@ fn is_project_buildable(state: &AppState, project_name: &str) -> bool {
 fn populate_build_projects(
     msg: &jobsrv::JobGroupSpec,
     state: &AppState,
-    rdeps: &Vec<(String, String)>,
+    rdeps: &[(String, String)],
     projects: &mut Vec<(String, String)>,
 ) {
     let mut excluded = HashSet::new();
@@ -288,7 +286,7 @@ fn populate_build_projects(
             continue;
         };
 
-        let origin = s.0.split("/").nth(0).unwrap();
+        let origin = s.0.split('/').nth(0).unwrap();
 
         // If the origin_only flag is true, make sure the origin matches
         if !msg.get_origin_only() || origin == msg.get_origin() {

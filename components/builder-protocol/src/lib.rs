@@ -17,8 +17,6 @@
 
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate serde_derive;
 
 use habitat_core as hab_core;
 
@@ -27,8 +25,6 @@ pub mod jobsrv;
 pub mod message;
 pub mod net;
 pub mod originsrv;
-pub mod sharding;
 
 pub use crate::error::{ProtocolError, ProtocolResult};
-pub use crate::message::{Message, Persistable, Protocol, Routable, RouteKey};
-pub use crate::sharding::{InstaId, ShardId};
+pub use crate::message::Protocol;

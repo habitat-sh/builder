@@ -105,25 +105,25 @@ impl FromStr for OriginPackageIdent {
     type Err = hab_core::Error;
 
     fn from_str(value: &str) -> result::Result<Self, Self::Err> {
-        let mut parts = value.split("/");
+        let mut parts = value.split('/');
         let mut ident = OriginPackageIdent::new();
         if let Some(part) = parts.next() {
-            if part.len() > 0 {
+            if !part.is_empty() {
                 ident.set_origin(part.to_string());
             }
         }
         if let Some(part) = parts.next() {
-            if part.len() > 0 {
+            if !part.is_empty() {
                 ident.set_name(part.to_string());
             }
         }
         if let Some(part) = parts.next() {
-            if part.len() > 0 {
+            if !part.is_empty() {
                 ident.set_version(part.to_string());
             }
         }
         if let Some(part) = parts.next() {
-            if part.len() > 0 {
+            if !part.is_empty() {
                 ident.set_release(part.to_string());
             }
         }

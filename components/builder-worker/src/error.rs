@@ -35,6 +35,7 @@ use crate::runner::studio;
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum Error {
     AirlockNetworking(PathBuf, io::Error),
     AirlockFailure(process::ExitStatus),
@@ -71,6 +72,7 @@ pub enum Error {
     JobCanceled,
 }
 
+#[allow(clippy::many_single_char_names)]
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
@@ -91,7 +93,7 @@ impl fmt::Display for Error {
                 format!("Build studio exited with non-zero exit code, {}", e)
             }
             Error::BuilderCore(ref e) => format!("{}", e),
-            Error::CannotAddCreds => format!("Cannot add credentials to url"),
+            Error::CannotAddCreds => "Cannot add credentials to url".to_string(),
             Error::Chown(ref p, ref u, ref g, ref e) => format!(
                 "Unable to recursively chown path, {} with '{}:{}', {}",
                 p.display(),
@@ -113,8 +115,8 @@ impl fmt::Display for Error {
             Error::GithubAppAuthErr(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::InvalidIntegrations(ref s) => format!("Invalid integration: {}", s),
-            Error::NoNetworkGatewayError => format!("No network_gateway config specified"),
-            Error::NoNetworkInterfaceError => format!("No network_interface config specified"),
+            Error::NoNetworkGatewayError => "No network_gateway config specified".to_string(),
+            Error::NoNetworkInterfaceError => "No network_interface config specified".to_string(),
             Error::NotHTTPSCloneUrl(ref e) => format!(
                 "Attempted to clone {}. Only HTTPS clone urls are supported",
                 e
@@ -154,7 +156,7 @@ impl fmt::Display for Error {
             }
             Error::Zmq(ref e) => format!("{}", e),
             Error::Mpsc(ref e) => format!("{}", e),
-            Error::JobCanceled => format!("Job was canceled"),
+            Error::JobCanceled => "Job was canceled".to_string(),
         };
         write!(f, "{}", msg)
     }

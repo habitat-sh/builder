@@ -23,8 +23,6 @@ use serde::{Serialize, Serializer};
 
 use crate::error::ProtocolError;
 use crate::message::originsrv::OriginPackage;
-use crate::message::{Persistable, Routable};
-use crate::sharding::InstaId;
 
 pub use crate::message::jobsrv::*;
 pub use crate::message::originsrv;
@@ -41,38 +39,6 @@ impl Into<Job> for JobSpec {
             job.set_channel(self.take_channel());
         }
         job
-    }
-}
-
-impl Routable for JobSpec {
-    type H = InstaId;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(InstaId(self.get_owner_id()))
-    }
-}
-
-impl Routable for JobLogGet {
-    type H = InstaId;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(InstaId(self.get_id()))
-    }
-}
-
-impl Routable for JobGet {
-    type H = InstaId;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(InstaId(self.get_id()))
-    }
-}
-
-impl Routable for Job {
-    type H = InstaId;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(InstaId(self.get_id()))
     }
 }
 
@@ -235,18 +201,6 @@ impl fmt::Display for JobState {
     }
 }
 
-impl Persistable for Job {
-    type Key = u64;
-
-    fn primary_key(&self) -> Self::Key {
-        self.get_id()
-    }
-
-    fn set_primary_key(&mut self, value: Self::Key) {
-        self.set_id(value);
-    }
-}
-
 impl fmt::Display for JobGroupTrigger {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let value = match *self {
@@ -297,19 +251,11 @@ impl FromStr for JobGroupOperation {
     }
 }
 
-impl Routable for JobGroupSpec {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(format!("{}/{}", self.get_origin(), self.get_package()))
-    }
-}
-
 impl Into<OriginPackage> for JobGraphPackagePreCreate {
     fn into(self) -> OriginPackage {
         let mut package = OriginPackage::new();
 
-        let name = format!("{}", self.get_ident());
+        let name = self.get_ident().to_string();
         let target = self.get_target().to_string();
 
         let deps = self
@@ -322,53 +268,6 @@ impl Into<OriginPackage> for JobGraphPackagePreCreate {
         package.set_target(target);
         package.set_deps(deps);
         package
-    }
-}
-
-impl Routable for JobGroupGet {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_group_id().to_string())
-    }
-}
-
-impl Routable for JobGroupCancel {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_group_id().to_string())
-    }
-}
-
-impl Routable for JobGraphPackagePreCreate {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_ident().to_string())
-    }
-}
-
-impl Routable for JobGroupOriginGet {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_origin().to_string())
-    }
-}
-
-impl Routable for JobGraphPackageCreate {
-    type H = String;
-    fn route_key(&self) -> Option<Self::H> {
-        Some(self.get_package().get_ident().to_string())
-    }
-}
-
-impl Routable for JobGraphPackageReverseDependenciesGet {
-    type H = String;
-
-    fn route_key(&self) -> Option<Self::H> {
-        Some(format!("{}/{}", self.get_origin(), self.get_name()))
     }
 }
 

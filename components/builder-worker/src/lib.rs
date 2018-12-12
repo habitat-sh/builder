@@ -42,12 +42,12 @@ pub mod vcs;
 
 features! {
     pub mod feat {
-        const List = 0b00000001
+        const List = 0b0000_0001
     }
 }
 
 pub use self::config::Config;
 pub use self::error::{Error, Result};
 
-pub const PRODUCT: &'static str = "builder-worker";
-pub const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+pub const PRODUCT: &str = "builder-worker";
+pub const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));

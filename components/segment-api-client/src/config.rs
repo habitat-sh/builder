@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /// URL to Segment API endpoint
-pub const DEFAULT_SEGMENT_URL: &'static str = "https://api.segment.io";
+pub const DEFAULT_SEGMENT_URL: &str = "https://api.segment.io";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]

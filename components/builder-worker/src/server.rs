@@ -56,21 +56,21 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(config: Config) -> Result<Self> {
+    pub fn new(config: Config) -> Self {
         let net_ident = bldr_core::socket::srv_ident();
-        let fe_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
+        let fe_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         let hb_cli = HeartbeatCli::new(net_ident.clone());
         let runner_cli = RunnerCli::new();
-        fe_sock.set_identity(net_ident.as_bytes())?;
-        Ok(Server {
+        fe_sock.set_identity(net_ident.as_bytes()).unwrap();
+        Server {
             config: Arc::new(config),
-            fe_sock: fe_sock,
-            hb_cli: hb_cli,
-            runner_cli: runner_cli,
+            fe_sock,
+            hb_cli,
+            runner_cli,
             state: State::default(),
-            msg: zmq::Message::new()?,
+            msg: zmq::Message::new().unwrap(),
             net_ident: Arc::new(net_ident),
-        })
+        }
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -237,7 +237,7 @@ impl Server {
             posix_perm::set_owner(
                 &self.config.data_path,
                 users::get_current_username()
-                    .unwrap_or(String::from("root"))
+                    .unwrap_or_else(|| String::from("root"))
                     .as_str(),
                 studio::STUDIO_GROUP,
             )?;
@@ -271,12 +271,12 @@ impl Server {
         let features_enabled = self
             .config
             .features_enabled
-            .split(",")
+            .split(',')
             .map(|f| f.trim().to_uppercase());
         for key in features_enabled {
             if features.contains_key(key.as_str()) {
                 info!("Enabling feature: {}", key);
-                feat::enable(features.get(key.as_str()).unwrap().clone());
+                feat::enable(features[key.as_str()]);
             }
         }
 
@@ -288,7 +288,7 @@ impl Server {
 }
 
 pub fn run(config: Config) -> Result<()> {
-    Server::new(config)?.run()
+    Server::new(config).run()
 }
 
 fn init_users() -> Result<()> {

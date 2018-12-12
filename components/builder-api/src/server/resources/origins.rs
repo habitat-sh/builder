@@ -200,6 +200,7 @@ impl Origins {
 //
 // Route handlers - these functions can return any Responder trait
 //
+#[allow(clippy::needless_pass_by_value)]
 fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
     let origin_name = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -217,6 +218,7 @@ fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn create_origin(
     (req, body): (HttpRequest<AppState>, Json<CreateOriginHandlerReq>),
 ) -> HttpResponse {
@@ -251,6 +253,7 @@ fn create_origin(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn update_origin(
     (req, body): (HttpRequest<AppState>, Json<UpdateOriginHandlerReq>),
 ) -> HttpResponse {
@@ -276,6 +279,7 @@ fn update_origin(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -333,6 +337,7 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
     HttpResponse::Created().finish()
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn list_origin_keys(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -362,6 +367,7 @@ fn list_origin_keys(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
     let (origin, revision) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -408,6 +414,7 @@ fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpRespon
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn download_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, revision) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -428,6 +435,7 @@ fn download_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
     download_content_as_file(&key.body, xfilename)
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn download_latest_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -445,6 +453,7 @@ fn download_latest_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
     download_content_as_file(&key.body, xfilename)
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn list_origin_secrets(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -470,6 +479,7 @@ fn list_origin_secrets(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn create_origin_secret(
     (req, body): (HttpRequest<AppState>, Json<OriginSecretPayload>),
 ) -> HttpResponse {
@@ -480,14 +490,14 @@ fn create_origin_secret(
         Err(err) => return err.into(),
     };
 
-    if body.name.len() <= 0 {
+    if body.name.is_empty() {
         return HttpResponse::with_body(
             StatusCode::UNPROCESSABLE_ENTITY,
             "Missing value for field `name`",
         );
     }
 
-    if body.value.len() <= 0 {
+    if body.value.is_empty() {
         return HttpResponse::with_body(
             StatusCode::UNPROCESSABLE_ENTITY,
             "Missing value for field `value`",
@@ -588,6 +598,7 @@ fn create_origin_secret(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn delete_origin_secret(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, secret) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -608,6 +619,7 @@ fn delete_origin_secret(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn upload_origin_secret_key(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     req.body()
         .from_err()
@@ -615,6 +627,7 @@ fn upload_origin_secret_key(req: HttpRequest<AppState>) -> FutureResponse<HttpRe
         .responder()
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> HttpResponse {
     let (origin, revision) = Path::<(String, String)>::extract(req).unwrap().into_inner(); // Unwrap Ok
 
@@ -654,7 +667,7 @@ fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> Htt
         name: &origin,
         full_name: &format!("{}-{}", &origin, &revision),
         revision: &revision,
-        body: body,
+        body,
     };
 
     match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
@@ -663,6 +676,7 @@ fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> Htt
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn download_latest_origin_secret_key(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -684,6 +698,7 @@ fn download_latest_origin_secret_key(req: HttpRequest<AppState>) -> HttpResponse
     download_content_as_file(&key.body, xfilename)
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn list_unique_packages(
     (req, pagination): (HttpRequest<AppState>, Query<Pagination>),
 ) -> HttpResponse {
@@ -704,18 +719,19 @@ fn list_unique_packages(
     let (page, per_page) = helpers::extract_pagination_in_pages(&pagination);
 
     let lpr = ListPackages {
-        ident: BuilderPackageIdent(ident.clone().into()),
+        ident: BuilderPackageIdent(ident.clone()),
         visibility: helpers::visibility_for_optional_session(&req, opt_session_id, &origin),
         page: page as i64,
         limit: per_page as i64,
     };
 
     match Package::distinct_for_origin(lpr, &*conn) {
-        Ok((packages, count)) => postprocess_package_list(&req, packages, count, pagination),
+        Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
         Err(err) => Error::DieselError(err).into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn download_latest_origin_encryption_key(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -745,6 +761,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest<AppState>) -> HttpResp
     download_content_as_file(&key.body, xfilename)
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, user) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -783,6 +800,7 @@ fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn accept_invitation(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, invitation) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -814,6 +832,7 @@ fn accept_invitation(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn ignore_invitation(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, invitation) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -845,6 +864,7 @@ fn ignore_invitation(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, invitation) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -876,6 +896,7 @@ fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn list_origin_invitations(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -903,6 +924,7 @@ fn list_origin_invitations(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn list_origin_members(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -930,6 +952,7 @@ fn list_origin_members(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn origin_member_delete(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, user) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -962,6 +985,7 @@ fn origin_member_delete(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn fetch_origin_integrations(req: HttpRequest<AppState>) -> HttpResponse {
     let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -979,7 +1003,7 @@ fn fetch_origin_integrations(req: HttpRequest<AppState>) -> HttpResponse {
             let integrations_response: HashMap<String, Vec<String>> =
                 oir.iter().fold(HashMap::new(), |mut acc, ref i| {
                     acc.entry(i.integration.to_owned())
-                        .or_insert(Vec::new())
+                        .or_insert_with(Vec::new)
                         .push(i.name.to_owned());
                     acc
                 });
@@ -991,6 +1015,7 @@ fn fetch_origin_integrations(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn fetch_origin_integration_names(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, integration) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -1020,6 +1045,7 @@ fn fetch_origin_integration_names(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn create_origin_integration_async(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     req.body()
         .from_err()
@@ -1027,6 +1053,7 @@ fn create_origin_integration_async(req: HttpRequest<AppState>) -> FutureResponse
         .responder()
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn create_origin_integration(req: HttpRequest<AppState>, body: &Bytes) -> HttpResponse {
     let (origin, integration, name) = Path::<(String, String, String)>::extract(&req)
         .unwrap()
@@ -1059,6 +1086,7 @@ fn create_origin_integration(req: HttpRequest<AppState>, body: &Bytes) -> HttpRe
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn delete_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, integration, name) = Path::<(String, String, String)>::extract(&req)
         .unwrap()
@@ -1081,6 +1109,7 @@ fn delete_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, integration, name) = Path::<(String, String, String)>::extract(&req)
         .unwrap()

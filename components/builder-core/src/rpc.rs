@@ -34,7 +34,7 @@ pub struct RpcMessage {
 
 impl RpcMessage {
     pub fn new(id: String, body: Vec<u8>) -> Self {
-        RpcMessage { id: id, body: body }
+        RpcMessage { id, body }
     }
 
     pub fn make<T>(msg: &T) -> Result<RpcMessage>
@@ -85,7 +85,7 @@ impl RpcClient {
     {
         let id = req.descriptor().name().to_owned();
         let body = req.write_to_bytes()?;
-        let msg = RpcMessage { id: id, body: body };
+        let msg = RpcMessage { id, body };
         debug!("Sending RPC Message: {}", msg.id);
 
         let json = serde_json::to_string(&msg)?;

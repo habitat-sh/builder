@@ -89,6 +89,7 @@ impl Jobs {
 //
 // Route handlers - these functions can return any Responder trait
 //
+#[allow(clippy::needless_pass_by_value)]
 fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, name) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -121,6 +122,7 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
     let id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -140,6 +142,7 @@ fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_job_log(
     (pagination, req): (Query<JobLogPagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -164,28 +167,31 @@ fn get_job_log(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)) -> HttpResponse {
     let (group_id, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    match promote_or_demote_job_group(&req, group_id, &body.idents, &channel, true) {
+    match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, true) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn demote_job_group((req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>)) -> HttpResponse {
     let (group_id, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
 
-    match promote_or_demote_job_group(&req, group_id, &body.idents, &channel, false) {
+    match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, false) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
     let id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
@@ -222,9 +228,9 @@ fn do_group_promotion_or_demotion(
         Err(NotFound) => {
             if channel != STABLE_CHANNEL || channel != UNSTABLE_CHANNEL {
                 Channel::create(
-                    CreateChannel {
+                    &CreateChannel {
                         name: channel,
-                        origin: origin,
+                        origin,
                         owner_id: session.get_id() as i64,
                     },
                     &*conn,
@@ -244,7 +250,7 @@ fn do_group_promotion_or_demotion(
 
     for project in projects {
         req.state().memcache.borrow_mut().clear_cache_for_package(
-            OriginPackageIdent::from_str(project.get_ident())
+            &OriginPackageIdent::from_str(project.get_ident())
                 .unwrap()
                 .into(),
         );
@@ -252,9 +258,7 @@ fn do_group_promotion_or_demotion(
         // TODO (SA): Expand build targets - currently Builder only supports x86_64-linux
         let op = Package::get(
             GetPackage {
-                ident: BuilderPackageIdent(
-                    PackageIdent::from_str(project.get_ident().clone()).unwrap(),
-                ),
+                ident: BuilderPackageIdent(PackageIdent::from_str(project.get_ident()).unwrap()),
                 visibility: helpers::all_visibilities(),
                 target: BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap()), // Unwrap OK
             },
@@ -265,9 +269,9 @@ fn do_group_promotion_or_demotion(
     }
 
     if promote {
-        Channel::promote_packages(channel.id, package_ids.clone(), &*conn)?;
+        Channel::promote_packages(channel.id, &package_ids, &*conn)?;
     } else {
-        Channel::demote_packages(channel.id, package_ids.clone(), &*conn)?;
+        Channel::demote_packages(channel.id, &package_ids, &*conn)?;
     }
 
     Ok(package_ids)
@@ -275,8 +279,8 @@ fn do_group_promotion_or_demotion(
 
 fn promote_or_demote_job_group(
     req: &HttpRequest<AppState>,
-    group_id_str: String,
-    idents: &Vec<String>,
+    group_id_str: &str,
+    idents: &[String],
     channel: &str,
     promote: bool,
 ) -> Result<()> {
@@ -295,21 +299,10 @@ fn promote_or_demote_job_group(
     group_get.set_include_projects(true);
     let group = route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(req, &group_get)?;
 
-    // This only makes sense if the group is complete. If the group isn't complete, return now and
-    // let the user know. Check the completion state by checking the individual project states,
-    // as if this is called by the scheduler it needs to promote/demote the group before marking it
-    // Complete.
-    if group.get_projects().iter().any(|&ref p| {
-        p.get_state() == jobsrv::JobGroupProjectState::NotStarted
-            || p.get_state() == jobsrv::JobGroupProjectState::InProgress
-    }) {
-        return Err(Error::Unprocessable);
-    }
-
     let mut origin_map = HashMap::new();
-
     let mut ident_map = HashMap::new();
-    let has_idents = if idents.len() > 0 {
+
+    let has_idents = if !idents.is_empty() {
         for ident in idents.iter() {
             ident_map.insert(ident.clone(), 1);
         }
@@ -335,7 +328,7 @@ fn promote_or_demote_job_group(
             let ident = OriginPackageIdent::from_str(ident_str).unwrap();
             let project_list = origin_map
                 .entry(ident.get_origin().to_string())
-                .or_insert(Vec::new());
+                .or_insert_with(Vec::new);
             project_list.push(project);
         }
     }
@@ -359,7 +352,7 @@ fn promote_or_demote_job_group(
                     PackageGroupChannelAudit {
                         origin: &origin,
                         channel: &channel,
-                        package_ids: package_ids,
+                        package_ids,
                         operation: pco,
                         trigger: trigger.clone(),
                         requester_id: session.get_id() as i64,
@@ -451,7 +444,7 @@ fn do_cancel_job_group(req: &HttpRequest<AppState>, group_id: u64) -> Result<Net
 
     let group = route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(req, &jgg)?;
 
-    let name_split: Vec<&str> = group.get_project_name().split("/").collect();
+    let name_split: Vec<&str> = group.get_project_name().split('/').collect();
     assert!(name_split.len() == 2);
 
     let session = authorize_session(req, Some(&name_split[0]))?;

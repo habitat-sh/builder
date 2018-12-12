@@ -32,8 +32,8 @@ use crate::bldr_api::config::Config;
 use crate::bldr_api::server;
 use crate::hab_core::config::ConfigFile;
 
-const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
-const CFG_DEFAULT_PATH: &'static str = "/hab/svc/builder-api/config.toml";
+const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-api/config.toml";
 
 fn main() {
     env_logger::init();
@@ -67,7 +67,7 @@ fn config_from_args(matches: &clap::ArgMatches) -> Config {
     let args = matches.subcommand_matches(cmd).unwrap();
     let mut config = match args.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
-        None => Config::from_file(CFG_DEFAULT_PATH).unwrap_or(Config::default()),
+        None => Config::from_file(CFG_DEFAULT_PATH).unwrap_or_default(),
     };
 
     if let Some(port) = args.value_of("port") {

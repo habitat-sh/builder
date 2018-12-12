@@ -16,7 +16,6 @@ use std::error::Error;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr};
 
-pub use crate::protocol::sharding::ShardId;
 use num_cpus;
 use postgres_shared::params::{ConnectParams, Host, IntoConnectParams};
 use url::percent_encoding::{utf8_percent_encode, PATH_SEGMENT_ENCODE_SET};

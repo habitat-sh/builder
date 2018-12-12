@@ -20,8 +20,9 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
 use crate::error::ProtocolError;
-pub use crate::message::{ErrCode, Message, NetError, NetOk, Protocol, RouteInfo, Txn};
+pub use crate::message::{ErrCode, NetError, NetOk, Protocol};
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn err<T>(code: ErrCode, msg: T) -> NetError
 where
     T: ToString,

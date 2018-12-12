@@ -36,7 +36,7 @@ use crate::hab_core::channel::bldr_channel_name;
 use super::metrics::{Counter, Gauge, Histogram};
 use super::worker_manager::WorkerMgrClient;
 
-const SCHEDULER_ADDR: &'static str = "inproc://scheduler";
+const SCHEDULER_ADDR: &str = "inproc://scheduler";
 const SOCKET_TIMEOUT_MS: i64 = 60_000;
 
 pub struct ScheduleClient {
@@ -59,7 +59,7 @@ impl Default for ScheduleClient {
     fn default() -> ScheduleClient {
         let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         socket.connect(SCHEDULER_ADDR).unwrap();
-        ScheduleClient { socket: socket }
+        ScheduleClient { socket }
     }
 }
 
@@ -74,27 +74,27 @@ pub struct ScheduleMgr {
 }
 
 impl ScheduleMgr {
-    pub fn new<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Result<Self>
+    pub fn new<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Self
     where
         T: AsRef<Path>,
     {
-        let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
+        let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
 
         let mut schedule_cli = ScheduleClient::default();
-        schedule_cli.connect()?;
+        schedule_cli.connect().unwrap();
 
         let mut worker_mgr = WorkerMgrClient::default();
-        worker_mgr.connect()?;
+        worker_mgr.connect().unwrap();
 
-        Ok(ScheduleMgr {
+        ScheduleMgr {
             datastore: datastore.clone(),
-            db: db,
+            db,
             logger: Logger::init(log_path, "builder-scheduler.log"),
-            msg: zmq::Message::new()?,
-            schedule_cli: schedule_cli,
-            socket: socket,
-            worker_mgr: worker_mgr,
-        })
+            msg: zmq::Message::new().unwrap(),
+            schedule_cli,
+            socket,
+            worker_mgr,
+        }
     }
 
     pub fn start<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Result<JoinHandle<()>>
@@ -102,11 +102,11 @@ impl ScheduleMgr {
         T: AsRef<Path>,
     {
         let (tx, rx) = mpsc::sync_channel(1);
-        let mut schedule_mgr = Self::new(datastore, db, log_path)?;
+        let mut schedule_mgr = Self::new(datastore, db, log_path);
         let handle = thread::Builder::new()
             .name("scheduler".to_string())
             .spawn(move || {
-                schedule_mgr.run(tx).unwrap();
+                schedule_mgr.run(&tx).unwrap();
             })
             .unwrap();
         match rx.recv() {
@@ -115,7 +115,7 @@ impl ScheduleMgr {
         }
     }
 
-    fn run(&mut self, rz: mpsc::SyncSender<()>) -> Result<()> {
+    fn run(&mut self, rz: &mpsc::SyncSender<()>) -> Result<()> {
         self.socket.bind(SCHEDULER_ADDR)?;
 
         let mut socket = false;
@@ -157,9 +157,9 @@ impl ScheduleMgr {
         }
     }
 
-    fn log_error(&mut self, msg: String) {
+    fn log_error(&mut self, msg: &str) {
         warn!("{}", msg);
-        self.logger.log(&msg);
+        self.logger.log(msg);
     }
 
     fn process_metrics(&mut self) -> Result<()> {
@@ -201,7 +201,7 @@ impl ScheduleMgr {
 
             // 0 means there are no pending groups, so we should consume our notice that we have
             // work
-            if groups.len() == 0 {
+            if groups.is_empty() {
                 break;
             }
 
@@ -245,7 +245,7 @@ impl ScheduleMgr {
                         let skip_list = match self.skip_projects(&group, project.get_name()) {
                             Ok(v) => v,
                             Err(e) => {
-                                self.log_error(format!(
+                                self.log_error(&format!(
                                     "Error skipping projects for {:?} (group: {}): {:?}",
                                     project.get_name(),
                                     group.get_id(),
@@ -260,7 +260,7 @@ impl ScheduleMgr {
                     }
                 },
                 Err(err) => {
-                    self.log_error(format!(
+                    self.log_error(&format!(
                         "Failed to schedule job for {} (group: {}), err: {:?}",
                         project.get_name(),
                         group.get_id(),
@@ -398,7 +398,7 @@ impl ScheduleMgr {
                 return Ok(None);
             }
             Err(err) => {
-                self.log_error(format!(
+                self.log_error(&format!(
                     "Unable to retrieve project: {:?} (group: {}), error: {:?}",
                     project_name, group_id, err
                 ));
@@ -411,8 +411,8 @@ impl ScheduleMgr {
         job_spec.set_project(project.into());
         job_spec.set_channel(bldr_channel_name(group_id));
 
-        let mut job: jobsrv::Job = job_spec.into();
-        match self.datastore.create_job(&mut job) {
+        let job: jobsrv::Job = job_spec.into();
+        match self.datastore.create_job(&job) {
             Ok(job) => {
                 debug!("Job created: {:?}", job);
                 self.worker_mgr.notify_work()?;
@@ -420,7 +420,7 @@ impl ScheduleMgr {
             }
             Err(err) => {
                 warn!("Unable to create job, err: {:?}", err);
-                Err(Error::from(err))
+                Err(err)
             }
         }
     }
@@ -436,7 +436,7 @@ impl ScheduleMgr {
                 None => Err(Error::UnknownJobGroup),
             },
             Err(err) => {
-                self.log_error(format!(
+                self.log_error(&format!(
                     "Failed to get group {} from datastore: {:?}",
                     group_id, err
                 ));
@@ -494,7 +494,7 @@ impl ScheduleMgr {
                         match self.skip_projects(&group, job.get_project().get_name()) {
                             Ok(_) => (),
                             Err(e) => {
-                                self.log_error(format!(
+                                self.log_error(&format!(
                                     "Error skipping projects for {:?} (group: {}): {:?}",
                                     job.get_project().get_name(),
                                     job.get_owner_id(),
@@ -522,7 +522,7 @@ impl ScheduleMgr {
                     // Unset the sync state
                     self.datastore.set_job_sync(job.get_id())?;
                 }
-                Err(err) => self.log_error(format!(
+                Err(err) => self.log_error(&format!(
                     "Failed to update job state for {} (group: {}): {:?}",
                     job.get_project().get_name(),
                     job.get_owner_id(),
@@ -556,10 +556,10 @@ impl ScheduleMgr {
 
             for project in group.get_projects() {
                 match project.get_state() {
-                    jobsrv::JobGroupProjectState::Failure => failed = failed + 1,
-                    jobsrv::JobGroupProjectState::Success => succeeded = succeeded + 1,
-                    jobsrv::JobGroupProjectState::Skipped => skipped = skipped + 1,
-                    jobsrv::JobGroupProjectState::Canceled => canceled = canceled + 1,
+                    jobsrv::JobGroupProjectState::Failure => failed += 1,
+                    jobsrv::JobGroupProjectState::Success => succeeded += 1,
+                    jobsrv::JobGroupProjectState::Skipped => skipped += 1,
+                    jobsrv::JobGroupProjectState::Canceled => canceled += 1,
 
                     jobsrv::JobGroupProjectState::NotStarted
                     | jobsrv::JobGroupProjectState::InProgress => (),
@@ -572,7 +572,7 @@ impl ScheduleMgr {
                 jobsrv::JobGroupState::GroupComplete
             } else if canceled > 0 {
                 jobsrv::JobGroupState::GroupCanceled
-            } else if dispatchable.len() > 0 {
+            } else if !dispatchable.is_empty() {
                 jobsrv::JobGroupState::GroupPending
             } else {
                 jobsrv::JobGroupState::GroupDispatching

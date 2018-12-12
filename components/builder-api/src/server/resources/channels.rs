@@ -105,6 +105,7 @@ impl Channels {
 //
 // Route handlers - these functions can return any Responder trait
 //
+#[allow(clippy::needless_pass_by_value)]
 fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> HttpResponse {
     let origin = Path::<(String)>::extract(&req).unwrap().into_inner();
 
@@ -135,6 +136,7 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -151,7 +153,7 @@ fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     match Channel::create(
-        CreateChannel {
+        &CreateChannel {
             name: &channel,
             origin: &origin,
             owner_id: session_id as i64,
@@ -166,6 +168,7 @@ fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
@@ -195,6 +198,7 @@ fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, channel, pkg, version, release) =
         Path::<(String, String, String, String, String)>::extract(&req)
@@ -229,15 +233,17 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
     .map_err(Error::DieselError)
     {
         Ok(_) => {
-            match audit_package_rank_change(
-                &req,
+            match PackageChannelAudit::audit(
+                &PackageChannelAudit {
+                    package_ident: BuilderPackageIdent(ident.clone()),
+                    channel: &channel,
+                    operation: PackageChannelOperation::Promote,
+                    trigger: helpers::trigger_from_request_model(&req),
+                    requester_id: session.get_id() as i64,
+                    requester_name: &session.get_name(),
+                    origin: &origin,
+                },
                 &*conn,
-                ident.clone(),
-                &channel,
-                PackageChannelOperation::Promote,
-                &origin,
-                session.get_id(),
-                session.get_name(),
             ) {
                 Ok(_) => {}
                 Err(err) => warn!("Failed to save rank change to audit log: {}", err),
@@ -245,13 +251,14 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
             req.state()
                 .memcache
                 .borrow_mut()
-                .clear_cache_for_package(ident.clone().into());
+                .clear_cache_for_package(&ident);
             HttpResponse::new(StatusCode::OK)
         }
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, channel, pkg, version, release) =
         Path::<(String, String, String, String, String)>::extract(&req)
@@ -290,15 +297,17 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
     .map_err(Error::DieselError)
     {
         Ok(_) => {
-            match audit_package_rank_change(
-                &req,
-                &conn,
-                ident.clone(),
-                &channel,
-                PackageChannelOperation::Demote,
-                &origin,
-                session.get_id(),
-                session.get_name(),
+            match PackageChannelAudit::audit(
+                &PackageChannelAudit {
+                    package_ident: BuilderPackageIdent(ident.clone()),
+                    channel: &channel,
+                    operation: PackageChannelOperation::Demote,
+                    trigger: helpers::trigger_from_request_model(&req),
+                    requester_id: session.get_id() as i64,
+                    requester_name: &session.get_name(),
+                    origin: &origin,
+                },
+                &*conn,
             ) {
                 Ok(_) => {}
                 Err(err) => warn!("Failed to save rank change to audit log: {}", err),
@@ -306,13 +315,14 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
             req.state()
                 .memcache
                 .borrow_mut()
-                .clear_cache_for_package(ident.clone().into());
+                .clear_cache_for_package(&ident);
             HttpResponse::new(StatusCode::OK)
         }
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_packages_for_origin_channel_package_version(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -322,14 +332,15 @@ fn get_packages_for_origin_channel_package_version(
 
     let ident = PackageIdent::new(origin, pkg, Some(version.clone()), None);
 
-    match do_get_channel_packages(&req, &pagination, ident, channel) {
+    match do_get_channel_packages(&req, &pagination, &ident, &channel) {
         Ok((packages, count)) => {
-            postprocess_channel_package_list(&req, packages, count, pagination)
+            postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_packages_for_origin_channel_package(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -339,14 +350,15 @@ fn get_packages_for_origin_channel_package(
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
-    match do_get_channel_packages(&req, &pagination, ident, channel) {
+    match do_get_channel_packages(&req, &pagination, &ident, &channel) {
         Ok((packages, count)) => {
-            postprocess_channel_package_list(&req, packages, count, pagination)
+            postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_packages_for_origin_channel(
     (pagination, req): (Query<Pagination>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -357,14 +369,15 @@ fn get_packages_for_origin_channel(
     // It feels 1000x wrong to set the package name to ""
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
-    match do_get_channel_packages(&req, &pagination, ident, channel) {
+    match do_get_channel_packages(&req, &pagination, &ident, &channel) {
         Ok((packages, count)) => {
-            postprocess_channel_package_list(&req, packages, count, pagination)
+            postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
         Err(err) => err.into(),
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_latest_package_for_origin_channel_package(
     (qtarget, req): (Query<Target>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -374,7 +387,7 @@ fn get_latest_package_for_origin_channel_package(
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
-    match do_get_channel_package(&req, &qtarget, ident, channel) {
+    match do_get_channel_package(&req, &qtarget, &ident, &channel) {
         Ok(json_body) => HttpResponse::Ok()
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
@@ -383,6 +396,7 @@ fn get_latest_package_for_origin_channel_package(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_latest_package_for_origin_channel_package_version(
     (qtarget, req): (Query<Target>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -392,7 +406,7 @@ fn get_latest_package_for_origin_channel_package_version(
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
-    match do_get_channel_package(&req, &qtarget, ident, channel) {
+    match do_get_channel_package(&req, &qtarget, &ident, &channel) {
         Ok(json_body) => HttpResponse::Ok()
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
@@ -401,6 +415,7 @@ fn get_latest_package_for_origin_channel_package_version(
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_package_fully_qualified(
     (qtarget, req): (Query<Target>, HttpRequest<AppState>),
 ) -> HttpResponse {
@@ -411,7 +426,7 @@ fn get_package_fully_qualified(
 
     let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
-    match do_get_channel_package(&req, &qtarget, ident, channel) {
+    match do_get_channel_package(&req, &qtarget, &ident, &channel) {
         Ok(json_body) => HttpResponse::Ok()
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
@@ -427,38 +442,11 @@ fn get_package_fully_qualified(
 // Internal - these functions should return Result<..>
 //
 
-fn audit_package_rank_change(
-    req: &HttpRequest<AppState>,
-    conn: &PgConnection,
-    ident: PackageIdent,
-    channel: &str,
-    operation: PackageChannelOperation,
-    origin: &str,
-    session_id: u64,
-    user_name: &str,
-) -> Result<()> {
-    match PackageChannelAudit::audit(
-        PackageChannelAudit {
-            package_ident: BuilderPackageIdent(ident),
-            channel: channel,
-            operation: operation,
-            trigger: helpers::trigger_from_request_model(req),
-            requester_id: session_id as i64,
-            requester_name: &user_name,
-            origin: origin,
-        },
-        &*conn,
-    ) {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e.into()),
-    }
-}
-
 fn do_get_channel_packages(
     req: &HttpRequest<AppState>,
     pagination: &Query<Pagination>,
-    ident: PackageIdent,
-    channel: String,
+    ident: &PackageIdent,
+    channel: &str,
 ) -> Result<(Vec<BuilderPackageIdent>, i64)> {
     let opt_session_id = match authorize_session(&req, None) {
         Ok(session) => Some(session.get_id()),
@@ -469,15 +457,15 @@ fn do_get_channel_packages(
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     Channel::list_packages(
-        ListChannelPackages {
-            ident: &BuilderPackageIdent(ident.clone().into()),
+        &ListChannelPackages {
+            ident: &BuilderPackageIdent(ident.clone()),
             visibility: &helpers::visibility_for_optional_session(
                 &req,
                 opt_session_id,
                 &ident.origin,
             ),
             origin: &ident.origin,
-            channel: &channel,
+            channel,
             page: page as i64,
             limit: per_page as i64,
         },
@@ -489,8 +477,8 @@ fn do_get_channel_packages(
 fn do_get_channel_package(
     req: &HttpRequest<AppState>,
     qtarget: &Query<Target>,
-    ident: PackageIdent,
-    channel: String,
+    ident: &PackageIdent,
+    channel: &str,
 ) -> Result<String> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(session) => Some(session.get_id()),
@@ -514,7 +502,7 @@ fn do_get_channel_package(
     // below
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        match memcache.get_package(req_ident.clone().into(), &channel, &target) {
+        match memcache.get_package(&req_ident, channel, &target) {
             Some(pkg_json) => {
                 trace!("Channel package {} {} Cache Hit!", channel, ident);
                 let p: Package = match serde_json::from_str(&pkg_json) {
@@ -548,9 +536,9 @@ fn do_get_channel_package(
     };
 
     let pkg = match Channel::get_latest_package(
-        GetLatestPackage {
+        &GetLatestPackage {
             ident: &BuilderPackageIdent(ident.clone()),
-            channel: &channel,
+            channel,
             target: &target,
             visibility: &helpers::visibility_for_optional_session(
                 req,
@@ -577,7 +565,7 @@ fn do_get_channel_package(
 
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        memcache.set_package(req_ident.clone(), &json_body, &channel, &target);
+        memcache.set_package(&req_ident, &json_body, channel, &target);
     }
 
     Ok(json_body)
@@ -616,11 +604,11 @@ pub fn channels_for_package_ident(
 
 fn postprocess_channel_package_list(
     _req: &HttpRequest<AppState>,
-    packages: Vec<BuilderPackageIdent>,
+    packages: &[BuilderPackageIdent],
     count: i64,
-    pagination: Query<Pagination>,
+    pagination: &Query<Pagination>,
 ) -> HttpResponse {
-    let (start, _) = helpers::extract_pagination(&pagination);
+    let (start, _) = helpers::extract_pagination(pagination);
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
         0 => count,
@@ -633,7 +621,7 @@ fn postprocess_channel_package_list(
     );
 
     let body =
-        helpers::package_results_json(&packages, count as isize, start as isize, stop as isize);
+        helpers::package_results_json(packages, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()

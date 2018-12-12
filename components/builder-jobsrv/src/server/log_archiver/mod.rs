@@ -49,7 +49,7 @@ pub trait LogArchiver: Send {
 /// Create appropriate LogArchiver variant based on configuration values.
 pub fn from_config(config: &ArchiveCfg) -> Result<Box<LogArchiver>> {
     match config.backend {
-        ArchiveBackend::Local => Ok(Box::new(local::LocalArchiver::new(config)?)),
-        ArchiveBackend::S3 => Ok(Box::new(s3::S3Archiver::new(config)?)),
+        ArchiveBackend::Local => Ok(Box::new(local::LocalArchiver::new(&config))),
+        ArchiveBackend::S3 => Ok(Box::new(s3::S3Archiver::new(&config))),
     }
 }

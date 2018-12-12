@@ -53,11 +53,11 @@ pub struct PaginatedResults<'a, T: 'a> {
     range_start: isize,
     range_end: isize,
     total_count: isize,
-    data: &'a Vec<T>,
+    data: &'a [T],
 }
 
 pub fn package_results_json<T: Serialize>(
-    packages: &Vec<T>,
+    packages: &[T],
     count: isize,
     start: isize,
     end: isize,
@@ -153,29 +153,21 @@ pub fn all_visibilities() -> Vec<PackageVisibility> {
 
 pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrigger {
     // TODO: the search strings should be configurable.
-    match req.headers().get(header::USER_AGENT) {
-        Some(ref agent) => match agent.to_str() {
-            Ok(s) => {
-                if s.starts_with("hab/") {
-                    return jobsrv::JobGroupTrigger::HabClient;
-                }
+    if let Some(ref agent) = req.headers().get(header::USER_AGENT) {
+        if let Ok(s) = agent.to_str() {
+            if s.starts_with("hab/") {
+                return jobsrv::JobGroupTrigger::HabClient;
             }
-            Err(_) => (),
-        },
-        None => (),
+        }
     }
 
-    match req.headers().get(header::REFERER) {
-        Some(ref referer) => match referer.to_str() {
+    if let Some(ref referer) = req.headers().get(header::REFERER) {
+        if let Ok(s) = referer.to_str() {
             // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
-            Ok(s) => {
-                if s.contains("http") {
-                    return jobsrv::JobGroupTrigger::BuilderUI;
-                }
+            if s.contains("http") {
+                return jobsrv::JobGroupTrigger::BuilderUI;
             }
-            Err(_) => (),
-        },
-        None => (),
+        }
     }
 
     jobsrv::JobGroupTrigger::Unknown
@@ -184,29 +176,21 @@ pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrig
 // TED remove function above when it's no longer used anywhere
 pub fn trigger_from_request_model(req: &HttpRequest<AppState>) -> PCT {
     // TODO: the search strings should be configurable.
-    match req.headers().get(header::USER_AGENT) {
-        Some(ref agent) => match agent.to_str() {
-            Ok(s) => {
-                if s.starts_with("hab/") {
-                    return PCT::HabClient;
-                }
+    if let Some(ref agent) = req.headers().get(header::USER_AGENT) {
+        if let Ok(s) = agent.to_str() {
+            if s.starts_with("hab/") {
+                return PCT::HabClient;
             }
-            Err(_) => (),
-        },
-        None => (),
+        }
     }
 
-    match req.headers().get(header::REFERER) {
-        Some(ref referer) => match referer.to_str() {
+    if let Some(ref referer) = req.headers().get(header::REFERER) {
+        if let Ok(s) = referer.to_str() {
             // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
-            Ok(s) => {
-                if s.contains("http") {
-                    return PCT::BuilderUi;
-                }
+            if s.contains("http") {
+                return PCT::BuilderUi;
             }
-            Err(_) => (),
-        },
-        None => (),
+        }
     }
 
     PCT::Unknown

@@ -32,7 +32,7 @@ pub struct MemcacheClient {
 }
 
 impl MemcacheClient {
-    pub fn new(config: MemcacheCfg) -> Self {
+    pub fn new(config: &MemcacheCfg) -> Self {
         trace!("Creating memcache client, hosts: {:?}", config.hosts);
         let memcache_host_strings: Vec<String> = config
             .hosts
@@ -48,7 +48,7 @@ impl MemcacheClient {
 
     pub fn set_package(
         &mut self,
-        ident: PackageIdent,
+        ident: &PackageIdent,
         pkg_json: &str,
         channel: &str,
         target: &str,
@@ -86,18 +86,18 @@ impl MemcacheClient {
 
     pub fn get_package(
         &mut self,
-        package: PackageIdent,
+        ident: &PackageIdent,
         channel: &str,
         target: &str,
     ) -> Option<String> {
-        let package_namespace = self.package_namespace(&package.origin, &package.name);
-        let channel_namespace = self.channel_namespace(&package.origin, channel);
+        let package_namespace = self.package_namespace(&ident.origin, &ident.name);
+        let channel_namespace = self.channel_namespace(&ident.origin, channel);
 
         trace!(
             "Getting {}/{}/{} from memcached",
             target,
             channel,
-            package.to_string()
+            ident.to_string()
         );
 
         let start_time = PreciseTime::now();
@@ -105,7 +105,7 @@ impl MemcacheClient {
             "{}/{}/{}:{}:{}",
             target,
             channel,
-            package.to_string(),
+            ident.to_string(),
             channel_namespace,
             package_namespace
         )) {
@@ -122,8 +122,8 @@ impl MemcacheClient {
         }
     }
 
-    pub fn clear_cache_for_package(&mut self, package: PackageIdent) {
-        self.reset_namespace(&package_ns_key(&package.origin, &package.name));
+    pub fn clear_cache_for_package(&mut self, ident: &PackageIdent) {
+        self.reset_namespace(&package_ns_key(&ident.origin, &ident.name));
     }
 
     pub fn clear_cache_for_channel(&mut self, origin: &str, channel: &str) {

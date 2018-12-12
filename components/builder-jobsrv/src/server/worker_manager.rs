@@ -45,7 +45,7 @@ use crate::error::{Error, Result};
 use super::metrics::Gauge;
 use super::scheduler::ScheduleClient;
 
-const WORKER_MGR_ADDR: &'static str = "inproc://work-manager";
+const WORKER_MGR_ADDR: &str = "inproc://work-manager";
 const WORKER_TIMEOUT_MS: u64 = 33_000; // 33 sec
 const DEFAULT_POLL_TIMEOUT_MS: u64 = 60_000; // 60 secs
 const JOB_TIMEOUT_CONVERT_MS: u64 = 60_000; // Conversion from mins to milli-seconds
@@ -70,7 +70,7 @@ impl Default for WorkerMgrClient {
     fn default() -> WorkerMgrClient {
         let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         socket.connect(WORKER_MGR_ADDR).unwrap();
-        WorkerMgrClient { socket: socket }
+        WorkerMgrClient { socket }
     }
 }
 
@@ -122,7 +122,7 @@ impl Worker {
         self.canceling = true;
     }
 
-    pub fn is_canceling(&mut self) -> bool {
+    pub fn is_canceling(&self) -> bool {
         self.canceling
     }
 
@@ -159,39 +159,39 @@ pub struct WorkerMgr {
 }
 
 impl WorkerMgr {
-    pub fn new(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<Self> {
-        let hb_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::SUB)?;
-        let rq_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER)?;
-        let work_mgr_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
-        rq_sock.set_router_mandatory(true)?;
-        hb_sock.set_subscribe(&[])?;
+    pub fn new(cfg: &Config, datastore: &DataStore, db: DbPool) -> Self {
+        let hb_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::SUB).unwrap();
+        let rq_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER).unwrap();
+        let work_mgr_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
+        rq_sock.set_router_mandatory(true).unwrap();
+        hb_sock.set_subscribe(&[]).unwrap();
 
         let mut schedule_cli = ScheduleClient::default();
-        schedule_cli.connect()?;
+        schedule_cli.connect().unwrap();
 
-        Ok(WorkerMgr {
+        WorkerMgr {
             datastore: datastore.clone(),
-            db: db,
+            db,
             key_dir: cfg.key_dir.clone(),
-            hb_sock: hb_sock,
-            rq_sock: rq_sock,
-            work_mgr_sock: work_mgr_sock,
-            msg: zmq::Message::new()?,
+            hb_sock,
+            rq_sock,
+            work_mgr_sock,
+            msg: zmq::Message::new().unwrap(),
             workers: LinkedHashMap::new(),
             worker_command: cfg.net.worker_command_addr(),
             worker_heartbeat: cfg.net.worker_heartbeat_addr(),
-            schedule_cli: schedule_cli,
+            schedule_cli,
             job_timeout: cfg.job_timeout,
-        })
+        }
     }
 
     pub fn start(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<JoinHandle<()>> {
-        let mut manager = Self::new(cfg, datastore, db)?;
+        let mut manager = Self::new(cfg, datastore, db);
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new()
             .name("worker-manager".to_string())
             .spawn(move || {
-                manager.run(tx).unwrap();
+                manager.run(&tx).unwrap();
             })
             .unwrap();
         match rx.recv() {
@@ -200,7 +200,7 @@ impl WorkerMgr {
         }
     }
 
-    fn run(&mut self, rz: mpsc::SyncSender<()>) -> Result<()> {
+    fn run(&mut self, rz: &mpsc::SyncSender<()>) -> Result<()> {
         self.work_mgr_sock.bind(WORKER_MGR_ADDR)?;
         println!("Listening for commands on {}", self.worker_command);
         self.rq_sock.bind(&self.worker_command)?;
@@ -274,7 +274,7 @@ impl WorkerMgr {
             // Handle potential work in pending_jobs queue
             let now = Instant::now();
             if process_work
-                || (&now > &(last_processed + Duration::from_millis(DEFAULT_POLL_TIMEOUT_MS)))
+                || (now > (last_processed + Duration::from_millis(DEFAULT_POLL_TIMEOUT_MS)))
             {
                 if let Err(err) = self.process_cancelations() {
                     warn!("Worker-manager unable to process cancels: err {:?}", err);
@@ -363,7 +363,7 @@ impl WorkerMgr {
         // Get the cancel-pending jobs list
         let jobs = self.datastore.get_cancel_pending_jobs()?;
 
-        if jobs.len() > 0 {
+        if !jobs.is_empty() {
             debug!("process_cancelations: Found {} cancels", jobs.len());
         }
 
@@ -552,7 +552,7 @@ impl WorkerMgr {
 
         match OriginSecret::list(&origin, &*conn).map_err(Error::DieselError) {
             Ok(secrets_list) => {
-                if secrets_list.len() > 0 {
+                if !secrets_list.is_empty() {
                     // fetch the private origin encryption key from the database
                     let priv_key = match OriginPrivateEncryptionKey::get(&origin, &*conn)
                         .map_err(Error::DieselError)
@@ -705,7 +705,7 @@ impl WorkerMgr {
         Ok(())
     }
 
-    fn is_job_complete(&mut self, job_id: u64) -> Result<bool> {
+    fn is_job_complete(&self, job_id: u64) -> Result<bool> {
         let mut req = jobsrv::JobGet::new();
         req.set_id(job_id);
 

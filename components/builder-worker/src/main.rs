@@ -28,8 +28,8 @@ use habitat_core as hab_core;
 use crate::hab_core::config::ConfigFile;
 use crate::worker::{server, Config, Error, Result};
 
-const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
-const CFG_DEFAULT_PATH: &'static str = "/hab/svc/builder-worker/config.toml";
+const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-worker/config.toml";
 
 fn main() {
     env_logger::init();
@@ -37,11 +37,11 @@ fn main() {
     debug!("CLI matches: {:?}", matches);
     let config = match config_from_args(&matches) {
         Ok(result) => result,
-        Err(e) => return exit_with(e, 1),
+        Err(e) => return exit_with(&e, 1),
     };
     match start(config) {
         Ok(_) => std::process::exit(0),
-        Err(e) => exit_with(e, 1),
+        Err(e) => exit_with(&e, 1),
     }
 }
 
@@ -65,12 +65,12 @@ fn config_from_args(matches: &clap::ArgMatches) -> Result<Config> {
     let args = matches.subcommand_matches(cmd).unwrap();
     let config = match args.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path)?,
-        None => Config::from_file(CFG_DEFAULT_PATH).unwrap_or(Config::default()),
+        None => Config::from_file(CFG_DEFAULT_PATH).unwrap_or_default(),
     };
     Ok(config)
 }
 
-fn exit_with(err: Error, code: i32) {
+fn exit_with(err: &Error, code: i32) {
     println!("{}", err);
     process::exit(code)
 }

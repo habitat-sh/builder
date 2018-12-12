@@ -42,7 +42,7 @@ lazy_static! {
     );
 }
 
-const DOCKER_HOST_ENVVAR: &'static str = "DOCKER_HOST";
+const DOCKER_HOST_ENVVAR: &str = "DOCKER_HOST";
 
 pub struct DockerExporterSpec {
     pub username: String,
@@ -60,7 +60,7 @@ pub struct DockerExporter<'a> {
     spec: DockerExporterSpec,
     workspace: &'a Workspace,
     bldr_url: &'a str,
-    auth_token: &'a String,
+    auth_token: &'a str,
 }
 
 impl<'a> DockerExporter<'a> {
@@ -69,7 +69,7 @@ impl<'a> DockerExporter<'a> {
         spec: DockerExporterSpec,
         workspace: &'a Workspace,
         bldr_url: &'a str,
-        auth_token: &'a String,
+        auth_token: &'a str,
     ) -> Self {
         DockerExporter {
             spec,
@@ -90,9 +90,11 @@ impl<'a> DockerExporter<'a> {
     pub fn export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
         let dockerd = self.spawn_dockerd().map_err(Error::Exporter)?;
         let exit_status = self.run_export(streamer);
-        self.teardown_dockerd(dockerd)
-            .err()
-            .map(|e| error!("failed to teardown dockerd instance, err={:?}", e));
+
+        if let Some(e) = self.teardown_dockerd(dockerd).err() {
+            error!("failed to teardown dockerd instance, err={:?}", e);
+        }
+
         exit_status
     }
 
@@ -151,7 +153,7 @@ impl<'a> DockerExporter<'a> {
         );
 
         cmd.env_clear();
-        if let Some(_) = env::var_os(RUNNER_DEBUG_ENVVAR) {
+        if env::var_os(RUNNER_DEBUG_ENVVAR).is_some() {
             cmd.env("RUST_LOG", "debug");
         }
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
@@ -198,7 +200,7 @@ impl<'a> DockerExporter<'a> {
         }
 
         let mut cmd = Command::new(&*DOCKERD_PROGRAM);
-        if let Some(_) = env::var_os(RUNNER_DEBUG_ENVVAR) {
+        if env::var_os(RUNNER_DEBUG_ENVVAR).is_some() {
             cmd.arg("-D");
         }
         cmd.arg("-H");

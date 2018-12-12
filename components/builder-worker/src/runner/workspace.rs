@@ -37,12 +37,12 @@ impl Workspace {
     {
         let root = data_path.as_ref().join(job.get_id().to_string());
         Workspace {
-            job: job,
+            job,
             out: root.join("out"),
             src: root.join("src"),
             studio: root.join("studio"),
             ns_dir: root.join("airlock-ns"),
-            root: root,
+            root,
         }
     }
 
@@ -133,7 +133,7 @@ impl StudioBuild {
     pub fn parse_into(env: &mut StudioBuild, buf: &[u8]) {
         let content = String::from_utf8_lossy(buf).into_owned();
         for line in content.lines() {
-            let split: Vec<&str> = line.split("=").map(|e| e.trim()).collect();
+            let split: Vec<&str> = line.split('=').map(|e| e.trim()).collect();
             match split[0] {
                 "pkg_origin" => env.pkg_origin = split[1].to_string(),
                 "pkg_name" => env.pkg_name = split[1].to_string(),

@@ -22,7 +22,6 @@ mod util;
 mod workspace;
 
 use std::fs;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
@@ -62,22 +61,22 @@ use crate::vcs::VCS;
 // on habitat_common it didnt' seem worth it to add a dependency for only this constant. Probably
 // means that the constant should be relocated to habitat_core.
 /// Environment variable to disable progress bars in Habitat programs
-const NONINTERACTIVE_ENVVAR: &'static str = "HAB_NONINTERACTIVE";
+const NONINTERACTIVE_ENVVAR: &str = "HAB_NONINTERACTIVE";
 
 /// Environment variable to enable or disable debug output in runner's studio
-const RUNNER_DEBUG_ENVVAR: &'static str = "BUILDER_RUNNER_DEBUG";
+const RUNNER_DEBUG_ENVVAR: &str = "BUILDER_RUNNER_DEBUG";
 /// Environment variable to enable or disable dev mode.
-const DEV_MODE: &'static str = "DEV_MODE";
+const DEV_MODE: &str = "DEV_MODE";
 /// In-memory zmq address of Job RunnerMgr
-const INPROC_ADDR: &'static str = "inproc://runner";
+const INPROC_ADDR: &str = "inproc://runner";
 /// Protocol message to indicate the Job Runner has received a work request
-const WORK_ACK: &'static str = "A";
+const WORK_ACK: &str = "A";
 /// Protocol message to indicate the Job Runner has completed a work request
-const WORK_COMPLETE: &'static str = "C";
+const WORK_COMPLETE: &str = "C";
 /// Protocol message to indicate the Runner Cli is sending a work request
-const WORK_START: &'static str = "S";
+const WORK_START: &str = "S";
 /// Protocol message to indicate the Runner Cli is sending a cancel request
-const WORK_CANCEL: &'static str = "X";
+const WORK_CANCEL: &str = "X";
 
 pub const RETRIES: u64 = 10;
 pub const RETRY_WAIT: u64 = 60000;
@@ -96,17 +95,17 @@ impl Runner {
         let depot_cli = ApiClient::new(&config.bldr_url);
 
         let log_path = config.log_path.clone();
-        let mut logger = Logger::init(PathBuf::from(log_path), "builder-worker.log");
+        let mut logger = Logger::init(log_path, "builder-worker.log");
         logger.log_ident(net_ident);
         let bldr_token = bldr_core::access_token::generate_bldr_token(&config.key_dir).unwrap();
 
         Runner {
             workspace: Workspace::new(&config.data_path, job),
-            config: config,
-            depot_cli: depot_cli,
-            logger: logger,
-            bldr_token: bldr_token,
-            cancel: cancel,
+            config,
+            depot_cli,
+            logger,
+            bldr_token,
+            cancel,
         }
     }
 
@@ -118,7 +117,7 @@ impl Runner {
         &mut self.workspace.job
     }
 
-    fn is_canceled(&mut self) -> bool {
+    fn is_canceled(&self) -> bool {
         self.cancel.load(Ordering::SeqCst)
     }
 
@@ -362,7 +361,7 @@ impl Runner {
         self.teardown();
     }
 
-    pub fn run(mut self, tx: mpsc::Sender<Job>) -> Result<()> {
+    pub fn run(mut self, tx: &mpsc::Sender<Job>) -> Result<()> {
         // TBD (SA) - Spin up a LogStreamer first thing indpendendly of setup.
         // Currently we need to do it as part of setup because the log file to be
         // streamed lives inside of the workspace, which is created by setup.
@@ -515,7 +514,7 @@ impl Runner {
             posix_perm::set_owner(
                 &self.config.data_path,
                 users::get_current_username()
-                    .unwrap_or(String::from("root"))
+                    .unwrap_or_else(|| String::from("root"))
                     .as_str(),
                 STUDIO_GROUP,
             )?;
@@ -563,7 +562,7 @@ impl Runner {
             studio::studio_gid(),
         )?;
 
-        JobStreamer::new(&self.workspace)
+        Ok(JobStreamer::new(&self.workspace))
     }
 
     fn teardown(&mut self) {
@@ -600,18 +599,24 @@ pub struct RunnerCli {
     msg: zmq::Message,
 }
 
+impl Default for RunnerCli {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RunnerCli {
     /// Create a new Job Runner client
     pub fn new() -> Self {
         let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         RunnerCli {
-            sock: sock,
+            sock,
             msg: zmq::Message::new().unwrap(),
         }
     }
 
     /// Return a poll item used in `zmq::poll` for awaiting messages on multiple sockets
-    pub fn as_poll_item<'a>(&'a self, events: i16) -> zmq::PollItem<'a> {
+    pub fn as_poll_item(&self, events: i16) -> zmq::PollItem {
         self.sock.as_poll_item(events)
     }
 
@@ -672,11 +677,11 @@ impl RunnerMgr {
     /// Start the Job Runner
     pub fn start(config: Arc<Config>, net_ident: Arc<String>) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(0);
-        let mut runner = Self::new(config, net_ident).unwrap();
+        let mut runner = Self::new(config, net_ident);
         let handle = thread::Builder::new()
             .name("runner".to_string())
             .spawn(move || {
-                runner.run(tx).unwrap();
+                runner.run(&tx).unwrap();
             })
             .unwrap();
         match rx.recv() {
@@ -685,19 +690,19 @@ impl RunnerMgr {
         }
     }
 
-    fn new(config: Arc<Config>, net_ident: Arc<String>) -> Result<Self> {
-        let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER)?;
-        Ok(RunnerMgr {
-            config: config,
+    fn new(config: Arc<Config>, net_ident: Arc<String>) -> Self {
+        let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
+        RunnerMgr {
+            config,
             msg: zmq::Message::new().unwrap(),
-            net_ident: net_ident,
-            sock: sock,
+            net_ident,
+            sock,
             cancel: Arc::new(AtomicBool::new(false)),
-        })
+        }
     }
 
     // Main loop for server
-    fn run(&mut self, rz: mpsc::SyncSender<()>) -> Result<()> {
+    fn run(&mut self, rz: &mpsc::SyncSender<()>) -> Result<()> {
         self.sock.bind(INPROC_ADDR)?;
         rz.send(()).unwrap();
 
@@ -753,7 +758,7 @@ impl RunnerMgr {
 
         let _ = thread::Builder::new()
             .name("job_runner".to_string())
-            .spawn(move || runner.run(tx))
+            .spawn(move || runner.run(&tx))
             .unwrap();
 
         Ok(())
@@ -783,7 +788,7 @@ impl RunnerMgr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol::{jobsrv, originsrv};
+    use crate::protocol::{jobsrv, originsrv};
 
     #[test]
     fn extract_origin_from_job() {

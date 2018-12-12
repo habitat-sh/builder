@@ -35,17 +35,17 @@ impl fmt::Debug for Pool {
 }
 
 impl Pool {
-    pub fn new(config: &DataStoreCfg) -> Result<Pool> {
+    pub fn new(config: &DataStoreCfg) -> Self {
         debug!("Creating new Pool, config: {:?}", config);
         loop {
             let manager = PostgresConnectionManager::new(config, TlsMode::None)
-                .map_err(Error::PostgresConnect)?;
+                .expect("Failed to connect to Postgres");
             match r2d2::Pool::builder()
                 .max_size(config.pool_size)
                 .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
                 .build(manager)
             {
-                Ok(pool) => return Ok(Pool { inner: pool }),
+                Ok(pool) => return Pool { inner: pool },
                 Err(e) => error!(
                     "Error initializing connection pool to Postgres, will retry: {}",
                     e

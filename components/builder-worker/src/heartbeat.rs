@@ -27,11 +27,11 @@ use crate::error::Result;
 /// Polling timeout for HeartbeatMgr
 const HEARTBEAT_MS: i64 = 30_000;
 /// In-memory zmq address for HeartbeatMgr
-const INPROC_ADDR: &'static str = "inproc://heartbeat";
+const INPROC_ADDR: &str = "inproc://heartbeat";
 /// Protocol message to notify the HeartbeatMgr to begin pulsing
-const CMD_PULSE: &'static str = "R";
+const CMD_PULSE: &str = "R";
 /// Protocol message to notify the HeartbeatMgr to pause pulsing
-const CMD_PAUSE: &'static str = "P";
+const CMD_PAUSE: &str = "P";
 
 #[cfg(target_os = "linux")]
 fn worker_os() -> proto::Os {
@@ -85,8 +85,8 @@ impl HeartbeatCli {
         state.set_os(worker_os());
         HeartbeatCli {
             msg: zmq::Message::new().unwrap(),
-            sock: sock,
-            state: state,
+            sock,
+            state,
         }
     }
 
@@ -139,12 +139,12 @@ impl HeartbeatMgr {
     /// Start the HeartbeatMgr
     pub fn start(config: &Config, net_ident: String) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(0);
-        let mut heartbeat = Self::new(net_ident)?;
+        let mut heartbeat = Self::new(net_ident);
         let jobsrv_addrs = config.jobsrv_addrs();
         let handle = thread::Builder::new()
             .name("heartbeat".to_string())
             .spawn(move || {
-                heartbeat.run(tx, jobsrv_addrs).unwrap();
+                heartbeat.run(&tx, jobsrv_addrs).unwrap();
             })
             .unwrap();
         match rx.recv() {
@@ -153,29 +153,29 @@ impl HeartbeatMgr {
         }
     }
 
-    fn new(net_ident: String) -> Result<Self> {
-        let pub_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::PUB)?;
-        let cli_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::REP)?;
-        pub_sock.set_immediate(true)?;
-        pub_sock.set_sndhwm(1)?;
-        pub_sock.set_linger(0)?;
+    fn new(net_ident: String) -> Self {
+        let pub_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::PUB).unwrap();
+        let cli_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::REP).unwrap();
+        pub_sock.set_immediate(true).unwrap();
+        pub_sock.set_sndhwm(1).unwrap();
+        pub_sock.set_linger(0).unwrap();
         let mut heartbeat = proto::Heartbeat::new();
         heartbeat.set_endpoint(net_ident);
         heartbeat.set_os(worker_os());
         heartbeat.set_state(proto::WorkerState::Ready);
-        Ok(HeartbeatMgr {
+        HeartbeatMgr {
             state: PulseState::default(),
-            pub_sock: pub_sock,
-            cli_sock: cli_sock,
-            heartbeat: heartbeat,
+            pub_sock,
+            cli_sock,
+            heartbeat,
             msg: zmq::Message::new().unwrap(),
-        })
+        }
     }
 
     // Main loop for server
     fn run(
         &mut self,
-        rz: mpsc::SyncSender<()>,
+        rz: &mpsc::SyncSender<()>,
         jobsrv_addrs: Vec<(String, String, String)>,
     ) -> Result<()> {
         for (hb, _, _) in jobsrv_addrs {

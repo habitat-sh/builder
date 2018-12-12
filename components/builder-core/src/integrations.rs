@@ -96,7 +96,7 @@ where
             }
         },
         None => {
-            let e = format!("No receiver key pair specified");
+            let e = "No receiver key pair specified".to_string();
             error!("No receiver key pair specified");
             return Err(Error::DecryptError(e));
         }

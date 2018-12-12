@@ -115,9 +115,9 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
         // Optional keys with string values
         if let Some(val) = opts.get("custom_tag") {
             if !val.is_string() {
-                return Err(Error::InvalidIntegrations(format!(
-                    "project integration custom_tag value must be a string"
-                )));
+                return Err(Error::InvalidIntegrations(
+                    "project integration custom_tag value must be a string".to_string(),
+                ));
             }
         }
     }
@@ -125,9 +125,9 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
     {
         let org_integrations = workspace.job.get_integrations();
         if org_integrations.is_empty() {
-            return Err(Error::InvalidIntegrations(format!(
-                "missing Docker credentials from origin integrations"
-            )));
+            return Err(Error::InvalidIntegrations(
+                "missing Docker credentials from origin integrations".to_string(),
+            ));
         }
         let org_integration = org_integrations.first().unwrap();
 
@@ -218,8 +218,8 @@ pub fn docker_exporter_spec(workspace: &Workspace) -> DockerExporterSpec {
             .as_str()
             .expect("password value is a string")
             .to_string(),
-        registry_type: registry_type,
-        registry_url: registry_url,
+        registry_type,
+        registry_url,
         docker_hub_repo_name: opts
             .get("docker_hub_repo_name")
             .expect("docker_hub_repo_name key is present")
@@ -241,7 +241,7 @@ pub fn docker_exporter_spec(workspace: &Workspace) -> DockerExporterSpec {
             .expect("version_release_tag key is present")
             .as_bool()
             .expect("version_release_tag value is a bool"),
-        custom_tag: custom_tag,
+        custom_tag,
     }
 }
 

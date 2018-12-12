@@ -59,6 +59,7 @@ impl FromStr for GitHubEvent {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
     Counter::GitHubEvent.increment();
 
@@ -83,7 +84,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
     // Authenticate the hook
     let github = &req.state().github;
     let gh_signature = match req.headers().get(headers::XHUBSIGNATURE) {
-        Some(ref sig) => sig.clone(),
+        Some(sig) => sig.clone(),
         None => {
             warn!("Received a GitHub hook with no signature");
             return Error::BadRequest.into();
@@ -112,6 +113,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn repo_file_content(req: HttpRequest<AppState>) -> HttpResponse {
     if let Err(err) = authorize_session(&req, None) {
         return err.into();
@@ -201,7 +203,7 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
         &hook.repository.clone_url,
         &hook.pusher.name,
         account_id,
-        plans,
+        &plans,
     )
 }
 
@@ -210,7 +212,7 @@ fn build_plans(
     repo_url: &str,
     pusher: &str,
     account_id: Option<u64>,
-    plans: Vec<Plan>,
+    plans: &[Plan],
 ) -> HttpResponse {
     let mut request = JobGroupSpec::new();
 

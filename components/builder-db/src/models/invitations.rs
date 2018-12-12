@@ -81,9 +81,9 @@ impl OriginInvitation {
 
     pub fn ignore(invite_id: u64, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        return diesel::update(origin_invitations::table.find(invite_id as i64))
+        diesel::update(origin_invitations::table.find(invite_id as i64))
             .set(origin_invitations::ignored.eq(true))
-            .execute(conn);
+            .execute(conn)
     }
 
     pub fn rescind(invite_id: u64, conn: &PgConnection) -> QueryResult<usize> {

@@ -314,10 +314,10 @@ impl Package {
         result
     }
 
-    pub fn create(package: NewPackage, conn: &PgConnection) -> QueryResult<Package> {
+    pub fn create(package: &NewPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let package = diesel::insert_into(origin_packages::table)
-            .values(&package)
+            .values(package)
             .returning(ALL_COLUMNS)
             .on_conflict_do_nothing()
             .get_result::<Package>(conn)?;
@@ -429,7 +429,7 @@ impl Package {
     }
 
     pub fn list_package_versions(
-        ident: BuilderPackageIdent,
+        ident: &BuilderPackageIdent,
         visibility: Vec<PackageVisibility>,
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginPackageVersions>> {
@@ -509,7 +509,7 @@ impl Package {
         origin_packages::table.select(ALL_COLUMNS)
     }
     pub fn list_package_platforms(
-        ident: BuilderPackageIdent,
+        ident: &BuilderPackageIdent,
         visibilities: Vec<PackageVisibility>,
         conn: &PgConnection,
     ) -> QueryResult<Vec<BuilderPackageTarget>> {
@@ -544,7 +544,7 @@ impl PackageWithChannelPlatform {
 fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
     ident
         .to_string()
-        .split("/")
+        .split('/')
         .map(|s| s.to_string())
         .filter(|s| s != "")
         .collect()
@@ -576,7 +576,7 @@ impl ToSql<Text, Pg> for BuilderPackageIdent {
 impl BuilderPackageIdent {
     pub fn parts(self) -> Vec<String> {
         self.to_string()
-            .split("/")
+            .split('/')
             .map(|s| s.to_string())
             // We must filter out empty strings from the vec.
             // This sometimes happens hen the origin or the package name are undefined.
@@ -638,7 +638,7 @@ impl FromArchive for NewPackage {
     fn from_archive(archive: &mut PackageArchive) -> hab_core::Result<Self> {
         let ident = match archive.ident() {
             Ok(value) => BuilderPackageIdent(value),
-            Err(e) => return Err(hab_core::Error::from(e)),
+            Err(e) => return Err(e),
         };
 
         let config = match archive.config()? {
@@ -649,19 +649,19 @@ impl FromArchive for NewPackage {
         let exposes = archive
             .exposes()?
             .into_iter()
-            .map(|e| e as i32)
+            .map(i32::from)
             .collect::<Vec<i32>>();
 
         let deps = archive
             .deps()?
             .into_iter()
-            .map(|d| BuilderPackageIdent(d))
+            .map(BuilderPackageIdent)
             .collect::<Vec<BuilderPackageIdent>>();
 
         let tdeps = archive
             .tdeps()?
             .into_iter()
-            .map(|d| BuilderPackageIdent(d))
+            .map(BuilderPackageIdent)
             .collect::<Vec<BuilderPackageIdent>>();
 
         // Some of the values here are made up because they are required in the db but not
@@ -672,13 +672,13 @@ impl FromArchive for NewPackage {
             origin: ident.origin().to_string(),
             manifest: archive.manifest()?,
             target: BuilderPackageTarget(archive.target()?),
-            deps: deps,
-            tdeps: tdeps,
-            exposes: exposes,
-            config: config,
+            deps,
+            tdeps,
+            exposes,
+            config,
             checksum: archive.checksum()?,
             name: ident.name.to_string(),
-            owner_id: 999999999999,
+            owner_id: 999_999_999_999,
             visibility: PackageVisibility::Public,
         })
     }
@@ -755,7 +755,7 @@ impl Into<PackageIdentWithChannelPlatform> for PackageWithChannelPlatform {
             version: self.ident.version.clone(),
             release: self.ident.release.clone(),
             channels: self.channels,
-            platforms: platforms,
+            platforms,
         }
     }
 }

@@ -56,11 +56,12 @@ impl PartialEq for HeapEntry {
 }
 
 fn short_name(name: &str) -> String {
-    let parts: Vec<&str> = name.split("/").collect();
+    let parts: Vec<&str> = name.split('/').collect();
     assert!(parts.len() >= 2);
     format!("{}/{}", parts[0], parts[1])
 }
 
+#[derive(Default)]
 pub struct PackageGraph {
     package_max: usize,
     package_map: HashMap<String, (usize, NodeIndex)>,
@@ -71,21 +72,14 @@ pub struct PackageGraph {
 
 impl PackageGraph {
     pub fn new() -> Self {
-        PackageGraph {
-            package_max: 0,
-            package_map: HashMap::new(),
-            latest_map: HashMap::new(),
-            package_names: Vec::new(),
-            graph: Graph::<usize, usize>::new(),
-        }
+        PackageGraph::default()
     }
 
     fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
         let short_name = short_name(name);
 
-        let id = if self.package_map.contains_key(&short_name) {
-            let val = *self.package_map.get(&short_name).unwrap();
-            val
+        if self.package_map.contains_key(&short_name) {
+            self.package_map[&short_name]
         } else {
             self.package_names.push(short_name.clone());
             assert_eq!(self.package_names[self.package_max], short_name);
@@ -93,12 +87,10 @@ impl PackageGraph {
             let node_index = self.graph.add_node(self.package_max);
             self.package_map
                 .insert(short_name.clone(), (self.package_max, node_index));
-            self.package_max = self.package_max + 1;
+            self.package_max += 1;
 
             (self.package_max - 1, node_index)
-        };
-
-        id
+        }
     }
 
     pub fn build<T>(&mut self, packages: T) -> (usize, usize)
@@ -124,7 +116,7 @@ impl PackageGraph {
             return true;
         }
 
-        let (_, pkg_node) = *self.package_map.get(&pkg_short_name).unwrap();
+        let (_, pkg_node) = self.package_map[&pkg_short_name];
 
         // Temporarily remove edges
         let mut saved_nodes = Vec::new();
@@ -148,7 +140,7 @@ impl PackageGraph {
 
             // No-op if dep hasn't been added yet
             if self.package_map.contains_key(&dep_short_name) {
-                let (_, dep_node) = *self.package_map.get(&dep_short_name).unwrap();
+                let (_, dep_node) = self.package_map[&dep_short_name];
                 dep_nodes.push(dep_node);
 
                 self.graph.extend_with_edges(&[(dep_node, pkg_node)]);
@@ -178,6 +170,7 @@ impl PackageGraph {
         !circular_dep
     }
 
+    #[allow(clippy::map_entry)]
     pub fn extend(&mut self, package: &originsrv::OriginPackage) -> (usize, usize) {
         let name = format!("{}", package.get_ident());
         let (pkg_id, pkg_node) = self.generate_id(&name);
@@ -189,7 +182,7 @@ impl PackageGraph {
 
         let add_deps = if self.latest_map.contains_key(&short_name) {
             let skip_update = {
-                let latest = self.latest_map.get(&short_name).unwrap();
+                let latest = &self.latest_map[&short_name];
                 pkg_ident < *latest
             };
 
@@ -242,7 +235,7 @@ impl PackageGraph {
                 Ok(deps) => {
                     for n in deps {
                         let name = self.package_names[n].clone();
-                        let ident = format!("{}", self.latest_map.get(&name).unwrap());
+                        let ident = format!("{}", self.latest_map[&name]);
                         v.push((name, ident));
                     }
                 }
@@ -310,7 +303,7 @@ impl PackageGraph {
         let mut v = Vec::new();
         let mut heap = BinaryHeap::new();
 
-        for (_, pkg_id) in &self.package_map {
+        for pkg_id in self.package_map.values() {
             let (index, node) = *pkg_id;
 
             match rdeps(&self.graph, node) {
@@ -329,7 +322,7 @@ impl PackageGraph {
         while (i < max) && !heap.is_empty() {
             let he = heap.pop().unwrap();
             v.push((self.package_names[he.pkg_index].clone(), he.rdep_count));
-            i = i + 1;
+            i += 1;
         }
 
         v

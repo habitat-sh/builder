@@ -12,4 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub const BUILDER_KEY_NAME: &'static str = "bldr";
+pub const BUILDER_KEY_NAME: &str = "bldr";
