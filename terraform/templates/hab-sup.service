@@ -6,6 +6,7 @@ Environment=RUST_LOG=${log_level}
 Environment=HAB_STATS_ADDR=localhost:8125
 ExecStartPre=/bin/bash -c "/bin/systemctl set-environment SSL_CERT_FILE=$(hab pkg path core/cacerts)/ssl/cert.pem"
 ExecStart=/bin/hab run ${flags}
+ExecStop=/bin/hab sup term
 KillMode=process
 LimitNOFILE=65535
 

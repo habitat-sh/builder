@@ -4,40 +4,36 @@ This is the web application for Builder. It's a single-page application built wi
 
 ## Development Setup
 
-### Configuration
+This section outlines how to get the Builder Web UI running for development on the Host OS, while the backend Builder API service runs inside a Guest VM.
 
-Copy habitat.conf.sample.js to habitat.conf.js to enable runtime configuration in development.
+This involves a bit more configuration and steps to get running, however it optimizes and speeds up the UI development workflow.
 
-The configuration file looks like this:
+While it's possible to run this application without a concurrently running Builder API service, you won't be able to perform the kinds of actions that rely on that API (like create an origin, list and browse packages, sign in and out, and so on).
 
-```js
-habitatConfig({
-    docs_url: "https://www.habitat.sh/docs",
-    environment: "production",
-    github_client_id: "0c2f738a7d0bd300de10",
-    source_code_url: "https://github.com/habitat-sh/habitat",
-    tutorials_url: "https://www.habitat.sh/learn",
-    www_url: "https://www.habitat.sh",
-    ...
-});
+Therefore, these steps are part of the setup of the full dev environment that is outlined in the overall [Builder  Development](../../DEVELOPING.md) doc.
+
+### Prerequisites
+
+You should have gone through the steps in the Builder Development document to set up and configure the Builder API service, and created your Github app.
+
+You will need the Github app id and client id for configuration below.  Your Github app should be pointing to `localhost:3000` for the redirect.
+
+### Repository Setup
+
+Select a location to clone the Builder repo on your Host OS, eg, `~/Workspace` (this directory will be referred to as ${BUILDER_SRC_ROOT} in the sections below)
+
 ```
-### Running the Builder API Service
+cd ${BUILDER_SRC_ROOT}
+git clone https://github.com/habitat-sh/builder.git
+```
 
-While it's possible to run this application without a concurrently running Builder API service, you won't be able to perform the kinds of actions that rely on that API (like create an origin, list and browse packages, sign in and out, and so on). To stand up a Builder API service locally, see the [BUILDER_DEV](../../BUILDER_DEV.md) doc.
+### Host OS Provisioning
 
-Also note that by default, the `bldr-run` task described in that document builds this app and starts a `web` process that serves it over port 3000. Since the dev-setup instructions below are also configured to use port 3000 (the OAuth app we use in development requires it), you could end up with a port conflict or a dev service running on a port other than 3000.
+You will need to install `node`.
 
-There are couple of things you can do to avoid this:
+We suggest using [NVM](https://github.com/creationix/nvm) (Node Version Manager) to install the version of Node specified in [.nvmrc](.nvmrc). Follow [the instructions in the NVM docs](https://github.com/creationix/nvm#installation) to set that up.
 
-  * If you're running `bldr-run` in a container or VM, and you've mapped port 3000 from the guest onto your local machine, remove that mapping to allow the `web` process to continue running on port 3000 on the guest, and you to run on port 3000 locally without a conflict. This is a good option of you're a regular contributor to the UI. Some providers (e.g., VirtualBox) also allow you to change this mapping in the UI without requiring a restart.
-
-  * Set up a custom GitHub OAuth application to run the dev service somewhere other than `localhost:3000`. See below for instructions on how to do that.
-
-### Installing Node
-
-We suggest using [NVM](https://github.com/creationix/nvm) (Node Version Manager) to install the version of Node specified in  [.nvmrc](.nvmrc). Follow [the instructions in the NVM docs](https://github.com/creationix/nvm#installation) to set that up.
-
-Once NVM is installed (you can verify with `nvm --version`), `cd` into `components/builder-web` and run:
+Once NVM is installed (you can verify with `nvm --version`), `cd` into `${BUILDER_SRC_ROOT}/components/builder-web` and run:
 
 ```
 nvm install
@@ -50,6 +46,12 @@ node --version
 ```
 
 ... which should now match what's in `.nvmrc`.
+
+### Configuration
+
+In the `builder-web` directory, copy the `habitat.conf.sample.js` to `habitat.conf.js` to set up your development runtime configuration.
+
+Update the *github_app_id* and *oauth_client_id* fields with the values from your Github app.
 
 ### Running the `builder-web` server
 
@@ -73,37 +75,6 @@ www_url: "http://localhost:4567",
 ```
 
 See the [www README](../../www/README.md) for help setting it up.
-
-## Setting up a Custom OAuth Application
-
-By default, `builder-web` is configured to use a preconfigured dev github oauth application. This should suffice as long as you intend to use `http://localhost:3000` as the homepage. If you need to use an alternate host name or port, you will need to setup a separate oauth application and configure `builder-api` with its generated credentials.
-
-To register a new oauth application, go to your github user account settings and navigate to `OAuth Applications` and then click on `Register a new application`.
-
-It is important that the homepage is set to `http://<hostname>:<port>` and the Authorization callback URL is set to `http://<hostname>:<port>/#/sign-in`.
-
-Set the `github.client_id` to the client ID assigned to the oauth application. If you are running the API services, add `config.toml` files for `builder-api` services:
-
-```
-mkdir -p /hab/svc/builder-api
-
-cat <<-EOF > /hab/svc/builder-api/config.toml
-[github]
-client_id       = "<Client ID>"
-client_secret   = "<Client Sescret>"
-EOF
-```
-
-See the [Create Configuration Files](/BUILDER_DEV.md#create-configuration-files) section of the BUILDER_DEV doc for more information.
-
-Once your GitHub OAuth application is created, and the Builder services have been configured with your client ID and secret, you can start the web application by exporting the `URL` environment variable with the value of the endpoint you want to run prior to running `npm start`:
-
-```
-export URL=http://123.45.7.8:5656
-npm start
-```
-
-Remember to adjust your `habitat.conf.js` and oath application settings if you change the default endpoint.
 
 ## Tests
 
@@ -177,16 +148,13 @@ These are guidelines for how to structure and format code in the application.
 
 ## Production
 
-To build the JavaScript and CSS files, run `npm run build`.
+This section is primarily a FYI.
 
-`npm run dist` will build these files and put them along with the index.html and
-other needed files into the dist/ directory. A web server can serve the files in
-the dist directory to run the app.
+The JavaScript and CSS files are built by `npm run build`.
 
-The app is deployed to production with the Builder API, with the configuration
+`npm run dist` build these files and puts them along with the index.html and
+other needed files into the dist/ directory.
+
+The app is deployed to production with the Builder API Proxy service, with the configuration
 in [/terraform](/terraform) and the Habitat plan in
-[/components/builder-api/habitat](/components/builder-api/habitat).
-
-## Additional Documentation
-
-* [Why are there so many files and what do all of them mean?](doc/files.md)
+[/components/builder-api-proxy/habitat](/components/builder-api-proxy/habitat).
