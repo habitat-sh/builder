@@ -1,181 +1,215 @@
-# Builder Services Development Environment
+# Builder Development
 
 ## Overview
 
-This document captures the steps to start and run a Builder environment for development. The builder environment includes the builder services, as well as the depot web site.
+This document outlines the steps to configure and run a Builder environment for development. The Builder dev environment includes the Builder API service, as well as the Builder Web UI.
 
-There are several ways of creating a Builder dev environment - but supporting all operating systems and environments has proven to be untenable. This document includes one officially supported way of creating a Builder dev environment, and links to unsupported ways of creating the dev environment that you may use at your own risk.
+There are potentially multiple ways of creating a Builder dev environment - but supporting various systems and environments has proven to be untenable. This document includes the recommended and supported way of creating a Builder dev environment.
 
-## Pre-Requisites
+## Prerequisites
 
-Note that while these instructions should technically work with any linux environment that habitat supports, we recommend either a VMWare-based VM or bare metal. Other providers (e.g., Docker, VirtualBox) have posed difficulty. For instance, VirtualBox doesn't support forwarding privileged ports, which makes using the web app outside the linux environment challenging.
+* *Linux VM on Mac OS/X Host*. You can use a VMWare Fusion Pro 10 (or later) based VM running on Mac OS/X. Other providers (e.g., Docker, VirtualBox) have posed difficulty. For instance, VirtualBox doesn't support forwarding privileged ports, which makes using the web app outside the Linux environment challenging.
 
-VMWare with Vagrant (and [the supplied Vagrantfile](https://github.com/habitat-sh/builder/blob/master/Vagrantfile)) works well, but Vagrant is not required if you're comfortable with setting up your own VM and port forwarding. For VMWare Fusion 10, adding the following lines to `/Library/Preferences/VMware Fusion/networking` seems to suffice (where 172.16.174.130 is the IP of the VM):
+* *Ubuntu Desktop 18.04 LTS*. Other distributions should work, but this is the one we will support.
+
+* *Decision on where you want to run the Web UI*. If you are doing active Web UI development, then you will likely want to run the UI on your Host (Mac OS). If so, there are some extra steps and configuration changes that will be needed, and those are called out below. See the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) for more info.
+
+## Host OS Provisioning
+
+If you plan to run the UI on the Host (Mac) OS, you will need to ensure that the Builder API port (9636) is forwarded from your VM to your host.
+
+You can do this by making a change to the default NAT configuration.
+
+Add the following line under the `[incomingtcp]` section in your `/Library/Preferences/VMware Fusion/vmnet8/nat.conf`:
 ```
-add_nat_portfwd 8 tcp 80 172.16.174.130 80
-add_nat_portfwd 8 tcp 3000 172.16.174.130 3000
-add_nat_portfwd 8 tcp 9636 172.16.174.130 9636
+9636 = 9636 <VM IP addr>:9636
 ```
 
-### Ports required
-1. 9636 - Intra-supervisor communication
-1. 80 - Web app
-1. 9631 - supervisor api port
-1. 5433 - (nonstandard) posgres port (configurable in [datastore.toml](https://github.com/habitat-sh/builder/blob/master/support/builder/datastore.toml#L3))
+You can use the `ip address` command on your Guest VM to get the IP Address.
 
-### Checkout
-* If you are developing on Linux
-* * Ensure you have curl
-* * `git clone https://github.com/habitat-sh/builder.git /src`
-* If you are developing on a Mac
-* * `git clone https://github.com/habitat-sh/builder.git`
+Then, you will need to re-start the VMWare networking on your host machine, like so:
+```
+sudo /Applications/VMware\ Fusion.app/Contents/Library/vmnet-cli --stop
+sudo /Applications/VMware\ Fusion.app/Contents/Library/vmnet-cli --start
+```
 
-If you are using Linux environment you can run `/src/support/linux/provision.sh` to configure your host
-If you are on a Mac, you will need brew, direnv, habitat, and Docker for Mac
+You can test the API port access from your Host OS after starting Builder services (steps below) by issuing the following from the command line:
 
-### GitHub OAuth Application
-`APP_HOSTNAME` mentioned below, will typically be `localhost`
+```
+curl -v http://localhost:9636/v1/status
+```
 
-1. [Setup a GitHub application](https://github.com/settings/apps/new) for your GitHub organization
+This should return a `200 OK`.
+
+For further reference on NAT and port forwarding in Fusion, please refer to the [NAT Configuration](https://docs.vmware.com/en/VMware-Fusion/10.0/com.vmware.fusion.using.doc/GUID-7D8E5A7D-FF0C-4975-A794-FF5A9AE83234.html) page
+
+## Guest OS Provisioning
+
+Before you can successfully build, you need to provision the OS with some basic tools and configuration.
+
+1. Use `visudo` to grant your account the ability to do passwordless sudo. Add a line similar to the following to the end of your sudoers file: `<username> ALL=(ALL) NOPASSWD: ALL`
+
+2. Run the following provisioning script: `/src/support/linux/provision.sh`
+
+3. Ensure you have your github SSH keys in your `~/.ssh` directory (will need for cloning in the next step)
+
+## Repository Setup
+
+The sections below will walk through the steps for getting the source and configuration ready.
+
+### Builder repo clone
+Select a location to clone the Builder repo on your Linux VM, eg, `~/Workspace` (this directory will be referred to as ${BUILDER_SRC_ROOT} in the sections below)
+
+```
+cd ${BUILDER_SRC_ROOT}
+git clone https://github.com/habitat-sh/builder.git
+```
+
+This will clone the Builder repo into your Workspace directory.
+
+### OAuth application setup
+
+You will need to create an OAuth application in GitHub, and use the private key, client id and client secret from the app to configure Builder's environment (below).
+
+`APP_HOSTNAME` mentioned below, will typically be `localhost`.
+
+However, if you are going to be doing Web UI development, and running the Web UI on your Host OS, then you will need to use `localhost:3000` instead of `localhost` for `APP_HOSTNAME`.
+
+1. [Create a new GitHub application](https://github.com/settings/apps/new) in your GitHub account
+1. Give it a meaningful `GitHub App name`, e.g., "Builder Local Dev"
 1. Set the value of `Homepage URL` to `http://${APP_HOSTNAME}`
 1. Set the value of `User authorization callback URL` to `http://${APP_HOSTNAME}/` (The trailing `/` is *important*)
 1. Set the value of `Webhook URL` to `http://${APP_HOSTNAME}/`
 1. Set Repository metadata, Repository administration, Repository content and Organization members to read only (this is only used for your org so it's safe)
-1. Save and download the private key. It will result in a file like `app-name.date.private-key.pem`
-1. Copy the private key to `${HABITAT_SRC_ROOT}/.secrets/builder-github-app.pem`
-1. Record the the client-id, client-secret, app_id and public page link (in the left sidebar). These will be used for the `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_APP_ID` and `GITHUB_APP_URL` build variables (seen below).
+1. Download and save the private key. It will result in a file like `app-name.date.private-key.pem`
+1. Record the the client-id, client-secret, app_id and public page link (in the left sidebar). These will be used for the `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_APP_ID` and `GITHUB_APP_URL` config variables in the section below.
 
-### Create app env file
+### Builder configuration
 
-1. `cp ${HABITAT_SRC_ROOT}/.secrets/habitat-env.sample ${HABITAT_SRC_ROOT}/.secrets/habitat-env`
-1. Edit `${HABITAT_SRC_ROOT}/.secrets/habitat-env` with the variables from above
-1. Save and close
+1. Copy the GitHub application private key (from section above) to the following location (_Important: name it exactly as shown_) `${BUILDER_SRC_ROOT}/.secrets/builder-github-app.pem`
+1. Make a copy of the sample env file: `cp ${BUILDER_SRC_ROOT}/.secrets/habitat-env.sample ${BUILDER_SRC_ROOT}/.secrets/habitat-env`
+1. Edit the env file with your favorite editor `${BUILDER_SRC_ROOT}/.secrets/habitat-env` and populate the variables appropriately
+1. Save and close the env file
 
-### Studio requirements
+## Builder Services Setup
 
-Ensure you have run `hab setup` in the environment that will be executing the studio, or exported environment variables of `HAB_ORIGIN` and `HAB_AUTO_TOKEN` whose values correspond with the public Builder service. For example:
+### Starting Builder services
+Once the Builder Repo is configured, Builder services can be started inside the Habitat Studio.
 
-```
-export HAB_ORIGIN=habitat
-export HAB_AUTH_TOKEN=<YOUR_PERSONAL_ACCESS_TOKEN>
-```
-
-### Starting the services
-
-From either your VM or Mac:
-
-* `sudo -i # Or your preferred method of running as root`
-* `cd <source path>`
+* `cd ${BUILDER_SRC_ROOT}`
 * `direnv allow`
 * `hab studio enter`
-* `start-builder`
 
-### Merging the shards
+Once inside the Habitat Studio, you should see a welcome message along with a list of useful commands (Use the `dev_docs` command if you need to print out the commands list again).
 
-If you created your development environment before August 17th 2018, you have
-a database that contains 128 shards. You need to merge them into one, or your
-services will flap and spew errors into the log that say "Shard migration
-hasn't been completed successfully".
+You may now start the builder services by issuing the following command: `start-builder`
 
-To migrate your shards, run the following commands from inside your development
-studio:
+This will download and run the latest `stable` Builder packages (you will re-build everything locally in a later step).
 
+Run `hab svc status` to ensure all the services are up.
 
-```
-PGPASSWORD=$(cat /hab/svc/builder-datastore/config/pwfile) tools/merge-shards/merge-shards.sh jobsrv migrate
-PGPASSWORD=$(cat /hab/svc/builder-datastore/config/pwfile) tools/merge-shards/merge-shards.sh sessionsrv migrate
-PGPASSWORD=$(cat /hab/svc/builder-datastore/config/pwfile) tools/merge-shards/merge-shards.sh originsrv migrate
-```
+You can also run `sl` to output the running Supervisor log as needed.
 
-If all goes well, you'll see some messages about things being all good, and
-your services should behave normally. If they don't, exit the studio and
-re-enter.
+### Starting the Web UI (Optional)
 
-Worst case scenario, just `hab studio rm` and start over. Fresh dev
-environments won't have this issue nor will they need to be migrated.
+If you are *NOT* doing UI development and standing up the Web UI on your Host OS, then you don't need to do anything extra. You can just navigate to `${APP_HOSTNAME}/#/sign-in`
 
-### UI Setup
+However, if you *ARE* developing the UI then you will need to follow the instructions in the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) to get the Web UI running on your Host OS.
 
-If you are not doing UI development you just need to navigate to `${APP_HOSTNAME}/#/sign-in`
+### Personal Access Token generation
 
-If you are developing the UI:
+Once the Builder services are up, you should generate a Personal Access Token. Currently, this can only be done via the Web UI.
 
-* Follow the instructions in the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) to get the Web UI running locally.
-* Open up a browser and navigate to http://localhost:3000/#/pkgs - you should see the Habitat UI running locally.
-* In the studio, you will need to run
-* * `ui-dev-mode` to swap out the github application for development on `localhost:3000`
-* * `upload_github_keys` to update the private key from your app with the new shared key for the app connected to `localhost:3000`
-* * Note: Make sure you have copied the private key as described [here](#GitHub OAuth Application)
-
-## Helper functions
-
-* `start-builder` - Run the builder cluster
-* `origin <name>` - Create the core origin. Default: core
-* `project` - Create a project (you can also configure this in the web UI)
-* `build-builder` - Build all the builder components
-* `build-builder <component>` - Ex: `build-builder api` will build the api component for development and load it
-* `dev_docs` - Print the full set of command docs
-
-### Generate a Personal Access Token using the web UI
-
-1. Go to the web UI that you used in the last step
+1. Log into the Web UI - eg, navigate to http://${APP_HOSTNAME}/#/sign-in
 2. Go the Profile page (click on the user icon in the upper right corner to get to it)
 3. Click on the 'Generate Token' button
-4. Save the token somewhere safe (eg, eg, your .bashrc or Hab cli.toml)
+4. Save the token somewhere for later use (eg, your .bashrc or Hab cli.toml, etc.)
 
-Note: If you need to perform commands where you auth with both the prod site, as well as the local site, you will have to switch the auth tokens appropriately.
+Note: If you need to perform commands where you auth with both the prod site, as well as the local site, remember to switch the auth tokens appropriately.
 
-### Create a project using the web UI
+### Origin creation
 
-1. Go the web UI that you used in the last step
-2. Go to the origins page, and select your origin
-3. Click on the 'Connect a plan file' button
-4. Click on 'Install Github App' button to install the Builder Dev app on your github account
-5. Go back to the Packages page (from Step 3), and follow the instructions to link the plan you want to build
+You should now be able to create a `core` origin, as well as an origin for yourself.
 
-Note: your GH app must have access to a repo containing a plan file. Forking `habitat-sh/core-plans` is an easy way to test.
+From within the Habitat Studio, issue the following commands:
 
-## Run a build
-`build-builder`
+* `export HAB_AUTH_TOKEN=<your token>`
+* `origin`
+* `origin <username>`
 
-### Install dependencies in your local Builder env
+This should create the origins appropriately.  Note that the auth token is the Personal Access Token that you generated in the last step.
 
-You may use the `load_package` helper to specify a package to upload. Ex:
+### Seeding base packages
+
+In order to do package builds locally, at a minimum you will need to seed the your dev repo with the latest version of `core/hab-backline`.
+
+From within your Studio, do the following (for example, using the 0.64.1 version of hab-backline):
 
 ```
-load_package /hab/cache/artifacts/core-*.hart
+load_package /hab/cache/artifacts/core-hab-backline-0.64.1-20180928012546-x86_64-linux.hart
 ```
 
 Alternatively, you can use the `on-prem-archive.sh` script from the on-prem repo to do the initial hydration (and sync) of base packages - see the [Synchronizing Packages](#Synchronizing_Packages) section below.
 
-#### Option A: From the Web UI
+### Plan file connection
+
+Currently, connecting a plan file is only available from within the Web UI.
+
+1. Go the Builder Web UI
+2. Click on _My Origins_, and then select your origin
+3. Click on the _Connect a plan file_ button
+4. Click on the _Install Github App_ button to install the Builder Dev app on your github account
+5. Go back to the Packages page (from Step 3), and follow the instructions to link the plan you want to build
+
+Note: your GitHub app must have access to the repo containing the plan file you are testing. Forking `habitat-sh/core-plans` is an easy way to test, or feel free to create your own repo with a test plan.
+
+### Package build
+
+You can test that the plan file you just connected actually builds by issuing a build command. You can do that either via the Builder Web UI, or via the `hab` cli.
+
+### Option A: From the Web UI
 * Navigate to http://${APP_HOSTNAME}/#/pkgs
 * If you are not already logged in, log in.
 * Click on "My origins"
-* Click on "core"
+* Click on your origin
 * Click on the package you wish to build
 * Click on "Latest"
 * Click on "Build latest version"
 * Click on "Build Jobs" and "View the output" to see the job in progress
 * The job should complete successfully! Congrats, you have a working build!
 
-#### Option B: From the Command Line
+### Option B: From the Command Line
 
-Issue the following command (replace `core/nginx` with your origin and package names):
+Issue the following command (replace `origin/package` with your origin and package names):
 
 ```
-hab bldr job start core/nginx
+hab bldr job start origin/package
 ```
 
 This should create a build job, and then dispatch it to the build worker.
 
 You can view the build progress in the web UI or by viewing `/hab/svc/builder-worker/data/876066265100378112/log_pipe-876066265100378112.log`. Replace `876066265100378112` with the group ID output by the `start` command.
 
-Note: you will need to upload additional packages to the core origin for the `core/nginx` build to succeed. Follow the same procedure as for `core/hab-backline`. Currently `core/gcc` and `core/libedit` are required.
+Once the build kicks off, you should be able to see the streaming logs for the build job in the Web UI.
+
+## Developing Builder services
+
+If you are developing the Builder services and changing the back end code, you will want to update the Builder services with the latest code. When first doing this, you will need to issue a full build by doing the following from within your Studio:
+
+`build-builder`
+
+This will build and restart all the services.
+
+Once this is done, you can incrementally change code and re-build only the services that are impacted by specifying the service name, e.g.:
+
+`build-builder api`
+
+## Advanced Usage
 
 ### Receiving metrics
 
 Some services like builder-api and builder-jobsrv send statsd metrics. These are easy to monitor if needed for dev purposes.
+
 The below assumes node and npm is already installed and available.
 
 ```
@@ -184,27 +218,6 @@ statsd-logger
 ```
 
 Once statsd-logger is running, it should receive and display any metrics sent by the services.
-
-### Setting up to run Builder builds in development
-
-Initially, your depot will be empty, which means you won't be able to run a successful build. Minimally, you'll need to upload the current, stable version of `core/hab-backline` (which you'll have installed locally as a result of entering the studio). Follow these steps to prepare an empty depot to run successful builds:
-
-  1. Ensure Builder services are running (e.g., via `start-builder`). `hab svc status` should be able to confirm this.
-
-  1. Browse to your local instance of Builder UI (e.g., http://localhost) and sign in.
-
-  1. Navigate to **My Origins &gt; Create Origin** and make a new origin called `core` using the default settings.
-
-  1. Navigate to your Profile and generate a personal access token.
-
-  1. Using that token and the `load_package` helper, upload your locally installed version of `hab-backline`. For example, for Habitat 0.64.1:
-
-      ```
-      HAB_AUTH_TOKEN=<YOUR_NEWLY_GENERATED_TOKEN> \
-      load_package /hab/cache/artifacts/core-hab-backline-0.64.1-20180928012546-x86_64-linux.hart
-      ```
-
-You should now be able to connect a plan file, and run a build, of a simple package (e.g., one with no direct dependencies).
 
 ### Synchronizing Packages
 

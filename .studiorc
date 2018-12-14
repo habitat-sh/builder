@@ -109,24 +109,13 @@ _build-builder() {
 }
 build-builder() { stop-on-failure _build-builder "$@"; }
 
-ui-dev-mode() {
-  for svc in worker api; do
-  cat <<CONFIG | hab config apply builder-${svc}.default "$(date +%s)"
-[github]
-client_id = "Iv1.732260b62f84db15"
-client_secret = "fc7654ed8c65ccfe014cd339a55e3538f935027a"
-app_id = 5629
-CONFIG
-done
-}
-
 upload_github_keys() {
   if [[ -f "/src/.secrets/builder-github-app.pem" ]]; then
     for svc in worker api; do
       hab file upload "builder-${svc}.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
     done
   else
-    echo "Please follow instruction #6 here: https://github.com/habitat-sh/habitat/blob/master/BUILDER_DEV.md#pre-reqs"
+    echo "Missing GitHub key file. Please follow instructions here: https://github.com/habitat-sh/builder/blob/master/DEVELOPING.md"
     sleep 10
   fi
 }
@@ -215,7 +204,7 @@ declare -A svc_params=(
   [jobsrv]="     -s at-once --bind datastore:builder-datastore.default"
   [worker]="     -s at-once --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default"
   [minio]="      -s at-once"
-  [memcached]="  -s at-once" 
+  [memcached]="  -s at-once"
 )
 
 _stop-builder() {
@@ -268,7 +257,8 @@ origin() {
   local origin=${1:-core}
   if curl --fail localhost/v1/depot/origins \
     -d "{\"name\":\"${origin}\"}" \
-    -H "Authorization:Bearer:${HAB_AUTH_TOKEN}";
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${HAB_AUTH_TOKEN}";
   then
     hab origin key generate "${origin}"
     hab origin key upload --url http://localhost -z "${HAB_AUTH_TOKEN}" -s "${origin}"
@@ -280,7 +270,7 @@ origin() {
 test-builder() {
     if hab sup status > /dev/null 2>&1; then
       echo "Stopping supervisor"
-        hab sup term 
+        hab sup term
         sleep 8
     fi
 
@@ -313,40 +303,42 @@ local_cleanup() {
 }
 
 alias help=dev_docs
+
+welcome() {
+  cat <<WMSG
+Welcome to...
+ ____        _ _     _
+| __ ) _   _(_) | __| | ___ _ __
+|  _ \| | | | | |/ _  |/ _ \  __|
+| |_) | |_| | | | (_| |  __/ |
+|____/ \__,_|_|_|\__,_|\___|_|
+
+Type 'help' for commands
+
+WMSG
+}
+
 dev_docs() {
   cat <<DOCS
-Welcome to the development environment for Habitat & Builder.
 The following commands are available:
-
-1. Building Habitat Web
-  * Ensure you have a unzipped download of packages from http://nunciato-shared-files.s3.amazonaws.com/pkgs.zip in the habitat directory
-  * In the studio (after builder has started)
-  * * origin <name> - create an origin and keys specified by the first argument. Default: core
-  * * load_packages - load all the packages from core
-  * Outside of the studio
-  * * cd components/builder-web
-  * * npm i - install the node packages
-  * * npm load - run the web dev env
-2. Building Builder
-  * build-builder (alias: bb) - build Builder components
-    USAGE: build-builder [COMPONENT]...
-    With no args, build all builder components
-    Valid components: api jobsrv worker
-3. Running Builder
-  * install-packages - Install all dependent packages
-  * start-builder/stop-builder - load/unload Builder services
-    USAGE: start-builder [SERVICE]...
-            stop-builder [SERVICE]...
-    With no args, load/unload all builder services
-    Valid services: api api-proxy cache datastore jobsrv worker minio
-  * ui-dev-mode - helper to switch the github app to localhost:3000
-4. Helpers
-  * psql - wrapper around psql to enable passwordless auth
-  * upload_github_keys - internal function to upload github secret keys to the ring
-  * configure-minio - internal function to create the default minio bucket
-  * test-builder - internal function to build everything and run functional tests
-5. Docs
-  * dev_docs (alias: help)
+  build-builder (alias: bb) - Build all services
+  build-builder [SERVICE]   - Build specific service
+                              Valid: api jobsrv worker
+                              Experimental: api-proxy
+  start-builder             - Start all services
+  start-builder [SERVICE]   - Start specific service
+                              Valid: api api-proxy cache datastore
+                                     jobsrv worker minio
+  stop-builder              - Stop all services
+  stop-builder [SERVICE]    - Stop specific service
+                              Valid: api api-proxy cache datastore
+                                     jobsrv worker minio
+  psql                      - Open psql shell to builder DB
+  origin                    - Create core origin
+  origin [ORIGIN]           - Create specified origin
+  test-builder              - Run end-to-end API tests
+  sl                        - Tail the supervisor log
+  help                      - Print this list
 DOCS
 }
 
@@ -366,5 +358,4 @@ fi
 
 trap local_cleanup EXIT
 
-# Print out the docs
-dev_docs
+welcome
