@@ -29,7 +29,7 @@ use crate::filesystem;
 use crate::mount::{self, Mount};
 use crate::pty;
 
-const ROOTFS_DIRS: &'static [&'static str] = &[
+const ROOTFS_DIRS: &[&str] = &[
     "etc",
     "run",
     "src",
@@ -39,10 +39,9 @@ const ROOTFS_DIRS: &'static [&'static str] = &[
     "hab/cache/artifacts",
 ];
 
-const WHITELISTED_DEVS: &'static [&'static str] =
-    &["null", "random", "full", "tty", "zero", "urandom"];
+const WHITELISTED_DEVS: &[&str] = &["null", "random", "full", "tty", "zero", "urandom"];
 
-const READONLY_PATHS: &'static [&'static str] = &[
+const READONLY_PATHS: &[&str] = &[
     "/proc/asound",
     "/proc/bus",
     "/proc/fs",
@@ -51,7 +50,7 @@ const READONLY_PATHS: &'static [&'static str] = &[
     "/proc/sysrq-trigger",
 ];
 
-const MASKED_PATHS: &'static [&'static str] = &[
+const MASKED_PATHS: &[&str] = &[
     "/proc/kcore",
     "/proc/latency_stats",
     "/proc/timer_list",
@@ -164,7 +163,7 @@ pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool)
         let path = rootfs.join("etc/resolv.conf");
         debug!("creating file, path={}", path.display());
         let mut file = File::create(path)?;
-        file.write_all("nameserver 8.8.8.8".as_bytes())?;
+        file.write_all(b"nameserver 8.8.8.8")?;
     }
 
     // Bind mount Habitat packages and key cache as read-only

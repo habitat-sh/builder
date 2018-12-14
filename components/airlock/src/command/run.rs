@@ -28,7 +28,7 @@ use crate::error::{Error, Result};
 pub fn run(
     fs_root: FsRoot,
     cmd: &OsStr,
-    args: Vec<&OsStr>,
+    args: &[&OsStr],
     namespaces: Option<(&Path, &Path)>,
     mount_artifacts: bool,
 ) -> Result<()> {
@@ -38,7 +38,7 @@ pub fn run(
         join_network_namespaces(userns, netns)?;
     }
     let new_userns = namespaces == None;
-    let mut command = unshare_command(fs_root.as_ref(), cmd, args, new_userns, mount_artifacts)?;
+    let mut command = unshare_command(fs_root.as_ref(), cmd, &args, new_userns, mount_artifacts)?;
     debug!("running, command={:?}", command);
     let exit_status = command.spawn()?.wait()?;
     fs_root.finish()?;
@@ -68,7 +68,7 @@ fn join_network_namespaces(userns: &Path, netns: &Path) -> Result<()> {
 fn unshare_command(
     rootfs: &Path,
     cmd: &OsStr,
-    args: Vec<&OsStr>,
+    args: &[&OsStr],
     new_userns: bool,
     mount_artifacts: bool,
 ) -> Result<unshare::Command> {

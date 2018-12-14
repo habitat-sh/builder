@@ -21,7 +21,7 @@ use libc;
 
 use crate::error::{Error, Result};
 
-const DEFAULT_PTMX: &'static str = "/dev/ptmx";
+const DEFAULT_PTMX: &str = "/dev/ptmx";
 
 #[derive(Debug)]
 pub struct Master(RawFd);
@@ -55,6 +55,7 @@ impl Master {
         Ok(PathBuf::from(c_str.to_string_lossy().as_ref()))
     }
 
+    #[allow(clippy::new_ret_no_self)]
     fn new<P: AsRef<Path>>(ptmx_path: P) -> Result<Self> {
         let c_path =
             CString::new(ptmx_path.as_ref().to_string_lossy().as_ref()).map_err(|err| {

@@ -22,7 +22,7 @@ use libc;
 
 use crate::error::{Error, Result};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Mount {
     Nonrecursive,
     Recursive,
@@ -37,10 +37,10 @@ where
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
     let mut c_flags = libc::MS_BIND;
     if let Mount::Recursive = recurse {
-        c_flags = c_flags | libc::MS_REC;
+        c_flags |= libc::MS_REC;
     }
     if let Some(flags) = flags {
-        c_flags = c_flags | flags;
+        c_flags |= flags;
     };
 
     debug!(
@@ -71,6 +71,7 @@ where
 }
 
 // mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL) = 0
+#[allow(clippy::string_lit_as_bytes)]
 pub fn private<T>(target: T, recurse: Mount) -> Result<()>
 where
     T: AsRef<Path>,
@@ -79,7 +80,7 @@ where
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
     let mut flags = libc::MS_PRIVATE;
     if let Mount::Recursive = recurse {
-        flags = flags | libc::MS_REC;
+        flags |= libc::MS_REC;
     }
 
     match unsafe {
@@ -102,6 +103,7 @@ where
 }
 
 // mount("proc", "/tmp/rootfs.fol06wNUnpLw/proc", "proc", MS_MGC_VAL|MS_NODEV, NULL) = 0
+#[allow(clippy::string_lit_as_bytes)]
 pub fn procfs<T>(target: T) -> Result<()>
 where
     T: AsRef<Path>,
@@ -132,6 +134,7 @@ where
 
 // mount("tmpfs", "/tmp/rootfs.suP5gd8rt32R/dev", "tmpfs", MS_NOSUID|MS_NODEV|MS_STRICTATIME,
 // "mode=755,size=65536k") = 0
+#[allow(clippy::string_lit_as_bytes)]
 pub fn tmpfs<T>(
     source: &str,
     target: T,
@@ -177,6 +180,7 @@ where
     }
 }
 
+#[allow(clippy::string_lit_as_bytes)]
 pub fn devpts<T>(
     target: T,
     flags: libc::c_ulong,
@@ -217,6 +221,7 @@ where
     }
 }
 
+#[allow(clippy::string_lit_as_bytes)]
 pub fn mqueue<T>(target: T, flags: libc::c_ulong) -> Result<()>
 where
     T: AsRef<Path>,
