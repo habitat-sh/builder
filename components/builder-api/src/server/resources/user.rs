@@ -51,7 +51,10 @@ fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginInvitation::list_by_account(account_id, &*conn) {
         Ok(response) => HttpResponse::Ok().json(response),
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
@@ -69,6 +72,9 @@ fn get_origins(req: HttpRequest<AppState>) -> HttpResponse {
 
     match Origin::list(account_id, &*conn) {
         Ok(response) => HttpResponse::Ok().json(response),
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }

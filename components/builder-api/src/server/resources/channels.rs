@@ -132,7 +132,10 @@ fn get_channels((req, sandbox): (HttpRequest<AppState>, Query<SandboxBool>)) -> 
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(ident_list)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -164,7 +167,10 @@ fn create_channel(req: HttpRequest<AppState>) -> HttpResponse {
         Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
             HttpResponse::Conflict().into()
         }
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
@@ -194,7 +200,10 @@ fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
 
     match Channel::delete(&origin, &channel, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -246,7 +255,7 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
                 &*conn,
             ) {
                 Ok(_) => {}
-                Err(err) => warn!("Failed to save rank change to audit log: {}", err),
+                Err(err) => debug!("Failed to save rank change to audit log: {}", err),
             };
             req.state()
                 .memcache
@@ -254,7 +263,10 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
                 .clear_cache_for_package(&ident);
             HttpResponse::new(StatusCode::OK)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -310,7 +322,7 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
                 &*conn,
             ) {
                 Ok(_) => {}
-                Err(err) => warn!("Failed to save rank change to audit log: {}", err),
+                Err(err) => debug!("Failed to save rank change to audit log: {}", err),
             };
             req.state()
                 .memcache
@@ -318,7 +330,10 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
                 .clear_cache_for_package(&ident);
             HttpResponse::new(StatusCode::OK)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -336,7 +351,10 @@ fn get_packages_for_origin_channel_package_version(
         Ok((packages, count)) => {
             postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -354,7 +372,10 @@ fn get_packages_for_origin_channel_package(
         Ok((packages, count)) => {
             postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -373,7 +394,10 @@ fn get_packages_for_origin_channel(
         Ok((packages, count)) => {
             postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -392,7 +416,10 @@ fn get_latest_package_for_origin_channel_package(
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
             .body(json_body),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -411,7 +438,10 @@ fn get_latest_package_for_origin_channel_package_version(
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
             .body(json_body),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -432,7 +462,7 @@ fn get_package_fully_qualified(
             .header(http::header::CACHE_CONTROL, headers::cache(false))
             .body(json_body),
         Err(err) => {
-            debug!("{:?}", err);
+            debug!("{}", err);
             err.into()
         }
     }

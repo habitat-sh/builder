@@ -125,12 +125,6 @@ pub fn repo_file_content(req: HttpRequest<AppState>) -> HttpResponse {
         .into_inner();
 
     let token = {
-        debug!(
-            "GITHUB-CALL builder_api::github::repo_file_content: Getting app_installation_token; repo_id={} installation_id={} path={}",
-            repo_id,
-            install_id,
-            path
-        );
         match github.app_installation_token(install_id) {
             Ok(token) => token,
             Err(err) => {
@@ -175,10 +169,6 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
 
     let github = &req.state().github;
 
-    debug!(
-        "GITHUB-CALL builder_api::github::handle_push: Getting app_installation_token; installation_id={}",
-        hook.installation.id
-    );
     let token = match github.app_installation_token(hook.installation.id) {
         Ok(token) => token,
         Err(err) => {

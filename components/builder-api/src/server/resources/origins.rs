@@ -214,7 +214,10 @@ fn get_origin(req: HttpRequest<AppState>) -> HttpResponse {
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(origin),
         Err(NotFound) => HttpResponse::NotFound().into(),
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
@@ -249,7 +252,10 @@ fn create_origin(
 
     match Origin::create(&new_origin, &*conn).map_err(Error::DieselError) {
         Ok(origin) => HttpResponse::Created().json(origin),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -275,7 +281,10 @@ fn update_origin(
 
     match Origin::update(&origin, dpv, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().into(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -298,7 +307,10 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
 
     let pk_body = match pair.to_public_string().map_err(Error::HabitatCore) {
         Ok(pk) => pk.into_bytes(),
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     let new_pk = NewOriginPublicSigningKey {
@@ -312,12 +324,18 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginPublicSigningKey::create(&new_pk, &*conn).map_err(Error::DieselError) {
         Ok(_) => (),
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     }
 
     let sk_body = match pair.to_secret_string().map_err(Error::HabitatCore) {
         Ok(sk) => sk.into_bytes(),
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     let new_sk = NewOriginPrivateSigningKey {
@@ -331,7 +349,10 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
         Ok(_) => (),
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     }
 
     HttpResponse::Created().finish()
@@ -363,7 +384,10 @@ fn list_origin_keys(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(&list)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -410,7 +434,10 @@ fn upload_origin_key((req, body): (HttpRequest<AppState>, String)) -> HttpRespon
         Ok(_) => HttpResponse::Created()
             .header(http::header::LOCATION, format!("{}", req.uri()))
             .body(format!("/origins/{}/keys/{}", &origin, &revision)),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -428,7 +455,10 @@ fn download_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
     let key =
         match OriginPublicSigningKey::get(&origin, &revision, &*conn).map_err(Error::DieselError) {
             Ok(key) => key,
-            Err(err) => return err.into(),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
         };
 
     let xfilename = format!("{}-{}.pub", key.name, key.revision);
@@ -446,7 +476,10 @@ fn download_latest_origin_key(req: HttpRequest<AppState>) -> HttpResponse {
 
     let key = match OriginPublicSigningKey::latest(&origin, &*conn).map_err(Error::DieselError) {
         Ok(key) => key,
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     let xfilename = format!("{}-{}.pub", key.name, key.revision);
@@ -475,7 +508,10 @@ fn list_origin_secrets(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(&new_list)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -507,10 +543,11 @@ fn create_origin_secret(
     // get metadata from secret payload
     let secret_metadata = match BoxKeyPair::secret_metadata(body.value.as_bytes()) {
         Ok(res) => res,
-        Err(e) => {
+        Err(err) => {
+            debug!("{}", err);
             return HttpResponse::with_body(
                 StatusCode::UNPROCESSABLE_ENTITY,
-                format!("Failed to get metadata from payload: {}", e),
+                format!("Failed to get metadata from payload: {}", err),
             );
         }
     };
@@ -529,15 +566,19 @@ fn create_origin_secret(
                 let key_str = from_utf8(&key.body).unwrap();
                 match BoxKeyPair::secret_key_from_str(key_str) {
                     Ok(key) => key,
-                    Err(e) => {
+                    Err(err) => {
+                        debug!("{}", err);
                         return HttpResponse::with_body(
                             StatusCode::UNPROCESSABLE_ENTITY,
-                            format!("Failed to get secret from payload: {}", e),
+                            format!("Failed to get secret from payload: {}", err),
                         );
                     }
                 }
             }
-            Err(err) => return err.into(),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
         };
 
     let (name, rev) = match parse_name_with_rev(secret_metadata.sender) {
@@ -559,15 +600,19 @@ fn create_origin_secret(
                 let key_str = from_utf8(&key.body).unwrap();
                 match BoxKeyPair::public_key_from_str(key_str) {
                     Ok(key) => key,
-                    Err(e) => {
+                    Err(err) => {
+                        debug!("{}", err);
                         return HttpResponse::with_body(
                             StatusCode::UNPROCESSABLE_ENTITY,
-                            format!("{}", e),
+                            format!("{}", err),
                         );
                     }
                 }
             }
-            Err(err) => return err.into(),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
         };
 
     let box_key_pair = BoxKeyPair::new(name, rev.clone(), Some(pub_key), Some(priv_key));
@@ -577,8 +622,9 @@ fn create_origin_secret(
     // verify we can decrypt the message
     match box_key_pair.decrypt(&secret_metadata.ciphertext, None, None) {
         Ok(_) => (),
-        Err(e) => {
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, format!("{}", e));
+        Err(err) => {
+            debug!("{}", err);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, format!("{}", err));
         }
     };
 
@@ -594,7 +640,10 @@ fn create_origin_secret(
     .map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::Created().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -615,7 +664,10 @@ fn delete_origin_secret(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginSecret::delete(&origin, &secret, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Ok().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -672,7 +724,10 @@ fn do_upload_origin_secret_key(req: &HttpRequest<AppState>, body: &Bytes) -> Htt
 
     match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Created().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -691,7 +746,10 @@ fn download_latest_origin_secret_key(req: HttpRequest<AppState>) -> HttpResponse
 
     let key = match OriginPrivateSigningKey::get(&origin, &*conn).map_err(Error::DieselError) {
         Ok(key) => key,
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     let xfilename = format!("{}-{}.sig.key", key.name, key.revision);
@@ -711,7 +769,12 @@ fn list_unique_packages(
 
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
+        Err(err) => {
+            return {
+                debug!("{}", err);
+                err.into()
+            }
+        }
     };
 
     let ident = PackageIdent::new(origin.clone(), String::from(""), None, None);
@@ -727,7 +790,10 @@ fn list_unique_packages(
 
     match Package::distinct_for_origin(lpr, &*conn) {
         Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
@@ -751,10 +817,16 @@ fn download_latest_origin_encryption_key(req: HttpRequest<AppState>) -> HttpResp
             // TODO: redesign to not be generating keys during d/l
             match generate_origin_encryption_keys(&origin, account_id, &conn) {
                 Ok(key) => key,
-                Err(err) => return err.into(),
+                Err(err) => {
+                    debug!("{}", err);
+                    return err.into();
+                }
             }
         }
-        Err(err) => return Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            return Error::DieselError(err).into();
+        }
     };
 
     let xfilename = format!("{}-{}.pub", key.name, key.revision);
@@ -782,7 +854,10 @@ fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
     let (recipient_id, recipient_name) =
         match Account::get(&user, &*conn).map_err(Error::DieselError) {
             Ok(account) => (account.id, account.name),
-            Err(err) => return err.into(),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
         };
 
     let new_invitation = NewOriginInvitation {
@@ -796,7 +871,10 @@ fn invite_to_origin(req: HttpRequest<AppState>) -> HttpResponse {
     match OriginInvitation::create(&new_invitation, &*conn).map_err(Error::DieselError) {
         Ok(invitation) => HttpResponse::Created().json(&invitation),
         // TODO (SA): Check for error case where invitation already exists
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -828,7 +906,10 @@ fn accept_invitation(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginInvitation::accept(invitation_id, false, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -845,7 +926,10 @@ fn ignore_invitation(req: HttpRequest<AppState>) -> HttpResponse {
 
     let invitation_id = match invitation.parse::<u64>() {
         Ok(invitation_id) => invitation_id,
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(err) => {
+            debug!("{}", err);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
     };
 
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
@@ -860,7 +944,10 @@ fn ignore_invitation(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginInvitation::ignore(invitation_id, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -877,7 +964,10 @@ fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
 
     let invitation_id = match invitation.parse::<u64>() {
         Ok(invitation_id) => invitation_id,
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(err) => {
+            debug!("{}", err);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
     };
 
     debug!(
@@ -892,7 +982,10 @@ fn rescind_invitation(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginInvitation::rescind(invitation_id, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -920,7 +1013,10 @@ fn list_origin_invitations(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(json)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -948,7 +1044,10 @@ fn list_origin_members(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(json)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -981,7 +1080,10 @@ fn origin_member_delete(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginMember::delete(&origin, &user, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -1011,7 +1113,10 @@ fn fetch_origin_integrations(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(integrations_response)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -1041,7 +1146,10 @@ fn fetch_origin_integration_names(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(hm)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -1070,7 +1178,10 @@ fn create_origin_integration(req: HttpRequest<AppState>, body: &Bytes) -> HttpRe
 
     let encrypted = match encrypt(&req, &body) {
         Ok(encrypted) => encrypted,
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     let noi = NewOriginIntegration {
@@ -1082,7 +1193,10 @@ fn create_origin_integration(req: HttpRequest<AppState>, body: &Bytes) -> HttpRe
 
     match OriginIntegration::create(&noi, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Created().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -1105,7 +1219,10 @@ fn delete_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
         .map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -1144,9 +1261,15 @@ fn get_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
                     .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                     .json(sanitized)
             }
-            Err(err) => err.into(),
+            Err(err) => {
+                debug!("{}", err);
+                err.into()
+            }
         },
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 

@@ -82,7 +82,10 @@ fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
 
     match Account::get_by_id(account_id, &*conn).map_err(Error::DieselError) {
         Ok(account) => HttpResponse::Ok().json(account),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -103,7 +106,10 @@ fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(json)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -123,7 +129,10 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
     // we must purge any existing tokens AFTER generating new ones
     let access_tokens = match AccountToken::list(account_id, &*conn).map_err(Error::DieselError) {
         Ok(access_tokens) => access_tokens,
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     // TODO: Provide an API for this
@@ -153,7 +162,10 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
             }
             HttpResponse::Ok().json(account_token)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -177,7 +189,10 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
 
     let access_tokens = match AccountToken::list(account_id, &*conn).map_err(Error::DieselError) {
         Ok(access_tokens) => access_tokens,
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     match AccountToken::delete(token_id, &*conn).map_err(Error::DieselError) {
@@ -188,7 +203,10 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
             }
             HttpResponse::Ok().finish()
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -210,6 +228,9 @@ fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> 
 
     match Account::update(account_id, &body.email, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }

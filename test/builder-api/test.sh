@@ -103,7 +103,10 @@ do
 done
 
 npm run mocha
-exit \$?
+local mstat = \$?
+
+tail -40 /hab/sup/default/sup.log
+exit mstat
 EOT
   HAB_STUDIO_SUP=false hab studio enter
 else

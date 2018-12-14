@@ -70,7 +70,7 @@ fn do_authenticate(req: &HttpRequest<AppState>, code: &str) -> Result<originsrv:
 
     let id_str = session.get_id().to_string();
     if let Err(e) = req.state().segment.identify(&id_str) {
-        warn!("Error identifying a user in segment, {}", e);
+        debug!("Error identifying a user in segment, {}", e);
     }
 
     Ok(session)

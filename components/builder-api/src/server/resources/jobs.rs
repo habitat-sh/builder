@@ -118,7 +118,10 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
     >(&req, &rdeps_get)
     {
         Ok(rdeps) => HttpResponse::Ok().json(rdeps),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -138,7 +141,10 @@ fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
         Ok(body) => HttpResponse::Ok()
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .body(body),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -163,7 +169,10 @@ fn get_job_log(
             }
             HttpResponse::Ok().json(job_log)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -175,7 +184,10 @@ fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)
 
     match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, true) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -187,7 +199,10 @@ fn demote_job_group((req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>)) 
 
     match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, false) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -205,7 +220,10 @@ fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
 
     match do_cancel_job_group(&req, group_id) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -363,7 +381,7 @@ fn promote_or_demote_job_group(
                 )?;
             }
             Err(e) => {
-                warn!("Failed to promote or demote group, err: {:?}", e);
+                debug!("Failed to promote or demote group, err: {:?}", e);
                 return Err(e);
             }
         }
