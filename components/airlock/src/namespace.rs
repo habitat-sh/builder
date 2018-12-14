@@ -139,7 +139,7 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
         match file
             .lines()
             .map(|l| l.unwrap())
-            .find(|ref line| line.split(":").next().unwrap_or("") == entry)
+            .find(|ref line| line.split(':').next().unwrap_or("") == entry)
         {
             Some(line) => line,
             None => {
@@ -151,23 +151,21 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
         }
     };
     let start_id = line
-        .split(":")
+        .split(':')
         .nth(1)
-        .ok_or(Error::FileEntryNotFound(
-            String::from(entry),
-            path.to_string_lossy().into(),
-        ))?
+        .ok_or_else(|| {
+            Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())
+        })?
         .parse()
         .map_err(|_err| {
             Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())
         })?;
     let range = line
-        .split(":")
+        .split(':')
         .nth(2)
-        .ok_or(Error::FileEntryNotFound(
-            String::from(entry),
-            path.to_string_lossy().into(),
-        ))?
+        .ok_or_else(|| {
+            Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())
+        })?
         .parse()
         .map_err(|_err| {
             Error::FileEntryNotFound(String::from(entry), path.to_string_lossy().into())

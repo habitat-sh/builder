@@ -30,7 +30,7 @@ use airlock::command;
 use airlock::{FsRoot, FsRootPolicy, Result};
 use clap::{App, ArgMatches};
 
-const VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 fn main() {
     env_logger::init();
@@ -125,12 +125,12 @@ fn sub_run(m: &ArgMatches) -> Result<()> {
     };
     let mount_artifacts = m.is_present("MOUNT_ARTIFACT_CACHE");
 
-    command::run::run(fs_root, cmd, args, namespaces, mount_artifacts)
+    command::run::run(fs_root, cmd, &args, namespaces, mount_artifacts)
 }
 
 fn cli<'a, 'b>() -> App<'a, 'b> {
     let program_name = {
-        let arg0 = env::args().next().map(|p| PathBuf::from(p));
+        let arg0 = env::args().next().map(PathBuf::from);
         arg0.as_ref()
             .and_then(|p| p.file_stem())
             .and_then(|p| p.to_str())
@@ -227,6 +227,7 @@ fn cli<'a, 'b>() -> App<'a, 'b> {
     )
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn validate_file_exists(val: String) -> result::Result<(), String> {
     if Path::new(&val).is_file() {
         Ok(())
@@ -235,6 +236,7 @@ fn validate_file_exists(val: String) -> result::Result<(), String> {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn validate_dir_exists(val: String) -> result::Result<(), String> {
     if Path::new(&val).is_dir() {
         Ok(())
@@ -243,6 +245,7 @@ fn validate_dir_exists(val: String) -> result::Result<(), String> {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn validate_dir_not_exists(val: String) -> result::Result<(), String> {
     if Path::new(&val).exists() {
         Err(format!(

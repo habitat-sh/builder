@@ -75,10 +75,7 @@ fn wait_for_created_file<P: AsRef<Path>>(ns_dir: P) {
 }
 
 fn interface_present(interface: &str) -> bool {
-    pnet::interfaces()
-        .iter()
-        .find(|i| i.name == interface)
-        .is_some()
+    pnet::interfaces().iter().any(|i| i.name == interface)
 }
 
 fn interface_up_cmd(interface: &str) -> Result<Command> {

@@ -136,7 +136,7 @@ fn command_as_user<P: AsRef<Path>>(program: P, username: &str) -> Result<Command
     command.env_clear();
     command.env("USER", username);
     command.env("HOME", user::home_dir_for_username(username)?);
-    command.env("PATH", env::var("PATH").unwrap_or(String::new()));
+    command.env("PATH", env::var("PATH").unwrap_or_default());
     for var in util::DEBUG_ENVVARS {
         if let Ok(val) = env::var(var) {
             command.env(var, val);

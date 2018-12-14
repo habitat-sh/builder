@@ -29,12 +29,14 @@ pub fn chmod<P: AsRef<Path>>(path: P, mode: u32) -> Result<()> {
 
 pub fn mkdir_p<P: AsRef<Path>>(path: P) -> Result<()> {
     debug!("creating directory, path={}", path.as_ref().display());
-    Ok(fs::create_dir_all(path)?)
+    fs::create_dir_all(path)?;
+    Ok(())
 }
 
 pub fn rmdir<P: AsRef<Path>>(path: P) -> Result<()> {
     debug!("removing directory, path={}", path.as_ref().display());
-    Ok(fs::remove_dir(path)?)
+    fs::remove_dir(path)?;
+    Ok(())
 }
 
 pub fn symlink<S, T>(source: S, target: T) -> Result<()>
@@ -47,7 +49,8 @@ where
         source.as_ref().display(),
         target.as_ref().display()
     );
-    Ok(fs_symlink(source, target)?)
+    fs_symlink(source, target)?;
+    Ok(())
 }
 
 pub fn touch<P: AsRef<Path>>(path: P) -> Result<()> {

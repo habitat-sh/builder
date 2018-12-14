@@ -21,8 +21,8 @@ use users::os::unix::GroupExt;
 
 use crate::error::{Error, Result};
 
-pub const IP_PKG: &'static str = "core/iproute2";
-pub const DEBUG_ENVVARS: &'static [&'static str] = &["RUST_LOG", "DEBUG"];
+pub const IP_PKG: &str = "core/iproute2";
+pub const DEBUG_ENVVARS: &[&str] = &["RUST_LOG", "DEBUG"];
 
 pub fn find_command<P: AsRef<Path>>(command: P) -> Result<PathBuf> {
     match env::var_os("PATH") {
@@ -96,8 +96,8 @@ pub fn check_required_packages(pkgs: &[&str]) -> Result<()> {
 pub fn check_user_group_membership(username: &str) -> Result<()> {
     let user = String::from(username);
     for grp in vec!["tty"].iter() {
-        let user_group =
-            users::get_group_by_name(grp).ok_or(Error::GroupNotFound(String::from(*grp)))?;
+        let user_group = users::get_group_by_name(grp)
+            .ok_or_else(|| Error::GroupNotFound(String::from(*grp)))?;
         if !user_group.members().contains(&user) {
             return Err(Error::UserNotInGroup(user, String::from(*grp)));
         }
