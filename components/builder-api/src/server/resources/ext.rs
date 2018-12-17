@@ -71,7 +71,10 @@ pub fn validate_registry_credentials(
 
     match do_validate_registry_credentials(body, &registry_type) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 

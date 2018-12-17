@@ -123,13 +123,14 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
     // Do we really need this? Maybe to validate the origin exists?
     let origin = match Origin::get(&body.origin, &*conn).map_err(Error::DieselError) {
         Ok(origin) => origin,
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     // Test hook - bypass the github dance
     if env::var_os("HAB_FUNC_TEST").is_some() {
-        debug!("creating test project");
-
         let new_project = NewProject {
             owner_id: account_id as i64,
             origin: &origin.name,
@@ -146,17 +147,11 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
             Ok(project) => return HttpResponse::Created().json(project),
             Err(err) => {
-                debug!("ERROR: {:?}", err);
+                debug!("{}", err);
                 return err.into();
             }
         }
     };
-
-    debug!(
-                "GITHUB-CALL builder_api::server::handlers::project_create: Getting app_installation_token; repo_id={} installation_id={}",
-                body.repo_id,
-                body.installation_id
-            );
 
     let token = match req
         .state()
@@ -172,10 +167,10 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 
     let vcs_data = match req.state().github.repo(&token, body.repo_id) {
         Ok(Some(repo)) => repo.clone_url,
-        Ok(None) => return HttpResponse::with_body(StatusCode::NOT_FOUND, "rg:pc:2"),
+        Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
-            warn!("Error finding github repo. e = {:?}", e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:1");
+            debug!("Error finding github repo. e = {:?}", e);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
         }
     };
 
@@ -189,18 +184,18 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
                 Ok(plan) => plan,
                 Err(e) => {
                     debug!("Error matching Plan. e = {:?}", e);
-                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:3");
+                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
                 }
             },
             Err(e) => {
-                warn!("Base64 decode failure: {:?}", e);
-                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:4");
+                debug!("Base64 decode failure: {:?}", e);
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
             }
         },
-        Ok(None) => return HttpResponse::with_body(StatusCode::NOT_FOUND, "rg:pc:5"),
+        Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
-            warn!("Error fetching contents from GH. e = {:?}", e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pc:6");
+            debug!("Error fetching contents from GH. e = {:?}", e);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
         }
     };
 
@@ -221,7 +216,10 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 
     match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Created().json(project),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -244,7 +242,10 @@ fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
 
     match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Ok().json(project),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -267,7 +268,10 @@ fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
 
     match Project::delete(&project_delete, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -283,10 +287,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
     };
 
     if body.plan_path.is_empty() {
-        return HttpResponse::with_body(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "Missing value for field: `plan_path`",
-        );
+        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
@@ -301,13 +302,14 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
 
     let project = match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
         Ok(project) => project,
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     // Test hook - bypass the github dance
     if env::var_os("HAB_FUNC_TEST").is_some() {
-        debug!("updating test project");
-
         let update_project = UpdateProject {
             id: project.id,
             origin: &project.origin,
@@ -323,15 +325,12 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
 
         match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
             Ok(_) => return HttpResponse::NoContent().finish(),
-            Err(err) => return err.into(),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
         }
     };
-
-    debug!(
-                "GITHUB-CALL builder_api::server::handlers::project_update: Getting app_installation_token; repo_id={} installation_id={}",
-                body.repo_id,
-                body.installation_id
-            );
 
     let token = match req
         .state()
@@ -347,10 +346,10 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
 
     let vcs_data = match req.state().github.repo(&token, body.repo_id) {
         Ok(Some(repo)) => repo.clone_url,
-        Ok(None) => return HttpResponse::with_body(StatusCode::NOT_FOUND, "rg:pu:2"),
+        Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
-            warn!("Error finding GH repo. e = {:?}", e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pu:1");
+            debug!("Error finding GH repo. e = {:?}", e);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
         }
     };
 
@@ -364,24 +363,24 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
                 Ok(plan) => {
                     debug!("plan = {:?}", &plan);
                     if plan.name != name {
-                        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pu:7");
+                        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
                     }
                     plan
                 }
                 Err(e) => {
                     debug!("Error matching Plan. e = {:?}", e);
-                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pu:3");
+                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
                 }
             },
             Err(e) => {
                 debug!("Error decoding content from b64. e = {:?}", e);
-                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pu:4");
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
             }
         },
-        Ok(None) => return HttpResponse::with_body(StatusCode::NOT_FOUND, "rg:pc:6"),
+        Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
             warn!("Erroring fetching contents from GH. e = {:?}", e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "rg:pu:5");
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
         }
     };
 
@@ -400,7 +399,10 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
 
     match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -425,7 +427,10 @@ fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
                 .collect();
             HttpResponse::Ok().json(names)
         }
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
@@ -487,7 +492,10 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .body(body)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -527,7 +535,10 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
 
     match ProjectIntegration::create(&npi, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -550,7 +561,10 @@ fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
         .map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -581,7 +595,10 @@ fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
                 Error::SerdeJson(e).into()
             }
         },
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -602,7 +619,10 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
 
     let pv: PackageVisibility = match visibility.parse() {
         Ok(o) => o,
-        Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
+        Err(err) => {
+            debug!("{:?}", err);
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
     };
 
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
@@ -613,7 +633,10 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
     let project_get = format!("{}/{}", &origin, &name);
     let project = match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
         Ok(project) => project,
-        Err(err) => return err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
     };
 
     let package_name = project.package_name.clone();
@@ -632,6 +655,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     if let Err(err) = Project::update(&update_project, &*conn).map_err(Error::DieselError) {
+        debug!("{}", err);
         return err.into();
     }
 
@@ -639,7 +663,10 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
     let pkgs =
         match Package::get_all(BuilderPackageIdent(ident), &*conn).map_err(Error::DieselError) {
             Ok(pkgs) => pkgs,
-            Err(err) => return err.into(),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
         };
 
     let mut map = HashMap::new();
@@ -661,7 +688,10 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         };
 
         if let Err(err) = Package::update_visibility_bulk(upv, &*conn).map_err(Error::DieselError) {
-            return err.into();
+            return {
+                debug!("{}", err);
+                err.into()
+            };
         };
     }
 

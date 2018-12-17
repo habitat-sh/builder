@@ -72,18 +72,10 @@ impl VCS {
             "git" => {
                 let token = match self.installation_id {
                     None => {
-                        debug!(
-                            "GITHUB-CALL builder_worker::vcs::clone: no installation_id present, no token generated"
-                        );
                         Counter::GitClone.increment();
                         None
                     }
                     Some(id) => {
-                        debug!(
-                            "GITHUB-CALL builder_worker::vcs::clone: Getting app_installation_token; installation_id={}",
-                            id
-                        );
-
                         // TODO (CM): grabbing just the token matter
                         // because the subsequent git2 clone call
                         // doesn't use our Github client... maybe we
@@ -96,11 +88,6 @@ impl VCS {
                         Some(t.inner_token().to_string())
                     }
                 };
-                debug!(
-                    "GITHUB-CALL builder_worker::vcs::clone: cloning git repository, url={}, path={:?}",
-                    self.url(&token)?,
-                    path
-                );
                 git2::Repository::clone(&(self.url(&token)?).as_str(), path).map_err(Error::Git)?;
                 Ok(())
             }

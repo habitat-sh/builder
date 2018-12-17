@@ -187,7 +187,10 @@ fn get_packages_for_origin(
         Ok((packages, count)) => {
             postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -205,7 +208,10 @@ fn get_packages_for_origin_package(
         Ok((packages, count)) => {
             postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -223,7 +229,10 @@ fn get_packages_for_origin_package_version(
         Ok((packages, count)) => {
             postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -242,7 +251,10 @@ fn get_latest_package_for_origin_package(
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
             .body(json_body),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -261,7 +273,10 @@ fn get_latest_package_for_origin_package_version(
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(false))
             .body(json_body),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -278,7 +293,10 @@ fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpRe
             .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
             .header(http::header::CACHE_CONTROL, headers::cache(true))
             .body(json_body),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -403,7 +421,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
 
     // We only support building for Linux x64 only currently
     if qschedule.target != "x86_64-linux" {
-        info!("Rejecting build with target: {}", qschedule.target);
+        debug!("Rejecting build with target: {}", qschedule.target);
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
@@ -425,14 +443,17 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
             // We don't really want to abort anything just because a call to segment failed. Let's
             // just log it and move on.
             if let Err(e) = req.state().segment.track(&session.get_name(), &msg) {
-                warn!("Error tracking scheduling of job group in segment, {}", e);
+                debug!("Error tracking scheduling of job group in segment, {}", e);
             }
 
             HttpResponse::Created()
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(group)
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -452,7 +473,10 @@ fn get_schedule((qgetschedule, req): (Query<GetSchedule>, HttpRequest<AppState>)
         Ok(group) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(group),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -472,7 +496,10 @@ fn get_origin_schedule_status(
         Ok(jgor) => HttpResponse::Ok()
             .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
             .json(jgor.get_job_groups()),
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
@@ -512,7 +539,10 @@ fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .json(list)
         }
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
@@ -546,7 +576,10 @@ fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                 .body(body)
         }
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
@@ -576,7 +609,10 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
     let decoded_query = match url::percent_encoding::percent_decode(query.as_bytes()).decode_utf8()
     {
         Ok(q) => q.to_string().trim_right_matches('/').replace("/", " & "),
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(err) => {
+            debug!("{}", err);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
     };
 
     debug!("search_packages called with: {}", decoded_query);
@@ -592,7 +628,10 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
             &*conn,
         ) {
             Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
-            Err(err) => Error::DieselError(err).into(),
+            Err(err) => {
+                debug!("{}", err);
+                Error::DieselError(err).into()
+            }
         };
     }
 
@@ -606,7 +645,10 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
         &*conn,
     ) {
         Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
-        Err(err) => Error::DieselError(err).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
@@ -620,13 +662,16 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
     let ident = PackageIdent::new(origin.clone(), name, Some(version), Some(release));
 
     if !ident.valid() {
-        info!("Invalid package identifier: {}", ident);
+        debug!("Invalid package identifier: {}", ident);
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
     let pv: PackageVisibility = match visibility.parse() {
         Ok(o) => o,
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(err) => {
+            debug!("{:?}", err);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
     };
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
@@ -652,7 +697,10 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
                 .clear_cache_for_package(&ident);
             HttpResponse::Ok().finish()
         }
-        Err(e) => Error::DieselError(e).into(),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
     }
 }
 
