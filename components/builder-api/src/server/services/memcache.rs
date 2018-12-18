@@ -49,23 +49,35 @@ impl MemcacheClient {
     pub fn set_package(
         &mut self,
         ident: &PackageIdent,
-        pkg_json: &str,
+        pkg_json: Option<&str>,
         channel: &str,
         target: &str,
+        opt_account_id: Option<u64>,
     ) {
         let package_namespace = self.package_namespace(&ident.origin, &ident.name);
         let channel_namespace = self.channel_namespace(&ident.origin, channel);
 
+        let account_str = match opt_account_id {
+            Some(id) => format!(":{}", id),
+            None => "".to_string(),
+        };
+
+        let body = match pkg_json {
+            Some(json) => json,
+            None => "404",
+        };
+
         match self.cli.set(
             &format!(
-                "{}/{}/{}:{}:{}",
+                "{}/{}/{}:{}:{}{}",
                 target,
                 channel,
                 ident.to_string(),
                 channel_namespace,
-                package_namespace
+                package_namespace,
+                account_str
             ),
-            pkg_json,
+            body,
             self.ttl * 60,
         ) {
             Ok(_) => trace!(
@@ -89,25 +101,33 @@ impl MemcacheClient {
         ident: &PackageIdent,
         channel: &str,
         target: &str,
-    ) -> Option<String> {
+        opt_account_id: Option<u64>,
+    ) -> (bool, Option<String>) {
         let package_namespace = self.package_namespace(&ident.origin, &ident.name);
         let channel_namespace = self.channel_namespace(&ident.origin, channel);
 
         trace!(
-            "Getting {}/{}/{} from memcached",
+            "Getting {}/{}/{} from memcached for {:?}",
             target,
             channel,
-            ident.to_string()
+            ident.to_string(),
+            opt_account_id
         );
+
+        let account_str = match opt_account_id {
+            Some(id) => format!(":{}", id),
+            None => "".to_string(),
+        };
 
         let start_time = PreciseTime::now();
         match self.get_string(&format!(
-            "{}/{}/{}:{}:{}",
+            "{}/{}/{}:{}:{}{}",
             target,
             channel,
             ident.to_string(),
             channel_namespace,
-            package_namespace
+            package_namespace,
+            account_str
         )) {
             Some(json_body) => {
                 let end_time = PreciseTime::now();
@@ -116,9 +136,14 @@ impl MemcacheClient {
                     start_time.to(end_time).num_milliseconds()
                 );
                 Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
-                Some(json_body)
+
+                if json_body == "404" {
+                    (true, None)
+                } else {
+                    (true, Some(json_body))
+                }
             }
-            None => None,
+            None => (false, None),
         }
     }
 
