@@ -29,7 +29,7 @@ use crate::hab_core::config::ConfigFile;
 use crate::worker::{server, Config, Error, Result};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
-const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-worker/config.toml";
+const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-worker/config/config.toml";
 
 fn main() {
     env_logger::init();
@@ -55,7 +55,7 @@ fn app<'a, 'b>() -> clap::App<'a, 'b> {
             (about: "Run a Habitat-Builder worker")
             (@arg config: -c --config +takes_value +global
                 "Filepath to configuration file. \
-                [default: /hab/svc/builder-worker/config.toml]")
+                [default: /hab/svc/builder-worker/config/config.toml]")
         )
     )
 }

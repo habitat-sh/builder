@@ -33,7 +33,7 @@ use crate::bldr_api::server;
 use crate::hab_core::config::ConfigFile;
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
-const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-api/config.toml";
+const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-api/config/config.toml";
 
 fn main() {
     env_logger::init();
@@ -54,7 +54,7 @@ fn app<'a, 'b>() -> clap::App<'a, 'b> {
         (@subcommand start =>
             (about: "Run the builder-api server")
             (@arg config: -c --config +takes_value
-                "Filepath to configuration file. [default: /hab/svc/builder-api/config.toml]")
+                "Filepath to configuration file. [default: /hab/svc/builder-api/config/config.toml]")
             (@arg path: -p --path +takes_value
                 "Filepath to store packages, keys, and other artifacts.")
             (@arg port: --port +takes_value "Listen port. [default: 9636]")
