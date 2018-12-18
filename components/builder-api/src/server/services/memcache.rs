@@ -249,7 +249,14 @@ impl MemcacheClient {
         let mut rng = rand::thread_rng();
         let val: u64 = rng.gen();
         trace!("Reset namespace {} to {}", namespace_key, val);
-        self.cli.set(namespace_key, val, self.ttl * 60).unwrap();
+
+        if let Err(err) = self.cli.set(namespace_key, val, self.ttl * 60) {
+            warn!(
+                "Failed to reset namespace {} to {}: {}",
+                namespace_key, val, err
+            )
+        }
+
         format!("{}", val)
     }
 
