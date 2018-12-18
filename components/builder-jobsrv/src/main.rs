@@ -30,7 +30,7 @@ use crate::hab_core::config::ConfigFile;
 use crate::jobsrv::{Config, Result};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
-const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-jobsrv/config.toml";
+const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-jobsrv/config/config.toml";
 
 fn main() {
     env_logger::init();
@@ -63,12 +63,12 @@ fn app<'a, 'b>() -> clap::App<'a, 'b> {
         (@subcommand migrate =>
             (about: "Run database migrations")
             (@arg config: -c --config +takes_value +global
-                "Filepath to configuration file. [default: /hab/svc/builder-api/config.toml]")
+                "Filepath to configuration file. [default: /hab/svc/builder-api/config/config.toml]")
         )
         (@subcommand start =>
             (about: "Run a Habitat Builder job server")
             (@arg config: -c --config +takes_value
-                "Filepath to configuration file. [default: /hab/svc/builder-jobsrv/config.toml]")
+                "Filepath to configuration file. [default: /hab/svc/builder-jobsrv/config/config.toml]")
         )
     )
 }
