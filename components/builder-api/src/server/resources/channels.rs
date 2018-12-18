@@ -25,9 +25,9 @@ use crate::bldr_core::metrics::CounterMetric;
 use crate::hab_core::package::{PackageIdent, PackageTarget};
 
 use crate::db::models::channel::*;
-use crate::db::models::package::{BuilderPackageIdent, Package, PackageVisibility};
+use crate::db::models::package::{BuilderPackageIdent, Package};
 
-use crate::server::authorize::{authorize_session, check_origin_member};
+use crate::server::authorize::authorize_session;
 use crate::server::error::{Error, Result};
 use crate::server::framework::headers;
 use crate::server::helpers::{self, visibility_for_optional_session, Pagination, Target};
@@ -532,30 +532,43 @@ fn do_get_channel_package(
     // below
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        match memcache.get_package(&req_ident, channel, &target) {
-            Some(pkg_json) => {
-                trace!("Channel package {} {} Cache Hit!", channel, ident);
-                let p: Package = match serde_json::from_str(&pkg_json) {
+        match memcache.get_package(&req_ident, channel, &target, opt_session_id) {
+            (true, Some(pkg_json)) => {
+                trace!(
+                    "Channel package {} {} {} {:?} - cache hit with pkg json",
+                    channel,
+                    ident,
+                    target,
+                    opt_session_id
+                );
+                // Note: the Package specifier is needed even though the variable is un-used
+                let _p: Package = match serde_json::from_str(&pkg_json) {
                     Ok(p) => p,
                     Err(e) => {
                         debug!("Unable to deserialize package json, err={:?}", e);
                         return Err(Error::SerdeJson(e));
                     }
                 };
-                if p.visibility != PackageVisibility::Public
-                    && (opt_session_id.is_none()
-                        || !check_origin_member(req, &p.origin, opt_session_id.unwrap())?)
-                {
-                    trace!(
-                        "Found package in cache, but privacy check failed: {}",
-                        req_ident
-                    );
-                    return Err(Error::NotFound);
-                }
                 return Ok(pkg_json);
             }
-            None => {
-                trace!("Channel package {} {} Cache Miss!", channel, ident);
+            (true, None) => {
+                trace!(
+                    "Channel package {} {} {} {:?} - cache hit with 404",
+                    channel,
+                    ident,
+                    target,
+                    opt_session_id
+                );
+                return Err(Error::NotFound);
+            }
+            (false, _) => {
+                trace!(
+                    "Channel package {} {} {} {:?} - cache miss",
+                    channel,
+                    ident,
+                    target,
+                    opt_session_id
+                );
             }
         };
     }
@@ -580,6 +593,8 @@ fn do_get_channel_package(
     ) {
         Ok(pkg) => pkg,
         Err(NotFound) => {
+            let mut memcache = req.state().memcache.borrow_mut();
+            memcache.set_package(&req_ident, None, channel, &target, opt_session_id);
             return Err(Error::NotFound);
         }
         Err(err) => return Err(err.into()),
@@ -595,7 +610,13 @@ fn do_get_channel_package(
 
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        memcache.set_package(&req_ident, &json_body, channel, &target);
+        memcache.set_package(
+            &req_ident,
+            Some(&json_body),
+            channel,
+            &target,
+            opt_session_id,
+        );
     }
 
     Ok(json_body)

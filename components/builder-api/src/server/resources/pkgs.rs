@@ -48,7 +48,7 @@ use crate::db::models::package::{
 };
 use crate::db::models::projects::Project;
 
-use crate::server::authorize::{authorize_session, check_origin_member};
+use crate::server::authorize::authorize_session;
 use crate::server::error::{Error, Result};
 use crate::server::feat;
 use crate::server::framework::headers;
@@ -1117,26 +1117,40 @@ fn do_get_package(
     // below
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        match memcache.get_package(&ident, "unstable", &target) {
-            Some(pkg_json) => {
-                trace!("Package {} {} Cache Hit!", ident, target);
-                let p: Package = match serde_json::from_str(&pkg_json) {
+        match memcache.get_package(&ident, "unstable", &target, opt_session_id) {
+            (true, Some(pkg_json)) => {
+                trace!(
+                    "Package {} {} {:?} - cache hit with pkg json",
+                    ident,
+                    target,
+                    opt_session_id
+                );
+                // Note: the Package specifier is needed even though the variable is un-used
+                let _p: Package = match serde_json::from_str(&pkg_json) {
                     Ok(p) => p,
                     Err(e) => {
                         debug!("Unable to deserialize package json, err={:?}", e);
                         return Err(Error::SerdeJson(e));
                     }
                 };
-                if p.visibility != PackageVisibility::Public
-                    && (opt_session_id.is_none()
-                        || !check_origin_member(req, &p.origin, opt_session_id.unwrap())?)
-                {
-                    return Err(Error::NotFound);
-                }
                 return Ok(pkg_json);
             }
-            None => {
-                trace!("Package {} {} Cache Miss!", ident, target);
+            (true, None) => {
+                trace!(
+                    "Channel package {} {} {:?} - cache hit with 404",
+                    ident,
+                    target,
+                    opt_session_id
+                );
+                return Err(Error::NotFound);
+            }
+            (false, _) => {
+                trace!(
+                    "Channel package {} {} {:?} - cache miss",
+                    ident,
+                    target,
+                    opt_session_id
+                );
             }
         };
     }
@@ -1148,7 +1162,12 @@ fn do_get_package(
             &*conn,
         ) {
             Ok(pkg) => pkg,
-            Err(NotFound) => return Err(Error::NotFound),
+            Err(NotFound) => {
+                let mut memcache = req.state().memcache.borrow_mut();
+                memcache.set_package(&ident, None, "unstable", &target, opt_session_id);
+                return Err(Error::NotFound);
+            }
+
             Err(err) => {
                 debug!("{:?}", err);
                 return Err(err.into());
@@ -1168,7 +1187,11 @@ fn do_get_package(
             &*conn,
         ) {
             Ok(pkg) => pkg,
-            Err(NotFound) => return Err(Error::NotFound),
+            Err(NotFound) => {
+                let mut memcache = req.state().memcache.borrow_mut();
+                memcache.set_package(&ident, None, "unstable", &target, opt_session_id);
+                return Err(Error::NotFound);
+            }
             Err(err) => {
                 debug!("{:?}", err);
                 return Err(err.into());
@@ -1186,7 +1209,13 @@ fn do_get_package(
 
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        memcache.set_package(&ident, &json_body, "unstable", &target);
+        memcache.set_package(
+            &ident,
+            Some(&json_body),
+            "unstable",
+            &target,
+            opt_session_id,
+        );
     }
 
     Ok(json_body)
