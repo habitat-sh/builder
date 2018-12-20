@@ -70,9 +70,9 @@ EOT
   touch "$HOME/.hab/cache/analytics/OPTED_OUT"
   # end hab setup
 
-  cat <<EOT >> .studiorc
+  cat <<'EOT' >> .studiorc
 set -x
-set -euo pipefail
+set -uo pipefail
 
 HAB_FUNC_TEST=arg-to-sup-run sup-run
 
@@ -85,11 +85,16 @@ fi
 
 start-builder
 
+while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ];
+do
+    echo "Waiting for builder-github-app.pem"
+    ls /hab/svc/builder-api/files
+    sleep 10
+done
+
 echo "BUILDING BUILDER"
 build-builder > /dev/null
-echo "BUILDER BUILT build-builder returned \$?"
-
-hab sup status
+echo "BUILDER BUILT build-builder returned $?"
 
 hab pkg install -b core/node
 cd /src/test/builder-api
@@ -102,11 +107,23 @@ do
   sleep 10
 done
 
-npm run mocha
-local mstat = \$?
+while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ];
+do
+    echo "Waiting for builder-github-app.pem"
+    ls /hab/svc/builder-api/files
+    sleep 10
+done
 
-tail -40 /hab/sup/default/sup.log
-exit mstat
+echo "Starting test run..."
+npm run mocha
+mstat=$?
+echo "Test run exit code: $mstat"
+
+if [ $mstat -ne 0 ]; then
+    tail -50 /hab/sup/default/sup.log
+fi
+
+exit $mstat
 EOT
   HAB_STUDIO_SUP=false hab studio enter
 else

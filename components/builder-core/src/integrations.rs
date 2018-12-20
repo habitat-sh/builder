@@ -33,8 +33,8 @@ where
 
     let kp = match BoxKeyPair::get_latest_pair_for(keys::BUILDER_KEY_NAME, &key_dir.as_ref()) {
         Ok(p) => p,
-        Err(_) => {
-            let e = format!("Can't find bldr key pair at {}", &display_path);
+        Err(err) => {
+            let e = format!("Can't find bldr key pair at {}, err={}", &display_path, err);
             error!("Can't find bldr key pair at {}", &display_path);
             return Err(Error::EncryptError(e));
         }
