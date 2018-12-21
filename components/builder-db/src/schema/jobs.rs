@@ -10,7 +10,7 @@ table! {
         project_owner_id -> BigInt,
         project_plan_path -> Text,
         vcs -> Text,
-        vcs_arguments-> Array<Text>,
+        vcs_arguments-> Array<Nullable<Text>>,
         net_error_code -> Nullable<Integer>,
         net_error_msg -> Nullable<Text>,
         scheduler_sync -> Bool,

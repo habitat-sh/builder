@@ -30,7 +30,7 @@ pub struct Job {
     pub project_owner_id: i64,
     pub project_plan_path: String,
     pub vcs: String,
-    pub vcs_arguments: Vec<String>,
+    pub vcs_arguments: Vec<Option<String>>,
     pub net_error_code: Option<i32>,
     pub net_error_msg: Option<String>,
     pub scheduler_sync: bool,
@@ -105,12 +105,13 @@ impl Into<jobsrv::Job> for Job {
 
         match self.vcs.as_ref() {
             "git" => {
-                let mut vcsa: Vec<String> = self.vcs_arguments;
+                let mut vcsa: Vec<Option<String>> = self.vcs_arguments;
                 project.set_vcs_type(String::from("git"));
-                project.set_vcs_data(vcsa.remove(0));
+                project.set_vcs_data(vcsa.remove(0).expect("expected vcs data"));
                 if !vcsa.is_empty() {
-                    let install_id = vcsa.remove(0);
-                    project.set_vcs_installation_id(install_id.parse::<u32>().unwrap());
+                    if let Some(install_id) = vcsa.remove(0) {
+                        project.set_vcs_installation_id(install_id.parse::<u32>().unwrap());
+                    }
                 }
             }
             e => error!("Unknown VCS, {}", e),
