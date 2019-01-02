@@ -3,7 +3,7 @@ components/airlock @chefsalim @raskchanky @fnichol
 components/airlock/src/command @apriofrost
 components/airlock/src/main.rs @apriofrost
 components/builder-* @chefsalim @raskchanky @reset @eeyun
-components/builder-web @chefsalim @cnunciato @raskchanky @mgamini
+components/builder-web @chefsalim @cnunciato @raskchanky
 components/builder-worker @chefsalim @raskchanky @reset @fnichol
 components/builder-worker/src/main.rs @apriofrost
 components/builder-api/src/main.rs @apriofrost
