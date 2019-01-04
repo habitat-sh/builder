@@ -114,8 +114,8 @@ export function getUnique(origin: string, nextRange: number = 0, token: string =
   });
 }
 
-export function getLatest(origin: string, pkg: string) {
-  const url = `${urlPrefix}/depot/pkgs/${origin}/${pkg}/latest?target=x86_64-linux`;
+export function getLatest(origin: string, pkg: string, target: string = 'x86_64-linux') {
+  const url = `${urlPrefix}/depot/pkgs/${origin}/${pkg}/latest?target=${target}`;
 
   return new Promise((resolve, reject) => {
     fetch(url, opts())

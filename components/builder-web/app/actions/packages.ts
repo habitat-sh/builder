@@ -98,6 +98,7 @@ export function demotePackage(origin: string, name: string, version: string, rel
 
 export function fetchPackage(pkg) {
   return dispatch => {
+    debugger;
     depotApi.get(pkg.ident).then(response => {
       dispatch(setCurrentPackage(response['results']));
     }).catch(error => {
@@ -118,11 +119,11 @@ export function fetchPackageChannels(origin: string, name: string, version: stri
   };
 }
 
-export function fetchLatestPackage(origin: string, name: string) {
+export function fetchLatestPackage(origin: string, name: string, target: string) {
   return dispatch => {
     dispatch(clearLatestPackage());
 
-    depotApi.getLatest(origin, name).then(response => {
+    depotApi.getLatest(origin, name, target).then(response => {
       dispatch(setLatestPackage(response));
 
       const ident = response['ident'];

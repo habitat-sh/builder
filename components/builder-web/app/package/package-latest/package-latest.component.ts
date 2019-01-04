@@ -26,6 +26,7 @@ import config from '../../config';
 export class PackageLatestComponent implements OnDestroy {
   origin: string;
   name: string;
+  target: string;
 
   private sub: Subscription;
 
@@ -33,6 +34,7 @@ export class PackageLatestComponent implements OnDestroy {
     this.route.parent.params.subscribe((params) => {
       this.origin = params['origin'];
       this.name = params['name'];
+      this.target = params['target'];
       this.title.setTitle(`Packages › ${this.origin}/${this.name} › Latest | Habitat`);
       this.fetchLatest();
     });
@@ -68,6 +70,6 @@ export class PackageLatestComponent implements OnDestroy {
   }
 
   private fetchLatest() {
-    this.store.dispatch(fetchLatestPackage(this.origin, this.name));
+    this.store.dispatch(fetchLatestPackage(this.origin, this.name, this.target));
   }
 }

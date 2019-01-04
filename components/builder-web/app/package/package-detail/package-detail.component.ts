@@ -64,4 +64,9 @@ export class PackageDetailComponent {
   releaseToDate(release) {
     return parseDate(release);
   }
+
+  routeTarget(target) {
+    // default is linux (see depot-api.ts:117)
+    // this function ought to set the route with the additional target param
+  }
 }
