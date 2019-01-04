@@ -98,7 +98,6 @@ export function demotePackage(origin: string, name: string, version: string, rel
 
 export function fetchPackage(pkg) {
   return dispatch => {
-    debugger;
     depotApi.get(pkg.ident).then(response => {
       dispatch(setCurrentPackage(response['results']));
     }).catch(error => {
