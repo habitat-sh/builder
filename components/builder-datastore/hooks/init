@@ -14,7 +14,11 @@ touch $RANDFILE
 
 if [ ! -f "{{pkg.svc_data_path}}/PG_VERSION" ]; then
   echo " Database does not exist, creating with 'initdb'"
-  openssl rand -base64 32 > {{pkg.svc_config_path}}/pwfile
+  if [ -z "{{cfg.init.superuser_password}}" ]; then
+    openssl rand -base64 32 > {{pkg.svc_config_path}}/pwfile
+  else
+    echo "{{cfg.init.superuser_password}}" > {{pkg.svc_config_path}}/pwfile
+  fi
   initdb -U hab \
          -E {{cfg.init.encoding}} \
          -D {{pkg.svc_data_path}} \
