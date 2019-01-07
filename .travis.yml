@@ -1,3 +1,4 @@
+# Test Travis CI build is triggered by PR
 branches:
   only:
     - master
