@@ -214,3 +214,5 @@ restart_after_crash = "on"
 
 [init]
 encoding = "UTF8"
+# If this isn't set, the package will create a random password at startup
+superuser_password = ""
