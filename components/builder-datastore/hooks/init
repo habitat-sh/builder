@@ -5,6 +5,7 @@ set -e
 exec 2>&1
 
 export RANDFILE="{{pkg.svc_var_path}}/.rnd"
+DB_PASSWORD="{{cfg.init.superuser_password}}"
 
 mkdir -p {{pkg.svc_config_path}}/conf.d
 mkdir -p {{pkg.svc_var_path}}/pg_stat_tmp
@@ -14,10 +15,10 @@ touch $RANDFILE
 
 if [ ! -f "{{pkg.svc_data_path}}/PG_VERSION" ]; then
   echo " Database does not exist, creating with 'initdb'"
-  if [ -z "{{cfg.init.superuser_password}}" ]; then
+  if [ -z "${DB_PASSWORD}" ]; then
     openssl rand -base64 32 > {{pkg.svc_config_path}}/pwfile
   else
-    echo "{{cfg.init.superuser_password}}" > {{pkg.svc_config_path}}/pwfile
+    echo "${DB_PASSWORD}" > {{pkg.svc_config_path}}/pwfile
   fi
   initdb -U hab \
          -E {{cfg.init.encoding}} \
