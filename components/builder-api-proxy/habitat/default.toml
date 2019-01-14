@@ -49,6 +49,7 @@ limit_ua_known            = "hab|builder|Chef|Mozilla|Github"
 limit_ua_unknown_target   = "$http_x_forwarded_for"
 enable_caching            = false
 enable_gzip               = false
+enable_ipv6               = true
 
 [http]
 keepalive_connections     = 16
