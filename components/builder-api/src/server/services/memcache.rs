@@ -41,7 +41,7 @@ impl MemcacheClient {
             .collect();
         let memcache_hosts: Vec<&str> = memcache_host_strings.iter().map(AsRef::as_ref).collect();
         MemcacheClient {
-            cli: memcache::Client::new(memcache_hosts).unwrap(),
+            cli: memcache::Client::connect(memcache_hosts).unwrap(),
             ttl: config.ttl,
         }
     }
