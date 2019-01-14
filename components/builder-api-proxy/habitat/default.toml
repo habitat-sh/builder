@@ -13,6 +13,11 @@ status_url                = "https://status.habitat.sh/"
 tutorials_url             = "https://www.habitat.sh/learn"
 use_gravatar              = true
 www_url                   = "https://www.habitat.sh"
+# How we connect to the proxied backend API service.
+#   When true, connect to all backend API services via their IPs provided
+#   via the bind
+#   By default (load_balanced=false) we connect to a single backend on the same `sys.ip` as this service
+load_balanced             = false
 
 [analytics]
 company_id                = ""
