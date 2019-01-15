@@ -83,7 +83,7 @@ impl Default for Config {
             jobsrv: vec![JobSrvAddr::default()],
             features_enabled: "".to_string(),
             github: GitHubCfg::default(),
-            airlock_enabled: true,
+            airlock_enabled: false,
             recreate_ns_dir: false,
             network_interface: None,
             network_gateway: None,
@@ -126,6 +126,7 @@ mod tests {
         log_path = "/path/to/logs"
         key_dir = "/path/to/key"
         features_enabled = "FOO,BAR"
+        airlock_enabled = true
         recreate_ns_dir = true
         network_interface = "eth1"
         network_gateway = "192.168.10.1"

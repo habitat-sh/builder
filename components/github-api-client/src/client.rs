@@ -142,11 +142,12 @@ impl GitHubClient {
 
     pub fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
+
         let url_path = format!(
             "{}/installations/{}/access_tokens",
             self.api_url, install_id
         );
-
+        debug!("app_installation_token posting to url path {:?}", url_path);
         Counter::InstallationToken.increment();
         let mut rep = self.http_post(&url_path, Some(app_token))?;
         let mut body = String::new();
@@ -279,15 +280,22 @@ where
         "iat" : now.as_secs(),
         "exp" : expiration.as_secs(),
         "iss" : app_id.to_string()});
+    debug!("Payload = {:?}", payload);
 
     let header = json!({});
-    jwt::encode(
+    let res = jwt::encode(
         header,
         &key_path.as_ref().to_path_buf(),
         &payload,
         Algorithm::RS256,
     )
-    .map_err(HubError::JWT)
+    .map_err(HubError::JWT);
+
+    if let Ok(ref t) = res {
+        debug!("Encoded JWT token = {}", t);
+    };
+
+    res
 }
 
 #[cfg(test)]

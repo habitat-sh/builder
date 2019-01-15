@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+#[cfg(not(windows))]
+use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::Mutex;
 
 use crate::hab_core::channel::{BLDR_CHANNEL_ENVVAR, STABLE_CHANNEL};
@@ -32,7 +35,8 @@ use crate::runner::{NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 
 pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
 pub static STUDIO_GID: AtomicUsize = ATOMIC_USIZE_INIT;
-pub const DEBUG_ENVVARS: &[&str] = &["RUST_LOG", "DEBUG"];
+pub const DEBUG_ENVVARS: &[&str] = &["RUST_LOG", "DEBUG", "RUST_BACKTRACE"];
+pub const WINDOWS_ENVVARS: &[&str] = &["SYSTEMDRIVE", "USERNAME", "COMPUTERNAME", "TEMP"];
 pub const STUDIO_USER: &str = "krangschnak";
 pub const STUDIO_GROUP: &str = "krangschnak";
 
@@ -92,6 +96,10 @@ impl<'a> Studio<'a> {
         let mut cmd = self.studio_command()?;
         cmd.current_dir(self.workspace.src());
         if let Some(val) = env::var_os(RUNNER_DEBUG_ENVVAR) {
+            debug!(
+                "RUNNER_DEBUG_ENVVAR ({}) is set - turning on runner debug",
+                RUNNER_DEBUG_ENVVAR
+            );
             cmd.env("DEBUG", val);
         }
         cmd.env(
@@ -120,6 +128,17 @@ impl<'a> Studio<'a> {
                 ),
                 secret.get_decrypted_secret().get_value(),
             );
+        }
+
+        if cfg!(windows) {
+            for var in WINDOWS_ENVVARS {
+                if let Some(val) = env::var_os(var) {
+                    debug!("Setting {} to {:?}", var, val);
+                    cmd.env(var, val);
+                } else {
+                    debug!("{} env var not found!", var);
+                }
+            }
         }
 
         // propagate debugging environment variables into Airlock and Studio
@@ -160,52 +179,73 @@ impl<'a> Studio<'a> {
         Ok(exit_status)
     }
 
+    #[cfg(windows)]
+    fn studio_command(&self) -> Result<Command> {
+        self.studio_command_not_airlock()
+    }
+
+    #[cfg(not(windows))]
     fn studio_command(&self) -> Result<Command> {
         if self.airlock_enabled {
-            let mut cmd = Command::new("airlock");
-            cmd.uid(studio_uid());
-            cmd.gid(studio_gid());
-            cmd.env_clear();
-            cmd.env("HOME", &*STUDIO_HOME.lock().unwrap()); // Sets `$HOME` for build user
-            cmd.env("USER", STUDIO_USER); // Sets `$USER` for build user
-            cmd.arg("run");
-            cmd.arg("--fs-root");
-            cmd.arg(self.workspace.studio());
-            cmd.arg("--no-rm");
-            if self.network_namespace.is_some() {
-                cmd.arg("--use-userns");
-                cmd.arg(self.network_namespace.as_ref().unwrap().userns());
-                cmd.arg("--use-netns");
-                cmd.arg(self.network_namespace.as_ref().unwrap().netns());
-            }
-            cmd.arg(&*STUDIO_PROGRAM);
-
-            Ok(cmd)
+            self.studio_command_airlock()
         } else {
-            let mut cmd = Command::new(&*STUDIO_PROGRAM);
-            cmd.env_clear();
-            debug!("HAB_CACHE_KEY_PATH: {:?}", key_path());
-            cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
-            cmd.env("HAB_CACHE_KEY_PATH", key_path()); // Sets key cache to build user's home
-
-            info!("Airlock is not enabled, running uncontained Studio");
-            Ok(cmd)
+            self.studio_command_not_airlock()
         }
+    }
+
+    #[cfg(not(windows))]
+    fn studio_command_airlock(&self) -> Result<Command> {
+        assert!(self.airlock_enabled);
+
+        let mut cmd = Command::new("airlock");
+        cmd.uid(studio_uid());
+        cmd.gid(studio_gid());
+        cmd.env_clear();
+        cmd.env("HOME", &*STUDIO_HOME.lock().unwrap()); // Sets `$HOME` for build user
+        cmd.env("USER", STUDIO_USER); // Sets `$USER` for build user
+        cmd.arg("run");
+        cmd.arg("--fs-root");
+        cmd.arg(self.workspace.studio());
+        cmd.arg("--no-rm");
+        if self.network_namespace.is_some() {
+            cmd.arg("--use-userns");
+            cmd.arg(self.network_namespace.as_ref().unwrap().userns());
+            cmd.arg("--use-netns");
+            cmd.arg(self.network_namespace.as_ref().unwrap().netns());
+        }
+        cmd.arg(&*STUDIO_PROGRAM);
+
+        Ok(cmd)
+    }
+
+    fn studio_command_not_airlock(&self) -> Result<Command> {
+        let mut cmd = Command::new(&*STUDIO_PROGRAM);
+        cmd.env_clear();
+        debug!("HAB_CACHE_KEY_PATH: {:?}", key_path());
+        cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
+        cmd.env("HAB_CACHE_KEY_PATH", key_path()); // Sets key cache to build user's home
+
+        info!("Airlock is not enabled, running uncontained Studio");
+        Ok(cmd)
     }
 }
 
+#[cfg(not(windows))]
 pub fn studio_gid() -> u32 {
     STUDIO_GID.load(Ordering::Relaxed) as u32
 }
 
+#[cfg(not(windows))]
 pub fn studio_uid() -> u32 {
     STUDIO_UID.load(Ordering::Relaxed) as u32
 }
 
+#[cfg(not(windows))]
 pub fn set_studio_gid(gid: u32) {
     STUDIO_GID.store(gid as usize, Ordering::Relaxed);
 }
 
+#[cfg(not(windows))]
 pub fn set_studio_uid(uid: u32) {
     STUDIO_UID.store(uid as usize, Ordering::Relaxed);
 }
@@ -218,7 +258,8 @@ pub fn key_path() -> PathBuf {
 }
 
 /// Returns a path argument suitable to pass to a Studio build command.
-fn build_path(plan_path: &str) -> String {
+pub fn build_path(plan_path: &str) -> String {
+    debug!("Creating build_path from plan_path {}", plan_path);
     let mut parts: Vec<_> = plan_path.split('/').collect();
     if parts.last().map_or("", |p| *p) == "plan.sh" {
         parts.pop();
@@ -227,11 +268,13 @@ fn build_path(plan_path: &str) -> String {
         parts.pop();
     }
 
-    if parts.is_empty() {
+    let ret = if parts.is_empty() {
         String::from(".")
     } else {
         parts.join("/")
-    }
+    };
+    debug!("build_path is {}", ret);
+    ret
 }
 
 #[cfg(test)]
