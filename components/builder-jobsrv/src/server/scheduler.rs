@@ -33,8 +33,8 @@ use crate::db::models::projects::*;
 use crate::bldr_core::logger::Logger;
 use crate::bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
 use crate::bldr_core::socket::DEFAULT_CONTEXT;
-use crate::hab_core::channel::bldr_channel_name;
 use crate::hab_core::package::{target, PackageTarget};
+use crate::hab_core::ChannelIdent;
 
 use super::metrics::{Counter, Gauge, Histogram};
 use super::worker_manager::WorkerMgrClient;
@@ -421,7 +421,7 @@ impl ScheduleMgr {
         job_spec.set_owner_id(group_id);
         job_spec.set_project(project.into());
         job_spec.set_target(target.to_string());
-        job_spec.set_channel(bldr_channel_name(group_id));
+        job_spec.set_channel(ChannelIdent::bldr_name(group_id));
 
         let job: jobsrv::Job = job_spec.into();
         match self.datastore.create_job(&job) {

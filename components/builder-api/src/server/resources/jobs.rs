@@ -24,8 +24,8 @@ use crate::protocol::jobsrv;
 use crate::protocol::net::NetOk;
 use crate::protocol::originsrv::OriginPackageIdent;
 
-use crate::hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use crate::hab_core::package::{Identifiable, PackageIdent, PackageTarget};
+use crate::hab_core::ChannelIdent;
 
 use crate::db::models::channel::*;
 use crate::db::models::jobs::*;
@@ -281,7 +281,9 @@ fn do_group_promotion_or_demotion(
     let channel = match Channel::get(origin, channel, &*conn) {
         Ok(channel) => channel,
         Err(NotFound) => {
-            if (channel != STABLE_CHANNEL) && (channel != UNSTABLE_CHANNEL) {
+            if (channel != ChannelIdent::stable().as_str())
+                && (channel != ChannelIdent::unstable().as_str())
+            {
                 Channel::create(
                     &CreateChannel {
                         name: channel,

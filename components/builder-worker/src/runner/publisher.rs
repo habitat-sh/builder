@@ -16,8 +16,8 @@ use retry::retry;
 
 use crate::bldr_core::api_client::ApiClient;
 use crate::bldr_core::logger::Logger;
-use crate::hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use crate::hab_core::package::archive::PackageArchive;
+use crate::hab_core::ChannelIdent;
 
 use super::{RETRIES, RETRY_WAIT};
 use crate::error::{Error, Result};
@@ -26,7 +26,7 @@ use crate::error::{Error, Result};
 pub struct Publisher {
     pub enabled: bool,
     pub url: String,
-    pub channel_opt: Option<String>,
+    pub channel_opt: Option<String>, // TODO: make hab_core::ChannelIdent type
 }
 
 impl Publisher {
@@ -74,16 +74,13 @@ impl Publisher {
         if self.channel_opt.is_none() {
             debug!("Promotion skipped (no channel specified)");
         } else {
-            let channel = match self.channel_opt {
-                Some(ref c) => c.clone(),
-                None => panic!("Expected channel"),
-            };
+            let channel = ChannelIdent::from(self.channel_opt.as_ref().expect("channel"));
 
-            if channel != STABLE_CHANNEL && channel != UNSTABLE_CHANNEL {
+            if channel != ChannelIdent::stable() && channel != ChannelIdent::unstable() {
                 match retry(
                     RETRIES,
                     RETRY_WAIT,
-                    || client.create_channel(&ident.origin, &channel, auth_token),
+                    || client.create_channel(&ident.origin, &channel.to_string(), auth_token),
                     |res| match *res {
                         Ok(_) => true,
                         Err(_) => {
@@ -110,7 +107,7 @@ impl Publisher {
             match retry(
                 RETRIES,
                 RETRY_WAIT,
-                || client.promote_package(&ident, &channel, auth_token),
+                || client.promote_package(&ident, &channel.to_string(), auth_token),
                 |res| {
                     if res.is_err() {
                         let msg = format!("Promote {} to {}: {:?}", ident, channel, res);

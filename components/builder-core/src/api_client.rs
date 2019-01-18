@@ -249,6 +249,7 @@ impl ApiClient {
         )
     }
 
+    // TODO: make channel type hab_core::ChannelIdent
     pub fn create_channel(&self, origin: &str, channel: &str, token: &str) -> Result<()> {
         let url_path = format!("{}/v1/depot/channels/{}/{}", self.url, origin, channel);
         debug!("Creating channel, path: {:?}", url_path);
@@ -263,6 +264,7 @@ impl ApiClient {
         Ok(())
     }
 
+    // TODO: make channel type hab_core::ChannelIdent
     pub fn promote_package<I>(&self, ident: &I, channel: &str, token: &str) -> Result<()>
     where
         I: Identifiable,

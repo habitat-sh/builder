@@ -21,10 +21,10 @@ use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::Mutex;
 
-use crate::hab_core::channel::{BLDR_CHANNEL_ENVVAR, STABLE_CHANNEL};
 use crate::hab_core::env;
 use crate::hab_core::fs;
 use crate::hab_core::url::BLDR_URL_ENVVAR;
+use crate::hab_core::ChannelIdent;
 use crate::hab_core::AUTH_TOKEN_ENVVAR;
 
 use crate::error::{Error, Result};
@@ -88,9 +88,9 @@ impl<'a> Studio<'a> {
     /// * If the `LogPipe` fails to pipe output
     pub fn build(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
         let channel = if self.workspace.job.has_channel() {
-            self.workspace.job.get_channel()
+            ChannelIdent::from(self.workspace.job.get_channel())
         } else {
-            STABLE_CHANNEL
+            ChannelIdent::stable()
         };
 
         let mut cmd = self.studio_command()?;
@@ -166,9 +166,10 @@ impl<'a> Studio<'a> {
         debug!("building studio build command, cmd={:?}", &cmd);
         debug!(
             "setting studio build command env, {}={}",
-            BLDR_CHANNEL_ENVVAR, &channel
+            ChannelIdent::BLDR_ENVVAR,
+            &channel
         );
-        cmd.env(BLDR_CHANNEL_ENVVAR, channel);
+        cmd.env(ChannelIdent::BLDR_ENVVAR, channel.as_str());
         debug!(
             "setting studio build command env, {}={}",
             BLDR_URL_ENVVAR, self.bldr_url
