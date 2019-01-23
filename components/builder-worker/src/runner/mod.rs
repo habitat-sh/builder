@@ -22,6 +22,7 @@ mod util;
 mod workspace;
 
 use std::fs;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
@@ -36,8 +37,10 @@ use crate::bldr_core::job::Job;
 use crate::bldr_core::logger::Logger;
 use crate::bldr_core::socket::DEFAULT_CONTEXT;
 
+#[cfg(not(windows))]
 use crate::hab_core::os::users;
 use crate::hab_core::package::archive::PackageArchive;
+#[cfg(not(windows))]
 use crate::hab_core::util::posix_perm;
 
 pub use crate::protocol::jobsrv::JobState;
@@ -48,7 +51,7 @@ use crate::protocol::{jobsrv, message};
 use self::docker::DockerExporter;
 use self::job_streamer::{JobStreamer, Section};
 use self::postprocessor::post_process;
-use self::studio::{key_path, Studio, STUDIO_GROUP, STUDIO_USER};
+use self::studio::{build_path, key_path, Studio, STUDIO_GROUP, STUDIO_USER};
 use self::workspace::Workspace;
 
 use crate::config::Config;
@@ -92,6 +95,7 @@ pub struct Runner {
 
 impl Runner {
     pub fn new(job: Job, config: Arc<Config>, net_ident: &str, cancel: Arc<AtomicBool>) -> Self {
+        debug!("Creating new Runner with config: {:?}", config);
         let depot_cli = ApiClient::new(&config.bldr_url);
 
         let log_path = config.log_path.clone();
@@ -204,6 +208,32 @@ impl Runner {
         Ok(())
     }
 
+    #[cfg(windows)]
+    fn do_clone(&mut self, tx: &mpsc::Sender<Job>, streamer: &mut JobStreamer) -> Result<()> {
+        self.check_cancel(tx)?;
+        let mut section = streamer.start_section(Section::CloneRepository)?;
+
+        let vcs = VCS::from_job(&self.job(), self.config.github.clone());
+        if let Some(err) = vcs.clone(&self.workspace.src()).err() {
+            let msg = format!(
+                "Failed to clone remote source repository for {}, err={:?}",
+                self.workspace.job.get_project().get_name(),
+                err
+            );
+            warn!("{}", msg);
+            self.logger.log(&msg);
+
+            streamer.println_stderr(msg)?;
+            self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:1"));
+            tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+            return Err(err);
+        }
+
+        section.end()?;
+        Ok(())
+    }
+
+    #[cfg(not(windows))]
     fn do_clone(&mut self, tx: &mpsc::Sender<Job>, streamer: &mut JobStreamer) -> Result<()> {
         self.check_cancel(tx)?;
         let mut section = streamer.start_section(Section::CloneRepository)?;
@@ -407,7 +437,7 @@ impl Runner {
                 debug!("Imported origin secret key, dst={:?}.", dst);
                 if self.config.airlock_enabled {
                     if cfg!(not(windows)) {
-                        posix_perm::set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
+                        set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
                     } else {
                         unreachable!();
                     }
@@ -437,20 +467,36 @@ impl Runner {
             (None, Some(_)) => return Err(Error::NoNetworkInterfaceError),
             (Some(_), None) => return Err(Error::NoNetworkGatewayError),
         };
-        let status = Studio::new(
+        let studio = Studio::new(
             &self.workspace,
             &self.config.bldr_url,
             &self.bldr_token,
             self.config.airlock_enabled,
             network_namespace,
-        )
-        .build(streamer)?;
+        );
+        let status = studio.build(streamer)?;
+        debug!("Studio build return status: {:?}", status);
 
-        if fs::rename(self.workspace.src().join("results"), self.workspace.out()).is_err() {
-            return Err(Error::BuildFailure(status.code().unwrap_or(-2)));
+        let build_path = build_path(self.workspace.job.get_project().get_plan_path());
+
+        match fs::rename(
+            self.workspace.src().join(build_path).join("results"),
+            self.workspace.out(),
+        ) {
+            Ok(_) => (),
+            Err(err) => {
+                debug!(
+                    "Failed to rename studio results dir: {:?} to {:?}. Err = {:?}",
+                    self.workspace.src().join("results"),
+                    self.workspace.out(),
+                    err
+                );
+                return Err(Error::BuildFailure(status.code().unwrap_or(-2)));
+            }
         }
 
         if !status.success() {
+            debug!("Status is not success");
             let ident = self.workspace.attempted_build()?;
             let op_ident = OriginPackageIdent::from(ident);
             self.workspace.job.set_package_ident(op_ident);
@@ -505,6 +551,37 @@ impl Runner {
         self.logger.log_worker_job(&self.workspace.job);
     }
 
+    #[cfg(windows)]
+    fn setup(&mut self) -> Result<JobStreamer> {
+        self.logger.log_worker_job(&self.workspace.job);
+
+        if self.workspace.src().exists() {
+            if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
+                warn!(
+                    "Failed to delete directory during setup, dir={}, err={:?}",
+                    self.workspace.src().display(),
+                    err
+                )
+            }
+        }
+        if let Some(err) = fs::create_dir_all(self.workspace.src()).err() {
+            return Err(Error::WorkspaceSetup(
+                format!("{}", self.workspace.src().display()),
+                err,
+            ));
+        }
+
+        if let Some(err) = fs::create_dir_all(key_path()).err() {
+            return Err(Error::WorkspaceSetup(
+                format!("{}", key_path().display()),
+                err,
+            ));
+        }
+
+        Ok(JobStreamer::new(&self.workspace))
+    }
+
+    #[cfg(not(windows))]
     fn setup(&mut self) -> Result<JobStreamer> {
         self.logger.log_worker_job(&self.workspace.job);
 
@@ -518,11 +595,7 @@ impl Runner {
                     .as_str(),
                 STUDIO_GROUP,
             )?;
-            if cfg!(not(windows)) {
-                posix_perm::set_permissions(&self.config.data_path, 0o750)?;
-            } else {
-                unreachable!();
-            }
+            posix_perm::set_permissions(&self.config.data_path, 0o750)?;
         }
 
         if self.workspace.src().exists() {
@@ -542,12 +615,8 @@ impl Runner {
         }
 
         if self.config.airlock_enabled {
-            if cfg!(not(windows)) {
-                posix_perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
-                posix_perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
-            } else {
-                unreachable!();
-            }
+            posix_perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
+            posix_perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
         }
 
         if let Some(err) = fs::create_dir_all(key_path()).err() {
@@ -783,6 +852,16 @@ impl RunnerMgr {
         self.sock.send(&message::encode(&**job)?, 0)?;
         Ok(())
     }
+}
+
+#[cfg(not(windows))]
+pub fn set_owner<T: AsRef<Path>, X: AsRef<str>>(path: T, owner: X, group: X) -> Result<()> {
+    posix_perm::set_owner(path, owner, group).map_err(Error::HabitatCore)
+}
+
+#[cfg(windows)]
+pub fn set_owner<T: AsRef<Path>, X: AsRef<str>>(_path: T, _owner: X, _group: X) -> Result<()> {
+    Ok(())
 }
 
 #[cfg(test)]

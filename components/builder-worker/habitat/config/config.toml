@@ -1,7 +1,7 @@
 auto_publish = {{cfg.auto_publish}}
-data_path = "{{pkg.svc_data_path}}"
-key_dir = "{{pkg.svc_files_path}}"
-log_path = "{{pkg.svc_path}}/logs"
+data_path = '{{pkg.svc_data_path}}'
+key_dir = '{{pkg.svc_files_path}}'
+log_path = '{{pkg.svc_path}}/logs'
 bldr_channel = "{{cfg.bldr_channel}}"
 features_enabled = "{{cfg.features_enabled}}"
 {{~#eachAlive bind.depot.members as |member|}}
@@ -18,7 +18,7 @@ network_gateway = "{{cfg.network_gateway}}"
 {{~/if}}
 
 [github]
-app_private_key = "{{pkg.svc_files_path}}/builder-github-app.pem"
+app_private_key = '{{pkg.svc_files_path}}/builder-github-app.pem'
 {{toToml cfg.github}}
 
 {{~#eachAlive bind.jobsrv.members as |member|}}

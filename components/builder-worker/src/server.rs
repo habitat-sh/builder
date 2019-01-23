@@ -15,13 +15,19 @@
 use std::collections::HashMap;
 use std::fs;
 use std::iter::FromIterator;
+use std::path::Path;
+#[cfg(windows)]
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use zmq;
 
 use crate::bldr_core;
 use crate::bldr_core::socket::DEFAULT_CONTEXT;
+#[cfg(windows)]
+use crate::hab_core::env;
 use crate::hab_core::users;
+#[cfg(not(windows))]
 use crate::hab_core::util::posix_perm;
 use crate::protocol::{jobsrv, message};
 
@@ -234,14 +240,14 @@ impl Server {
         // Ensure that data path group ownership is set to the build user and directory perms are
         // `0750`. This allows the namespace files to be accessed and read by the build user
         if cfg!(not(windows)) {
-            posix_perm::set_owner(
+            set_owner(
                 &self.config.data_path,
                 users::get_current_username()
                     .unwrap_or_else(|| String::from("root"))
                     .as_str(),
                 studio::STUDIO_GROUP,
             )?;
-            posix_perm::set_permissions(&self.config.data_path, 0o750)?;
+            set_permissions(&self.config.data_path, 0o750)?;
         } else {
             unreachable!();
         }
@@ -257,8 +263,8 @@ impl Server {
                 .map_err(|e| Error::CreateDirectory(parent_path.to_path_buf(), e))?;
         }
         if cfg!(not(windows)) {
-            posix_perm::set_owner(&parent_path, studio::STUDIO_USER, studio::STUDIO_GROUP)?;
-            posix_perm::set_permissions(&parent_path, 0o750)?;
+            set_owner(&parent_path, studio::STUDIO_USER, studio::STUDIO_GROUP)?;
+            set_permissions(&parent_path, 0o750)?;
         } else {
             unreachable!();
         }
@@ -291,6 +297,7 @@ pub fn run(config: Config) -> Result<()> {
     Server::new(config).run()
 }
 
+#[cfg(not(windows))]
 fn init_users() -> Result<()> {
     let uid = users::get_uid_by_name(studio::STUDIO_USER).ok_or(Error::NoStudioUser)?;
     let gid = users::get_gid_by_name(studio::STUDIO_GROUP).ok_or(Error::NoStudioGroup)?;
@@ -298,5 +305,37 @@ fn init_users() -> Result<()> {
     *home = users::get_home_for_user(studio::STUDIO_USER).ok_or(Error::NoStudioGroup)?;
     studio::set_studio_uid(uid);
     studio::set_studio_gid(gid);
+    Ok(())
+}
+
+#[cfg(windows)]
+fn init_users() -> Result<()> {
+    if let Some(val) = env::var_os("HOMEPATH") {
+        debug!("Setting STUDIO_HOME to {:?}", val);
+        let mut home = studio::STUDIO_HOME.lock().unwrap();
+        *home = PathBuf::from(val);
+    } else {
+        debug!("HOMEPATH env var not found!");
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn set_owner<T: AsRef<Path>, X: AsRef<str>>(path: T, owner: X, group: X) -> Result<()> {
+    posix_perm::set_owner(path, owner, group).map_err(Error::HabitatCore)
+}
+
+#[cfg(windows)]
+pub fn set_owner<T: AsRef<Path>, X: AsRef<str>>(_path: T, _owner: X, _group: X) -> Result<()> {
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn set_permissions<T: AsRef<Path>>(path: T, mode: u32) -> Result<()> {
+    posix_perm::set_permissions(&path, mode).map_err(Error::HabitatCore)
+}
+
+#[cfg(windows)]
+pub fn set_permissions<T: AsRef<Path>>(_path: T, _mode: u32) -> Result<()> {
     Ok(())
 }

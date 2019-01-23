@@ -68,6 +68,10 @@ impl VCS {
     }
 
     pub fn clone(&self, path: &Path) -> Result<()> {
+        debug!(
+            "VCS clone called, installation id = {:?}, path = {:?}",
+            self.installation_id, path
+        );
         match self.vcs_type.as_ref() {
             "git" => {
                 let token = match self.installation_id {
@@ -80,15 +84,19 @@ impl VCS {
                         // because the subsequent git2 clone call
                         // doesn't use our Github client... maybe we
                         // should pull it in?
+                        debug!("VCS clone creating token");
                         let t = self
                             .github_client
                             .app_installation_token(id)
                             .map_err(Error::GithubAppAuthErr)?;
                         Counter::GitAuthenticatedClone.increment();
+                        debug!("VCS clone token created successfully");
                         Some(t.inner_token().to_string())
                     }
                 };
+                debug!("VCS clone starting repo clone");
                 git2::Repository::clone(&(self.url(&token)?).as_str(), path).map_err(Error::Git)?;
+                debug!("VCS clone repo clone succeeded!");
                 Ok(())
             }
             _ => panic!("Unknown vcs type"),
@@ -96,6 +104,7 @@ impl VCS {
     }
 
     pub fn url(&self, token: &Option<String>) -> Result<Url> {
+        debug!("VCS creating url, token = {:?}", token);
         let mut url = Url::parse(self.data.as_str()).map_err(Error::UrlParseError)?;
         if self.data.starts_with("https://") {
             if let Some(ref tok) = token {
@@ -107,6 +116,7 @@ impl VCS {
         } else {
             return Err(Error::NotHTTPSCloneUrl(url));
         }
+        debug!("VCS url = {:?}", url);
         Ok(url)
     }
 }

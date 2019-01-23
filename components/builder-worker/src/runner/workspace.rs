@@ -36,6 +36,7 @@ impl Workspace {
         T: AsRef<Path>,
     {
         let root = data_path.as_ref().join(job.get_id().to_string());
+        debug!("New workspace, root = {:?}", root);
         Workspace {
             job,
             out: root.join("out"),
@@ -96,12 +97,24 @@ impl Workspace {
         &self.ns_dir
     }
 
+    #[cfg(not(windows))]
     fn last_build_env(&self) -> PathBuf {
         self.out().join("last_build.env")
     }
 
+    #[cfg(windows)]
+    fn last_build_env(&self) -> PathBuf {
+        self.out().join("last_build.ps1")
+    }
+
+    #[cfg(not(windows))]
     fn pre_build_env(&self) -> PathBuf {
         self.out().join("pre_build.env")
+    }
+
+    #[cfg(windows)]
+    fn pre_build_env(&self) -> PathBuf {
+        self.out().join("pre_build.ps1")
     }
 }
 
@@ -130,6 +143,7 @@ impl StudioBuild {
         Ok(build)
     }
 
+    #[cfg(not(windows))]
     pub fn parse_into(env: &mut StudioBuild, buf: &[u8]) {
         let content = String::from_utf8_lossy(buf).into_owned();
         for line in content.lines() {
@@ -143,6 +157,29 @@ impl StudioBuild {
                 "pkg_artifact" => env.pkg_artifact = Some(split[1].to_string()),
                 "pkg_sha256sum" => env.pkg_sha256sum = Some(split[1].to_string()),
                 "pkg_blake2bsum" => env.pkg_blake2bsum = Some(split[1].to_string()),
+                field => warn!("unknown field={}", field),
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    pub fn parse_into(env: &mut StudioBuild, buf: &[u8]) {
+        let content = String::from_utf8_lossy(buf).into_owned();
+        for line in content.lines() {
+            let split: Vec<&str> = line.split('=').map(|e| e.trim()).collect();
+            match split[0] {
+                "$pkg_origin" => env.pkg_origin = split[1].trim_matches('"').to_string(),
+                "$pkg_name" => env.pkg_name = split[1].trim_matches('"').to_string(),
+                "$pkg_version" => env.pkg_version = split[1].trim_matches('"').to_string(),
+                "$pkg_release" => env.pkg_release = split[1].trim_matches('"').to_string(),
+                "$pkg_ident" => env.pkg_ident = split[1].trim_matches('"').to_string(),
+                "$pkg_artifact" => env.pkg_artifact = Some(split[1].trim_matches('"').to_string()),
+                "$pkg_sha256sum" => {
+                    env.pkg_sha256sum = Some(split[1].trim_matches('"').to_string())
+                }
+                "$pkg_blake2bsum" => {
+                    env.pkg_blake2bsum = Some(split[1].trim_matches('"').to_string())
+                }
                 field => warn!("unknown field={}", field),
             }
         }
