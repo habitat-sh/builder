@@ -143,6 +143,7 @@ pub struct ApiCfg {
     pub log_path: PathBuf,
     pub key_path: PathBuf,
     pub targets: Vec<PackageTarget>,
+    pub build_targets: Vec<PackageTarget>,
     pub features_enabled: String,
 }
 
@@ -157,6 +158,7 @@ impl Default for ApiCfg {
                 target::X86_64_LINUX_KERNEL2,
                 target::X86_64_WINDOWS,
             ],
+            build_targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
             features_enabled: String::from("jobsrv"),
         }
     }
@@ -287,6 +289,7 @@ mod tests {
         log_path = "/hab/svc/hab-depot/var/log"
         key_path = "/hab/svc/hab-depot/files"
         targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
+        build_targets = ["x86_64-linux"]
         features_enabled = "foo, bar"
 
         [http]
@@ -351,6 +354,9 @@ mod tests {
         assert_eq!(config.api.targets[0], target::X86_64_LINUX);
         assert_eq!(config.api.targets[1], target::X86_64_LINUX_KERNEL2);
         assert_eq!(config.api.targets[2], target::X86_64_WINDOWS);
+
+        assert_eq!(config.api.build_targets.len(), 1);
+        assert_eq!(config.api.build_targets[0], target::X86_64_LINUX);
 
         assert_eq!(&config.api.features_enabled, "foo, bar");
 

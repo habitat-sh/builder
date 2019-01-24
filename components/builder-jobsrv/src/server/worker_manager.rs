@@ -14,6 +14,7 @@
 
 use std::path::PathBuf;
 use std::str::from_utf8;
+use std::str::FromStr;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -25,10 +26,12 @@ use crate::bldr_core::socket::DEFAULT_CONTEXT;
 use crate::db::DbPool;
 use crate::hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
 use crate::hab_core::crypto::BoxKeyPair;
+use crate::hab_core::package::{target, PackageTarget};
 use linked_hash_map::LinkedHashMap;
 use protobuf::{parse_from_bytes, Message, RepeatedField};
 
 use crate::db::models::integration::*;
+use crate::db::models::jobs::*;
 use crate::db::models::keys::*;
 use crate::db::models::project_integration::*;
 use crate::db::models::secrets::*;
@@ -76,6 +79,7 @@ impl Default for WorkerMgrClient {
 
 #[derive(Debug)]
 pub struct Worker {
+    pub target: PackageTarget,
     pub ident: String,
     pub state: jobsrv::WorkerState,
     pub expiry: Instant,
@@ -85,8 +89,9 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(ident: &str) -> Self {
+    pub fn new(ident: &str, target: PackageTarget) -> Self {
         Worker {
+            target,
             ident: ident.to_string(),
             state: jobsrv::WorkerState::Ready,
             expiry: Instant::now() + Duration::from_millis(WORKER_TIMEOUT_MS),
@@ -200,6 +205,7 @@ impl WorkerMgr {
         }
     }
 
+    #[allow(clippy::cyclomatic_complexity)]
     fn run(&mut self, rz: &mpsc::SyncSender<()>) -> Result<()> {
         self.work_mgr_sock.bind(WORKER_MGR_ADDR)?;
         println!("Listening for commands on {}", self.worker_command);
@@ -279,7 +285,10 @@ impl WorkerMgr {
                 if let Err(err) = self.process_cancelations() {
                     warn!("Worker-manager unable to process cancels: err {:?}", err);
                 }
-                if let Err(err) = self.process_work() {
+                if let Err(err) = self.process_work(target::X86_64_LINUX) {
+                    warn!("Worker-manager unable to process work: err {:?}", err);
+                }
+                if let Err(err) = self.process_work(target::X86_64_WINDOWS) {
                     warn!("Worker-manager unable to process work: err {:?}", err);
                 }
                 last_processed = now;
@@ -292,31 +301,46 @@ impl WorkerMgr {
     }
 
     fn load_workers(&mut self) -> Result<()> {
-        let workers = self.datastore.get_busy_workers()?;
+        let conn = self.db.get_conn().map_err(Error::Db)?;
+        let workers = BusyWorker::list(&*conn).map_err(Error::DieselError)?;
 
         for worker in workers {
-            let mut bw = Worker::new(worker.get_ident());
-            bw.busy(worker.get_job_id(), self.job_timeout);
-            self.workers.insert(worker.get_ident().to_owned(), bw);
+            debug!("Loading busy worker: {}", worker.ident);
+            let target = PackageTarget::from_str(&worker.target).unwrap();
+            let mut bw = Worker::new(&worker.ident, target);
+            bw.busy(worker.job_id as u64, self.job_timeout);
+            self.workers.insert(worker.ident.to_owned(), bw);
         }
 
         Ok(())
     }
 
     fn save_worker(&mut self, worker: &Worker) -> Result<()> {
-        let mut bw = jobsrv::BusyWorker::new();
-        bw.set_ident(worker.ident.clone());
-        bw.set_job_id(worker.job_id.unwrap()); // unwrap Ok
+        debug!("Saving busy worker: {}", worker.ident);
+        let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        self.datastore.upsert_busy_worker(&bw)
+        BusyWorker::create(
+            &NewBusyWorker {
+                target: &worker.target.to_string(),
+                ident: &worker.ident,
+                job_id: worker.job_id.unwrap() as i64,
+                quarantined: false,
+            },
+            &*conn,
+        )
+        .map_err(Error::DieselError)?;
+
+        Ok(())
     }
 
     fn delete_worker(&mut self, worker: &Worker) -> Result<()> {
-        let mut bw = jobsrv::BusyWorker::new();
-        bw.set_ident(worker.ident.clone());
-        bw.set_job_id(worker.job_id.unwrap()); // unwrap Ok
+        debug!("Deleting busy worker: {}", worker.ident);
+        let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        self.datastore.delete_busy_worker(&bw)
+        BusyWorker::delete(&worker.ident, worker.job_id.unwrap() as i64, &*conn)
+            .map_err(Error::DieselError)?;
+
+        Ok(())
     }
 
     fn requeue_jobs(&mut self) -> Result<()> {
@@ -420,20 +444,22 @@ impl WorkerMgr {
         Ok(())
     }
 
-    fn process_work(&mut self) -> Result<()> {
+    fn process_work(&mut self, target: PackageTarget) -> Result<()> {
         loop {
             // Exit if we don't have any Ready workers
             let worker_ident = match self
                 .workers
                 .iter()
-                .find(|t| t.1.state == jobsrv::WorkerState::Ready)
+                .find(|t| (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Ready))
             {
                 Some(t) => t.0.clone(),
                 None => return Ok(()),
             };
 
             // Take one job from the pending list
-            let job_opt = self.datastore.next_pending_job(&worker_ident)?;
+            let job_opt = self
+                .datastore
+                .next_pending_job(&worker_ident, &target.to_string())?;
             if job_opt.is_none() {
                 break;
             }
@@ -741,8 +767,15 @@ impl WorkerMgr {
         let mut worker = match self.workers.remove(&worker_ident) {
             Some(worker) => worker,
             None => {
+                // TODO: Plumb in full package target into worker heartbeat
+                let worker_target = match heartbeat.get_os() {
+                    jobsrv::Os::Linux => PackageTarget::from_str("x86_64-linux").unwrap(),
+                    jobsrv::Os::Windows => PackageTarget::from_str("x86_64-windows").unwrap(),
+                    _ => panic!("Unhandled worker heartbeat OS"),
+                };
+
                 if heartbeat.get_state() == jobsrv::WorkerState::Ready {
-                    Worker::new(&worker_ident)
+                    Worker::new(&worker_ident, worker_target)
                 } else {
                     warn!(
                         "Unexpacted Busy heartbeat from unknown worker {}",

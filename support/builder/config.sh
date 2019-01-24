@@ -28,7 +28,7 @@ EOT
 
 mkdir -p /hab/svc/builder-api
 cat <<EOT > /hab/svc/builder-api/user.toml
-log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error"
+log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error,hyper=error"
 
 [http]
 handler_count = 15
@@ -80,7 +80,7 @@ EOT
 
 mkdir -p /hab/svc/builder-jobsrv
 cat <<EOT > /hab/svc/builder-jobsrv/user.toml
-log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error"
+log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error,postgres=error"
 
 [http]
 handler_count = 15

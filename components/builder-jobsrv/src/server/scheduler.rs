@@ -231,7 +231,7 @@ impl ScheduleMgr {
 
             assert!(project.get_state() == jobsrv::JobGroupProjectState::NotStarted);
 
-            match self.schedule_job(group.get_id(), project.get_name()) {
+            match self.schedule_job(group.get_id(), project.get_name(), group.get_target()) {
                 Ok(job_opt) => match job_opt {
                     Some(job) => self.datastore.set_job_group_job_state(&job).unwrap(),
                     None => {
@@ -387,7 +387,12 @@ impl ScheduleMgr {
         Ok(skipped.keys().map(|s| s.to_string()).collect())
     }
 
-    fn schedule_job(&mut self, group_id: u64, project_name: &str) -> Result<Option<jobsrv::Job>> {
+    fn schedule_job(
+        &mut self,
+        group_id: u64,
+        project_name: &str,
+        target: &str,
+    ) -> Result<Option<jobsrv::Job>> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
         let project = match Project::get(&project_name, &*conn) {
@@ -409,6 +414,7 @@ impl ScheduleMgr {
         let mut job_spec = jobsrv::JobSpec::new();
         job_spec.set_owner_id(group_id);
         job_spec.set_project(project.into());
+        job_spec.set_target(target.to_string());
         job_spec.set_channel(bldr_channel_name(group_id));
 
         let job: jobsrv::Job = job_spec.into();

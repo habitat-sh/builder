@@ -20,10 +20,12 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use diesel;
+use diesel::result::Error::NotFound;
 use protobuf::RepeatedField;
 use time::PreciseTime;
 
 use crate::bldr_core::rpc::RpcMessage;
+use crate::db::models::jobs::*;
 use crate::db::models::projects::*;
 
 use super::AppState;
@@ -302,8 +304,8 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     let msg = req.parse::<jobsrv::JobGroupSpec>()?;
     debug!("job_group_create message: {:?}", msg);
 
-    // Check that the target is supported - currently only x86_64-linux buildable
-    if msg.get_target() != "x86_64-linux" {
+    // Check that the target is supported
+    if (msg.get_target() != "x86_64-linux") && (msg.get_target() != "x86_64-windows") {
         return Err(Error::NotFound);
     }
 
@@ -392,17 +394,24 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         new_group.set_id(0);
         new_group.set_state(jobsrv::JobGroupState::GroupComplete);
         new_group.set_projects(projects);
+        new_group.set_target(msg.get_target().to_string());
         new_group
     } else {
-        // If already have a queued job group (queue length: 1 per project),
+        // If already have a queued job group (queue length: 1 per project and target),
         // then return that group, else create a new job group
         // TODO (SA) - update the group's projects instead of just returning the group
-        let new_group = match state.datastore.get_queued_job_group(&project_name)? {
-            Some(group) => {
+        let conn = state.db.get_conn().map_err(Error::Db)?;
+
+        let new_group = match Group::get_queued(&project_name, &msg.get_target(), &*conn) {
+            Ok(group) => {
                 debug!("JobGroupSpec, project {} is already queued", project_name);
-                group
+                group.into()
             }
-            None => state.datastore.create_job_group(&msg, projects)?,
+            Err(NotFound) => state.datastore.create_job_group(&msg, projects)?,
+            Err(err) => {
+                debug!("Failed to retrieve queued groups, err = {}", err);
+                return Err(Error::DieselError(err));
+            }
         };
         ScheduleClient::default().notify()?;
 
