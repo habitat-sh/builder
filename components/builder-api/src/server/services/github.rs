@@ -34,6 +34,7 @@ use crate::db::models::projects::Project;
 
 use crate::server::authorize::authorize_session;
 use crate::server::error::Error;
+use crate::server::feat;
 use crate::server::framework::headers;
 use crate::server::framework::middleware::route_message;
 use crate::server::services::metrics::Counter;
@@ -232,22 +233,26 @@ fn build_plans(
             }
         }
 
-        debug!("Scheduling, {:?}", plan);
-        request.set_origin(plan.origin.clone());
-        request.set_package(plan.name.clone());
-        // JW TODO: We need to be able to determine which platform this build is for based on
-        // the directory structure the plan is found in or metadata inside the plan. We will need
-        // to have this done before we support building additional targets with Builder.
-        request.set_target("x86_64-linux".to_string());
-        request.set_trigger(JobGroupTrigger::Webhook);
-        request.set_requester_name(pusher.to_string());
-        if account_id.is_some() {
-            request.set_requester_id(account_id.unwrap());
-        }
+        if feat::is_enabled(feat::Jobsrv) {
+            debug!("Scheduling, {:?}", plan);
+            request.set_origin(plan.origin.clone());
+            request.set_package(plan.name.clone());
+            // JW TODO: We need to be able to determine which platform this build is for based on
+            // the directory structure the plan is found in or metadata inside the plan. We will need
+            // to have this done before we support building additional targets with Builder.
+            request.set_target("x86_64-linux".to_string());
+            request.set_trigger(JobGroupTrigger::Webhook);
+            request.set_requester_name(pusher.to_string());
+            if account_id.is_some() {
+                request.set_requester_id(account_id.unwrap());
+            }
 
-        match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
-            Ok(group) => debug!("JobGroup created, {:?}", group),
-            Err(err) => debug!("Failed to create group, {:?}", err),
+            match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
+                Ok(group) => debug!("JobGroup created, {:?}", group),
+                Err(err) => debug!("Failed to create group, {:?}", err),
+            }
+        } else {
+            debug!("Skipping scheduling build for {:?} (jobsrv disabled)", plan);
         }
     }
 
