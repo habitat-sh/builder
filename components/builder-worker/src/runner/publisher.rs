@@ -71,10 +71,8 @@ impl Publisher {
             }
         }
 
-        if self.channel_opt.is_none() {
-            debug!("Promotion skipped (no channel specified)");
-        } else {
-            let channel = ChannelIdent::from(self.channel_opt.as_ref().expect("channel"));
+        if let Some(channel) = &self.channel_opt {
+            let channel = ChannelIdent::from(channel.clone());
 
             if channel != ChannelIdent::stable() && channel != ChannelIdent::unstable() {
                 match retry(
@@ -128,6 +126,8 @@ impl Publisher {
                     return Err(Error::Retry(err));
                 }
             }
+        } else {
+            debug!("Promotion skipped (no channel specified)");
         }
         Ok(())
     }
