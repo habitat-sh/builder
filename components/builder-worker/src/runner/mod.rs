@@ -477,17 +477,19 @@ impl Runner {
         let status = studio.build(streamer)?;
         debug!("Studio build return status: {:?}", status);
 
-        let build_path = build_path(self.workspace.job.get_project().get_plan_path());
+        let result_path = if cfg!(windows) {
+            let build_path = build_path(self.workspace.job.get_project().get_plan_path());
+            self.workspace.src().join(build_path).join("results")
+        } else {
+            self.workspace.src().join("results")
+        };
 
-        match fs::rename(
-            self.workspace.src().join(build_path).join("results"),
-            self.workspace.out(),
-        ) {
+        match fs::rename(&result_path, self.workspace.out()) {
             Ok(_) => (),
             Err(err) => {
                 debug!(
                     "Failed to rename studio results dir: {:?} to {:?}. Err = {:?}",
-                    self.workspace.src().join("results"),
+                    result_path,
                     self.workspace.out(),
                     err
                 );
