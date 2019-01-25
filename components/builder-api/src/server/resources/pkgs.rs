@@ -1029,7 +1029,10 @@ fn do_upload_package_finish(
 
     // Schedule re-build of dependent packages (if requested)
     // Don't schedule builds if the upload is being done by the builder
-    if qupload.builder.is_none() && feat::is_enabled(feat::Jobsrv) {
+    if qupload.builder.is_none()
+        && feat::is_enabled(feat::Jobsrv)
+        && req.state().config.api.build_on_upload
+    {
         let mut request = jobsrv::JobGroupSpec::new();
         request.set_origin(ident.origin.to_string());
         request.set_package(ident.name.to_string());
