@@ -4,6 +4,7 @@ log_level = "info"
 features_enabled = "jobsrv"
 targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
 build_targets = ["x86_64-linux", "x86_64-windows"]
+build_on_upload = true
 
 [http]
 listen = "0.0.0.0"

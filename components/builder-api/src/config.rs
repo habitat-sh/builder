@@ -145,6 +145,7 @@ pub struct ApiCfg {
     pub targets: Vec<PackageTarget>,
     pub build_targets: Vec<PackageTarget>,
     pub features_enabled: String,
+    pub build_on_upload: bool,
 }
 
 impl Default for ApiCfg {
@@ -160,6 +161,7 @@ impl Default for ApiCfg {
             ],
             build_targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
             features_enabled: String::from("jobsrv"),
+            build_on_upload: true,
         }
     }
 }
@@ -291,6 +293,7 @@ mod tests {
         targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
         build_targets = ["x86_64-linux"]
         features_enabled = "foo, bar"
+        build_on_upload = false
 
         [http]
         listen = "0:0:0:0:0:0:0:1"
@@ -359,6 +362,7 @@ mod tests {
         assert_eq!(config.api.build_targets[0], target::X86_64_LINUX);
 
         assert_eq!(&config.api.features_enabled, "foo, bar");
+        assert_eq!(config.api.build_on_upload, false);
 
         assert_eq!(&format!("{}", config.http.listen), "::1");
 
