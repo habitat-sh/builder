@@ -419,8 +419,15 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
         Err(err) => return err.into(),
     };
 
-    // We only support building for Linux x64 only currently
-    if qschedule.target != "x86_64-linux" {
+    let target = match PackageTarget::from_str(&qschedule.target) {
+        Ok(t) => t,
+        Err(_) => {
+            debug!("Invalid target received: {}", qschedule.target);
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
+    };
+
+    if !req.state().config.api.build_targets.contains(&target) {
         debug!("Rejecting build with target: {}", qschedule.target);
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }

@@ -102,7 +102,7 @@ impl DataStore {
 
             let rows = conn
                 .query(
-                    "SELECT * FROM insert_job_v2($1, $2, $3, $4, $5, $6, $7, $8)",
+                    "SELECT * FROM insert_job_v3($1, $2, $3, $4, $5, $6, $7, $8, $9)",
                     &[
                         &(job.get_owner_id() as i64),
                         &(project.get_id() as i64),
@@ -112,6 +112,7 @@ impl DataStore {
                         &project.get_vcs_type(),
                         &vec![Some(project.get_vcs_data().to_string()), install_id],
                         &channel,
+                        &job.get_target(),
                     ],
                 )
                 .map_err(Error::JobCreate)?;
@@ -155,10 +156,13 @@ impl DataStore {
     /// * If a connection cannot be gotten from the pool
     /// * If the pending jobs cannot be selected from the database
     /// * If the row returned cannot be translated into a Job
-    pub fn next_pending_job(&self, worker: &str) -> Result<Option<jobsrv::Job>> {
+    pub fn next_pending_job(&self, worker: &str, target: &str) -> Result<Option<jobsrv::Job>> {
         let conn = self.pool.get()?;
         let rows = &conn
-            .query("SELECT * FROM next_pending_job_v1($1)", &[&worker])
+            .query(
+                "SELECT * FROM next_pending_job_v2($1, $2)",
+                &[&worker, &target],
+            )
             .map_err(Error::JobPending)?;
 
         if !rows.is_empty() {
@@ -486,8 +490,13 @@ impl DataStore {
 
         let rows = conn
             .query(
-                "SELECT * FROM insert_group_v2($1, $2, $3)",
-                &[&root_project, &project_names, &project_idents],
+                "SELECT * FROM insert_group_v3($1, $2, $3, $4)",
+                &[
+                    &root_project,
+                    &project_names,
+                    &project_idents,
+                    &msg.get_target(),
+                ],
             )
             .map_err(Error::JobGroupCreate)?;
 
@@ -499,6 +508,7 @@ impl DataStore {
             project.set_name(name);
             project.set_ident(ident);
             project.set_state(jobsrv::JobGroupProjectState::NotStarted);
+            project.set_target(msg.get_target().to_string());
             projects.push(project);
         }
 
@@ -646,6 +656,9 @@ impl DataStore {
         let project_name: String = row.get("project_name");
         group.set_project_name(project_name);
 
+        let target: String = row.get("target");
+        group.set_target(target);
+
         Ok(group)
     }
 
@@ -659,11 +672,13 @@ impl DataStore {
         let ident: String = row.get("project_ident");
         let state: String = row.get("project_state");
         let job_id: i64 = row.get("job_id");
+        let target: String = row.get("target");
         let project_state = state.parse::<jobsrv::JobGroupProjectState>()?;
 
         project.set_name(name);
         project.set_ident(ident);
         project.set_state(project_state);
+        project.set_target(target);
         project.set_job_id(job_id as u64);
 
         Ok(project)
@@ -933,6 +948,9 @@ fn row_to_job(row: &postgres::rows::Row) -> Result<jobsrv::Job> {
     if let Some(Ok(worker)) = row.get_opt::<&str, String>("worker") {
         job.set_worker(worker);
     };
+
+    let target: String = row.get("target");
+    job.set_target(target);
 
     Ok(job)
 }

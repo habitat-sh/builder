@@ -35,6 +35,7 @@ impl Into<Job> for JobSpec {
         job.set_owner_id(self.get_owner_id());
         job.set_state(JobState::default());
         job.set_project(self.take_project());
+        job.set_target(self.take_target());
         if self.has_channel() {
             job.set_channel(self.take_channel());
         }
@@ -416,6 +417,30 @@ impl Serialize for JobGroupOriginResponse {
         let mut strukt = serializer.serialize_struct("job_group_origin_response", 1)?;
         strukt.serialize_field("name", &self.get_job_groups())?;
         strukt.end()
+    }
+}
+
+impl fmt::Display for Os {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let value = match *self {
+            Os::Linux => "linux",
+            Os::Windows => "windows",
+            Os::Darwin => "darwin",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl FromStr for Os {
+    type Err = ProtocolError;
+
+    fn from_str(value: &str) -> result::Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            "linux" => Ok(Os::Linux),
+            "windows" => Ok(Os::Windows),
+            "darwin" => Ok(Os::Darwin),
+            _ => Err(ProtocolError::BadOs(value.to_string())),
+        }
     }
 }
 

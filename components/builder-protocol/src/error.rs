@@ -25,6 +25,7 @@ pub enum ProtocolError {
     BadJobGroupState(String),
     BadJobState(String),
     BadOriginPackageVisibility(String),
+    BadOs(String),
     Decode(protobuf::ProtobufError),
     Encode(protobuf::ProtobufError),
     IdentityDecode(FromUtf8Error),
@@ -44,6 +45,7 @@ impl fmt::Display for ProtocolError {
             ProtocolError::BadOriginPackageVisibility(ref e) => {
                 format!("Bad Origin Package Visibility {}", e)
             }
+            ProtocolError::BadOs(ref e) => format!("Bad OS {}", e),
             ProtocolError::Decode(ref e) => format!("Unable to decode protocol message, {}", e),
             ProtocolError::Encode(ref e) => format!("Unable to encode protocol message, {}", e),
             ProtocolError::IdentityDecode(ref e) => {
@@ -66,6 +68,7 @@ impl error::Error for ProtocolError {
             ProtocolError::BadOriginPackageVisibility(_) => {
                 "Origin package visibility cannot be parsed"
             }
+            ProtocolError::BadOs(_) => "OS cannot be parsed",
             ProtocolError::Decode(_) => "Unable to decode protocol message",
             ProtocolError::Encode(_) => "Unable to encode protocol message",
             ProtocolError::IdentityDecode(_) => "Unable to decode identity message part",
