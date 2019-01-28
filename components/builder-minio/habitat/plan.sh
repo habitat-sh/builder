@@ -2,7 +2,7 @@ pkg_name=builder-minio
 pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=('Apache-2.0')
-pkg_deps=(core/minio core/cacerts core/openssl core/aws-cli)
+pkg_deps=(core/minio core/cacerts core/openssl core/aws-cli core/bash)
 pkg_build_deps=(core/git)
 
 pkg_version() {
