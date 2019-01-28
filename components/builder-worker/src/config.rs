@@ -21,6 +21,7 @@ use std::str::FromStr;
 use crate::hab_core::config::ConfigFile;
 use crate::hab_core::package::PackageTarget;
 use crate::hab_core::url;
+use crate::hab_core::ChannelIdent;
 use github_api_client::config::GitHubCfg;
 
 use crate::error::Error;
@@ -40,7 +41,7 @@ pub struct Config {
     pub log_path: PathBuf,
     /// Default channel name for Publish post-processor to use to determine which channel to
     /// publish artifacts to
-    pub bldr_channel: String,
+    pub bldr_channel: ChannelIdent,
     /// Default URL for Publish post-processor to use to determine which Builder to use
     /// for retrieving signing keys and publishing artifacts
     pub bldr_url: String,
@@ -81,7 +82,7 @@ impl Default for Config {
             data_path: PathBuf::from("/tmp"),
             log_path: PathBuf::from("/tmp"),
             key_dir: PathBuf::from("/hab/svc/builder-worker/files"),
-            bldr_channel: String::from("unstable"),
+            bldr_channel: ChannelIdent::unstable(),
             bldr_url: url::default_bldr_url(),
             jobsrv: vec![JobSrvAddr::default()],
             features_enabled: "".to_string(),

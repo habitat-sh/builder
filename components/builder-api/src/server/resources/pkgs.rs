@@ -33,8 +33,9 @@ use uuid::Uuid;
 
 use crate::bldr_core::error::Error::RpcError;
 use crate::bldr_core::metrics::CounterMetric;
-use crate::hab_core::package::{
-    FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget,
+use crate::hab_core::{
+    package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget},
+    ChannelIdent,
 };
 
 use crate::protocol::jobsrv;
@@ -1127,7 +1128,7 @@ fn do_get_package(
     // below
     {
         let mut memcache = req.state().memcache.borrow_mut();
-        match memcache.get_package(&ident, "unstable", &target, opt_session_id) {
+        match memcache.get_package(&ident, &ChannelIdent::unstable(), &target, opt_session_id) {
             (true, Some(pkg_json)) => {
                 trace!(
                     "Package {} {} {:?} - cache hit with pkg json",
@@ -1174,7 +1175,13 @@ fn do_get_package(
             Ok(pkg) => pkg,
             Err(NotFound) => {
                 let mut memcache = req.state().memcache.borrow_mut();
-                memcache.set_package(&ident, None, "unstable", &target, opt_session_id);
+                memcache.set_package(
+                    &ident,
+                    None,
+                    &ChannelIdent::unstable(),
+                    &target,
+                    opt_session_id,
+                );
                 return Err(Error::NotFound);
             }
 
@@ -1199,7 +1206,13 @@ fn do_get_package(
             Ok(pkg) => pkg,
             Err(NotFound) => {
                 let mut memcache = req.state().memcache.borrow_mut();
-                memcache.set_package(&ident, None, "unstable", &target, opt_session_id);
+                memcache.set_package(
+                    &ident,
+                    None,
+                    &ChannelIdent::unstable(),
+                    &target,
+                    opt_session_id,
+                );
                 return Err(Error::NotFound);
             }
             Err(err) => {
@@ -1222,7 +1235,7 @@ fn do_get_package(
         memcache.set_package(
             &ident,
             Some(&json_body),
-            "unstable",
+            &ChannelIdent::unstable(),
             &target,
             opt_session_id,
         );

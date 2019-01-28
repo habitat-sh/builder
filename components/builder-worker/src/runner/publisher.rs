@@ -72,13 +72,11 @@ impl Publisher {
         }
 
         if let Some(channel) = &self.channel_opt {
-            let channel = ChannelIdent::from(channel.clone());
-
-            if channel != ChannelIdent::stable() && channel != ChannelIdent::unstable() {
+            if channel != &ChannelIdent::stable() && channel != &ChannelIdent::unstable() {
                 match retry(
                     RETRIES,
                     RETRY_WAIT,
-                    || client.create_channel(&ident.origin, &channel.to_string(), auth_token),
+                    || client.create_channel(&ident.origin, &channel, auth_token),
                     |res| match *res {
                         Ok(_) => true,
                         Err(_) => {
@@ -105,7 +103,7 @@ impl Publisher {
             match retry(
                 RETRIES,
                 RETRY_WAIT,
-                || client.promote_package(&ident, &channel.to_string(), auth_token),
+                || client.promote_package(&ident, channel, auth_token),
                 |res| {
                     if res.is_err() {
                         let msg = format!("Promote {} to {}: {:?}", ident, channel, res);

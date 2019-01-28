@@ -218,6 +218,7 @@ fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)
     let (group_id, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
+    let channel = ChannelIdent::from(channel);
 
     match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, true) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -233,6 +234,7 @@ fn demote_job_group((req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>)) 
     let (group_id, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
+    let channel = ChannelIdent::from(channel);
 
     match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, false) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -269,7 +271,7 @@ fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
 //
 fn do_group_promotion_or_demotion(
     req: &HttpRequest<AppState>,
-    channel: &str,
+    channel: &ChannelIdent,
     projects: Vec<&jobsrv::JobGroupProject>,
     origin: &str,
     promote: bool,
@@ -281,12 +283,10 @@ fn do_group_promotion_or_demotion(
     let channel = match Channel::get(origin, channel, &*conn) {
         Ok(channel) => channel,
         Err(NotFound) => {
-            if (channel != ChannelIdent::stable().as_str())
-                && (channel != ChannelIdent::unstable().as_str())
-            {
+            if (channel != &ChannelIdent::stable()) && (channel != &ChannelIdent::unstable()) {
                 Channel::create(
                     &CreateChannel {
-                        name: channel,
+                        name: channel.as_str(),
                         origin,
                         owner_id: session.get_id() as i64,
                     },
@@ -338,7 +338,7 @@ fn promote_or_demote_job_group(
     req: &HttpRequest<AppState>,
     group_id_str: &str,
     idents: &[String],
-    channel: &str,
+    channel: &ChannelIdent,
     promote: bool,
 ) -> Result<()> {
     authorize_session(&req, None)?;
@@ -408,7 +408,7 @@ fn promote_or_demote_job_group(
                 PackageGroupChannelAudit::audit(
                     PackageGroupChannelAudit {
                         origin: &origin,
-                        channel: &channel,
+                        channel: channel.as_str(),
                         package_ids,
                         operation: pco,
                         trigger: trigger.clone(),

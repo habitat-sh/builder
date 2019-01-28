@@ -23,7 +23,7 @@ use super::metrics::Histogram;
 
 use crate::bldr_core::metrics::HistogramMetric;
 use crate::config::MemcacheCfg;
-use crate::hab_core::package::PackageIdent;
+use crate::hab_core::{package::PackageIdent, ChannelIdent};
 use crate::protocol::originsrv::Session;
 
 pub struct MemcacheClient {
@@ -50,7 +50,7 @@ impl MemcacheClient {
         &mut self,
         ident: &PackageIdent,
         pkg_json: Option<&str>,
-        channel: &str,
+        channel: &ChannelIdent,
         target: &str,
         opt_account_id: Option<u64>,
     ) {
@@ -99,7 +99,7 @@ impl MemcacheClient {
     pub fn get_package(
         &mut self,
         ident: &PackageIdent,
-        channel: &str,
+        channel: &ChannelIdent,
         target: &str,
         opt_account_id: Option<u64>,
     ) -> (bool, Option<String>) {
@@ -151,7 +151,7 @@ impl MemcacheClient {
         self.reset_namespace(&package_ns_key(&ident.origin, &ident.name));
     }
 
-    pub fn clear_cache_for_channel(&mut self, origin: &str, channel: &str) {
+    pub fn clear_cache_for_channel(&mut self, origin: &str, channel: &ChannelIdent) {
         self.reset_namespace(&channel_ns_key(origin, channel));
     }
 
@@ -234,7 +234,7 @@ impl MemcacheClient {
         self.get_namespace(&package_ns_key(origin, name))
     }
 
-    fn channel_namespace(&mut self, origin: &str, channel: &str) -> String {
+    fn channel_namespace(&mut self, origin: &str, channel: &ChannelIdent) -> String {
         self.get_namespace(&channel_ns_key(origin, channel))
     }
 
@@ -296,7 +296,7 @@ fn package_ns_key(origin: &str, name: &str) -> String {
     format!("package:{}/{}", origin, name)
 }
 
-fn channel_ns_key(origin: &str, channel: &str) -> String {
+fn channel_ns_key(origin: &str, channel: &ChannelIdent) -> String {
     format!("channel:{}/{}", origin, channel)
 }
 

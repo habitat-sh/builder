@@ -21,6 +21,7 @@ use crate::schema::origin::origins;
 use crate::schema::package::origin_packages;
 
 use crate::bldr_core::metrics::{CounterMetric, HistogramMetric};
+use crate::hab_core::ChannelIdent;
 use crate::metrics::{Counter, Histogram};
 
 #[derive(AsExpression, Debug, Serialize, Deserialize, Queryable)]
@@ -38,6 +39,7 @@ pub struct Channel {
 #[derive(Insertable)]
 #[table_name = "origin_channels"]
 pub struct CreateChannel<'a> {
+    // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub name: &'a str,
     pub owner_id: i64,
     pub origin: &'a str,
@@ -47,14 +49,14 @@ pub struct CreateChannel<'a> {
 pub struct GetLatestPackage<'a> {
     pub ident: &'a BuilderPackageIdent,
     pub visibility: &'a Vec<PackageVisibility>,
-    pub channel: &'a str,
+    pub channel: &'a ChannelIdent,
     pub target: &'a str,
 }
 
 pub struct ListChannelPackages<'a> {
     pub ident: &'a BuilderPackageIdent,
     pub visibility: &'a Vec<PackageVisibility>,
-    pub channel: &'a str,
+    pub channel: &'a ChannelIdent,
     pub origin: &'a str,
     pub page: i64,
     pub limit: i64,
@@ -77,11 +79,11 @@ impl Channel {
         query.order(origin_channels::name.asc()).get_results(conn)
     }
 
-    pub fn get(origin: &str, channel: &str, conn: &PgConnection) -> QueryResult<Channel> {
+    pub fn get(origin: &str, channel: &ChannelIdent, conn: &PgConnection) -> QueryResult<Channel> {
         Counter::DBCall.increment();
         origin_channels::table
             .filter(origin_channels::origin.eq(origin))
-            .filter(origin_channels::name.eq(channel))
+            .filter(origin_channels::name.eq(channel.as_str()))
             .get_result(conn)
     }
 
@@ -92,12 +94,12 @@ impl Channel {
             .get_result(conn)
     }
 
-    pub fn delete(origin: &str, channel: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(origin: &str, channel: &ChannelIdent, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_channels::table
                 .filter(origin_channels::origin.eq(origin))
-                .filter(origin_channels::name.eq(channel)),
+                .filter(origin_channels::name.eq(channel.as_str())),
         )
         .execute(conn)
     }
@@ -110,7 +112,7 @@ impl Channel {
         let result = Package::all()
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
             .filter(origin_packages::origin.eq(&ident.origin))
-            .filter(origin_channels::name.eq(req.channel))
+            .filter(origin_channels::name.eq(req.channel.as_str()))
             .filter(origin_packages::target.eq(req.target))
             .filter(origin_packages::visibility.eq(any(req.visibility)))
             .filter(origin_packages::ident_array.contains(ident.clone().parts()))
@@ -144,7 +146,7 @@ impl Channel {
             .filter(origin_packages::ident_array.contains(lcp.ident.clone().parts()))
             .filter(origin_packages::visibility.eq(any(lcp.visibility)))
             .filter(origins::name.eq(lcp.origin))
-            .filter(origin_channels::name.eq(lcp.channel))
+            .filter(origin_channels::name.eq(lcp.channel.as_str()))
             .select(origin_packages::ident)
             .order(origin_packages::ident.asc())
             .paginate(lcp.page)
@@ -214,6 +216,7 @@ pub enum PackageChannelOperation {
 #[table_name = "audit_package"]
 pub struct PackageChannelAudit<'a> {
     pub package_ident: BuilderPackageIdent,
+    // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub channel: &'a str,
     pub operation: PackageChannelOperation,
     pub trigger: PackageChannelTrigger,
@@ -235,6 +238,7 @@ impl<'a> PackageChannelAudit<'a> {
 #[table_name = "audit_package_group"]
 pub struct PackageGroupChannelAudit<'a> {
     pub origin: &'a str,
+    // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub channel: &'a str,
     pub package_ids: Vec<i64>,
     pub operation: PackageChannelOperation,
@@ -262,12 +266,12 @@ pub struct OriginChannelPackage {
 pub struct OriginChannelPromote {
     pub ident: BuilderPackageIdent,
     pub origin: String,
-    pub channel: String,
+    pub channel: ChannelIdent,
 }
 pub struct OriginChannelDemote {
     pub ident: BuilderPackageIdent,
     pub origin: String,
-    pub channel: String,
+    pub channel: ChannelIdent,
 }
 
 impl OriginChannelPackage {
@@ -277,7 +281,7 @@ impl OriginChannelPackage {
         // I can hear the groaning already, "Why can't we just do a sub-select and let the database barf on insert"
         // Great question - Because the typechecking happens in Rust and you wanted a type-safe language
         let channel_id = origin_channels::table
-            .filter(origin_channels::name.eq(package.channel))
+            .filter(origin_channels::name.eq(package.channel.as_str()))
             .filter(origin_channels::origin.eq(package.origin))
             .select(origin_channels::id)
             .limit(1)
@@ -305,7 +309,7 @@ impl OriginChannelPackage {
                         .nullable()
                         .eq(origin_channels::table
                             .select(origin_channels::id)
-                            .filter(origin_channels::name.eq(package.channel))
+                            .filter(origin_channels::name.eq(package.channel.as_str()))
                             .filter(origin_channels::origin.eq(package.origin))
                             .single_value()),
                 )
