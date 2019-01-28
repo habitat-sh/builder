@@ -26,7 +26,7 @@ use crate::error::{Error, Result};
 pub struct Publisher {
     pub enabled: bool,
     pub url: String,
-    pub channel_opt: Option<String>, // TODO: make hab_core::ChannelIdent type
+    pub channel_opt: Option<ChannelIdent>,
 }
 
 impl Publisher {
