@@ -421,7 +421,7 @@ impl ScheduleMgr {
         job_spec.set_owner_id(group_id);
         job_spec.set_project(project.into());
         job_spec.set_target(target.to_string());
-        job_spec.set_channel(ChannelIdent::bldr_name(group_id));
+        job_spec.set_channel(format!("bldr-{}", group_id));
 
         let job: jobsrv::Job = job_spec.into();
         match self.datastore.create_job(&job) {
