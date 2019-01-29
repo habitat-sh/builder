@@ -435,10 +435,8 @@ impl Runner {
             Ok(res) => {
                 let dst = res.unwrap();
                 debug!("Imported origin secret key, dst={:?}.", dst);
-                if cfg!(not(windows)) {
-                    if self.config.airlock_enabled {
-                        set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
-                    }
+                if cfg!(not(windows)) && self.config.airlock_enabled {
+                    set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
                 }
                 Ok(())
             }
