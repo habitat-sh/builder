@@ -88,6 +88,7 @@ impl<'a> DockerExporter<'a> {
     /// * If the child process can't be spawned
     /// * If the calling thread can't wait on the child process
     /// * If the `LogStreamer` fails to stream outputs
+    #[cfg(not(windows))]
     pub fn export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
         let dockerd = self.spawn_dockerd().map_err(Error::Exporter)?;
         let exit_status = self.run_export(streamer);
@@ -99,8 +100,19 @@ impl<'a> DockerExporter<'a> {
         exit_status
     }
 
+    #[cfg(windows)]
+    pub fn export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
+        // Windows builder does not spawn off a Docker daemon for every job,
+        // and assumes there is a persistent pre-installed daemon running already
+        // TODO (SA): Consider the same approach for Linux
+        self.run_export(streamer)
+    }
+
     fn run_export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
-        let sock = self.dockerd_sock();
+        debug!(
+            "Using pre-configured docker exporter program: {:?}",
+            &*DOCKER_EXPORTER_PROGRAM
+        );
 
         let mut cmd = Command::new(&*DOCKER_EXPORTER_PROGRAM);
         cmd.current_dir(self.workspace.root());
@@ -112,16 +124,9 @@ impl<'a> DockerExporter<'a> {
         cmd.arg(&self.bldr_url);
         cmd.arg("--auth");
         cmd.arg(&self.auth_token);
-        // TODO fn: Due to the flag regrssion in 0.53.0, this flag does not exist and triggers an
-        // export failure. For the moment we will remove this flag which may result in some
-        // `:latest` tags not being pushed to remote repositories.
-        //
-        // As soon as the next stable release has shipped, the commenting out in this commit should
-        // be reverted.
-        //
-        // if self.spec.latest_tag {
-        //     cmd.arg("--tag-latest");
-        // }
+        if self.spec.latest_tag {
+            cmd.arg("--tag-latest");
+        }
         if self.spec.version_tag {
             cmd.arg("--tag-version");
         }
@@ -170,11 +175,15 @@ impl<'a> DockerExporter<'a> {
         }
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
-        debug!(
-            "setting docker export command env, {}={}",
-            DOCKER_HOST_ENVVAR, sock
-        );
-        cmd.env(DOCKER_HOST_ENVVAR, sock); // Use the job-specific `dockerd`
+
+        if cfg!(not(windows)) {
+            let sock = self.dockerd_sock();
+            debug!(
+                "setting docker export command env, {}={}",
+                DOCKER_HOST_ENVVAR, sock
+            );
+            cmd.env(DOCKER_HOST_ENVVAR, sock); // Use the job-specific `dockerd`
+        }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
@@ -187,6 +196,7 @@ impl<'a> DockerExporter<'a> {
         Ok(exit_status)
     }
 
+    #[cfg(not(windows))]
     fn spawn_dockerd(&self) -> io::Result<Child> {
         let root = self.dockerd_path();
         // TED: feels bad but we need to add sbin to the path
@@ -250,6 +260,7 @@ impl<'a> DockerExporter<'a> {
         cmd.spawn()
     }
 
+    #[cfg(not(windows))]
     fn teardown_dockerd(&self, mut dockerd: Child) -> io::Result<()> {
         debug!(
             "signaling dockerd to shutdown pid={}, sig={:?}",
