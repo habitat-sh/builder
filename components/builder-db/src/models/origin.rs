@@ -106,7 +106,7 @@ impl Origin {
         )?;
         Channel::create(
             &CreateChannel {
-                name: "stable",
+                name: ChannelIdent::stable().as_str(),
                 owner_id: req.owner_id,
                 origin: req.name,
             },
