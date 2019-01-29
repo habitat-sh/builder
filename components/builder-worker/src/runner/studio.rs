@@ -220,7 +220,9 @@ impl<'a> Studio<'a> {
 
     fn studio_command_not_airlock(&self) -> Result<Command> {
         let mut cmd = Command::new(&*STUDIO_PROGRAM);
-        cmd.env_clear();
+        if cfg!(not(windows)) {
+            cmd.env_clear();
+        }
         debug!("HAB_CACHE_KEY_PATH: {:?}", key_path());
         cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
         cmd.env("HAB_CACHE_KEY_PATH", key_path()); // Sets key cache to build user's home

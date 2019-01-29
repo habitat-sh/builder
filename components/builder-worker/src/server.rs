@@ -310,12 +310,14 @@ fn init_users() -> Result<()> {
 
 #[cfg(windows)]
 fn init_users() -> Result<()> {
-    if let Some(val) = env::var_os("HOMEPATH") {
+    let mut home = studio::STUDIO_HOME.lock().unwrap();
+    if let Some(val) = env::var_os("HOME") {
         debug!("Setting STUDIO_HOME to {:?}", val);
-        let mut home = studio::STUDIO_HOME.lock().unwrap();
         *home = PathBuf::from(val);
     } else {
-        debug!("HOMEPATH env var not found!");
+        debug!("HOME env var not found!");
+        debug!("Setting STUDIO_HOME to C:\\hab");
+        *home = PathBuf::from("C:\\hab");
     }
     Ok(())
 }

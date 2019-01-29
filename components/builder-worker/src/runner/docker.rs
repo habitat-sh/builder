@@ -25,6 +25,7 @@ use crate::hab_core::os::process::{self, Pid, Signal};
 use crate::error::{Error, Result};
 
 use crate::runner::job_streamer::JobStreamer;
+use crate::runner::studio::WINDOWS_ENVVARS;
 use crate::runner::workspace::Workspace;
 use crate::runner::{DEV_MODE, NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
 
@@ -152,7 +153,18 @@ impl<'a> DockerExporter<'a> {
                 .replace(&self.spec.password, "<password-redacted>")
         );
 
-        cmd.env_clear();
+        if cfg!(not(windows)) {
+            cmd.env_clear();
+        } else {
+            for var in WINDOWS_ENVVARS {
+                if let Some(val) = env::var_os(var) {
+                    debug!("Setting {} to {:?}", var, val);
+                    cmd.env(var, val);
+                } else {
+                    debug!("{} env var not found!", var);
+                }
+            }
+        }
         if env::var_os(RUNNER_DEBUG_ENVVAR).is_some() {
             cmd.env("RUST_LOG", "debug");
         }
