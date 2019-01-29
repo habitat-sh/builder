@@ -244,7 +244,7 @@ fn do_group_promotion_or_demotion(
     let channel = match Channel::get(origin, channel, &*conn) {
         Ok(channel) => channel,
         Err(NotFound) => {
-            if channel != STABLE_CHANNEL || channel != UNSTABLE_CHANNEL {
+            if (channel != STABLE_CHANNEL) && (channel != UNSTABLE_CHANNEL) {
                 Channel::create(
                     &CreateChannel {
                         name: channel,
