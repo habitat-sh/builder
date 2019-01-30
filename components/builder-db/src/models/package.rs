@@ -9,7 +9,7 @@ use time::PreciseTime;
 
 use diesel;
 use diesel::deserialize::{self, FromSql};
-use diesel::dsl::sql;
+use diesel::dsl::{count, sql};
 use diesel::pg::expression::dsl::any;
 use diesel::pg::{Pg, PgConnection};
 use diesel::prelude::*;
@@ -434,13 +434,20 @@ impl Package {
         conn: &PgConnection,
     ) -> QueryResult<Vec<OriginPackageVersions>> {
         Counter::DBCall.increment();
-
         origin_package_versions::table
             .filter(origin_package_versions::origin.eq(ident.origin()))
             .filter(origin_package_versions::name.eq(ident.name()))
             .filter(origin_package_versions::visibility.eq(any(visibility)))
             .order(sql::<OriginPackageVersions>("to_semver(version) desc"))
             .get_results(conn)
+    }
+
+    pub fn count_origin_packages(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origin_packages::table
+            .select(count(origin_packages::id))
+            .filter(origin_packages::origin.eq(&origin))
+            .first(conn)
     }
 
     pub fn search(

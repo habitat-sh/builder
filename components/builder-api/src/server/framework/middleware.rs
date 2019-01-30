@@ -246,6 +246,14 @@ pub fn session_create_short_circuit(
             },
             "GitHub",
         ),
+        "wesker" => (
+            OAuth2User {
+                id: "3".to_string(),
+                email: Some("awesker@umbrella.corp".to_string()),
+                username: "wesker".to_string(),
+            },
+            "GitHub",
+        ),
         user => {
             error!("Unexpected short circuit token {:?}", user);
             return Err(error::Error::System);

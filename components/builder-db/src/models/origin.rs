@@ -4,13 +4,16 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::result::QueryResult;
+use diesel::result::{Error, QueryResult};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 
 use crate::models::channel::{Channel, CreateChannel};
 use crate::models::package::PackageVisibility;
 use crate::protocol::originsrv;
 
+use crate::schema::channel::origin_channels;
+use crate::schema::integration::origin_integrations;
+use crate::schema::key::{origin_public_keys, origin_secret_keys};
 use crate::schema::member::origin_members;
 use crate::schema::origin::{origins, origins_with_secret_key, origins_with_stats};
 
@@ -117,6 +120,32 @@ impl Origin {
         diesel::update(origins::table.find(name))
             .set(origins::default_package_visibility.eq(dpv))
             .execute(conn)
+    }
+
+    pub fn delete(origin: &str, conn: &PgConnection) -> QueryResult<()> {
+        Counter::DBCall.increment();
+        conn.transaction::<_, Error, _>(|| {
+            // This is ugly but should be relatively safer than some alternatives
+            // It turns out we don't have cascade on delete in the schema for the
+            // origin across the 12 tables it uses. We can add it but it is a bit
+            // scary. It would be a nuclear hammer.
+            diesel::delete(origin_channels::table.filter(origin_channels::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_secret_keys::table.filter(origin_secret_keys::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_public_keys::table.filter(origin_public_keys::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_members::table.filter(origin_members::origin.eq(origin)))
+                .execute(conn)?;
+            // TODO: Add migration to include origin as fkey constraint on
+            // origin_integrations, remove this delete
+            diesel::delete(
+                origin_integrations::table.filter(origin_integrations::origin.eq(origin)),
+            )
+            .execute(conn)?;
+            diesel::delete(origins::table.filter(origins::name.eq(origin))).execute(conn)?;
+            Ok(())
+        })
     }
 
     pub fn check_membership(

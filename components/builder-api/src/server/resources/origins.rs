@@ -46,7 +46,7 @@ use crate::db::models::origin::*;
 use crate::db::models::package::{BuilderPackageIdent, ListPackages, Package, PackageVisibility};
 use crate::db::models::secrets::*;
 
-use crate::server::authorize::{authorize_session, check_origin_owner};
+use crate::server::authorize::{authorize_session, check_origin_empty, check_origin_owner};
 use crate::server::error::{Error, Result};
 use crate::server::framework::headers;
 use crate::server::helpers::{self, Pagination};
@@ -82,6 +82,7 @@ impl Origins {
         app.route("/depot/{origin}/pkgs", Method::GET, list_unique_packages)
             .route("/depot/origins/{origin}", Method::GET, get_origin)
             .route("/depot/origins/{origin}", Method::PUT, update_origin)
+            .route("/depot/origins/{origin}", Method::DELETE, delete_origin)
             .route("/depot/origins", Method::POST, create_origin)
             .route(
                 "/depot/origins/{origin}/users",
@@ -280,6 +281,39 @@ fn update_origin(
     };
 
     match Origin::update(&origin, dpv, &*conn).map_err(Error::DieselError) {
+        Ok(_) => HttpResponse::NoContent().into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn delete_origin(req: HttpRequest<AppState>) -> HttpResponse {
+    let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+
+    let session = match authorize_session(&req, None) {
+        Ok(session) => session,
+        Err(err) => return err.into(),
+    };
+
+    if !check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
+
+    debug!("Request to delete origin {}", &origin);
+
+    if !check_origin_empty(&req, &origin).unwrap_or(false) {
+        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    match Origin::delete(&origin, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().into(),
         Err(err) => {
             debug!("{}", err);
@@ -773,7 +807,7 @@ fn list_unique_packages(
             return {
                 debug!("{}", err);
                 err.into()
-            }
+            };
         }
     };
 
