@@ -295,7 +295,7 @@ impl ScheduleMgr {
         let mut projects = Vec::new();
         for project in group
             .get_projects()
-            .into_iter()
+            .iter()
             .filter(|x| x.get_state() == jobsrv::JobGroupProjectState::NotStarted)
         {
             // Check the deps for the project. If we don't find any dep that
@@ -350,7 +350,7 @@ impl ScheduleMgr {
 
         for project in group
             .get_projects()
-            .into_iter()
+            .iter()
             .filter(|x| x.get_state() == jobsrv::JobGroupProjectState::NotStarted)
         {
             // Check the deps for the project. If we find any dep that is in the

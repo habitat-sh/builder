@@ -20,7 +20,6 @@ pub mod net;
 pub mod originsrv;
 
 use protobuf;
-use std;
 
 use crate::error::ProtocolError;
 

@@ -773,7 +773,7 @@ fn list_unique_packages(
             return {
                 debug!("{}", err);
                 err.into()
-            }
+            };
         }
     };
 

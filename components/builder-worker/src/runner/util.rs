@@ -67,7 +67,7 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
                 return Err(Error::InvalidIntegrations(format!(
                     "project integration body does not deserialize as JSON: {:?}",
                     err
-                )))
+                )));
             }
         };
         // Required keys with string values
@@ -141,7 +141,7 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
                 return Err(Error::InvalidIntegrations(format!(
                     "origin integration body does not deserialize as JSON: {:?}",
                     err
-                )))
+                )));
             }
         };
         // Required keys with string values
