@@ -46,7 +46,7 @@ impl Master {
                 return Err(Error::Ptsname(format!(
                     "ptsname({}) returned: NULL pointer",
                     self.0,
-                )))
+                )));
             }
             c => c,
         };

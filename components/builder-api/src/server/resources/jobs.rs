@@ -336,7 +336,7 @@ fn promote_or_demote_job_group(
     // by origin, and commit each origin at once. Ultimately, it'd be nice to have a way to
     // atomically commit the entire promotion/demotion at once, but that would require a cross-shard
     // tool that we don't currently have.
-    for project in group.get_projects().into_iter() {
+    for project in group.get_projects().iter() {
         if project.get_state() == jobsrv::JobGroupProjectState::Success {
             let ident_str = project.get_ident();
             if has_idents && !ident_map.contains_key(ident_str) {

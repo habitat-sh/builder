@@ -63,7 +63,7 @@ impl fmt::Debug for Job {
         let integrations: Vec<originsrv::OriginIntegration> = self
             .0
             .get_integrations()
-            .into_iter()
+            .iter()
             .map(|i| {
                 let mut r = originsrv::OriginIntegration::new();
                 r.set_origin(i.get_origin().to_string());

@@ -146,7 +146,7 @@ fn sub_range(entry: &str, path: &Path) -> Result<(u32, u32)> {
                 return Err(Error::FileEntryNotFound(
                     String::from(entry),
                     path.to_string_lossy().into(),
-                ))
+                ));
             }
         }
     };
