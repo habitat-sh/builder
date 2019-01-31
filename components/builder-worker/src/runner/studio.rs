@@ -149,9 +149,19 @@ impl<'a> Studio<'a> {
         }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
+        if cfg!(windows) {
+            cmd.arg("studio");
+            cmd.arg("build");
+            cmd.arg("-D"); // Use Docker studio
+            cmd.arg("-R"); // Work around a bug so studio does not get removed
+                           // Remove when we fix this (hab 0.75.0 or later)
+                           // TODO (SA): Consider using Docker studio for Linux builds as well
+        }
         cmd.arg("-k"); // Origin key
         cmd.arg(self.workspace.job.origin());
-        cmd.arg("build");
+        if cfg!(not(windows)) {
+            cmd.arg("build");
+        }
         cmd.arg(build_path(self.workspace.job.get_project().get_plan_path()));
         debug!("building studio build command, cmd={:?}", &cmd);
         debug!(
@@ -218,16 +228,33 @@ impl<'a> Studio<'a> {
         Ok(cmd)
     }
 
+    #[cfg(not(windows))]
     fn studio_command_not_airlock(&self) -> Result<Command> {
         let mut cmd = Command::new(&*STUDIO_PROGRAM);
-        if cfg!(not(windows)) {
-            cmd.env_clear();
-        }
+        cmd.env_clear();
+
         debug!("HAB_CACHE_KEY_PATH: {:?}", key_path());
         cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
         cmd.env("HAB_CACHE_KEY_PATH", key_path()); // Sets key cache to build user's home
 
         info!("Airlock is not enabled, running uncontained Studio");
+        Ok(cmd)
+    }
+
+    #[cfg(windows)]
+    fn studio_command_not_airlock(&self) -> Result<Command> {
+        let mut cmd = Command::new(&"hab"); // Windows builder uses the hab cli instead of the
+                                            // explict STUDIO_PROGRAM path. This is required for
+                                            // use of Docker studio.
+                                            // TODO (SA): Consider the same change for Linux
+
+        // Note - Windows builder does not clear the env
+        // TODO (SA): Consider the same change for Linux
+
+        debug!("HAB_CACHE_KEY_PATH: {:?}", key_path());
+        cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
+        cmd.env("HAB_CACHE_KEY_PATH", key_path()); // Sets key cache to build user's home
+
         Ok(cmd)
     }
 }
