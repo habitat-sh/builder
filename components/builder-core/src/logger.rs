@@ -17,6 +17,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
+use std::time::Duration;
 
 use crate::protocol::jobsrv::{Job, JobGroup, JobGroupProject};
 
@@ -81,22 +82,28 @@ impl Logger {
 
     pub fn log_group_job(&mut self, group: &JobGroup, job: &Job) {
         let suffix = if job.has_build_started_at() && job.has_build_finished_at() {
-            let start = job.get_build_started_at().parse::<DateTime<Utc>>().unwrap();
+            let start = job
+                .get_build_started_at()
+                .parse::<DateTime<Utc>>()
+                .unwrap_or_else(|_| Utc::now());
             let stop = job
                 .get_build_finished_at()
                 .parse::<DateTime<Utc>>()
-                .unwrap();
-            let group_start = group.get_created_at().parse::<DateTime<Utc>>().unwrap();
+                .unwrap_or_else(|_| Utc::now());
+            let group_start = group
+                .get_created_at()
+                .parse::<DateTime<Utc>>()
+                .unwrap_or_else(|_| Utc::now());
 
             let offset = start
                 .signed_duration_since(group_start)
                 .to_std()
-                .unwrap()
+                .unwrap_or(Duration::from_secs(0))
                 .as_secs();
             let duration = stop
                 .signed_duration_since(start)
                 .to_std()
-                .unwrap()
+                .unwrap_or(Duration::from_secs(0))
                 .as_secs();
 
             format!(
@@ -133,7 +140,7 @@ impl Logger {
         let start = if job.has_build_started_at() {
             job.get_build_started_at()
                 .parse::<DateTime<Utc>>()
-                .unwrap()
+                .unwrap_or_else(|_| Utc::now())
                 .format("%Y-%m-%d %H:%M:%S")
                 .to_string()
         } else {
@@ -143,7 +150,7 @@ impl Logger {
         let stop = if job.has_build_finished_at() {
             job.get_build_finished_at()
                 .parse::<DateTime<Utc>>()
-                .unwrap()
+                .unwrap_or_else(|_| Utc::now())
                 .format("%Y-%m-%d %H:%M:%S")
                 .to_string()
         } else {
