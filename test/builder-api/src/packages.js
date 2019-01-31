@@ -158,6 +158,18 @@ describe('Working with packages', function () {
         });
     });
   });
+      
+  describe('Deleting origin after package exists', function () {
+      it('is not allowed', function (done) {
+        request.delete('/depot/origins/neurosis')
+          .set('Authorization', global.boboBearer)
+          .expect(422)
+          .end(function (err, res) {
+              expect(res.text).to.be.empty;
+              done(err)
+          });
+      });
+  });
 
 
   describe('Finding packages', function () {

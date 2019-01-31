@@ -42,6 +42,20 @@ describe('Origin API', function () {
     });
   });
 
+  describe('Create Umbrella Corp. origin', function () {
+      it('returns the created origin', function (done) {
+        request.post('/depot/origins')
+          .set('Authorization', global.weskerBearer)
+          .send({ 'name': 'umbrella' })
+          .expect(201)
+          .end(function (err, res) {
+            expect(res.body.name).to.equal('umbrella');
+            global.originUmbrella = res.body;
+            done(err);
+          });
+      });
+  });
+
   describe('Create xmen origin', function () {
     it('returns the created origin', function (done) {
       request.post('/depot/origins')
@@ -144,7 +158,27 @@ describe('Origin API', function () {
           done(err);
         });
     });
+  });
 
-    // TODO - add a successful deletion test
+  // TODO - add a successful deletion test
+  describe('Origin deletion', function () {                               
+    it('requires authentication', function (done) {                              
+      request.delete('/depot/origins/umbrella')                       
+        .expect(401)                                                             
+        .end(function (err, res) {                                               
+          expect(res.text).to.be.empty;                                          
+          done(err);                                                             
+        });                                                                      
+    });     
+
+    it('succeeds', function (done) {
+      request.delete('/depot/origins/umbrella')
+        .set('Authorization', global.weskerBearer)
+        .expect(204)
+        .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+        });
+    });
   });
 });
