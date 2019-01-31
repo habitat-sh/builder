@@ -56,8 +56,7 @@ pub fn decrypt<A>(key_dir: A, b64text: &str) -> Result<Vec<u8>>
 where
     A: AsRef<Path>,
 {
-    let ciphertext = base64::decode(b64text).map_err(Error::Base64Error)?;
-    let plaintext = match BoxKeyPair::decrypt_with_path(&ciphertext, &key_dir.as_ref()) {
+    let plaintext = match BoxKeyPair::decrypt_with_path(b64text, &key_dir.as_ref()) {
         Ok(bytes) => bytes,
         Err(err) => {
             let e = format!("Unable to decrypt with bldr key pair, err={:?}", &err);
@@ -73,9 +72,7 @@ pub fn validate<A>(key_dir: A, b64text: &str) -> Result<()>
 where
     A: AsRef<Path>,
 {
-    let ciphertext = base64::decode(b64text).map_err(Error::Base64Error)?;
-
-    let box_secret = BoxKeyPair::secret_metadata(&ciphertext)?;
+    let box_secret = BoxKeyPair::secret_metadata(b64text)?;
 
     match BoxKeyPair::get_pair_for(box_secret.sender, &key_dir.as_ref()) {
         Ok(_) => (),

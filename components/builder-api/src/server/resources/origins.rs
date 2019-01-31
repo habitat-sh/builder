@@ -575,7 +575,7 @@ fn create_origin_secret(
     }
 
     // get metadata from secret payload
-    let secret_metadata = match BoxKeyPair::secret_metadata(body.value.as_bytes()) {
+    let secret_metadata = match BoxKeyPair::secret_metadata(&body.value) {
         Ok(res) => res,
         Err(err) => {
             debug!("{}", err);

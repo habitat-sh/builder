@@ -621,7 +621,7 @@ impl WorkerMgr {
                         debug!("Adding secret to job: {:?}", secret);
                         let mut secret_decrypted = originsrv::OriginSecret::new();
                         let mut secret_decrypted_wrapper = originsrv::OriginSecretDecrypted::new();
-                        match BoxKeyPair::secret_metadata(secret.value.as_bytes()) {
+                        match BoxKeyPair::secret_metadata(&secret.value) {
                             Ok(secret_metadata) => {
                                 match box_key_pair.decrypt(&secret_metadata.ciphertext, None, None)
                                 {
