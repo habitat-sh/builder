@@ -140,12 +140,6 @@ impl Serialize for JobLog {
     }
 }
 
-impl Default for JobState {
-    fn default() -> JobState {
-        JobState::Pending
-    }
-}
-
 impl Serialize for JobState {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where
