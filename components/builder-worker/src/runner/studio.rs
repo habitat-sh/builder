@@ -293,6 +293,9 @@ pub fn build_path(plan_path: &str) -> String {
     if parts.last().map_or("", |p| *p) == "plan.sh" {
         parts.pop();
     }
+    if parts.last().map_or("", |p| *p) == "plan.ps1" {
+        parts.pop();
+    }
     if parts.last().map_or("", |p| *p) == "habitat" {
         parts.pop();
     }
@@ -316,8 +319,18 @@ mod tests {
     }
 
     #[test]
+    fn build_path_with_plan_ps1() {
+        assert_eq!(".", build_path("plan.ps1"));
+    }
+
+    #[test]
     fn build_path_with_habitat_plan_sh() {
         assert_eq!(".", build_path("habitat/plan.sh"));
+    }
+
+    #[test]
+    fn build_path_with_habitat_plan_ps1() {
+        assert_eq!(".", build_path("habitat/plan.ps1"));
     }
 
     #[test]
@@ -326,10 +339,23 @@ mod tests {
     }
 
     #[test]
+    fn build_path_with_subdir_plan_ps1() {
+        assert_eq!("haaay", build_path("haaay/plan.ps1"));
+    }
+
+    #[test]
     fn build_path_with_subdir_habitat_plan_sh() {
         assert_eq!(
             "components/yep",
             build_path("components/yep/habitat/plan.sh")
+        );
+    }
+
+    #[test]
+    fn build_path_with_subdir_habitat_plan_ps1() {
+        assert_eq!(
+            "components/yep",
+            build_path("components/yep/habitat/plan.ps1")
         );
     }
 }
