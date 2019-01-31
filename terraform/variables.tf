@@ -128,3 +128,11 @@ variable "instance_size_worker" {
 variable "database_ebs_volume_id" {
   description = "ID for EBS volume to attach to the database server"
 }
+
+variable "admin_password" {
+  description = "Windows Administrator password to login as"
+}
+
+variable "windows_worker_count" {
+  description = "Number of Windows workers to start"
+}

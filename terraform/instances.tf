@@ -454,6 +454,54 @@ resource "aws_instance" "worker" {
   }
 }
 
+data "aws_ami" "amazon_windows_server" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["Windows_Server-2016-English-Full-Containers-*"]
+  }
+}
+
+resource "aws_instance" "windows-worker" {
+  ami           = "${data.aws_ami.amazon_windows_server.image_id}"
+  instance_type = "${var.instance_size_worker}"
+  key_name      = "${var.aws_key_pair}"
+  // JW TODO: switch to private subnet after VPN is ready
+  subnet_id     = "${var.public_subnet_id}"
+  count         = "${var.windows_worker_count}"
+
+  vpc_security_group_ids = [
+    "${var.aws_admin_sg}",
+    "${var.hab_sup_sg}",
+    "${var.events_sg}",
+    "${aws_security_group.jobsrv_client.id}",
+    "${aws_security_group.windows-worker.id}",
+  ]
+
+  connection {
+    type     = "winrm"
+    user     = "Administrator"
+    password = "${var.admin_password}"
+  }
+
+  root_block_device {
+    volume_size = "100"
+  }
+
+  user_data = "${data.template_file.windows_worker_user_data.rendered}"
+
+  tags {
+    Name          = "builder-windows-worker-${count.index}"
+    X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
+    X-Environment = "${var.env}"
+    X-Application = "builder"
+    X-ManagedBy   = "Terraform"
+  }
+}
+
+
 ////////////////////////////////
 // Additional Networking
 
@@ -552,5 +600,17 @@ data "template_file" "worker_user_toml" {
   vars {
     gateway   = "${var.worker_studio_gateway_ip}"
     interface = "ens4"
+  }
+}
+
+data "template_file" "windows_worker_user_data" {
+  template = "${file("${path.module}/templates/windows_worker_user_data")}"
+
+  vars {
+    environment = "${var.env}"
+    password    = "${var.admin_password}"
+    peer        = "${var.peers[0]}"
+    bldr_url    = "${var.bldr_url}"
+    channel     = "${var.release_channel}"
   }
 }
