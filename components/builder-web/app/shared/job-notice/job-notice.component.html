@@ -1,5 +1,5 @@
 <div class="hab-job-notice" [ngClass]="['status', status]" *ngIf="job">
   <hab-job-status-icon [job]="job"></hab-job-status-icon>
   A new job is in progress.
-  <a [routerLink]="['/pkgs', job.origin, job.name, 'jobs', job.id]">View the output</a>.
+  <a [routerLink]="['/origins', job.origin, 'jobs', job.owner_id]">View the output</a>.
 </div>
