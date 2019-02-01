@@ -69,7 +69,7 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
   }
 
   get pendingCount() {
-    return (this.store.getState().jobGroups.selected.projects_by_state.notstarted || []).length;
+    return (this.store.getState().jobGroups.selected.projects_by_state.inprogress || []).length;
   }
 
   get completedCount() {
