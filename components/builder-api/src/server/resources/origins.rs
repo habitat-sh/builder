@@ -32,6 +32,7 @@ use futures::future::Future;
 use serde_json;
 
 use crate::bldr_core;
+use crate::hab_core::crypto::keys::box_key_pair::WrappedSealedBox;
 use crate::hab_core::crypto::keys::{parse_key_str, parse_name_with_rev, PairType};
 use crate::hab_core::crypto::{BoxKeyPair, SigKeyPair};
 use crate::hab_core::package::{ident, PackageIdent};
@@ -575,8 +576,12 @@ fn create_origin_secret(
     }
 
     // get metadata from secret payload
-    let secret_metadata = match BoxKeyPair::secret_metadata(&body.value) {
-        Ok(res) => res,
+    let ciphertext = WrappedSealedBox::from(body.value.as_str());
+    let secret_metadata = match BoxKeyPair::secret_metadata(&ciphertext) {
+        Ok(res) => {
+            debug!("Secret Metadata: {:?}", res);
+            res
+        }
         Err(err) => {
             debug!("{}", err);
             return HttpResponse::with_body(
@@ -585,8 +590,6 @@ fn create_origin_secret(
             );
         }
     };
-
-    debug!("Secret Metadata: {:?}", secret_metadata);
 
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -1276,7 +1279,7 @@ fn get_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     match OriginIntegration::get(&origin, &integration, &name, &*conn).map_err(Error::DieselError) {
-        Ok(integration) => match decrypt(&req, &integration.body) {
+        Ok(integration) => match decrypt(&req, &WrappedSealedBox::from(integration.body)) {
             Ok(decrypted) => {
                 let val = serde_json::from_str(&decrypted).unwrap();
                 let mut map: serde_json::Map<String, serde_json::Value> =
@@ -1378,7 +1381,7 @@ fn encrypt(req: &HttpRequest<AppState>, content: &Bytes) -> Result<String> {
         .map_err(Error::BuilderCore)
 }
 
-fn decrypt(req: &HttpRequest<AppState>, content: &str) -> Result<String> {
+fn decrypt(req: &HttpRequest<AppState>, content: &WrappedSealedBox) -> Result<String> {
     let bytes = bldr_core::integrations::decrypt(&req.state().config.api.key_path, content)?;
     Ok(String::from_utf8(bytes)?)
 }

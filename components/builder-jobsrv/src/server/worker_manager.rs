@@ -24,6 +24,7 @@ use crate::bldr_core::job::Job;
 use crate::bldr_core::metrics::GaugeMetric;
 use crate::bldr_core::socket::DEFAULT_CONTEXT;
 use crate::db::DbPool;
+use crate::hab_core::crypto::keys::box_key_pair::WrappedSealedBox;
 use crate::hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
 use crate::hab_core::crypto::BoxKeyPair;
 use crate::hab_core::package::{target, PackageTarget};
@@ -526,7 +527,10 @@ impl WorkerMgr {
             Ok(oir) => {
                 for i in oir {
                     let mut oi = originsrv::OriginIntegration::new();
-                    let plaintext = match bldr_core::integrations::decrypt(&self.key_dir, &i.body) {
+                    let plaintext = match bldr_core::integrations::decrypt(
+                        &self.key_dir,
+                        &WrappedSealedBox::from(i.body),
+                    ) {
                         Ok(b) => match String::from_utf8(b) {
                             Ok(s) => s,
                             Err(e) => {
@@ -621,7 +625,7 @@ impl WorkerMgr {
                         debug!("Adding secret to job: {:?}", secret);
                         let mut secret_decrypted = originsrv::OriginSecret::new();
                         let mut secret_decrypted_wrapper = originsrv::OriginSecretDecrypted::new();
-                        match BoxKeyPair::secret_metadata(&secret.value) {
+                        match BoxKeyPair::secret_metadata(&WrappedSealedBox::from(secret.value)) {
                             Ok(secret_metadata) => {
                                 match box_key_pair.decrypt(&secret_metadata.ciphertext, None, None)
                                 {

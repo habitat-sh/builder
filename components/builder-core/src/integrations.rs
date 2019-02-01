@@ -20,7 +20,7 @@ use std::path::Path;
 use base64;
 
 use crate::error::{Error, Result};
-use crate::hab_core::crypto::BoxKeyPair;
+use crate::hab_core::crypto::{keys::box_key_pair::WrappedSealedBox, BoxKeyPair};
 use crate::keys;
 
 // TBD - these functions should take keys directly instead of key directory.
@@ -49,10 +49,10 @@ where
         }
     };
 
-    Ok(base64::encode(&ciphertext))
+    Ok(base64::encode(ciphertext.as_bytes())) // ciphertext is already base64-encoded, so this is redundant
 }
 
-pub fn decrypt<A>(key_dir: A, b64text: &str) -> Result<Vec<u8>>
+pub fn decrypt<A>(key_dir: A, b64text: &WrappedSealedBox) -> Result<Vec<u8>>
 where
     A: AsRef<Path>,
 {
@@ -68,7 +68,7 @@ where
     Ok(plaintext)
 }
 
-pub fn validate<A>(key_dir: A, b64text: &str) -> Result<()>
+pub fn validate<A>(key_dir: A, b64text: &WrappedSealedBox) -> Result<()>
 where
     A: AsRef<Path>,
 {
