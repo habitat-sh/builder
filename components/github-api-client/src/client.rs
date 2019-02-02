@@ -188,6 +188,32 @@ impl GitHubClient {
         Ok(Some(contents))
     }
 
+    /// Returns the directory listing of a path in a repository.
+    pub fn directory(
+        &self,
+        token: &AppToken,
+        repo: u32,
+        path: &str,
+    ) -> HubResult<Option<Vec<DirectoryEntry>>> {
+        let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
+
+        Counter::Contents.increment();
+        let mut rep = self.http_get(&url_path, Some(&token.inner_token))?;
+        let mut body = String::new();
+        rep.read_to_string(&mut body)?;
+        debug!("GitHub response body, {}", body);
+        match rep.status() {
+            StatusCode::NotFound => return Ok(None),
+            StatusCode::Ok => (),
+            status => {
+                let err: HashMap<String, String> = serde_json::from_str(&body)?;
+                return Err(HubError::ApiError(status, err));
+            }
+        }
+        let directory: Vec<DirectoryEntry> = serde_json::from_str(&body)?;
+        Ok(Some(directory))
+    }
+
     pub fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
         let url_path = format!("{}/repositories/{}", self.api_url, repo);
         Counter::Repo.increment();

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use actix_web::http::StatusCode;
@@ -19,8 +20,10 @@ use actix_web::{error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Path
 
 use crate::bldr_core::build_config::{BuildCfg, BLDR_CFG};
 use crate::bldr_core::metrics::CounterMetric;
+use crate::hab_core::package::target::{self, PackageTarget};
 use crate::hab_core::{crypto, package::Plan};
 use crate::protocol::jobsrv::{JobGroup, JobGroupSpec, JobGroupTrigger};
+
 use github_api_client::types::GitHubWebhookPush;
 use github_api_client::{AppToken, GitHubClient};
 use hex;
@@ -59,6 +62,9 @@ impl FromStr for GitHubEvent {
         }
     }
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+struct PlanWithTarget(Plan, PackageTarget);
 
 #[allow(clippy::needless_pass_by_value)]
 pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
@@ -203,7 +209,7 @@ fn build_plans(
     repo_url: &str,
     pusher: &str,
     account_id: Option<u64>,
-    plans: &[Plan],
+    plans: &[PlanWithTarget],
 ) -> HttpResponse {
     let mut request = JobGroupSpec::new();
 
@@ -213,7 +219,7 @@ fn build_plans(
     };
 
     for plan in plans.iter() {
-        let project_name = format!("{}/{}", &plan.origin, &plan.name);
+        let project_name = format!("{}/{}", &plan.0.origin, &plan.0.name);
         match Project::get(&project_name, &*conn) {
             Ok(project) => {
                 if repo_url != project.vcs_data {
@@ -234,13 +240,10 @@ fn build_plans(
         }
 
         if feat::is_enabled(feat::Jobsrv) {
-            debug!("Scheduling, {:?}", plan);
-            request.set_origin(plan.origin.clone());
-            request.set_package(plan.name.clone());
-            // JW TODO: We need to be able to determine which platform this build is for based on
-            // the directory structure the plan is found in or metadata inside the plan. We will need
-            // to have this done before we support building additional targets with Builder.
-            request.set_target("x86_64-linux".to_string());
+            debug!("Scheduling, {:?} ({})", plan.0, plan.1);
+            request.set_origin(plan.0.origin.clone());
+            request.set_package(plan.0.name.clone());
+            request.set_target(plan.1.to_string());
             request.set_trigger(JobGroupTrigger::Webhook);
             request.set_requester_name(pusher.to_string());
             if account_id.is_some() {
@@ -288,12 +291,21 @@ fn read_plans(
     token: &AppToken,
     hook: &GitHubWebhookPush,
     config: &BuildCfg,
-) -> Vec<Plan> {
+) -> Vec<PlanWithTarget> {
     let mut plans = Vec::with_capacity(config.projects().len());
     for project in config.triggered_by(hook.branch(), hook.changed().as_slice()) {
-        if let Some(plan) = read_plan(github, &token, hook, &project.plan_file().to_string_lossy())
-        {
-            plans.push(plan)
+        let targets = read_plan_targets(github, token, hook, project.plan_path());
+        for target in targets {
+            let plan_file = if target == target::X86_64_WINDOWS {
+                "plan.ps1"
+            } else {
+                "plan.sh"
+            };
+            let plan_path = project.plan_path().join(plan_file);
+
+            if let Some(plan) = read_plan(github, &token, hook, &plan_path.to_string_lossy()) {
+                plans.push(PlanWithTarget(plan, target));
+            }
         }
     }
     plans
@@ -305,6 +317,8 @@ fn read_plan(
     hook: &GitHubWebhookPush,
     path: &str,
 ) -> Option<Plan> {
+    debug!("Reading plan from: {:?}", path);
+
     match github.contents(&token, hook.repository.id, path) {
         Ok(Some(contents)) => match contents.decode() {
             Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
@@ -325,4 +339,30 @@ fn read_plan(
             None
         }
     }
+}
+
+fn read_plan_targets(
+    github: &GitHubClient,
+    token: &AppToken,
+    hook: &GitHubWebhookPush,
+    path: &PathBuf,
+) -> Vec<PackageTarget> {
+    debug!("Reading plan targets from {:?}", path);
+    let mut targets: Vec<PackageTarget> = Vec::new();
+
+    match github.directory(&token, hook.repository.id, &path.to_string_lossy()) {
+        Ok(Some(directories)) => {
+            for directory in directories {
+                match &directory.name[..] {
+                    "plan.ps1" => targets.push(target::X86_64_WINDOWS),
+                    "plan.sh" => targets.push(target::X86_64_LINUX),
+                    _ => (),
+                }
+            }
+        }
+        Ok(None) => warn!("no plan directories found, {:?}", path),
+        Err(err) => warn!("unable to retrieve plan directory, {:?}, {}", path, err),
+    }
+
+    targets
 }
