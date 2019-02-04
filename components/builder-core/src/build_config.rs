@@ -180,8 +180,8 @@ impl ProjectCfg {
         Pattern::from_str("habitat/*").unwrap()
     }
 
-    pub fn plan_file(&self) -> PathBuf {
-        self.plan_path.join("plan.sh")
+    pub fn plan_path(&self) -> &PathBuf {
+        &self.plan_path
     }
 
     /// Returns true if the given branch & file path combination should result in a new build

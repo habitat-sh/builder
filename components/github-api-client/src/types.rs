@@ -94,6 +94,18 @@ impl Contents {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DirectoryEntry {
+    pub name: String,
+    pub path: String,
+    pub sha: String,
+    pub size: usize,
+    pub url: String,
+    pub html_url: String,
+    pub git_url: String,
+    pub download_url: Option<String>,
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GitHubWebhookPush {
