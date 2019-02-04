@@ -18,6 +18,7 @@ use std::collections::HashSet;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use diesel;
 use diesel::result::Error::NotFound;
@@ -26,7 +27,9 @@ use time::PreciseTime;
 
 use crate::bldr_core::rpc::RpcMessage;
 use crate::db::models::jobs::*;
+use crate::db::models::package::*;
 use crate::db::models::projects::*;
+use crate::hab_core::package::{PackageIdent, PackageTarget};
 
 use super::AppState;
 use crate::protocol::jobsrv;
@@ -478,6 +481,119 @@ pub fn job_graph_package_reverse_dependencies_get(
     }
 
     RpcMessage::make(&rd_reply).map_err(Error::BuilderCore)
+}
+
+pub fn job_graph_package_reverse_dependencies_grouped_get(
+    req: &RpcMessage,
+    state: &AppState,
+) -> Result<RpcMessage> {
+    let msg = req.parse::<jobsrv::JobGraphPackageReverseDependenciesGroupedGet>()?;
+    debug!("reverse_dependencies_grouped_get message: {:?}", msg);
+
+    let ident = format!("{}/{}", msg.get_origin(), msg.get_name());
+    let target_graph = state.graph.read().expect("Graph lock is poisoned");
+    let graph = match target_graph.graph(msg.get_target()) {
+        Some(g) => g,
+        None => {
+            warn!(
+                "JobGraphPackageReverseDependenciesGroupedGet, no graph found for target {}",
+                msg.get_target()
+            );
+            return Err(Error::NotFound);
+        }
+    };
+
+    let rdeps = graph.rdeps(&ident);
+    let mut rd_reply = jobsrv::JobGraphPackageReverseDependenciesGrouped::new();
+    rd_reply.set_origin(msg.get_origin().to_string());
+    rd_reply.set_name(msg.get_name().to_string());
+
+    match rdeps {
+        Some(rd) => {
+            let rdeps = compute_rdep_build_groups(state, &ident, &msg.get_target(), &rd)?;
+            let rdeps = RepeatedField::from_vec(rdeps);
+            rd_reply.set_rdeps(rdeps);
+        }
+        None => debug!("No rdeps found for {}", ident),
+    }
+
+    RpcMessage::make(&rd_reply).map_err(Error::BuilderCore)
+}
+
+fn compute_rdep_build_groups(
+    state: &AppState,
+    root_ident: &str,
+    target: &str,
+    rdeps: &[(String, String)],
+) -> Result<Vec<jobsrv::JobGraphPackageReverseDependencyGroup>> {
+    let mut rdep_groups = Vec::new();
+    let mut in_progress = Vec::new();
+    let mut satisfied_deps = HashSet::new();
+    let mut group_num = 0;
+
+    debug!("computing redep build groups for: {}", root_ident);
+
+    let conn = state.db.get_conn().map_err(Error::Db)?;
+
+    satisfied_deps.insert(root_ident.to_owned());
+    assert!(!rdeps.is_empty());
+    in_progress.push(rdeps[0].0.to_owned());
+    trace!("Adding ident to in_progress: {} (group 0)", rdeps[0].0);
+
+    for ix in 1..rdeps.len() {
+        let package = Package::get(
+            GetPackage {
+                ident: BuilderPackageIdent(PackageIdent::from_str(&rdeps[ix].1.clone()).unwrap()),
+                visibility: vec![
+                    PackageVisibility::Public,
+                    PackageVisibility::Private,
+                    PackageVisibility::Hidden,
+                ],
+                target: BuilderPackageTarget(PackageTarget::from_str(target).unwrap()),
+            },
+            &*conn,
+        )?;
+
+        let deps = package.deps;
+        let mut can_dispatch = true;
+        for dep in deps {
+            let name = format!("{}/{}", dep.origin, dep.name);
+            if (rdeps.iter().any(|s| s.0 == name)) && !satisfied_deps.contains(&name) {
+                can_dispatch = false;
+                break;
+            }
+        }
+
+        if !can_dispatch {
+            trace!("Ending group {}", group_num);
+            let mut rdep_group = jobsrv::JobGraphPackageReverseDependencyGroup::new();
+            rdep_group.set_group_id(group_num);
+            rdep_group.set_idents(RepeatedField::from_vec(in_progress.clone()));
+            rdep_groups.push(rdep_group);
+            in_progress.iter().for_each(|s| {
+                trace!("Adding to satisfied deps: {}", s);
+                satisfied_deps.insert(s.to_owned());
+            });
+            in_progress.clear();
+            group_num += 1;
+        }
+
+        in_progress.push(rdeps[ix].0.to_owned());
+        trace!(
+            "Pushing ident to in_progress: {} (group {})",
+            rdeps[ix].0,
+            group_num
+        );
+    }
+
+    if !in_progress.is_empty() {
+        let mut rdep_group = jobsrv::JobGraphPackageReverseDependencyGroup::new();
+        rdep_group.set_group_id(group_num);
+        rdep_group.set_idents(RepeatedField::from_vec(in_progress));
+        rdep_groups.push(rdep_group);
+    }
+
+    Ok(rdep_groups)
 }
 
 pub fn job_group_origin_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {

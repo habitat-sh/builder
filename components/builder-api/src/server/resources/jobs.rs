@@ -81,6 +81,7 @@ impl Jobs {
         )
         .route("/jobs/group/{id}/cancel", Method::POST, cancel_job_group)
         .route("/rdeps/{origin}/{name}", Method::GET, get_rdeps)
+        .route("/rdeps/{origin}/{name}/group", Method::GET, get_rdeps_group)
         .route("/jobs/{id}", Method::GET, get_job)
         .route("/jobs/{id}/log", Method::GET, get_job_log)
     }
@@ -115,6 +116,42 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
     match route_message::<
         jobsrv::JobGraphPackageReverseDependenciesGet,
         jobsrv::JobGraphPackageReverseDependencies,
+    >(&req, &rdeps_get)
+    {
+        Ok(rdeps) => HttpResponse::Ok().json(rdeps),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn get_rdeps_group((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
+    let (origin, name) = Path::<(String, String)>::extract(&req)
+        .unwrap()
+        .into_inner(); // Unwrap Ok
+
+    // TODO: Deprecate target from headers
+    let target = match qtarget.target {
+        Some(ref t) => {
+            debug!("Query requested target = {}", t);
+            match PackageTarget::from_str(t) {
+                Ok(t) => t,
+                Err(err) => return Error::HabitatCore(err).into(),
+            }
+        }
+        None => helpers::target_from_headers(&req),
+    };
+
+    let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGroupedGet::new();
+    rdeps_get.set_origin(origin);
+    rdeps_get.set_name(name);
+    rdeps_get.set_target(target.to_string());
+
+    match route_message::<
+        jobsrv::JobGraphPackageReverseDependenciesGroupedGet,
+        jobsrv::JobGraphPackageReverseDependenciesGrouped,
     >(&req, &rdeps_get)
     {
         Ok(rdeps) => HttpResponse::Ok().json(rdeps),

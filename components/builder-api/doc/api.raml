@@ -572,6 +572,43 @@ securitySchemes:
                         description: Package not found
                     500:
                         description: Internal server error
+
+    /{origin}:
+        /{name}:
+            /group:
+                get:
+                    description: |
+                        Retrieves the list of reverse dependencies for this package,
+                        collated into build groups that can be build in parallel
+                    responses:
+                        200:
+                            body:
+                                application/json:
+                                    example: |
+                                        {
+                                        "origin": "core",
+                                        "name": "linux-headers",
+                                        "rdeps": [
+                                            {
+                                                "group": 0,
+                                                "idents": [
+                                                "core/redis",
+                                                "core/protobuf"
+                                                ]
+                                            },
+                                            {
+                                                "group": 1,
+                                                "idents": [
+                                                "core/node"
+                                                ]
+                                            }
+                                        ]
+                                        }
+                        404:
+                            description: Package not found
+                        500:
+                            description: Internal server error
+
 /user:
     /invitations:
         get:

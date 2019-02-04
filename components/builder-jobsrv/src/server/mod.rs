@@ -91,6 +91,9 @@ fn handle_rpc((req, msg): (HttpRequest<AppState>, Json<RpcMessage>)) -> HttpResp
         "JobGraphPackageReverseDependenciesGet" => {
             handlers::job_graph_package_reverse_dependencies_get(&msg, req.state())
         }
+        "JobGraphPackageReverseDependenciesGroupedGet" => {
+            handlers::job_graph_package_reverse_dependencies_grouped_get(&msg, req.state())
+        }
 
         _ => {
             let err = format!("Unknown RPC message received: {}", msg.id);

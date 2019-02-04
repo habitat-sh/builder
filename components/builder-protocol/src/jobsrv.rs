@@ -403,6 +403,33 @@ impl Serialize for JobGraphPackageReverseDependencies {
     }
 }
 
+impl Serialize for JobGraphPackageReverseDependencyGroup {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut strukt =
+            serializer.serialize_struct("job_graph_package_reverse_dependency_group", 2)?;
+        strukt.serialize_field("group", &self.get_group_id())?;
+        strukt.serialize_field("idents", &self.get_idents())?;
+        strukt.end()
+    }
+}
+
+impl Serialize for JobGraphPackageReverseDependenciesGrouped {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut strukt =
+            serializer.serialize_struct("job_graph_package_reverse_dependencies_grouped", 3)?;
+        strukt.serialize_field("origin", &self.get_origin())?;
+        strukt.serialize_field("name", &self.get_name())?;
+        strukt.serialize_field("rdeps", &self.get_rdeps())?;
+        strukt.end()
+    }
+}
+
 impl Serialize for JobGroupOriginResponse {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where
