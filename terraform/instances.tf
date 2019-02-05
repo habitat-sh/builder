@@ -450,6 +450,85 @@ resource "aws_instance" "worker" {
   }
 }
 
+resource "aws_instance" "linux2-worker" {
+  ami           = "ami-0ea790e761025f9ce" // Ubuntu 14.04
+  instance_type = "${var.instance_size_linux2_worker}"
+  key_name      = "${var.aws_key_pair}"
+  // JW TODO: switch to private subnet after VPN is ready
+  subnet_id     = "${var.public_subnet_id}"
+  count         = "${var.linux2_worker_count}"
+
+  vpc_security_group_ids = [
+    "${var.aws_admin_sg}",
+    "${var.hab_sup_sg}",
+    "${aws_security_group.jobsrv_client.id}",
+    "${aws_security_group.worker.id}",
+  ]
+
+  connection {
+    // JW TODO: switch to private ip after VPN is ready
+    host        = "${self.public_ip}"
+    user        = "ubuntu"
+    private_key = "${file("${var.connection_private_key}")}"
+    agent       = "${var.connection_agent}"
+  }
+
+  ebs_block_device {
+    device_name = "/dev/xvdf"
+    volume_size = 250
+    volume_type = "gp2"
+  }
+
+  provisioner "file" {
+    source = "${path.module}/scripts/install_linux2_packages.sh"
+    destination = "/tmp/install_linux2_packages.sh"
+  }
+
+  provisioner "remote-exec" {
+    scripts = [
+      "${path.module}/scripts/init_filesystem.sh",
+      "${path.module}/scripts/foundation.sh",
+      "${path.module}/scripts/worker_bootstrap.sh",
+    ]
+  }
+
+  provisioner "file" {
+    content     = "${data.template_file.linux2_init.rendered}"
+    destination = "/tmp/hab-sup.init"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/files/linux2-worker.user.toml"
+    destination = "/tmp/worker.user.toml"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mkdir -p /hab/svc/builder-worker",
+      "sudo mv /tmp/worker.user.toml /hab/svc/builder-worker/user.toml",
+    ]
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/install_linux2_packages.sh",
+      "sudo /tmp/install_linux2_packages.sh",
+      "sudo mv /tmp/hab-sup.init /etc/init/hab-sup.conf",
+      "sudo service hab-sup start",
+      "sleep 10",
+      "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+    ]
+  }
+
+  tags {
+    Name          = "builder-linux2-worker-${count.index}"
+    X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
+    X-Environment = "${var.env}"
+    X-Application = "builder"
+    X-ManagedBy   = "Terraform"
+  }
+}
+
 data "aws_ami" "amazon_windows_server" {
   most_recent = true
   owners      = ["amazon"]
@@ -607,5 +686,14 @@ data "template_file" "windows_worker_user_data" {
     peer        = "${var.peers[0]}"
     bldr_url    = "${var.bldr_url}"
     channel     = "${var.release_channel}"
+  }
+}
+
+data "template_file" "linux2_init" {
+  template = "${file("${path.module}/templates/hab-sup.init")}"
+
+  vars {
+    flags     = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
+    log_level = "${var.log_level}"
   }
 }
