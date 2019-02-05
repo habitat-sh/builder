@@ -11,7 +11,6 @@ resource "aws_instance" "api" {
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
     "${var.hab_sup_sg}",
-    "${var.events_sg}",
     "${aws_security_group.datastore_client.id}",
     "${aws_security_group.gateway.id}",
   ]
@@ -129,7 +128,6 @@ resource "aws_instance" "datastore" {
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
     "${var.hab_sup_sg}",
-    "${var.events_sg}",
     "${aws_security_group.datastore.id}",
   ]
 
@@ -248,7 +246,6 @@ resource "aws_instance" "jobsrv" {
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
     "${var.hab_sup_sg}",
-    "${var.events_sg}",
     "${aws_security_group.datastore_client.id}",
     "${aws_security_group.jobsrv.id}",
     "${aws_security_group.service.id}",
@@ -354,7 +351,6 @@ resource "aws_instance" "worker" {
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
     "${var.hab_sup_sg}",
-    "${var.events_sg}",
     "${aws_security_group.jobsrv_client.id}",
     "${aws_security_group.worker.id}",
   ]
@@ -475,7 +471,6 @@ resource "aws_instance" "windows-worker" {
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
     "${var.hab_sup_sg}",
-    "${var.events_sg}",
     "${aws_security_group.jobsrv_client.id}",
     "${aws_security_group.windows-worker.id}",
   ]
@@ -562,7 +557,7 @@ data "template_file" "sup_service" {
   template = "${file("${path.module}/templates/hab-sup.service")}"
 
   vars {
-    flags     = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --events hab-eventsrv.default --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
+    flags     = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
     log_level = "${var.log_level}"
   }
 }

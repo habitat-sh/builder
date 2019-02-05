@@ -35,9 +35,6 @@ variable "aws_admin_sg" {
   description = "Administration security group for all instances"
 }
 
-variable "events_sg" {
-  description = "AWS security group identifier for Habitat Supervisor events producers/consumers"
-}
 variable "hab_sup_sg" {
   description = "AWS security group identifier for Habitat Supervisor gossip connectivity"
 }
