@@ -36,6 +36,7 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
   private parentSub: Subscription;
   private poll: number;
   private completedStates = ['success', 'failure'];
+  private cancelableStates = ['notstarted', 'inprogress'];
 
   constructor(
     private route: ActivatedRoute,
@@ -68,8 +69,12 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
     window.clearInterval(this.poll);
   }
 
-  get pendingCount() {
-    return (this.store.getState().jobGroups.selected.projects_by_state.notstarted || []).length;
+  get cancelableCount() {
+    return this.cancelableStates.reduce((total, state) => {
+      const stateList = this.group.projects_by_state[state];
+      total += stateList ? stateList.length : 0;
+      return total;
+    }, 0);
   }
 
   get completedCount() {
@@ -122,7 +127,7 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
       .open(JobCancelDialog, {
         width: '480px',
         data: {
-          pendingCount: this.pendingCount
+          cancelableCount: this.cancelableCount
         }
       })
       .afterClosed()

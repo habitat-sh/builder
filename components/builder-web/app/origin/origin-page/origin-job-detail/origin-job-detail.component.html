@@ -56,7 +56,7 @@
           <h4 class="jobgroup-overview-item-title">&nbsp;</h4>
           <div class="jobgroup-overview-item-value">
             <span class="jobgroup-actions">
-              <a *ngIf="pendingCount > 0" class="cancel" (click)="cancel(id)">
+              <a *ngIf="cancelableCount > 0" class="cancel" (click)="cancel(id)">
                 <hab-icon symbol="no"></hab-icon>
                 Cancel remaining jobs
               </a>

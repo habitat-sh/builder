@@ -38,8 +38,8 @@ export class JobCancelDialog {
     return this.data.action || 'do it';
   }
 
-  get pendingCount() {
-    return this.data.pendingCount;
+  get cancelableCount() {
+    return this.data.cancelableCount;
   }
 
   ok() {
