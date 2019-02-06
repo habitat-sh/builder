@@ -1,98 +1,73 @@
 # Maintainers
 
-Habitat is an open-source project, built and maintained by a community of
-dedicated humans, listed below.
+Habitat Builder is part of the Habitat ecosystem, built and maintained by
+a community of dedicated humans, listed below.
 
-This file lists how the Habitat project is maintained and the humans and
-companies who make up "The Habitat Maintainers."
+This file lists how the Builder project is maintained and the humans and
+companies who make up "The Builder Maintainers."
 
 When making changes to the system, this file tells you who needs to review your
 patch - you need approval of at least one maintainer for the relevant subsystems
-to provide a :+1: (or `+r`) on your pull request. Additionally, you need to not
-receive a veto from a Lieutenant or the Project Lead.
+to provide a Github Approval on your pull request. Additionally, you need to not
+receive a veto from a Sub-Lead or the Project Lead.
 
 Check out the [Maintenance Policy](maintenance-policy.md) for details on the
-process, how to become a maintainer, lieutenant, or the project lead.
+process, how to become a maintainer, Sub-Lead, or the project lead.
 
 ---
 
-# The Habitat Maintainers
+# The Builder Maintainers
 
-These are the humans who maintain Habitat.  These people have permission to
+These are the humans who maintain Builder. These people have permission to
 merge code changes to the various components and other rights and
 responsibilities as detailed in the [Maintenance Policy](maintenance-policy.md).
 
 # Project Lead
 
-* [Adam Jacob](https://github.com/adamhjk)
+* [Salim Alam](https://github.com/chefsalim)
 
 ## Components
 
-The various components that make up Habitat. Each component must have one
-Lieutenant and may have many maintainers.
+Below are key components that make up Builder. Each component must have one
+Sub-Lead and may have many maintainers.
 
-### Core Habitat
+### Backend and API
 
-See https://github.com/habitat-sh/habitat/blob/master/MAINTAINERS.md
+#### Sub-Lead
 
-### Habitat Builder Web Application
+* [Ian Henry](https://github.com/eeyun)
+
+#### Maintainers
+
+* [Fletcher Nichol](https://github.com/fnichol)
+* [Josh Black](https://github.com/raskchanky)
+* [Matt Wrock](https://github.com/mwrock)
+* [Matthew Peck](https://github.com/mpeck)
+* [Scott Macfarlane](https://github.com/smacfarlane)
+
+### Web Application
 
 The web application for the Habitat builder and depot.
 
-#### Lieutenant
+#### Sub-Lead
 
-* [Chris Nunciato](https://github.com/cnunciato)
+* TBD
 
 #### Maintainers
 
-* [Fletcher Nichol](https://github.com/fnichol)
-* [Jamie Winsor](https://github.com/reset)
-* [Matt Wrock](https://github.com/mwrock)
-* [Salim Alam](https://github.com/chefsalim)
-* [Nell Shamrell-Harrington](https://github.com/nellshamrell)
-* [Tasha Drew](https://github.com/tashimi)
 * [Matthew Peck](https://github.com/mpeck)
+* [Shadae](https://github.com/shadae)
 
-### Habitat Builder
+### Job Server and Build Workers
 
-#### Lieutenant
+#### Sub-Lead
 
-* [Jamie Winsor](https://github.com/reset)
+* [Ian Henry](https://github.com/eeyun)
 
 #### Maintainers
 
-* [Adam Jacob](https://github.com/adamhjk)
 * [Fletcher Nichol](https://github.com/fnichol)
-* [Brian Scott](https://github.com/bscott)
-* [Steven Murawski](https://github.com/smurawski)
-* [Ian Henry](https://github.com/eeyun)
+* [Josh Black](https://github.com/raskchanky)
 * [Matt Wrock](https://github.com/mwrock)
-* [Salim Alam](https://github.com/chefsalim)
-* [Nell Shamrell-Harrington](https://github.com/nellshamrell)
-* [Jon Bauman](https://github.com/baumanj)
-
-### Documentation
-
-This component includes documentation in the product and documentation published
-to [https://www.habitat.sh/docs/](https://www.habitat.sh/docs/) including
-tutorials and reference materials.
-
-#### Lieutenant
-
-* [Nick Brewer](https://github.com/brewn)
-
-#### Maintainers
-
-* [Ryan Keairns](https://github.com/ryankeairns)
-* [Brian Scott](https://github.com/bscott)
-* [Ian Henry](https://github.com/eeyun)
-* [Jamie Winsor](https://github.com/reset)
-* [Matt Wrock](https://github.com/mwrock)
-* [Salim Alam](https://github.com/chefsalim)
-* [Nell Shamrell-Harrington](https://github.com/nellshamrell)
-* [Robb Kidd](https://github.com/robbkidd)
-* [Tasha Drew](https://github.com/tashimi)
-
-### Core Plans
-
-See https://github.com/habitat-sh/core-plans/blob/master/MAINTAINERS.md
+* [Matthew Peck](https://github.com/mpeck)
+* [Scott Macfarlane](https://github.com/smacfarlane)
