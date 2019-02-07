@@ -5,6 +5,7 @@ bldr_url = "https://bldr.habitat.sh"
 features_enabled = ""
 airlock_enabled = false
 recreate_ns_dir = false
+target = "x86_64-linux"
 
 [github]
 api_url = "https://api.github.com"

@@ -39,6 +39,7 @@ message Heartbeat {
   optional string endpoint = 1;
   optional Os os = 2;
   optional WorkerState state = 3;
+  optional string target = 4;
 }
 
 message BusyWorker {
