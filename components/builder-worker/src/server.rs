@@ -65,7 +65,7 @@ impl Server {
     pub fn new(config: Config) -> Self {
         let net_ident = bldr_core::socket::srv_ident();
         let fe_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
-        let hb_cli = HeartbeatCli::new(net_ident.clone());
+        let hb_cli = HeartbeatCli::new(net_ident.clone(), config.target.to_string());
         let runner_cli = RunnerCli::new();
         fe_sock.set_identity(net_ident.as_bytes()).unwrap();
         Server {

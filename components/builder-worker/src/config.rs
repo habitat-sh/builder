@@ -16,8 +16,10 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use crate::hab_core::config::ConfigFile;
+use crate::hab_core::package::PackageTarget;
 use crate::hab_core::url;
 use github_api_client::config::GitHubCfg;
 
@@ -52,6 +54,7 @@ pub struct Config {
     pub recreate_ns_dir: bool,
     pub network_interface: Option<String>,
     pub network_gateway: Option<IpAddr>,
+    pub target: PackageTarget,
 }
 
 impl Config {
@@ -87,6 +90,7 @@ impl Default for Config {
             recreate_ns_dir: false,
             network_interface: None,
             network_gateway: None,
+            target: PackageTarget::from_str("x86_64-linux").unwrap(),
         }
     }
 }
@@ -130,6 +134,7 @@ mod tests {
         recreate_ns_dir = true
         network_interface = "eth1"
         network_gateway = "192.168.10.1"
+        target = "x86_64-linux-kernel2"
 
         [[jobsrv]]
         host = "1:1:1:1:1:1:1:1"
@@ -160,6 +165,10 @@ mod tests {
         assert_eq!(
             config.network_gateway,
             Some(IpAddr::V4(Ipv4Addr::new(192, 168, 10, 1)))
+        );
+        assert_eq!(
+            config.target,
+            PackageTarget::from_str("x86_64-linux-kernel2").unwrap()
         );
     }
 }

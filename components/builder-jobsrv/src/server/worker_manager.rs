@@ -767,11 +767,9 @@ impl WorkerMgr {
         let mut worker = match self.workers.remove(&worker_ident) {
             Some(worker) => worker,
             None => {
-                // TODO: Plumb in full package target into worker heartbeat
-                let worker_target = match heartbeat.get_os() {
-                    jobsrv::Os::Linux => PackageTarget::from_str("x86_64-linux").unwrap(),
-                    jobsrv::Os::Windows => PackageTarget::from_str("x86_64-windows").unwrap(),
-                    _ => panic!("Unhandled worker heartbeat OS"),
+                let worker_target = match PackageTarget::from_str(heartbeat.get_target()) {
+                    Ok(t) => t,
+                    Err(_) => target::X86_64_LINUX,
                 };
 
                 if heartbeat.get_state() == jobsrv::WorkerState::Ready {

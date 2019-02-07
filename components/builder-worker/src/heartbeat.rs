@@ -78,11 +78,12 @@ pub struct HeartbeatCli {
 
 impl HeartbeatCli {
     /// Create a new HeartbeatMgr client
-    pub fn new(net_ident: String) -> Self {
+    pub fn new(net_ident: String, target: String) -> Self {
         let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::REQ).unwrap();
         let mut state = proto::Heartbeat::new();
         state.set_endpoint(net_ident);
         state.set_os(worker_os());
+        state.set_target(target);
         HeartbeatCli {
             msg: zmq::Message::new().unwrap(),
             sock,
@@ -139,7 +140,7 @@ impl HeartbeatMgr {
     /// Start the HeartbeatMgr
     pub fn start(config: &Config, net_ident: String) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(0);
-        let mut heartbeat = Self::new(net_ident);
+        let mut heartbeat = Self::new(net_ident, config.target.to_string());
         let jobsrv_addrs = config.jobsrv_addrs();
         let handle = thread::Builder::new()
             .name("heartbeat".to_string())
@@ -153,7 +154,7 @@ impl HeartbeatMgr {
         }
     }
 
-    fn new(net_ident: String) -> Self {
+    fn new(net_ident: String, target: String) -> Self {
         let pub_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::PUB).unwrap();
         let cli_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::REP).unwrap();
         pub_sock.set_immediate(true).unwrap();
@@ -163,6 +164,7 @@ impl HeartbeatMgr {
         heartbeat.set_endpoint(net_ident);
         heartbeat.set_os(worker_os());
         heartbeat.set_state(proto::WorkerState::Ready);
+        heartbeat.set_target(target);
         HeartbeatMgr {
             state: PulseState::default(),
             pub_sock,
@@ -235,6 +237,7 @@ impl HeartbeatMgr {
         }
         self.cli_sock.recv(&mut self.msg, 0)?;
         self.heartbeat = message::decode(&self.msg)?;
+        debug!("heartbeat received by mgr: {:?}", self.heartbeat);
         self.resume();
         Ok(())
     }
