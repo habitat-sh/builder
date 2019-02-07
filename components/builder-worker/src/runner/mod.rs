@@ -23,6 +23,7 @@ mod workspace;
 
 use std::fs;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
@@ -332,15 +333,10 @@ impl Runner {
         Ok(archive)
     }
 
-    fn do_export(
-        &mut self,
-        tx: &mpsc::Sender<Job>,
-        mut archive: &mut PackageArchive,
-        mut streamer: &mut JobStreamer,
-    ) -> Result<()> {
+    fn do_export(&mut self, tx: &mpsc::Sender<Job>, mut streamer: &mut JobStreamer) -> Result<()> {
         self.check_cancel(tx)?;
 
-        match self.export(&mut archive, &mut streamer) {
+        match self.export(&mut streamer) {
             Ok(_) => (),
             Err(err) => {
                 self.fail(net::err(ErrCode::EXPORT, "wk:run:export"));
@@ -407,8 +403,8 @@ impl Runner {
         self.do_install_key(&tx, &mut streamer)?;
         self.do_clone(&tx, &mut streamer)?;
 
-        let mut archive = self.do_build(&tx, &mut streamer)?;
-        self.do_export(&tx, &mut archive, &mut streamer)?;
+        let archive = self.do_build(&tx, &mut streamer)?;
+        self.do_export(&tx, &mut streamer)?;
         self.do_postprocess(&tx, archive, &mut streamer)?;
 
         self.cleanup();
@@ -510,9 +506,9 @@ impl Runner {
         self.workspace.last_built()
     }
 
-    fn export(&mut self, archive: &mut PackageArchive, streamer: &mut JobStreamer) -> Result<()> {
+    fn export(&mut self, streamer: &mut JobStreamer) -> Result<()> {
         if self.has_docker_integration() {
-            let pkg_target = archive.target()?;
+            let pkg_target = target::PackageTarget::from_str(self.workspace.job.get_target())?;
             match pkg_target {
                 target::X86_64_LINUX | target::X86_64_WINDOWS => {
                     // TODO fn: This check should be updated in PackageArchive is check for run hooks.
