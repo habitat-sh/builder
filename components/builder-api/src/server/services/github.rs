@@ -239,6 +239,11 @@ fn build_plans(
             }
         }
 
+        if !req.state().config.api.build_targets.contains(&plan.1) {
+            debug!("Rejecting build with target: {:?}", plan.1);
+            continue;
+        }
+
         if feat::is_enabled(feat::Jobsrv) {
             debug!("Scheduling, {:?} ({})", plan.0, plan.1);
             request.set_origin(plan.0.origin.clone());
