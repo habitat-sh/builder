@@ -23,6 +23,7 @@ mod workspace;
 
 use std::fs;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
@@ -40,6 +41,7 @@ use crate::bldr_core::socket::DEFAULT_CONTEXT;
 #[cfg(not(windows))]
 use crate::hab_core::os::users;
 use crate::hab_core::package::archive::PackageArchive;
+use crate::hab_core::package::target;
 #[cfg(not(windows))]
 use crate::hab_core::util::posix_perm;
 
@@ -506,26 +508,32 @@ impl Runner {
 
     fn export(&mut self, streamer: &mut JobStreamer) -> Result<()> {
         if self.has_docker_integration() {
-            // TODO fn: This check should be updated in PackageArchive is check for run hooks.
-            if self.workspace.last_built()?.is_a_service() {
-                debug!("Found runnable package, running docker export");
-                let mut section = streamer.start_section(Section::ExportDocker)?;
+            let pkg_target = target::PackageTarget::from_str(self.workspace.job.get_target())?;
+            match pkg_target {
+                target::X86_64_LINUX | target::X86_64_WINDOWS => {
+                    // TODO fn: This check should be updated in PackageArchive is check for run hooks.
+                    if self.workspace.last_built()?.is_a_service() {
+                        debug!("Found runnable package, running docker export");
+                        let mut section = streamer.start_section(Section::ExportDocker)?;
 
-                let status = DockerExporter::new(
-                    util::docker_exporter_spec(&self.workspace),
-                    &self.workspace,
-                    &self.config.bldr_url,
-                    &self.bldr_token,
-                )
-                .export(streamer)?;
+                        let status = DockerExporter::new(
+                            util::docker_exporter_spec(&self.workspace),
+                            &self.workspace,
+                            &self.config.bldr_url,
+                            &self.bldr_token,
+                        )
+                        .export(streamer)?;
 
-                if !status.success() {
-                    return Err(Error::ExportFailure(status.code().unwrap_or(-1)));
+                        if !status.success() {
+                            return Err(Error::ExportFailure(status.code().unwrap_or(-1)));
+                        }
+
+                        section.end()?;
+                    } else {
+                        debug!("Package not runnable, skipping docker export");
+                    }
                 }
-
-                section.end()?;
-            } else {
-                debug!("Package not runnable, skipping docker export");
+                _ => debug!("Exports for {} are not supported", pkg_target.as_ref()),
             }
         }
 
