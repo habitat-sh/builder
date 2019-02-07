@@ -5,6 +5,19 @@
   netsh advfirewall firewall add rule name="WinRM in" protocol=TCP dir=in profile=any localport=5985 remoteip=any localip=any action=allow
   New-NetFirewallRule -DisplayName "Habitat TCP" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 9631,9638
   New-NetFirewallRule -DisplayName "Habitat UDP" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 9638
+  
+  # Firewall rule to block all tcp/udp traffic from studios
+  # into the worker network except dns queries (UDP 53)
+  $nat_cidr = (get-netnat).InternalIPInterfaceAddressPrefix
+  $nat_gw = $nat_cidr.Split("/")[0]
+  $eth = Get-NetIPConfiguration -InterfaceAlias "Ethernet"
+  $ip = $eth.IPv4Address
+  $length = $ip[0].PrefixLength
+  $gw = $eth.IPv4DefaultGateway.NextHop
+  $aws_cidr = "$gw/$length".Replace(".1/",".0/")
+  New-NetFirewallRule -DisplayName docker_nat_block_tcp -Enabled True -Profile Any -Direction Outbound -Action Block -LocalAddress $nat_cidr -RemoteAddress @($aws_cidr, $nat_gw) -Protocol TCP
+  New-NetFirewallRule -DisplayName docker_nat_block_udp -Enabled True -Profile Any -Direction Outbound -Action Block -LocalAddress $nat_cidr -RemoteAddress @($aws_cidr, $nat_gw) -Protocol UDP -RemotePort @("0-52","54-65535")
+
   # Set Administrator password
   $admin = [adsi]("WinNT://./administrator, user")
   $admin.psbase.invoke("SetPassword", "${password}")
