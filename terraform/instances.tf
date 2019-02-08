@@ -120,7 +120,7 @@ resource "aws_instance" "api" {
 
 resource "aws_instance" "datastore" {
   ami           = "${lookup(var.aws_ami, var.aws_region)}"
-  instance_type = "c4.8xlarge"
+  instance_type = "${var.instance_size_datastore}"
   key_name      = "${var.aws_key_pair}"
   subnet_id     = "${var.public_subnet_id}"
   count         = 1
@@ -462,7 +462,7 @@ data "aws_ami" "amazon_windows_server" {
 
 resource "aws_instance" "windows-worker" {
   ami           = "${data.aws_ami.amazon_windows_server.image_id}"
-  instance_type = "${var.instance_size_worker}"
+  instance_type = "${var.instance_size_windows_worker}"
   key_name      = "${var.aws_key_pair}"
   // JW TODO: switch to private subnet after VPN is ready
   subnet_id     = "${var.public_subnet_id}"

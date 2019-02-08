@@ -133,3 +133,15 @@ variable "admin_password" {
 variable "windows_worker_count" {
   description = "Number of Windows workers to start"
 }
+
+variable "instance_size_windows_worker" {
+  description = "AWS instance size for Windows worker server(s)"
+}
+
+variable "instance_size_linux2_worker" {
+  description = "AWS instance size for Linux2 worker server(s)"
+}
+
+variable "instance_size_datastore" {
+  description = "AWS instance size for DB server(s)"
+}
