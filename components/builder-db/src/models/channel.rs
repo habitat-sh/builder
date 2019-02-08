@@ -8,8 +8,8 @@ use diesel::pg::expression::dsl::any;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::{
-    ExpressionMethods, NullableExpressionMethods, QueryDsl, RunQueryDsl,
-    Table, TextExpressionMethods,
+    ExpressionMethods, NullableExpressionMethods, QueryDsl, RunQueryDsl, Table,
+    TextExpressionMethods,
 };
 
 use crate::models::package::{BuilderPackageIdent, Package, PackageVisibility};
@@ -141,7 +141,9 @@ impl Channel {
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
             )
-            .filter(origin_packages::ident.like(format!("%{}%", lcp.ident.clone().parts().join("/"))))
+            .filter(
+                origin_packages::ident.like(format!("%{}%", lcp.ident.clone().parts().join("/"))),
+            )
             .filter(origin_packages::visibility.eq(any(lcp.visibility)))
             .filter(origins::name.eq(lcp.origin))
             .filter(origin_channels::name.eq(lcp.channel))
