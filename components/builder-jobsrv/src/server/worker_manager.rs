@@ -767,13 +767,14 @@ impl WorkerMgr {
     fn process_heartbeat(&mut self) -> Result<()> {
         self.hb_sock.recv(&mut self.msg, 0)?;
         let heartbeat: jobsrv::Heartbeat = parse_from_bytes(&self.msg)?;
-        debug!("Got heartbeat: {:?}", heartbeat);
+        trace!("Got heartbeat: {:?}", heartbeat);
 
         let worker_ident = heartbeat.get_endpoint().to_string();
 
         let mut worker = match self.workers.remove(&worker_ident) {
             Some(worker) => worker,
             None => {
+                debug!("New worker detected, heartbeat: {:?}", heartbeat);
                 let worker_target = match PackageTarget::from_str(heartbeat.get_target()) {
                     Ok(t) => t,
                     Err(_) => target::X86_64_LINUX,
