@@ -53,7 +53,7 @@ use crate::protocol::{jobsrv, message};
 use self::docker::DockerExporter;
 use self::job_streamer::{JobStreamer, Section};
 use self::postprocessor::post_process;
-use self::studio::{build_path, key_path, Studio, STUDIO_GROUP, STUDIO_USER};
+use self::studio::{key_path, Studio, STUDIO_GROUP, STUDIO_USER};
 use self::workspace::Workspace;
 
 use crate::config::Config;
@@ -475,13 +475,7 @@ impl Runner {
         let status = studio.build(streamer)?;
         debug!("Studio build return status: {:?}", status);
 
-        let result_path = if cfg!(windows) {
-            let build_path = build_path(self.workspace.job.get_project().get_plan_path());
-            self.workspace.src().join(build_path).join("results")
-        } else {
-            self.workspace.src().join("results")
-        };
-
+        let result_path = self.workspace.src().join("results");
         match fs::rename(&result_path, self.workspace.out()) {
             Ok(_) => (),
             Err(err) => {
