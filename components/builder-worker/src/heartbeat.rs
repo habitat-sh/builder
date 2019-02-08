@@ -219,7 +219,7 @@ impl HeartbeatMgr {
 
     // Broadcast to subscribers the HeartbeatMgr health and state
     fn pulse(&mut self) -> Result<()> {
-        debug!("heartbeat pulsed: {:?}", self.heartbeat);
+        trace!("heartbeat pulsed: {:?}", self.heartbeat);
         self.pub_sock.send(&message::encode(&self.heartbeat)?, 0)?;
         Ok(())
     }
