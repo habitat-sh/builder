@@ -14,6 +14,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
@@ -26,12 +27,14 @@ use crate::db::DbPool;
 use crate::error::{Error, Result};
 use crate::protocol::jobsrv;
 
+use crate::db::models::jobs::*;
 use crate::db::models::projects::*;
 
 use crate::bldr_core::logger::Logger;
 use crate::bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
 use crate::bldr_core::socket::DEFAULT_CONTEXT;
 use crate::hab_core::channel::bldr_channel_name;
+use crate::hab_core::package::{target, PackageTarget};
 
 use super::metrics::{Counter, Gauge, Histogram};
 use super::worker_manager::WorkerMgrClient;
@@ -132,8 +135,10 @@ impl ScheduleMgr {
                 }
             }
 
-            if let Err(err) = self.process_metrics() {
-                warn!("Scheduler unable to process metrics: err {:?}", err);
+            for target in PackageTarget::supported_targets() {
+                if let Err(err) = self.process_metrics(*target) {
+                    warn!("Scheduler unable to process metrics: err {:?}", err);
+                }
             }
 
             if let Err(err) = self.process_status() {
@@ -162,12 +167,13 @@ impl ScheduleMgr {
         self.logger.log(msg);
     }
 
-    fn process_metrics(&mut self) -> Result<()> {
-        let waiting_jobs = self.datastore.count_jobs(jobsrv::JobState::Pending)?;
-        let working_jobs = self.datastore.count_jobs(jobsrv::JobState::Dispatched)?;
+    fn process_metrics(&mut self, target: PackageTarget) -> Result<()> {
+        let conn = self.db.get_conn().map_err(Error::Db)?;
+        let waiting_jobs = Job::count(jobsrv::JobState::Pending, target, &*conn)?;
+        let working_jobs = Job::count(jobsrv::JobState::Dispatched, target, &*conn)?;
 
-        Gauge::WaitingJobs.set(waiting_jobs as f64);
-        Gauge::WorkingJobs.set(working_jobs as f64);
+        Gauge::WaitingJobs(target).set(waiting_jobs as f64);
+        Gauge::WorkingJobs(target).set(working_jobs as f64);
 
         Ok(())
     }
@@ -473,10 +479,14 @@ impl ScheduleMgr {
             };
 
             self.logger.log_group_job(&group, &job);
+            let target = match PackageTarget::from_str(job.get_target()) {
+                Ok(t) => t,
+                Err(_) => target::X86_64_LINUX,
+            };
 
             match job.get_state() {
                 jobsrv::JobState::Complete => {
-                    Counter::CompletedJobs.increment();
+                    Counter::CompletedJobs(target).increment();
                     assert!(job.has_build_started_at());
                     assert!(job.has_build_finished_at());
 
@@ -488,9 +498,9 @@ impl ScheduleMgr {
                         .unwrap();
 
                     let build_duration = build_finished_at - build_started_at;
-                    Histogram::JobCompletionTime.set(build_duration.num_seconds() as f64);
+                    Histogram::JobCompletionTime(target).set(build_duration.num_seconds() as f64);
                 }
-                jobsrv::JobState::Failed => Counter::FailedJobs.increment(),
+                jobsrv::JobState::Failed => Counter::FailedJobs(target).increment(),
                 _ => (),
             }
 
