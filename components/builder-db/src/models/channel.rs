@@ -8,7 +8,7 @@ use diesel::pg::expression::dsl::any;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::{
-    ExpressionMethods, NullableExpressionMethods, PgArrayExpressionMethods, QueryDsl, RunQueryDsl,
+    ExpressionMethods, NullableExpressionMethods, QueryDsl, RunQueryDsl,
     Table, TextExpressionMethods,
 };
 
@@ -113,7 +113,7 @@ impl Channel {
             .filter(origin_channels::name.eq(req.channel))
             .filter(origin_packages::target.eq(req.target))
             .filter(origin_packages::visibility.eq(any(req.visibility)))
-            .filter(origin_packages::ident_array.contains(ident.clone().parts()))
+            .filter(origin_packages::ident.like(format!("%{}%", ident.clone().parts().join("/"))))
             .order(sql::<Package>(
                 "to_semver(ident_array[3]) desc, ident_array[4] desc",
             ))
@@ -141,7 +141,7 @@ impl Channel {
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
             )
-            .filter(origin_packages::ident_array.contains(lcp.ident.clone().parts()))
+            .filter(origin_packages::ident.like(format!("%{}%", lcp.ident.clone().parts().join("/"))))
             .filter(origin_packages::visibility.eq(any(lcp.visibility)))
             .filter(origins::name.eq(lcp.origin))
             .filter(origin_channels::name.eq(lcp.channel))
