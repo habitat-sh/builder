@@ -285,17 +285,19 @@ impl WorkerMgr {
                 if let Err(err) = self.process_cancelations() {
                     warn!("Worker-manager unable to process cancels: err {:?}", err);
                 }
-                if let Err(err) = self.process_work(target::X86_64_LINUX) {
-                    warn!("Worker-manager unable to process work: err {:?}", err);
-                }
-                if let Err(err) = self.process_work(target::X86_64_WINDOWS) {
-                    warn!("Worker-manager unable to process work: err {:?}", err);
+
+                for target in PackageTarget::supported_targets() {
+                    if let Err(err) = self.process_work(*target) {
+                        warn!("Worker-manager unable to process work: err {:?}", err);
+                    }
                 }
                 last_processed = now;
             }
 
-            if let Err(err) = self.process_metrics() {
-                warn!("Worker-manager unable to process metrics: err {:?}", err);
+            for target in PackageTarget::supported_targets() {
+                if let Err(err) = self.process_metrics(*target) {
+                    warn!("Worker-manager unable to process metrics: err {:?}", err);
+                }
             }
         }
     }
@@ -362,23 +364,28 @@ impl WorkerMgr {
         Ok(())
     }
 
-    fn process_metrics(&mut self) -> Result<()> {
-        Gauge::Workers.set(self.workers.len() as f64);
+    fn process_metrics(&mut self, target: PackageTarget) -> Result<()> {
+        Gauge::Workers(target).set(
+            self.workers
+                .iter()
+                .filter(|t| (t.1.target == target))
+                .count() as f64,
+        );
 
         let ready_workers = self
             .workers
             .iter()
-            .filter(|t| t.1.state == jobsrv::WorkerState::Ready)
+            .filter(|t| (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Ready))
             .count();
 
         let busy_workers = self
             .workers
             .iter()
-            .filter(|t| t.1.state == jobsrv::WorkerState::Busy)
+            .filter(|t| (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Busy))
             .count();
 
-        Gauge::ReadyWorkers.set(ready_workers as f64);
-        Gauge::BusyWorkers.set(busy_workers as f64);
+        Gauge::ReadyWorkers(target).set(ready_workers as f64);
+        Gauge::BusyWorkers(target).set(busy_workers as f64);
 
         Ok(())
     }

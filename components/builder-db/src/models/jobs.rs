@@ -1,5 +1,6 @@
 use super::db_id_format;
 use chrono::prelude::*;
+use diesel::dsl::count_star;
 use diesel::pg::PgConnection;
 use diesel::result::QueryResult;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
@@ -13,6 +14,7 @@ use crate::models::pagination::Paginate;
 use crate::schema::jobs::{busy_workers, groups, jobs};
 
 use crate::bldr_core::metrics::CounterMetric;
+use crate::hab_core::package::PackageTarget;
 use crate::metrics::Counter;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
@@ -86,6 +88,19 @@ impl Job {
         diesel::insert_into(jobs::table)
             .values(job)
             .get_result(conn)
+    }
+
+    pub fn count(
+        job_state: jobsrv::JobState,
+        target: PackageTarget,
+        conn: &PgConnection,
+    ) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        jobs::table
+            .select(count_star())
+            .filter(jobs::job_state.eq(job_state.to_string()))
+            .filter(jobs::target.eq(target.to_string()))
+            .first(conn)
     }
 }
 

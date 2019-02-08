@@ -18,10 +18,11 @@
 use std::borrow::Cow;
 
 use crate::bldr_core::metrics;
+use crate::hab_core::package::PackageTarget;
 
 pub enum Counter {
-    CompletedJobs,
-    FailedJobs,
+    CompletedJobs(PackageTarget),
+    FailedJobs(PackageTarget),
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -29,18 +30,18 @@ impl metrics::CounterMetric for Counter {}
 impl metrics::Metric for Counter {
     fn id(&self) -> Cow<'static, str> {
         match *self {
-            Counter::CompletedJobs => "jobsrv.completed".into(),
-            Counter::FailedJobs => "jobsrv.failed".into(),
+            Counter::CompletedJobs(ref t) => format!("jobsrv.completed.{}", t).into(),
+            Counter::FailedJobs(ref t) => format!("jobsrv.failed.{}", t).into(),
         }
     }
 }
 
 pub enum Gauge {
-    WaitingJobs,
-    WorkingJobs,
-    Workers,
-    BusyWorkers,
-    ReadyWorkers,
+    WaitingJobs(PackageTarget),
+    WorkingJobs(PackageTarget),
+    Workers(PackageTarget),
+    BusyWorkers(PackageTarget),
+    ReadyWorkers(PackageTarget),
 }
 
 impl metrics::GaugeMetric for Gauge {}
@@ -48,17 +49,17 @@ impl metrics::GaugeMetric for Gauge {}
 impl metrics::Metric for Gauge {
     fn id(&self) -> Cow<'static, str> {
         match *self {
-            Gauge::WaitingJobs => "jobsrv.waiting".into(),
-            Gauge::WorkingJobs => "jobsrv.working".into(),
-            Gauge::Workers => "jobsrv.workers".into(),
-            Gauge::BusyWorkers => "jobsrv.workers.busy".into(),
-            Gauge::ReadyWorkers => "jobsrv.workers.ready".into(),
+            Gauge::WaitingJobs(ref t) => format!("jobsrv.waiting.{}", t).into(),
+            Gauge::WorkingJobs(ref t) => format!("jobsrv.working.{}", t).into(),
+            Gauge::Workers(ref t) => format!("jobsrv.workers.{}", t).into(),
+            Gauge::BusyWorkers(ref t) => format!("jobsrv.workers.busy.{}", t).into(),
+            Gauge::ReadyWorkers(ref t) => format!("jobsrv.workers.ready.{}", t).into(),
         }
     }
 }
 
 pub enum Histogram {
-    JobCompletionTime,
+    JobCompletionTime(PackageTarget),
 }
 
 impl metrics::HistogramMetric for Histogram {}
@@ -66,7 +67,7 @@ impl metrics::HistogramMetric for Histogram {}
 impl metrics::Metric for Histogram {
     fn id(&self) -> Cow<'static, str> {
         match *self {
-            Histogram::JobCompletionTime => "jobsrv.completion_time".into(),
+            Histogram::JobCompletionTime(ref t) => format!("jobsrv.completion_time.{}", t).into(),
         }
     }
 }
