@@ -18,6 +18,7 @@ use crate::schema::member::origin_members;
 use crate::schema::origin::{origins, origins_with_secret_key, origins_with_stats};
 
 use crate::bldr_core::metrics::CounterMetric;
+use crate::hab_core::ChannelIdent;
 use crate::metrics::Counter;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
@@ -97,7 +98,7 @@ impl Origin {
         OriginMember::add(req.name, req.owner_id, conn)?;
         Channel::create(
             &CreateChannel {
-                name: "unstable",
+                name: ChannelIdent::unstable().as_str(),
                 owner_id: req.owner_id,
                 origin: req.name,
             },
@@ -105,7 +106,7 @@ impl Origin {
         )?;
         Channel::create(
             &CreateChannel {
-                name: "stable",
+                name: ChannelIdent::stable().as_str(),
                 owner_id: req.owner_id,
                 origin: req.name,
             },

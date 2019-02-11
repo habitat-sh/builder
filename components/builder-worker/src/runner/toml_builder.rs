@@ -17,7 +17,7 @@ use std::path::Path;
 use super::publisher::Publisher;
 use crate::config::Config;
 use crate::error::Error;
-use crate::hab_core::config::ConfigFile;
+use crate::hab_core::{config::ConfigFile, ChannelIdent};
 
 // TODO (SA) - Toml-based publishing has been removed, and is not hooked up to
 // the post-processor currently. Keeping the code around to re-enable
@@ -38,7 +38,7 @@ struct TomlPublishBuilder {
 struct TomlPublish {
     enabled: Option<bool>,
     url: Option<String>,
-    channel: Option<String>,
+    channel: Option<ChannelIdent>,
 }
 
 impl TomlPublishBuilder {
@@ -84,6 +84,6 @@ mod tests {
         let cfg = TomlPublishBuilder::from_raw(toml).unwrap().build(&config);
         assert_eq!("https://bldr.habitat.sh", cfg.url);
         assert_eq!(false, cfg.enabled);
-        assert_eq!("unstable", cfg.channel_opt.unwrap());
+        assert_eq!(Some(ChannelIdent::unstable()), cfg.channel_opt);
     }
 }

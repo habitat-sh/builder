@@ -26,7 +26,10 @@ use reqwest::{Body, Client, Method, Proxy, Response, StatusCode};
 use serde_json;
 
 use crate::error::{Error, Result};
-use crate::hab_core::package::{self, Identifiable, PackageArchive};
+use crate::hab_core::{
+    package::{self, Identifiable, PackageArchive},
+    ChannelIdent,
+};
 
 header! { (XFileName, "X-Filename") => [String] }
 
@@ -106,7 +109,7 @@ impl ApiClient {
     pub fn show_package<I>(
         &self,
         package: &I,
-        channel: &str,
+        channel: &ChannelIdent,
         target: &str,
         token: Option<&str>,
     ) -> Result<Package>
@@ -249,7 +252,7 @@ impl ApiClient {
         )
     }
 
-    pub fn create_channel(&self, origin: &str, channel: &str, token: &str) -> Result<()> {
+    pub fn create_channel(&self, origin: &str, channel: &ChannelIdent, token: &str) -> Result<()> {
         let url_path = format!("{}/v1/depot/channels/{}/{}", self.url, origin, channel);
         debug!("Creating channel, path: {:?}", url_path);
 
@@ -263,7 +266,8 @@ impl ApiClient {
         Ok(())
     }
 
-    pub fn promote_package<I>(&self, ident: &I, channel: &str, token: &str) -> Result<()>
+    // TODO: make channel type hab_core::ChannelIdent
+    pub fn promote_package<I>(&self, ident: &I, channel: &ChannelIdent, token: &str) -> Result<()>
     where
         I: Identifiable,
     {
@@ -320,7 +324,7 @@ impl ApiClient {
     }
 }
 
-fn channel_package_path<I>(channel: &str, package: &I) -> String
+fn channel_package_path<I>(channel: &ChannelIdent, package: &I) -> String
 where
     I: Identifiable,
 {
@@ -359,7 +363,7 @@ fn origin_secret_keys_latest(origin: &str) -> String {
     format!("depot/origins/{}/secret_keys/latest", origin)
 }
 
-fn channel_package_promote<I>(channel: &str, package: &I) -> String
+fn channel_package_promote<I>(channel: &ChannelIdent, package: &I) -> String
 where
     I: Identifiable,
 {

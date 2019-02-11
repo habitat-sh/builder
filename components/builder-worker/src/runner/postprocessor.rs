@@ -15,7 +15,7 @@
 use crate::bldr_core::logger::Logger;
 use crate::config::Config;
 use crate::error::Result;
-use crate::hab_core::package::archive::PackageArchive;
+use crate::hab_core::{package::archive::PackageArchive, ChannelIdent};
 
 use super::publisher::Publisher;
 use super::workspace::Workspace;
@@ -28,7 +28,7 @@ pub fn post_process(
     logger: &mut Logger,
 ) -> Result<()> {
     let channel_opt = if workspace.job.has_channel() {
-        Some(workspace.job.get_channel().to_string())
+        Some(ChannelIdent::from(workspace.job.get_channel()))
     } else {
         None
     };

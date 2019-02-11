@@ -58,6 +58,7 @@ pub struct NewJob<'a> {
     pub project_plan_path: &'a str,
     pub vcs: &'a str,
     pub vcs_arguments: Vec<&'a str>,
+    // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub channel: &'a str,
     pub target: &'a str,
 }

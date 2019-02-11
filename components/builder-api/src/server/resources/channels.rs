@@ -22,7 +22,10 @@ use diesel::result::{DatabaseErrorKind, Error::DatabaseError, Error::NotFound};
 use serde_json;
 
 use crate::bldr_core::metrics::CounterMetric;
-use crate::hab_core::package::{PackageIdent, PackageTarget};
+use crate::hab_core::{
+    package::{PackageIdent, PackageTarget},
+    ChannelIdent,
+};
 
 use crate::db::models::channel::*;
 use crate::db::models::package::{BuilderPackageIdent, Package};
@@ -179,12 +182,13 @@ fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner();
+    let channel = ChannelIdent::from(channel);
 
     if let Err(_err) = authorize_session(&req, Some(&origin)) {
         return HttpResponse::new(StatusCode::UNAUTHORIZED);
     }
 
-    if channel == "stable" || channel == "unstable" {
+    if channel == ChannelIdent::stable() || channel == ChannelIdent::unstable() {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
@@ -213,6 +217,7 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
         Path::<(String, String, String, String, String)>::extract(&req)
             .unwrap()
             .into_inner();
+    let channel = ChannelIdent::from(channel);
 
     let session = match authorize_session(&req, Some(&origin)) {
         Ok(session) => session,
@@ -245,7 +250,7 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
             match PackageChannelAudit::audit(
                 &PackageChannelAudit {
                     package_ident: BuilderPackageIdent(ident.clone()),
-                    channel: &channel,
+                    channel: channel.as_str(),
                     operation: PackageChannelOperation::Promote,
                     trigger: helpers::trigger_from_request_model(&req),
                     requester_id: session.get_id() as i64,
@@ -276,8 +281,9 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
         Path::<(String, String, String, String, String)>::extract(&req)
             .unwrap()
             .into_inner();
+    let channel = ChannelIdent::from(channel);
 
-    if channel == "unstable" {
+    if channel == ChannelIdent::unstable() {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
@@ -312,7 +318,7 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
             match PackageChannelAudit::audit(
                 &PackageChannelAudit {
                     package_ident: BuilderPackageIdent(ident.clone()),
-                    channel: &channel,
+                    channel: channel.as_str(),
                     operation: PackageChannelOperation::Demote,
                     trigger: helpers::trigger_from_request_model(&req),
                     requester_id: session.get_id() as i64,
@@ -344,6 +350,7 @@ fn get_packages_for_origin_channel_package_version(
     let (origin, channel, pkg, version) = Path::<(String, String, String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
+    let channel = ChannelIdent::from(channel);
 
     let ident = PackageIdent::new(origin, pkg, Some(version.clone()), None);
 
@@ -365,6 +372,7 @@ fn get_packages_for_origin_channel_package(
     let (origin, channel, pkg) = Path::<(String, String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
+    let channel = ChannelIdent::from(channel);
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
@@ -386,6 +394,7 @@ fn get_packages_for_origin_channel(
     let (origin, channel) = Path::<(String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
+    let channel = ChannelIdent::from(channel);
 
     // It feels 1000x wrong to set the package name to ""
     let ident = PackageIdent::new(origin, String::from(""), None, None);
@@ -408,6 +417,7 @@ fn get_latest_package_for_origin_channel_package(
     let (origin, channel, pkg) = Path::<(String, String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
+    let channel = ChannelIdent::from(channel);
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
@@ -430,6 +440,7 @@ fn get_latest_package_for_origin_channel_package_version(
     let (origin, channel, pkg, version) = Path::<(String, String, String, String)>::extract(&req)
         .unwrap()
         .into_inner(); // Unwrap Ok
+    let channel = ChannelIdent::from(channel);
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
@@ -453,6 +464,7 @@ fn get_package_fully_qualified(
         Path::<(String, String, String, String, String)>::extract(&req)
             .unwrap()
             .into_inner(); // Unwrap Ok
+    let channel = ChannelIdent::from(channel);
 
     let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
@@ -476,7 +488,7 @@ fn do_get_channel_packages(
     req: &HttpRequest<AppState>,
     pagination: &Query<Pagination>,
     ident: &PackageIdent,
-    channel: &str,
+    channel: &ChannelIdent,
 ) -> Result<(Vec<BuilderPackageIdent>, i64)> {
     let opt_session_id = match authorize_session(&req, None) {
         Ok(session) => Some(session.get_id()),
@@ -508,7 +520,7 @@ fn do_get_channel_package(
     req: &HttpRequest<AppState>,
     qtarget: &Query<Target>,
     ident: &PackageIdent,
-    channel: &str,
+    channel: &ChannelIdent,
 ) -> Result<String> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(session) => Some(session.get_id()),

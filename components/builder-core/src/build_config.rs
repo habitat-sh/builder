@@ -25,12 +25,10 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use toml;
 
 use crate::error::{Error, Result};
-use crate::hab_core::channel::UNSTABLE_CHANNEL;
 use crate::hab_core::config::ConfigFile;
 
 /// Postprocessing config file name
 pub const BLDR_CFG: &str = ".bldr.toml";
-pub const DEFAULT_CHANNEL: &str = UNSTABLE_CHANNEL;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BuildCfg(HashMap<String, ProjectCfg>);

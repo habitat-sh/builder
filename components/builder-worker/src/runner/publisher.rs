@@ -16,8 +16,8 @@ use retry::retry;
 
 use crate::bldr_core::api_client::ApiClient;
 use crate::bldr_core::logger::Logger;
-use crate::hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
 use crate::hab_core::package::archive::PackageArchive;
+use crate::hab_core::ChannelIdent;
 
 use super::{RETRIES, RETRY_WAIT};
 use crate::error::{Error, Result};
@@ -26,7 +26,7 @@ use crate::error::{Error, Result};
 pub struct Publisher {
     pub enabled: bool,
     pub url: String,
-    pub channel_opt: Option<String>,
+    pub channel_opt: Option<ChannelIdent>,
 }
 
 impl Publisher {
@@ -71,15 +71,8 @@ impl Publisher {
             }
         }
 
-        if self.channel_opt.is_none() {
-            debug!("Promotion skipped (no channel specified)");
-        } else {
-            let channel = match self.channel_opt {
-                Some(ref c) => c.clone(),
-                None => panic!("Expected channel"),
-            };
-
-            if channel != STABLE_CHANNEL && channel != UNSTABLE_CHANNEL {
+        if let Some(channel) = &self.channel_opt {
+            if channel != &ChannelIdent::stable() && channel != &ChannelIdent::unstable() {
                 match retry(
                     RETRIES,
                     RETRY_WAIT,
@@ -110,7 +103,7 @@ impl Publisher {
             match retry(
                 RETRIES,
                 RETRY_WAIT,
-                || client.promote_package(&ident, &channel, auth_token),
+                || client.promote_package(&ident, channel, auth_token),
                 |res| {
                     if res.is_err() {
                         let msg = format!("Promote {} to {}: {:?}", ident, channel, res);
@@ -131,6 +124,8 @@ impl Publisher {
                     return Err(Error::Retry(err));
                 }
             }
+        } else {
+            debug!("Promotion skipped (no channel specified)");
         }
         Ok(())
     }

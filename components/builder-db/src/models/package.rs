@@ -22,8 +22,9 @@ use diesel_full_text_search::{to_tsquery, TsQueryExtensions};
 
 use super::db_id_format;
 use crate::hab_core;
-use crate::hab_core::package::{
-    FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget,
+use crate::hab_core::{
+    package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget},
+    ChannelIdent,
 };
 use crate::models::channel::{Channel, OriginChannelPackage, OriginChannelPromote};
 use crate::models::pagination::*;
@@ -326,7 +327,7 @@ impl Package {
             OriginChannelPromote {
                 ident: package.ident.clone(),
                 origin: package.origin.clone(),
-                channel: String::from("unstable"),
+                channel: ChannelIdent::unstable(),
             },
             conn,
         )?;
