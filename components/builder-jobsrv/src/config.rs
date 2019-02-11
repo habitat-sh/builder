@@ -24,6 +24,7 @@ use num_cpus;
 
 use crate::db::config::DataStoreCfg;
 use crate::hab_core::config::ConfigFile;
+use crate::hab_core::package::target::{self, PackageTarget};
 use crate::server::log_archiver::ArchiveBackend;
 
 use crate::error::Error;
@@ -46,6 +47,8 @@ pub struct Config {
     pub log_path: PathBuf,
     /// Max time (in minutes) allowed for a build job
     pub job_timeout: u64,
+    /// Supported build targets
+    pub build_targets: Vec<PackageTarget>,
 }
 
 impl Default for Config {
@@ -61,6 +64,7 @@ impl Default for Config {
             key_dir: PathBuf::from("/hab/svc/hab-depot/files"),
             log_path: PathBuf::from("/tmp"),
             job_timeout: 60,
+            build_targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
         }
     }
 }
@@ -226,6 +230,8 @@ mod tests {
     #[test]
     fn config_from_file() {
         let content = r#"
+        build_targets = ["x86_64-linux"]
+
         [http]
         listen = "1.2.3.4"
         port   = 1234
@@ -269,6 +275,9 @@ mod tests {
             "1.1.1.1"
         );
         assert_eq!(&format!("{}", config.net.log_ingestion_listen), "2.2.2.2");
+
+        assert_eq!(config.build_targets.len(), 1);
+        assert_eq!(config.build_targets[0], target::X86_64_LINUX);
 
         assert_eq!(config.net.worker_command_port, 9000);
         assert_eq!(config.net.worker_heartbeat_port, 9000);

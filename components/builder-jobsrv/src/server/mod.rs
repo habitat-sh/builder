@@ -32,6 +32,7 @@ use actix_web::{App, HttpRequest, HttpResponse, Json};
 use crate::bldr_core::rpc::RpcMessage;
 use crate::bldr_core::target_graph::TargetGraph;
 use crate::db::DbPool;
+use crate::hab_core::package::PackageTarget;
 
 use self::log_archiver::LogArchiver;
 use self::log_directory::LogDirectory;
@@ -50,6 +51,7 @@ pub struct AppState {
     db: DbPool,
     graph: Arc<RwLock<TargetGraph>>,
     log_dir: LogDirectory,
+    build_targets: Vec<PackageTarget>,
 }
 
 impl AppState {
@@ -65,6 +67,7 @@ impl AppState {
             db,
             graph: graph.clone(),
             log_dir: LogDirectory::new(&cfg.log_dir),
+            build_targets: cfg.build_targets.clone(),
         }
     }
 }
