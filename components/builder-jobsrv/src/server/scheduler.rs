@@ -34,7 +34,6 @@ use crate::bldr_core::logger::Logger;
 use crate::bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
 use crate::bldr_core::socket::DEFAULT_CONTEXT;
 use crate::hab_core::package::{target, PackageTarget};
-use crate::hab_core::ChannelIdent;
 
 use super::metrics::{Counter, Gauge, Histogram};
 use super::worker_manager::WorkerMgrClient;
