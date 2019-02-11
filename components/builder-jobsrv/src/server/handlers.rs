@@ -519,8 +519,12 @@ pub fn job_graph_package_reverse_dependencies_grouped_get(
 
     match rdeps {
         Some(rd) => {
-            let rdeps = compute_rdep_build_groups(state, &ident, &msg.get_target(), &rd)?;
-            let rdeps = RepeatedField::from_vec(rdeps);
+            let rdeps = if rd.is_empty() {
+                RepeatedField::new()
+            } else {
+                let rdeps = compute_rdep_build_groups(state, &ident, &msg.get_target(), &rd)?;
+                RepeatedField::from_vec(rdeps)
+            };
             rd_reply.set_rdeps(rdeps);
         }
         None => debug!("No rdeps found for {}", ident),
