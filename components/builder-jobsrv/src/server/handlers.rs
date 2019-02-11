@@ -308,7 +308,16 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     debug!("job_group_create message: {:?}", msg);
 
     // Check that the target is supported
-    if (msg.get_target() != "x86_64-linux") && (msg.get_target() != "x86_64-windows") {
+    let target = match PackageTarget::from_str(msg.get_target()) {
+        Ok(t) => t,
+        Err(_) => {
+            debug!("Invalid package target: {:?}", msg.get_target());
+            return Err(Error::NotFound);
+        }
+    };
+
+    if !state.build_targets.contains(&target) {
+        debug!("Rejecting build request with target: {:?}", target);
         return Err(Error::NotFound);
     }
 
