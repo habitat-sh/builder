@@ -20,7 +20,7 @@ use std::path::Path;
 use base64;
 
 use crate::error::{Error, Result};
-use crate::hab_core::crypto::BoxKeyPair;
+use crate::hab_core::crypto::{keys::box_key_pair::WrappedSealedBox, BoxKeyPair};
 use crate::keys;
 
 // TBD - these functions should take keys directly instead of key directory.
@@ -49,15 +49,14 @@ where
         }
     };
 
-    Ok(base64::encode(&ciphertext))
+    Ok(base64::encode(ciphertext.as_bytes())) // ciphertext is already base64-encoded, so this is redundant
 }
 
-pub fn decrypt<A>(key_dir: A, b64text: &str) -> Result<Vec<u8>>
+pub fn decrypt<A>(key_dir: A, b64text: &WrappedSealedBox) -> Result<Vec<u8>>
 where
     A: AsRef<Path>,
 {
-    let ciphertext = base64::decode(b64text).map_err(Error::Base64Error)?;
-    let plaintext = match BoxKeyPair::decrypt_with_path(&ciphertext, &key_dir.as_ref()) {
+    let plaintext = match BoxKeyPair::decrypt_with_path(b64text, &key_dir.as_ref()) {
         Ok(bytes) => bytes,
         Err(err) => {
             let e = format!("Unable to decrypt with bldr key pair, err={:?}", &err);
@@ -69,13 +68,11 @@ where
     Ok(plaintext)
 }
 
-pub fn validate<A>(key_dir: A, b64text: &str) -> Result<()>
+pub fn validate<A>(key_dir: A, b64text: &WrappedSealedBox) -> Result<()>
 where
     A: AsRef<Path>,
 {
-    let ciphertext = base64::decode(b64text).map_err(Error::Base64Error)?;
-
-    let box_secret = BoxKeyPair::secret_metadata(&ciphertext)?;
+    let box_secret = BoxKeyPair::secret_metadata(b64text)?;
 
     match BoxKeyPair::get_pair_for(box_secret.sender, &key_dir.as_ref()) {
         Ok(_) => (),
