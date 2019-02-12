@@ -101,6 +101,10 @@ impl Serialize for Job {
             strukt.serialize_field("channel", self.get_channel())?;
         }
 
+        if self.has_target() {
+            strukt.serialize_field("target", self.get_target())?;
+        }
+
         strukt.end()
     }
 }
@@ -370,6 +374,7 @@ impl Serialize for JobGroupProject {
         strukt.serialize_field("ident", &self.get_ident())?;
         strukt.serialize_field("state", &self.get_state())?;
         strukt.serialize_field("job_id", &self.get_job_id().to_string())?;
+        strukt.serialize_field("target", &self.get_target())?;
         strukt.end()
     }
 }
@@ -385,6 +390,7 @@ impl Serialize for JobGroup {
         strukt.serialize_field("projects", &self.get_projects())?;
         strukt.serialize_field("created_at", &self.get_created_at())?;
         strukt.serialize_field("project_name", &self.get_project_name())?;
+        strukt.serialize_field("target", &self.get_target())?;
         strukt.end()
     }
 }
