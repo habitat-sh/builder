@@ -114,7 +114,7 @@ impl JobStreamer {
     /// * If the `stderr` consuming thread cannot be spawned--this would most likely happen on a
     /// resource starved system and indicates a possible health issue of the host
     pub fn consume_child(&self, child: &mut Child) -> Result<()> {
-        let stdout_handle = {
+        let _stdout_handle = {
             let target = self.target.clone();
             let id = self.id;
             let stdout = child.stdout.take().expect("Child stdout was not captured");
@@ -123,7 +123,7 @@ impl JobStreamer {
                 .spawn(move || consume_stream(target, id, stdout))
                 .expect("Failed to spawn stdout thread")
         };
-        let stderr_handle = {
+        let _stderr_handle = {
             let target = self.target.clone();
             let id = self.id;
             let stderr = child.stderr.take().expect("Child stderr was not captured");
@@ -132,13 +132,6 @@ impl JobStreamer {
                 .spawn(move || consume_stream(target, id, stderr))
                 .expect("Failed to spawn stderr thread")
         };
-
-        // TODO fn: not entirely decided if we should join and block on the output-processing
-        // threads or let them run to completion and return this method to wait on the termination
-        // of the Child process. Chances are that the choice will be very clear, very shortly.
-        for handle in vec![stdout_handle, stderr_handle] {
-            handle.join().expect("Consuming thread could not join")?;
-        }
 
         Ok(())
     }
