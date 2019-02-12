@@ -19,6 +19,8 @@ use std::path::Path;
 #[cfg(windows)]
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
 use zmq;
 
@@ -38,6 +40,9 @@ use crate::heartbeat::{HeartbeatCli, HeartbeatMgr};
 use crate::log_forwarder::LogForwarder;
 use crate::network::NetworkNamespace;
 use crate::runner::{studio, RunnerCli, RunnerMgr};
+
+/// Interval for main thread to check cancel status
+pub const BUILD_CANCEL_WAIT_SECS : u64 = 15;
 
 enum State {
     Ready,
@@ -155,16 +160,13 @@ impl Server {
 
     fn cancel_job(&mut self) -> Result<()> {
         self.runner_cli.cancel_job(&self.msg)?;
+        thread::sleep(Duration::new(BUILD_CANCEL_WAIT_SECS, 0));
         {
             let reply = self.runner_cli.recv_ack()?;
             self.fe_sock.send(reply, 0)?;
         }
-
-        // Currently, there's no good way to cancel a studio build that is in progress.
-        // Terminate the worker process (it will get restarted by the supervisor) in
-        // order to handle the case where a build is hung.
-        warn!("Exiting worker (cancel received)");
-        ::std::process::exit(0);
+        self.set_ready()?;
+        Ok(())
     }
 
     fn reject_job(&mut self) -> Result<()> {

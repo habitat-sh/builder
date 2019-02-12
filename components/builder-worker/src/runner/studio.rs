@@ -15,7 +15,7 @@
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{Child, Command, Stdio};
 #[cfg(not(windows))]
 use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
@@ -86,7 +86,7 @@ impl<'a> Studio<'a> {
     /// * If the child process can't be spawned
     /// * If the calling thread can't wait on the child process
     /// * If the `LogPipe` fails to pipe output
-    pub fn build(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
+    pub fn build(&self, streamer: &mut JobStreamer) -> Result<Child> {
         let channel = if self.workspace.job.has_channel() {
             ChannelIdent::from(self.workspace.job.get_channel())
         } else {
@@ -181,13 +181,9 @@ impl<'a> Studio<'a> {
         let mut child = cmd
             .spawn()
             .map_err(|e| Error::StudioBuild(self.workspace.studio().to_path_buf(), e))?;
-        streamer.consume_child(&mut child)?;
-        let exit_status = child
-            .wait()
-            .map_err(|e| Error::StudioBuild(self.workspace.studio().to_path_buf(), e))?;
-        debug!("completed studio build command, status={:?}", exit_status);
 
-        Ok(exit_status)
+        streamer.consume_child(&mut child)?;
+        Ok(child)
     }
 
     #[cfg(windows)]

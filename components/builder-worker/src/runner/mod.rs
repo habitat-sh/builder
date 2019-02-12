@@ -27,6 +27,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 use chrono::Utc;
 use retry::retry;
@@ -85,6 +86,9 @@ const WORK_CANCEL: &str = "X";
 
 pub const RETRIES: u64 = 10;
 pub const RETRY_WAIT: u64 = 60000;
+
+/// Interval for main thread to check child status
+pub const STUDIO_CHILD_WAIT_SECS: u64 = 10;
 
 pub struct Runner {
     config: Arc<Config>,
@@ -299,7 +303,7 @@ impl Runner {
         // to "Complete" (or "Failed", etc.). As a result, we won't
         // get the `build_started_at` time set until the job is actually
         // finished.
-        let mut archive = match self.build(streamer) {
+        let mut archive = match self.build(streamer, tx) {
             Ok(archive) => {
                 self.workspace
                     .job
@@ -455,7 +459,11 @@ impl Runner {
         }
     }
 
-    fn build(&mut self, streamer: &mut JobStreamer) -> Result<PackageArchive> {
+    fn build(
+        &mut self,
+        streamer: &mut JobStreamer,
+        tx: &mpsc::Sender<Job>,
+    ) -> Result<PackageArchive> {
         let network_namespace = match (
             self.config.network_interface.as_ref(),
             self.config.network_gateway.as_ref(),
@@ -472,32 +480,60 @@ impl Runner {
             self.config.airlock_enabled,
             network_namespace,
         );
-        let status = studio.build(streamer)?;
-        debug!("Studio build return status: {:?}", status);
 
-        let result_path = self.workspace.src().join("results");
-        match fs::rename(&result_path, self.workspace.out()) {
-            Ok(_) => (),
-            Err(err) => {
-                debug!(
-                    "Failed to rename studio results dir: {:?} to {:?}. Err = {:?}",
-                    result_path,
-                    self.workspace.out(),
-                    err
-                );
-                return Err(Error::BuildFailure(status.code().unwrap_or(-2)));
+        let mut child = studio.build(streamer)?;
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    debug!("Completed studio build, status={:?}", status);
+
+                    let result_path = self.workspace.src().join("results");
+                    match fs::rename(&result_path, self.workspace.out()) {
+                        Ok(_) => (),
+                        Err(err) => {
+                            debug!(
+                                "Failed to rename studio results dir: {:?} to {:?}. Err = {:?}",
+                                result_path,
+                                self.workspace.out(),
+                                err
+                            );
+                            return Err(Error::BuildFailure(status.code().unwrap_or(-2)));
+                        }
+                    }
+
+                    if !status.success() {
+                        debug!("Status is not success");
+                        let ident = self.workspace.attempted_build()?;
+                        let op_ident = OriginPackageIdent::from(ident);
+                        self.workspace.job.set_package_ident(op_ident);
+                        return Err(Error::BuildFailure(status.code().unwrap_or(-1)));
+                    }
+
+                    return self.workspace.last_built();
+                }
+                Ok(None) => {
+                    if self.is_canceled() {
+                        debug!("Canceling job: {}", self.job().get_id());
+                        if let Err(err) = child.kill() {
+                            debug!("Failed to kill child, err: {:?}", err);
+                        }
+                        self.cancel();
+                        self.cleanup();
+                        tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+                        return Err(Error::JobCanceled);
+                    }
+                    thread::sleep(Duration::new(STUDIO_CHILD_WAIT_SECS, 0));
+                    continue;
+                }
+                Err(err) => {
+                    debug!("Error attempting to wait: {}", err);
+                    return Err(Error::StudioBuild(
+                        self.workspace.studio().to_path_buf(),
+                        err,
+                    ));
+                }
             }
         }
-
-        if !status.success() {
-            debug!("Status is not success");
-            let ident = self.workspace.attempted_build()?;
-            let op_ident = OriginPackageIdent::from(ident);
-            self.workspace.job.set_package_ident(op_ident);
-            return Err(Error::BuildFailure(status.code().unwrap_or(-1)));
-        }
-
-        self.workspace.last_built()
     }
 
     fn export(&mut self, streamer: &mut JobStreamer) -> Result<()> {
