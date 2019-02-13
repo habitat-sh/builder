@@ -527,10 +527,7 @@ impl WorkerMgr {
             Ok(oir) => {
                 for i in oir {
                     let mut oi = originsrv::OriginIntegration::new();
-                    let plaintext = match bldr_core::integrations::decrypt(
-                        &self.key_dir,
-                        &WrappedSealedBox::from(i.body),
-                    ) {
+                    let plaintext = match bldr_core::integrations::decrypt(&self.key_dir, &i.body) {
                         Ok(b) => match String::from_utf8(b) {
                             Ok(s) => s,
                             Err(e) => {

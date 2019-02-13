@@ -19,7 +19,6 @@ use chrono::{self, Duration, TimeZone, Utc};
 
 use super::privilege::FeatureFlags;
 use crate::error::{Error, Result};
-use crate::hab_core::crypto::keys::box_key_pair::WrappedSealedBox;
 use crate::integrations::{decrypt, encrypt, validate};
 use crate::protocol::{message, originsrv};
 
@@ -81,8 +80,7 @@ pub fn is_access_token(token: &str) -> bool {
 pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<originsrv::Session> {
     assert!(is_access_token(token));
 
-    let encoded = &WrappedSealedBox::from(&token[ACCESS_TOKEN_PREFIX.len()..]);
-    let bytes = decrypt(key_dir, encoded)?;
+    let bytes = decrypt(key_dir, &token[ACCESS_TOKEN_PREFIX.len()..])?;
 
     let payload: originsrv::AccessToken = match message::decode(&bytes) {
         Ok(p) => p,
@@ -93,7 +91,7 @@ pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<originsrv
     };
 
     if payload.get_account_id() == BUILDER_ACCOUNT_ID {
-        validate(key_dir, encoded)?
+        validate(key_dir, &token[ACCESS_TOKEN_PREFIX.len()..])?
     }
 
     match Utc.timestamp_opt(payload.get_expires(), 0 /* nanoseconds */) {

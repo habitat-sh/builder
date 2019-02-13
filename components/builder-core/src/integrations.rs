@@ -40,7 +40,7 @@ where
         }
     };
 
-    let ciphertext = match kp.encrypt(bytes, Some(&kp)) {
+    let wsb = match kp.encrypt(bytes, Some(&kp)) {
         Ok(s) => s,
         Err(err) => {
             let e = format!("Unable to encrypt with bldr key pair, err={:?}", &err);
@@ -49,14 +49,22 @@ where
         }
     };
 
-    Ok(base64::encode(ciphertext.as_bytes())) // ciphertext is already base64-encoded, so this is redundant
+    // kp.encrypt returns a WrappedSealedBox which contains readable metadata and base64
+    // ciphertext. We base64 encode the WrappedSealedBox again, so that the returned string
+    // is consistently base64 and does not have random text interspersed with readable text.
+    // This makes it easier to pass around, eg, for access tokens, and is by design.
+    // The downside is that there is double base64 happening.
+    Ok(base64::encode(wsb.as_bytes()))
 }
 
-pub fn decrypt<A>(key_dir: A, b64text: &WrappedSealedBox) -> Result<Vec<u8>>
+// This function takes in a double base64 encoded string
+pub fn decrypt<A>(key_dir: A, b64text: &str) -> Result<Vec<u8>>
 where
     A: AsRef<Path>,
 {
-    let plaintext = match BoxKeyPair::decrypt_with_path(b64text, &key_dir.as_ref()) {
+    let decoded = base64::decode(b64text).map_err(Error::Base64Error)?;
+    let wsb = &WrappedSealedBox::from(String::from_utf8(decoded).unwrap());
+    let plaintext = match BoxKeyPair::decrypt_with_path(wsb, &key_dir.as_ref()) {
         Ok(bytes) => bytes,
         Err(err) => {
             let e = format!("Unable to decrypt with bldr key pair, err={:?}", &err);
@@ -68,11 +76,14 @@ where
     Ok(plaintext)
 }
 
-pub fn validate<A>(key_dir: A, b64text: &WrappedSealedBox) -> Result<()>
+// This function takes in a double base64 encoded string
+pub fn validate<A>(key_dir: A, b64text: &str) -> Result<()>
 where
     A: AsRef<Path>,
 {
-    let box_secret = BoxKeyPair::secret_metadata(b64text)?;
+    let decoded = base64::decode(b64text).map_err(Error::Base64Error)?;
+    let wsb = &WrappedSealedBox::from(String::from_utf8(decoded).unwrap());
+    let box_secret = BoxKeyPair::secret_metadata(wsb)?;
 
     match BoxKeyPair::get_pair_for(box_secret.sender, &key_dir.as_ref()) {
         Ok(_) => (),
