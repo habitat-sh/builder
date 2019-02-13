@@ -1279,7 +1279,7 @@ fn get_origin_integration(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     match OriginIntegration::get(&origin, &integration, &name, &*conn).map_err(Error::DieselError) {
-        Ok(integration) => match decrypt(&req, &WrappedSealedBox::from(integration.body)) {
+        Ok(integration) => match decrypt(&req, &integration.body) {
             Ok(decrypted) => {
                 let val = serde_json::from_str(&decrypted).unwrap();
                 let mut map: serde_json::Map<String, serde_json::Value> =
@@ -1381,7 +1381,7 @@ fn encrypt(req: &HttpRequest<AppState>, content: &Bytes) -> Result<String> {
         .map_err(Error::BuilderCore)
 }
 
-fn decrypt(req: &HttpRequest<AppState>, content: &WrappedSealedBox) -> Result<String> {
+fn decrypt(req: &HttpRequest<AppState>, content: &str) -> Result<String> {
     let bytes = bldr_core::integrations::decrypt(&req.state().config.api.key_path, content)?;
     Ok(String::from_utf8(bytes)?)
 }
