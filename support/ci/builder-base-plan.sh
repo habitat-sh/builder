@@ -56,4 +56,8 @@ do_builder_prepare() {
   # Used by Cargo to use a pristine, isolated directory for all compilation
   export CARGO_TARGET_DIR="$HAB_CACHE_SRC_PATH/$pkg_dirname"
   build_line "Setting CARGO_TARGET_DIR=$CARGO_TARGET_DIR"
+
+  # Used to set the active package target for the binaries at build time
+  export PLAN_PACKAGE_TARGET="$pkg_target"
+  build_line "Setting PLAN_PACKAGE_TARGET=$PLAN_PACKAGE_TARGET"
 }
