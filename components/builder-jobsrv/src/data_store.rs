@@ -470,7 +470,6 @@ impl DataStore {
             let group = self.row_to_job_group(&row)?;
             groups.push(group);
         }
-
         Ok(groups)
     }
 

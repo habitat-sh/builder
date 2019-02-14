@@ -42,7 +42,7 @@ use crate::network::NetworkNamespace;
 use crate::runner::{studio, RunnerCli, RunnerMgr};
 
 /// Interval for main thread to check cancel status
-pub const BUILD_CANCEL_WAIT_SECS : u64 = 15;
+pub const BUILD_CANCEL_WAIT_SECS: u64 = 15;
 
 enum State {
     Ready,
