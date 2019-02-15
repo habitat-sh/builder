@@ -145,3 +145,7 @@ variable "instance_size_linux2_worker" {
 variable "instance_size_datastore" {
   description = "AWS instance size for DB server(s)"
 }
+
+variable "linux2_worker_count" {
+  description = "Number of Linux2 workers to start"
+}
