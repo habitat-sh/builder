@@ -21,7 +21,7 @@ use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::Mutex;
 
-use crate::hab_core::env;
+use crate::hab_core::env::{self, Config};
 use crate::hab_core::fs;
 use crate::hab_core::url::BLDR_URL_ENVVAR;
 use crate::hab_core::ChannelIdent;
@@ -166,10 +166,10 @@ impl<'a> Studio<'a> {
         debug!("building studio build command, cmd={:?}", &cmd);
         debug!(
             "setting studio build command env, {}={}",
-            ChannelIdent::BLDR_ENVVAR,
+            ChannelIdent::ENVVAR,
             &channel
         );
-        cmd.env(ChannelIdent::BLDR_ENVVAR, channel.as_str());
+        cmd.env(ChannelIdent::ENVVAR, channel.as_str());
         debug!(
             "setting studio build command env, {}={}",
             BLDR_URL_ENVVAR, self.bldr_url
