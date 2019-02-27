@@ -42,7 +42,7 @@ use crate::bldr_core::socket::DEFAULT_CONTEXT;
 #[cfg(not(windows))]
 use crate::hab_core::os::users;
 use crate::hab_core::package::archive::PackageArchive;
-use crate::hab_core::package::target;
+use crate::hab_core::package::target::{self, PackageTarget};
 #[cfg(not(windows))]
 use crate::hab_core::util::posix_perm;
 
@@ -303,7 +303,7 @@ impl Runner {
         // to "Complete" (or "Failed", etc.). As a result, we won't
         // get the `build_started_at` time set until the job is actually
         // finished.
-        let mut archive = match self.build(streamer, tx) {
+        let mut archive = match self.build(self.config.target, streamer, tx) {
             Ok(archive) => {
                 self.workspace
                     .job
@@ -441,7 +441,10 @@ impl Runner {
             Ok(res) => {
                 let dst = res.unwrap();
                 debug!("Imported origin secret key, dst={:?}.", dst);
-                if cfg!(not(windows)) && self.config.airlock_enabled {
+                if cfg!(not(windows))
+                    && self.config.airlock_enabled
+                    && (self.config.target != target::X86_64_LINUX)
+                {
                     set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
                 }
                 Ok(())
@@ -461,6 +464,7 @@ impl Runner {
 
     fn build(
         &mut self,
+        target: PackageTarget,
         streamer: &mut JobStreamer,
         tx: &mpsc::Sender<Job>,
     ) -> Result<PackageArchive> {
@@ -479,6 +483,7 @@ impl Runner {
             &self.bldr_token,
             self.config.airlock_enabled,
             network_namespace,
+            target,
         );
 
         let mut child = studio.build(streamer)?;
@@ -623,7 +628,7 @@ impl Runner {
 
         // Ensure that data path group ownership is set to the build user and directory perms are
         // `0750`.
-        if self.config.airlock_enabled {
+        if self.config.airlock_enabled && (self.config.target != target::X86_64_LINUX) {
             posix_perm::set_owner(
                 &self.config.data_path,
                 users::get_current_username()
@@ -650,7 +655,7 @@ impl Runner {
             ));
         }
 
-        if self.config.airlock_enabled {
+        if self.config.airlock_enabled && (self.config.target != target::X86_64_LINUX) {
             posix_perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
             posix_perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
         }
