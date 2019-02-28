@@ -23,6 +23,7 @@ use std::sync::Mutex;
 
 use crate::hab_core::env::{self, Config};
 use crate::hab_core::fs;
+use crate::hab_core::package::target::{self, PackageTarget};
 use crate::hab_core::url::BLDR_URL_ENVVAR;
 use crate::hab_core::ChannelIdent;
 use crate::hab_core::AUTH_TOKEN_ENVVAR;
@@ -58,6 +59,7 @@ pub struct Studio<'a> {
     auth_token: &'a str,
     airlock_enabled: bool,
     network_namespace: Option<NetworkNamespace>,
+    target: PackageTarget,
 }
 
 impl<'a> Studio<'a> {
@@ -68,6 +70,7 @@ impl<'a> Studio<'a> {
         auth_token: &'a str,
         airlock_enabled: bool,
         network_namespace: Option<NetworkNamespace>,
+        target: PackageTarget,
     ) -> Self {
         Studio {
             workspace,
@@ -75,6 +78,7 @@ impl<'a> Studio<'a> {
             auth_token,
             airlock_enabled,
             network_namespace,
+            target,
         }
     }
 
@@ -130,6 +134,10 @@ impl<'a> Studio<'a> {
             );
         }
 
+        if self.target == target::X86_64_LINUX_KERNEL2 {
+            cmd.env("HAB_ORIGIN", self.workspace.job.origin());
+        }
+
         if cfg!(windows) {
             for var in WINDOWS_ENVVARS {
                 if let Some(val) = env::var_os(var) {
@@ -149,19 +157,34 @@ impl<'a> Studio<'a> {
         }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        if cfg!(windows) {
-            cmd.arg("studio");
-            cmd.arg("build");
-            cmd.arg("-D"); // Use Docker studio
-            cmd.arg("-R"); // Work around a bug so studio does not get removed
-                           // Remove when we fix this (hab 0.75.0 or later)
-                           // TODO (SA): Consider using Docker studio for Linux builds as well
+
+        // generation of the build command is different for each
+        // platform atm, but will eventually be simplified to be
+        // a single workflow
+        match self.target {
+            target::X86_64_LINUX => {
+                cmd.arg("-k"); // Origin key
+                cmd.arg(self.workspace.job.origin());
+                cmd.arg("build");
+            }
+            target::X86_64_LINUX_KERNEL2 => {
+                cmd.arg("studio");
+                cmd.arg("build");
+                cmd.arg("-D"); // Use Docker studio
+            }
+            target::X86_64_WINDOWS => {
+                cmd.arg("studio");
+                cmd.arg("build");
+                cmd.arg("-D"); // Use Docker studio
+                cmd.arg("-R"); // Work around a bug so studio does not get removed
+                               // Remove when we fix this (hab 0.75.0 or later)
+                               // TODO (SA): Consider using Docker studio for Linux builds as well
+                cmd.arg("-k"); // Origin key
+                cmd.arg(self.workspace.job.origin());
+            }
+            _ => unreachable!("Unexpected platform for build worker"),
         }
-        cmd.arg("-k"); // Origin key
-        cmd.arg(self.workspace.job.origin());
-        if cfg!(not(windows)) {
-            cmd.arg("build");
-        }
+
         cmd.arg(build_path(self.workspace.job.get_project().get_plan_path()));
         debug!("building studio build command, cmd={:?}", &cmd);
         debug!(
@@ -193,7 +216,7 @@ impl<'a> Studio<'a> {
 
     #[cfg(not(windows))]
     fn studio_command(&self) -> Result<Command> {
-        if self.airlock_enabled {
+        if self.airlock_enabled && (self.target == target::X86_64_LINUX) {
             self.studio_command_airlock()
         } else {
             self.studio_command_not_airlock()
@@ -227,7 +250,14 @@ impl<'a> Studio<'a> {
 
     #[cfg(not(windows))]
     fn studio_command_not_airlock(&self) -> Result<Command> {
-        let mut cmd = Command::new(&*STUDIO_PROGRAM);
+        let mut cmd = if self.target == target::X86_64_LINUX {
+            Command::new(&*STUDIO_PROGRAM)
+        } else {
+            Command::new(&"hab") // Linux2 builder uses the hab cli instead of the
+                                 // explict STUDIO_PROGRAM path. This is required for
+                                 // use of Docker studio.
+                                 // TODO (SA): Consider the same change for Linux
+        };
         cmd.env_clear();
 
         debug!("HAB_CACHE_KEY_PATH: {:?}", key_path());
