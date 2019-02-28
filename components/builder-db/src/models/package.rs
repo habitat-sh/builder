@@ -461,6 +461,7 @@ impl Package {
             .select(origin_packages::ident)
             .filter(to_tsquery(sp.query).matches(origin_packages::ident_vector))
             .order(origin_packages::ident.asc())
+            .order(origin_packages::created_at.desc())
             .into_boxed();
 
         if let Some(session_id) = sp.account_id {
