@@ -101,7 +101,7 @@ fn main() {
         let cmd = line.expect("Could not get line");
         cl.add_history(cmd.clone());
 
-        let v: Vec<&str> = cmd.trim_right().split_whitespace().collect();
+        let v: Vec<&str> = cmd.trim_end().split_whitespace().collect();
 
         if !v.is_empty() {
             match v[0].to_lowercase().as_str() {

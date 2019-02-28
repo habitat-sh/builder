@@ -616,7 +616,7 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
     // the details instead of just names.
     let decoded_query = match url::percent_encoding::percent_decode(query.as_bytes()).decode_utf8()
     {
-        Ok(q) => q.to_string().trim_right_matches('/').replace("/", " & "),
+        Ok(q) => q.to_string().trim_end_matches('/').replace("/", " & "),
         Err(err) => {
             debug!("{}", err);
             return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);

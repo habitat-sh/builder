@@ -126,7 +126,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
                     match access_tokens.first() {
                         Some(access_token) => {
                             let new_token = access_token.token.clone();
-                            if token.trim_right_matches('=') != new_token.trim_right_matches('=') {
+                            if token.trim_end_matches('=') != new_token.trim_end_matches('=') {
                                 // Token is valid but revoked or otherwise expired
                                 return Err(error::Error::Authorization);
                             }
