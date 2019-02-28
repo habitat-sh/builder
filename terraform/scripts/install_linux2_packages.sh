@@ -23,8 +23,7 @@ find_if_exists() {
 curl=$(find_if_exists curl)
 
 # Builder services
-services_to_install=(airlock
-                     builder-worker)
+services_to_install=(builder-worker)
 
 # We're always going to need all the packages for running the
 # Supervisor.
@@ -32,14 +31,11 @@ sup_packages=(hab-launcher
               hab
               hab-sup)
 
-# Helper for syslog logging
-helper_packages=(nmap)
-
 # First, install hab with a Linux2 target
 curl https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/install.sh | sudo bash -s -- -t x86_64-linux-kernel2
 
-# Install supervisor and helper packages
-for pkg in "${sup_packages[@]}" "${helper_packages[@]}"
+# Install supervisor
+for pkg in "${sup_packages[@]}"
 do
     pkg_name=${pkg##core/} # strip "core/" if it's there
     hab pkg install core/"${pkg_name}"
@@ -62,5 +58,8 @@ done
 # lnger are worrying about Habitat versions 0.33.2 and older. (2017-09-29)
 hab pkg binlink core/hab hab --force \
   || hab pkg binlink core/hab hab
-hab pkg binlink core/nmap ncat --force \
-  || hab pkg binlink core/nmap ncat
+
+# Install docker via apt-get for now until we hammer out the
+# steps with the hab package
+apt-get update
+apt-get -y install docker.io
