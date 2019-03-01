@@ -441,10 +441,7 @@ impl Runner {
             Ok(res) => {
                 let dst = res.unwrap();
                 debug!("Imported origin secret key, dst={:?}.", dst);
-                if cfg!(not(windows))
-                    && self.config.airlock_enabled
-                    && (self.config.target != target::X86_64_LINUX)
-                {
+                if self.config.airlock_enabled && (self.config.target == target::X86_64_LINUX) {
                     set_owner(dst, STUDIO_USER, STUDIO_GROUP)?;
                 }
                 Ok(())
@@ -628,7 +625,7 @@ impl Runner {
 
         // Ensure that data path group ownership is set to the build user and directory perms are
         // `0750`.
-        if self.config.airlock_enabled && (self.config.target != target::X86_64_LINUX) {
+        if self.config.airlock_enabled && (self.config.target == target::X86_64_LINUX) {
             posix_perm::set_owner(
                 &self.config.data_path,
                 users::get_current_username()
@@ -655,7 +652,7 @@ impl Runner {
             ));
         }
 
-        if self.config.airlock_enabled && (self.config.target != target::X86_64_LINUX) {
+        if self.config.airlock_enabled && (self.config.target == target::X86_64_LINUX) {
             posix_perm::set_owner(self.workspace.root(), STUDIO_USER, STUDIO_GROUP)?;
             posix_perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
         }
