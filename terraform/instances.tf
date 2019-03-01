@@ -511,6 +511,7 @@ resource "aws_instance" "linux2-worker" {
 
   provisioner "remote-exec" {
     inline = [
+      "sudo ufw --force enable",
       "chmod +x /tmp/install_linux2_packages.sh",
       "sudo /tmp/install_linux2_packages.sh",
       "sudo mv /tmp/hab-sup.init /etc/init/hab-sup.conf",
