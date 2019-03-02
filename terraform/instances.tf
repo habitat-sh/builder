@@ -511,7 +511,8 @@ resource "aws_instance" "linux2-worker" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo ufw --force enable",
+      "sudo iptables -I DOCKER -p tcp -s 10.0.0.0/24 -j DROP",
+      "sudo iptables -I DOCKER -p udp -s 10.0.0.0/24 -m multiport --sports 0:52,54:65535 -j DROP",
       "chmod +x /tmp/install_linux2_packages.sh",
       "sudo /tmp/install_linux2_packages.sh",
       "sudo mv /tmp/hab-sup.init /etc/init/hab-sup.conf",
