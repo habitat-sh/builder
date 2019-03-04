@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::iter::FromIterator;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::result;
@@ -26,6 +27,7 @@ use toml;
 
 use crate::error::{Error, Result};
 use crate::hab_core::config::ConfigFile;
+use crate::hab_core::package::target::{self, PackageTarget};
 
 /// Postprocessing config file name
 pub const BLDR_CFG: &str = ".bldr.toml";
@@ -156,6 +158,9 @@ pub struct ProjectCfg {
     /// notification to determine if an automatic rebuild should occur.
     #[serde(default)]
     pub paths: Vec<Pattern>,
+    /// Package targets to build when changes detected
+    #[serde(default = "ProjectCfg::default_build_targets")]
+    pub build_targets: HashSet<PackageTarget>,
     /// Relative filepath to the project's Habitat Plan (default: "habitat").
     #[serde(default = "ProjectCfg::default_plan_path")]
     plan_path: PathBuf,
@@ -176,6 +181,10 @@ impl ProjectCfg {
 
     fn default_plan_pattern() -> Pattern {
         Pattern::from_str("habitat/*").unwrap()
+    }
+
+    fn default_build_targets() -> HashSet<PackageTarget> {
+        HashSet::from_iter(vec![target::X86_64_WINDOWS, target::X86_64_LINUX])
     }
 
     pub fn plan_path(&self) -> &PathBuf {
@@ -206,6 +215,7 @@ impl Default for ProjectCfg {
             channels: vec![],
             paths: vec![ProjectCfg::default_path()],
             plan_path: ProjectCfg::default_plan_path(),
+            build_targets: ProjectCfg::default_build_targets(),
         }
     }
 }
@@ -233,6 +243,7 @@ mod test {
     paths = [
       "components/net/*"
     ]
+    build_targets = [ "x86_64-windows" ]
 
     [default]
     "#;
@@ -251,6 +262,8 @@ mod test {
 
         assert!(bldr_api.triggered_by("master", &["components/builder-api/habitat/plan.sh"],));
         assert!(bldr_api.triggered_by("master", &["components/net/Cargo.toml"],));
+        assert_eq!(bldr_api.build_targets.len(), 1);
+        assert!(bldr_api.build_targets.contains(&target::X86_64_WINDOWS));
 
         assert!(default.triggered_by("master", &["habitat/plan.sh"]));
         assert!(default.triggered_by("master", &["habitat/hooks/init"]));
