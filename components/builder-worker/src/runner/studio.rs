@@ -48,6 +48,12 @@ lazy_static! {
         include_str!(concat!(env!("OUT_DIR"), "/STUDIO_PKG_IDENT")),
     );
 
+    /// Absolute path to the hab cli
+    static ref HAB_CLI: PathBuf = fs::resolve_cmd_in_pkg(
+        "hab",
+        include_str!(concat!(env!("OUT_DIR"), "/HAB_PKG_IDENT")),
+    );
+
     pub static ref STUDIO_HOME: Mutex<PathBuf> = {
         Mutex::new(PathBuf::new())
     };
@@ -253,10 +259,10 @@ impl<'a> Studio<'a> {
         let mut cmd = if self.target == target::X86_64_LINUX {
             Command::new(&*STUDIO_PROGRAM)
         } else {
-            Command::new(&"hab") // Linux2 builder uses the hab cli instead of the
-                                 // explict STUDIO_PROGRAM path. This is required for
-                                 // use of Docker studio.
-                                 // TODO (SA): Consider the same change for Linux
+            Command::new(&*HAB_CLI) // Linux2 builder uses the hab cli instead of the
+                                    // explict STUDIO_PROGRAM path. This is required for
+                                    // use of Docker studio.
+                                    // TODO (SA): Consider the same change for Linux
         };
         cmd.env_clear();
 
@@ -270,10 +276,10 @@ impl<'a> Studio<'a> {
 
     #[cfg(windows)]
     fn studio_command_not_airlock(&self) -> Result<Command> {
-        let mut cmd = Command::new(&"hab"); // Windows builder uses the hab cli instead of the
-                                            // explict STUDIO_PROGRAM path. This is required for
-                                            // use of Docker studio.
-                                            // TODO (SA): Consider the same change for Linux
+        let mut cmd = Command::new(&*HAB_CLI); // Windows builder uses the hab cli instead of the
+                                               // explict STUDIO_PROGRAM path. This is required for
+                                               // use of Docker studio.
+                                               // TODO (SA): Consider the same change for Linux
 
         // Note - Windows builder does not clear the env
         // TODO (SA): Consider the same change for Linux
