@@ -8,6 +8,7 @@ $pkg_deps = @(
     "core/zlib",
     "core/libarchive",
     "core/libsodium",
+    "core/hab",
     "core/hab-studio",
     "core/hab-pkg-export-docker",
     "core/docker"
@@ -63,6 +64,18 @@ function Invoke-Prepare {
     # Used to set the active package target for the binaries at build time
     $env:PLAN_PACKAGE_TARGET = "$pkg_target"
     Write-BuildLine "Setting env:PLAN_PACKAGE_TARGET=$env:PLAN_PACKAGE_TARGET"
+
+    # Compile the fully-qualified hab package identifier into the binary
+    $env:PLAN_HAB_PKG_IDENT = $(Get-HabPackagePath "hab").replace("$HAB_PKG_PATH\","")
+    Write-BuildLine "Setting env:PLAN_HAB_PKG_IDENT=$env:PLAN_HAB_PKG_IDENT"
+
+    # Compile the fully-qualified Studio package identifier into the binary
+    $env:PLAN_STUDIO_PKG_IDENT = $(Get-HabPackagePath "hab-studio").replace("$HAB_PKG_PATH\","")
+    Write-BuildLine "Setting env:PLAN_STUDIO_PKG_IDENT=$env:PLAN_STUDIO_PKG_IDENT"
+
+    # Compile the fully-qualified Docker exporter package identifier into the binary
+    $env:PLAN_DOCKER_EXPORTER_PKG_IDENT = $(Get-HabPackagePath "hab-pkg-export-docker").replace("$HAB_PKG_PATH\","")
+    Write-BuildLine "Setting env:PLAN_DOCKER_EXPORTER_PKG_IDENT=$env:PLAN_DOCKER_EXPORTER_PKG_IDENT"
 }
 
 function Invoke-BuildConfig {
