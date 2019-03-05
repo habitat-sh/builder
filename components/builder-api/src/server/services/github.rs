@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -295,21 +296,24 @@ fn read_plans(
     github: &GitHubClient,
     token: &AppToken,
     hook: &GitHubWebhookPush,
-    config: &BuildCfg,
+    bldr_cfg: &BuildCfg,
 ) -> Vec<PlanWithTarget> {
-    let mut plans = Vec::with_capacity(config.projects().len());
-    for project in config.triggered_by(hook.branch(), hook.changed().as_slice()) {
-        let targets = read_plan_targets(github, token, hook, project.plan_path());
+    let mut plans = Vec::with_capacity(bldr_cfg.projects().len());
+    for project_cfg in bldr_cfg.triggered_by(hook.branch(), hook.changed().as_slice()) {
+        let targets = read_plan_targets(github, token, hook, project_cfg.plan_path());
         for target in targets {
-            let plan_file = if target == target::X86_64_WINDOWS {
-                "plan.ps1"
-            } else {
-                "plan.sh"
-            };
-            let plan_path = project.plan_path().join(plan_file);
+            if project_cfg.build_targets.contains(&target) {
+                debug!("Project config contains target: {}", target);
+                let plan_file = if target == target::X86_64_WINDOWS {
+                    "plan.ps1"
+                } else {
+                    "plan.sh"
+                };
+                let plan_path = project_cfg.plan_path().join(plan_file);
 
-            if let Some(plan) = read_plan(github, &token, hook, &plan_path.to_string_lossy()) {
-                plans.push(PlanWithTarget(plan, target));
+                if let Some(plan) = read_plan(github, &token, hook, &plan_path.to_string_lossy()) {
+                    plans.push(PlanWithTarget(plan, target));
+                }
             }
         }
     }
@@ -351,16 +355,21 @@ fn read_plan_targets(
     token: &AppToken,
     hook: &GitHubWebhookPush,
     path: &PathBuf,
-) -> Vec<PackageTarget> {
+) -> HashSet<PackageTarget> {
     debug!("Reading plan targets from {:?}", path);
-    let mut targets: Vec<PackageTarget> = Vec::new();
+    let mut targets: HashSet<PackageTarget> = HashSet::new();
 
     match github.directory(&token, hook.repository.id, &path.to_string_lossy()) {
         Ok(Some(directories)) => {
             for directory in directories {
                 match &directory.name[..] {
-                    "plan.ps1" => targets.push(target::X86_64_WINDOWS),
-                    "plan.sh" => targets.push(target::X86_64_LINUX),
+                    "plan.ps1" => {
+                        targets.insert(target::X86_64_WINDOWS);
+                    }
+                    "plan.sh" => {
+                        targets.insert(target::X86_64_LINUX);
+                        targets.insert(target::X86_64_LINUX_KERNEL2);
+                    }
                     _ => (),
                 }
             }

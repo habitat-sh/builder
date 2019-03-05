@@ -96,6 +96,7 @@ impl Contents {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DirectoryEntry {
+    pub r#type: String,
     pub name: String,
     pub path: String,
     pub sha: String,
