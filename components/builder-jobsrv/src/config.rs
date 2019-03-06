@@ -14,8 +14,10 @@
 
 //! Configuration for a Habitat JobSrv service
 
-use std::{env,
+use std::{collections::HashSet,
+          env,
           io,
+          iter::FromIterator,
           net::{IpAddr,
                 Ipv4Addr,
                 SocketAddr,
@@ -52,7 +54,7 @@ pub struct Config {
     /// Max time (in minutes) allowed for a build job
     pub job_timeout: u64,
     /// Supported build targets
-    pub build_targets: Vec<PackageTarget>,
+    pub build_targets: HashSet<PackageTarget>,
 }
 
 impl Default for Config {
@@ -67,7 +69,8 @@ impl Default for Config {
                  key_dir: PathBuf::from("/hab/svc/hab-depot/files"),
                  log_path: PathBuf::from("/tmp"),
                  job_timeout: 60,
-                 build_targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS] }
+                 build_targets: HashSet::from_iter(vec![target::X86_64_LINUX,
+                                                        target::X86_64_WINDOWS]) }
     }
 }
 
@@ -253,7 +256,7 @@ mod tests {
         assert_eq!(&format!("{}", config.net.log_ingestion_listen), "2.2.2.2");
 
         assert_eq!(config.build_targets.len(), 1);
-        assert_eq!(config.build_targets[0], target::X86_64_LINUX);
+        assert!(config.build_targets.contains(&target::X86_64_LINUX));
 
         assert_eq!(config.net.worker_command_port, 9000);
         assert_eq!(config.net.worker_heartbeat_port, 9000);

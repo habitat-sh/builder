@@ -201,6 +201,14 @@ impl Group {
                      .filter(groups::target.eq(target))
                      .get_result(conn)
     }
+
+    pub fn get_pending(target: PackageTarget, conn: &PgConnection) -> QueryResult<Group> {
+        Counter::DBCall.increment();
+        groups::table.filter(groups::group_state.eq("Pending"))
+                     .filter(groups::target.eq(target.to_string()))
+                     .order(groups::created_at.asc())
+                     .get_result(conn)
+    }
 }
 
 impl Into<jobsrv::JobGroup> for Group {

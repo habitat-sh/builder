@@ -20,8 +20,9 @@ mod metrics;
 mod scheduler;
 mod worker_manager;
 
-use std::sync::{Arc,
-                RwLock};
+use std::{collections::HashSet,
+          sync::{Arc,
+                 RwLock}};
 use time::PreciseTime;
 
 use actix;
@@ -58,7 +59,7 @@ pub struct AppState {
     db:            DbPool,
     graph:         Arc<RwLock<TargetGraph>>,
     log_dir:       LogDirectory,
-    build_targets: Vec<PackageTarget>,
+    build_targets: HashSet<PackageTarget>,
 }
 
 impl AppState {
@@ -138,7 +139,7 @@ pub fn run(config: Config) -> Result<()> {
     let db_pool = DbPool::new(&config.datastore.clone());
 
     WorkerMgr::start(&config, &datastore, db_pool.clone())?;
-    ScheduleMgr::start(&datastore, db_pool.clone(), &config.log_path)?;
+    ScheduleMgr::start(&config, &datastore, db_pool.clone())?;
 
     info!("builder-jobsrv listening on {}:{}",
           cfg.listen_addr(),
