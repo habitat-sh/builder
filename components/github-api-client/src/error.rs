@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::error;
-use std::fmt;
-use std::io;
+use std::{collections::HashMap,
+          error,
+          fmt,
+          io};
 
 use base64;
 use reqwest;
 use serde_json;
 
-use crate::jwt;
-use crate::types;
+use crate::{jwt,
+            types};
 
 pub type HubResult<T> = Result<T, HubError>;
 
@@ -40,10 +40,10 @@ pub enum HubError {
 impl fmt::Display for HubError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            HubError::ApiError(ref code, ref response) => format!(
-                "Received a non-200 response, status={}, response={:?}",
-                code, response
-            ),
+            HubError::ApiError(ref code, ref response) => {
+                format!("Received a non-200 response, status={}, response={:?}",
+                        code, response)
+            }
             HubError::AppAuth(ref e) => format!("GitHub App Authentication error, {}", e),
             HubError::ContentDecode(ref e) => format!("{}", e),
             HubError::HttpClient(ref e) => format!("{}", e),
@@ -58,7 +58,7 @@ impl fmt::Display for HubError {
 impl error::Error for HubError {
     fn description(&self) -> &str {
         match *self {
-            HubError::ApiError(_, _) => "Response returned a non-200 status code.",
+            HubError::ApiError(..) => "Response returned a non-200 status code.",
             HubError::AppAuth(_) => "GitHub App authorization error.",
             HubError::ContentDecode(ref err) => err.description(),
             HubError::HttpClient(ref err) => err.description(),
@@ -70,13 +70,9 @@ impl error::Error for HubError {
 }
 
 impl From<io::Error> for HubError {
-    fn from(err: io::Error) -> Self {
-        HubError::IO(err)
-    }
+    fn from(err: io::Error) -> Self { HubError::IO(err) }
 }
 
 impl From<serde_json::Error> for HubError {
-    fn from(err: serde_json::Error) -> Self {
-        HubError::Serialization(err)
-    }
+    fn from(err: serde_json::Error) -> Self { HubError::Serialization(err) }
 }

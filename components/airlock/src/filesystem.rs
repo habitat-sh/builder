@@ -12,41 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ffi::CString;
-use std::os::unix::ffi::OsStrExt;
-use std::path::Path;
+use std::{ffi::CString,
+          os::unix::ffi::OsStrExt,
+          path::Path};
 
 use errno;
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 pub fn pivot_root<N, P>(new_root: N, put_old: P) -> Result<()>
-where
-    N: AsRef<Path>,
-    P: AsRef<Path>,
+    where N: AsRef<Path>,
+          P: AsRef<Path>
 {
     let c_new_root = CString::new(new_root.as_ref().as_os_str().as_bytes())?;
     let c_put_old = CString::new(put_old.as_ref().as_os_str().as_bytes())?;
 
-    debug!(
-        "calling pivot_root(), new_root={}, put_old={}",
-        new_root.as_ref().display(),
-        put_old.as_ref().display()
-    );
+    debug!("calling pivot_root(), new_root={}, put_old={}",
+           new_root.as_ref().display(),
+           put_old.as_ref().display());
     match unsafe { ffi::pivot_root(c_new_root.as_ptr(), c_put_old.as_ptr()) } {
-        rc if rc < 0 => Err(Error::PivotRoot(format!(
-            "pivot_root({}, {}) returned: {} ({})",
-            new_root.as_ref().display(),
-            put_old.as_ref().display(),
-            rc,
-            errno::errno()
-        ))),
+        rc if rc < 0 => {
+            Err(Error::PivotRoot(format!("pivot_root({}, {}) returned: \
+                                          {} ({})",
+                                         new_root.as_ref().display(),
+                                         put_old.as_ref().display(),
+                                         rc,
+                                         errno::errno())))
+        }
         _ => Ok(()),
     }
 }
 
 mod ffi {
-    use libc::{c_char, c_int};
+    use libc::{c_char,
+               c_int};
 
     extern "C" {
         pub fn pivot_root(new_root: *const c_char, put_old: *const c_char) -> c_int;

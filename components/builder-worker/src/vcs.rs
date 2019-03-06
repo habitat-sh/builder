@@ -15,19 +15,21 @@
 use std::path::Path;
 
 use git2;
-use github_api_client::{GitHubCfg, GitHubClient};
+use github_api_client::{GitHubCfg,
+                        GitHubClient};
 use url::Url;
 
-use crate::bldr_core::job::Job;
-use crate::bldr_core::metrics::CounterMetric;
-use crate::metrics::Counter;
+use crate::{bldr_core::{job::Job,
+                        metrics::CounterMetric},
+            metrics::Counter};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 pub struct VCS {
-    pub vcs_type: String,
-    pub data: String,
-    pub github_client: GitHubClient,
+    pub vcs_type:        String,
+    pub data:            String,
+    pub github_client:   GitHubClient,
     pub installation_id: Option<u32>,
 }
 
@@ -42,36 +44,29 @@ impl VCS {
                         None
                     }
                 };
-                Self::new(
-                    String::from(job.get_project().get_vcs_type()),
-                    String::from(job.get_project().get_vcs_data()),
-                    config,
-                    installation_id,
-                )
+                Self::new(String::from(job.get_project().get_vcs_type()),
+                          String::from(job.get_project().get_vcs_data()),
+                          config,
+                          installation_id)
             }
             _ => panic!("unknown vcs associated with jobs project"),
         }
     }
 
-    pub fn new(
-        vcs_type: String,
-        data: String,
-        config: GitHubCfg,
-        installation_id: Option<u32>,
-    ) -> Self {
-        VCS {
-            vcs_type,
-            data,
-            github_client: GitHubClient::new(config),
-            installation_id,
-        }
+    pub fn new(vcs_type: String,
+               data: String,
+               config: GitHubCfg,
+               installation_id: Option<u32>)
+               -> Self {
+        VCS { vcs_type,
+              data,
+              github_client: GitHubClient::new(config),
+              installation_id }
     }
 
     pub fn clone(&self, path: &Path) -> Result<()> {
-        debug!(
-            "VCS clone called, installation id = {:?}, path = {:?}",
-            self.installation_id, path
-        );
+        debug!("VCS clone called, installation id = {:?}, path = {:?}",
+               self.installation_id, path);
         match self.vcs_type.as_ref() {
             "git" => {
                 let token = match self.installation_id {
@@ -85,10 +80,9 @@ impl VCS {
                         // doesn't use our Github client... maybe we
                         // should pull it in?
                         debug!("VCS clone creating token");
-                        let t = self
-                            .github_client
-                            .app_installation_token(id)
-                            .map_err(Error::GithubAppAuthErr)?;
+                        let t = self.github_client
+                                    .app_installation_token(id)
+                                    .map_err(Error::GithubAppAuthErr)?;
                         Counter::GitAuthenticatedClone.increment();
                         debug!("VCS clone token created successfully");
                         Some(t.inner_token().to_string())
@@ -109,9 +103,9 @@ impl VCS {
         if self.data.starts_with("https://") {
             if let Some(ref tok) = token {
                 url.set_username("x-access-token")
-                    .map_err(|_| Error::CannotAddCreds)?;
+                   .map_err(|_| Error::CannotAddCreds)?;
                 url.set_password(Some(tok.as_str()))
-                    .map_err(|_| Error::CannotAddCreds)?;
+                   .map_err(|_| Error::CannotAddCreds)?;
             }
         } else {
             return Err(Error::NotHTTPSCloneUrl(url));

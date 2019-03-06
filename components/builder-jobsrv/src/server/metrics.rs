@@ -17,8 +17,8 @@
 
 use std::borrow::Cow;
 
-use crate::bldr_core::metrics;
-use crate::hab_core::package::PackageTarget;
+use crate::{bldr_core::metrics,
+            hab_core::package::PackageTarget};
 
 pub enum Counter {
     CompletedJobs(PackageTarget),

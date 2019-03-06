@@ -29,34 +29,32 @@ pub mod config;
 pub mod data_store;
 pub mod error;
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
+use std::{collections::HashMap,
+          fs::File,
+          io::Write};
 
-use clap::{App, Arg};
+use clap::{App,
+           Arg};
 use copperline::Copperline;
 use time::PreciseTime;
 
-use crate::bldr_core::package_graph::PackageGraph;
-use crate::config::Config;
-use crate::data_store::DataStore;
-use crate::hab_core::config::ConfigFile;
+use crate::{bldr_core::package_graph::PackageGraph,
+            config::Config,
+            data_store::DataStore,
+            hab_core::config::ConfigFile};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 fn main() {
     env_logger::init();
 
-    let matches = App::new("bldr-graph")
-        .version(VERSION)
-        .about("Habitat Graph Dev Tool")
-        .arg(
-            Arg::with_name("config")
-                .help("Filepath to configuration file")
-                .required(false)
-                .index(1),
-        )
-        .get_matches();
+    let matches =
+        App::new("bldr-graph").version(VERSION)
+                              .about("Habitat Graph Dev Tool")
+                              .arg(Arg::with_name("config").help("Filepath to configuration file")
+                                                           .required(false)
+                                                           .index(1))
+                              .get_matches();
 
     let config = match matches.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
@@ -78,17 +76,13 @@ fn main() {
     let (ncount, ecount) = graph.build(packages.into_iter());
     let end_time = PreciseTime::now();
 
-    println!(
-        "OK: {} nodes, {} edges ({} sec)",
-        ncount,
-        ecount,
-        start_time.to(end_time)
-    );
+    println!("OK: {} nodes, {} edges ({} sec)",
+             ncount,
+             ecount,
+             start_time.to(end_time));
 
-    println!(
-        "\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
-         exit\n",
-    );
+    println!("\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
+              exit\n",);
 
     let mut filter = String::from("");
     let mut done = false;
@@ -212,11 +206,9 @@ fn do_top(graph: &PackageGraph, count: usize) {
     let top = graph.top(count);
     let end_time = PreciseTime::now();
 
-    println!(
-        "OK: {} items ({} sec)\n",
-        top.len(),
-        start_time.to(end_time)
-    );
+    println!("OK: {} items ({} sec)\n",
+             top.len(),
+             start_time.to(end_time));
 
     for (name, count) in top {
         println!("{}: {}", name, count);
@@ -266,16 +258,14 @@ fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
     match graph.rdeps(name) {
         Some(rdeps) => {
             let end_time = PreciseTime::now();
-            let mut filtered: Vec<(String, String)> = rdeps
-                .into_iter()
-                .filter(|&(ref x, _)| x.starts_with(filter))
-                .collect();
+            let mut filtered: Vec<(String, String)> =
+                rdeps.into_iter()
+                     .filter(|&(ref x, _)| x.starts_with(filter))
+                     .collect();
 
-            println!(
-                "OK: {} items ({} sec)\n",
-                filtered.len(),
-                start_time.to(end_time)
-            );
+            println!("OK: {} items ({} sec)\n",
+                     filtered.len(),
+                     start_time.to(end_time));
 
             if filtered.len() > max {
                 filtered.drain(max..);
@@ -316,11 +306,9 @@ fn do_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str
     match datastore.get_job_graph_package(&ident) {
         Ok(package) => {
             let end_time = PreciseTime::now();
-            println!(
-                "OK: {} items ({} sec)\n",
-                package.get_deps().len(),
-                start_time.to(end_time)
-            );
+            println!("OK: {} items ({} sec)\n",
+                     package.get_deps().len(),
+                     start_time.to(end_time));
 
             if !filter.is_empty() {
                 println!("Results filtered by: {}\n", filter);
@@ -380,12 +368,10 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
     println!("\nTime: {} sec\n", start_time.to(end_time));
 }
 
-fn check_package(
-    datastore: &DataStore,
-    deps_map: &mut HashMap<String, String>,
-    ident: &str,
-    filter: &str,
-) {
+fn check_package(datastore: &DataStore,
+                 deps_map: &mut HashMap<String, String>,
+                 ident: &str,
+                 filter: &str) {
     match datastore.get_job_graph_package(ident) {
         Ok(package) => {
             for dep in package.get_deps() {

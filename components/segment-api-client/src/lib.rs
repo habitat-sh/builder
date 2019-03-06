@@ -23,6 +23,7 @@ pub mod client;
 pub mod config;
 pub mod error;
 
-pub use crate::client::SegmentClient;
-pub use crate::config::SegmentCfg;
-pub use crate::error::{SegmentError, SegmentResult};
+pub use crate::{client::SegmentClient,
+                config::SegmentCfg,
+                error::{SegmentError,
+                        SegmentResult}};

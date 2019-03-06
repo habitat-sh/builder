@@ -21,21 +21,26 @@ const LOG_COMPLETE: &str = "C";
 /// End-of-line marker
 const EOL_MARKER: &str = "\n";
 
-use std::fmt;
-use std::io::{BufRead, BufReader, Read};
-use std::process::Child;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{fmt,
+          io::{BufRead,
+               BufReader,
+               Read},
+          process::Child,
+          sync::{Arc,
+                 Mutex},
+          thread};
 
 use protobuf::Message;
 use zmq;
 
-use crate::bldr_core::logger::Logger;
-use crate::bldr_core::socket::DEFAULT_CONTEXT;
-use crate::protocol::jobsrv::{JobLogChunk, JobLogComplete};
+use crate::{bldr_core::{logger::Logger,
+                        socket::DEFAULT_CONTEXT},
+            protocol::jobsrv::{JobLogChunk,
+                               JobLogComplete}};
 
 use super::workspace::Workspace;
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 /// Streams the contents of a Builder job to a remote target. The contents of the stream consist of
 /// consuming the output streams of child processes (such as `hab-studio`,
@@ -65,18 +70,15 @@ impl JobStreamer {
     ///
     /// * If the stream target could not be written to
     pub fn new(workspace: &Workspace) -> Self {
-        let streamer = JobStreamer {
-            id: workspace.job.get_id(),
-            target: Arc::new(Mutex::new(StreamTarget::new(workspace))),
-            finished: false,
-        };
+        let streamer = JobStreamer { id:       workspace.job.get_id(),
+                                     target:   Arc::new(Mutex::new(StreamTarget::new(workspace))),
+                                     finished: false, };
 
-        streamer
-            .target
-            .lock()
-            .expect("Stream target mutex is poisoned!")
-            .stream_line(streamer.id, format!("builder_log::start::{}", streamer.id))
-            .unwrap();
+        streamer.target
+                .lock()
+                .expect("Stream target mutex is poisoned!")
+                .stream_line(streamer.id, format!("builder_log::start::{}", streamer.id))
+                .unwrap();
 
         streamer
     }
@@ -118,19 +120,17 @@ impl JobStreamer {
             let target = self.target.clone();
             let id = self.id;
             let stdout = child.stdout.take().expect("Child stdout was not captured");
-            thread::Builder::new()
-                .name("stdout-consumer".into())
-                .spawn(move || consume_stream(target, id, stdout))
-                .expect("Failed to spawn stdout thread")
+            thread::Builder::new().name("stdout-consumer".into())
+                                  .spawn(move || consume_stream(target, id, stdout))
+                                  .expect("Failed to spawn stdout thread")
         };
         let _stderr_handle = {
             let target = self.target.clone();
             let id = self.id;
             let stderr = child.stderr.take().expect("Child stderr was not captured");
-            thread::Builder::new()
-                .name("stderr-consumer".into())
-                .spawn(move || consume_stream(target, id, stderr))
-                .expect("Failed to spawn stderr thread")
+            thread::Builder::new().name("stderr-consumer".into())
+                                  .spawn(move || consume_stream(target, id, stderr))
+                                  .expect("Failed to spawn stderr thread")
         };
 
         Ok(())
@@ -172,10 +172,9 @@ impl JobStreamer {
             return Ok(());
         }
 
-        let mut target = self
-            .target
-            .lock()
-            .expect("Stream target mutex is poisoned!");
+        let mut target = self.target
+                             .lock()
+                             .expect("Stream target mutex is poisoned!");
         target.stream_line(self.id, format!("builder_log::end::{}", self.id))?;
         self.finished = true;
         target.finish(self.id)
@@ -216,11 +215,9 @@ impl StreamTarget {
         let mut local_logger = Logger::init(workspace.root(), format!("local-stream-{}.log", &id));
         local_logger.log_ident(&id);
 
-        StreamTarget {
-            sock,
-            line_count: 0,
-            local_logger,
-        }
+        StreamTarget { sock,
+                       line_count: 0,
+                       local_logger }
     }
 
     /// Takes a string, interpreted as a single line, with a job identifier and writes it to the
@@ -324,12 +321,10 @@ pub struct LogSection {
 impl LogSection {
     /// Constructs a new log section which has not yet been started.
     fn new(id: u64, name: Section, target: Arc<Mutex<StreamTarget>>) -> Self {
-        LogSection {
-            id,
-            name,
-            target,
-            ended: false,
-        }
+        LogSection { id,
+                     name,
+                     target,
+                     ended: false }
     }
 
     /// Starts a log section by writing to the log stream.
@@ -345,10 +340,8 @@ impl LogSection {
         self.target
             .lock()
             .expect("Stream target mutex is poisoned!")
-            .stream_line(
-                self.id,
-                format!("builder_log_section::start::{}", self.name),
-            )
+            .stream_line(self.id,
+                         format!("builder_log_section::start::{}", self.name))
     }
 
     /// Ends a log section by writing to the log stream. This method can be called multiple times
@@ -402,10 +395,9 @@ fn consume_stream<R: Read>(target: Arc<Mutex<StreamTarget>>, id: u64, reader: R)
             Ok(line) => line,
             Err(e) => return Err(Error::StreamLine(e)),
         };
-        target
-            .lock()
-            .expect("Stream target mutex is poisoned!")
-            .stream_line(id, line)?;
+        target.lock()
+              .expect("Stream target mutex is poisoned!")
+              .stream_line(id, line)?;
     }
 
     Ok(())

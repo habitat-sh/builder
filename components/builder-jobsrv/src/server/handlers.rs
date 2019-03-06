@@ -14,32 +14,35 @@
 
 //! A collection of handlers for the JobSrv dispatcher
 
-use std::collections::HashSet;
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{collections::HashSet,
+          fs::OpenOptions,
+          io::{BufRead,
+               BufReader},
+          path::PathBuf,
+          str::FromStr};
 
-use diesel;
-use diesel::result::Error::NotFound;
+use diesel::{self,
+             result::Error::NotFound};
 use protobuf::RepeatedField;
 use time::PreciseTime;
 
-use crate::bldr_core::rpc::RpcMessage;
-use crate::db::models::jobs::*;
-use crate::db::models::package::*;
-use crate::db::models::projects::*;
-use crate::hab_core::package::{PackageIdent, PackageTarget};
+use crate::{bldr_core::rpc::RpcMessage,
+            db::models::{jobs::*,
+                         package::*,
+                         projects::*},
+            hab_core::package::{PackageIdent,
+                                PackageTarget}};
 
 use super::AppState;
-use crate::protocol::jobsrv;
-use crate::protocol::net;
-use crate::protocol::originsrv;
+use crate::protocol::{jobsrv,
+                      net,
+                      originsrv};
 
-use crate::server::scheduler::ScheduleClient;
-use crate::server::worker_manager::WorkerMgrClient;
+use crate::server::{scheduler::ScheduleClient,
+                    worker_manager::WorkerMgrClient};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 pub fn job_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGet>()?;
@@ -88,7 +91,7 @@ pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
 
                 RpcMessage::make(&log).map_err(Error::BuilderCore)
             }
-            Err(e @ Error::CaughtPanic(_, _)) => {
+            Err(e @ Error::CaughtPanic(..)) => {
                 // Generally, this happens when the archiver can't
                 // reach it's S3 object store
                 warn!("Error retrieving log: {}", e);
@@ -133,11 +136,10 @@ pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
 fn get_log_content(log_file: &PathBuf, offset: u64) -> Option<Vec<String>> {
     match OpenOptions::new().read(true).open(log_file) {
         Ok(file) => {
-            let lines = BufReader::new(file)
-                .lines()
-                .skip(offset as usize)
-                .map(|l| l.expect("Could not parse line"))
-                .collect();
+            let lines = BufReader::new(file).lines()
+                                            .skip(offset as usize)
+                                            .map(|l| l.expect("Could not parse line"))
+                                            .collect();
             Some(lines)
         }
         Err(e) => {
@@ -157,16 +159,16 @@ pub fn job_group_cancel(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     jgc.set_include_projects(true);
 
     let group = match state.datastore.get_job_group(&jgc) {
-        Ok(group_opt) => match group_opt {
-            Some(group) => group,
-            None => return Err(Error::NotFound),
-        },
+        Ok(group_opt) => {
+            match group_opt {
+                Some(group) => group,
+                None => return Err(Error::NotFound),
+            }
+        }
         Err(err) => {
-            warn!(
-                "Failed to get group {} from datastore: {:?}",
-                msg.get_group_id(),
-                err
-            );
+            warn!("Failed to get group {} from datastore: {:?}",
+                  msg.get_group_id(),
+                  err);
             return Err(Error::System);
         }
     };
@@ -177,10 +179,9 @@ pub fn job_group_cancel(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     state.datastore.cancel_job_group(group.get_id())?;
 
     // Set all the InProgress projects jobs to CancelPending
-    for project in group
-        .get_projects()
-        .iter()
-        .filter(|p| p.get_state() == jobsrv::JobGroupProjectState::InProgress)
+    for project in group.get_projects()
+                        .iter()
+                        .filter(|p| p.get_state() == jobsrv::JobGroupProjectState::InProgress)
     {
         let job_id = project.get_job_id();
         let mut req = jobsrv::JobGet::new();
@@ -227,21 +228,17 @@ fn is_project_buildable(state: &AppState, project_name: &str) -> bool {
         Ok(project) => project.auto_build,
         Err(diesel::result::Error::NotFound) => false,
         Err(err) => {
-            warn!(
-                "Unable to retrieve project: {:?}, error: {:?}",
-                project_name, err
-            );
+            warn!("Unable to retrieve project: {:?}, error: {:?}",
+                  project_name, err);
             false
         }
     }
 }
 
-fn populate_build_projects(
-    msg: &jobsrv::JobGroupSpec,
-    state: &AppState,
-    rdeps: &[(String, String)],
-    projects: &mut Vec<(String, String)>,
-) {
+fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
+                           state: &AppState,
+                           rdeps: &[(String, String)],
+                           projects: &mut Vec<(String, String)>) {
     let mut excluded = HashSet::new();
     let mut start_time;
     let mut end_time;
@@ -256,10 +253,8 @@ fn populate_build_projects(
         // then we will skip it, as well as any later projects that depend on it
         // TODO (SA): Move the project list creation/vetting to background thread
         if !is_project_buildable(state, &s.0) {
-            debug!(
-                "Project is not linked to Builder or not auto-buildable - not adding: {}",
-                &s.0
-            );
+            debug!("Project is not linked to Builder or not auto-buildable - not adding: {}",
+                   &s.0);
             excluded.insert(s.0.clone());
 
             let rdeps_opt = {
@@ -273,11 +268,9 @@ fn populate_build_projects(
 
             match rdeps_opt {
                 Some(rdeps) => {
-                    debug!(
-                        "Graph rdeps: {} items ({} sec)\n",
-                        rdeps.len(),
-                        start_time.to(end_time)
-                    );
+                    debug!("Graph rdeps: {} items ({} sec)\n",
+                           rdeps.len(),
+                           start_time.to(end_time));
 
                     for dep in rdeps {
                         excluded.insert(dep.0.clone());
@@ -333,10 +326,8 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         let graph = match target_graph.graph_mut(msg.get_target()) {
             Some(g) => g,
             None => {
-                warn!(
-                    "JobGroupSpec, no graph found for target {}",
-                    msg.get_target()
-                );
+                warn!("JobGroupSpec, no graph found for target {}",
+                      msg.get_target());
                 return Err(Error::NotFound);
             }
         };
@@ -384,11 +375,9 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
 
         match rdeps_opt {
             Some(rdeps) => {
-                debug!(
-                    "Graph rdeps: {} items ({} sec)\n",
-                    rdeps.len(),
-                    start_time.to(end_time)
-                );
+                debug!("Graph rdeps: {} items ({} sec)\n",
+                       rdeps.len(),
+                       start_time.to(end_time));
 
                 populate_build_projects(&msg, state, &rdeps, &mut projects);
             }
@@ -448,10 +437,9 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     RpcMessage::make(&group).map_err(Error::BuilderCore)
 }
 
-pub fn job_graph_package_reverse_dependencies_get(
-    req: &RpcMessage,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_graph_package_reverse_dependencies_get(req: &RpcMessage,
+                                                  state: &AppState)
+                                                  -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGraphPackageReverseDependenciesGet>()?;
     debug!("reverse_dependencies_get message: {:?}", msg);
 
@@ -460,10 +448,8 @@ pub fn job_graph_package_reverse_dependencies_get(
     let graph = match target_graph.graph(msg.get_target()) {
         Some(g) => g,
         None => {
-            warn!(
-                "JobGraphPackageReverseDependenciesGet, no graph found for target {}",
-                msg.get_target()
-            );
+            warn!("JobGraphPackageReverseDependenciesGet, no graph found for target {}",
+                  msg.get_target());
             return Err(Error::NotFound);
         }
     };
@@ -492,10 +478,9 @@ pub fn job_graph_package_reverse_dependencies_get(
     RpcMessage::make(&rd_reply).map_err(Error::BuilderCore)
 }
 
-pub fn job_graph_package_reverse_dependencies_grouped_get(
-    req: &RpcMessage,
-    state: &AppState,
-) -> Result<RpcMessage> {
+pub fn job_graph_package_reverse_dependencies_grouped_get(req: &RpcMessage,
+                                                          state: &AppState)
+                                                          -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGraphPackageReverseDependenciesGroupedGet>()?;
     debug!("reverse_dependencies_grouped_get message: {:?}", msg);
 
@@ -504,10 +489,8 @@ pub fn job_graph_package_reverse_dependencies_grouped_get(
     let graph = match target_graph.graph(msg.get_target()) {
         Some(g) => g,
         None => {
-            warn!(
-                "JobGraphPackageReverseDependenciesGroupedGet, no graph found for target {}",
-                msg.get_target()
-            );
+            warn!("JobGraphPackageReverseDependenciesGroupedGet, no graph found for target {}",
+                  msg.get_target());
             return Err(Error::NotFound);
         }
     };
@@ -533,12 +516,11 @@ pub fn job_graph_package_reverse_dependencies_grouped_get(
     RpcMessage::make(&rd_reply).map_err(Error::BuilderCore)
 }
 
-fn compute_rdep_build_groups(
-    state: &AppState,
-    root_ident: &str,
-    target: &str,
-    rdeps: &[(String, String)],
-) -> Result<Vec<jobsrv::JobGraphPackageReverseDependencyGroup>> {
+fn compute_rdep_build_groups(state: &AppState,
+                             root_ident: &str,
+                             target: &str,
+                             rdeps: &[(String, String)])
+                             -> Result<Vec<jobsrv::JobGraphPackageReverseDependencyGroup>> {
     let mut rdep_groups = Vec::new();
     let mut in_progress = Vec::new();
     let mut satisfied_deps = HashSet::new();
@@ -584,19 +566,17 @@ fn compute_rdep_build_groups(
             rdep_group.set_idents(RepeatedField::from_vec(in_progress.clone()));
             rdep_groups.push(rdep_group);
             in_progress.iter().for_each(|s| {
-                trace!("Adding to satisfied deps: {}", s);
-                satisfied_deps.insert(s.to_owned());
-            });
+                                  trace!("Adding to satisfied deps: {}", s);
+                                  satisfied_deps.insert(s.to_owned());
+                              });
             in_progress.clear();
             group_num += 1;
         }
 
         in_progress.push(rdeps[ix].0.to_owned());
-        trace!(
-            "Pushing ident to in_progress: {} (group {})",
-            rdeps[ix].0,
-            group_num
-        );
+        trace!("Pushing ident to in_progress: {} (group {})",
+               rdeps[ix].0,
+               group_num);
     }
 
     if !in_progress.is_empty() {
@@ -628,11 +608,9 @@ pub fn job_group_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let group_opt = match state.datastore.get_job_group(&msg) {
         Ok(group_opt) => group_opt,
         Err(err) => {
-            warn!(
-                "Unable to retrieve group {}, err: {:?}",
-                msg.get_group_id(),
-                err
-            );
+            warn!("Unable to retrieve group {}, err: {:?}",
+                  msg.get_group_id(),
+                  err);
             None
         }
     };
@@ -651,22 +629,18 @@ pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<Rp
     let graph = match target_graph.graph_mut(package.get_target()) {
         Some(g) => g,
         None => {
-            warn!(
-                "JobGraphPackageCreate, no graph found for target {}",
-                package.get_target()
-            );
+            warn!("JobGraphPackageCreate, no graph found for target {}",
+                  package.get_target());
             return Err(Error::NotFound);
         }
     };
     let start_time = PreciseTime::now();
     let (ncount, ecount) = graph.extend(&package);
     let end_time = PreciseTime::now();
-    debug!(
-        "Extended graph, nodes: {}, edges: {} ({} sec)\n",
-        ncount,
-        ecount,
-        start_time.to(end_time)
-    );
+    debug!("Extended graph, nodes: {}, edges: {} ({} sec)\n",
+           ncount,
+           ecount,
+           start_time.to(end_time));
 
     RpcMessage::make(package).map_err(Error::BuilderCore)
 }
@@ -682,10 +656,8 @@ pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result
         let graph = match target_graph.graph_mut(package.get_target()) {
             Some(g) => g,
             None => {
-                warn!(
-                    "JobGraphPackagePreCreate, no graph found for target {}",
-                    package.get_target()
-                );
+                warn!("JobGraphPackagePreCreate, no graph found for target {}",
+                      package.get_target());
                 return Err(Error::NotFound);
             }
         };
@@ -694,11 +666,9 @@ pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result
         let ret = graph.check_extend(&package);
         let end_time = PreciseTime::now();
 
-        debug!(
-            "Graph pre-check: {} ({} sec)\n",
-            ret,
-            start_time.to(end_time)
-        );
+        debug!("Graph pre-check: {} ({} sec)\n",
+               ret,
+               start_time.to(end_time));
 
         ret
     };

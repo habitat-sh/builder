@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::{sync::mpsc,
+          thread::{self,
+                   JoinHandle},
+          time::Duration};
 
 use zmq;
 
-use crate::bldr_core::logger::Logger;
-use crate::bldr_core::socket::DEFAULT_CONTEXT;
-use crate::config::Config;
-use crate::error::{Error, Result};
+use crate::{bldr_core::{logger::Logger,
+                        socket::DEFAULT_CONTEXT},
+            config::Config,
+            error::{Error,
+                    Result}};
 
 /// In-memory zmq address for LogForwarder
 pub const INPROC_ADDR: &str = "inproc://logger";
@@ -47,34 +49,30 @@ impl LogForwarder {
         let mut logger = Logger::init(&config.log_path, "log_forwarder.log");
         logger.log_ident("log_forwarder");
 
-        LogForwarder {
-            intake_sock,
-            output_sock,
-            logger,
-        }
+        LogForwarder { intake_sock,
+                       output_sock,
+                       logger }
     }
 
     pub fn start(config: &Config) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(0);
         let mut log = Self::new(config);
         let jobsrv_addrs = config.jobsrv_addrs();
-        let handle = thread::Builder::new()
-            .name("log".to_string())
-            .spawn(move || {
-                log.run(&tx, &jobsrv_addrs).unwrap();
-            })
-            .unwrap();
+        let handle = thread::Builder::new().name("log".to_string())
+                                           .spawn(move || {
+                                               log.run(&tx, &jobsrv_addrs).unwrap();
+                                           })
+                                           .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("log thread startup error, err={}", e),
         }
     }
 
-    pub fn run(
-        &mut self,
-        rz: &mpsc::SyncSender<()>,
-        addrs: &[(String, String, String)],
-    ) -> Result<()> {
+    pub fn run(&mut self,
+               rz: &mpsc::SyncSender<()>,
+               addrs: &[(String, String, String)])
+               -> Result<()> {
         if addrs.len() == 1 {
             let (_, _, ref log) = addrs[0];
             println!("Connecting to Job Server Log port, {}", log);

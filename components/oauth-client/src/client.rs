@@ -12,28 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::OAuth2Cfg;
-use crate::error::Result;
-use crate::types::*;
+use crate::{config::OAuth2Cfg,
+            error::Result,
+            types::*};
 
 use env_proxy;
-use reqwest::{self, header};
+use reqwest::{self,
+              header};
 use url::Url;
 
-use crate::a2::A2;
-use crate::active_directory::ActiveDirectory;
-use crate::azure_ad::AzureAD;
-use crate::bitbucket::Bitbucket;
-use crate::github::GitHub;
-use crate::gitlab::GitLab;
-use crate::metrics::Counter;
-use crate::okta::Okta;
+use crate::{a2::A2,
+            active_directory::ActiveDirectory,
+            azure_ad::AzureAD,
+            bitbucket::Bitbucket,
+            github::GitHub,
+            gitlab::GitLab,
+            metrics::Counter,
+            okta::Okta};
 
 use builder_core::metrics::CounterMetric;
 
 pub struct OAuth2Client {
-    inner: reqwest::Client,
-    pub config: OAuth2Cfg,
+    inner:        reqwest::Client,
+    pub config:   OAuth2Cfg,
     pub provider: Box<OAuth2Provider>,
 }
 
@@ -82,11 +83,9 @@ impl OAuth2Client {
             _ => panic!("Unknown OAuth provider: {}", config.provider),
         };
 
-        OAuth2Client {
-            inner: client.build().unwrap(),
-            config,
-            provider,
-        }
+        OAuth2Client { inner: client.build().unwrap(),
+                       config,
+                       provider }
     }
 
     pub fn authenticate(&self, code: &str) -> Result<(String, OAuth2User)> {

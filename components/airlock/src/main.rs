@@ -20,15 +20,19 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 
-use std::env;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
-use std::process;
-use std::result;
+use std::{env,
+          ffi::OsStr,
+          path::{Path,
+                 PathBuf},
+          process,
+          result};
 
-use airlock::command;
-use airlock::{FsRoot, FsRootPolicy, Result};
-use clap::{App, ArgMatches};
+use airlock::{command,
+              FsRoot,
+              FsRootPolicy,
+              Result};
+use clap::{App,
+           ArgMatches};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
@@ -46,13 +50,15 @@ fn _main() -> Result<()> {
     match app_matches.subcommand() {
         ("nsrun", Some(m)) => sub_nsrun(m),
         ("run", Some(m)) => sub_run(m),
-        ("netns", Some(m)) => match m.subcommand() {
-            ("create", Some(m)) => sub_netns_create(m),
-            ("createasuser", Some(m)) => sub_netns_createasuser(m),
-            ("createinns", Some(m)) => sub_netns_createinns(m),
-            ("destroy", Some(m)) => sub_netns_destroy(m),
-            _ => unreachable!(),
-        },
+        ("netns", Some(m)) => {
+            match m.subcommand() {
+                ("create", Some(m)) => sub_netns_create(m),
+                ("createasuser", Some(m)) => sub_netns_createasuser(m),
+                ("createinns", Some(m)) => sub_netns_createinns(m),
+                ("destroy", Some(m)) => sub_netns_destroy(m),
+                _ => unreachable!(),
+            }
+        }
         _ => unreachable!(),
     }
 }
@@ -248,10 +254,9 @@ fn validate_dir_exists(val: String) -> result::Result<(), String> {
 #[allow(clippy::needless_pass_by_value)]
 fn validate_dir_not_exists(val: String) -> result::Result<(), String> {
     if Path::new(&val).exists() {
-        Err(format!(
-            "directory or file '{}' found, this directory must not exist",
-            &val
-        ))
+        Err(format!("directory or file '{}' found, this directory \
+                     must not exist",
+                    &val))
     } else {
         Ok(())
     }

@@ -12,19 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-use actix_web::http::{self, Method, StatusCode};
-use actix_web::{App, FromRequest, HttpRequest, HttpResponse, Json, Path};
+use actix_web::{http::{self,
+                       Method,
+                       StatusCode},
+                App,
+                FromRequest,
+                HttpRequest,
+                HttpResponse,
+                Json,
+                Path};
 use serde_json;
 
-use crate::bldr_core;
-use crate::protocol::originsrv;
+use crate::{bldr_core,
+            protocol::originsrv};
 
 use crate::db::models::account::*;
 
-use crate::server::authorize::authorize_session;
-use crate::server::error::{Error, Result};
-use crate::server::framework::headers;
-use crate::server::AppState;
+use crate::server::{authorize::authorize_session,
+                    error::{Error,
+                            Result},
+                    framework::headers,
+                    AppState};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {
@@ -35,37 +43,30 @@ pub struct UserUpdateReq {
 pub struct Profile {}
 
 impl Profile {
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
         app.route("/profile", Method::GET, get_account)
-            .route("/profile", Method::PATCH, update_account)
-            .route("/profile/access-tokens", Method::GET, get_access_tokens)
-            .route(
-                "/profile/access-tokens",
-                Method::POST,
-                generate_access_token,
-            )
-            .route(
-                "/profile/access-tokens/{id}",
-                Method::DELETE,
-                revoke_access_token,
-            )
+           .route("/profile", Method::PATCH, update_account)
+           .route("/profile/access-tokens", Method::GET, get_access_tokens)
+           .route("/profile/access-tokens",
+                  Method::POST,
+                  generate_access_token)
+           .route("/profile/access-tokens/{id}",
+                  Method::DELETE,
+                  revoke_access_token)
     }
 }
 
 // do_get_access_tokens is used in the framework middleware so it has to be public
-pub fn do_get_access_tokens(
-    req: &HttpRequest<AppState>,
-    account_id: u64,
-) -> Result<Vec<AccountToken>> {
+pub fn do_get_access_tokens(req: &HttpRequest<AppState>,
+                            account_id: u64)
+                            -> Result<Vec<AccountToken>> {
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     AccountToken::list(account_id, &*conn).map_err(Error::DieselError)
 }
 
-//
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
@@ -102,9 +103,8 @@ fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
                 "tokens": serde_json::to_value(tokens).unwrap()
             });
 
-            HttpResponse::Ok()
-                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .json(json)
+            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                              .json(json)
         }
         Err(err) => {
             debug!("{}", err);
@@ -142,17 +142,12 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         session.get_flags()
     };
 
-    let token = bldr_core::access_token::generate_user_token(
-        &req.state().config.api.key_path,
-        account_id,
-        flags,
-    )
-    .unwrap();
+    let token = bldr_core::access_token::generate_user_token(&req.state().config.api.key_path,
+                                                             account_id,
+                                                             flags).unwrap();
 
-    let new_token = NewAccountToken {
-        account_id: account_id as i64,
-        token: &token,
-    };
+    let new_token = NewAccountToken { account_id: account_id as i64,
+                                      token:      &token, };
 
     match AccountToken::create(&new_token, &*conn).map_err(Error::DieselError) {
         Ok(account_token) => {

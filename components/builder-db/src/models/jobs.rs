@@ -1,21 +1,25 @@
 use super::db_id_format;
 use chrono::prelude::*;
-use diesel::dsl::count_star;
-use diesel::pg::PgConnection;
-use diesel::result::QueryResult;
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{dsl::count_star,
+             pg::PgConnection,
+             result::QueryResult,
+             ExpressionMethods,
+             QueryDsl,
+             RunQueryDsl};
 use protobuf::ProtobufEnum;
 
-use crate::protocol::jobsrv;
-use crate::protocol::net;
-use crate::protocol::originsrv;
+use crate::protocol::{jobsrv,
+                      net,
+                      originsrv};
 
-use crate::models::pagination::Paginate;
-use crate::schema::jobs::{busy_workers, groups, jobs};
+use crate::{models::pagination::Paginate,
+            schema::jobs::{busy_workers,
+                           groups,
+                           jobs}};
 
-use crate::bldr_core::metrics::CounterMetric;
-use crate::hab_core::package::PackageTarget;
-use crate::metrics::Counter;
+use crate::{bldr_core::metrics::CounterMetric,
+            hab_core::package::PackageTarget,
+            metrics::Counter};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "jobs"]
@@ -51,21 +55,21 @@ pub struct Job {
 #[derive(Insertable)]
 #[table_name = "jobs"]
 pub struct NewJob<'a> {
-    pub owner_id: i64,
-    pub project_id: i64,
-    pub project_name: &'a str,
-    pub project_owner_id: i64,
+    pub owner_id:          i64,
+    pub project_id:        i64,
+    pub project_name:      &'a str,
+    pub project_owner_id:  i64,
     pub project_plan_path: &'a str,
-    pub vcs: &'a str,
-    pub vcs_arguments: Vec<&'a str>,
+    pub vcs:               &'a str,
+    pub vcs_arguments:     Vec<&'a str>,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub channel: &'a str,
-    pub target: &'a str,
+    pub target:  &'a str,
 }
 
 pub struct ListProjectJobs {
-    pub name: String,
-    pub page: i64,
+    pub name:  String,
+    pub page:  i64,
     pub limit: i64,
 }
 
@@ -76,32 +80,28 @@ impl Job {
     }
 
     pub fn list(lpj: ListProjectJobs, conn: &PgConnection) -> QueryResult<(Vec<Job>, i64)> {
-        jobs::table
-            .filter(jobs::project_name.eq(lpj.name))
-            .order(jobs::created_at.desc())
-            .paginate(lpj.page)
-            .per_page(lpj.limit)
-            .load_and_count_records(conn)
+        jobs::table.filter(jobs::project_name.eq(lpj.name))
+                   .order(jobs::created_at.desc())
+                   .paginate(lpj.page)
+                   .per_page(lpj.limit)
+                   .load_and_count_records(conn)
     }
 
     pub fn create(job: &NewJob, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
-        diesel::insert_into(jobs::table)
-            .values(job)
-            .get_result(conn)
+        diesel::insert_into(jobs::table).values(job)
+                                        .get_result(conn)
     }
 
-    pub fn count(
-        job_state: jobsrv::JobState,
-        target: PackageTarget,
-        conn: &PgConnection,
-    ) -> QueryResult<i64> {
+    pub fn count(job_state: jobsrv::JobState,
+                 target: PackageTarget,
+                 conn: &PgConnection)
+                 -> QueryResult<i64> {
         Counter::DBCall.increment();
-        jobs::table
-            .select(count_star())
-            .filter(jobs::job_state.eq(job_state.to_string()))
-            .filter(jobs::target.eq(target.to_string()))
-            .first(conn)
+        jobs::table.select(count_star())
+                   .filter(jobs::job_state.eq(job_state.to_string()))
+                   .filter(jobs::target.eq(target.to_string()))
+                   .first(conn)
     }
 }
 
@@ -196,11 +196,10 @@ pub struct Group {
 impl Group {
     pub fn get_queued(project_name: &str, target: &str, conn: &PgConnection) -> QueryResult<Group> {
         Counter::DBCall.increment();
-        groups::table
-            .filter(groups::project_name.eq(project_name))
-            .filter(groups::group_state.eq("Queued"))
-            .filter(groups::target.eq(target))
-            .get_result(conn)
+        groups::table.filter(groups::project_name.eq(project_name))
+                     .filter(groups::group_state.eq("Queued"))
+                     .filter(groups::target.eq(target))
+                     .get_result(conn)
     }
 }
 
@@ -221,21 +220,21 @@ impl Into<jobsrv::JobGroup> for Group {
 }
 
 pub struct NewBusyWorker<'a> {
-    pub target: &'a str,
-    pub ident: &'a str,
-    pub job_id: i64,
+    pub target:      &'a str,
+    pub ident:       &'a str,
+    pub job_id:      i64,
     pub quarantined: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "busy_workers"]
 pub struct BusyWorker {
-    pub target: String,
-    pub ident: String,
-    pub job_id: i64,
+    pub target:      String,
+    pub ident:       String,
+    pub job_id:      i64,
     pub quarantined: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub created_at:  Option<DateTime<Utc>>,
+    pub updated_at:  Option<DateTime<Utc>>,
 }
 
 impl BusyWorker {
@@ -261,11 +260,7 @@ impl BusyWorker {
 
     pub fn delete(ident: &str, job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::delete(
-            busy_workers::table
-                .filter(busy_workers::ident.eq(ident))
-                .filter(busy_workers::job_id.eq(job_id)),
-        )
-        .execute(conn)
+        diesel::delete(busy_workers::table.filter(busy_workers::ident.eq(ident))
+                                          .filter(busy_workers::job_id.eq(job_id))).execute(conn)
     }
 }

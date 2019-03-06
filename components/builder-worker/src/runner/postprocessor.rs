@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bldr_core::logger::Logger;
-use crate::config::Config;
-use crate::error::Result;
-use crate::hab_core::{package::archive::PackageArchive, ChannelIdent};
+use crate::{bldr_core::logger::Logger,
+            config::Config,
+            error::Result,
+            hab_core::{package::archive::PackageArchive,
+                       ChannelIdent}};
 
-use super::publisher::Publisher;
-use super::workspace::Workspace;
+use super::{publisher::Publisher,
+            workspace::Workspace};
 
-pub fn post_process(
-    archive: &mut PackageArchive,
-    workspace: &Workspace,
-    config: &Config,
-    auth_token: &str,
-    logger: &mut Logger,
-) -> Result<()> {
+pub fn post_process(archive: &mut PackageArchive,
+                    workspace: &Workspace,
+                    config: &Config,
+                    auth_token: &str,
+                    logger: &mut Logger)
+                    -> Result<()> {
     let channel_opt = if workspace.job.has_channel() {
         Some(ChannelIdent::from(workspace.job.get_channel()))
     } else {
@@ -35,11 +35,9 @@ pub fn post_process(
 
     let url = config.bldr_url.clone();
 
-    let mut publisher = Publisher {
-        enabled: config.auto_publish,
-        url,
-        channel_opt,
-    };
+    let mut publisher = Publisher { enabled: config.auto_publish,
+                                    url,
+                                    channel_opt };
 
     debug!("Starting post processing");
     publisher.run(archive, auth_token, logger)

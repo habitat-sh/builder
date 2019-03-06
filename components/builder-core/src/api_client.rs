@@ -12,24 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::env;
-use std::fs::{self, File};
-use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::{collections::HashMap,
+          env,
+          fs::{self,
+               File},
+          io::{self,
+               Read},
+          path::{Path,
+                 PathBuf}};
 
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers, UserAgent};
-use reqwest::mime;
-use reqwest::{Body, Client, Method, Proxy, Response, StatusCode};
+use rand::{distributions::Alphanumeric,
+           thread_rng,
+           Rng};
+use reqwest::{header::{qitem,
+                       Accept,
+                       Authorization,
+                       Bearer,
+                       Headers,
+                       UserAgent},
+              mime,
+              Body,
+              Client,
+              Method,
+              Proxy,
+              Response,
+              StatusCode};
 use serde_json;
 
-use crate::error::{Error, Result};
-use crate::hab_core::{
-    package::{self, Identifiable, PackageArchive},
-    ChannelIdent,
-};
+use crate::{error::{Error,
+                    Result},
+            hab_core::{package::{self,
+                                 Identifiable,
+                                 PackageArchive},
+                       ChannelIdent}};
 
 header! { (XFileName, "X-Filename") => [String] }
 
@@ -37,38 +52,36 @@ const USER_AGENT: &str = "Habitat-Builder";
 
 #[derive(Clone, Deserialize)]
 pub struct PackageIdent {
-    pub origin: String,
-    pub name: String,
+    pub origin:  String,
+    pub name:    String,
     pub version: String,
     pub release: String,
 }
 
 impl Into<package::PackageIdent> for PackageIdent {
     fn into(self) -> package::PackageIdent {
-        package::PackageIdent {
-            origin: self.origin,
-            name: self.name,
-            version: Some(self.version),
-            release: Some(self.release),
-        }
+        package::PackageIdent { origin:  self.origin,
+                                name:    self.name,
+                                version: Some(self.version),
+                                release: Some(self.release), }
     }
 }
 
 #[derive(Clone, Deserialize)]
 pub struct Package {
-    pub ident: PackageIdent,
+    pub ident:    PackageIdent,
     pub checksum: String,
     pub manifest: String,
-    pub target: String,
-    pub deps: Vec<PackageIdent>,
-    pub tdeps: Vec<PackageIdent>,
-    pub exposes: Vec<u32>,
-    pub config: String,
+    pub target:   String,
+    pub deps:     Vec<PackageIdent>,
+    pub tdeps:    Vec<PackageIdent>,
+    pub exposes:  Vec<u32>,
+    pub config:   String,
 }
 
 #[derive(Clone)]
 pub struct ApiClient {
-    inner: Client,
+    inner:   Client,
     pub url: String,
 }
 
@@ -100,21 +113,17 @@ impl ApiClient {
             }
         }
 
-        ApiClient {
-            inner: client.build().unwrap(),
-            url: url.to_owned(),
-        }
+        ApiClient { inner: client.build().unwrap(),
+                    url:   url.to_owned(), }
     }
 
-    pub fn show_package<I>(
-        &self,
-        package: &I,
-        channel: &ChannelIdent,
-        target: &str,
-        token: Option<&str>,
-    ) -> Result<Package>
-    where
-        I: Identifiable,
+    pub fn show_package<I>(&self,
+                           package: &I,
+                           channel: &ChannelIdent,
+                           target: &str,
+                           token: Option<&str>)
+                           -> Result<Package>
+        where I: Identifiable
     {
         let mut url = channel_package_path(channel, package);
 
@@ -140,16 +149,14 @@ impl ApiClient {
         Ok(package)
     }
 
-    pub fn fetch_package<I, P>(
-        &self,
-        ident: &I,
-        target: &str,
-        dst_path: &P,
-        token: Option<&str>,
-    ) -> Result<PackageArchive>
-    where
-        P: AsRef<Path> + ?Sized,
-        I: Identifiable,
+    pub fn fetch_package<I, P>(&self,
+                               ident: &I,
+                               target: &str,
+                               dst_path: &P,
+                               token: Option<&str>)
+                               -> Result<PackageArchive>
+        where P: AsRef<Path> + ?Sized,
+              I: Identifiable
     {
         let url = &package_download(ident);
 
@@ -162,13 +169,12 @@ impl ApiClient {
         }
     }
 
-    fn download(
-        &self,
-        url: &str,
-        qparams: &HashMap<&str, &str>,
-        dst_path: &Path,
-        token: Option<&str>,
-    ) -> Result<PathBuf> {
+    fn download(&self,
+                url: &str,
+                qparams: &HashMap<&str, &str>,
+                dst_path: &Path,
+                token: Option<&str>)
+                -> Result<PathBuf> {
         let url_path = format!("{}/v1/{}", self.url, url);
 
         let mut resp = self.http_call(Method::Get, &url_path, None, token, &qparams)?;
@@ -185,14 +191,11 @@ impl ApiClient {
             None => return Err(Error::BadResponse),
         };
 
-        let tmp_file_path = dst_path.join(format!(
-            "{}.tmp-{}",
-            file_name,
-            thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(8)
-                .collect::<String>()
-        ));
+        let tmp_file_path = dst_path.join(format!("{}.tmp-{}",
+                                                  file_name,
+                                                  thread_rng().sample_iter(&Alphanumeric)
+                                                              .take(8)
+                                                              .collect::<String>()));
 
         let dst_file_path = dst_path.join(file_name);
 
@@ -200,11 +203,9 @@ impl ApiClient {
         let mut f = File::create(&tmp_file_path).map_err(Error::IO)?;
         io::copy(&mut resp, &mut f).map_err(Error::IO)?;
 
-        debug!(
-            "Moving {} to {}",
-            &tmp_file_path.display(),
-            &dst_file_path.display()
-        );
+        debug!("Moving {} to {}",
+               &tmp_file_path.display(),
+               &dst_file_path.display());
         fs::rename(&tmp_file_path, &dst_file_path).map_err(Error::IO)?;
         Ok(dst_file_path)
     }
@@ -228,28 +229,25 @@ impl ApiClient {
         let resp = self.http_call(Method::Post, &url_path, Some(body), Some(token), &qparams)?;
 
         match resp.status() {
-            StatusCode::Created | StatusCode::Conflict => (), // Conflict means package already uploaded - return Ok
+            StatusCode::Created | StatusCode::Conflict => (), // Conflict means package already
+            // uploaded - return Ok
             _ => return Err(err_from_response(resp)),
         }
 
         Ok(())
     }
 
-    pub fn fetch_origin_secret_key<P>(
-        &self,
-        origin: &str,
-        token: &str,
-        dst_path: P,
-    ) -> Result<PathBuf>
-    where
-        P: AsRef<Path>,
+    pub fn fetch_origin_secret_key<P>(&self,
+                                      origin: &str,
+                                      token: &str,
+                                      dst_path: P)
+                                      -> Result<PathBuf>
+        where P: AsRef<Path>
     {
-        self.download(
-            &origin_secret_keys_latest(origin),
-            &HashMap::new(),
-            dst_path.as_ref(),
-            Some(token),
-        )
+        self.download(&origin_secret_keys_latest(origin),
+                      &HashMap::new(),
+                      dst_path.as_ref(),
+                      Some(token))
     }
 
     pub fn create_channel(&self, origin: &str, channel: &ChannelIdent, token: &str) -> Result<()> {
@@ -259,7 +257,8 @@ impl ApiClient {
         let resp = self.http_call(Method::Post, &url_path, None, Some(token), &HashMap::new())?;
 
         match resp.status() {
-            StatusCode::Created | StatusCode::Conflict => (), // Conflict means channel already created - return Ok
+            StatusCode::Created | StatusCode::Conflict => (), // Conflict means channel already
+            // created - return Ok
             _ => return Err(err_from_response(resp)),
         }
 
@@ -268,14 +267,11 @@ impl ApiClient {
 
     // TODO: make channel type hab_core::ChannelIdent
     pub fn promote_package<I>(&self, ident: &I, channel: &ChannelIdent, token: &str) -> Result<()>
-    where
-        I: Identifiable,
+        where I: Identifiable
     {
-        let url_path = format!(
-            "{}/v1/{}",
-            self.url,
-            channel_package_promote(channel, ident)
-        );
+        let url_path = format!("{}/v1/{}",
+                               self.url,
+                               channel_package_promote(channel, ident));
         debug!("Promoting package {}", ident);
 
         let resp = self.http_call(Method::Put, &url_path, None, Some(token), &HashMap::new())?;
@@ -287,22 +283,18 @@ impl ApiClient {
         Ok(())
     }
 
-    fn http_call<U>(
-        &self,
-        method: Method,
-        url: &str,
-        body: Option<Body>,
-        token: Option<U>,
-        qparams: &HashMap<&str, &str>,
-    ) -> Result<Response>
-    where
-        U: ToString,
+    fn http_call<U>(&self,
+                    method: Method,
+                    url: &str,
+                    body: Option<Body>,
+                    token: Option<U>,
+                    qparams: &HashMap<&str, &str>)
+                    -> Result<Response>
+        where U: ToString
     {
         let mut headers = Headers::new();
         if let Some(t) = token {
-            headers.set(Authorization(Bearer {
-                token: t.to_string(),
-            }))
+            headers.set(Authorization(Bearer { token: t.to_string(), }))
         }
 
         if body.is_some() {
@@ -325,15 +317,12 @@ impl ApiClient {
 }
 
 fn channel_package_path<I>(channel: &ChannelIdent, package: &I) -> String
-where
-    I: Identifiable,
+    where I: Identifiable
 {
-    let mut path = format!(
-        "depot/channels/{}/{}/pkgs/{}",
-        package.origin(),
-        channel,
-        package.name()
-    );
+    let mut path = format!("depot/channels/{}/{}/pkgs/{}",
+                           package.origin(),
+                           channel,
+                           package.name());
     if let Some(version) = package.version() {
         path.push_str("/");
         path.push_str(version);
@@ -346,15 +335,13 @@ where
 }
 
 fn package_download<I>(package: &I) -> String
-where
-    I: Identifiable,
+    where I: Identifiable
 {
     format!("{}/download", package_path(package))
 }
 
 fn package_path<I>(package: &I) -> String
-where
-    I: Identifiable,
+    where I: Identifiable
 {
     format!("depot/pkgs/{}", package)
 }
@@ -364,17 +351,14 @@ fn origin_secret_keys_latest(origin: &str) -> String {
 }
 
 fn channel_package_promote<I>(channel: &ChannelIdent, package: &I) -> String
-where
-    I: Identifiable,
+    where I: Identifiable
 {
-    format!(
-        "depot/channels/{}/{}/pkgs/{}/{}/{}/promote",
-        package.origin(),
-        channel,
-        package.name(),
-        package.version().unwrap(),
-        package.release().unwrap()
-    )
+    format!("depot/channels/{}/{}/pkgs/{}/{}/{}/promote",
+            package.origin(),
+            channel,
+            package.name(),
+            package.version().unwrap(),
+            package.release().unwrap())
 }
 
 fn err_from_response(mut response: Response) -> Error {

@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::{env,
+          path::{Path,
+                 PathBuf},
+          process::Command};
 
-use users;
-use users::os::unix::GroupExt;
+use users::{self,
+            os::unix::GroupExt};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 pub const IP_PKG: &str = "core/iproute2";
 pub const DEBUG_ENVVARS: &[&str] = &["RUST_LOG", "DEBUG"];
@@ -33,19 +35,19 @@ pub fn find_command<P: AsRef<Path>>(command: P) -> Result<PathBuf> {
                     return Ok(candidate);
                 }
             }
-            Err(Error::ProgramNotFound(
-                command.as_ref().to_string_lossy().into(),
-            ))
+            Err(Error::ProgramNotFound(command.as_ref()
+                                              .to_string_lossy()
+                                              .into()))
         }
-        None => Err(Error::ProgramNotFound(
-            command.as_ref().to_string_lossy().into(),
-        )),
+        None => {
+            Err(Error::ProgramNotFound(command.as_ref()
+                                              .to_string_lossy()
+                                              .into()))
+        }
     }
 }
 
-pub fn proc_exe() -> Result<PathBuf> {
-    Ok(Path::new("/proc/self/exe").canonicalize()?)
-}
+pub fn proc_exe() -> Result<PathBuf> { Ok(Path::new("/proc/self/exe").canonicalize()?) }
 
 pub fn run_cmd(mut command: Command) -> Result<()> {
     debug!("running, command={:?}", command);
@@ -96,8 +98,8 @@ pub fn check_required_packages(pkgs: &[&str]) -> Result<()> {
 pub fn check_user_group_membership(username: &str) -> Result<()> {
     let user = String::from(username);
     for grp in vec!["tty"].iter() {
-        let user_group = users::get_group_by_name(grp)
-            .ok_or_else(|| Error::GroupNotFound(String::from(*grp)))?;
+        let user_group =
+            users::get_group_by_name(grp).ok_or_else(|| Error::GroupNotFound(String::from(*grp)))?;
         if !user_group.members().contains(&user) {
             return Err(Error::UserNotInGroup(user, String::from(*grp)));
         }

@@ -12,42 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
-use std::str::from_utf8;
-use std::str::FromStr;
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+use std::{path::PathBuf,
+          str::{from_utf8,
+                FromStr},
+          sync::mpsc,
+          thread::{self,
+                   JoinHandle},
+          time::{Duration,
+                 Instant}};
 
-use crate::bldr_core;
-use crate::bldr_core::job::Job;
-use crate::bldr_core::metrics::GaugeMetric;
-use crate::bldr_core::socket::DEFAULT_CONTEXT;
-use crate::db::DbPool;
-use crate::hab_core::crypto::keys::box_key_pair::WrappedSealedBox;
-use crate::hab_core::crypto::keys::{parse_key_str, parse_name_with_rev};
-use crate::hab_core::crypto::BoxKeyPair;
-use crate::hab_core::package::{target, PackageTarget};
+use crate::{bldr_core::{self,
+                        job::Job,
+                        metrics::GaugeMetric,
+                        socket::DEFAULT_CONTEXT},
+            db::DbPool,
+            hab_core::{crypto::{keys::{box_key_pair::WrappedSealedBox,
+                                       parse_key_str,
+                                       parse_name_with_rev},
+                                BoxKeyPair},
+                       package::{target,
+                                 PackageTarget}}};
 use linked_hash_map::LinkedHashMap;
-use protobuf::{parse_from_bytes, Message, RepeatedField};
+use protobuf::{parse_from_bytes,
+               Message,
+               RepeatedField};
 
-use crate::db::models::integration::*;
-use crate::db::models::jobs::*;
-use crate::db::models::keys::*;
-use crate::db::models::project_integration::*;
-use crate::db::models::secrets::*;
+use crate::db::models::{integration::*,
+                        jobs::*,
+                        keys::*,
+                        project_integration::*,
+                        secrets::*};
 
-use crate::protocol::jobsrv;
-use crate::protocol::originsrv;
+use crate::protocol::{jobsrv,
+                      originsrv};
 
 use zmq;
 
-use crate::config::Config;
-use crate::data_store::DataStore;
-use crate::error::{Error, Result};
+use crate::{config::Config,
+            data_store::DataStore,
+            error::{Error,
+                    Result}};
 
-use super::metrics::Gauge;
-use super::scheduler::ScheduleClient;
+use super::{metrics::Gauge,
+            scheduler::ScheduleClient};
 
 const WORKER_MGR_ADDR: &str = "inproc://work-manager";
 const WORKER_TIMEOUT_MS: u64 = 33_000; // 33 sec
@@ -80,26 +87,24 @@ impl Default for WorkerMgrClient {
 
 #[derive(Debug)]
 pub struct Worker {
-    pub target: PackageTarget,
-    pub ident: String,
-    pub state: jobsrv::WorkerState,
-    pub expiry: Instant,
-    pub job_id: Option<u64>,
+    pub target:     PackageTarget,
+    pub ident:      String,
+    pub state:      jobsrv::WorkerState,
+    pub expiry:     Instant,
+    pub job_id:     Option<u64>,
     pub job_expiry: Option<Instant>,
-    pub canceling: bool,
+    pub canceling:  bool,
 }
 
 impl Worker {
     pub fn new(ident: &str, target: PackageTarget) -> Self {
-        Worker {
-            target,
-            ident: ident.to_string(),
-            state: jobsrv::WorkerState::Ready,
-            expiry: Instant::now() + Duration::from_millis(WORKER_TIMEOUT_MS),
-            job_id: None,
-            job_expiry: None,
-            canceling: false,
-        }
+        Worker { target,
+                 ident: ident.to_string(),
+                 state: jobsrv::WorkerState::Ready,
+                 expiry: Instant::now() + Duration::from_millis(WORKER_TIMEOUT_MS),
+                 job_id: None,
+                 job_expiry: None,
+                 canceling: false }
     }
 
     pub fn ready(&mut self) {
@@ -124,21 +129,15 @@ impl Worker {
         }
     }
 
-    pub fn cancel(&mut self) {
-        self.canceling = true;
-    }
+    pub fn cancel(&mut self) { self.canceling = true; }
 
-    pub fn is_canceling(&self) -> bool {
-        self.canceling
-    }
+    pub fn is_canceling(&self) -> bool { self.canceling }
 
     pub fn refresh(&mut self) {
         self.expiry = Instant::now() + Duration::from_millis(WORKER_TIMEOUT_MS);
     }
 
-    pub fn is_expired(&self) -> bool {
-        self.expiry < Instant::now()
-    }
+    pub fn is_expired(&self) -> bool { self.expiry < Instant::now() }
 
     pub fn is_job_expired(&self) -> bool {
         if self.job_expiry.is_some() {
@@ -150,18 +149,18 @@ impl Worker {
 }
 
 pub struct WorkerMgr {
-    datastore: DataStore,
-    db: DbPool,
-    key_dir: PathBuf,
-    hb_sock: zmq::Socket,
-    rq_sock: zmq::Socket,
-    work_mgr_sock: zmq::Socket,
-    msg: zmq::Message,
-    workers: LinkedHashMap<String, Worker>,
-    worker_command: String,
+    datastore:        DataStore,
+    db:               DbPool,
+    key_dir:          PathBuf,
+    hb_sock:          zmq::Socket,
+    rq_sock:          zmq::Socket,
+    work_mgr_sock:    zmq::Socket,
+    msg:              zmq::Message,
+    workers:          LinkedHashMap<String, Worker>,
+    worker_command:   String,
     worker_heartbeat: String,
-    schedule_cli: ScheduleClient,
-    job_timeout: u64,
+    schedule_cli:     ScheduleClient,
+    job_timeout:      u64,
 }
 
 impl WorkerMgr {
@@ -175,31 +174,28 @@ impl WorkerMgr {
         let mut schedule_cli = ScheduleClient::default();
         schedule_cli.connect().unwrap();
 
-        WorkerMgr {
-            datastore: datastore.clone(),
-            db,
-            key_dir: cfg.key_dir.clone(),
-            hb_sock,
-            rq_sock,
-            work_mgr_sock,
-            msg: zmq::Message::new().unwrap(),
-            workers: LinkedHashMap::new(),
-            worker_command: cfg.net.worker_command_addr(),
-            worker_heartbeat: cfg.net.worker_heartbeat_addr(),
-            schedule_cli,
-            job_timeout: cfg.job_timeout,
-        }
+        WorkerMgr { datastore: datastore.clone(),
+                    db,
+                    key_dir: cfg.key_dir.clone(),
+                    hb_sock,
+                    rq_sock,
+                    work_mgr_sock,
+                    msg: zmq::Message::new().unwrap(),
+                    workers: LinkedHashMap::new(),
+                    worker_command: cfg.net.worker_command_addr(),
+                    worker_heartbeat: cfg.net.worker_heartbeat_addr(),
+                    schedule_cli,
+                    job_timeout: cfg.job_timeout }
     }
 
     pub fn start(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<JoinHandle<()>> {
         let mut manager = Self::new(cfg, datastore, db);
         let (tx, rx) = mpsc::sync_channel(1);
-        let handle = thread::Builder::new()
-            .name("worker-manager".to_string())
-            .spawn(move || {
-                manager.run(&tx).unwrap();
-            })
-            .unwrap();
+        let handle = thread::Builder::new().name("worker-manager".to_string())
+                                           .spawn(move || {
+                                               manager.run(&tx).unwrap();
+                                           })
+                                           .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("worker-manager thread startup error, err={}", e),
@@ -231,11 +227,9 @@ impl WorkerMgr {
 
         loop {
             {
-                let mut items = [
-                    self.hb_sock.as_poll_item(1),
-                    self.rq_sock.as_poll_item(1),
-                    self.work_mgr_sock.as_poll_item(1),
-                ];
+                let mut items = [self.hb_sock.as_poll_item(1),
+                                 self.rq_sock.as_poll_item(1),
+                                 self.work_mgr_sock.as_poll_item(1)];
 
                 if let Err(err) = zmq::poll(&mut items, DEFAULT_POLL_TIMEOUT_MS as i64) {
                     warn!("Worker-manager unable to complete ZMQ poll: err {:?}", err);
@@ -271,17 +265,15 @@ impl WorkerMgr {
                 work_mgr_sock = false;
 
                 if let Err(err) = self.work_mgr_sock.recv(&mut self.msg, 0) {
-                    warn!(
-                        "Worker-manager unable to complete socket receive: err {:?}",
-                        err
-                    );
+                    warn!("Worker-manager unable to complete socket receive: err {:?}",
+                          err);
                 }
             }
 
             // Handle potential work in pending_jobs queue
             let now = Instant::now();
             if process_work
-                || (now > (last_processed + Duration::from_millis(DEFAULT_POLL_TIMEOUT_MS)))
+               || (now > (last_processed + Duration::from_millis(DEFAULT_POLL_TIMEOUT_MS)))
             {
                 if let Err(err) = self.process_cancelations() {
                     warn!("Worker-manager unable to process cancels: err {:?}", err);
@@ -322,16 +314,11 @@ impl WorkerMgr {
         debug!("Saving busy worker: {}", worker.ident);
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        BusyWorker::create(
-            &NewBusyWorker {
-                target: &worker.target.to_string(),
-                ident: &worker.ident,
-                job_id: worker.job_id.unwrap() as i64,
-                quarantined: false,
-            },
-            &*conn,
-        )
-        .map_err(Error::DieselError)?;
+        BusyWorker::create(&NewBusyWorker { target:      &worker.target.to_string(),
+                                            ident:       &worker.ident,
+                                            job_id:      worker.job_id.unwrap() as i64,
+                                            quarantined: false, },
+                           &*conn).map_err(Error::DieselError)?;
 
         Ok(())
     }
@@ -350,11 +337,10 @@ impl WorkerMgr {
         let jobs = self.datastore.get_dispatched_jobs()?;
 
         for mut job in jobs {
-            if self
-                .workers
-                .iter()
-                .find(|t| t.1.job_id == Some(job.get_id()))
-                .is_none()
+            if self.workers
+                   .iter()
+                   .find(|t| t.1.job_id == Some(job.get_id()))
+                   .is_none()
             {
                 warn!("Requeing job: {}", job.get_id());
                 job.set_state(jobsrv::JobState::Pending);
@@ -366,24 +352,22 @@ impl WorkerMgr {
     }
 
     fn process_metrics(&mut self, target: PackageTarget) -> Result<()> {
-        Gauge::Workers(target).set(
+        Gauge::Workers(target).set(self.workers
+                                       .iter()
+                                       .filter(|t| (t.1.target == target))
+                                       .count() as f64);
+
+        let ready_workers =
             self.workers
                 .iter()
-                .filter(|t| (t.1.target == target))
-                .count() as f64,
-        );
+                .filter(|t| (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Ready))
+                .count();
 
-        let ready_workers = self
-            .workers
-            .iter()
-            .filter(|t| (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Ready))
-            .count();
-
-        let busy_workers = self
-            .workers
-            .iter()
-            .filter(|t| (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Busy))
-            .count();
+        let busy_workers =
+            self.workers
+                .iter()
+                .filter(|t| (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Busy))
+                .count();
 
         Gauge::ReadyWorkers(target).set(ready_workers as f64);
         Gauge::BusyWorkers(target).set(busy_workers as f64);
@@ -404,10 +388,9 @@ impl WorkerMgr {
 
             // Find the worker processing this job
             // TODO (SA): Would be nice not doing an iterative search here
-            let worker_ident = match self
-                .workers
-                .iter()
-                .find(|t| t.1.job_id == Some(job.get_id()))
+            let worker_ident = match self.workers
+                                         .iter()
+                                         .find(|t| t.1.job_id == Some(job.get_id()))
             {
                 Some(t) => t.0.clone(),
                 None => {
@@ -424,10 +407,8 @@ impl WorkerMgr {
                     self.datastore.update_job(&job)?;
                 }
                 Err(err) => {
-                    warn!(
-                        "Failed to cancel job on worker {}, err={:?}",
-                        worker_ident, err
-                    );
+                    warn!("Failed to cancel job on worker {}, err={:?}",
+                          worker_ident, err);
                     job.set_state(jobsrv::JobState::CancelComplete);
                     self.datastore.update_job(&job)?;
                 }
@@ -455,19 +436,19 @@ impl WorkerMgr {
     fn process_work(&mut self, target: PackageTarget) -> Result<()> {
         loop {
             // Exit if we don't have any Ready workers
-            let worker_ident = match self
-                .workers
-                .iter()
-                .find(|t| (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Ready))
-            {
-                Some(t) => t.0.clone(),
-                None => return Ok(()),
-            };
+            let worker_ident =
+                match self.workers
+                          .iter()
+                          .find(|t| {
+                              (t.1.target == target) && (t.1.state == jobsrv::WorkerState::Ready)
+                          }) {
+                    Some(t) => t.0.clone(),
+                    None => return Ok(()),
+                };
 
             // Take one job from the pending list
-            let job_opt = self
-                .datastore
-                .next_pending_job(&worker_ident, &target.to_string())?;
+            let job_opt = self.datastore
+                              .next_pending_job(&worker_ident, &target.to_string())?;
             if job_opt.is_none() {
                 break;
             }
@@ -486,10 +467,8 @@ impl WorkerMgr {
                     self.workers.insert(worker_ident, worker);
                 }
                 Err(err) => {
-                    warn!(
-                        "Failed to dispatch job to worker {}, err={:?}",
-                        worker_ident, err
-                    );
+                    warn!("Failed to dispatch job to worker {}, err={:?}",
+                          worker_ident, err);
                     job.set_state(jobsrv::JobState::Pending);
                     self.datastore.update_job(&job)?;
                     return Ok(()); // Exit instead of re-trying immediately
@@ -528,13 +507,15 @@ impl WorkerMgr {
                 for i in oir {
                     let mut oi = originsrv::OriginIntegration::new();
                     let plaintext = match bldr_core::integrations::decrypt(&self.key_dir, &i.body) {
-                        Ok(b) => match String::from_utf8(b) {
-                            Ok(s) => s,
-                            Err(e) => {
-                                debug!("Error converting to string. e = {:?}", e);
-                                continue;
+                        Ok(b) => {
+                            match String::from_utf8(b) {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    debug!("Error converting to string. e = {:?}", e);
+                                    continue;
+                                }
                             }
-                        },
+                        }
                         Err(e) => {
                             debug!("Error decrypting integration. e = {:?}", e);
                             continue;
@@ -684,23 +665,25 @@ impl WorkerMgr {
         req.set_id(job_id);
 
         match self.datastore.get_job(&req)? {
-            Some(mut job) => match job.get_state() {
-                jobsrv::JobState::Processing | jobsrv::JobState::Dispatched => {
-                    debug!("Requeing job {:?}", job_id);
-                    job.set_state(jobsrv::JobState::Pending);
-                    self.datastore.update_job(&job)?;
+            Some(mut job) => {
+                match job.get_state() {
+                    jobsrv::JobState::Processing | jobsrv::JobState::Dispatched => {
+                        debug!("Requeing job {:?}", job_id);
+                        job.set_state(jobsrv::JobState::Pending);
+                        self.datastore.update_job(&job)?;
+                    }
+                    jobsrv::JobState::CancelPending | jobsrv::JobState::CancelProcessing => {
+                        debug!("Marking orhpaned job as canceled: {:?}", job_id);
+                        job.set_state(jobsrv::JobState::CancelComplete);
+                        self.datastore.update_job(&job)?;
+                    }
+                    jobsrv::JobState::Pending
+                    | jobsrv::JobState::Complete
+                    | jobsrv::JobState::Failed
+                    | jobsrv::JobState::CancelComplete
+                    | jobsrv::JobState::Rejected => (),
                 }
-                jobsrv::JobState::CancelPending | jobsrv::JobState::CancelProcessing => {
-                    debug!("Marking orhpaned job as canceled: {:?}", job_id);
-                    job.set_state(jobsrv::JobState::CancelComplete);
-                    self.datastore.update_job(&job)?;
-                }
-                jobsrv::JobState::Pending
-                | jobsrv::JobState::Complete
-                | jobsrv::JobState::Failed
-                | jobsrv::JobState::CancelComplete
-                | jobsrv::JobState::Rejected => (),
-            },
+            }
             None => {
                 warn!("Unable to requeue job {:?} (not found)", job_id,);
             }
@@ -722,10 +705,8 @@ impl WorkerMgr {
                         self.datastore.update_job(&job)?;
                     }
                     Err(err) => {
-                        warn!(
-                            "Failed to cancel job on worker {}, err={:?}",
-                            worker_ident, err
-                        );
+                        warn!("Failed to cancel job on worker {}, err={:?}",
+                              worker_ident, err);
                         job.set_state(jobsrv::JobState::CancelComplete);
                         self.datastore.update_job(&job)?;
                     }
@@ -744,18 +725,20 @@ impl WorkerMgr {
         req.set_id(job_id);
 
         let ret = match self.datastore.get_job(&req)? {
-            Some(job) => match job.get_state() {
-                jobsrv::JobState::Pending
-                | jobsrv::JobState::Processing
-                | jobsrv::JobState::Dispatched
-                | jobsrv::JobState::CancelPending
-                | jobsrv::JobState::CancelProcessing => false,
+            Some(job) => {
+                match job.get_state() {
+                    jobsrv::JobState::Pending
+                    | jobsrv::JobState::Processing
+                    | jobsrv::JobState::Dispatched
+                    | jobsrv::JobState::CancelPending
+                    | jobsrv::JobState::CancelProcessing => false,
 
-                jobsrv::JobState::Complete
-                | jobsrv::JobState::Failed
-                | jobsrv::JobState::CancelComplete
-                | jobsrv::JobState::Rejected => true,
-            },
+                    jobsrv::JobState::Complete
+                    | jobsrv::JobState::Failed
+                    | jobsrv::JobState::CancelComplete
+                    | jobsrv::JobState::Rejected => true,
+                }
+            }
             None => {
                 warn!("Unable to check job completeness {:?} (not found)", job_id,);
                 false
@@ -784,10 +767,8 @@ impl WorkerMgr {
                 if heartbeat.get_state() == jobsrv::WorkerState::Ready {
                     Worker::new(&worker_ident, worker_target)
                 } else {
-                    warn!(
-                        "Unexpacted Busy heartbeat from unknown worker {}",
-                        worker_ident
-                    );
+                    warn!("Unexpacted Busy heartbeat from unknown worker {}",
+                          worker_ident);
                     return Ok(()); // Something went wrong, don't process this HB
                 }
             }
@@ -795,10 +776,8 @@ impl WorkerMgr {
 
         match (worker.state, heartbeat.get_state()) {
             (jobsrv::WorkerState::Ready, jobsrv::WorkerState::Busy) => {
-                warn!(
-                    "Unexpected Busy heartbeat from known worker {}",
-                    worker_ident
-                );
+                warn!("Unexpected Busy heartbeat from known worker {}",
+                      worker_ident);
                 return Ok(()); // Something went wrong, don't process this HB
             }
             (jobsrv::WorkerState::Busy, jobsrv::WorkerState::Busy) => {
@@ -814,10 +793,8 @@ impl WorkerMgr {
                 if !self.is_job_complete(worker.job_id.unwrap())? {
                     // Handle potential race condition where a Ready heartbeat
                     // is received right *after* the job has been dispatched
-                    warn!(
-                        "Unexpected Ready heartbeat from incomplete job: {}",
-                        worker.job_id.unwrap()
-                    );
+                    warn!("Unexpected Ready heartbeat from incomplete job: {}",
+                          worker.job_id.unwrap());
                     worker.refresh();
                 } else {
                     self.delete_worker(&worker)?;

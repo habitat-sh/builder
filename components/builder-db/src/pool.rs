@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
-use std::ops::{Deref, DerefMut};
-use std::thread;
-use std::time::Duration;
+use std::{fmt,
+          ops::{Deref,
+                DerefMut},
+          thread,
+          time::Duration};
 
 use r2d2;
-use r2d2_postgres::{self, PostgresConnectionManager, TlsMode};
+use r2d2_postgres::{self,
+                    PostgresConnectionManager,
+                    TlsMode};
 
-use crate::config::DataStoreCfg;
-use crate::error::{Error, Result};
+use crate::{config::DataStoreCfg,
+            error::{Error,
+                    Result}};
 
 #[derive(Clone)]
 pub struct Pool {
@@ -38,8 +42,9 @@ impl Pool {
     pub fn new(config: &DataStoreCfg) -> Self {
         debug!("Creating new Pool, config: {:?}", config);
         loop {
-            let manager = PostgresConnectionManager::new(config, TlsMode::None)
-                .expect("Failed to connect to Postgres");
+            let manager =
+                PostgresConnectionManager::new(config, TlsMode::None).expect("Failed to connect \
+                                                                              to Postgres");
             match r2d2::Pool::builder()
                 .max_size(config.pool_size)
                 .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
@@ -64,13 +69,9 @@ impl Pool {
 impl Deref for Pool {
     type Target = r2d2::Pool<PostgresConnectionManager>;
 
-    fn deref(&self) -> &r2d2::Pool<PostgresConnectionManager> {
-        &self.inner
-    }
+    fn deref(&self) -> &r2d2::Pool<PostgresConnectionManager> { &self.inner }
 }
 
 impl DerefMut for Pool {
-    fn deref_mut(&mut self) -> &mut r2d2::Pool<PostgresConnectionManager> {
-        &mut self.inner
-    }
+    fn deref_mut(&mut self) -> &mut r2d2::Pool<PostgresConnectionManager> { &mut self.inner }
 }

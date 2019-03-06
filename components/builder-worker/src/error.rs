@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error;
-use std::fmt;
-use std::io;
-use std::path::PathBuf;
-use std::process;
-use std::result;
-use std::sync::mpsc;
+use std::{error,
+          fmt,
+          io,
+          path::PathBuf,
+          process,
+          result,
+          sync::mpsc};
 
 use git2;
 use github_api_client;
@@ -27,10 +27,10 @@ use retry;
 use url;
 use zmq;
 
-use crate::bldr_core;
-use crate::hab_core;
-use crate::protocol;
-use crate::runner::studio;
+use crate::{bldr_core,
+            hab_core,
+            protocol,
+            runner::studio};
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -79,28 +79,28 @@ impl fmt::Display for Error {
             Error::AirlockFailure(ref e) => {
                 format!("Airlock networking exited with non-zero exit code, {}", e)
             }
-            Error::AirlockNetworking(ref p, ref e) => format!(
-                "Error while running airlock networking command for {}, err={}",
-                p.display(),
-                e
-            ),
-            Error::BuildEnvFile(ref p, ref e) => format!(
-                "Unable to read workspace build env file, {}, {}",
-                p.display(),
-                e
-            ),
+            Error::AirlockNetworking(ref p, ref e) => {
+                format!("Error while running airlock networking command for {}, err={}",
+                        p.display(),
+                        e)
+            }
+            Error::BuildEnvFile(ref p, ref e) => {
+                format!("Unable to read workspace build env file, {}, {}",
+                        p.display(),
+                        e)
+            }
             Error::BuildFailure(ref e) => {
                 format!("Build studio exited with non-zero exit code, {}", e)
             }
             Error::BuilderCore(ref e) => format!("{}", e),
             Error::CannotAddCreds => "Cannot add credentials to url".to_string(),
-            Error::Chown(ref p, ref u, ref g, ref e) => format!(
-                "Unable to recursively chown path, {} with '{}:{}', {}",
-                p.display(),
-                u,
-                g,
-                e
-            ),
+            Error::Chown(ref p, ref u, ref g, ref e) => {
+                format!("Unable to recursively chown path, {} with '{}:{}', {}",
+                        p.display(),
+                        u,
+                        g,
+                        e)
+            }
             Error::ChownWait(ref e) => format!("Unable to complete chown process, {}", e),
             Error::CreateDirectory(ref p, ref e) => {
                 format!("Unable to create directory {}, err={}", p.display(), e)
@@ -117,10 +117,10 @@ impl fmt::Display for Error {
             Error::InvalidIntegrations(ref s) => format!("Invalid integration: {}", s),
             Error::NoNetworkGatewayError => "No network_gateway config specified".to_string(),
             Error::NoNetworkInterfaceError => "No network_interface config specified".to_string(),
-            Error::NotHTTPSCloneUrl(ref e) => format!(
-                "Attempted to clone {}. Only HTTPS clone urls are supported",
-                e
-            ),
+            Error::NotHTTPSCloneUrl(ref e) => {
+                format!("Attempted to clone {}. Only HTTPS clone urls are supported",
+                        e)
+            }
             Error::NoStudioGroup => {
                 format!("System is missing studio group, {}", studio::STUDIO_GROUP)
             }
@@ -130,23 +130,23 @@ impl fmt::Display for Error {
             Error::Protobuf(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
             Error::Retry(ref e) => format!("{}", e),
-            Error::StreamLine(ref e) => format!(
-                "Error while reading a line while consuming an output stream, err={}",
-                e
-            ),
+            Error::StreamLine(ref e) => {
+                format!("Error while reading a line while consuming an output stream, err={}",
+                        e)
+            }
             Error::StreamTargetSend(ref e) => {
                 format!("Error while writing a message to the job stream, err={}", e)
             }
-            Error::StudioBuild(ref p, ref e) => format!(
-                "Error while running studio build at {}, err={}",
-                p.display(),
-                e
-            ),
-            Error::StudioTeardown(ref p, ref e) => format!(
-                "Error while tearing down studio at {}, err={}",
-                p.display(),
-                e
-            ),
+            Error::StudioBuild(ref p, ref e) => {
+                format!("Error while running studio build at {}, err={}",
+                        p.display(),
+                        e)
+            }
+            Error::StudioTeardown(ref p, ref e) => {
+                format!("Error while tearing down studio at {}, err={}",
+                        p.display(),
+                        e)
+            }
             Error::UrlParseError(ref e) => format!("{}", e),
             Error::WorkspaceSetup(ref p, ref e) => {
                 format!("Error while setting up workspace at {}, err={}", p, e)
@@ -166,14 +166,14 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::AirlockFailure(_) => "Airlock networking exited with a non-zero exit code",
-            Error::AirlockNetworking(_, _) => "IO Error while running airlock networking command",
-            Error::BuildEnvFile(_, _) => "Unable to read workspace build env file",
+            Error::AirlockNetworking(..) => "IO Error while running airlock networking command",
+            Error::BuildEnvFile(..) => "Unable to read workspace build env file",
             Error::BuildFailure(_) => "Build studio exited with a non-zero exit code",
             Error::BuilderCore(ref err) => err.description(),
             Error::CannotAddCreds => "Cannot add credentials to url",
-            Error::Chown(_, _, _, _) => "Unable to recursively chown path",
+            Error::Chown(..) => "Unable to recursively chown path",
             Error::ChownWait(_) => "Unable to complete chown process",
-            Error::CreateDirectory(_, _) => "Unable to create directory",
+            Error::CreateDirectory(..) => "Unable to create directory",
             Error::Exporter(_) => "IO Error while spawning or piping data from exporter proc",
             Error::ExportFailure(_) => "Docker export exited with a non-zero exit code",
             Error::Git(ref err) => err.description(),
@@ -190,10 +190,10 @@ impl error::Error for Error {
             Error::Retry(ref err) => err.description(),
             Error::StreamTargetSend(_) => "Error while writing message to a job stream",
             Error::StreamLine(_) => "Error while reading a line while consuming an output stream",
-            Error::StudioBuild(_, _) => "IO Error while running studio build",
-            Error::StudioTeardown(_, _) => "IO Error while tearing down studio",
-            Error::WorkspaceSetup(_, _) => "IO Error while creating workspace on disk",
-            Error::WorkspaceTeardown(_, _) => "IO Error while destroying workspace on disk",
+            Error::StudioBuild(..) => "IO Error while running studio build",
+            Error::StudioTeardown(..) => "IO Error while tearing down studio",
+            Error::WorkspaceSetup(..) => "IO Error while creating workspace on disk",
+            Error::WorkspaceTeardown(..) => "IO Error while destroying workspace on disk",
             Error::Zmq(ref err) => err.description(),
             Error::UrlParseError(ref err) => err.description(),
             Error::Mpsc(ref err) => err.description(),
@@ -203,31 +203,21 @@ impl error::Error for Error {
 }
 
 impl From<bldr_core::Error> for Error {
-    fn from(err: bldr_core::Error) -> Error {
-        Error::BuilderCore(err)
-    }
+    fn from(err: bldr_core::Error) -> Error { Error::BuilderCore(err) }
 }
 
 impl From<hab_core::Error> for Error {
-    fn from(err: hab_core::Error) -> Error {
-        Error::HabitatCore(err)
-    }
+    fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
 }
 
 impl From<protobuf::ProtobufError> for Error {
-    fn from(err: protobuf::ProtobufError) -> Error {
-        Error::Protobuf(err)
-    }
+    fn from(err: protobuf::ProtobufError) -> Error { Error::Protobuf(err) }
 }
 
 impl From<protocol::ProtocolError> for Error {
-    fn from(err: protocol::ProtocolError) -> Self {
-        Error::Protocol(err)
-    }
+    fn from(err: protocol::ProtocolError) -> Self { Error::Protocol(err) }
 }
 
 impl From<zmq::Error> for Error {
-    fn from(err: zmq::Error) -> Error {
-        Error::Zmq(err)
-    }
+    fn from(err: zmq::Error) -> Error { Error::Zmq(err) }
 }

@@ -19,15 +19,16 @@ use std::path::Path;
 
 use base64;
 
-use crate::error::{Error, Result};
-use crate::hab_core::crypto::{keys::box_key_pair::WrappedSealedBox, BoxKeyPair};
-use crate::keys;
+use crate::{error::{Error,
+                    Result},
+            hab_core::crypto::{keys::box_key_pair::WrappedSealedBox,
+                               BoxKeyPair},
+            keys};
 
 // TBD - these functions should take keys directly instead of key directory.
 
 pub fn encrypt<A>(key_dir: A, bytes: &[u8]) -> Result<String>
-where
-    A: AsRef<Path>,
+    where A: AsRef<Path>
 {
     let display_path = key_dir.as_ref().display();
 
@@ -59,8 +60,7 @@ where
 
 // This function takes in a double base64 encoded string
 pub fn decrypt<A>(key_dir: A, b64text: &str) -> Result<Vec<u8>>
-where
-    A: AsRef<Path>,
+    where A: AsRef<Path>
 {
     let decoded = base64::decode(b64text).map_err(Error::Base64Error)?;
     let wsb = &WrappedSealedBox::from(String::from_utf8(decoded).unwrap());
@@ -78,8 +78,7 @@ where
 
 // This function takes in a double base64 encoded string
 pub fn validate<A>(key_dir: A, b64text: &str) -> Result<()>
-where
-    A: AsRef<Path>,
+    where A: AsRef<Path>
 {
     let decoded = base64::decode(b64text).map_err(Error::Base64Error)?;
     let wsb = &WrappedSealedBox::from(String::from_utf8(decoded).unwrap());
@@ -95,14 +94,16 @@ where
     }
 
     match box_secret.receiver {
-        Some(recv) => match BoxKeyPair::get_pair_for(recv, &key_dir.as_ref()) {
-            Ok(_) => (),
-            Err(err) => {
-                let e = format!("Unable to find receiver key pair, err={:?}", &err);
-                error!("Unable to find receiver key pair, err={:?}", err);
-                return Err(Error::DecryptError(e));
+        Some(recv) => {
+            match BoxKeyPair::get_pair_for(recv, &key_dir.as_ref()) {
+                Ok(_) => (),
+                Err(err) => {
+                    let e = format!("Unable to find receiver key pair, err={:?}", &err);
+                    error!("Unable to find receiver key pair, err={:?}", err);
+                    return Err(Error::DecryptError(e));
+                }
             }
-        },
+        }
         None => {
             let e = "No receiver key pair specified".to_string();
             error!("No receiver key pair specified");

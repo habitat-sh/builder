@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{self, File};
-use std::os::unix::fs::{symlink as fs_symlink, PermissionsExt};
-use std::path::Path;
+use std::{fs::{self,
+               File},
+          os::unix::fs::{symlink as fs_symlink,
+                         PermissionsExt},
+          path::Path};
 
 use libc;
 
@@ -40,15 +42,12 @@ pub fn rmdir<P: AsRef<Path>>(path: P) -> Result<()> {
 }
 
 pub fn symlink<S, T>(source: S, target: T) -> Result<()>
-where
-    S: AsRef<Path>,
-    T: AsRef<Path>,
+    where S: AsRef<Path>,
+          T: AsRef<Path>
 {
-    debug!(
-        "symlinking, src={}, target={}",
-        source.as_ref().display(),
-        target.as_ref().display()
-    );
+    debug!("symlinking, src={}, target={}",
+           source.as_ref().display(),
+           target.as_ref().display());
     fs_symlink(source, target)?;
     Ok(())
 }
@@ -59,6 +58,4 @@ pub fn touch<P: AsRef<Path>>(path: P) -> Result<()> {
     Ok(())
 }
 
-pub fn umask(mode: libc::mode_t) -> libc::mode_t {
-    unsafe { libc::umask(mode) }
-}
+pub fn umask(mode: libc::mode_t) -> libc::mode_t { unsafe { libc::umask(mode) } }

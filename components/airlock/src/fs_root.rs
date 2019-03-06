@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
+use std::{env,
+          fs,
+          io,
+          path::{Path,
+                 PathBuf}};
 
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::{distributions::Alphanumeric,
+           thread_rng,
+           Rng};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 const NUM_RETRIES: u32 = 1 << 31;
 const NUM_RAND_CHARS: usize = 12;
@@ -36,25 +39,22 @@ pub struct FsRoot(Option<PathBuf>, FsRootPolicy);
 
 impl FsRoot {
     pub fn at(path: PathBuf, policy: FsRootPolicy) -> Result<Self> {
-        debug!(
-            "creating fs root, path={}, policy={:?}",
-            path.display(),
-            policy
-        );
+        debug!("creating fs root, path={}, policy={:?}",
+               path.display(),
+               policy);
         fs::create_dir(&path).map_err(|e| Error::FsRoot(path.clone(), e))?;
         Ok(FsRoot(Some(path), policy))
     }
 
-    pub fn in_tmpdir(policy: FsRootPolicy) -> Result<Self> {
-        Self::at(tmp_path()?, policy)
-    }
+    pub fn in_tmpdir(policy: FsRootPolicy) -> Result<Self> { Self::at(tmp_path()?, policy) }
 
     pub fn finish(mut self) -> Result<()> {
         match self.1 {
             FsRootPolicy::Cleanup => {
                 debug!("removing fs root, path={}", self.as_ref().display());
-                fs::remove_dir_all(self.as_ref())
-                    .map_err(|e| Error::FsRoot(self.as_ref().into(), e))?;
+                fs::remove_dir_all(self.as_ref()).map_err(|e| {
+                                                     Error::FsRoot(self.as_ref().into(), e)
+                                                 })?;
                 // Prevent `Drop` from removing the dir a second time
                 self.0 = None;
                 Ok(())
@@ -70,9 +70,7 @@ impl FsRoot {
 }
 
 impl AsRef<Path> for FsRoot {
-    fn as_ref(&self) -> &Path {
-        self.0.as_ref().unwrap()
-    }
+    fn as_ref(&self) -> &Path { self.0.as_ref().unwrap() }
 }
 
 impl Drop for FsRoot {
@@ -94,21 +92,17 @@ impl Drop for FsRoot {
 fn tmp_path() -> Result<PathBuf> {
     // Find a nonexistent candidate directory path and return the first success
     for _ in 0..NUM_RETRIES {
-        let suffix = thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(NUM_RAND_CHARS)
-            .collect::<String>();
+        let suffix = thread_rng().sample_iter(&Alphanumeric)
+                                 .take(NUM_RAND_CHARS)
+                                 .collect::<String>();
         let path = env::temp_dir().join(format!("airlock-fsroot.{}", suffix));
         if !path.exists() {
             return Ok(path);
         }
     }
     // If not candidate directories are successful, then return err
-    Err(Error::FsRoot(
-        env::temp_dir(),
-        io::Error::new(
-            io::ErrorKind::AlreadyExists,
-            "too many temporary directories already exist",
-        ),
-    ))
+    Err(Error::FsRoot(env::temp_dir(),
+                      io::Error::new(io::ErrorKind::AlreadyExists,
+                                     "too many temporary \
+                                      directories already exist")))
 }

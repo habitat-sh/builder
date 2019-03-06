@@ -12,35 +12,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::str::FromStr;
+use std::{collections::HashMap,
+          str::FromStr};
 
-use actix_web::http::{self, Method, StatusCode};
-use actix_web::FromRequest;
-use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
+use actix_web::{http::{self,
+                       Method,
+                       StatusCode},
+                App,
+                FromRequest,
+                HttpRequest,
+                HttpResponse,
+                Json,
+                Path,
+                Query};
 use serde_json;
 
-use crate::protocol::jobsrv;
-use crate::protocol::net::NetOk;
-use crate::protocol::originsrv::OriginPackageIdent;
+use crate::protocol::{jobsrv,
+                      net::NetOk,
+                      originsrv::OriginPackageIdent};
 
-use crate::hab_core::package::{Identifiable, PackageIdent, PackageTarget};
-use crate::hab_core::ChannelIdent;
+use crate::hab_core::{package::{Identifiable,
+                                PackageIdent,
+                                PackageTarget},
+                      ChannelIdent};
 
-use crate::db::models::channel::*;
-use crate::db::models::jobs::*;
-use crate::db::models::package::*;
-use crate::db::models::projects::*;
+use crate::db::models::{channel::*,
+                        jobs::*,
+                        package::*,
+                        projects::*};
 use diesel::result::Error::NotFound;
 
-use crate::server::authorize::authorize_session;
-use crate::server::error::{Error, Result};
-use crate::server::framework::headers;
-use crate::server::framework::middleware::route_message;
-use crate::server::helpers::{self, Target};
-use crate::server::resources::channels::channels_for_package_ident;
-use crate::server::resources::pkgs::platforms_for_package_ident;
-use crate::server::AppState;
+use crate::server::{authorize::authorize_session,
+                    error::{Error,
+                            Result},
+                    framework::{headers,
+                                middleware::route_message},
+                    helpers::{self,
+                              Target},
+                    resources::{channels::channels_for_package_ident,
+                                pkgs::platforms_for_package_ident},
+                    AppState};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GroupPromoteReq {
@@ -65,36 +76,29 @@ pub struct JobLogPagination {
 pub struct Jobs;
 
 impl Jobs {
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route(
-            "/jobs/group/{id}/promote/{channel}",
-            Method::POST,
-            promote_job_group,
-        )
-        .route(
-            "/jobs/group/{id}/demote/{channel}",
-            Method::POST,
-            demote_job_group,
-        )
-        .route("/jobs/group/{id}/cancel", Method::POST, cancel_job_group)
-        .route("/rdeps/{origin}/{name}", Method::GET, get_rdeps)
-        .route("/rdeps/{origin}/{name}/group", Method::GET, get_rdeps_group)
-        .route("/jobs/{id}", Method::GET, get_job)
-        .route("/jobs/{id}/log", Method::GET, get_job_log)
+        app.route("/jobs/group/{id}/promote/{channel}",
+                  Method::POST,
+                  promote_job_group)
+           .route("/jobs/group/{id}/demote/{channel}",
+                  Method::POST,
+                  demote_job_group)
+           .route("/jobs/group/{id}/cancel", Method::POST, cancel_job_group)
+           .route("/rdeps/{origin}/{name}", Method::GET, get_rdeps)
+           .route("/rdeps/{origin}/{name}/group", Method::GET, get_rdeps_group)
+           .route("/jobs/{id}", Method::GET, get_job)
+           .route("/jobs/{id}/log", Method::GET, get_job_log)
     }
 }
 
-//
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
 fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
+                                                                .into_inner(); // Unwrap Ok
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
@@ -113,10 +117,8 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
     rdeps_get.set_name(name);
     rdeps_get.set_target(target.to_string());
 
-    match route_message::<
-        jobsrv::JobGraphPackageReverseDependenciesGet,
-        jobsrv::JobGraphPackageReverseDependencies,
-    >(&req, &rdeps_get)
+    match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
+                        jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get)
     {
         Ok(rdeps) => HttpResponse::Ok().json(rdeps),
         Err(err) => {
@@ -128,9 +130,8 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
 
 #[allow(clippy::needless_pass_by_value)]
 fn get_rdeps_group((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
+                                                                .into_inner(); // Unwrap Ok
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
@@ -149,10 +150,8 @@ fn get_rdeps_group((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> Ht
     rdeps_get.set_name(name);
     rdeps_get.set_target(target.to_string());
 
-    match route_message::<
-        jobsrv::JobGraphPackageReverseDependenciesGroupedGet,
-        jobsrv::JobGraphPackageReverseDependenciesGrouped,
-    >(&req, &rdeps_get)
+    match route_message::<jobsrv::JobGraphPackageReverseDependenciesGroupedGet,
+                        jobsrv::JobGraphPackageReverseDependenciesGrouped>(&req, &rdeps_get)
     {
         Ok(rdeps) => HttpResponse::Ok().json(rdeps),
         Err(err) => {
@@ -175,9 +174,10 @@ fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
     };
 
     match do_get_job(&req, job_id) {
-        Ok(body) => HttpResponse::Ok()
-            .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-            .body(body),
+        Ok(body) => {
+            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                              .body(body)
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
@@ -186,9 +186,8 @@ fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_job_log(
-    (pagination, req): (Query<JobLogPagination>, HttpRequest<AppState>),
-) -> HttpResponse {
+fn get_job_log((pagination, req): (Query<JobLogPagination>, HttpRequest<AppState>))
+               -> HttpResponse {
     let id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
 
     let job_id = match id_str.parse::<u64>() {
@@ -215,9 +214,8 @@ fn get_job_log(
 
 #[allow(clippy::needless_pass_by_value)]
 fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)) -> HttpResponse {
-    let (group_id, channel) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (group_id, channel) = Path::<(String, String)>::extract(&req).unwrap()
+                                                                     .into_inner(); // Unwrap Ok
     let channel = ChannelIdent::from(channel);
 
     match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, true) {
@@ -231,9 +229,8 @@ fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)
 
 #[allow(clippy::needless_pass_by_value)]
 fn demote_job_group((req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>)) -> HttpResponse {
-    let (group_id, channel) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (group_id, channel) = Path::<(String, String)>::extract(&req).unwrap()
+                                                                     .into_inner(); // Unwrap Ok
     let channel = ChannelIdent::from(channel);
 
     match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, false) {
@@ -266,16 +263,14 @@ fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
-//
 // Internal - these functions should return Result<..>
 //
-fn do_group_promotion_or_demotion(
-    req: &HttpRequest<AppState>,
-    channel: &ChannelIdent,
-    projects: Vec<&jobsrv::JobGroupProject>,
-    origin: &str,
-    promote: bool,
-) -> Result<Vec<i64>> {
+fn do_group_promotion_or_demotion(req: &HttpRequest<AppState>,
+                                  channel: &ChannelIdent,
+                                  projects: Vec<&jobsrv::JobGroupProject>,
+                                  origin: &str,
+                                  promote: bool)
+                                  -> Result<Vec<i64>> {
     let session = authorize_session(req, Some(&origin))?;
 
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
@@ -284,14 +279,10 @@ fn do_group_promotion_or_demotion(
         Ok(channel) => channel,
         Err(NotFound) => {
             if (channel != &ChannelIdent::stable()) && (channel != &ChannelIdent::unstable()) {
-                Channel::create(
-                    &CreateChannel {
-                        name: channel.as_str(),
-                        origin,
-                        owner_id: session.get_id() as i64,
-                    },
-                    &*conn,
-                )?
+                Channel::create(&CreateChannel { name: channel.as_str(),
+                                                 origin,
+                                                 owner_id: session.get_id() as i64 },
+                                &*conn)?
             } else {
                 warn!("Unable to retrieve default channel: {}", channel);
                 return Err(Error::DieselError(NotFound));
@@ -306,11 +297,11 @@ fn do_group_promotion_or_demotion(
     let mut package_ids = Vec::new();
 
     for project in projects {
-        req.state().memcache.borrow_mut().clear_cache_for_package(
-            &OriginPackageIdent::from_str(project.get_ident())
-                .unwrap()
-                .into(),
-        );
+        req.state()
+           .memcache
+           .borrow_mut()
+           .clear_cache_for_package(&OriginPackageIdent::from_str(project.get_ident()).unwrap()
+                                                                                      .into());
 
         // TODO (SA): Expand build targets - currently Builder only supports x86_64-linux
         let op = Package::get(
@@ -334,13 +325,12 @@ fn do_group_promotion_or_demotion(
     Ok(package_ids)
 }
 
-fn promote_or_demote_job_group(
-    req: &HttpRequest<AppState>,
-    group_id_str: &str,
-    idents: &[String],
-    channel: &ChannelIdent,
-    promote: bool,
-) -> Result<()> {
+fn promote_or_demote_job_group(req: &HttpRequest<AppState>,
+                               group_id_str: &str,
+                               idents: &[String],
+                               channel: &ChannelIdent,
+                               promote: bool)
+                               -> Result<()> {
     authorize_session(&req, None)?;
 
     let group_id = match group_id_str.parse::<u64>() {
@@ -383,9 +373,8 @@ fn promote_or_demote_job_group(
             }
 
             let ident = OriginPackageIdent::from_str(ident_str).unwrap();
-            let project_list = origin_map
-                .entry(ident.get_origin().to_string())
-                .or_insert_with(Vec::new);
+            let project_list = origin_map.entry(ident.get_origin().to_string())
+                                         .or_insert_with(Vec::new);
             project_list.push(project);
         }
     }
@@ -405,19 +394,21 @@ fn promote_or_demote_job_group(
 
                 let session = authorize_session(req, None).unwrap(); // Unwrap ok
 
-                PackageGroupChannelAudit::audit(
-                    PackageGroupChannelAudit {
-                        origin: &origin,
-                        channel: channel.as_str(),
-                        package_ids,
-                        operation: pco,
-                        trigger: trigger.clone(),
-                        requester_id: session.get_id() as i64,
-                        requester_name: session.get_name(),
-                        group_id: group_id as i64,
-                    },
-                    &*conn,
-                )?;
+                PackageGroupChannelAudit::audit(PackageGroupChannelAudit { origin: &origin,
+                                                                           channel:
+                                                                               channel.as_str(),
+                                                                           package_ids,
+                                                                           operation: pco,
+                                                                           trigger:
+                                                                               trigger.clone(),
+                                                                           requester_id:
+                                                                               session.get_id()
+                                                                               as i64,
+                                                                           requester_name:
+                                                                               session.get_name(),
+                                                                           group_id: group_id
+                                                                                     as i64 },
+                                                &*conn)?;
             }
             Err(e) => {
                 debug!("Failed to promote or demote group, err: {:?}", e);

@@ -1,25 +1,32 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
 
-use diesel;
-use diesel::pg::PgConnection;
-use diesel::prelude::*;
-use diesel::result::{Error, QueryResult};
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{self,
+             pg::PgConnection,
+             prelude::*,
+             result::{Error,
+                      QueryResult},
+             ExpressionMethods,
+             QueryDsl,
+             RunQueryDsl};
 
-use crate::models::channel::{Channel, CreateChannel};
-use crate::models::package::PackageVisibility;
-use crate::protocol::originsrv;
+use crate::{models::{channel::{Channel,
+                               CreateChannel},
+                     package::PackageVisibility},
+            protocol::originsrv};
 
-use crate::schema::channel::origin_channels;
-use crate::schema::integration::origin_integrations;
-use crate::schema::key::{origin_public_keys, origin_secret_keys};
-use crate::schema::member::origin_members;
-use crate::schema::origin::{origins, origins_with_secret_key, origins_with_stats};
+use crate::schema::{channel::origin_channels,
+                    integration::origin_integrations,
+                    key::{origin_public_keys,
+                          origin_secret_keys},
+                    member::origin_members,
+                    origin::{origins,
+                             origins_with_secret_key,
+                             origins_with_stats}};
 
-use crate::bldr_core::metrics::CounterMetric;
-use crate::hab_core::ChannelIdent;
-use crate::metrics::Counter;
+use crate::{bldr_core::metrics::CounterMetric,
+            hab_core::ChannelIdent,
+            metrics::Counter};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origins"]
@@ -73,54 +80,42 @@ pub struct NewOrigin<'a> {
 impl Origin {
     pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
         Counter::DBCall.increment();
-        origins_with_secret_key::table
-            .find(origin)
-            .limit(1)
-            .get_result(conn)
+        origins_with_secret_key::table.find(origin)
+                                      .limit(1)
+                                      .get_result(conn)
     }
 
     pub fn list(owner_id: i64, conn: &PgConnection) -> QueryResult<Vec<OriginWithStats>> {
         Counter::DBCall.increment();
-        origins_with_stats::table
-            .inner_join(origin_members::table)
-            .select(origins_with_stats::table::all_columns())
-            .filter(origin_members::account_id.eq(owner_id))
-            .order(origins_with_stats::name.asc())
-            .get_results(conn)
+        origins_with_stats::table.inner_join(origin_members::table)
+                                 .select(origins_with_stats::table::all_columns())
+                                 .filter(origin_members::account_id.eq(owner_id))
+                                 .order(origins_with_stats::name.asc())
+                                 .get_results(conn)
     }
 
     pub fn create(req: &NewOrigin, conn: &PgConnection) -> QueryResult<Origin> {
         Counter::DBCall.increment();
-        let new_origin = diesel::insert_into(origins::table)
-            .values(req)
-            .get_result(conn)?;
+        let new_origin = diesel::insert_into(origins::table).values(req)
+                                                            .get_result(conn)?;
 
         OriginMember::add(req.name, req.owner_id, conn)?;
-        Channel::create(
-            &CreateChannel {
-                name: ChannelIdent::unstable().as_str(),
-                owner_id: req.owner_id,
-                origin: req.name,
-            },
-            conn,
-        )?;
-        Channel::create(
-            &CreateChannel {
-                name: ChannelIdent::stable().as_str(),
-                owner_id: req.owner_id,
-                origin: req.name,
-            },
-            conn,
-        )?;
+        Channel::create(&CreateChannel { name:     ChannelIdent::unstable().as_str(),
+                                         owner_id: req.owner_id,
+                                         origin:   req.name, },
+                        conn)?;
+        Channel::create(&CreateChannel { name:     ChannelIdent::stable().as_str(),
+                                         owner_id: req.owner_id,
+                                         origin:   req.name, },
+                        conn)?;
 
         Ok(new_origin)
     }
 
     pub fn update(name: &str, dpv: PackageVisibility, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(origins::table.find(name))
-            .set(origins::default_package_visibility.eq(dpv))
-            .execute(conn)
+        diesel::update(origins::table.find(name)).set(origins::default_package_visibility.eq(dpv))
+                                                 .execute(conn)
     }
 
     pub fn delete(origin: &str, conn: &PgConnection) -> QueryResult<()> {
@@ -149,32 +144,29 @@ impl Origin {
         })
     }
 
-    pub fn check_membership(
-        origin: &str,
-        account_id: i64,
-        conn: &PgConnection,
-    ) -> QueryResult<bool> {
+    pub fn check_membership(origin: &str,
+                            account_id: i64,
+                            conn: &PgConnection)
+                            -> QueryResult<bool> {
         Counter::DBCall.increment();
-        origin_members::table
-            .filter(origin_members::origin.eq(origin))
-            .filter(origin_members::account_id.eq(account_id))
-            .execute(conn)
-            .and_then(|s| Ok(s > 0))
+        origin_members::table.filter(origin_members::origin.eq(origin))
+                             .filter(origin_members::account_id.eq(account_id))
+                             .execute(conn)
+                             .and_then(|s| Ok(s > 0))
     }
 }
 
 impl OriginMember {
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<String>> {
-        use crate::schema::account::accounts;
-        use crate::schema::member::origin_members;
+        use crate::schema::{account::accounts,
+                            member::origin_members};
 
         Counter::DBCall.increment();
-        origin_members::table
-            .inner_join(accounts::table)
-            .select(accounts::name)
-            .filter(origin_members::origin.eq(origin))
-            .order(accounts::name.asc())
-            .get_results(conn)
+        origin_members::table.inner_join(accounts::table)
+                             .select(accounts::name)
+                             .filter(origin_members::origin.eq(origin))
+                             .order(accounts::name.asc())
+                             .get_results(conn)
     }
 
     pub fn delete(origin: &str, account_name: &str, conn: &PgConnection) -> QueryResult<usize> {
@@ -216,14 +208,11 @@ impl Into<originsrv::Origin> for Origin {
 
 impl From<originsrv::Origin> for Origin {
     fn from(origin: originsrv::Origin) -> Origin {
-        Origin {
-            owner_id: origin.get_owner_id() as i64,
-            name: origin.get_name().to_string(),
-            default_package_visibility: PackageVisibility::from(
-                origin.get_default_package_visibility(),
-            ),
-            created_at: None,
-            updated_at: None,
-        }
+        Origin { owner_id: origin.get_owner_id() as i64,
+                 name: origin.get_name().to_string(),
+                 default_package_visibility:
+                     PackageVisibility::from(origin.get_default_package_visibility()),
+                 created_at: None,
+                 updated_at: None, }
     }
 }

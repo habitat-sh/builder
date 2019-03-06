@@ -14,13 +14,16 @@
 
 //! Configuration for a Habitat Builder-API service
 
-use std::env;
-use std::error;
-use std::fmt;
-use std::io;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
-use std::option::IntoIter;
-use std::path::PathBuf;
+use std::{env,
+          error,
+          fmt,
+          io,
+          net::{IpAddr,
+                Ipv4Addr,
+                SocketAddr,
+                ToSocketAddrs},
+          option::IntoIter,
+          path::PathBuf};
 
 use num_cpus;
 
@@ -28,21 +31,18 @@ use github_api_client::config::GitHubCfg;
 use oauth_client::config::OAuth2Cfg;
 use segment_api_client::SegmentCfg;
 
-use crate::db::config::DataStoreCfg;
-use crate::hab_core;
-use crate::hab_core::config::ConfigFile;
-use crate::hab_core::package::target::{self, PackageTarget};
+use crate::{db::config::DataStoreCfg,
+            hab_core::{self,
+                       config::ConfigFile,
+                       package::target::{self,
+                                         PackageTarget}}};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.
-    fn default_handler_count() -> usize {
-        num_cpus::get() * 8
-    }
+    fn default_handler_count() -> usize { num_cpus::get() * 8 }
 
     /// Number of worker threads to simultaneously handle HTTP requests.
-    fn handler_count(&self) -> usize {
-        Self::default_handler_count()
-    }
+    fn handler_count(&self) -> usize { Self::default_handler_count() }
 
     fn listen_addr(&self) -> &IpAddr;
 
@@ -52,32 +52,30 @@ pub trait GatewayCfg {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub api: ApiCfg,
-    pub github: GitHubCfg,
-    pub http: HttpCfg,
-    pub oauth: OAuth2Cfg,
-    pub s3: S3Cfg,
-    pub segment: SegmentCfg,
-    pub ui: UiCfg,
-    pub memcache: MemcacheCfg,
-    pub jobsrv: JobsrvCfg,
+    pub api:       ApiCfg,
+    pub github:    GitHubCfg,
+    pub http:      HttpCfg,
+    pub oauth:     OAuth2Cfg,
+    pub s3:        S3Cfg,
+    pub segment:   SegmentCfg,
+    pub ui:        UiCfg,
+    pub memcache:  MemcacheCfg,
+    pub jobsrv:    JobsrvCfg,
     pub datastore: DataStoreCfg,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config {
-            api: ApiCfg::default(),
-            github: GitHubCfg::default(),
-            http: HttpCfg::default(),
-            oauth: OAuth2Cfg::default(),
-            s3: S3Cfg::default(),
-            segment: SegmentCfg::default(),
-            ui: UiCfg::default(),
-            memcache: MemcacheCfg::default(),
-            jobsrv: JobsrvCfg::default(),
-            datastore: DataStoreCfg::default(),
-        }
+        Config { api:       ApiCfg::default(),
+                 github:    GitHubCfg::default(),
+                 http:      HttpCfg::default(),
+                 oauth:     OAuth2Cfg::default(),
+                 s3:        S3Cfg::default(),
+                 segment:   SegmentCfg::default(),
+                 ui:        UiCfg::default(),
+                 memcache:  MemcacheCfg::default(),
+                 jobsrv:    JobsrvCfg::default(),
+                 datastore: DataStoreCfg::default(), }
     }
 }
 
@@ -85,15 +83,11 @@ impl Default for Config {
 pub struct ConfigError(String);
 
 impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", *self)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", *self) }
 }
 
 impl error::Error for ConfigError {
-    fn description(&self) -> &str {
-        "Error reading config file"
-    }
+    fn description(&self) -> &str { "Error reading config file" }
 }
 
 impl ConfigFile for Config {
@@ -101,9 +95,7 @@ impl ConfigFile for Config {
 }
 
 impl From<hab_core::Error> for ConfigError {
-    fn from(err: hab_core::Error) -> ConfigError {
-        ConfigError(format!("{:?}", err))
-    }
+    fn from(err: hab_core::Error) -> ConfigError { ConfigError(format!("{:?}", err)) }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -117,87 +109,73 @@ pub enum S3Backend {
 #[serde(default)]
 pub struct S3Cfg {
     // These are for using S3 as the artifact storage
-    pub key_id: String,
-    pub secret_key: String,
+    pub key_id:      String,
+    pub secret_key:  String,
     pub bucket_name: String,
-    pub backend: S3Backend,
-    pub endpoint: String,
+    pub backend:     S3Backend,
+    pub endpoint:    String,
 }
 
 impl Default for S3Cfg {
     fn default() -> Self {
-        S3Cfg {
-            key_id: String::from("depot"),
-            secret_key: String::from("password"),
-            bucket_name: String::from("habitat-builder-artifact-store.default"),
-            backend: S3Backend::Minio,
-            endpoint: String::from("http://localhost:9000"),
-        }
+        S3Cfg { key_id:      String::from("depot"),
+                secret_key:  String::from("password"),
+                bucket_name: String::from("habitat-builder-artifact-store.default"),
+                backend:     S3Backend::Minio,
+                endpoint:    String::from("http://localhost:9000"), }
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct ApiCfg {
-    pub data_path: PathBuf,
-    pub log_path: PathBuf,
-    pub key_path: PathBuf,
-    pub targets: Vec<PackageTarget>,
-    pub build_targets: Vec<PackageTarget>,
+    pub data_path:        PathBuf,
+    pub log_path:         PathBuf,
+    pub key_path:         PathBuf,
+    pub targets:          Vec<PackageTarget>,
+    pub build_targets:    Vec<PackageTarget>,
     pub features_enabled: String,
-    pub build_on_upload: bool,
+    pub build_on_upload:  bool,
 }
 
 impl Default for ApiCfg {
     fn default() -> Self {
-        ApiCfg {
-            data_path: PathBuf::from("/hab/svc/builder-api/data"),
-            log_path: env::temp_dir(),
-            key_path: PathBuf::from("/hab/svc/builder-api/files"),
-            targets: vec![
-                target::X86_64_LINUX,
-                target::X86_64_LINUX_KERNEL2,
-                target::X86_64_WINDOWS,
-            ],
-            build_targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
-            features_enabled: String::from("jobsrv"),
-            build_on_upload: true,
-        }
+        ApiCfg { data_path:        PathBuf::from("/hab/svc/builder-api/data"),
+                 log_path:         env::temp_dir(),
+                 key_path:         PathBuf::from("/hab/svc/builder-api/files"),
+                 targets:          vec![target::X86_64_LINUX,
+                                        target::X86_64_LINUX_KERNEL2,
+                                        target::X86_64_WINDOWS,],
+                 build_targets:    vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
+                 features_enabled: String::from("jobsrv"),
+                 build_on_upload:  true, }
     }
 }
 
 impl GatewayCfg for Config {
-    fn handler_count(&self) -> usize {
-        self.http.handler_count
-    }
+    fn handler_count(&self) -> usize { self.http.handler_count }
 
-    fn listen_addr(&self) -> &IpAddr {
-        &self.http.listen
-    }
+    fn listen_addr(&self) -> &IpAddr { &self.http.listen }
 
-    fn listen_port(&self) -> u16 {
-        self.http.port
-    }
+    fn listen_port(&self) -> u16 { self.http.port }
 }
 
 /// Public listening net address for HTTP requests
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct HttpCfg {
-    pub listen: IpAddr,
-    pub port: u16,
+    pub listen:        IpAddr,
+    pub port:          u16,
     pub handler_count: usize,
-    pub keep_alive: usize,
+    pub keep_alive:    usize,
 }
 
 impl Default for HttpCfg {
     fn default() -> Self {
-        HttpCfg {
-            listen: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            port: 9636,
-            handler_count: Config::default_handler_count(),
-            keep_alive: 60,
-        }
+        HttpCfg { listen:        IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                  port:          9636,
+                  handler_count: Config::default_handler_count(),
+                  keep_alive:    60, }
     }
 }
 
@@ -229,25 +207,21 @@ pub struct MemcacheCfgHosts {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct MemcacheCfg {
-    pub ttl: u32,
+    pub ttl:   u32,
     pub hosts: Vec<MemcacheCfgHosts>,
 }
 
 impl Default for MemcacheCfgHosts {
     fn default() -> Self {
-        MemcacheCfgHosts {
-            host: String::from("localhost"),
-            port: 11211,
-        }
+        MemcacheCfgHosts { host: String::from("localhost"),
+                           port: 11211, }
     }
 }
 
 impl Default for MemcacheCfg {
     fn default() -> Self {
-        MemcacheCfg {
-            hosts: vec![MemcacheCfgHosts::default()],
-            ttl: 15,
-        }
+        MemcacheCfg { hosts: vec![MemcacheCfgHosts::default()],
+                      ttl:   15, }
     }
 }
 
@@ -266,10 +240,8 @@ pub struct JobsrvCfg {
 
 impl Default for JobsrvCfg {
     fn default() -> Self {
-        JobsrvCfg {
-            host: String::from("localhost"),
-            port: 5580,
-        }
+        JobsrvCfg { host: String::from("localhost"),
+                    port: 5580, }
     }
 }
 
@@ -340,18 +312,12 @@ mod tests {
         "#;
 
         let config = Config::from_raw(&content).unwrap();
-        assert_eq!(
-            config.api.data_path,
-            PathBuf::from("/hab/svc/hab-depot/data")
-        );
-        assert_eq!(
-            config.api.log_path,
-            PathBuf::from("/hab/svc/hab-depot/var/log")
-        );
-        assert_eq!(
-            config.api.key_path,
-            PathBuf::from("/hab/svc/hab-depot/files")
-        );
+        assert_eq!(config.api.data_path,
+                   PathBuf::from("/hab/svc/hab-depot/data"));
+        assert_eq!(config.api.log_path,
+                   PathBuf::from("/hab/svc/hab-depot/var/log"));
+        assert_eq!(config.api.key_path,
+                   PathBuf::from("/hab/svc/hab-depot/files"));
 
         assert_eq!(config.api.targets.len(), 3);
         assert_eq!(config.api.targets[0], target::X86_64_LINUX);
@@ -367,10 +333,8 @@ mod tests {
         assert_eq!(&format!("{}", config.http.listen), "::1");
 
         assert_eq!(config.memcache.ttl, 11);
-        assert_eq!(
-            &format!("{}", config.memcache.hosts[0]),
-            "memcache://192.168.0.1:12345"
-        );
+        assert_eq!(&format!("{}", config.memcache.hosts[0]),
+                   "memcache://192.168.0.1:12345");
 
         assert_eq!(&format!("{}", config.jobsrv), "http://1.2.3.4:1234");
 
@@ -379,10 +343,8 @@ mod tests {
         assert_eq!(config.http.keep_alive, 30);
 
         assert_eq!(config.oauth.client_id, "0c2f738a7d0bd300de10");
-        assert_eq!(
-            config.oauth.client_secret,
-            "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
-        );
+        assert_eq!(config.oauth.client_secret,
+                   "438223113eeb6e7edf2d2f91a232b72de72b9bdf");
 
         assert_eq!(config.github.api_url, "https://api.github.com");
 
@@ -392,10 +354,8 @@ mod tests {
 
         assert_eq!(config.s3.backend, S3Backend::Minio);
         assert_eq!(config.s3.key_id, "AWSKEYIDORSOMETHING");
-        assert_eq!(
-            config.s3.secret_key,
-            "aW5S3c437Key7hIn817s7o7a11yN457y70Wr173L1k37h15"
-        );
+        assert_eq!(config.s3.secret_key,
+                   "aW5S3c437Key7hIn817s7o7a11yN457y70Wr173L1k37h15");
         assert_eq!(config.s3.endpoint, "http://localhost:9000");
         assert_eq!(config.s3.bucket_name, "hibbity-bibbity-poopity-scoopity");
         assert_eq!(config.datastore.port, 9000);

@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cell::UnsafeCell;
-use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::{cell::UnsafeCell,
+          net::{SocketAddr,
+                SocketAddrV4,
+                SocketAddrV6}};
 
 use zmq;
 
@@ -36,14 +38,10 @@ lazy_static! {
 pub struct SocketContext(UnsafeCell<zmq::Context>);
 
 impl SocketContext {
-    pub fn new() -> Self {
-        SocketContext(UnsafeCell::new(zmq::Context::new()))
-    }
+    pub fn new() -> Self { SocketContext(UnsafeCell::new(zmq::Context::new())) }
 
     #[allow(clippy::mut_from_ref)]
-    pub fn as_mut(&self) -> &mut zmq::Context {
-        unsafe { &mut *self.0.get() }
-    }
+    pub fn as_mut(&self) -> &mut zmq::Context { unsafe { &mut *self.0.get() } }
 }
 
 unsafe impl Send for SocketContext {}
@@ -55,21 +53,15 @@ pub trait ToAddrString {
 }
 
 impl ToAddrString for SocketAddr {
-    fn to_addr_string(&self) -> String {
-        format!("tcp://{}:{}", self.ip(), self.port())
-    }
+    fn to_addr_string(&self) -> String { format!("tcp://{}:{}", self.ip(), self.port()) }
 }
 
 impl ToAddrString for SocketAddrV4 {
-    fn to_addr_string(&self) -> String {
-        format!("tcp://{}:{}", self.ip(), self.port())
-    }
+    fn to_addr_string(&self) -> String { format!("tcp://{}:{}", self.ip(), self.port()) }
 }
 
 impl ToAddrString for SocketAddrV6 {
-    fn to_addr_string(&self) -> String {
-        format!("tcp://{}:{}", self.ip(), self.port())
-    }
+    fn to_addr_string(&self) -> String { format!("tcp://{}:{}", self.ip(), self.port()) }
 }
 
 /// Generates a Network Socket Identity used when connecting to a RouteSrv to identify where the

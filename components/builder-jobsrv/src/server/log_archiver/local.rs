@@ -22,14 +22,16 @@
 //! the root of the archive on the filesystem. This is the same
 //! approach taken by Chef's `bookshelf` cookbook storage engine.
 
-use crate::config::ArchiveCfg;
-use crate::error::Result;
-use crate::server::log_directory::LogDirectory;
+use crate::{config::ArchiveCfg,
+            error::Result,
+            server::log_directory::LogDirectory};
 
-use sha2::{Digest, Sha256};
-use std::fs::{self, OpenOptions};
-use std::io::Read;
-use std::path::PathBuf;
+use sha2::{Digest,
+           Sha256};
+use std::{fs::{self,
+               OpenOptions},
+          io::Read,
+          path::PathBuf};
 
 use super::LogArchiver;
 
@@ -39,10 +41,9 @@ pub struct LocalArchiver(PathBuf);
 impl LocalArchiver {
     // CM TODO: Implement an error type for bad configuration
     pub fn new(config: &ArchiveCfg) -> Self {
-        let archive_dir = config
-            .local_dir
-            .as_ref()
-            .expect("Missing local archive directory!");
+        let archive_dir = config.local_dir
+                                .as_ref()
+                                .expect("Missing local archive directory!");
         LogDirectory::validate(archive_dir).unwrap();
         LocalArchiver(archive_dir.clone())
     }
@@ -81,10 +82,9 @@ impl LogArchiver for LocalArchiver {
         let mut buffer = Vec::new();
         let mut file = OpenOptions::new().read(true).open(&log_file)?;
         file.read_to_end(&mut buffer)?;
-        let lines = String::from_utf8_lossy(buffer.as_slice())
-            .lines()
-            .map(|l| l.to_string())
-            .collect();
+        let lines = String::from_utf8_lossy(buffer.as_slice()).lines()
+                                                              .map(|l| l.to_string())
+                                                              .collect();
         Ok(lines)
     }
 }

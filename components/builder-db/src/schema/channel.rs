@@ -18,16 +18,14 @@ table! {
     }
 }
 
-use super::origin::origins;
-use super::package::origin_packages;
+use super::{origin::origins,
+            package::origin_packages};
 
 joinable!(origin_channel_packages -> origin_packages (package_id));
 joinable!(origin_channel_packages -> origin_channels (channel_id));
 joinable!(origin_channels -> origins (origin));
 
-allow_tables_to_appear_in_same_query!(
-    origin_channels,
-    origin_channel_packages,
-    origin_packages,
-    origins
-);
+allow_tables_to_appear_in_same_query!(origin_channels,
+                                      origin_channel_packages,
+                                      origin_packages,
+                                      origins);

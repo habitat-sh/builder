@@ -14,19 +14,19 @@
 
 use actix_web::HttpRequest;
 
-use crate::bldr_core::access_token::BUILDER_ACCOUNT_ID;
-use crate::bldr_core::privilege::*;
-use crate::db::models::origin::*;
-use crate::db::models::package::Package;
-use crate::protocol::originsrv;
+use crate::{bldr_core::{access_token::BUILDER_ACCOUNT_ID,
+                        privilege::*},
+            db::models::{origin::*,
+                         package::Package},
+            protocol::originsrv};
 
-use crate::server::error::{Error, Result};
-use crate::server::AppState;
+use crate::server::{error::{Error,
+                            Result},
+                    AppState};
 
-pub fn authorize_session(
-    req: &HttpRequest<AppState>,
-    origin_opt: Option<&str>,
-) -> Result<originsrv::Session> {
+pub fn authorize_session(req: &HttpRequest<AppState>,
+                         origin_opt: Option<&str>)
+                         -> Result<originsrv::Session> {
     let session = {
         let extensions = req.extensions();
         match extensions.get::<originsrv::Session>() {
@@ -46,22 +46,20 @@ pub fn authorize_session(
 
         match memcache.get_origin_member(origin, session.get_id()) {
             Some(val) => {
-                trace!(
-                    "Origin membership {} {} Cache Hit!",
-                    origin,
-                    session.get_id()
-                );
+                trace!("Origin membership {} {} Cache Hit!",
+                       origin,
+                       session.get_id());
                 if val {
                     return Ok(session);
                 } else {
                     return Err(Error::Authorization);
                 }
             }
-            None => trace!(
-                "Origin membership {} {} Cache Miss!",
-                origin,
-                session.get_id()
-            ),
+            None => {
+                trace!("Origin membership {} {} Cache Miss!",
+                       origin,
+                       session.get_id())
+            }
         }
 
         match check_origin_member(req, origin, session.get_id()) {
@@ -79,11 +77,10 @@ pub fn authorize_session(
     Ok(session)
 }
 
-pub fn check_origin_owner(
-    req: &HttpRequest<AppState>,
-    account_id: u64,
-    origin: &str,
-) -> Result<bool> {
+pub fn check_origin_owner(req: &HttpRequest<AppState>,
+                          account_id: u64,
+                          origin: &str)
+                          -> Result<bool> {
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     match Origin::get(origin, &*conn).map_err(Error::DieselError) {
@@ -92,11 +89,10 @@ pub fn check_origin_owner(
     }
 }
 
-pub fn check_origin_member(
-    req: &HttpRequest<AppState>,
-    origin: &str,
-    account_id: u64,
-) -> Result<bool> {
+pub fn check_origin_member(req: &HttpRequest<AppState>,
+                           origin: &str,
+                           account_id: u64)
+                           -> Result<bool> {
     if account_id == BUILDER_ACCOUNT_ID {
         Ok(true)
     } else {

@@ -25,8 +25,11 @@ use std::process;
 use habitat_builder_worker as worker;
 use habitat_core as hab_core;
 
-use crate::hab_core::config::ConfigFile;
-use crate::worker::{server, Config, Error, Result};
+use crate::{hab_core::config::ConfigFile,
+            worker::{server,
+                     Config,
+                     Error,
+                     Result}};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-worker/config/config.toml";
@@ -76,6 +79,4 @@ fn exit_with(err: &Error, code: i32) {
 }
 
 /// Starts the builder-worker.
-fn start(config: Config) -> Result<()> {
-    server::run(config)
-}
+fn start(config: Config) -> Result<()> { server::run(config) }

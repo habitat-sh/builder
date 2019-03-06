@@ -16,31 +16,37 @@
 
 embed_migrations!("src/migrations");
 
-use std::io;
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{io,
+          str::FromStr,
+          sync::Arc};
 
-use chrono::{DateTime, Utc};
-use diesel::result::Error as Dre;
-use diesel::Connection;
+use chrono::{DateTime,
+             Utc};
+use diesel::{result::Error as Dre,
+             Connection};
 use postgres;
-use protobuf;
-use protobuf::{ProtobufEnum, RepeatedField};
+use protobuf::{self,
+               ProtobufEnum,
+               RepeatedField};
 
-use crate::db::config::DataStoreCfg;
-use crate::db::migration::setup_ids;
-use crate::db::pool::Pool;
-use crate::db::{models::package::PackageVisibility, DbPool};
+use crate::db::{config::DataStoreCfg,
+                migration::setup_ids,
+                models::package::PackageVisibility,
+                pool::Pool,
+                DbPool};
 
-use crate::protocol::net::{ErrCode, NetError};
-use crate::protocol::{jobsrv, originsrv};
+use crate::protocol::{jobsrv,
+                      net::{ErrCode,
+                            NetError},
+                      originsrv};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 /// DataStore inherints being Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Clone)]
 pub struct DataStore {
-    pool: Pool,
+    pool:        Pool,
     diesel_pool: DbPool,
 }
 
@@ -67,10 +73,10 @@ impl DataStore {
     pub fn setup(&self) -> Result<()> {
         let conn = self.diesel_pool.get_conn()?;
         let _ = conn.transaction::<_, Dre, _>(|| {
-            setup_ids(&*conn).unwrap();
-            embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
-            Ok(())
-        });
+                        setup_ids(&*conn).unwrap();
+                        embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
+                        Ok(())
+                    });
         Ok(())
     }
 
@@ -100,22 +106,18 @@ impl DataStore {
                 }
             };
 
-            let rows = conn
-                .query(
-                    "SELECT * FROM insert_job_v3($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-                    &[
-                        &(job.get_owner_id() as i64),
-                        &(project.get_id() as i64),
-                        &project.get_name(),
-                        &(project.get_owner_id() as i64),
-                        &project.get_plan_path(),
-                        &project.get_vcs_type(),
-                        &vec![Some(project.get_vcs_data().to_string()), install_id],
-                        &channel,
-                        &job.get_target(),
-                    ],
-                )
-                .map_err(Error::JobCreate)?;
+            let rows = conn.query("SELECT * FROM insert_job_v3($1, $2, $3, $4, $5, $6, $7, $8, \
+                                   $9)",
+                                  &[&(job.get_owner_id() as i64),
+                                    &(project.get_id() as i64),
+                                    &project.get_name(),
+                                    &(project.get_owner_id() as i64),
+                                    &project.get_plan_path(),
+                                    &project.get_vcs_type(),
+                                    &vec![Some(project.get_vcs_data().to_string()), install_id],
+                                    &channel,
+                                    &job.get_target()])
+                           .map_err(Error::JobCreate)?;
             let job = row_to_job(&rows.get(0))?;
             Ok(job)
         } else {
@@ -132,12 +134,9 @@ impl DataStore {
     /// * If the job cannot be selected from the database
     pub fn get_job(&self, get_job: &jobsrv::JobGet) -> Result<Option<jobsrv::Job>> {
         let conn = self.pool.get()?;
-        let rows = &conn
-            .query(
-                "SELECT * FROM get_job_v1($1)",
-                &[&(get_job.get_id() as i64)],
-            )
-            .map_err(Error::JobGet)?;
+        let rows = &conn.query("SELECT * FROM get_job_v1($1)",
+                               &[&(get_job.get_id() as i64)])
+                        .map_err(Error::JobGet)?;
 
         if !rows.is_empty() {
             let row = rows.get(0);
@@ -158,12 +157,9 @@ impl DataStore {
     /// * If the row returned cannot be translated into a Job
     pub fn next_pending_job(&self, worker: &str, target: &str) -> Result<Option<jobsrv::Job>> {
         let conn = self.pool.get()?;
-        let rows = &conn
-            .query(
-                "SELECT * FROM next_pending_job_v2($1, $2)",
-                &[&worker, &target],
-            )
-            .map_err(Error::JobPending)?;
+        let rows = &conn.query("SELECT * FROM next_pending_job_v2($1, $2)",
+                               &[&worker, &target])
+                        .map_err(Error::JobPending)?;
 
         if !rows.is_empty() {
             let row = rows.get(0);
@@ -184,9 +180,8 @@ impl DataStore {
     pub fn get_cancel_pending_jobs(&self) -> Result<Vec<jobsrv::Job>> {
         let mut jobs = Vec::new();
         let conn = self.pool.get()?;
-        let rows = &conn
-            .query("SELECT * FROM get_cancel_pending_jobs_v1()", &[])
-            .map_err(Error::JobPending)?;
+        let rows = &conn.query("SELECT * FROM get_cancel_pending_jobs_v1()", &[])
+                        .map_err(Error::JobPending)?;
         for row in rows {
             let job = row_to_job(&row)?;
             jobs.push(job);
@@ -204,9 +199,8 @@ impl DataStore {
     pub fn get_dispatched_jobs(&self) -> Result<Vec<jobsrv::Job>> {
         let mut jobs = Vec::new();
         let conn = self.pool.get()?;
-        let rows = &conn
-            .query("SELECT * FROM get_dispatched_jobs_v1()", &[])
-            .map_err(Error::JobGet)?;
+        let rows = &conn.query("SELECT * FROM get_dispatched_jobs_v1()", &[])
+                        .map_err(Error::JobGet)?;
         for row in rows {
             let job = row_to_job(&row)?;
             jobs.push(job);
@@ -221,9 +215,8 @@ impl DataStore {
     /// * If a connection cannot be gotten from the pool
     pub fn count_jobs(&self, job_state: jobsrv::JobState) -> Result<i64> {
         let conn = self.pool.get()?;
-        let rows = &conn
-            .query("SELECT * FROM count_jobs_v1($1)", &[&job_state.to_string()])
-            .map_err(Error::JobGet)?;
+        let rows = &conn.query("SELECT * FROM count_jobs_v1($1)", &[&job_state.to_string()])
+                        .map_err(Error::JobGet)?;
         assert!(rows.len() == 1);
         let count: i64 = rows.get(0).get("count_jobs_v1");
         Ok(count)
@@ -253,11 +246,9 @@ impl DataStore {
         };
 
         let build_finished_at = if job.has_build_finished_at() {
-            Some(
-                job.get_build_finished_at()
+            Some(job.get_build_finished_at()
                     .parse::<DateTime<Utc>>()
-                    .unwrap(),
-            )
+                    .unwrap())
         } else {
             None
         };
@@ -269,27 +260,20 @@ impl DataStore {
         };
 
         let (err_code, err_msg) = if job.has_error() {
-            (
-                Some(job.get_error().get_code() as i32),
-                Some(job.get_error().get_msg()),
-            )
+            (Some(job.get_error().get_code() as i32), Some(job.get_error().get_msg()))
         } else {
             (None, None)
         };
 
-        conn.execute(
-            "SELECT update_job_v3($1, $2, $3, $4, $5, $6, $7)",
-            &[
-                &job_id,
-                &job_state,
-                &build_started_at,
-                &build_finished_at,
-                &ident,
-                &err_code,
-                &err_msg,
-            ],
-        )
-        .map_err(Error::JobSetState)?;
+        conn.execute("SELECT update_job_v3($1, $2, $3, $4, $5, $6, $7)",
+                     &[&job_id,
+                       &job_state,
+                       &build_started_at,
+                       &build_finished_at,
+                       &ident,
+                       &err_code,
+                       &err_msg])
+            .map_err(Error::JobSetState)?;
 
         Ok(())
     }
@@ -313,15 +297,11 @@ impl DataStore {
     pub fn upsert_busy_worker(&self, bw: &jobsrv::BusyWorker) -> Result<()> {
         let conn = self.pool.get()?;
 
-        conn.execute(
-            "SELECT FROM upsert_busy_worker_v1($1, $2, $3)",
-            &[
-                &bw.get_ident(),
-                &(bw.get_job_id() as i64),
-                &bw.get_quarantined(),
-            ],
-        )
-        .map_err(Error::BusyWorkerUpsert)?;
+        conn.execute("SELECT FROM upsert_busy_worker_v1($1, $2, $3)",
+                     &[&bw.get_ident(),
+                       &(bw.get_job_id() as i64),
+                       &bw.get_quarantined()])
+            .map_err(Error::BusyWorkerUpsert)?;
 
         Ok(())
     }
@@ -335,11 +315,9 @@ impl DataStore {
     pub fn delete_busy_worker(&self, bw: &jobsrv::BusyWorker) -> Result<()> {
         let conn = self.pool.get()?;
 
-        conn.execute(
-            "SELECT FROM delete_busy_worker_v1($1, $2)",
-            &[&bw.get_ident(), &(bw.get_job_id() as i64)],
-        )
-        .map_err(Error::BusyWorkerDelete)?;
+        conn.execute("SELECT FROM delete_busy_worker_v1($1, $2)",
+                     &[&bw.get_ident(), &(bw.get_job_id() as i64)])
+            .map_err(Error::BusyWorkerDelete)?;
 
         Ok(())
     }
@@ -353,9 +331,8 @@ impl DataStore {
     pub fn get_busy_workers(&self) -> Result<Vec<jobsrv::BusyWorker>> {
         let conn = self.pool.get()?;
 
-        let rows = conn
-            .query("SELECT * FROM get_busy_workers_v1()", &[])
-            .map_err(Error::BusyWorkersGet)?;
+        let rows = conn.query("SELECT * FROM get_busy_workers_v1()", &[])
+                       .map_err(Error::BusyWorkersGet)?;
 
         let mut workers = Vec::new();
         for row in rows.iter() {
@@ -371,12 +348,9 @@ impl DataStore {
 
         let conn = self.pool.get()?;
 
-        let rows = &conn
-            .query(
-                "SELECT * FROM get_all_origin_packages_for_ident_v1($1)",
-                &[&String::from("")],
-            )
-            .map_err(Error::JobGraphPackagesGet)?;
+        let rows = &conn.query("SELECT * FROM get_all_origin_packages_for_ident_v1($1)",
+                               &[&String::from("")])
+                        .map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
             warn!("No packages found");
@@ -393,17 +367,12 @@ impl DataStore {
 
     pub fn get_job_graph_package(&self, ident: &str) -> Result<originsrv::OriginPackage> {
         let conn = self.pool.get()?;
-        let visibilities = vec![
-            PackageVisibility::Public,
-            PackageVisibility::Private,
-            PackageVisibility::Hidden,
-        ];
-        let rows = &conn
-            .query(
-                "SELECT * FROM get_origin_package_v5($1, $2)",
-                &[&ident, &visibilities],
-            )
-            .map_err(Error::JobGraphPackagesGet)?;
+        let visibilities = vec![PackageVisibility::Public,
+                                PackageVisibility::Private,
+                                PackageVisibility::Hidden,];
+        let rows = &conn.query("SELECT * FROM get_origin_package_v5($1, $2)",
+                               &[&ident, &visibilities])
+                        .map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
             error!("No package found");
@@ -418,9 +387,8 @@ impl DataStore {
     pub fn is_job_group_active(&self, project_name: &str) -> Result<bool> {
         let conn = self.pool.get()?;
 
-        let rows = &conn
-            .query("SELECT * FROM check_active_group_v1($1)", &[&project_name])
-            .map_err(Error::JobGroupGet)?;
+        let rows = &conn.query("SELECT * FROM check_active_group_v1($1)", &[&project_name])
+                        .map_err(Error::JobGroupGet)?;
 
         // If we get any rows back, we found one or more active groups
         Ok(!rows.is_empty())
@@ -429,9 +397,8 @@ impl DataStore {
     pub fn get_queued_job_group(&self, project_name: &str) -> Result<Option<jobsrv::JobGroup>> {
         let conn = self.pool.get()?;
 
-        let rows = &conn
-            .query("SELECT * FROM get_queued_group_v1($1)", &[&project_name])
-            .map_err(Error::JobGroupGet)?;
+        let rows = &conn.query("SELECT * FROM get_queued_group_v1($1)", &[&project_name])
+                        .map_err(Error::JobGroupGet)?;
 
         if rows.is_empty() {
             debug!("JobGroup {} not queued (not found)", project_name);
@@ -443,12 +410,9 @@ impl DataStore {
         let mut group = self.row_to_job_group(&rows.get(0))?;
         let group_id = group.get_id();
 
-        let project_rows = &conn
-            .query(
-                "SELECT * FROM get_group_projects_for_group_v1($1)",
-                &[&(group_id as i64)],
-            )
-            .map_err(Error::JobGroupGet)?;
+        let project_rows = &conn.query("SELECT * FROM get_group_projects_for_group_v1($1)",
+                                       &[&(group_id as i64)])
+                                .map_err(Error::JobGroupGet)?;
 
         assert!(!project_rows.is_empty()); // should at least have one
         let projects = self.rows_to_job_group_projects(&project_rows)?;
@@ -462,9 +426,8 @@ impl DataStore {
 
         let conn = self.pool.get()?;
 
-        let rows = &conn
-            .query("SELECT * FROM get_queued_groups_v1()", &[])
-            .map_err(Error::JobGroupGet)?;
+        let rows = &conn.query("SELECT * FROM get_queued_groups_v1()", &[])
+                        .map_err(Error::JobGroupGet)?;
 
         for row in rows {
             let group = self.row_to_job_group(&row)?;
@@ -473,11 +436,10 @@ impl DataStore {
         Ok(groups)
     }
 
-    pub fn create_job_group(
-        &self,
-        msg: &jobsrv::JobGroupSpec,
-        project_tuples: Vec<(String, String)>,
-    ) -> Result<jobsrv::JobGroup> {
+    pub fn create_job_group(&self,
+                            msg: &jobsrv::JobGroupSpec,
+                            project_tuples: Vec<(String, String)>)
+                            -> Result<jobsrv::JobGroup> {
         let conn = self.pool.get()?;
 
         assert!(!project_tuples.is_empty());
@@ -487,17 +449,12 @@ impl DataStore {
         let (project_names, project_idents): (Vec<String>, Vec<String>) =
             project_tuples.iter().cloned().unzip();
 
-        let rows = conn
-            .query(
-                "SELECT * FROM insert_group_v3($1, $2, $3, $4)",
-                &[
-                    &root_project,
-                    &project_names,
-                    &project_idents,
-                    &msg.get_target(),
-                ],
-            )
-            .map_err(Error::JobGroupCreate)?;
+        let rows = conn.query("SELECT * FROM insert_group_v3($1, $2, $3, $4)",
+                              &[&root_project,
+                                &project_names,
+                                &project_idents,
+                                &msg.get_target()])
+                       .map_err(Error::JobGroupCreate)?;
 
         let mut group = self.row_to_job_group(&rows.get(0))?;
         let mut projects = RepeatedField::new();
@@ -528,35 +485,27 @@ impl DataStore {
 
     pub fn create_audit_entry(&self, msg: &jobsrv::JobGroupAudit) -> Result<()> {
         let conn = self.pool.get()?;
-        conn.query(
-            "SELECT add_audit_jobs_entry_v1($1, $2, $3, $4, $5)",
-            &[
-                &(msg.get_group_id() as i64),
-                &(msg.get_operation() as i16),
-                &(msg.get_trigger() as i16),
-                &(msg.get_requester_id() as i64),
-                &msg.get_requester_name().to_string(),
-            ],
-        )
-        .map_err(Error::JobGroupAudit)?;
+        conn.query("SELECT add_audit_jobs_entry_v1($1, $2, $3, $4, $5)",
+                   &[&(msg.get_group_id() as i64),
+                     &(msg.get_operation() as i16),
+                     &(msg.get_trigger() as i16),
+                     &(msg.get_requester_id() as i64),
+                     &msg.get_requester_name().to_string()])
+            .map_err(Error::JobGroupAudit)?;
 
         Ok(())
     }
 
-    pub fn get_job_group_origin(
-        &self,
-        msg: &jobsrv::JobGroupOriginGet,
-    ) -> Result<jobsrv::JobGroupOriginResponse> {
+    pub fn get_job_group_origin(&self,
+                                msg: &jobsrv::JobGroupOriginGet)
+                                -> Result<jobsrv::JobGroupOriginResponse> {
         let origin = msg.get_origin();
         let limit = msg.get_limit();
 
         let conn = self.pool.get()?;
-        let rows = &conn
-            .query(
-                "SELECT * FROM get_job_groups_for_origin_v2($1, $2)",
-                &[&origin, &(limit as i32)],
-            )
-            .map_err(Error::JobGroupOriginGet)?;
+        let rows = &conn.query("SELECT * FROM get_job_groups_for_origin_v2($1, $2)",
+                               &[&origin, &(limit as i32)])
+                        .map_err(Error::JobGroupOriginGet)?;
 
         let mut response = jobsrv::JobGroupOriginResponse::new();
         let mut job_groups = RepeatedField::new();
@@ -575,9 +524,8 @@ impl DataStore {
         let include_projects = msg.get_include_projects();
 
         let conn = self.pool.get()?;
-        let rows = &conn
-            .query("SELECT * FROM get_group_v1($1)", &[&(group_id as i64)])
-            .map_err(Error::JobGroupGet)?;
+        let rows = &conn.query("SELECT * FROM get_group_v1($1)", &[&(group_id as i64)])
+                        .map_err(Error::JobGroupGet)?;
 
         if rows.is_empty() {
             warn!("JobGroup id {} not found", group_id);
@@ -589,12 +537,9 @@ impl DataStore {
         let mut group = self.row_to_job_group(&rows.get(0))?;
 
         if include_projects {
-            let project_rows = &conn
-                .query(
-                    "SELECT * FROM get_group_projects_for_group_v1($1)",
-                    &[&(group_id as i64)],
-                )
-                .map_err(Error::JobGroupGet)?;
+            let project_rows = &conn.query("SELECT * FROM get_group_projects_for_group_v1($1)",
+                                           &[&(group_id as i64)])
+                                    .map_err(Error::JobGroupGet)?;
 
             assert!(!project_rows.is_empty()); // should at least have one
             let projects = self.rows_to_job_group_projects(&project_rows)?;
@@ -630,9 +575,8 @@ impl DataStore {
         Ok(package)
     }
 
-    fn dep_to_idents(
-        column: Vec<String>,
-    ) -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
+    fn dep_to_idents(column: Vec<String>)
+                     -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
         let mut idents = protobuf::RepeatedField::new();
         for ident in column {
             idents.push(originsrv::OriginPackageIdent::from_str(&ident).unwrap());
@@ -661,10 +605,9 @@ impl DataStore {
         Ok(group)
     }
 
-    fn row_to_job_group_project(
-        &self,
-        row: &postgres::rows::Row,
-    ) -> Result<jobsrv::JobGroupProject> {
+    fn row_to_job_group_project(&self,
+                                row: &postgres::rows::Row)
+                                -> Result<jobsrv::JobGroupProject> {
         let mut project = jobsrv::JobGroupProject::new();
 
         let name: String = row.get("project_name");
@@ -683,10 +626,9 @@ impl DataStore {
         Ok(project)
     }
 
-    fn rows_to_job_group_projects(
-        &self,
-        rows: &postgres::rows::Rows,
-    ) -> Result<RepeatedField<jobsrv::JobGroupProject>> {
+    fn rows_to_job_group_projects(&self,
+                                  rows: &postgres::rows::Rows)
+                                  -> Result<RepeatedField<jobsrv::JobGroupProject>> {
         let mut projects = RepeatedField::new();
 
         for row in rows {
@@ -697,45 +639,36 @@ impl DataStore {
         Ok(projects)
     }
 
-    pub fn set_job_group_state(
-        &self,
-        group_id: u64,
-        group_state: jobsrv::JobGroupState,
-    ) -> Result<()> {
+    pub fn set_job_group_state(&self,
+                               group_id: u64,
+                               group_state: jobsrv::JobGroupState)
+                               -> Result<()> {
         let conn = self.pool.get()?;
         let state = group_state.to_string();
-        conn.execute(
-            "SELECT set_group_state_v1($1, $2)",
-            &[&(group_id as i64), &state],
-        )
-        .map_err(Error::JobGroupSetState)?;
+        conn.execute("SELECT set_group_state_v1($1, $2)",
+                     &[&(group_id as i64), &state])
+            .map_err(Error::JobGroupSetState)?;
         Ok(())
     }
 
-    pub fn set_job_group_project_state(
-        &self,
-        group_id: u64,
-        project_name: &str,
-        project_state: jobsrv::JobGroupProjectState,
-    ) -> Result<()> {
+    pub fn set_job_group_project_state(&self,
+                                       group_id: u64,
+                                       project_name: &str,
+                                       project_state: jobsrv::JobGroupProjectState)
+                                       -> Result<()> {
         let conn = self.pool.get()?;
         let state = project_state.to_string();
-        conn.execute(
-            "SELECT set_group_project_name_state_v1($1, $2, $3)",
-            &[&(group_id as i64), &project_name, &state],
-        )
-        .map_err(Error::JobGroupProjectSetState)?;
+        conn.execute("SELECT set_group_project_name_state_v1($1, $2, $3)",
+                     &[&(group_id as i64), &project_name, &state])
+            .map_err(Error::JobGroupProjectSetState)?;
         Ok(())
     }
 
     pub fn set_job_group_job_state(&self, job: &jobsrv::Job) -> Result<()> {
         let conn = self.pool.get()?;
-        let rows = &conn
-            .query(
-                "SELECT * FROM find_group_project_v1($1, $2)",
-                &[&(job.get_owner_id() as i64), &job.get_project().get_name()],
-            )
-            .map_err(Error::JobGroupProjectSetState)?;
+        let rows = &conn.query("SELECT * FROM find_group_project_v1($1, $2)",
+                               &[&(job.get_owner_id() as i64), &job.get_project().get_name()])
+                        .map_err(Error::JobGroupProjectSetState)?;
 
         // No rows means this job might not be one we care about
         if rows.is_empty() {
@@ -761,17 +694,13 @@ impl DataStore {
         if job.get_state() == jobsrv::JobState::Complete {
             let ident = job.get_package_ident().to_string();
 
-            conn.execute(
-                "SELECT set_group_project_state_ident_v1($1, $2, $3, $4)",
-                &[&pid, &(job.get_id() as i64), &state, &ident],
-            )
-            .map_err(Error::JobGroupProjectSetState)?;
+            conn.execute("SELECT set_group_project_state_ident_v1($1, $2, $3, $4)",
+                         &[&pid, &(job.get_id() as i64), &state, &ident])
+                .map_err(Error::JobGroupProjectSetState)?;
         } else {
-            conn.execute(
-                "SELECT set_group_project_state_v1($1, $2, $3)",
-                &[&pid, &(job.get_id() as i64), &state],
-            )
-            .map_err(Error::JobGroupProjectSetState)?;
+            conn.execute("SELECT set_group_project_state_v1($1, $2, $3)",
+                         &[&pid, &(job.get_id() as i64), &state])
+                .map_err(Error::JobGroupProjectSetState)?;
         };
 
         Ok(())
@@ -781,19 +710,15 @@ impl DataStore {
         let mut groups = Vec::new();
 
         let conn = self.pool.get()?;
-        let group_rows = &conn
-            .query("SELECT * FROM pending_groups_v1($1)", &[&count])
-            .map_err(Error::JobGroupPending)?;
+        let group_rows = &conn.query("SELECT * FROM pending_groups_v1($1)", &[&count])
+                              .map_err(Error::JobGroupPending)?;
 
         for group_row in group_rows {
             let mut group = self.row_to_job_group(&group_row)?;
 
-            let project_rows = &conn
-                .query(
-                    "SELECT * FROM get_group_projects_for_group_v1($1)",
-                    &[&(group.get_id() as i64)],
-                )
-                .map_err(Error::JobGroupPending)?;
+            let project_rows = &conn.query("SELECT * FROM get_group_projects_for_group_v1($1)",
+                                           &[&(group.get_id() as i64)])
+                                    .map_err(Error::JobGroupPending)?;
             let projects = self.rows_to_job_group_projects(&project_rows)?;
 
             group.set_projects(projects);
@@ -807,9 +732,8 @@ impl DataStore {
         let mut jobs = Vec::new();
         let conn = self.pool.get()?;
 
-        let rows = &conn
-            .query("SELECT * FROM sync_jobs_v2()", &[])
-            .map_err(Error::SyncJobs)?;
+        let rows = &conn.query("SELECT * FROM sync_jobs_v2()", &[])
+                        .map_err(Error::SyncJobs)?;
 
         for row in rows.iter() {
             match row_to_job(&row) {
@@ -834,7 +758,6 @@ impl DataStore {
 }
 
 /// Translate a database `busy_workers` row to a `jobsrv::BusyWorker`.
-///
 fn row_to_busy_worker(row: &postgres::rows::Row) -> Result<jobsrv::BusyWorker> {
     let mut bw = jobsrv::BusyWorker::new();
     let ident: String = row.get("ident");

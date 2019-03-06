@@ -12,23 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-use std::str;
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
+use std::{fs::{self,
+               OpenOptions},
+          io::Write,
+          str,
+          sync::mpsc,
+          thread::{self,
+                   JoinHandle}};
 
 use protobuf::parse_from_bytes;
 use zmq;
 
-use crate::bldr_core::socket::DEFAULT_CONTEXT;
-use crate::protocol::jobsrv::{JobLogChunk, JobLogComplete};
-use crate::server::log_archiver::{self, LogArchiver};
-use crate::server::log_directory::LogDirectory;
+use crate::{bldr_core::socket::DEFAULT_CONTEXT,
+            protocol::jobsrv::{JobLogChunk,
+                               JobLogComplete},
+            server::{log_archiver::{self,
+                                    LogArchiver},
+                     log_directory::LogDirectory}};
 
-use crate::config::Config;
-use crate::data_store::DataStore;
-use crate::error::Result;
+use crate::{config::Config,
+            data_store::DataStore,
+            error::Result};
 
 /// ZMQ protocol frame to indicate a log line is being sent
 const LOG_LINE: &str = "L";
@@ -38,41 +42,37 @@ const LOG_COMPLETE: &str = "C";
 /// Listens for log messages from builders and consolidates output for
 /// both streaming to clients and long-term storage.
 pub struct LogIngester {
-    intake_sock: zmq::Socket,
-    msg: zmq::Message,
-    log_dir: LogDirectory,
+    intake_sock:        zmq::Socket,
+    msg:                zmq::Message,
+    log_dir:            LogDirectory,
     log_ingestion_addr: String,
-    data_store: DataStore,
-    archiver: Box<LogArchiver>,
+    data_store:         DataStore,
+    archiver:           Box<LogArchiver>,
 }
 
 impl LogIngester {
     pub fn new(config: &Config, log_dir: LogDirectory, data_store: DataStore) -> Self {
         let intake_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER).unwrap();
         intake_sock.set_router_mandatory(true).unwrap();
-        LogIngester {
-            intake_sock,
-            msg: zmq::Message::new().unwrap(),
-            log_dir,
-            log_ingestion_addr: config.net.log_ingestion_addr(),
-            data_store,
-            archiver: log_archiver::from_config(&config.archive).unwrap(),
-        }
+        LogIngester { intake_sock,
+                      msg: zmq::Message::new().unwrap(),
+                      log_dir,
+                      log_ingestion_addr: config.net.log_ingestion_addr(),
+                      data_store,
+                      archiver: log_archiver::from_config(&config.archive).unwrap() }
     }
 
-    pub fn start(
-        cfg: &Config,
-        log_dir: LogDirectory,
-        data_store: DataStore,
-    ) -> Result<JoinHandle<()>> {
+    pub fn start(cfg: &Config,
+                 log_dir: LogDirectory,
+                 data_store: DataStore)
+                 -> Result<JoinHandle<()>> {
         let mut ingester = Self::new(cfg, log_dir, data_store);
         let (tx, rx) = mpsc::sync_channel(1);
-        let handle = thread::Builder::new()
-            .name("log-ingester".to_string())
-            .spawn(move || {
-                ingester.run(&tx).unwrap();
-            })
-            .unwrap();
+        let handle = thread::Builder::new().name("log-ingester".to_string())
+                                           .spawn(move || {
+                                               ingester.run(&tx).unwrap();
+                                           })
+                                           .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("log-ingester thread startup error, err={}", e),
@@ -101,10 +101,9 @@ impl LogIngester {
 
                             // TODO: Consider caching file handles for
                             // currently-processing logs.
-                            let open = OpenOptions::new()
-                                .create(true)
-                                .append(true)
-                                .open(log_file.as_path());
+                            let open = OpenOptions::new().create(true)
+                                                         .append(true)
+                                                         .open(log_file.as_path());
 
                             match open {
                                 Ok(mut file) => {

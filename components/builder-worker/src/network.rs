@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::IpAddr;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::{net::IpAddr,
+          path::{Path,
+                 PathBuf},
+          process::Command};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 #[derive(Debug)]
 pub struct NetworkNamespace(PathBuf);
 
 impl NetworkNamespace {
-    pub fn new(path: PathBuf) -> Self {
-        NetworkNamespace(path)
-    }
+    pub fn new(path: PathBuf) -> Self { NetworkNamespace(path) }
 
     pub fn create(&self, interface: &str, gateway: &IpAddr, user: &str) -> Result<()> {
         let mut cmd = Command::new("airlock");
@@ -41,16 +41,12 @@ impl NetworkNamespace {
         debug!("building airlock networking setup command, cmd={:?}", &cmd);
 
         debug!("spawning airlock networking setup command");
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
-        let exit_status = child
-            .wait()
-            .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
-        info!(
-            "completed airlock networking setup command, status={:?}",
-            exit_status
-        );
+        let mut child = cmd.spawn()
+                           .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
+        let exit_status = child.wait()
+                               .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
+        info!("completed airlock networking setup command, status={:?}",
+              exit_status);
 
         if exit_status.success() {
             Ok(())
@@ -65,22 +61,16 @@ impl NetworkNamespace {
         cmd.arg("destroy");
         cmd.arg("--ns-dir");
         cmd.arg(&self.0);
-        debug!(
-            "building airlock networking destroy command, cmd={:?}",
-            &cmd
-        );
+        debug!("building airlock networking destroy command, cmd={:?}",
+               &cmd);
 
         debug!("spawning airlock networking destroy command");
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
-        let exit_status = child
-            .wait()
-            .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
-        info!(
-            "completed airlock networking destroy command, status={:?}",
-            exit_status
-        );
+        let mut child = cmd.spawn()
+                           .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
+        let exit_status = child.wait()
+                               .map_err(|e| Error::AirlockNetworking(self.0.to_path_buf(), e))?;
+        info!("completed airlock networking destroy command, status={:?}",
+              exit_status);
 
         if exit_status.success() {
             Ok(())
@@ -89,19 +79,11 @@ impl NetworkNamespace {
         }
     }
 
-    pub fn exists(&self) -> bool {
-        self.0.exists() && self.0.is_dir()
-    }
+    pub fn exists(&self) -> bool { self.0.exists() && self.0.is_dir() }
 
-    pub fn ns_dir(&self) -> &Path {
-        self.0.as_ref()
-    }
+    pub fn ns_dir(&self) -> &Path { self.0.as_ref() }
 
-    pub fn userns(&self) -> PathBuf {
-        self.0.join("userns")
-    }
+    pub fn userns(&self) -> PathBuf { self.0.join("userns") }
 
-    pub fn netns(&self) -> PathBuf {
-        self.0.join("netns")
-    }
+    pub fn netns(&self) -> PathBuf { self.0.join("netns") }
 }

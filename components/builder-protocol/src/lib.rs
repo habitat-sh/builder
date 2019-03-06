@@ -26,5 +26,6 @@ pub mod message;
 pub mod net;
 pub mod originsrv;
 
-pub use crate::error::{ProtocolError, ProtocolResult};
-pub use crate::message::Protocol;
+pub use crate::{error::{ProtocolError,
+                        ProtocolResult},
+                message::Protocol};

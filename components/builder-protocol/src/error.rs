@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error;
-use std::fmt;
-use std::result;
-use std::string::FromUtf8Error;
+use std::{error,
+          fmt,
+          result,
+          string::FromUtf8Error};
 
 use protobuf;
 

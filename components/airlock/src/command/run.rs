@@ -12,26 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ffi::OsStr;
-use std::path::Path;
-use std::process::{self, Command};
+use std::{ffi::OsStr,
+          path::Path,
+          process::{self,
+                    Command}};
 
-use unshare::{self, Namespace};
+use unshare::{self,
+              Namespace};
 
-use crate::fs_root::FsRoot;
-use crate::namespace;
-use crate::user;
-use crate::util;
+use crate::{fs_root::FsRoot,
+            namespace,
+            user,
+            util};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
-pub fn run(
-    fs_root: FsRoot,
-    cmd: &OsStr,
-    args: &[&OsStr],
-    namespaces: Option<(&Path, &Path)>,
-    mount_artifacts: bool,
-) -> Result<()> {
+pub fn run(fs_root: FsRoot,
+           cmd: &OsStr,
+           args: &[&OsStr],
+           namespaces: Option<(&Path, &Path)>,
+           mount_artifacts: bool)
+           -> Result<()> {
     check_required_packages()?;
     util::check_user_group_membership(&user::my_username()?)?;
     if let Some((userns, netns)) = namespaces {
@@ -65,20 +67,17 @@ fn join_network_namespaces(userns: &Path, netns: &Path) -> Result<()> {
     Ok(())
 }
 
-fn unshare_command(
-    rootfs: &Path,
-    cmd: &OsStr,
-    args: &[&OsStr],
-    new_userns: bool,
-    mount_artifacts: bool,
-) -> Result<unshare::Command> {
+fn unshare_command(rootfs: &Path,
+                   cmd: &OsStr,
+                   args: &[&OsStr],
+                   new_userns: bool,
+                   mount_artifacts: bool)
+                   -> Result<unshare::Command> {
     let program = util::proc_exe()?;
-    let mut namespaces = vec![
-        Namespace::Mount,
-        Namespace::Uts,
-        Namespace::Ipc,
-        Namespace::Pid,
-    ];
+    let mut namespaces = vec![Namespace::Mount,
+                              Namespace::Uts,
+                              Namespace::Ipc,
+                              Namespace::Pid,];
     if new_userns {
         namespaces.push(Namespace::User);
     }
@@ -93,14 +92,10 @@ fn unshare_command(
     command.args(&args);
     command.unshare(namespaces.iter().cloned());
     if new_userns {
-        command.set_id_maps(
-            namespace::uid_maps(&user::my_username()?)?,
-            namespace::gid_maps(&user::my_groupname()?)?,
-        );
-        command.set_id_map_commands(
-            util::find_command("newuidmap")?,
-            util::find_command("newgidmap")?,
-        );
+        command.set_id_maps(namespace::uid_maps(&user::my_username()?)?,
+                            namespace::gid_maps(&user::my_groupname()?)?);
+        command.set_id_map_commands(util::find_command("newuidmap")?,
+                                    util::find_command("newgidmap")?);
     }
     command.uid(0);
     command.gid(0);

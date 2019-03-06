@@ -14,21 +14,21 @@
 
 use std::str::FromStr;
 
-use actix_web::http::header;
-use actix_web::{HttpRequest, Query};
+use actix_web::{http::header,
+                HttpRequest,
+                Query};
 use regex::Regex;
 use serde::Serialize;
 use serde_json;
 
-use crate::hab_core::package::PackageTarget;
-use crate::protocol::jobsrv;
+use crate::{hab_core::package::PackageTarget,
+            protocol::jobsrv};
 
-use crate::db::models::channel::PackageChannelTrigger as PCT;
-use crate::db::models::package::PackageVisibility;
-use crate::server::authorize::authorize_session;
-use crate::server::AppState;
+use crate::{db::models::{channel::PackageChannelTrigger as PCT,
+                         package::PackageVisibility},
+            server::{authorize::authorize_session,
+                     AppState}};
 
-//
 // TO DO - this module should not just be a grab bag of stuff
 //
 
@@ -51,40 +51,31 @@ pub struct Pagination {
 #[derive(Serialize)]
 pub struct PaginatedResults<'a, T: 'a> {
     range_start: isize,
-    range_end: isize,
+    range_end:   isize,
     total_count: isize,
-    data: &'a [T],
+    data:        &'a [T],
 }
 
-pub fn package_results_json<T: Serialize>(
-    packages: &[T],
-    count: isize,
-    start: isize,
-    end: isize,
-) -> String {
-    let results = PaginatedResults {
-        range_start: start,
-        range_end: end,
-        total_count: count,
-        data: packages,
-    };
+pub fn package_results_json<T: Serialize>(packages: &[T],
+                                          count: isize,
+                                          start: isize,
+                                          end: isize)
+                                          -> String {
+    let results = PaginatedResults { range_start: start,
+                                     range_end:   end,
+                                     total_count: count,
+                                     data:        packages, };
 
     serde_json::to_string(&results).unwrap()
 }
 
 pub fn extract_pagination(pagination: &Query<Pagination>) -> (isize, isize) {
-    (
-        pagination.range,
-        pagination.range + PAGINATION_RANGE_MAX - 1,
-    )
+    (pagination.range, pagination.range + PAGINATION_RANGE_MAX - 1)
 }
 
 // Returns the page number we are currently on and the per_page size
 pub fn extract_pagination_in_pages(pagination: &Query<Pagination>) -> (isize, isize) {
-    (
-        pagination.range / PAGINATION_RANGE_MAX + 1,
-        PAGINATION_RANGE_MAX,
-    )
+    (pagination.range / PAGINATION_RANGE_MAX + 1, PAGINATION_RANGE_MAX)
 }
 
 // TODO: Deprecate getting target from User Agent header
@@ -127,11 +118,10 @@ pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
     }
 }
 
-pub fn visibility_for_optional_session(
-    req: &HttpRequest<AppState>,
-    optional_session_id: Option<u64>,
-    origin: &str,
-) -> Vec<PackageVisibility> {
+pub fn visibility_for_optional_session(req: &HttpRequest<AppState>,
+                                       optional_session_id: Option<u64>,
+                                       origin: &str)
+                                       -> Vec<PackageVisibility> {
     let mut v = Vec::new();
     v.push(PackageVisibility::Public);
 
@@ -144,11 +134,9 @@ pub fn visibility_for_optional_session(
 }
 
 pub fn all_visibilities() -> Vec<PackageVisibility> {
-    vec![
-        PackageVisibility::Public,
-        PackageVisibility::Private,
-        PackageVisibility::Hidden,
-    ]
+    vec![PackageVisibility::Public,
+         PackageVisibility::Private,
+         PackageVisibility::Hidden,]
 }
 
 pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrigger {
@@ -163,7 +151,8 @@ pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrig
 
     if let Some(ref referer) = req.headers().get(header::REFERER) {
         if let Ok(s) = referer.to_str() {
-            // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
+            // this needs to be as generic as possible otherwise local dev envs and on-prem depots
+            // won't work
             if s.contains("http") {
                 return jobsrv::JobGroupTrigger::BuilderUI;
             }
@@ -186,7 +175,8 @@ pub fn trigger_from_request_model(req: &HttpRequest<AppState>) -> PCT {
 
     if let Some(ref referer) = req.headers().get(header::REFERER) {
         if let Ok(s) = referer.to_str() {
-            // this needs to be as generic as possible otherwise local dev envs and on-prem depots won't work
+            // this needs to be as generic as possible otherwise local dev envs and on-prem depots
+            // won't work
             if s.contains("http") {
                 return PCT::BuilderUi;
             }

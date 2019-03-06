@@ -14,14 +14,19 @@
 
 use std::io::Read;
 
-use reqwest::header::{qitem, Accept, ContentType, Headers};
-use reqwest::mime;
-use reqwest::{Client, StatusCode};
+use reqwest::{header::{qitem,
+                       Accept,
+                       ContentType,
+                       Headers},
+              mime,
+              Client,
+              StatusCode};
 
 use protobuf;
 use serde_json;
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 // RPC message, transport as JSON over HTTP
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -33,13 +38,10 @@ pub struct RpcMessage {
 }
 
 impl RpcMessage {
-    pub fn new(id: String, body: Vec<u8>) -> Self {
-        RpcMessage { id, body }
-    }
+    pub fn new(id: String, body: Vec<u8>) -> Self { RpcMessage { id, body } }
 
     pub fn make<T>(msg: &T) -> Result<RpcMessage>
-    where
-        T: protobuf::Message,
+        where T: protobuf::Message
     {
         let id = msg.descriptor().name().to_owned();
         let body = msg.write_to_bytes().map_err(Error::Protobuf)?;
@@ -48,8 +50,7 @@ impl RpcMessage {
     }
 
     pub fn parse<T>(&self) -> Result<T>
-    where
-        T: protobuf::Message,
+        where T: protobuf::Message
     {
         protobuf::parse_from_bytes::<T>(&self.body).map_err(Error::Protobuf)
     }
@@ -57,7 +58,7 @@ impl RpcMessage {
 
 // RPC client
 pub struct RpcClient {
-    cli: Client,
+    cli:      Client,
     endpoint: String,
 }
 
@@ -72,16 +73,13 @@ impl RpcClient {
         let mut cli = Client::builder();
         cli.default_headers(headers);
 
-        RpcClient {
-            cli: cli.build().unwrap(),
-            endpoint: format!("{}/rpc", url),
-        }
+        RpcClient { cli:      cli.build().unwrap(),
+                    endpoint: format!("{}/rpc", url), }
     }
 
     pub fn rpc<R, T>(&self, req: &R) -> Result<T>
-    where
-        R: protobuf::Message,
-        T: protobuf::Message,
+        where R: protobuf::Message,
+              T: protobuf::Message
     {
         let id = req.descriptor().name().to_owned();
         let body = req.write_to_bytes()?;

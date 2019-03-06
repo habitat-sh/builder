@@ -12,21 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::header::{qitem, Accept, Authorization, Bearer, ContentType, Headers};
-use reqwest::mime;
-use reqwest::Client;
+use reqwest::{header::{qitem,
+                       Accept,
+                       Authorization,
+                       Bearer,
+                       ContentType,
+                       Headers},
+              mime,
+              Client};
 use serde_json;
 
-use crate::config::OAuth2Cfg;
-use crate::error::{Error, Result};
-use crate::types::*;
+use crate::{config::OAuth2Cfg,
+            error::{Error,
+                    Result},
+            types::*};
 
 pub struct AzureAD;
 
 #[derive(Deserialize)]
 struct AuthOk {
     pub access_token: String,
-    pub id_token: String,
+    pub id_token:     String,
 }
 
 #[derive(Deserialize)]
@@ -39,15 +45,12 @@ impl AzureAD {
     fn user(&self, config: &OAuth2Cfg, client: &Client, token: &str) -> Result<OAuth2User> {
         let mut headers = Headers::new();
         headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
-        headers.set(Authorization(Bearer {
-            token: token.to_string(),
-        }));
+        headers.set(Authorization(Bearer { token: token.to_string(), }));
 
-        let mut resp = client
-            .get(&config.userinfo_url)
-            .headers(headers)
-            .send()
-            .map_err(Error::HttpClient)?;
+        let mut resp = client.get(&config.userinfo_url)
+                             .headers(headers)
+                             .send()
+                             .map_err(Error::HttpClient)?;
 
         let body = resp.text().map_err(Error::HttpClient)?;
         debug!("AzureAD response body: {}", body);
@@ -58,11 +61,9 @@ impl AzureAD {
                 Err(e) => return Err(Error::Serialization(e)),
             };
 
-            Ok(OAuth2User {
-                id: user.sub,
-                username: user.upn,
-                email: None,
-            })
+            Ok(OAuth2User { id:       user.sub,
+                            username: user.upn,
+                            email:    None, })
         } else {
             Err(Error::HttpResponse(resp.status(), body))
         }
@@ -70,28 +71,25 @@ impl AzureAD {
 }
 
 impl OAuth2Provider for AzureAD {
-    fn authenticate(
-        &self,
-        config: &OAuth2Cfg,
-        client: &Client,
-        code: &str,
-    ) -> Result<(String, OAuth2User)> {
+    fn authenticate(&self,
+                    config: &OAuth2Cfg,
+                    client: &Client,
+                    code: &str)
+                    -> Result<(String, OAuth2User)> {
         let url = config.token_url.to_string();
-        let params = format!(
-            "client_id={}&client_secret={}&grant_type=authorization_code&code={}&redirect_uri={}",
-            config.client_id, config.client_secret, code, config.redirect_url
-        );
+        let params = format!("client_id={}&client_secret={}&grant_type=authorization_code&\
+                              code={}&redirect_uri={}",
+                             config.client_id, config.client_secret, code, config.redirect_url);
 
         let mut headers = Headers::new();
         headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
         headers.set(ContentType::form_url_encoded());
 
-        let mut resp = client
-            .post(&url)
-            .headers(headers)
-            .body(params)
-            .send()
-            .map_err(Error::HttpClient)?;
+        let mut resp = client.post(&url)
+                             .headers(headers)
+                             .body(params)
+                             .send()
+                             .map_err(Error::HttpClient)?;
 
         let body = resp.text().map_err(Error::HttpClient)?;
         debug!("AzureAD response body: {}", body);

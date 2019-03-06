@@ -15,9 +15,10 @@
 use std::path::Path;
 
 use super::publisher::Publisher;
-use crate::config::Config;
-use crate::error::Error;
-use crate::hab_core::{config::ConfigFile, ChannelIdent};
+use crate::{config::Config,
+            error::Error,
+            hab_core::{config::ConfigFile,
+                       ChannelIdent}};
 
 // TODO (SA) - Toml-based publishing has been removed, and is not hooked up to
 // the post-processor currently. Keeping the code around to re-enable
@@ -37,7 +38,7 @@ struct TomlPublishBuilder {
 #[serde(default)]
 struct TomlPublish {
     enabled: Option<bool>,
-    url: Option<String>,
+    url:     Option<String>,
     channel: Option<ChannelIdent>,
 }
 
@@ -54,11 +55,9 @@ impl TomlPublishBuilder {
 
     #[allow(dead_code)]
     fn build(self, config: &Config) -> Publisher {
-        Publisher {
-            enabled: self.publish.enabled.unwrap_or(config.auto_publish),
-            url: self.publish.url.unwrap_or_else(|| config.bldr_url.clone()),
-            channel_opt: self.publish.channel,
-        }
+        Publisher { enabled:     self.publish.enabled.unwrap_or(config.auto_publish),
+                    url:         self.publish.url.unwrap_or_else(|| config.bldr_url.clone()),
+                    channel_opt: self.publish.channel, }
     }
 }
 

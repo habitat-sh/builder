@@ -16,20 +16,28 @@ use env_proxy;
 use serde_json;
 use url::Url;
 
-use reqwest::header::{qitem, Accept, Authorization, Basic, ContentType, Headers, UserAgent};
-use reqwest::mime;
-use reqwest::Client;
-use reqwest::{Proxy, Response};
+use reqwest::{header::{qitem,
+                       Accept,
+                       Authorization,
+                       Basic,
+                       ContentType,
+                       Headers,
+                       UserAgent},
+              mime,
+              Client,
+              Proxy,
+              Response};
 
-use crate::config::SegmentCfg;
-use crate::error::{SegmentError, SegmentResult};
+use crate::{config::SegmentCfg,
+            error::{SegmentError,
+                    SegmentResult}};
 
 const USER_AGENT: &str = "Habitat-Builder";
 
 #[derive(Clone, Debug)]
 pub struct SegmentClient {
-    inner: Client,
-    pub url: String,
+    inner:         Client,
+    pub url:       String,
     pub write_key: String,
 }
 
@@ -70,21 +78,17 @@ impl SegmentClient {
             trace!("No proxy configured for url: {:?}", url);
         }
 
-        SegmentClient {
-            inner: client.build().unwrap(),
-            url: config.url,
-            write_key: config.write_key,
-        }
+        SegmentClient { inner:     client.build().unwrap(),
+                        url:       config.url,
+                        write_key: config.write_key, }
     }
 
     pub fn identify(&self, user_id: &str) -> SegmentResult<Response> {
         let json = json!({ "userId": user_id });
 
-        self.http_post(
-            "identify",
-            &self.write_key,
-            serde_json::to_string(&json).unwrap(),
-        )
+        self.http_post("identify",
+                       &self.write_key,
+                       serde_json::to_string(&json).unwrap())
     }
 
     pub fn track(&self, user_id: &str, event: &str) -> SegmentResult<Response> {
@@ -93,21 +97,17 @@ impl SegmentClient {
             "event": event
         });
 
-        self.http_post(
-            "track",
-            &self.write_key,
-            serde_json::to_string(&json).unwrap(),
-        )
+        self.http_post("track",
+                       &self.write_key,
+                       serde_json::to_string(&json).unwrap())
     }
 
     fn http_post(&self, path: &str, token: &str, body: String) -> SegmentResult<Response> {
         let url_path = format!("{}/v1/{}", &self.url, path);
 
         let mut headers = Headers::new();
-        headers.set(Authorization(Basic {
-            username: "".to_owned(),
-            password: Some(token.to_owned()),
-        }));
+        headers.set(Authorization(Basic { username: "".to_owned(),
+                                          password: Some(token.to_owned()), }));
 
         self.inner
             .post(&url_path)

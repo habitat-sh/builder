@@ -25,8 +25,8 @@ pub mod s3;
 
 use std::path::PathBuf;
 
-use crate::config::ArchiveCfg;
-use crate::error::Result;
+use crate::{config::ArchiveCfg,
+            error::Result};
 
 /// Currently implemented log archiving backends
 #[derive(Clone, Debug, Deserialize, PartialEq)]

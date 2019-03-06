@@ -1,16 +1,19 @@
-use super::{db_id_format, db_optional_id_format};
+use super::{db_id_format,
+            db_optional_id_format};
 use chrono::NaiveDateTime;
-use diesel;
-use diesel::pg::PgConnection;
-use diesel::result::QueryResult;
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{self,
+             pg::PgConnection,
+             result::QueryResult,
+             ExpressionMethods,
+             QueryDsl,
+             RunQueryDsl};
 
-use crate::models::package::PackageVisibility;
-use crate::protocol::originsrv;
-use crate::schema::project::origin_projects;
+use crate::{models::package::PackageVisibility,
+            protocol::originsrv,
+            schema::project::origin_projects};
 
-use crate::bldr_core::metrics::CounterMetric;
-use crate::metrics::Counter;
+use crate::{bldr_core::metrics::CounterMetric,
+            metrics::Counter};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_projects"]
@@ -36,39 +39,38 @@ pub struct Project {
 #[derive(Insertable)]
 #[table_name = "origin_projects"]
 pub struct NewProject<'a> {
-    pub owner_id: i64,
-    pub origin: &'a str,
-    pub name: &'a str,
-    pub package_name: &'a str,
-    pub plan_path: &'a str,
-    pub vcs_type: &'a str,
-    pub vcs_data: &'a str,
+    pub owner_id:            i64,
+    pub origin:              &'a str,
+    pub name:                &'a str,
+    pub package_name:        &'a str,
+    pub plan_path:           &'a str,
+    pub vcs_type:            &'a str,
+    pub vcs_data:            &'a str,
     pub vcs_installation_id: Option<i64>,
-    pub visibility: &'a PackageVisibility,
-    pub auto_build: bool,
+    pub visibility:          &'a PackageVisibility,
+    pub auto_build:          bool,
 }
 
 #[derive(AsChangeset)]
 #[table_name = "origin_projects"]
 pub struct UpdateProject<'a> {
-    pub id: i64,
-    pub owner_id: i64,
-    pub origin: &'a str,
-    pub package_name: &'a str,
-    pub plan_path: &'a str,
-    pub vcs_type: &'a str,
-    pub vcs_data: &'a str,
+    pub id:                  i64,
+    pub owner_id:            i64,
+    pub origin:              &'a str,
+    pub package_name:        &'a str,
+    pub plan_path:           &'a str,
+    pub vcs_type:            &'a str,
+    pub vcs_data:            &'a str,
     pub vcs_installation_id: Option<i64>,
-    pub visibility: &'a PackageVisibility,
-    pub auto_build: bool,
+    pub visibility:          &'a PackageVisibility,
+    pub auto_build:          bool,
 }
 
 impl Project {
     pub fn get(name: &str, conn: &PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
-        origin_projects::table
-            .filter(origin_projects::name.eq(name))
-            .get_result(conn)
+        origin_projects::table.filter(origin_projects::name.eq(name))
+                              .get_result(conn)
     }
 
     pub fn delete(name: &str, conn: &PgConnection) -> QueryResult<usize> {
@@ -78,23 +80,20 @@ impl Project {
 
     pub fn create(project: &NewProject, conn: &PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
-        diesel::insert_into(origin_projects::table)
-            .values(project)
-            .get_result(conn)
+        diesel::insert_into(origin_projects::table).values(project)
+                                                   .get_result(conn)
     }
 
     pub fn update(project: &UpdateProject, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(origin_projects::table.find(project.id))
-            .set(project)
-            .execute(conn)
+        diesel::update(origin_projects::table.find(project.id)).set(project)
+                                                               .execute(conn)
     }
 
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<Project>> {
         Counter::DBCall.increment();
-        origin_projects::table
-            .filter(origin_projects::origin.eq(origin))
-            .get_results(conn)
+        origin_projects::table.filter(origin_projects::origin.eq(origin))
+                              .get_results(conn)
     }
 }
 

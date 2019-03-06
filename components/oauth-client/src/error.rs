@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error;
-use std::fmt;
+use std::{error,
+          fmt};
 
 use reqwest;
 use serde_json;
@@ -31,10 +31,10 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             Error::HttpClient(ref e) => format!("{}", e),
-            Error::HttpResponse(ref code, ref response) => format!(
-                "Received a non-200 response, status={}, response={}",
-                code, response
-            ),
+            Error::HttpResponse(ref code, ref response) => {
+                format!("Received a non-200 response, status={}, response={}",
+                        code, response)
+            }
             Error::Serialization(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
@@ -45,7 +45,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::HttpClient(ref err) => err.description(),
-            Error::HttpResponse(_, _) => "Non-200 HTTP response.",
+            Error::HttpResponse(..) => "Non-200 HTTP response.",
             Error::Serialization(ref err) => err.description(),
         }
     }

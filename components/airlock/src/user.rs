@@ -14,10 +14,11 @@
 
 use std::path::PathBuf;
 
-use users;
-use users::os::unix::UserExt;
+use users::{self,
+            os::unix::UserExt};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 pub fn check_running_user_is_root() -> Result<()> {
     if users::get_effective_uid() != 0 {
@@ -27,14 +28,13 @@ pub fn check_running_user_is_root() -> Result<()> {
 }
 
 pub fn gid_for_groupname(groupname: &str) -> Result<u32> {
-    Ok(users::get_group_by_name(groupname)
-        .ok_or_else(|| Error::GroupnameNotFound(String::from(groupname)))?
-        .gid())
+    Ok(users::get_group_by_name(groupname).ok_or_else(|| {
+                                              Error::GroupnameNotFound(String::from(groupname))
+                                          })?
+                                          .gid())
 }
 
-pub fn uid_for_username(username: &str) -> Result<u32> {
-    Ok(user_by_username(username)?.uid())
-}
+pub fn uid_for_username(username: &str) -> Result<u32> { Ok(user_by_username(username)?.uid()) }
 
 pub fn primary_gid_for_username(username: &str) -> Result<u32> {
     Ok(user_by_username(username)?.primary_group_id())

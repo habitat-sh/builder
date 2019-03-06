@@ -62,7 +62,8 @@ table! {
     }
 }
 
-use super::origin::{origins, origins_with_stats};
+use super::origin::{origins,
+                    origins_with_stats};
 
 joinable!(origin_packages -> origins (origin));
 joinable!(origin_packages -> origins_with_stats (origin));

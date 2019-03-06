@@ -34,11 +34,9 @@ pub struct GitHubCfg {
 
 impl Default for GitHubCfg {
     fn default() -> Self {
-        GitHubCfg {
-            api_url: DEFAULT_GITHUB_API_URL.to_string(),
-            app_private_key: "/src/.secrets/builder-github-app.pem".to_string(),
-            app_id: DEFAULT_GITHUB_APP_ID,
-            webhook_secret: DEV_GITHUB_WEBHOOK_SECRET.to_string(),
-        }
+        GitHubCfg { api_url:         DEFAULT_GITHUB_API_URL.to_string(),
+                    app_private_key: "/src/.secrets/builder-github-app.pem".to_string(),
+                    app_id:          DEFAULT_GITHUB_APP_ID,
+                    webhook_secret:  DEV_GITHUB_WEBHOOK_SECRET.to_string(), }
     }
 }

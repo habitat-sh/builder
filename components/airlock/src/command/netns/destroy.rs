@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs;
-use std::path::Path;
+use std::{fs,
+          path::Path};
 
 use libc;
 
-use crate::error::Result;
-use crate::mount;
-use crate::namespace;
-use crate::user;
+use crate::{error::Result,
+            mount,
+            namespace,
+            user};
 
 pub fn run<P: AsRef<Path>>(ns_dir: P) -> Result<()> {
     user::check_running_user_is_root()?;
@@ -32,10 +32,8 @@ pub fn run<P: AsRef<Path>>(ns_dir: P) -> Result<()> {
     // remove the parent namespace directory
     fs::remove_dir_all(&ns_dir)?;
 
-    println!(
-        "Network namespace directory {} destroyed.",
-        ns_dir.as_ref().display()
-    );
+    println!("Network namespace directory {} destroyed.",
+             ns_dir.as_ref().display());
 
     Ok(())
 }

@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::{sync::mpsc,
+          thread::{self,
+                   JoinHandle},
+          time::Duration};
 
 use zmq;
 
-use crate::bldr_core::socket::DEFAULT_CONTEXT;
-use crate::protocol::{jobsrv as proto, message};
+use crate::{bldr_core::socket::DEFAULT_CONTEXT,
+            protocol::{jobsrv as proto,
+                       message}};
 
-use crate::config::Config;
-use crate::error::Result;
+use crate::{config::Config,
+            error::Result};
 
 /// Polling timeout for HeartbeatMgr
 const HEARTBEAT_MS: i64 = 30_000;
@@ -34,19 +36,13 @@ const CMD_PULSE: &str = "R";
 const CMD_PAUSE: &str = "P";
 
 #[cfg(target_os = "linux")]
-fn worker_os() -> proto::Os {
-    proto::Os::Linux
-}
+fn worker_os() -> proto::Os { proto::Os::Linux }
 
 #[cfg(target_os = "windows")]
-fn worker_os() -> proto::Os {
-    proto::Os::Windows
-}
+fn worker_os() -> proto::Os { proto::Os::Windows }
 
 #[cfg(target_os = "macos")]
-fn worker_os() -> proto::Os {
-    proto::Os::Darwin
-}
+fn worker_os() -> proto::Os { proto::Os::Darwin }
 
 #[derive(PartialEq)]
 enum PulseState {
@@ -64,15 +60,13 @@ impl AsRef<str> for PulseState {
 }
 
 impl Default for PulseState {
-    fn default() -> PulseState {
-        PulseState::Pulse
-    }
+    fn default() -> PulseState { PulseState::Pulse }
 }
 
 /// Client for sending and receiving messages to and from the HeartbeatMgr
 pub struct HeartbeatCli {
-    msg: zmq::Message,
-    sock: zmq::Socket,
+    msg:   zmq::Message,
+    sock:  zmq::Socket,
     state: proto::Heartbeat,
 }
 
@@ -84,11 +78,9 @@ impl HeartbeatCli {
         state.set_endpoint(net_ident);
         state.set_os(worker_os());
         state.set_target(target);
-        HeartbeatCli {
-            msg: zmq::Message::new().unwrap(),
-            sock,
-            state,
-        }
+        HeartbeatCli { msg: zmq::Message::new().unwrap(),
+                       sock,
+                       state }
     }
 
     /// Connect to the `HeartbeatMgr`
@@ -142,12 +134,11 @@ impl HeartbeatMgr {
         let (tx, rx) = mpsc::sync_channel(0);
         let mut heartbeat = Self::new(net_ident, config.target.to_string());
         let jobsrv_addrs = config.jobsrv_addrs();
-        let handle = thread::Builder::new()
-            .name("heartbeat".to_string())
-            .spawn(move || {
-                heartbeat.run(&tx, jobsrv_addrs).unwrap();
-            })
-            .unwrap();
+        let handle = thread::Builder::new().name("heartbeat".to_string())
+                                           .spawn(move || {
+                                               heartbeat.run(&tx, jobsrv_addrs).unwrap();
+                                           })
+                                           .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("heartbeat thread startup error, err={}", e),
@@ -165,22 +156,19 @@ impl HeartbeatMgr {
         heartbeat.set_os(worker_os());
         heartbeat.set_state(proto::WorkerState::Ready);
         heartbeat.set_target(target);
-        HeartbeatMgr {
-            state: PulseState::default(),
-            pub_sock,
-            cli_sock,
-            heartbeat,
-            msg: zmq::Message::new().unwrap(),
-        }
+        HeartbeatMgr { state: PulseState::default(),
+                       pub_sock,
+                       cli_sock,
+                       heartbeat,
+                       msg: zmq::Message::new().unwrap() }
     }
 
     // Main loop for server
-    fn run(
-        &mut self,
-        rz: &mpsc::SyncSender<()>,
-        jobsrv_addrs: Vec<(String, String, String)>,
-    ) -> Result<()> {
-        for (hb, _, _) in jobsrv_addrs {
+    fn run(&mut self,
+           rz: &mpsc::SyncSender<()>,
+           jobsrv_addrs: Vec<(String, String, String)>)
+           -> Result<()> {
+        for (hb, ..) in jobsrv_addrs {
             println!("Connecting to heartbeat, {}", hb);
             self.pub_sock.connect(&hb)?;
         }

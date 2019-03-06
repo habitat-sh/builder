@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error;
-use std::fmt;
-use std::io;
+use std::{error,
+          fmt,
+          io};
 
 use reqwest;
 use serde_json;

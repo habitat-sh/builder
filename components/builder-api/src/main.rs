@@ -20,17 +20,17 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 
-use std::fmt;
-use std::path::PathBuf;
-use std::process;
-use std::str::FromStr;
+use std::{fmt,
+          path::PathBuf,
+          process,
+          str::FromStr};
 
 use habitat_builder_api as bldr_api;
 use habitat_core as hab_core;
 
-use crate::bldr_api::config::Config;
-use crate::bldr_api::server;
-use crate::hab_core::config::ConfigFile;
+use crate::{bldr_api::{config::Config,
+                       server},
+            hab_core::config::ConfigFile};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-api/config/config.toml";
@@ -71,9 +71,8 @@ fn config_from_args(matches: &clap::ArgMatches) -> Config {
     };
 
     if let Some(port) = args.value_of("port") {
-        u16::from_str(port)
-            .map(|p| config.http.port = p)
-            .expect("Specified port must be a valid u16");
+        u16::from_str(port).map(|p| config.http.port = p)
+                           .expect("Specified port must be a valid u16");
     }
 
     if let Some(path) = args.value_of("path") {
@@ -84,8 +83,7 @@ fn config_from_args(matches: &clap::ArgMatches) -> Config {
 }
 
 fn exit_with<T>(err: T, code: i32)
-where
-    T: fmt::Display,
+    where T: fmt::Display
 {
     println!("{}", err);
     process::exit(code)

@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::Method;
-use actix_web::{App, HttpRequest, HttpResponse};
+use actix_web::{http::Method,
+                App,
+                HttpRequest,
+                HttpResponse};
 
-use crate::server::services::github;
-use crate::server::AppState;
+use crate::server::{services::github,
+                    AppState};
 
 pub struct Notify;
 
 impl Notify {
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {

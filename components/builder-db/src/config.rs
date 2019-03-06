@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error::Error;
-use std::fmt;
-use std::net::{IpAddr, Ipv4Addr};
+use std::{error::Error,
+          fmt,
+          net::{IpAddr,
+                Ipv4Addr}};
 
 use num_cpus;
-use postgres_shared::params::{ConnectParams, Host, IntoConnectParams};
-use url::percent_encoding::{utf8_percent_encode, PATH_SEGMENT_ENCODE_SET};
+use postgres_shared::params::{ConnectParams,
+                              Host,
+                              IntoConnectParams};
+use url::percent_encoding::{utf8_percent_encode,
+                            PATH_SEGMENT_ENCODE_SET};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
@@ -40,17 +44,15 @@ pub struct DataStoreCfg {
 
 impl Default for DataStoreCfg {
     fn default() -> Self {
-        DataStoreCfg {
-            host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-            port: 5432,
-            user: String::from("hab"),
-            password: None,
-            database: String::from("builder"),
-            connection_retry_ms: 300,
-            connection_timeout_sec: 3600,
-            connection_test: false,
-            pool_size: (num_cpus::get() * 2) as u32,
-        }
+        DataStoreCfg { host:                   IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                       port:                   5432,
+                       user:                   String::from("hab"),
+                       password:               None,
+                       database:               String::from("builder"),
+                       connection_retry_ms:    300,
+                       connection_timeout_sec: 3600,
+                       connection_test:        false,
+                       pool_size:              (num_cpus::get() * 2) as u32, }
     }
 }
 

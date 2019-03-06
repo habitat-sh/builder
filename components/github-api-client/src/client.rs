@@ -14,24 +14,36 @@
 
 use std::path::Path;
 
-use std::collections::HashMap;
-use std::env;
-use std::io::Read;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{collections::HashMap,
+          env,
+          io::Read,
+          time::{Duration,
+                 SystemTime,
+                 UNIX_EPOCH}};
 
 use builder_core::metrics::CounterMetric;
 
-use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers, UserAgent};
-use reqwest::mime;
-use reqwest::{Client, Proxy, Response, StatusCode};
+use reqwest::{header::{qitem,
+                       Accept,
+                       Authorization,
+                       Bearer,
+                       Headers,
+                       UserAgent},
+              mime,
+              Client,
+              Proxy,
+              Response,
+              StatusCode};
 
-use crate::jwt::{self, Algorithm};
+use crate::jwt::{self,
+                 Algorithm};
 use serde_json;
 
-use crate::config::GitHubCfg;
-use crate::error::{HubError, HubResult};
-use crate::metrics::Counter;
-use crate::types::*;
+use crate::{config::GitHubCfg,
+            error::{HubError,
+                    HubResult},
+            metrics::Counter,
+            types::*};
 
 const USER_AGENT: &str = "Habitat-Builder";
 
@@ -56,27 +68,23 @@ impl AppToken {
     // Not public, because you should only get these from
     // `GitHubClient::app_installation_token`
     fn new(inner_token: TokenString, installation_id: InstallationId) -> Self {
-        AppToken {
-            inner_token,
-            installation_id,
-        }
+        AppToken { inner_token,
+                   installation_id }
     }
 
     // Only providing this for builder-worker's benefit... it
     // currently needs a token for cloning via libgit2; once that's
     // gone, just delete this function.
     /// Retrieve the actual token content for use in HTTP calls.
-    pub fn inner_token(&self) -> &str {
-        self.inner_token.as_ref()
-    }
+    pub fn inner_token(&self) -> &str { self.inner_token.as_ref() }
 }
 
 #[derive(Clone)]
 pub struct GitHubClient {
-    inner: Client,
-    pub api_url: String,
-    app_id: u32,
-    app_private_key: String,
+    inner:              Client,
+    pub api_url:        String,
+    app_id:             u32,
+    app_private_key:    String,
     pub webhook_secret: String,
 }
 
@@ -88,9 +96,8 @@ impl GitHubClient {
             qitem(mime::APPLICATION_JSON),
             qitem("application/vnd.github.v3+json".parse().unwrap()),
             qitem(
-                "application/vnd.github.machine-man-preview+json"
-                    .parse()
-                    .unwrap(),
+                "application/vnd.github.machine-man-preview+json".parse()
+                                                                 .unwrap(),
             ),
         ]));
         let mut client = Client::builder();
@@ -116,13 +123,11 @@ impl GitHubClient {
             }
         }
 
-        GitHubClient {
-            inner: client.build().unwrap(),
-            api_url: config.api_url,
-            app_id: config.app_id,
-            app_private_key: config.app_private_key,
-            webhook_secret: config.webhook_secret,
-        }
+        GitHubClient { inner:           client.build().unwrap(),
+                       api_url:         config.api_url,
+                       app_id:          config.app_id,
+                       app_private_key: config.app_private_key,
+                       webhook_secret:  config.webhook_secret, }
     }
 
     pub fn app(&self) -> HubResult<App> {
@@ -143,10 +148,8 @@ impl GitHubClient {
     pub fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
 
-        let url_path = format!(
-            "{}/installations/{}/access_tokens",
-            self.api_url, install_id
-        );
+        let url_path = format!("{}/installations/{}/access_tokens",
+                               self.api_url, install_id);
         debug!("app_installation_token posting to url path {:?}", url_path);
         Counter::InstallationToken.increment();
         let mut rep = self.http_post(&url_path, Some(app_token))?;
@@ -189,12 +192,11 @@ impl GitHubClient {
     }
 
     /// Returns the directory listing of a path in a repository.
-    pub fn directory(
-        &self,
-        token: &AppToken,
-        repo: u32,
-        path: &str,
-    ) -> HubResult<Option<Vec<DirectoryEntry>>> {
+    pub fn directory(&self,
+                     token: &AppToken,
+                     repo: u32,
+                     path: &str)
+                     -> HubResult<Option<Vec<DirectoryEntry>>> {
         let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
 
         Counter::Contents.increment();
@@ -253,14 +255,11 @@ impl GitHubClient {
     }
 
     fn http_get<U>(&self, url: &str, token: Option<U>) -> HubResult<Response>
-    where
-        U: ToString,
+        where U: ToString
     {
         let mut headers = Headers::new();
         if let Some(t) = token {
-            headers.set(Authorization(Bearer {
-                token: t.to_string(),
-            }))
+            headers.set(Authorization(Bearer { token: t.to_string(), }))
         };
 
         self.inner
@@ -271,14 +270,11 @@ impl GitHubClient {
     }
 
     fn http_post<U>(&self, url: &str, token: Option<U>) -> HubResult<Response>
-    where
-        U: ToString,
+        where U: ToString
     {
         let mut headers = Headers::new();
         if let Some(t) = token {
-            headers.set(Authorization(Bearer {
-                token: t.to_string(),
-            }))
+            headers.set(Authorization(Bearer { token: t.to_string(), }))
         };
 
         self.inner
@@ -291,14 +287,13 @@ impl GitHubClient {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 struct RepositoryList {
-    pub total_count: u32,
+    pub total_count:  u32,
     pub repositories: Vec<Repository>,
 }
 
 fn generate_app_token<T, U>(key_path: T, app_id: &U) -> HubResult<String>
-where
-    T: AsRef<Path>,
-    U: ToString,
+    where T: AsRef<Path>,
+          U: ToString
 {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let expiration = now + Duration::from_secs(10 * 10);
@@ -309,13 +304,10 @@ where
     debug!("Payload = {:?}", payload);
 
     let header = json!({});
-    let res = jwt::encode(
-        header,
-        &key_path.as_ref().to_path_buf(),
-        &payload,
-        Algorithm::RS256,
-    )
-    .map_err(HubError::JWT);
+    let res = jwt::encode(header,
+                          &key_path.as_ref().to_path_buf(),
+                          &payload,
+                          Algorithm::RS256).map_err(HubError::JWT);
 
     if let Ok(ref t) = res {
         debug!("Encoded JWT token = {}", t);

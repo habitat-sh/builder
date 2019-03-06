@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error;
-use std::fmt;
-use std::io;
-use std::result;
+use std::{error,
+          fmt,
+          io,
+          result};
 
-use crate::db;
-use crate::hab_core;
+use crate::{db,
+            hab_core};
 
 use postgres;
 use protobuf;
@@ -74,25 +74,17 @@ impl error::Error for Error {
 }
 
 impl From<hab_core::Error> for Error {
-    fn from(err: hab_core::Error) -> Error {
-        Error::HabitatCore(err)
-    }
+    fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
 }
 
 impl From<db::error::Error> for Error {
-    fn from(err: db::error::Error) -> Self {
-        Error::Db(err)
-    }
+    fn from(err: db::error::Error) -> Self { Error::Db(err) }
 }
 
 impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::IO(err)
-    }
+    fn from(err: io::Error) -> Error { Error::IO(err) }
 }
 
 impl From<protobuf::ProtobufError> for Error {
-    fn from(err: protobuf::ProtobufError) -> Error {
-        Error::Protobuf(err)
-    }
+    fn from(err: protobuf::ProtobufError) -> Error { Error::Protobuf(err) }
 }

@@ -23,18 +23,19 @@ use protobuf;
 
 use crate::error::ProtocolError;
 
-pub use self::net::{ErrCode, NetError, NetOk, Protocol};
+pub use self::net::{ErrCode,
+                    NetError,
+                    NetOk,
+                    Protocol};
 
 pub fn decode<T>(bytes: &[u8]) -> Result<T, ProtocolError>
-where
-    T: protobuf::Message,
+    where T: protobuf::Message
 {
     protobuf::parse_from_bytes::<T>(bytes).map_err(ProtocolError::Decode)
 }
 
 pub fn encode<T>(message: &T) -> Result<Vec<u8>, ProtocolError>
-where
-    T: protobuf::Message,
+    where T: protobuf::Message
 {
     message.write_to_bytes().map_err(ProtocolError::Encode)
 }
