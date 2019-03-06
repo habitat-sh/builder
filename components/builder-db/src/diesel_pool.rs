@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::thread;
-use std::time::Duration;
+use std::{thread,
+          time::Duration};
 
-use diesel::pg::PgConnection;
-use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use diesel::{pg::PgConnection,
+             r2d2::{ConnectionManager,
+                    Pool,
+                    PooledConnection}};
 
-use crate::config::DataStoreCfg;
-use crate::error::Result;
+use crate::{config::DataStoreCfg,
+            error::Result};
 
 type PgPool = Pool<ConnectionManager<PgConnection>>;
 

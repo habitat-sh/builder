@@ -14,42 +14,45 @@
 
 use std::env;
 
-use actix_web::http;
-use actix_web::middleware::{Middleware, Started};
-use actix_web::{HttpRequest, HttpResponse, Result};
+use actix_web::{http,
+                middleware::{Middleware,
+                             Started},
+                HttpRequest,
+                HttpResponse,
+                Result};
 
 use base64;
 use oauth_client::types::OAuth2User;
 use protobuf;
 
-use crate::bldr_core;
-use crate::bldr_core::access_token::{BUILDER_ACCOUNT_ID, BUILDER_ACCOUNT_NAME};
-use crate::bldr_core::metrics::CounterMetric;
-use crate::bldr_core::privilege::FeatureFlags;
+use crate::bldr_core::{self,
+                       access_token::{BUILDER_ACCOUNT_ID,
+                                      BUILDER_ACCOUNT_NAME},
+                       metrics::CounterMetric,
+                       privilege::FeatureFlags};
 
-use crate::db::models::account::*;
-use crate::protocol;
-use crate::protocol::originsrv;
+use crate::{db::models::account::*,
+            protocol::{self,
+                       originsrv}};
 
-use crate::server::error;
-use crate::server::services::metrics::Counter;
-use crate::server::AppState;
+use crate::server::{error,
+                    services::metrics::Counter,
+                    AppState};
 
 lazy_static! {
     static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;
 }
 
 pub fn route_message<R, T>(req: &HttpRequest<AppState>, msg: &R) -> error::Result<T>
-where
-    R: protobuf::Message,
-    T: protobuf::Message,
+    where R: protobuf::Message,
+          T: protobuf::Message
 {
     Counter::RouteMessage.increment();
     // Route via Protobuf over HTTP
     req.state()
-        .jobsrv
-        .rpc::<R, T>(msg)
-        .map_err(error::Error::BuilderCore)
+       .jobsrv
+       .rpc::<R, T>(msg)
+       .map_err(error::Error::BuilderCore)
 }
 
 // Optional Authentication - this middleware does not enforce authentication,
@@ -82,10 +85,8 @@ impl Middleware<AppState> for Authentication {
 fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<originsrv::Session> {
     // Test hook - always create a valid session
     if env::var_os("HAB_FUNC_TEST").is_some() {
-        debug!(
-            "HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
-            env::var_os("HAB_FUNC_TEST")
-        );
+        debug!("HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
+               env::var_os("HAB_FUNC_TEST"));
         return session_create_short_circuit(req, token);
     };
 
@@ -103,11 +104,11 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
             }
             // Pull the session out of the current token provided so we can validate
             // it against the db's tokens
-            let mut session = bldr_core::access_token::validate_access_token(
-                &req.state().config.api.key_path,
-                token,
-            )
-            .map_err(|_| error::Error::Authorization)?;
+            let mut session =
+                bldr_core::access_token::validate_access_token(&req.state().config.api.key_path,
+                                                               token).map_err(|_| {
+                                                                         error::Error::Authorization
+                                                                     })?;
 
             if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");
@@ -154,12 +155,11 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
     }
 }
 
-pub fn session_create_oauth(
-    req: &HttpRequest<AppState>,
-    oauth_token: &str,
-    user: &OAuth2User,
-    provider: &str,
-) -> error::Result<originsrv::Session> {
+pub fn session_create_oauth(req: &HttpRequest<AppState>,
+                            oauth_token: &str,
+                            user: &OAuth2User,
+                            provider: &str)
+                            -> error::Result<originsrv::Session> {
     let mut session = originsrv::Session::new();
     let mut session_token = originsrv::SessionToken::new();
     let conn = req.state().db.get_conn().map_err(error::Error::DbError)?;
@@ -172,13 +172,10 @@ pub fn session_create_oauth(
         None => "",
     };
 
-    match Account::find_or_create(
-        &NewAccount {
-            name: &user.username,
-            email,
-        },
-        &*conn,
-    ) {
+    match Account::find_or_create(&NewAccount { name: &user.username,
+                                                email },
+                                  &*conn)
+    {
         Ok(account) => {
             session_token.set_account_id(account.id as u64);
             session_token.set_extern_id(user.id.to_string());
@@ -187,10 +184,8 @@ pub fn session_create_oauth(
             match provider.parse::<originsrv::OAuthProvider>() {
                 Ok(p) => session_token.set_provider(p),
                 Err(e) => {
-                    warn!(
-                        "Error parsing oauth provider: provider={}, err={:?}",
-                        provider, e
-                    );
+                    warn!("Error parsing oauth provider: provider={}, err={:?}",
+                          provider, e);
                     return Err(error::Error::System);
                 }
             }
@@ -203,11 +198,10 @@ pub fn session_create_oauth(
             session.set_oauth_token(oauth_token.to_owned());
 
             debug!("issuing session, {:?}", session);
-            req.state().memcache.borrow_mut().set_session(
-                &session.get_token(),
-                &session,
-                Some(*SESSION_DURATION),
-            );
+            req.state()
+               .memcache
+               .borrow_mut()
+               .set_session(&session.get_token(), &session, Some(*SESSION_DURATION));
             Ok(session)
         }
         Err(e) => {
@@ -217,43 +211,34 @@ pub fn session_create_oauth(
     }
 }
 
-pub fn session_create_short_circuit(
-    req: &HttpRequest<AppState>,
-    token: &str,
-) -> error::Result<originsrv::Session> {
+pub fn session_create_short_circuit(req: &HttpRequest<AppState>,
+                                    token: &str)
+                                    -> error::Result<originsrv::Session> {
     let (user, provider) = match token {
-        "bobo" => (
-            OAuth2User {
-                id: "0".to_string(),
-                email: Some("bobo@example.com".to_string()),
-                username: "bobo".to_string(),
-            },
-            "GitHub",
-        ),
-        "mystique" => (
-            OAuth2User {
-                id: "1".to_string(),
-                email: Some("mystique@example.com".to_string()),
-                username: "mystique".to_string(),
-            },
-            "GitHub",
-        ),
-        "hank" => (
-            OAuth2User {
-                id: "2".to_string(),
-                email: Some("hank@example.com".to_string()),
-                username: "hank".to_string(),
-            },
-            "GitHub",
-        ),
-        "wesker" => (
-            OAuth2User {
-                id: "3".to_string(),
-                email: Some("awesker@umbrella.corp".to_string()),
-                username: "wesker".to_string(),
-            },
-            "GitHub",
-        ),
+        "bobo" => {
+            (OAuth2User { id:       "0".to_string(),
+                          email:    Some("bobo@example.com".to_string()),
+                          username: "bobo".to_string(), },
+             "GitHub")
+        }
+        "mystique" => {
+            (OAuth2User { id:       "1".to_string(),
+                          email:    Some("mystique@example.com".to_string()),
+                          username: "mystique".to_string(), },
+             "GitHub")
+        }
+        "hank" => {
+            (OAuth2User { id:       "2".to_string(),
+                          email:    Some("hank@example.com".to_string()),
+                          username: "hank".to_string(), },
+             "GitHub")
+        }
+        "wesker" => {
+            (OAuth2User { id:       "3".to_string(),
+                          email:    Some("awesker@umbrella.corp".to_string()),
+                          username: "wesker".to_string(), },
+             "GitHub")
+        }
         user => {
             error!("Unexpected short circuit token {:?}", user);
             return Err(error::Error::System);
@@ -264,6 +249,6 @@ pub fn session_create_short_circuit(
 }
 
 fn encode_token(token: &originsrv::SessionToken) -> String {
-    let bytes = protocol::message::encode(token).unwrap(); //Unwrap is safe
+    let bytes = protocol::message::encode(token).unwrap(); // Unwrap is safe
     base64::encode(&bytes)
 }

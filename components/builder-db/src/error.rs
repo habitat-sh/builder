@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error;
-use std::fmt;
-use std::result;
+use std::{error,
+          fmt,
+          result};
 
 use postgres;
 use r2d2;
@@ -55,10 +55,10 @@ impl fmt::Display for Error {
             Error::AsyncMalformedChannel(ref e) => {
                 format!("Notification received, but the channel is malformed, {}", e)
             }
-            Error::AsyncMalformedShardId(ref e) => format!(
-                "Notification received, but the channels shard id is malformed, {}",
-                e
-            ),
+            Error::AsyncMalformedShardId(ref e) => {
+                format!("Notification received, but the channels shard id is malformed, {}",
+                        e)
+            }
             Error::AsyncFunctionCheck(ref e) => {
                 format!("Async function database check failed, {}", e)
             }
@@ -120,7 +120,5 @@ impl error::Error for Error {
 }
 
 impl From<r2d2::Error> for Error {
-    fn from(err: r2d2::Error) -> Error {
-        Error::ConnectionTimeout(err)
-    }
+    fn from(err: r2d2::Error) -> Error { Error::ConnectionTimeout(err) }
 }

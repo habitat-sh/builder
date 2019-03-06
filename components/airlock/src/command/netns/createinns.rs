@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::Path;
-use std::process::Command;
-use std::thread;
-use std::time::Duration;
+use std::{path::Path,
+          process::Command,
+          thread,
+          time::Duration};
 
 use pnet_datalink as pnet;
 
-use crate::error::Result;
-use crate::namespace;
-use crate::util;
+use crate::{error::Result,
+            namespace,
+            util};
 
-pub fn run<P: AsRef<Path>>(
-    ns_dir: P,
-    interface: &str,
-    gateway: &str,
-    ipv4s: Vec<&str>,
-    ipv6s: Vec<&str>,
-) -> Result<()> {
+pub fn run<P: AsRef<Path>>(ns_dir: P,
+                           interface: &str,
+                           gateway: &str,
+                           ipv4s: Vec<&str>,
+                           ipv6s: Vec<&str>)
+                           -> Result<()> {
     util::check_required_packages(&[util::IP_PKG])?;
     wait_for_interface(interface);
 
@@ -62,10 +61,8 @@ fn wait_for_interface(interface: &str) {
 fn wait_for_created_file<P: AsRef<Path>>(ns_dir: P) {
     let ns_created = namespace::ns_created_file(&ns_dir);
     loop {
-        debug!(
-            "waiting for, namespace created file={}",
-            ns_created.display()
-        );
+        debug!("waiting for, namespace created file={}",
+               ns_created.display());
         if ns_created.exists() {
             debug!("found, namespace created file={}", ns_created.display());
             return;

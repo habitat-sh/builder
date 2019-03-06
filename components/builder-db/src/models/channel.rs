@@ -2,27 +2,36 @@ use super::db_id_format;
 use chrono::NaiveDateTime;
 use time::PreciseTime;
 
-use diesel;
-use diesel::dsl::sql;
-use diesel::pg::expression::dsl::any;
-use diesel::pg::PgConnection;
-use diesel::result::QueryResult;
-use diesel::{
-    ExpressionMethods, NullableExpressionMethods, PgArrayExpressionMethods, QueryDsl, RunQueryDsl,
-    Table, TextExpressionMethods,
-};
+use diesel::{self,
+             dsl::sql,
+             pg::{expression::dsl::any,
+                  PgConnection},
+             result::QueryResult,
+             ExpressionMethods,
+             NullableExpressionMethods,
+             PgArrayExpressionMethods,
+             QueryDsl,
+             RunQueryDsl,
+             Table,
+             TextExpressionMethods};
 
-use crate::models::package::{BuilderPackageIdent, Package, PackageVisibility};
-use crate::models::pagination::Paginate;
-use crate::protocol::jobsrv::JobGroupTrigger;
-use crate::schema::audit::{audit_package, audit_package_group};
-use crate::schema::channel::{origin_channel_packages, origin_channels};
-use crate::schema::origin::origins;
-use crate::schema::package::origin_packages;
+use crate::{models::{package::{BuilderPackageIdent,
+                               Package,
+                               PackageVisibility},
+                     pagination::Paginate},
+            protocol::jobsrv::JobGroupTrigger,
+            schema::{audit::{audit_package,
+                             audit_package_group},
+                     channel::{origin_channel_packages,
+                               origin_channels},
+                     origin::origins,
+                     package::origin_packages}};
 
-use crate::bldr_core::metrics::{CounterMetric, HistogramMetric};
-use crate::hab_core::ChannelIdent;
-use crate::metrics::{Counter, Histogram};
+use crate::{bldr_core::metrics::{CounterMetric,
+                                 HistogramMetric},
+            hab_core::ChannelIdent,
+            metrics::{Counter,
+                      Histogram}};
 
 #[derive(AsExpression, Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
@@ -40,39 +49,37 @@ pub struct Channel {
 #[table_name = "origin_channels"]
 pub struct CreateChannel<'a> {
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
-    pub name: &'a str,
+    pub name:     &'a str,
     pub owner_id: i64,
-    pub origin: &'a str,
+    pub origin:   &'a str,
 }
 
 #[derive(Clone, Debug)]
 pub struct GetLatestPackage<'a> {
-    pub ident: &'a BuilderPackageIdent,
+    pub ident:      &'a BuilderPackageIdent,
     pub visibility: &'a Vec<PackageVisibility>,
-    pub channel: &'a ChannelIdent,
-    pub target: &'a str,
+    pub channel:    &'a ChannelIdent,
+    pub target:     &'a str,
 }
 
 pub struct ListChannelPackages<'a> {
-    pub ident: &'a BuilderPackageIdent,
+    pub ident:      &'a BuilderPackageIdent,
     pub visibility: &'a Vec<PackageVisibility>,
-    pub channel: &'a ChannelIdent,
-    pub origin: &'a str,
-    pub page: i64,
-    pub limit: i64,
+    pub channel:    &'a ChannelIdent,
+    pub origin:     &'a str,
+    pub page:       i64,
+    pub limit:      i64,
 }
 
 impl Channel {
-    pub fn list(
-        origin: &str,
-        include_sandbox_channels: bool,
-        conn: &PgConnection,
-    ) -> QueryResult<Vec<Channel>> {
+    pub fn list(origin: &str,
+                include_sandbox_channels: bool,
+                conn: &PgConnection)
+                -> QueryResult<Vec<Channel>> {
         Counter::DBCall.increment();
-        let mut query = origin_channels::table
-            .select(origin_channels::table::all_columns())
-            .filter(origin_channels::origin.eq(origin))
-            .into_boxed();
+        let mut query = origin_channels::table.select(origin_channels::table::all_columns())
+                                              .filter(origin_channels::origin.eq(origin))
+                                              .into_boxed();
         if !include_sandbox_channels {
             query = query.filter(origin_channels::name.not_like("bldr-%"));
         }
@@ -81,17 +88,15 @@ impl Channel {
 
     pub fn get(origin: &str, channel: &ChannelIdent, conn: &PgConnection) -> QueryResult<Channel> {
         Counter::DBCall.increment();
-        origin_channels::table
-            .filter(origin_channels::origin.eq(origin))
-            .filter(origin_channels::name.eq(channel.as_str()))
-            .get_result(conn)
+        origin_channels::table.filter(origin_channels::origin.eq(origin))
+                              .filter(origin_channels::name.eq(channel.as_str()))
+                              .get_result(conn)
     }
 
     pub fn create(channel: &CreateChannel, conn: &PgConnection) -> QueryResult<Channel> {
         Counter::DBCall.increment();
-        diesel::insert_into(origin_channels::table)
-            .values(channel)
-            .get_result(conn)
+        diesel::insert_into(origin_channels::table).values(channel)
+                                                   .get_result(conn)
     }
 
     pub fn delete(origin: &str, channel: &ChannelIdent, conn: &PgConnection) -> QueryResult<usize> {
@@ -123,19 +128,16 @@ impl Channel {
             .get_result(conn);
 
         let end_time = PreciseTime::now();
-        trace!(
-            "DBCall channel::get_latest_package time: {} ms",
-            start_time.to(end_time).num_milliseconds()
-        );
+        trace!("DBCall channel::get_latest_package time: {} ms",
+               start_time.to(end_time).num_milliseconds());
         Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
 
         result
     }
 
-    pub fn list_packages(
-        lcp: &ListChannelPackages,
-        conn: &PgConnection,
-    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    pub fn list_packages(lcp: &ListChannelPackages,
+                         conn: &PgConnection)
+                         -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
 
         origin_packages::table
@@ -154,31 +156,25 @@ impl Channel {
             .load_and_count_records(conn)
     }
 
-    pub fn promote_packages(
-        channel_id: i64,
-        package_ids: &[i64],
-        conn: &PgConnection,
-    ) -> QueryResult<usize> {
+    pub fn promote_packages(channel_id: i64,
+                            package_ids: &[i64],
+                            conn: &PgConnection)
+                            -> QueryResult<usize> {
         Counter::DBCall.increment();
-        let insert: Vec<(_, _)> = package_ids
-            .iter()
-            .map(|id| {
-                (
-                    origin_channel_packages::package_id.eq(id),
-                    origin_channel_packages::channel_id.eq(channel_id),
-                )
-            })
-            .collect();
-        diesel::insert_into(origin_channel_packages::table)
-            .values(insert)
-            .execute(conn)
+        let insert: Vec<(_, _)> = package_ids.iter()
+                                             .map(|id| {
+                                                 (origin_channel_packages::package_id.eq(id),
+                            origin_channel_packages::channel_id.eq(channel_id))
+                                             })
+                                             .collect();
+        diesel::insert_into(origin_channel_packages::table).values(insert)
+                                                           .execute(conn)
     }
 
-    pub fn demote_packages(
-        channel_id: i64,
-        package_ids: &[i64],
-        conn: &PgConnection,
-    ) -> QueryResult<usize> {
+    pub fn demote_packages(channel_id: i64,
+                           package_ids: &[i64],
+                           conn: &PgConnection)
+                           -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_channel_packages::table
@@ -217,20 +213,19 @@ pub enum PackageChannelOperation {
 pub struct PackageChannelAudit<'a> {
     pub package_ident: BuilderPackageIdent,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
-    pub channel: &'a str,
-    pub operation: PackageChannelOperation,
-    pub trigger: PackageChannelTrigger,
-    pub requester_id: i64,
+    pub channel:        &'a str,
+    pub operation:      PackageChannelOperation,
+    pub trigger:        PackageChannelTrigger,
+    pub requester_id:   i64,
     pub requester_name: &'a str,
-    pub origin: &'a str,
+    pub origin:         &'a str,
 }
 
 impl<'a> PackageChannelAudit<'a> {
     pub fn audit(pca: &PackageChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::insert_into(audit_package::table)
-            .values(pca)
-            .execute(conn)
+        diesel::insert_into(audit_package::table).values(pca)
+                                                 .execute(conn)
     }
 }
 
@@ -239,21 +234,20 @@ impl<'a> PackageChannelAudit<'a> {
 pub struct PackageGroupChannelAudit<'a> {
     pub origin: &'a str,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
-    pub channel: &'a str,
-    pub package_ids: Vec<i64>,
-    pub operation: PackageChannelOperation,
-    pub trigger: PackageChannelTrigger,
-    pub requester_id: i64,
+    pub channel:        &'a str,
+    pub package_ids:    Vec<i64>,
+    pub operation:      PackageChannelOperation,
+    pub trigger:        PackageChannelTrigger,
+    pub requester_id:   i64,
     pub requester_name: &'a str,
-    pub group_id: i64,
+    pub group_id:       i64,
 }
 
 impl<'a> PackageGroupChannelAudit<'a> {
     pub fn audit(req: PackageGroupChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::insert_into(audit_package_group::table)
-            .values(req)
-            .execute(conn)
+        diesel::insert_into(audit_package_group::table).values(req)
+                                                       .execute(conn)
     }
 }
 
@@ -264,33 +258,34 @@ pub struct OriginChannelPackage {
 }
 
 pub struct OriginChannelPromote {
-    pub ident: BuilderPackageIdent,
-    pub origin: String,
+    pub ident:   BuilderPackageIdent,
+    pub origin:  String,
     pub channel: ChannelIdent,
 }
 pub struct OriginChannelDemote {
-    pub ident: BuilderPackageIdent,
-    pub origin: String,
+    pub ident:   BuilderPackageIdent,
+    pub origin:  String,
     pub channel: ChannelIdent,
 }
 
 impl OriginChannelPackage {
     pub fn promote(package: OriginChannelPromote, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        // If this looks bad, it is. To ensure we get values here or die we have to execute queries to get the IDs first.
-        // I can hear the groaning already, "Why can't we just do a sub-select and let the database barf on insert"
-        // Great question - Because the typechecking happens in Rust and you wanted a type-safe language
-        let channel_id = origin_channels::table
-            .filter(origin_channels::name.eq(package.channel.as_str()))
-            .filter(origin_channels::origin.eq(package.origin))
-            .select(origin_channels::id)
-            .limit(1)
-            .get_result::<i64>(conn)?;
-        let package_id = origin_packages::table
-            .filter(origin_packages::ident.eq(package.ident.to_string()))
-            .select(origin_packages::id)
-            .limit(1)
-            .get_result::<i64>(conn)?;
+        // If this looks bad, it is. To ensure we get values here or die we have to execute queries
+        // to get the IDs first. I can hear the groaning already, "Why can't we just do a
+        // sub-select and let the database barf on insert" Great question - Because the
+        // typechecking happens in Rust and you wanted a type-safe language
+        let channel_id = origin_channels::table.filter(origin_channels::name.eq(package.channel
+                                                                                       .as_str()))
+                                               .filter(origin_channels::origin.eq(package.origin))
+                                               .select(origin_channels::id)
+                                               .limit(1)
+                                               .get_result::<i64>(conn)?;
+        let package_id =
+            origin_packages::table.filter(origin_packages::ident.eq(package.ident.to_string()))
+                                  .select(origin_packages::id)
+                                  .limit(1)
+                                  .get_result::<i64>(conn)?;
 
         diesel::insert_into(origin_channel_packages::table)
             .values((
@@ -300,6 +295,7 @@ impl OriginChannelPackage {
             .on_conflict_do_nothing()
             .execute(conn)
     }
+
     pub fn demote(package: OriginChannelDemote, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(

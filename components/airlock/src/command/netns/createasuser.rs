@@ -12,26 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
-use std::process;
+use std::{fs::File,
+          io::Write,
+          path::Path,
+          process};
 
-use unshare::{self, Namespace};
+use unshare::{self,
+              Namespace};
 
-use crate::coreutils::{mkdir_p, touch};
-use crate::error::Result;
-use crate::namespace;
-use crate::user;
-use crate::util;
+use crate::{coreutils::{mkdir_p,
+                        touch},
+            error::Result,
+            namespace,
+            user,
+            util};
 
-pub fn run<P: AsRef<Path>>(
-    ns_dir: P,
-    interface: &str,
-    gateway: &str,
-    ipv4s: Vec<&str>,
-    ipv6s: Vec<&str>,
-) -> Result<()> {
+pub fn run<P: AsRef<Path>>(ns_dir: P,
+                           interface: &str,
+                           gateway: &str,
+                           ipv4s: Vec<&str>,
+                           ipv6s: Vec<&str>)
+                           -> Result<()> {
     util::check_user_group_membership(&user::my_username()?)?;
 
     mkdir_p(&ns_dir)?;
@@ -78,14 +79,10 @@ fn network_unshare_command<P: AsRef<Path>>(program: P) -> Result<unshare::Comman
     command.uid(0);
     command.gid(0);
     command.unshare(namespaces.iter().cloned());
-    command.set_id_maps(
-        namespace::uid_maps(&user::my_username()?)?,
-        namespace::gid_maps(&user::my_groupname()?)?,
-    );
-    command.set_id_map_commands(
-        util::find_command("newuidmap")?,
-        util::find_command("newgidmap")?,
-    );
+    command.set_id_maps(namespace::uid_maps(&user::my_username()?)?,
+                        namespace::gid_maps(&user::my_groupname()?)?);
+    command.set_id_map_commands(util::find_command("newuidmap")?,
+                                util::find_command("newgidmap")?);
 
     Ok(command)
 }

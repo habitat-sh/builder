@@ -26,5 +26,7 @@ mod pty;
 mod user;
 mod util;
 
-pub use crate::error::{Error, Result};
-pub use crate::fs_root::{FsRoot, FsRootPolicy};
+pub use crate::{error::{Error,
+                        Result},
+                fs_root::{FsRoot,
+                          FsRootPolicy}};

@@ -12,20 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt,
+          str::FromStr};
 
 use protobuf::ProtobufEnum;
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
+use serde::{ser::SerializeStruct,
+            Serialize,
+            Serializer};
 
 use crate::error::ProtocolError;
-pub use crate::message::{ErrCode, NetError, NetOk, Protocol};
+pub use crate::message::{ErrCode,
+                         NetError,
+                         NetOk,
+                         Protocol};
 
 #[allow(clippy::needless_pass_by_value)]
 pub fn err<T>(code: ErrCode, msg: T) -> NetError
-where
-    T: ToString,
+    where T: ToString
 {
     let mut err = NetError::new();
     err.set_code(code);
@@ -35,8 +38,7 @@ where
 
 impl Serialize for ErrCode {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         serializer.serialize_u64(self.value() as u64)
     }
@@ -50,8 +52,7 @@ impl fmt::Display for NetError {
 
 impl Serialize for NetError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("error", 2)?;
         strukt.serialize_field("code", &self.get_code())?;

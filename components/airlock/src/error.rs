@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ffi;
-use std::fmt;
-use std::io;
-use std::path::PathBuf;
-use std::process;
-use std::result;
+use std::{ffi,
+          fmt,
+          io,
+          path::PathBuf,
+          process,
+          result};
 
 use unshare;
 
@@ -91,14 +91,14 @@ impl fmt::Display for Error {
             Error::Ptsname(ref e) => format!("Error calling ptsname, {}", e),
             Error::RootUserRequired => String::from("This command must be run as the root user"),
             Error::Setns(ref e) => format!("Error calling setns, {}", e),
-            Error::SubGidRangeTooSmall(ref r, ref m) => format!(
-                "Range '{}' in subgid is too small for user, minimum required: '{}'",
-                r, m
-            ),
-            Error::SubUidRangeTooSmall(ref r, ref m) => format!(
-                "Range '{}' in subuid is too small for user, minimum required: '{}'",
-                r, m
-            ),
+            Error::SubGidRangeTooSmall(ref r, ref m) => {
+                format!("Range '{}' in subgid is too small for user, minimum required: '{}'",
+                        r, m)
+            }
+            Error::SubUidRangeTooSmall(ref r, ref m) => {
+                format!("Range '{}' in subuid is too small for user, minimum required: '{}'",
+                        r, m)
+            }
             Error::Unlockpt(ref e) => format!("Error calling unlockpt, {}", e),
             Error::Unshare(ref e) => format!("Unshare error: {}", e),
             Error::UserNotInGroup(ref u, ref g) => {
@@ -111,19 +111,13 @@ impl fmt::Display for Error {
 }
 
 impl From<ffi::NulError> for Error {
-    fn from(err: ffi::NulError) -> Error {
-        Error::NulError(err)
-    }
+    fn from(err: ffi::NulError) -> Error { Error::NulError(err) }
 }
 
 impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::IO(err)
-    }
+    fn from(err: io::Error) -> Error { Error::IO(err) }
 }
 
 impl From<unshare::Error> for Error {
-    fn from(err: unshare::Error) -> Error {
-        Error::Unshare(err)
-    }
+    fn from(err: unshare::Error) -> Error { Error::Unshare(err) }
 }

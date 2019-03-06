@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
-use std::result;
-use std::str::FromStr;
+use std::{fmt,
+          result,
+          str::FromStr};
 
 use protobuf::RepeatedField;
 use regex::Regex;
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
+use serde::{ser::SerializeStruct,
+            Serialize,
+            Serializer};
 
-use crate::error::ProtocolError;
-use crate::message::originsrv::OriginPackage;
+use crate::{error::ProtocolError,
+            message::originsrv::OriginPackage};
 
-pub use crate::message::jobsrv::*;
-pub use crate::message::originsrv;
+pub use crate::message::{jobsrv::*,
+                         originsrv};
 
 pub const GITHUB_PUSH_NOTIFY_ID: u64 = 23;
 
@@ -45,8 +46,7 @@ impl Into<Job> for JobSpec {
 
 impl Serialize for Job {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("job", 10)?;
 
@@ -132,8 +132,7 @@ impl JobLog {
 
 impl Serialize for JobLog {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut log = serializer.serialize_struct("JobLog", 4)?;
         log.serialize_field("start", &self.get_start())?;
@@ -146,8 +145,7 @@ impl Serialize for JobLog {
 
 impl Serialize for JobState {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         match *self as u64 {
             0 => serializer.serialize_str("Pending"),
@@ -257,11 +255,10 @@ impl Into<OriginPackage> for JobGraphPackagePreCreate {
         let name = self.get_ident().to_string();
         let target = self.get_target().to_string();
 
-        let deps = self
-            .get_deps()
-            .iter()
-            .map(|x| originsrv::OriginPackageIdent::from_str(&x).unwrap())
-            .collect();
+        let deps = self.get_deps()
+                       .iter()
+                       .map(|x| originsrv::OriginPackageIdent::from_str(&x).unwrap())
+                       .collect();
 
         package.set_ident(originsrv::OriginPackageIdent::from_str(&name).unwrap());
         package.set_target(target);
@@ -302,8 +299,7 @@ impl FromStr for JobGroupState {
 
 impl Serialize for JobGroupState {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         match *self as u64 {
             0 => serializer.serialize_str("Pending"),
@@ -349,8 +345,7 @@ impl FromStr for JobGroupProjectState {
 
 impl Serialize for JobGroupProjectState {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         match *self as u64 {
             0 => serializer.serialize_str("NotStarted"),
@@ -366,8 +361,7 @@ impl Serialize for JobGroupProjectState {
 
 impl Serialize for JobGroupProject {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("job_group_project", 4)?;
         strukt.serialize_field("name", &self.get_name())?;
@@ -381,8 +375,7 @@ impl Serialize for JobGroupProject {
 
 impl Serialize for JobGroup {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("job_group", 5)?;
         strukt.serialize_field("id", &self.get_id().to_string())?;
@@ -397,11 +390,9 @@ impl Serialize for JobGroup {
 
 impl Serialize for JobGraphPackageReverseDependencies {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
-        let mut strukt =
-            serializer.serialize_struct("job_graph_package_reverse_dependencies", 3)?;
+        let mut strukt = serializer.serialize_struct("job_graph_package_reverse_dependencies", 3)?;
         strukt.serialize_field("origin", &self.get_origin())?;
         strukt.serialize_field("name", &self.get_name())?;
         strukt.serialize_field("rdeps", &self.get_rdeps())?;
@@ -411,8 +402,7 @@ impl Serialize for JobGraphPackageReverseDependencies {
 
 impl Serialize for JobGraphPackageReverseDependencyGroup {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt =
             serializer.serialize_struct("job_graph_package_reverse_dependency_group", 2)?;
@@ -424,8 +414,7 @@ impl Serialize for JobGraphPackageReverseDependencyGroup {
 
 impl Serialize for JobGraphPackageReverseDependenciesGrouped {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt =
             serializer.serialize_struct("job_graph_package_reverse_dependencies_grouped", 3)?;
@@ -438,8 +427,7 @@ impl Serialize for JobGraphPackageReverseDependenciesGrouped {
 
 impl Serialize for JobGroupOriginResponse {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("job_group_origin_response", 1)?;
         strukt.serialize_field("name", &self.get_job_groups())?;
@@ -483,12 +471,10 @@ mod tests {
         log.set_start(0);
         log.set_stop(4);
 
-        let lines = vec![
-            "[1;33m» Importing origin key from standard log[0m",
-            "[1;34m★ Imported secret origin key core-20160810182414.[0m",
-            "[1;33m» Installing core/hab-backline[0m",
-            "[1;32m↓ Downloading[0m core/hab-backline/0.23.0/20170511220008",
-        ];
+        let lines = vec!["[1;33m» Importing origin key from standard log[0m",
+                         "[1;34m★ Imported secret origin key core-20160810182414.[0m",
+                         "[1;33m» Installing core/hab-backline[0m",
+                         "[1;32m↓ Downloading[0m core/hab-backline/0.23.0/20170511220008",];
 
         let input_lines = lines.iter().map(|l| l.to_string());
         let content = RepeatedField::from_iter(input_lines);
@@ -496,18 +482,15 @@ mod tests {
 
         log.strip_ansi();
 
-        let stripped_lines: Vec<String> = log
-            .get_content()
-            .into_iter()
-            .map(|l| l.to_string())
-            .collect();
+        let stripped_lines: Vec<String> = log.get_content()
+                                             .into_iter()
+                                             .map(|l| l.to_string())
+                                             .collect();
 
-        let expected = vec![
-            "» Importing origin key from standard log",
-            "★ Imported secret origin key core-20160810182414.",
-            "» Installing core/hab-backline",
-            "↓ Downloading core/hab-backline/0.23.0/20170511220008",
-        ];
+        let expected = vec!["» Importing origin key from standard log",
+                            "★ Imported secret origin key core-20160810182414.",
+                            "» Installing core/hab-backline",
+                            "↓ Downloading core/hab-backline/0.23.0/20170511220008",];
         assert_eq!(stripped_lines, expected);
     }
 

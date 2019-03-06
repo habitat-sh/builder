@@ -12,22 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
-use std::fmt;
-use std::iter::FromIterator;
-use std::ops::Deref;
-use std::path::PathBuf;
-use std::result;
-use std::str::FromStr;
-use std::string::ToString;
+use std::{collections::{HashMap,
+                        HashSet},
+          fmt,
+          iter::FromIterator,
+          ops::Deref,
+          path::PathBuf,
+          result,
+          str::FromStr,
+          string::ToString};
 
 use glob;
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de,
+            Deserialize,
+            Deserializer,
+            Serialize,
+            Serializer};
 use toml;
 
-use crate::error::{Error, Result};
-use crate::hab_core::config::ConfigFile;
-use crate::hab_core::package::target::{self, PackageTarget};
+use crate::{error::{Error,
+                    Result},
+            hab_core::{config::ConfigFile,
+                       package::target::{self,
+                                         PackageTarget}}};
 
 /// Postprocessing config file name
 pub const BLDR_CFG: &str = ".bldr.toml";
@@ -43,15 +50,12 @@ impl BuildCfg {
     }
 
     /// List of all registered projects for this `BuildCfg`.
-    pub fn projects(&self) -> Vec<&ProjectCfg> {
-        self.0.values().collect()
-    }
+    pub fn projects(&self) -> Vec<&ProjectCfg> { self.0.values().collect() }
 
     /// Returns true if the given branch & file path combination should result in a new build
     /// being automatically triggered by a GitHub Push notification.
     pub fn triggered_by<T>(&self, branch: &str, paths: &[T]) -> Vec<&ProjectCfg>
-    where
-        T: AsRef<str>,
+        where T: AsRef<str>
     {
         self.0
             .values()
@@ -81,28 +85,23 @@ impl Default for BuildCfg {
 impl Deref for BuildCfg {
     type Target = HashMap<String, ProjectCfg>;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 pub struct Pattern {
-    inner: glob::Pattern,
+    inner:   glob::Pattern,
     options: glob::MatchOptions,
 }
 
 impl Pattern {
     fn default_options() -> glob::MatchOptions {
-        glob::MatchOptions {
-            case_sensitive: false,
-            require_literal_separator: false,
-            require_literal_leading_dot: false,
-        }
+        glob::MatchOptions { case_sensitive:              false,
+                             require_literal_separator:   false,
+                             require_literal_leading_dot: false, }
     }
 
     pub fn matches<T>(&self, value: T) -> bool
-    where
-        T: AsRef<str>,
+        where T: AsRef<str>
     {
         self.inner.matches_with(value.as_ref(), &self.options)
     }
@@ -110,8 +109,7 @@ impl Pattern {
 
 impl<'de> Deserialize<'de> for Pattern {
     fn deserialize<D>(deserializer: D) -> result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
+        where D: Deserializer<'de>
     {
         let s = String::deserialize(deserializer)?;
         Pattern::from_str(&s).map_err(de::Error::custom)
@@ -119,9 +117,7 @@ impl<'de> Deserialize<'de> for Pattern {
 }
 
 impl fmt::Debug for Pattern {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.inner)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", self.inner) }
 }
 
 impl FromStr for Pattern {
@@ -129,17 +125,14 @@ impl FromStr for Pattern {
 
     fn from_str(value: &str) -> result::Result<Self, Self::Err> {
         let inner: glob::Pattern = FromStr::from_str(value)?;
-        Ok(Pattern {
-            inner,
-            options: Pattern::default_options(),
-        })
+        Ok(Pattern { inner,
+                     options: Pattern::default_options() })
     }
 }
 
 impl Serialize for Pattern {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         serializer.serialize_str(&self.inner.to_string())
     }
@@ -167,35 +160,24 @@ pub struct ProjectCfg {
 }
 
 impl ProjectCfg {
-    fn default_branches() -> Vec<String> {
-        vec!["master".to_string()]
-    }
+    fn default_branches() -> Vec<String> { vec!["master".to_string()] }
 
-    fn default_path() -> Pattern {
-        Pattern::from_str("*").unwrap()
-    }
+    fn default_path() -> Pattern { Pattern::from_str("*").unwrap() }
 
-    fn default_plan_path() -> PathBuf {
-        PathBuf::from("habitat")
-    }
+    fn default_plan_path() -> PathBuf { PathBuf::from("habitat") }
 
-    fn default_plan_pattern() -> Pattern {
-        Pattern::from_str("habitat/*").unwrap()
-    }
+    fn default_plan_pattern() -> Pattern { Pattern::from_str("habitat/*").unwrap() }
 
     fn default_build_targets() -> HashSet<PackageTarget> {
         HashSet::from_iter(vec![target::X86_64_WINDOWS, target::X86_64_LINUX])
     }
 
-    pub fn plan_path(&self) -> &PathBuf {
-        &self.plan_path
-    }
+    pub fn plan_path(&self) -> &PathBuf { &self.plan_path }
 
     /// Returns true if the given branch & file path combination should result in a new build
     /// being automatically triggered by a GitHub Push notification
     fn triggered_by<T>(&self, branch: &str, paths: &[T]) -> bool
-    where
-        T: AsRef<str>,
+        where T: AsRef<str>
     {
         if !self.branches.iter().any(|b| b == branch) {
             return false;
@@ -203,20 +185,19 @@ impl ProjectCfg {
         let plan_pattern = Pattern::from_str(&self.plan_path.join("*").to_string_lossy())
             .unwrap_or_else(|_| Self::default_plan_pattern());
         paths.iter().any(|p| {
-            plan_pattern.matches(p.as_ref()) || self.paths.iter().any(|i| i.matches(p.as_ref()))
-        })
+                        plan_pattern.matches(p.as_ref())
+                        || self.paths.iter().any(|i| i.matches(p.as_ref()))
+                    })
     }
 }
 
 impl Default for ProjectCfg {
     fn default() -> Self {
-        ProjectCfg {
-            branches: ProjectCfg::default_branches(),
-            channels: vec![],
-            paths: vec![ProjectCfg::default_path()],
-            plan_path: ProjectCfg::default_plan_path(),
-            build_targets: ProjectCfg::default_build_targets(),
-        }
+        ProjectCfg { branches:      ProjectCfg::default_branches(),
+                     channels:      vec![],
+                     paths:         vec![ProjectCfg::default_path()],
+                     plan_path:     ProjectCfg::default_plan_path(),
+                     build_targets: ProjectCfg::default_build_targets(), }
     }
 }
 

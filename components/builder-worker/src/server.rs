@@ -12,34 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::fs;
-use std::iter::FromIterator;
-use std::path::Path;
 #[cfg(windows)]
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
+use std::{collections::HashMap,
+          fs,
+          iter::FromIterator,
+          path::Path,
+          sync::Arc,
+          thread,
+          time::Duration};
 
 use zmq;
 
-use crate::bldr_core;
-use crate::bldr_core::socket::DEFAULT_CONTEXT;
 #[cfg(windows)]
 use crate::hab_core::env;
-use crate::hab_core::users;
 #[cfg(not(windows))]
 use crate::hab_core::util::posix_perm;
-use crate::protocol::{jobsrv, message};
+use crate::{bldr_core::{self,
+                        socket::DEFAULT_CONTEXT},
+            hab_core::users,
+            protocol::{jobsrv,
+                       message}};
 
-use crate::config::Config;
-use crate::error::{Error, Result};
-use crate::feat;
-use crate::heartbeat::{HeartbeatCli, HeartbeatMgr};
-use crate::log_forwarder::LogForwarder;
-use crate::network::NetworkNamespace;
-use crate::runner::{studio, RunnerCli, RunnerMgr};
+use crate::{config::Config,
+            error::{Error,
+                    Result},
+            feat,
+            heartbeat::{HeartbeatCli,
+                        HeartbeatMgr},
+            log_forwarder::LogForwarder,
+            network::NetworkNamespace,
+            runner::{studio,
+                     RunnerCli,
+                     RunnerMgr}};
 
 /// Interval for main thread to check cancel status
 pub const BUILD_CANCEL_WAIT_SECS: u64 = 15;
@@ -50,9 +55,7 @@ enum State {
 }
 
 impl Default for State {
-    fn default() -> State {
-        State::Ready
-    }
+    fn default() -> State { State::Ready }
 }
 
 pub struct Server {
@@ -73,15 +76,13 @@ impl Server {
         let hb_cli = HeartbeatCli::new(net_ident.clone(), config.target.to_string());
         let runner_cli = RunnerCli::new();
         fe_sock.set_identity(net_ident.as_bytes()).unwrap();
-        Server {
-            config: Arc::new(config),
-            fe_sock,
-            hb_cli,
-            runner_cli,
-            state: State::default(),
-            msg: zmq::Message::new().unwrap(),
-            net_ident: Arc::new(net_ident),
-        }
+        Server { config: Arc::new(config),
+                 fe_sock,
+                 hb_cli,
+                 runner_cli,
+                 state: State::default(),
+                 msg: zmq::Message::new().unwrap(),
+                 net_ident: Arc::new(net_ident) }
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -104,10 +105,8 @@ impl Server {
         info!("builder-worker is ready to go.");
         loop {
             {
-                let mut items = [
-                    self.fe_sock.as_poll_item(1),
-                    self.runner_cli.as_poll_item(1),
-                ];
+                let mut items = [self.fe_sock.as_poll_item(1),
+                                 self.runner_cli.as_poll_item(1)];
                 zmq::poll(&mut items, -1)?;
                 if items[0].get_revents() & zmq::POLLIN > 0 {
                     fe_msg = true;
@@ -132,16 +131,20 @@ impl Server {
                 self.fe_sock.recv(&mut self.msg, 0)?; // Receive Job msg
 
                 match self.state {
-                    State::Ready => match wc.get_op() {
-                        jobsrv::WorkerOperation::StartJob => self.start_job()?,
-                        jobsrv::WorkerOperation::CancelJob => {
-                            warn!("Received unexpected Cancel for Ready worker")
+                    State::Ready => {
+                        match wc.get_op() {
+                            jobsrv::WorkerOperation::StartJob => self.start_job()?,
+                            jobsrv::WorkerOperation::CancelJob => {
+                                warn!("Received unexpected Cancel for Ready worker")
+                            }
                         }
-                    },
-                    State::Busy => match wc.get_op() {
-                        jobsrv::WorkerOperation::StartJob => self.reject_job()?,
-                        jobsrv::WorkerOperation::CancelJob => self.cancel_job()?,
-                    },
+                    }
+                    State::Busy => {
+                        match wc.get_op() {
+                            jobsrv::WorkerOperation::StartJob => self.reject_job()?,
+                            jobsrv::WorkerOperation::CancelJob => self.cancel_job()?,
+                        }
+                    }
                 }
                 fe_msg = false;
             }
@@ -195,17 +198,13 @@ impl Server {
             return Ok(());
         }
         if self.config.network_interface.is_some() && self.config.network_gateway.is_none() {
-            error!(
-                "ERROR: No 'network_gateway' config value specfied when 'network_interface' \
-                 was provided. Both must be present to work correctly."
-            );
+            error!("ERROR: No 'network_gateway' config value specfied when 'network_interface' \
+                    was provided. Both must be present to work correctly.");
             return Err(Error::NoNetworkGatewayError);
         }
         if self.config.network_gateway.is_some() && self.config.network_interface.is_none() {
-            error!(
-                "ERROR: No 'network_interface' config value specfied when 'network_gateway' \
-                 was provided. Both must be present to work correctly."
-            );
+            error!("ERROR: No 'network_interface' config value specfied when 'network_gateway' \
+                    was provided. Both must be present to work correctly.");
             return Err(Error::NoNetworkInterfaceError);
         }
 
@@ -216,24 +215,20 @@ impl Server {
                 // we should destroy this namespace so it can be created again below
                 net_ns.destroy()?;
             } else {
-                info!(
-                    "reusing network namespace, dir={}",
-                    net_ns.ns_dir().display()
-                );
+                info!("reusing network namespace, dir={}",
+                      net_ns.ns_dir().display());
                 return Ok(());
             }
         }
 
-        let interface = self
-            .config
-            .network_interface
-            .as_ref()
-            .expect("network_interface is set");
-        let gateway = self
-            .config
-            .network_gateway
-            .as_ref()
-            .expect("network_gateway is set");
+        let interface = self.config
+                            .network_interface
+                            .as_ref()
+                            .expect("network_interface is set");
+        let gateway = self.config
+                          .network_gateway
+                          .as_ref()
+                          .expect("network_gateway is set");
         self.prepare_dirs()?;
         net_ns.create(interface, gateway, studio::STUDIO_USER)
     }
@@ -242,13 +237,10 @@ impl Server {
         // Ensure that data path group ownership is set to the build user and directory perms are
         // `0750`. This allows the namespace files to be accessed and read by the build user
         if cfg!(not(windows)) {
-            set_owner(
-                &self.config.data_path,
-                users::get_current_username()
-                    .unwrap_or_else(|| String::from("root"))
-                    .as_str(),
-                studio::STUDIO_GROUP,
-            )?;
+            set_owner(&self.config.data_path,
+                      users::get_current_username().unwrap_or_else(|| String::from("root"))
+                                                   .as_str(),
+                      studio::STUDIO_GROUP)?;
             set_permissions(&self.config.data_path, 0o750)?;
         } else {
             unreachable!();
@@ -257,12 +249,13 @@ impl Server {
         // Set parent directory of ns_dir to be owned by the build user so that the appropriate
         // directories, files, and bind-mounts can be created for the build user
         let parent_path = self.config.ns_dir_path();
-        let parent_path = parent_path
-            .parent()
-            .expect("parent directory path segement for ns_dir should exist");
+        let parent_path =
+            parent_path.parent()
+                       .expect("parent directory path segement for ns_dir should exist");
         if !parent_path.is_dir() {
-            fs::create_dir_all(parent_path)
-                .map_err(|e| Error::CreateDirectory(parent_path.to_path_buf(), e))?;
+            fs::create_dir_all(parent_path).map_err(|e| {
+                                               Error::CreateDirectory(parent_path.to_path_buf(), e)
+                                           })?;
         }
         if cfg!(not(windows)) {
             set_owner(&parent_path, studio::STUDIO_USER, studio::STUDIO_GROUP)?;
@@ -276,11 +269,10 @@ impl Server {
 
     fn enable_features_from_config(&self) {
         let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List)]);
-        let features_enabled = self
-            .config
-            .features_enabled
-            .split(',')
-            .map(|f| f.trim().to_uppercase());
+        let features_enabled = self.config
+                                   .features_enabled
+                                   .split(',')
+                                   .map(|f| f.trim().to_uppercase());
         for key in features_enabled {
             if features.contains_key(key.as_str()) {
                 info!("Enabling feature: {}", key);
@@ -295,9 +287,7 @@ impl Server {
     }
 }
 
-pub fn run(config: Config) -> Result<()> {
-    Server::new(config).run()
-}
+pub fn run(config: Config) -> Result<()> { Server::new(config).run() }
 
 #[cfg(not(windows))]
 fn init_users() -> Result<()> {
@@ -340,6 +330,4 @@ pub fn set_permissions<T: AsRef<Path>>(path: T, mode: u32) -> Result<()> {
 }
 
 #[cfg(windows)]
-pub fn set_permissions<T: AsRef<Path>>(_path: T, _mode: u32) -> Result<()> {
-    Ok(())
-}
+pub fn set_permissions<T: AsRef<Path>>(_path: T, _mode: u32) -> Result<()> { Ok(()) }

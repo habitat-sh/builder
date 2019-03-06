@@ -7,8 +7,9 @@ table! {
     }
 }
 
-use super::account::accounts;
-use super::origin::{origins, origins_with_stats};
+use super::{account::accounts,
+            origin::{origins,
+                     origins_with_stats}};
 
 joinable!(origin_members -> origins (origin));
 joinable!(origin_members -> origins_with_stats (origin));

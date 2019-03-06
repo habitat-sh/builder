@@ -24,28 +24,43 @@
 //!
 //! Currently the S3Handler must be configured with both an access key
 //! ID and a secret access key.
-use std::fmt::Display;
-use std::fs::File;
-use std::io::Write;
-use std::io::{BufRead, BufReader, Read};
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{fmt::Display,
+          fs::File,
+          io::{BufRead,
+               BufReader,
+               Read,
+               Write},
+          path::PathBuf,
+          str::FromStr};
 
-use futures::{Future, Stream};
+use futures::{Future,
+              Stream};
 use time::PreciseTime;
 
-use rusoto_s3::{
-    CompleteMultipartUploadRequest, CompletedMultipartUpload, CompletedPart, CreateBucketRequest,
-    CreateMultipartUploadRequest, GetObjectRequest, HeadObjectRequest, PutObjectRequest, S3Client,
-    UploadPartRequest, S3,
-};
+use rusoto_s3::{CompleteMultipartUploadRequest,
+                CompletedMultipartUpload,
+                CompletedPart,
+                CreateBucketRequest,
+                CreateMultipartUploadRequest,
+                GetObjectRequest,
+                HeadObjectRequest,
+                PutObjectRequest,
+                S3Client,
+                UploadPartRequest,
+                S3};
 
 use super::metrics::Counter;
-use crate::bldr_core::metrics::CounterMetric;
-use crate::config::{S3Backend, S3Cfg};
-use crate::hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
-use crate::rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
-use crate::server::error::{Error, Result};
+use crate::{bldr_core::metrics::CounterMetric,
+            config::{S3Backend,
+                     S3Cfg},
+            hab_core::package::{PackageArchive,
+                                PackageIdent,
+                                PackageTarget},
+            rusoto::{credential::StaticProvider,
+                     reactor::RequestDispatcher,
+                     Region},
+            server::error::{Error,
+                            Result}};
 
 // This const is equal to 6MB which is slightly above
 // the minimum limit for a multipart upload request
@@ -63,10 +78,10 @@ impl S3Handler {
     // any backend operations
     pub fn new(config: S3Cfg) -> Self {
         let region = match config.backend {
-            S3Backend::Minio => Region::Custom {
-                name: "minio_s3".to_owned(),
-                endpoint: config.endpoint.to_string(),
-            },
+            S3Backend::Minio => {
+                Region::Custom { name:     "minio_s3".to_owned(),
+                                 endpoint: config.endpoint.to_string(), }
+            }
             S3Backend::Aws => Region::from_str(config.endpoint.as_str()).unwrap(),
         };
         let aws_id = config.key_id;
@@ -85,12 +100,15 @@ impl S3Handler {
     fn bucket_exists(&self) -> Result<bool> {
         let artifactbucket = self.bucket.to_owned();
         match self.client.list_buckets().sync() {
-            Ok(bucket_list) => match bucket_list.buckets {
-                Some(buckets) => Ok(buckets
-                    .iter()
-                    .any(|ref x| x.name.clone().unwrap() == artifactbucket)),
-                None => Ok(false),
-            },
+            Ok(bucket_list) => {
+                match bucket_list.buckets {
+                    Some(buckets) => {
+                        Ok(buckets.iter()
+                                  .any(|ref x| x.name.clone().unwrap() == artifactbucket))
+                    }
+                    None => Ok(false),
+                }
+            }
             Err(e) => {
                 debug!("{:?}", e);
                 Err(Error::ListBuckets(e))
@@ -123,22 +141,23 @@ impl S3Handler {
 
         match self.bucket_exists() {
             Ok(_) => Ok(()),
-            Err(_) => match self.client.create_bucket(&request).sync() {
-                Ok(_response) => Ok(()),
-                Err(e) => {
-                    debug!("{:?}", e);
-                    Err(Error::CreateBucketError(e))
+            Err(_) => {
+                match self.client.create_bucket(&request).sync() {
+                    Ok(_response) => Ok(()),
+                    Err(e) => {
+                        debug!("{:?}", e);
+                        Err(Error::CreateBucketError(e))
+                    }
                 }
-            },
+            }
         }
     }
 
-    pub fn upload(
-        &self,
-        hart_path: &PathBuf,
-        ident: &PackageIdent,
-        target: PackageTarget,
-    ) -> Result<()> {
+    pub fn upload(&self,
+                  hart_path: &PathBuf,
+                  ident: &PackageIdent,
+                  target: PackageTarget)
+                  -> Result<()> {
         Counter::UploadRequests.increment();
         let key = s3_key(ident, target)?;
         let file = File::open(hart_path).map_err(Error::IO)?;
@@ -157,12 +176,11 @@ impl S3Handler {
         }
     }
 
-    pub fn download(
-        &self,
-        loc: &PathBuf,
-        ident: &PackageIdent,
-        target: PackageTarget,
-    ) -> Result<PackageArchive> {
+    pub fn download(&self,
+                    loc: &PathBuf,
+                    ident: &PackageIdent,
+                    target: PackageTarget)
+                    -> Result<PackageArchive> {
         Counter::DownloadRequests.increment();
         let mut request = GetObjectRequest::default();
         let key = s3_key(ident, target)?;
@@ -173,10 +191,8 @@ impl S3Handler {
         let body = match payload {
             Ok(response) => response.body,
             Err(e) => {
-                warn!(
-                    "Failed to retrieve object from S3, key={}: {:?}",
-                    request.key, e
-                );
+                warn!("Failed to retrieve object from S3, key={}: {:?}",
+                      request.key, e);
                 return Err(Error::PackageDownload(e));
             }
         };
@@ -192,8 +208,7 @@ impl S3Handler {
     }
 
     fn single_upload<P: Into<PathBuf>>(&self, key: &str, hart: File, path_attr: &P) -> Result<()>
-    where
-        P: Display,
+        where P: Display
     {
         Counter::SingleUploadRequests.increment();
         let start_time = PreciseTime::now();
@@ -210,11 +225,9 @@ impl S3Handler {
         match self.client.put_object(&request).sync() {
             Ok(_) => {
                 let end_time = PreciseTime::now();
-                info!(
-                    "Upload completed for {} (in {} sec):",
-                    path_attr,
-                    start_time.to(end_time)
-                );
+                info!("Upload completed for {} (in {} sec):",
+                      path_attr,
+                      start_time.to(end_time));
                 Ok(())
             }
             Err(e) => {
@@ -226,8 +239,7 @@ impl S3Handler {
     }
 
     fn multipart_upload<P: Into<PathBuf>>(&self, key: &str, hart: File, path_attr: &P) -> Result<()>
-    where
-        P: Display,
+        where P: Display
     {
         Counter::MultipartUploadRequests.increment();
         let start_time = PreciseTime::now();
@@ -241,7 +253,7 @@ impl S3Handler {
                 let mut request = UploadPartRequest::default();
                 request.key = mprequest.key;
                 request.bucket = mprequest.bucket;
-                request.upload_id = output.upload_id.clone().unwrap(); //unwrap safe
+                request.upload_id = output.upload_id.clone().unwrap(); // unwrap safe
 
                 let mut reader = BufReader::with_capacity(MINLIMIT, hart);
                 let mut part_num: i64 = 0;
@@ -260,10 +272,8 @@ impl S3Handler {
 
                         match self.client.upload_part(&request).sync() {
                             Ok(upo) => {
-                                p.push(CompletedPart {
-                                    e_tag: upo.e_tag,
-                                    part_number: Some(part_num),
-                                });
+                                p.push(CompletedPart { e_tag:       upo.e_tag,
+                                                       part_number: Some(part_num), });
                             }
                             Err(e) => {
                                 debug!("{:?}", e);
@@ -277,22 +287,21 @@ impl S3Handler {
                     }
                 }
 
-                let completion = CompleteMultipartUploadRequest {
-                    key: key.to_string(),
-                    bucket: self.bucket.clone(),
-                    multipart_upload: Some(CompletedMultipartUpload { parts: Some(p) }),
-                    upload_id: output.upload_id.unwrap(),
-                    request_payer: None,
-                };
+                let completion =
+                    CompleteMultipartUploadRequest { key:              key.to_string(),
+                                                     bucket:           self.bucket.clone(),
+                                                     multipart_upload:
+                                                         Some(CompletedMultipartUpload { parts:
+                                                                                             Some(p), }),
+                                                     upload_id:        output.upload_id.unwrap(),
+                                                     request_payer:    None, };
 
                 match self.client.complete_multipart_upload(&completion).sync() {
                     Ok(_) => {
                         let end_time = PreciseTime::now();
-                        info!(
-                            "Upload completed for {} (in {} sec):",
-                            path_attr,
-                            start_time.to(end_time)
-                        );
+                        info!("Upload completed for {} (in {} sec):",
+                              path_attr,
+                              start_time.to(end_time));
                         Ok(())
                     }
                     Err(e) => {
@@ -314,26 +323,21 @@ impl S3Handler {
 fn s3_key(ident: &PackageIdent, target: PackageTarget) -> Result<String> {
     // Calling this method first ensures that the ident is fully qualified and the correct errors
     // are returned in case of failure
-    let hart_name = ident
-        .archive_name_with_target(&target)
-        .map_err(Error::HabitatCore)?;
+    let hart_name = ident.archive_name_with_target(&target)
+                         .map_err(Error::HabitatCore)?;
 
-    Ok(format!(
-        "{}/{}/{}",
-        ident.iter().collect::<Vec<&str>>().join("/"),
-        target.iter().collect::<Vec<&str>>().join("/"),
-        hart_name
-    ))
+    Ok(format!("{}/{}/{}",
+               ident.iter().collect::<Vec<&str>>().join("/"),
+               target.iter().collect::<Vec<&str>>().join("/"),
+               hart_name))
 }
 
 fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive> {
     let mut file = match File::create(&filename) {
         Ok(f) => f,
         Err(e) => {
-            warn!(
-                "Unable to create archive file for {:?}, err={:?}",
-                filename, e
-            );
+            warn!("Unable to create archive file for {:?}, err={:?}",
+                  filename, e);
             return Err(Error::IO(e));
         }
     };
@@ -355,14 +359,10 @@ mod test {
             PackageIdent::from_str("bend-sinister/the-other-way/1.0.0/20180701122201").unwrap();
         let target = PackageTarget::from_str("x86_64-linux").unwrap();
 
-        assert_eq!(
-            format!(
-                "{}/{}",
-                "bend-sinister/the-other-way/1.0.0/20180701122201/x86_64/linux",
-                "bend-sinister-the-other-way-1.0.0-20180701122201-x86_64-linux.hart"
-            ),
-            s3_key(&ident, target).unwrap()
-        );
+        assert_eq!(format!("{}/{}",
+                           "bend-sinister/the-other-way/1.0.0/20180701122201/x86_64/linux",
+                           "bend-sinister-the-other-way-1.0.0-20180701122201-x86_64-linux.hart"),
+                   s3_key(&ident, target).unwrap());
     }
 
     #[test]

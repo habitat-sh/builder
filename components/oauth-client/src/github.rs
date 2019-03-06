@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::header::{qitem, Accept, Authorization, Bearer, Headers};
-use reqwest::mime;
-use reqwest::Client;
+use reqwest::{header::{qitem,
+                       Accept,
+                       Authorization,
+                       Bearer,
+                       Headers},
+              mime,
+              Client};
 use serde_json;
 
-use crate::config::OAuth2Cfg;
-use crate::error::{Error, Result};
-use crate::types::*;
+use crate::{config::OAuth2Cfg,
+            error::{Error,
+                    Result},
+            types::*};
 
 pub struct GitHub;
 
@@ -30,7 +35,7 @@ struct AuthOk {
 
 #[derive(Deserialize)]
 struct User {
-    pub id: u32,
+    pub id:    u32,
     pub login: String,
     pub email: Option<String>,
 }
@@ -42,20 +47,16 @@ impl GitHub {
             qitem(mime::APPLICATION_JSON),
             qitem("application/vnd.github.v3+json".parse().unwrap()),
             qitem(
-                "application/vnd.github.machine-man-preview+json"
-                    .parse()
-                    .unwrap(),
+                "application/vnd.github.machine-man-preview+json".parse()
+                                                                 .unwrap(),
             ),
         ]));
-        headers.set(Authorization(Bearer {
-            token: token.to_string(),
-        }));
+        headers.set(Authorization(Bearer { token: token.to_string(), }));
 
-        let mut resp = client
-            .get(&config.userinfo_url)
-            .headers(headers)
-            .send()
-            .map_err(Error::HttpClient)?;
+        let mut resp = client.get(&config.userinfo_url)
+                             .headers(headers)
+                             .send()
+                             .map_err(Error::HttpClient)?;
 
         let body = resp.text().map_err(Error::HttpClient)?;
         debug!("GitHub response body: {}", body);
@@ -66,11 +67,9 @@ impl GitHub {
                 Err(e) => return Err(Error::Serialization(e)),
             };
 
-            Ok(OAuth2User {
-                id: user.id.to_string(),
-                username: user.login,
-                email: user.email,
-            })
+            Ok(OAuth2User { id:       user.id.to_string(),
+                            username: user.login,
+                            email:    user.email, })
         } else {
             Err(Error::HttpResponse(resp.status(), body))
         }
@@ -78,25 +77,21 @@ impl GitHub {
 }
 
 impl OAuth2Provider for GitHub {
-    fn authenticate(
-        &self,
-        config: &OAuth2Cfg,
-        client: &Client,
-        code: &str,
-    ) -> Result<(String, OAuth2User)> {
-        let url = format!(
-            "{}?client_id={}&client_secret={}&code={}",
-            config.token_url, config.client_id, config.client_secret, code
-        );
+    fn authenticate(&self,
+                    config: &OAuth2Cfg,
+                    client: &Client,
+                    code: &str)
+                    -> Result<(String, OAuth2User)> {
+        let url = format!("{}?client_id={}&client_secret={}&code={}",
+                          config.token_url, config.client_id, config.client_secret, code);
 
         let mut headers = Headers::new();
         headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
 
-        let mut resp = client
-            .post(&url)
-            .headers(headers)
-            .send()
-            .map_err(Error::HttpClient)?;
+        let mut resp = client.post(&url)
+                             .headers(headers)
+                             .send()
+                             .map_err(Error::HttpClient)?;
 
         let body = resp.text().map_err(Error::HttpClient)?;
         debug!("GitHub response body: {}", body);

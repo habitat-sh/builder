@@ -33,7 +33,8 @@ pub mod data_store;
 pub mod error;
 pub mod server;
 
-pub use crate::config::Config;
-pub use crate::error::{Error, Result};
+pub use crate::{config::Config,
+                error::{Error,
+                        Result}};
 
 pub const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));

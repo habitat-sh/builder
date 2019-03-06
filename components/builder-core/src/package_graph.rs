@@ -12,47 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use petgraph::algo::{connected_components, is_cyclic_directed};
-use petgraph::graph::NodeIndex;
-use petgraph::{Direction, Graph};
-use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
-use std::str::FromStr;
+use petgraph::{algo::{connected_components,
+                      is_cyclic_directed},
+               graph::NodeIndex,
+               Direction,
+               Graph};
+use std::{cmp::Ordering,
+          collections::{BinaryHeap,
+                        HashMap},
+          str::FromStr};
 
-use crate::hab_core::package::PackageIdent;
-use crate::protocol::originsrv;
-use crate::rdeps::rdeps;
+use crate::{hab_core::package::PackageIdent,
+            protocol::originsrv,
+            rdeps::rdeps};
 
 #[derive(Debug)]
 pub struct Stats {
-    pub node_count: usize,
-    pub edge_count: usize,
+    pub node_count:     usize,
+    pub edge_count:     usize,
     pub connected_comp: usize,
-    pub is_cyclic: bool,
+    pub is_cyclic:      bool,
 }
 
 #[derive(Eq)]
 struct HeapEntry {
-    pkg_index: usize,
+    pkg_index:  usize,
     rdep_count: usize,
 }
 
 impl Ord for HeapEntry {
-    fn cmp(&self, other: &HeapEntry) -> Ordering {
-        self.rdep_count.cmp(&other.rdep_count)
-    }
+    fn cmp(&self, other: &HeapEntry) -> Ordering { self.rdep_count.cmp(&other.rdep_count) }
 }
 
 impl PartialOrd for HeapEntry {
-    fn partial_cmp(&self, other: &HeapEntry) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
+    fn partial_cmp(&self, other: &HeapEntry) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
 impl PartialEq for HeapEntry {
-    fn eq(&self, other: &HeapEntry) -> bool {
-        self.pkg_index == other.pkg_index
-    }
+    fn eq(&self, other: &HeapEntry) -> bool { self.pkg_index == other.pkg_index }
 }
 
 fn short_name(name: &str) -> String {
@@ -63,17 +60,15 @@ fn short_name(name: &str) -> String {
 
 #[derive(Default)]
 pub struct PackageGraph {
-    package_max: usize,
-    package_map: HashMap<String, (usize, NodeIndex)>,
-    latest_map: HashMap<String, PackageIdent>,
+    package_max:   usize,
+    package_map:   HashMap<String, (usize, NodeIndex)>,
+    latest_map:    HashMap<String, PackageIdent>,
     package_names: Vec<String>,
-    graph: Graph<usize, usize>,
+    graph:         Graph<usize, usize>,
 }
 
 impl PackageGraph {
-    pub fn new() -> Self {
-        PackageGraph::default()
-    }
+    pub fn new() -> Self { PackageGraph::default() }
 
     fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
         let short_name = short_name(name);
@@ -94,8 +89,7 @@ impl PackageGraph {
     }
 
     pub fn build<T>(&mut self, packages: T) -> (usize, usize)
-    where
-        T: Iterator<Item = originsrv::OriginPackage>,
+        where T: Iterator<Item = originsrv::OriginPackage>
     {
         assert!(self.package_max == 0);
 
@@ -120,10 +114,9 @@ impl PackageGraph {
 
         // Temporarily remove edges
         let mut saved_nodes = Vec::new();
-        let neighbors: Vec<NodeIndex> = self
-            .graph
-            .neighbors_directed(pkg_node, Direction::Incoming)
-            .collect();
+        let neighbors: Vec<NodeIndex> = self.graph
+                                            .neighbors_directed(pkg_node, Direction::Incoming)
+                                            .collect();
         for n in neighbors {
             let e = self.graph.find_edge(n, pkg_node).unwrap();
             saved_nodes.push(n);
@@ -147,10 +140,8 @@ impl PackageGraph {
 
                 // Check for circular dependency
                 if is_cyclic_directed(&self.graph) {
-                    debug!(
-                        "graph is cyclic after adding {} -> {} - failing check_extend",
-                        dep_name, name
-                    );
+                    debug!("graph is cyclic after adding {} -> {} - failing check_extend",
+                           dep_name, name);
                     circular_dep = true;
                     break;
                 }
@@ -189,10 +180,10 @@ impl PackageGraph {
             if skip_update {
                 false
             } else {
-                let neighbors: Vec<NodeIndex> = self
-                    .graph
-                    .neighbors_directed(pkg_node, Direction::Incoming)
-                    .collect();
+                let neighbors: Vec<NodeIndex> =
+                    self.graph
+                        .neighbors_directed(pkg_node, Direction::Incoming)
+                        .collect();
                 for n in neighbors {
                     let e = self.graph.find_edge(n, pkg_node).unwrap();
                     self.graph.remove_edge(e).unwrap();
@@ -214,10 +205,8 @@ impl PackageGraph {
 
                 // sanity check
                 if is_cyclic_directed(&self.graph) {
-                    warn!(
-                        "graph is cyclic after adding {} -> {} - rolling back",
-                        depname, name
-                    );
+                    warn!("graph is cyclic after adding {} -> {} - rolling back",
+                          depname, name);
                     let e = self.graph.find_edge(dep_node, pkg_node).unwrap();
                     self.graph.remove_edge(e).unwrap();
                 }
@@ -231,16 +220,18 @@ impl PackageGraph {
         let mut v: Vec<(String, String)> = Vec::new();
 
         match self.package_map.get(name) {
-            Some(&(_, pkg_node)) => match rdeps(&self.graph, pkg_node) {
-                Ok(deps) => {
-                    for n in deps {
-                        let name = self.package_names[n].clone();
-                        let ident = format!("{}", self.latest_map[&name]);
-                        v.push((name, ident));
+            Some(&(_, pkg_node)) => {
+                match rdeps(&self.graph, pkg_node) {
+                    Ok(deps) => {
+                        for n in deps {
+                            let name = self.package_names[n].clone();
+                            let ident = format!("{}", self.latest_map[&name]);
+                            v.push((name, ident));
+                        }
                     }
+                    Err(e) => panic!("Error: {:?}", e),
                 }
-                Err(e) => panic!("Error: {:?}", e),
-            },
+            }
             None => return None,
         }
 
@@ -267,12 +258,11 @@ impl PackageGraph {
     }
 
     pub fn search(&self, phrase: &str) -> Vec<String> {
-        let v: Vec<String> = self
-            .package_names
-            .iter()
-            .cloned()
-            .filter(|s| s.contains(phrase))
-            .collect();
+        let v: Vec<String> = self.package_names
+                                 .iter()
+                                 .cloned()
+                                 .filter(|s| s.contains(phrase))
+                                 .collect();
 
         v
     }
@@ -291,12 +281,10 @@ impl PackageGraph {
     }
 
     pub fn stats(&self) -> Stats {
-        Stats {
-            node_count: self.graph.node_count(),
-            edge_count: self.graph.edge_count(),
-            connected_comp: connected_components(&self.graph),
-            is_cyclic: is_cyclic_directed(&self.graph),
-        }
+        Stats { node_count:     self.graph.node_count(),
+                edge_count:     self.graph.edge_count(),
+                connected_comp: connected_components(&self.graph),
+                is_cyclic:      is_cyclic_directed(&self.graph), }
     }
 
     pub fn top(&self, max: usize) -> Vec<(String, usize)> {
@@ -308,10 +296,8 @@ impl PackageGraph {
 
             match rdeps(&self.graph, node) {
                 Ok(v) => {
-                    let he = HeapEntry {
-                        pkg_index: index,
-                        rdep_count: v.len(),
-                    };
+                    let he = HeapEntry { pkg_index:  index,
+                                         rdep_count: v.len(), };
                     heap.push(he);
                 }
                 Err(e) => panic!("Error: {:?}", e),
@@ -394,11 +380,11 @@ mod test {
         let pre_check1 = graph.check_extend(&package1);
         assert_eq!(pre_check1, true);
 
-        let (_, _) = graph.extend(&package1);
+        let (..) = graph.extend(&package1);
 
         let pre_check2 = graph.check_extend(&package2);
         assert_eq!(pre_check2, true);
 
-        let (_, _) = graph.extend(&package2);
+        let (..) = graph.extend(&package2);
     }
 }

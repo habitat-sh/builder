@@ -21,45 +21,56 @@ mod toml_builder;
 mod util;
 mod workspace;
 
-use std::fs;
-use std::path::Path;
-use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::{fs,
+          path::Path,
+          str::FromStr,
+          sync::{atomic::{AtomicBool,
+                          Ordering},
+                 mpsc,
+                 Arc},
+          thread::{self,
+                   JoinHandle},
+          time::Duration};
 
 use chrono::Utc;
 use retry::retry;
 use zmq;
 
-use crate::bldr_core;
-use crate::bldr_core::api_client::ApiClient;
-use crate::bldr_core::job::Job;
-use crate::bldr_core::logger::Logger;
-use crate::bldr_core::socket::DEFAULT_CONTEXT;
+use crate::bldr_core::{self,
+                       api_client::ApiClient,
+                       job::Job,
+                       logger::Logger,
+                       socket::DEFAULT_CONTEXT};
 
 #[cfg(not(windows))]
 use crate::hab_core::os::users;
-use crate::hab_core::package::archive::PackageArchive;
-use crate::hab_core::package::target::{self, PackageTarget};
+use crate::hab_core::package::{archive::PackageArchive,
+                               target::{self,
+                                        PackageTarget}};
 #[cfg(not(windows))]
 use crate::hab_core::util::posix_perm;
 
 pub use crate::protocol::jobsrv::JobState;
-use crate::protocol::net::{self, ErrCode};
-use crate::protocol::originsrv::OriginPackageIdent;
-use crate::protocol::{jobsrv, message};
+use crate::protocol::{jobsrv,
+                      message,
+                      net::{self,
+                            ErrCode},
+                      originsrv::OriginPackageIdent};
 
-use self::docker::DockerExporter;
-use self::job_streamer::{JobStreamer, Section};
-use self::postprocessor::post_process;
-use self::studio::{key_path, Studio, STUDIO_GROUP, STUDIO_USER};
-use self::workspace::Workspace;
+use self::{docker::DockerExporter,
+           job_streamer::{JobStreamer,
+                          Section},
+           postprocessor::post_process,
+           studio::{key_path,
+                    Studio,
+                    STUDIO_GROUP,
+                    STUDIO_USER},
+           workspace::Workspace};
 
-use crate::config::Config;
-use crate::error::{Error, Result};
-use crate::network::NetworkNamespace;
+use crate::{config::Config,
+            error::{Error,
+                    Result},
+            network::NetworkNamespace};
 
 use crate::vcs::VCS;
 
@@ -91,12 +102,12 @@ pub const RETRY_WAIT: u64 = 60000;
 pub const STUDIO_CHILD_WAIT_SECS: u64 = 10;
 
 pub struct Runner {
-    config: Arc<Config>,
-    depot_cli: ApiClient,
-    workspace: Workspace,
-    logger: Logger,
+    config:     Arc<Config>,
+    depot_cli:  ApiClient,
+    workspace:  Workspace,
+    logger:     Logger,
     bldr_token: String,
-    cancel: Arc<AtomicBool>,
+    cancel:     Arc<AtomicBool>,
 }
 
 impl Runner {
@@ -109,27 +120,19 @@ impl Runner {
         logger.log_ident(net_ident);
         let bldr_token = bldr_core::access_token::generate_bldr_token(&config.key_dir).unwrap();
 
-        Runner {
-            workspace: Workspace::new(&config.data_path, job),
-            config,
-            depot_cli,
-            logger,
-            bldr_token,
-            cancel,
-        }
+        Runner { workspace: Workspace::new(&config.data_path, job),
+                 config,
+                 depot_cli,
+                 logger,
+                 bldr_token,
+                 cancel }
     }
 
-    pub fn job(&self) -> &Job {
-        &self.workspace.job
-    }
+    pub fn job(&self) -> &Job { &self.workspace.job }
 
-    pub fn job_mut(&mut self) -> &mut Job {
-        &mut self.workspace.job
-    }
+    pub fn job_mut(&mut self) -> &mut Job { &mut self.workspace.job }
 
-    fn is_canceled(&self) -> bool {
-        self.cancel.load(Ordering::SeqCst)
-    }
+    fn is_canceled(&self) -> bool { self.cancel.load(Ordering::SeqCst) }
 
     fn check_cancel(&mut self, tx: &mpsc::Sender<Job>) -> Result<()> {
         if self.is_canceled() {
@@ -149,11 +152,9 @@ impl Runner {
         let mut section = streamer.start_section(Section::ValidateIntegrations)?;
 
         if let Some(err) = util::validate_integrations(&self.workspace).err() {
-            let msg = format!(
-                "Failed to validate integrations for {}, err={:?}",
-                self.workspace.job.get_project().get_name(),
-                err
-            );
+            let msg = format!("Failed to validate integrations for {}, err={:?}",
+                              self.workspace.job.get_project().get_name(),
+                              err);
             debug!("{}", msg);
             self.logger.log(&msg);
 
@@ -173,11 +174,9 @@ impl Runner {
         let streamer = match self.setup() {
             Ok(streamer) => streamer,
             Err(err) => {
-                let msg = format!(
-                    "Failed to setup workspace for {}, err={:?}",
-                    self.workspace.job.get_project().get_name(),
-                    err
-                );
+                let msg = format!("Failed to setup workspace for {}, err={:?}",
+                                  self.workspace.job.get_project().get_name(),
+                                  err);
                 warn!("{}", msg);
                 self.logger.log(&msg);
 
@@ -196,11 +195,9 @@ impl Runner {
         let mut section = streamer.start_section(Section::FetchOriginKey)?;
 
         if let Some(err) = self.install_origin_secret_key().err() {
-            let msg = format!(
-                "Failed to install origin secret key {}, err={:?}",
-                self.workspace.job.get_project().get_origin_name(),
-                err
-            );
+            let msg = format!("Failed to install origin secret key {}, err={:?}",
+                              self.workspace.job.get_project().get_origin_name(),
+                              err);
             debug!("{}", msg);
             self.logger.log(&msg);
 
@@ -221,11 +218,9 @@ impl Runner {
 
         let vcs = VCS::from_job(&self.job(), self.config.github.clone());
         if let Some(err) = vcs.clone(&self.workspace.src()).err() {
-            let msg = format!(
-                "Failed to clone remote source repository for {}, err={:?}",
-                self.workspace.job.get_project().get_name(),
-                err
-            );
+            let msg = format!("Failed to clone remote source repository for {}, err={:?}",
+                              self.workspace.job.get_project().get_name(),
+                              err);
             warn!("{}", msg);
             self.logger.log(&msg);
 
@@ -246,11 +241,9 @@ impl Runner {
 
         let vcs = VCS::from_job(&self.job(), self.config.github.clone());
         if let Some(err) = vcs.clone(&self.workspace.src()).err() {
-            let msg = format!(
-                "Failed to clone remote source repository for {}, err={:?}",
-                self.workspace.job.get_project().get_name(),
-                err
-            );
+            let msg = format!("Failed to clone remote source repository for {}, err={:?}",
+                              self.workspace.job.get_project().get_name(),
+                              err);
             warn!("{}", msg);
             self.logger.log(&msg);
 
@@ -259,18 +252,13 @@ impl Runner {
             tx.send(self.job().clone()).map_err(Error::Mpsc)?;
             return Err(err);
         }
-        if let Some(err) = util::chown_recursive(
-            self.workspace.src(),
-            studio::studio_uid(),
-            studio::studio_gid(),
-        )
-        .err()
+        if let Some(err) = util::chown_recursive(self.workspace.src(),
+                                                 studio::studio_uid(),
+                                                 studio::studio_gid()).err()
         {
-            let msg = format!(
-                "Failed to change ownership of source repository for {}, err={:?}",
-                self.workspace.job.get_project().get_name(),
-                err
-            );
+            let msg = format!("Failed to change ownership of source repository for {}, err={:?}",
+                              self.workspace.job.get_project().get_name(),
+                              err);
             debug!("{}", msg);
             self.logger.log(&msg);
 
@@ -284,11 +272,10 @@ impl Runner {
         Ok(())
     }
 
-    fn do_build(
-        &mut self,
-        tx: &mpsc::Sender<Job>,
-        streamer: &mut JobStreamer,
-    ) -> Result<PackageArchive> {
+    fn do_build(&mut self,
+                tx: &mpsc::Sender<Job>,
+                streamer: &mut JobStreamer)
+                -> Result<PackageArchive> {
         self.check_cancel(tx)?;
 
         self.workspace
@@ -314,11 +301,9 @@ impl Runner {
                 self.workspace
                     .job
                     .set_build_finished_at(Utc::now().to_rfc3339());
-                let msg = format!(
-                    "Failed studio build for {}, err={:?}",
-                    self.workspace.job.get_project().get_name(),
-                    err
-                );
+                let msg = format!("Failed studio build for {}, err={:?}",
+                                  self.workspace.job.get_project().get_name(),
+                                  err);
                 debug!("{}", msg);
                 self.logger.log(&msg);
                 streamer.println_stderr(msg)?;
@@ -352,29 +337,25 @@ impl Runner {
         Ok(())
     }
 
-    fn do_postprocess(
-        &mut self,
-        tx: &mpsc::Sender<Job>,
-        mut archive: PackageArchive,
-        streamer: &mut JobStreamer,
-    ) -> Result<()> {
+    fn do_postprocess(&mut self,
+                      tx: &mpsc::Sender<Job>,
+                      mut archive: PackageArchive,
+                      streamer: &mut JobStreamer)
+                      -> Result<()> {
         self.check_cancel(tx)?;
         let mut section = streamer.start_section(Section::PublishPackage)?;
 
-        match post_process(
-            &mut archive,
-            &self.workspace,
-            &self.config,
-            &self.bldr_token,
-            &mut self.logger,
-        ) {
+        match post_process(&mut archive,
+                           &self.workspace,
+                           &self.config,
+                           &self.bldr_token,
+                           &mut self.logger)
+        {
             Ok(_) => (),
             Err(err) => {
-                let msg = format!(
-                    "Failed post processing for {}, err={:?}",
-                    self.workspace.job.get_project().get_name(),
-                    err
-                );
+                let msg = format!("Failed post processing for {}, err={:?}",
+                                  self.workspace.job.get_project().get_name(),
+                                  err);
                 streamer.println_stderr(msg)?;
                 self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:postprocess"));
                 tx.send(self.job().clone()).map_err(Error::Mpsc)?;
@@ -388,11 +369,9 @@ impl Runner {
 
     fn cleanup(&mut self) {
         if let Some(err) = fs::remove_dir_all(self.workspace.out()).err() {
-            warn!(
-                "Failed to delete directory during cleanup, dir={}, err={:?}",
-                self.workspace.out().display(),
-                err
-            )
+            warn!("Failed to delete directory during cleanup, dir={}, err={:?}",
+                  self.workspace.out().display(),
+                  err)
         }
         self.teardown();
     }
@@ -421,23 +400,19 @@ impl Runner {
     }
 
     fn install_origin_secret_key(&mut self) -> Result<()> {
-        match retry(
-            RETRIES,
-            RETRY_WAIT,
-            || {
-                self.depot_cli.fetch_origin_secret_key(
-                    self.job().origin(),
-                    &self.bldr_token,
-                    key_path(),
-                )
-            },
-            |res| {
-                if res.is_err() {
-                    debug!("Failed to fetch origin secret key, err={:?}", res);
-                };
-                res.is_ok()
-            },
-        ) {
+        match retry(RETRIES,
+                    RETRY_WAIT,
+                    || {
+                        self.depot_cli.fetch_origin_secret_key(self.job().origin(),
+                                                               &self.bldr_token,
+                                                               key_path())
+                    },
+                    |res| {
+                        if res.is_err() {
+                            debug!("Failed to fetch origin secret key, err={:?}", res);
+                        };
+                        res.is_ok()
+                    }) {
             Ok(res) => {
                 let dst = res.unwrap();
                 debug!("Imported origin secret key, dst={:?}.", dst);
@@ -447,11 +422,9 @@ impl Runner {
                 Ok(())
             }
             Err(err) => {
-                let msg = format!(
-                    "Failed to import secret key {} after {} retries",
-                    self.job().origin(),
-                    RETRIES
-                );
+                let msg = format!("Failed to import secret key {} after {} retries",
+                                  self.job().origin(),
+                                  RETRIES);
                 debug!("{}", msg);
                 self.logger.log(&msg);
                 Err(Error::Retry(err))
@@ -459,29 +432,24 @@ impl Runner {
         }
     }
 
-    fn build(
-        &mut self,
-        target: PackageTarget,
-        streamer: &mut JobStreamer,
-        tx: &mpsc::Sender<Job>,
-    ) -> Result<PackageArchive> {
-        let network_namespace = match (
-            self.config.network_interface.as_ref(),
-            self.config.network_gateway.as_ref(),
-        ) {
-            (Some(_), Some(_)) => Some(NetworkNamespace::new(self.config.ns_dir_path())),
-            (None, None) => None,
-            (None, Some(_)) => return Err(Error::NoNetworkInterfaceError),
-            (Some(_), None) => return Err(Error::NoNetworkGatewayError),
-        };
-        let studio = Studio::new(
-            &self.workspace,
-            &self.config.bldr_url,
-            &self.bldr_token,
-            self.config.airlock_enabled,
-            network_namespace,
-            target,
-        );
+    fn build(&mut self,
+             target: PackageTarget,
+             streamer: &mut JobStreamer,
+             tx: &mpsc::Sender<Job>)
+             -> Result<PackageArchive> {
+        let network_namespace =
+            match (self.config.network_interface.as_ref(), self.config.network_gateway.as_ref()) {
+                (Some(_), Some(_)) => Some(NetworkNamespace::new(self.config.ns_dir_path())),
+                (None, None) => None,
+                (None, Some(_)) => return Err(Error::NoNetworkInterfaceError),
+                (Some(_), None) => return Err(Error::NoNetworkGatewayError),
+            };
+        let studio = Studio::new(&self.workspace,
+                                 &self.config.bldr_url,
+                                 &self.bldr_token,
+                                 self.config.airlock_enabled,
+                                 network_namespace,
+                                 target);
 
         let mut child = studio.build(streamer)?;
         loop {
@@ -493,12 +461,10 @@ impl Runner {
                     match fs::rename(&result_path, self.workspace.out()) {
                         Ok(_) => (),
                         Err(err) => {
-                            debug!(
-                                "Failed to rename studio results dir: {:?} to {:?}. Err = {:?}",
-                                result_path,
-                                self.workspace.out(),
-                                err
-                            );
+                            debug!("Failed to rename studio results dir: {:?} to {:?}. Err = {:?}",
+                                   result_path,
+                                   self.workspace.out(),
+                                   err);
                             return Err(Error::BuildFailure(status.code().unwrap_or(-2)));
                         }
                     }
@@ -529,10 +495,7 @@ impl Runner {
                 }
                 Err(err) => {
                     debug!("Error attempting to wait: {}", err);
-                    return Err(Error::StudioBuild(
-                        self.workspace.studio().to_path_buf(),
-                        err,
-                    ));
+                    return Err(Error::StudioBuild(self.workspace.studio().to_path_buf(), err));
                 }
             }
         }
@@ -543,18 +506,17 @@ impl Runner {
             let pkg_target = target::PackageTarget::from_str(self.workspace.job.get_target())?;
             match pkg_target {
                 target::X86_64_LINUX | target::X86_64_WINDOWS => {
-                    // TODO fn: This check should be updated in PackageArchive is check for run hooks.
+                    // TODO fn: This check should be updated in PackageArchive is check for run
+                    // hooks.
                     if self.workspace.last_built()?.is_a_service() {
                         debug!("Found runnable package, running docker export");
                         let mut section = streamer.start_section(Section::ExportDocker)?;
 
-                        let status = DockerExporter::new(
-                            util::docker_exporter_spec(&self.workspace),
-                            &self.workspace,
-                            &self.config.bldr_url,
-                            &self.bldr_token,
-                        )
-                        .export(streamer)?;
+                        let status =
+                            DockerExporter::new(util::docker_exporter_spec(&self.workspace),
+                                                &self.workspace,
+                                                &self.config.bldr_url,
+                                                &self.bldr_token).export(streamer)?;
 
                         if !status.success() {
                             return Err(Error::ExportFailure(status.code().unwrap_or(-1)));
@@ -595,25 +557,21 @@ impl Runner {
 
         if self.workspace.src().exists() {
             if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
-                warn!(
-                    "Failed to delete directory during setup, dir={}, err={:?}",
-                    self.workspace.src().display(),
-                    err
-                )
+                warn!("Failed to delete directory during setup, dir={}, err={:?}",
+                      self.workspace.src().display(),
+                      err)
             }
         }
         if let Some(err) = fs::create_dir_all(self.workspace.src()).err() {
-            return Err(Error::WorkspaceSetup(
-                format!("{}", self.workspace.src().display()),
-                err,
-            ));
+            return Err(Error::WorkspaceSetup(format!("{}",
+                                                     self.workspace
+                                                         .src()
+                                                         .display()),
+                                             err));
         }
 
         if let Some(err) = fs::create_dir_all(key_path()).err() {
-            return Err(Error::WorkspaceSetup(
-                format!("{}", key_path().display()),
-                err,
-            ));
+            return Err(Error::WorkspaceSetup(format!("{}", key_path().display()), err));
         }
 
         Ok(JobStreamer::new(&self.workspace))
@@ -626,30 +584,28 @@ impl Runner {
         // Ensure that data path group ownership is set to the build user and directory perms are
         // `0750`.
         if self.config.airlock_enabled && (self.config.target == target::X86_64_LINUX) {
-            posix_perm::set_owner(
-                &self.config.data_path,
-                users::get_current_username()
-                    .unwrap_or_else(|| String::from("root"))
-                    .as_str(),
-                STUDIO_GROUP,
-            )?;
+            posix_perm::set_owner(&self.config.data_path,
+                                  users::get_current_username().unwrap_or_else(|| {
+                                                                   String::from("root")
+                                                               })
+                                                               .as_str(),
+                                  STUDIO_GROUP)?;
             posix_perm::set_permissions(&self.config.data_path, 0o750)?;
         }
 
         if self.workspace.src().exists() {
             if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
-                warn!(
-                    "Failed to delete directory during setup, dir={}, err={:?}",
-                    self.workspace.src().display(),
-                    err
-                )
+                warn!("Failed to delete directory during setup, dir={}, err={:?}",
+                      self.workspace.src().display(),
+                      err)
             }
         }
         if let Some(err) = fs::create_dir_all(self.workspace.src()).err() {
-            return Err(Error::WorkspaceSetup(
-                format!("{}", self.workspace.src().display()),
-                err,
-            ));
+            return Err(Error::WorkspaceSetup(format!("{}",
+                                                     self.workspace
+                                                         .src()
+                                                         .display()),
+                                             err));
         }
 
         if self.config.airlock_enabled && (self.config.target == target::X86_64_LINUX) {
@@ -658,34 +614,25 @@ impl Runner {
         }
 
         if let Some(err) = fs::create_dir_all(key_path()).err() {
-            return Err(Error::WorkspaceSetup(
-                format!("{}", key_path().display()),
-                err,
-            ));
+            return Err(Error::WorkspaceSetup(format!("{}", key_path().display()), err));
         }
-        util::chown_recursive(
-            (&*studio::STUDIO_HOME).lock().unwrap().join(".hab"),
-            studio::studio_uid(),
-            studio::studio_gid(),
-        )?;
+        util::chown_recursive((&*studio::STUDIO_HOME).lock().unwrap().join(".hab"),
+                              studio::studio_uid(),
+                              studio::studio_gid())?;
 
         Ok(JobStreamer::new(&self.workspace))
     }
 
     fn teardown(&mut self) {
         if let Some(err) = fs::remove_dir_all(self.workspace.studio()).err() {
-            warn!(
-                "Failed to remove studio dir {}, err: {:?}",
-                self.workspace.studio().display(),
-                err
-            );
+            warn!("Failed to remove studio dir {}, err: {:?}",
+                  self.workspace.studio().display(),
+                  err);
         }
         if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
-            warn!(
-                "Failed to remove studio dir {}, err: {:?}",
-                self.workspace.src().display(),
-                err
-            );
+            warn!("Failed to remove studio dir {}, err: {:?}",
+                  self.workspace.src().display(),
+                  err);
         }
         // TODO fn: purge the secret origin key from worker
     }
@@ -703,29 +650,23 @@ impl Runner {
 /// Client for sending and receiving messages to and from the Job Runner
 pub struct RunnerCli {
     sock: zmq::Socket,
-    msg: zmq::Message,
+    msg:  zmq::Message,
 }
 
 impl Default for RunnerCli {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl RunnerCli {
     /// Create a new Job Runner client
     pub fn new() -> Self {
         let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
-        RunnerCli {
-            sock,
-            msg: zmq::Message::new().unwrap(),
-        }
+        RunnerCli { sock,
+                    msg: zmq::Message::new().unwrap() }
     }
 
     /// Return a poll item used in `zmq::poll` for awaiting messages on multiple sockets
-    pub fn as_poll_item(&self, events: i16) -> zmq::PollItem {
-        self.sock.as_poll_item(events)
-    }
+    pub fn as_poll_item(&self, events: i16) -> zmq::PollItem { self.sock.as_poll_item(events) }
 
     /// Connect to the Job Runner
     pub fn connect(&mut self) -> Result<()> {
@@ -773,11 +714,11 @@ impl RunnerCli {
 /// Receives work notifications from a `RunnerCli` and performs long-running tasks in a
 /// separate thread.
 pub struct RunnerMgr {
-    config: Arc<Config>,
+    config:    Arc<Config>,
     net_ident: Arc<String>,
-    msg: zmq::Message,
-    sock: zmq::Socket,
-    cancel: Arc<AtomicBool>,
+    msg:       zmq::Message,
+    sock:      zmq::Socket,
+    cancel:    Arc<AtomicBool>,
 }
 
 impl RunnerMgr {
@@ -785,12 +726,11 @@ impl RunnerMgr {
     pub fn start(config: Arc<Config>, net_ident: Arc<String>) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(0);
         let mut runner = Self::new(config, net_ident);
-        let handle = thread::Builder::new()
-            .name("runner".to_string())
-            .spawn(move || {
-                runner.run(&tx).unwrap();
-            })
-            .unwrap();
+        let handle = thread::Builder::new().name("runner".to_string())
+                                           .spawn(move || {
+                                               runner.run(&tx).unwrap();
+                                           })
+                                           .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("runner thread startup error, err={}", e),
@@ -799,13 +739,11 @@ impl RunnerMgr {
 
     fn new(config: Arc<Config>, net_ident: Arc<String>) -> Self {
         let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
-        RunnerMgr {
-            config,
-            msg: zmq::Message::new().unwrap(),
-            net_ident,
-            sock,
-            cancel: Arc::new(AtomicBool::new(false)),
-        }
+        RunnerMgr { config,
+                    msg: zmq::Message::new().unwrap(),
+                    net_ident,
+                    sock,
+                    cancel: Arc::new(AtomicBool::new(false)) }
     }
 
     // Main loop for server
@@ -856,17 +794,14 @@ impl RunnerMgr {
     }
 
     fn spawn_job(&mut self, job: Job, tx: mpsc::Sender<Job>) -> Result<()> {
-        let runner = Runner::new(
-            job,
-            self.config.clone(),
-            &self.net_ident,
-            self.cancel.clone(),
-        );
+        let runner = Runner::new(job,
+                                 self.config.clone(),
+                                 &self.net_ident,
+                                 self.cancel.clone());
 
-        let _ = thread::Builder::new()
-            .name("job_runner".to_string())
-            .spawn(move || runner.run(&tx))
-            .unwrap();
+        let _ = thread::Builder::new().name("job_runner".to_string())
+                                      .spawn(move || runner.run(&tx))
+                                      .unwrap();
 
         Ok(())
     }
@@ -905,7 +840,8 @@ pub fn set_owner<T: AsRef<Path>, X: AsRef<str>>(_path: T, _owner: X, _group: X) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{jobsrv, originsrv};
+    use crate::protocol::{jobsrv,
+                          originsrv};
 
     #[test]
     fn extract_origin_from_job() {

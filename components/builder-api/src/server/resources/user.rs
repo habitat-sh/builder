@@ -12,29 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::Method;
-use actix_web::{App, HttpRequest, HttpResponse};
+use actix_web::{http::Method,
+                App,
+                HttpRequest,
+                HttpResponse};
 
-use crate::db::models::invitations::OriginInvitation;
-use crate::db::models::origin::Origin;
+use crate::db::models::{invitations::OriginInvitation,
+                        origin::Origin};
 
-use crate::server::authorize::authorize_session;
-use crate::server::error::Error;
-use crate::server::AppState;
+use crate::server::{authorize::authorize_session,
+                    error::Error,
+                    AppState};
 
 pub struct User {}
 
 impl User {
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
         app.route("/user/invitations", Method::GET, get_invitations)
-            .route("/user/origins", Method::GET, get_origins)
+           .route("/user/origins", Method::GET, get_origins)
     }
 }
 
-//
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]

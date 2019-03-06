@@ -14,13 +14,20 @@
 
 use std::path::PathBuf;
 
-use chrono::LocalResult::Single;
-use chrono::{self, Duration, TimeZone, Utc};
+use chrono::{self,
+             Duration,
+             LocalResult::Single,
+             TimeZone,
+             Utc};
 
 use super::privilege::FeatureFlags;
-use crate::error::{Error, Result};
-use crate::integrations::{decrypt, encrypt, validate};
-use crate::protocol::{message, originsrv};
+use crate::{error::{Error,
+                    Result},
+            integrations::{decrypt,
+                           encrypt,
+                           validate},
+            protocol::{message,
+                       originsrv}};
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
 pub const BUILDER_ACCOUNT_NAME: &str = "BUILDER";
@@ -34,33 +41,27 @@ const ACCESS_TOKEN_PREFIX: &str = "_";
 const BUILDER_TOKEN_LIFETIME_HOURS: i64 = 2;
 
 pub fn generate_bldr_token(key_dir: &PathBuf) -> Result<String> {
-    generate_access_token(
-        key_dir,
-        BUILDER_ACCOUNT_ID,
-        FeatureFlags::all().bits(),
-        Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS),
-    )
+    generate_access_token(key_dir,
+                          BUILDER_ACCOUNT_ID,
+                          FeatureFlags::all().bits(),
+                          Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
 }
 
 pub fn generate_user_token(key_dir: &PathBuf, account_id: u64, privileges: u32) -> Result<String> {
-    generate_access_token(
-        key_dir,
-        account_id,
-        privileges,
-        Duration::max_value(), // User tokens never expire, can only be revoked
-    )
+    generate_access_token(key_dir,
+                          account_id,
+                          privileges,
+                          Duration::max_value() /* User tokens never expire, can only be revoked */)
 }
 
-pub fn generate_access_token(
-    key_dir: &PathBuf,
-    account_id: u64,
-    flags: u32,
-    lifetime: Duration,
-) -> Result<String> {
-    let expires = Utc::now()
-        .checked_add_signed(lifetime)
-        .unwrap_or_else(|| chrono::MAX_DATE.and_hms(0, 0, 0))
-        .timestamp();
+pub fn generate_access_token(key_dir: &PathBuf,
+                             account_id: u64,
+                             flags: u32,
+                             lifetime: Duration)
+                             -> Result<String> {
+    let expires = Utc::now().checked_add_signed(lifetime)
+                            .unwrap_or_else(|| chrono::MAX_DATE.and_hms(0, 0, 0))
+                            .timestamp();
 
     let mut token = originsrv::AccessToken::new();
     token.set_account_id(account_id);
@@ -73,9 +74,7 @@ pub fn generate_access_token(
     Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, ciphertext))
 }
 
-pub fn is_access_token(token: &str) -> bool {
-    token.starts_with(ACCESS_TOKEN_PREFIX)
-}
+pub fn is_access_token(token: &str) -> bool { token.starts_with(ACCESS_TOKEN_PREFIX) }
 
 pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<originsrv::Session> {
     assert!(is_access_token(token));

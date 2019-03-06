@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::iter::Iterator;
-use std::str::FromStr;
+use std::{collections::HashMap,
+          iter::Iterator,
+          str::FromStr};
 
-use crate::hab_core::package::PackageTarget;
-use crate::package_graph::PackageGraph;
-use crate::protocol::originsrv;
+use crate::{hab_core::package::PackageTarget,
+            package_graph::PackageGraph,
+            protocol::originsrv};
 
 pub struct TargetGraphStats {
-    pub target: PackageTarget,
+    pub target:     PackageTarget,
     pub node_count: usize,
     pub edge_count: usize,
 }
@@ -37,10 +37,8 @@ impl TargetGraph {
 
         // We only support the following targets currently
         for target_str in &["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"] {
-            graphs.insert(
-                PackageTarget::from_str(target_str).unwrap(),
-                PackageGraph::new(),
-            );
+            graphs.insert(PackageTarget::from_str(target_str).unwrap(),
+                          PackageGraph::new());
         }
 
         TargetGraph { graphs }
@@ -50,10 +48,8 @@ impl TargetGraph {
         match PackageTarget::from_str(target_str) {
             Ok(target) => self.graphs.get(&target),
             Err(err) => {
-                error!(
-                    "Invalid target specified for TargetGraph: {}! Err: {}",
-                    target_str, err
-                );
+                error!("Invalid target specified for TargetGraph: {}! Err: {}",
+                       target_str, err);
                 None
             }
         }
@@ -63,18 +59,15 @@ impl TargetGraph {
         match PackageTarget::from_str(target_str) {
             Ok(target) => self.graphs.get_mut(&target),
             Err(err) => {
-                error!(
-                    "Invalid target specified for TargetGraph: {}! Err: {}",
-                    target_str, err
-                );
+                error!("Invalid target specified for TargetGraph: {}! Err: {}",
+                       target_str, err);
                 None
             }
         }
     }
 
     pub fn build<T>(&mut self, packages: T) -> Vec<TargetGraphStats>
-    where
-        T: Iterator<Item = originsrv::OriginPackage>,
+        where T: Iterator<Item = originsrv::OriginPackage>
     {
         for p in packages {
             if let Some(ref mut graph) = self.graph_mut(p.get_target()) {
@@ -85,11 +78,9 @@ impl TargetGraph {
         let mut target_stats = Vec::new();
         for (target, graph) in self.graphs.iter() {
             let stats = graph.stats();
-            let ts = TargetGraphStats {
-                target: *target,
-                node_count: stats.node_count,
-                edge_count: stats.edge_count,
-            };
+            let ts = TargetGraphStats { target:     *target,
+                                        node_count: stats.node_count,
+                                        edge_count: stats.edge_count, };
             target_stats.push(ts);
         }
 

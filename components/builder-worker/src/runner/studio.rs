@@ -14,25 +14,32 @@
 
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
 #[cfg(not(windows))]
 use std::sync::atomic::Ordering;
-use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
-use std::sync::Mutex;
+use std::{path::PathBuf,
+          process::{Child,
+                    Command,
+                    Stdio},
+          sync::{atomic::{AtomicUsize,
+                          ATOMIC_USIZE_INIT},
+                 Mutex}};
 
-use crate::hab_core::env::{self, Config};
-use crate::hab_core::fs;
-use crate::hab_core::package::target::{self, PackageTarget};
-use crate::hab_core::url::BLDR_URL_ENVVAR;
-use crate::hab_core::ChannelIdent;
-use crate::hab_core::AUTH_TOKEN_ENVVAR;
+use crate::hab_core::{env::{self,
+                            Config},
+                      fs,
+                      package::target::{self,
+                                        PackageTarget},
+                      url::BLDR_URL_ENVVAR,
+                      ChannelIdent,
+                      AUTH_TOKEN_ENVVAR};
 
-use crate::error::{Error, Result};
-use crate::network::NetworkNamespace;
-use crate::runner::job_streamer::JobStreamer;
-use crate::runner::workspace::Workspace;
-use crate::runner::{NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
+use crate::{error::{Error,
+                    Result},
+            network::NetworkNamespace,
+            runner::{job_streamer::JobStreamer,
+                     workspace::Workspace,
+                     NONINTERACTIVE_ENVVAR,
+                     RUNNER_DEBUG_ENVVAR}};
 
 pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
 pub static STUDIO_GID: AtomicUsize = ATOMIC_USIZE_INIT;
@@ -60,32 +67,29 @@ lazy_static! {
 }
 
 pub struct Studio<'a> {
-    workspace: &'a Workspace,
-    bldr_url: &'a str,
-    auth_token: &'a str,
-    airlock_enabled: bool,
+    workspace:         &'a Workspace,
+    bldr_url:          &'a str,
+    auth_token:        &'a str,
+    airlock_enabled:   bool,
     network_namespace: Option<NetworkNamespace>,
-    target: PackageTarget,
+    target:            PackageTarget,
 }
 
 impl<'a> Studio<'a> {
     /// Creates a new Studio runner for a given `Workspace` and Builder URL.
-    pub fn new(
-        workspace: &'a Workspace,
-        bldr_url: &'a str,
-        auth_token: &'a str,
-        airlock_enabled: bool,
-        network_namespace: Option<NetworkNamespace>,
-        target: PackageTarget,
-    ) -> Self {
-        Studio {
-            workspace,
-            bldr_url,
-            auth_token,
-            airlock_enabled,
-            network_namespace,
-            target,
-        }
+    pub fn new(workspace: &'a Workspace,
+               bldr_url: &'a str,
+               auth_token: &'a str,
+               airlock_enabled: bool,
+               network_namespace: Option<NetworkNamespace>,
+               target: PackageTarget)
+               -> Self {
+        Studio { workspace,
+                 bldr_url,
+                 auth_token,
+                 airlock_enabled,
+                 network_namespace,
+                 target }
     }
 
     /// Spawns a Studio build command, pipes output streams to the given `LogPipe` and returns the
@@ -106,16 +110,12 @@ impl<'a> Studio<'a> {
         let mut cmd = self.studio_command()?;
         cmd.current_dir(self.workspace.src());
         if let Some(val) = env::var_os(RUNNER_DEBUG_ENVVAR) {
-            debug!(
-                "RUNNER_DEBUG_ENVVAR ({}) is set - turning on runner debug",
-                RUNNER_DEBUG_ENVVAR
-            );
+            debug!("RUNNER_DEBUG_ENVVAR ({}) is set - turning on runner debug",
+                   RUNNER_DEBUG_ENVVAR);
             cmd.env("DEBUG", val);
         }
-        cmd.env(
-            "PATH",
-            env::var("PATH").unwrap_or_else(|_| String::from("")),
-        ); // Sets `$PATH`
+        cmd.env("PATH",
+                env::var("PATH").unwrap_or_else(|_| String::from(""))); // Sets `$PATH`
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
 
@@ -131,13 +131,9 @@ impl<'a> Studio<'a> {
         cmd.env("HAB_STUDIO_SECRET_HAB_FEAT_IGNORE_LOCAL", "true");
 
         for secret in self.workspace.job.get_secrets() {
-            cmd.env(
-                format!(
-                    "HAB_STUDIO_SECRET_{}",
-                    secret.get_decrypted_secret().get_name()
-                ),
-                secret.get_decrypted_secret().get_value(),
-            );
+            cmd.env(format!("HAB_STUDIO_SECRET_{}",
+                            secret.get_decrypted_secret().get_name()),
+                    secret.get_decrypted_secret().get_value());
         }
 
         if self.target == target::X86_64_LINUX_KERNEL2 {
@@ -193,32 +189,26 @@ impl<'a> Studio<'a> {
 
         cmd.arg(build_path(self.workspace.job.get_project().get_plan_path()));
         debug!("building studio build command, cmd={:?}", &cmd);
-        debug!(
-            "setting studio build command env, {}={}",
-            ChannelIdent::ENVVAR,
-            &channel
-        );
+        debug!("setting studio build command env, {}={}",
+               ChannelIdent::ENVVAR,
+               &channel);
         cmd.env(ChannelIdent::ENVVAR, channel.as_str());
-        debug!(
-            "setting studio build command env, {}={}",
-            BLDR_URL_ENVVAR, self.bldr_url
-        );
+        debug!("setting studio build command env, {}={}",
+               BLDR_URL_ENVVAR, self.bldr_url);
         cmd.env(BLDR_URL_ENVVAR, self.bldr_url);
         cmd.env(AUTH_TOKEN_ENVVAR, self.auth_token);
 
         debug!("spawning studio build command");
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| Error::StudioBuild(self.workspace.studio().to_path_buf(), e))?;
+        let mut child =
+            cmd.spawn()
+               .map_err(|e| Error::StudioBuild(self.workspace.studio().to_path_buf(), e))?;
 
         streamer.consume_child(&mut child)?;
         Ok(child)
     }
 
     #[cfg(windows)]
-    fn studio_command(&self) -> Result<Command> {
-        self.studio_command_not_airlock()
-    }
+    fn studio_command(&self) -> Result<Command> { self.studio_command_not_airlock() }
 
     #[cfg(not(windows))]
     fn studio_command(&self) -> Result<Command> {
@@ -293,30 +283,21 @@ impl<'a> Studio<'a> {
 }
 
 #[cfg(not(windows))]
-pub fn studio_gid() -> u32 {
-    STUDIO_GID.load(Ordering::Relaxed) as u32
-}
+pub fn studio_gid() -> u32 { STUDIO_GID.load(Ordering::Relaxed) as u32 }
 
 #[cfg(not(windows))]
-pub fn studio_uid() -> u32 {
-    STUDIO_UID.load(Ordering::Relaxed) as u32
-}
+pub fn studio_uid() -> u32 { STUDIO_UID.load(Ordering::Relaxed) as u32 }
 
 #[cfg(not(windows))]
-pub fn set_studio_gid(gid: u32) {
-    STUDIO_GID.store(gid as usize, Ordering::Relaxed);
-}
+pub fn set_studio_gid(gid: u32) { STUDIO_GID.store(gid as usize, Ordering::Relaxed); }
 
 #[cfg(not(windows))]
-pub fn set_studio_uid(uid: u32) {
-    STUDIO_UID.store(uid as usize, Ordering::Relaxed);
-}
+pub fn set_studio_uid(uid: u32) { STUDIO_UID.store(uid as usize, Ordering::Relaxed); }
 
 pub fn key_path() -> PathBuf {
-    (&*STUDIO_HOME)
-        .lock()
-        .unwrap()
-        .join(format!(".{}", fs::CACHE_KEY_PATH))
+    (&*STUDIO_HOME).lock()
+                   .unwrap()
+                   .join(format!(".{}", fs::CACHE_KEY_PATH))
 }
 
 /// Returns a path argument suitable to pass to a Studio build command.
@@ -378,17 +359,13 @@ mod tests {
 
     #[test]
     fn build_path_with_subdir_habitat_plan_sh() {
-        assert_eq!(
-            "components/yep",
-            build_path("components/yep/habitat/plan.sh")
-        );
+        assert_eq!("components/yep",
+                   build_path("components/yep/habitat/plan.sh"));
     }
 
     #[test]
     fn build_path_with_subdir_habitat_plan_ps1() {
-        assert_eq!(
-            "components/yep",
-            build_path("components/yep/habitat/plan.ps1")
-        );
+        assert_eq!("components/yep",
+                   build_path("components/yep/habitat/plan.ps1"));
     }
 }

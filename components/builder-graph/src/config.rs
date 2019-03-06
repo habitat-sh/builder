@@ -14,9 +14,9 @@
 
 //! Configuration for a Habitat Scheduler service
 
-use crate::db::config::DataStoreCfg;
-use crate::error::Error;
-use crate::hab_core::config::ConfigFile;
+use crate::{db::config::DataStoreCfg,
+            error::Error,
+            hab_core::config::ConfigFile};
 
 #[derive(Debug, Deserialize)]
 #[serde(default)]

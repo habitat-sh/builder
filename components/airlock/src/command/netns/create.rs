@@ -12,24 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use std::fs::File;
-use std::io::Read;
-use std::os::unix::process::CommandExt;
-use std::path::Path;
-use std::process::{self, Command};
-use std::thread;
-use std::time::Duration;
+use std::{env,
+          fs::File,
+          io::Read,
+          os::unix::process::CommandExt,
+          path::Path,
+          process::{self,
+                    Command},
+          thread,
+          time::Duration};
 
 use pnet_datalink as pnet;
 use pnet_datalink::NetworkInterface;
 
-use crate::coreutils::touch;
-use crate::error::{Error, Result};
-use crate::mount::{self, Mount};
-use crate::namespace;
-use crate::user;
-use crate::util;
+use crate::{coreutils::touch,
+            error::{Error,
+                    Result},
+            mount::{self,
+                    Mount},
+            namespace,
+            user,
+            util};
 
 pub fn run<P: AsRef<Path>>(ns_dir: P, user: &str, interface: &str, gateway: &str) -> Result<()> {
     user::check_running_user_is_root()?;
@@ -64,11 +67,9 @@ pub fn run<P: AsRef<Path>>(ns_dir: P, user: &str, interface: &str, gateway: &str
 
     let exit_status = child.wait()?;
 
-    println!(
-        "Network namespace created: userns={}, netns={}",
-        namespace::userns_file(&ns_dir).display(),
-        namespace::netns_file(&ns_dir).display(),
-    );
+    println!("Network namespace created: userns={}, netns={}",
+             namespace::userns_file(&ns_dir).display(),
+             namespace::netns_file(&ns_dir).display(),);
 
     process::exit(exit_status.code().unwrap_or(127));
 }
@@ -96,15 +97,12 @@ fn mount_ns_files<P: AsRef<Path>>(ns_dir: P, ns_pid: u32) -> Result<()> {
         debug!("waiting for, user namespace file={}", userns_file.display());
         if userns_file.exists() {
             debug!("found, user namespace file={}", userns_file.display());
-            mount::bind(
-                Path::new("/proc")
-                    .join(ns_pid.to_string())
-                    .join("ns")
-                    .join("user"),
-                &userns_file,
-                Mount::Nonrecursive,
-                None,
-            )?;
+            mount::bind(Path::new("/proc").join(ns_pid.to_string())
+                                          .join("ns")
+                                          .join("user"),
+                        &userns_file,
+                        Mount::Nonrecursive,
+                        None)?;
             break;
         }
         thread::sleep(Duration::from_millis(100));
@@ -113,15 +111,12 @@ fn mount_ns_files<P: AsRef<Path>>(ns_dir: P, ns_pid: u32) -> Result<()> {
         debug!("waiting for, net namespace file={}", netns_file.display());
         if netns_file.exists() {
             debug!("found, net namespace file={}", netns_file.display());
-            mount::bind(
-                Path::new("/proc")
-                    .join(ns_pid.to_string())
-                    .join("ns")
-                    .join("net"),
-                &netns_file,
-                Mount::Nonrecursive,
-                None,
-            )?;
+            mount::bind(Path::new("/proc").join(ns_pid.to_string())
+                                          .join("ns")
+                                          .join("net"),
+                        &netns_file,
+                        Mount::Nonrecursive,
+                        None)?;
             break;
         }
         thread::sleep(Duration::from_millis(100));
@@ -165,12 +160,11 @@ fn find_network_interface(interface: &str) -> Result<NetworkInterface> {
 }
 
 fn ipv4_addrs_on(netif: &NetworkInterface) -> Result<Vec<String>> {
-    let addrs: Vec<_> = netif
-        .ips
-        .iter()
-        .filter(|ip| ip.is_ipv4())
-        .map(|ip| ip.to_string())
-        .collect();
+    let addrs: Vec<_> = netif.ips
+                             .iter()
+                             .filter(|ip| ip.is_ipv4())
+                             .map(|ip| ip.to_string())
+                             .collect();
 
     // We require at least one IPv4 address before going any further
     if addrs.is_empty() {
@@ -181,12 +175,11 @@ fn ipv4_addrs_on(netif: &NetworkInterface) -> Result<Vec<String>> {
 }
 
 fn ipv6_addrs_on(netif: &NetworkInterface) -> Vec<String> {
-    let addrs: Vec<_> = netif
-        .ips
-        .iter()
-        .filter(|ip| ip.is_ipv6())
-        .map(|ip| ip.to_string())
-        .collect();
+    let addrs: Vec<_> = netif.ips
+                             .iter()
+                             .filter(|ip| ip.is_ipv6())
+                             .map(|ip| ip.to_string())
+                             .collect();
 
     addrs
 }

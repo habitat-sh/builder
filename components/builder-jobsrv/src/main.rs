@@ -23,11 +23,12 @@ extern crate log;
 use habitat_builder_jobsrv as jobsrv;
 use habitat_core as hab_core;
 
-use std::error;
-use std::process;
+use std::{error,
+          process};
 
-use crate::hab_core::config::ConfigFile;
-use crate::jobsrv::{Config, Result};
+use crate::{hab_core::config::ConfigFile,
+            jobsrv::{Config,
+                     Result}};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-jobsrv/config/config.toml";
@@ -42,14 +43,18 @@ fn main() {
     };
 
     match subcmd {
-        "migrate" => match jobsrv::server::migrate(&config) {
-            Ok(_) => process::exit(0),
-            Err(e) => exit_with(&e, 1),
-        },
-        "start" => match jobsrv::server::run(config) {
-            Ok(_) => process::exit(0),
-            Err(e) => exit_with(&e, 1),
-        },
+        "migrate" => {
+            match jobsrv::server::migrate(&config) {
+                Ok(_) => process::exit(0),
+                Err(e) => exit_with(&e, 1),
+            }
+        }
+        "start" => {
+            match jobsrv::server::run(config) {
+                Ok(_) => process::exit(0),
+                Err(e) => exit_with(&e, 1),
+            }
+        }
         _ => unreachable!(),
     }
 }
@@ -84,8 +89,7 @@ fn subcmd_and_config_from_args<'a>(matches: &'a clap::ArgMatches) -> Result<(&'a
 }
 
 fn exit_with<T>(err: &T, code: i32)
-where
-    T: error::Error,
+    where T: error::Error
 {
     println!("{}", err);
     process::exit(code)

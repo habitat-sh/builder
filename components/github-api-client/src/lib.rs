@@ -27,7 +27,8 @@ pub mod error;
 pub mod metrics;
 pub mod types;
 
-pub use crate::client::AppToken;
-pub use crate::client::GitHubClient;
-pub use crate::config::GitHubCfg;
-pub use crate::error::{HubError, HubResult};
+pub use crate::{client::{AppToken,
+                         GitHubClient},
+                config::GitHubCfg,
+                error::{HubError,
+                        HubResult}};

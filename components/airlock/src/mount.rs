@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ffi::CString;
-use std::os::unix::ffi::OsStrExt;
-use std::path::Path;
-use std::ptr;
+use std::{ffi::CString,
+          os::unix::ffi::OsStrExt,
+          path::Path,
+          ptr};
 
 use errno;
 use libc;
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Mount {
@@ -29,9 +30,8 @@ pub enum Mount {
 }
 
 pub fn bind<S, T>(source: S, target: T, recurse: Mount, flags: Option<libc::c_ulong>) -> Result<()>
-where
-    S: AsRef<Path>,
-    T: AsRef<Path>,
+    where S: AsRef<Path>,
+          T: AsRef<Path>
 {
     let c_source = CString::new(source.as_ref().as_os_str().as_bytes())?;
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
@@ -43,29 +43,26 @@ where
         c_flags |= flags;
     };
 
-    debug!(
-        "bind mounting, src={} target={}, recurse={:?}, flags={:?}",
-        source.as_ref().display(),
-        target.as_ref().display(),
-        recurse,
-        flags
-    );
+    debug!("bind mounting, src={} target={}, recurse={:?}, flags={:?}",
+           source.as_ref().display(),
+           target.as_ref().display(),
+           recurse,
+           flags);
     match unsafe {
-        libc::mount(
-            c_source.as_ptr(),
-            c_target.as_ptr(),
-            ptr::null(),
-            c_flags,
-            ptr::null(),
-        )
-    } {
-        rc if rc < 0 => Err(Error::Mount(format!(
-            "mount_bind({}, {}, ...) returned: {} ({})",
-            source.as_ref().display(),
-            target.as_ref().display(),
-            rc,
-            errno::errno(),
-        ))),
+              libc::mount(c_source.as_ptr(),
+                          c_target.as_ptr(),
+                          ptr::null(),
+                          c_flags,
+                          ptr::null())
+          } {
+        rc if rc < 0 => {
+            Err(Error::Mount(format!("mount_bind({}, {}, ...) returned: \
+                                      {} ({})",
+                                     source.as_ref().display(),
+                                     target.as_ref().display(),
+                                     rc,
+                                     errno::errno(),)))
+        }
         _ => Ok(()),
     }
 }
@@ -73,8 +70,7 @@ where
 // mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL) = 0
 #[allow(clippy::string_lit_as_bytes)]
 pub fn private<T>(target: T, recurse: Mount) -> Result<()>
-where
-    T: AsRef<Path>,
+    where T: AsRef<Path>
 {
     let c_source = CString::new("none".as_bytes())?;
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
@@ -84,20 +80,19 @@ where
     }
 
     match unsafe {
-        libc::mount(
-            c_source.as_ptr(),
-            c_target.as_ptr(),
-            ptr::null(),
-            flags,
-            ptr::null(),
-        )
-    } {
-        rc if rc < 0 => Err(Error::Mount(format!(
-            "mount_private({}, ...) returned: {} ({})",
-            target.as_ref().display(),
-            rc,
-            errno::errno(),
-        ))),
+              libc::mount(c_source.as_ptr(),
+                          c_target.as_ptr(),
+                          ptr::null(),
+                          flags,
+                          ptr::null())
+          } {
+        rc if rc < 0 => {
+            Err(Error::Mount(format!("mount_private({}, ...) returned: \
+                                      {} ({})",
+                                     target.as_ref().display(),
+                                     rc,
+                                     errno::errno(),)))
+        }
         _ => Ok(()),
     }
 }
@@ -105,8 +100,7 @@ where
 // mount("proc", "/tmp/rootfs.fol06wNUnpLw/proc", "proc", MS_MGC_VAL|MS_NODEV, NULL) = 0
 #[allow(clippy::string_lit_as_bytes)]
 pub fn procfs<T>(target: T) -> Result<()>
-where
-    T: AsRef<Path>,
+    where T: AsRef<Path>
 {
     let c_source = CString::new("proc".as_bytes())?;
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
@@ -114,20 +108,19 @@ where
     let flags = libc::MS_MGC_VAL | libc::MS_NODEV;
 
     match unsafe {
-        libc::mount(
-            c_source.as_ptr(),
-            c_target.as_ptr(),
-            c_type.as_ptr(),
-            flags,
-            ptr::null(),
-        )
-    } {
-        rc if rc < 0 => Err(Error::Mount(format!(
-            "mount_proc({}, ...) returned: {} ({})",
-            target.as_ref().display(),
-            rc,
-            errno::errno(),
-        ))),
+              libc::mount(c_source.as_ptr(),
+                          c_target.as_ptr(),
+                          c_type.as_ptr(),
+                          flags,
+                          ptr::null())
+          } {
+        rc if rc < 0 => {
+            Err(Error::Mount(format!("mount_proc({}, ...) returned: {} \
+                                      ({})",
+                                     target.as_ref().display(),
+                                     rc,
+                                     errno::errno(),)))
+        }
         _ => Ok(()),
     }
 }
@@ -135,15 +128,13 @@ where
 // mount("tmpfs", "/tmp/rootfs.suP5gd8rt32R/dev", "tmpfs", MS_NOSUID|MS_NODEV|MS_STRICTATIME,
 // "mode=755,size=65536k") = 0
 #[allow(clippy::string_lit_as_bytes)]
-pub fn tmpfs<T>(
-    source: &str,
-    target: T,
-    flags: Option<libc::c_ulong>,
-    mode: Option<libc::mode_t>,
-    size_kb: Option<u32>,
-) -> Result<()>
-where
-    T: AsRef<Path>,
+pub fn tmpfs<T>(source: &str,
+                target: T,
+                flags: Option<libc::c_ulong>,
+                mode: Option<libc::mode_t>,
+                size_kb: Option<u32>)
+                -> Result<()>
+    where T: AsRef<Path>
 {
     let c_source = CString::new(source.as_bytes())?;
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
@@ -162,33 +153,30 @@ where
     let c_data = CString::new(data.as_bytes())?;
 
     match unsafe {
-        libc::mount(
-            c_source.as_ptr(),
-            c_target.as_ptr(),
-            c_type.as_ptr(),
-            c_flags,
-            c_data.as_ptr() as *const libc::c_void,
-        )
-    } {
-        rc if rc < 0 => Err(Error::Mount(format!(
-            "mount_tmpfs({}, ...) returned: {} ({})",
-            target.as_ref().display(),
-            rc,
-            errno::errno(),
-        ))),
+              libc::mount(c_source.as_ptr(),
+                          c_target.as_ptr(),
+                          c_type.as_ptr(),
+                          c_flags,
+                          c_data.as_ptr() as *const libc::c_void)
+          } {
+        rc if rc < 0 => {
+            Err(Error::Mount(format!("mount_tmpfs({}, ...) returned: {} \
+                                      ({})",
+                                     target.as_ref().display(),
+                                     rc,
+                                     errno::errno(),)))
+        }
         _ => Ok(()),
     }
 }
 
 #[allow(clippy::string_lit_as_bytes)]
-pub fn devpts<T>(
-    target: T,
-    flags: libc::c_ulong,
-    mode: Option<libc::mode_t>,
-    ptmxmode: Option<libc::mode_t>,
-) -> Result<()>
-where
-    T: AsRef<Path>,
+pub fn devpts<T>(target: T,
+                 flags: libc::c_ulong,
+                 mode: Option<libc::mode_t>,
+                 ptmxmode: Option<libc::mode_t>)
+                 -> Result<()>
+    where T: AsRef<Path>
 {
     let c_source = CString::new("devpts".as_bytes())?;
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
@@ -203,48 +191,45 @@ where
     let c_data = CString::new(data.as_bytes())?;
 
     match unsafe {
-        libc::mount(
-            c_source.as_ptr(),
-            c_target.as_ptr(),
-            c_type.as_ptr(),
-            flags,
-            c_data.as_ptr() as *const libc::c_void,
-        )
-    } {
-        rc if rc < 0 => Err(Error::Mount(format!(
-            "mount_devpts({}, ...) returned: {} ({})",
-            target.as_ref().display(),
-            rc,
-            errno::errno(),
-        ))),
+              libc::mount(c_source.as_ptr(),
+                          c_target.as_ptr(),
+                          c_type.as_ptr(),
+                          flags,
+                          c_data.as_ptr() as *const libc::c_void)
+          } {
+        rc if rc < 0 => {
+            Err(Error::Mount(format!("mount_devpts({}, ...) returned: {} \
+                                      ({})",
+                                     target.as_ref().display(),
+                                     rc,
+                                     errno::errno(),)))
+        }
         _ => Ok(()),
     }
 }
 
 #[allow(clippy::string_lit_as_bytes)]
 pub fn mqueue<T>(target: T, flags: libc::c_ulong) -> Result<()>
-where
-    T: AsRef<Path>,
+    where T: AsRef<Path>
 {
     let c_source = CString::new("mqueue".as_bytes())?;
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
     let c_type = CString::new("mqueue".as_bytes())?;
 
     match unsafe {
-        libc::mount(
-            c_source.as_ptr(),
-            c_target.as_ptr(),
-            c_type.as_ptr(),
-            flags,
-            ptr::null(),
-        )
-    } {
-        rc if rc < 0 => Err(Error::Mount(format!(
-            "mount_mqueue({}, ...) returned: {} ({})",
-            target.as_ref().display(),
-            rc,
-            errno::errno(),
-        ))),
+              libc::mount(c_source.as_ptr(),
+                          c_target.as_ptr(),
+                          c_type.as_ptr(),
+                          flags,
+                          ptr::null())
+          } {
+        rc if rc < 0 => {
+            Err(Error::Mount(format!("mount_mqueue({}, ...) returned: {} \
+                                      ({})",
+                                     target.as_ref().display(),
+                                     rc,
+                                     errno::errno(),)))
+        }
         _ => Ok(()),
     }
 }
@@ -253,24 +238,28 @@ pub fn umount<T: AsRef<Path>>(target: T, flags: Option<libc::c_int>) -> Result<(
     let c_target = CString::new(target.as_ref().as_os_str().as_bytes())?;
 
     match flags {
-        Some(c_flags) => match unsafe { libc::umount2(c_target.as_ptr(), c_flags) } {
-            rc if rc < 0 => Err(Error::Mount(format!(
-                "umount2({},{}) returned: {} ({})",
-                target.as_ref().display(),
-                c_flags,
-                rc,
-                errno::errno(),
-            ))),
-            _ => Ok(()),
-        },
-        None => match unsafe { libc::umount(c_target.as_ptr()) } {
-            rc if rc < 0 => Err(Error::Mount(format!(
-                "umount({}) returned: {} ({})",
-                target.as_ref().display(),
-                rc,
-                errno::errno(),
-            ))),
-            _ => Ok(()),
-        },
+        Some(c_flags) => {
+            match unsafe { libc::umount2(c_target.as_ptr(), c_flags) } {
+                rc if rc < 0 => {
+                    Err(Error::Mount(format!("umount2({},{}) returned: {} ({})",
+                                             target.as_ref().display(),
+                                             c_flags,
+                                             rc,
+                                             errno::errno(),)))
+                }
+                _ => Ok(()),
+            }
+        }
+        None => {
+            match unsafe { libc::umount(c_target.as_ptr()) } {
+                rc if rc < 0 => {
+                    Err(Error::Mount(format!("umount({}) returned: {} ({})",
+                                             target.as_ref().display(),
+                                             rc,
+                                             errno::errno(),)))
+                }
+                _ => Ok(()),
+            }
+        }
     }
 }

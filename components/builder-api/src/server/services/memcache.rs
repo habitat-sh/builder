@@ -13,18 +13,21 @@
 // limitations under the License.
 
 use memcache;
-use protobuf;
-use protobuf::Message;
-use rand::{self, Rng};
-use sha2::{Digest, Sha512};
+use protobuf::{self,
+               Message};
+use rand::{self,
+           Rng};
+use sha2::{Digest,
+           Sha512};
 use time::PreciseTime;
 
 use super::metrics::Histogram;
 
-use crate::bldr_core::metrics::HistogramMetric;
-use crate::config::MemcacheCfg;
-use crate::hab_core::{package::PackageIdent, ChannelIdent};
-use crate::protocol::originsrv::Session;
+use crate::{bldr_core::metrics::HistogramMetric,
+            config::MemcacheCfg,
+            hab_core::{package::PackageIdent,
+                       ChannelIdent},
+            protocol::originsrv::Session};
 
 pub struct MemcacheClient {
     cli: memcache::Client,
@@ -40,20 +43,16 @@ impl MemcacheClient {
             .map(|h| format!("{}?tcp_nodelay=true", h)) // tcp_nodelay is a significant perf gain
             .collect();
         let memcache_hosts: Vec<&str> = memcache_host_strings.iter().map(AsRef::as_ref).collect();
-        MemcacheClient {
-            cli: memcache::Client::connect(memcache_hosts).unwrap(),
-            ttl: config.ttl,
-        }
+        MemcacheClient { cli: memcache::Client::connect(memcache_hosts).unwrap(),
+                         ttl: config.ttl, }
     }
 
-    pub fn set_package(
-        &mut self,
-        ident: &PackageIdent,
-        pkg_json: Option<&str>,
-        channel: &ChannelIdent,
-        target: &str,
-        opt_account_id: Option<u64>,
-    ) {
+    pub fn set_package(&mut self,
+                       ident: &PackageIdent,
+                       pkg_json: Option<&str>,
+                       channel: &ChannelIdent,
+                       target: &str,
+                       opt_account_id: Option<u64>) {
         let package_namespace = self.package_namespace(&ident.origin, &ident.name);
         let channel_namespace = self.channel_namespace(&ident.origin, channel);
 
@@ -67,52 +66,46 @@ impl MemcacheClient {
             None => "404",
         };
 
-        match self.cli.set(
-            &format!(
-                "{}/{}/{}:{}:{}{}",
-                target,
-                channel,
-                ident.to_string(),
-                channel_namespace,
-                package_namespace,
-                account_str
-            ),
-            body,
-            self.ttl * 60,
-        ) {
-            Ok(_) => trace!(
-                "Saved {}/{}/{} to memcached",
-                target,
-                channel,
-                ident.to_string()
-            ),
-            Err(e) => warn!(
-                "Failed to save {}/{}/{} to memcached: {:?}",
-                target,
-                channel,
-                ident.to_string(),
-                e
-            ),
+        match self.cli.set(&format!("{}/{}/{}:{}:{}{}",
+                                    target,
+                                    channel,
+                                    ident.to_string(),
+                                    channel_namespace,
+                                    package_namespace,
+                                    account_str),
+                           body,
+                           self.ttl * 60)
+        {
+            Ok(_) => {
+                trace!("Saved {}/{}/{} to memcached",
+                       target,
+                       channel,
+                       ident.to_string())
+            }
+            Err(e) => {
+                warn!("Failed to save {}/{}/{} to memcached: {:?}",
+                      target,
+                      channel,
+                      ident.to_string(),
+                      e)
+            }
         };
     }
 
-    pub fn get_package(
-        &mut self,
-        ident: &PackageIdent,
-        channel: &ChannelIdent,
-        target: &str,
-        opt_account_id: Option<u64>,
-    ) -> (bool, Option<String>) {
+    pub fn get_package(&mut self,
+                       ident: &PackageIdent,
+                       channel: &ChannelIdent,
+                       target: &str,
+                       opt_account_id: Option<u64>)
+                       -> (bool, Option<String>) {
         let package_namespace = self.package_namespace(&ident.origin, &ident.name);
         let channel_namespace = self.channel_namespace(&ident.origin, channel);
 
-        trace!(
-            "Getting {}/{}/{} from memcached for {:?}",
-            target,
-            channel,
-            ident.to_string(),
-            opt_account_id
-        );
+        trace!("Getting {}/{}/{} from memcached for {:?}",
+               target,
+               channel,
+               ident.to_string(),
+               opt_account_id);
 
         let account_str = match opt_account_id {
             Some(id) => format!(":{}", id),
@@ -120,21 +113,18 @@ impl MemcacheClient {
         };
 
         let start_time = PreciseTime::now();
-        match self.get_string(&format!(
-            "{}/{}/{}:{}:{}{}",
-            target,
-            channel,
-            ident.to_string(),
-            channel_namespace,
-            package_namespace,
-            account_str
-        )) {
+        match self.get_string(&format!("{}/{}/{}:{}:{}{}",
+                                       target,
+                                       channel,
+                                       ident.to_string(),
+                                       channel_namespace,
+                                       package_namespace,
+                                       account_str))
+        {
             Some(json_body) => {
                 let end_time = PreciseTime::now();
-                trace!(
-                    "Memcache get_package time: {} ms",
-                    start_time.to(end_time).num_milliseconds()
-                );
+                trace!("Memcache get_package time: {} ms",
+                       start_time.to(end_time).num_milliseconds());
                 Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
 
                 if json_body == "404" {
@@ -162,10 +152,8 @@ impl MemcacheClient {
         match self.get_bytes(&hash_key(token)) {
             Some(session) => {
                 let end_time = PreciseTime::now();
-                trace!(
-                    "Memcache get_session time: {} ms",
-                    start_time.to(end_time).num_milliseconds()
-                );
+                trace!("Memcache get_session time: {} ms",
+                       start_time.to(end_time).num_milliseconds());
                 Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
                 Some(protobuf::parse_from_bytes(&session).unwrap())
             }
@@ -186,11 +174,10 @@ impl MemcacheClient {
             None => self.ttl * 60,
         };
 
-        match self.cli.set(
-            &hash_key(token),
-            session.write_to_bytes().unwrap().as_slice(),
-            computed_ttl,
-        ) {
+        match self.cli.set(&hash_key(token),
+                           session.write_to_bytes().unwrap().as_slice(),
+                           computed_ttl)
+        {
             Ok(_) => trace!("Saved session to memcached!"),
             Err(e) => warn!("Failed to save session to memcached: {}", e),
         };
@@ -200,31 +187,27 @@ impl MemcacheClient {
         let key = format!("member:{}/{}", origin, account_id);
 
         match self.cli.set(&key, val, self.ttl * 60) {
-            Ok(_) => trace!(
-                "Saved origin membership {}/{} to memcached!",
-                origin,
-                account_id
-            ),
+            Ok(_) => {
+                trace!("Saved origin membership {}/{} to memcached!",
+                       origin,
+                       account_id)
+            }
             Err(e) => warn!("Failed to save origin membership to memcached: {}", e),
         }
     }
 
     pub fn get_origin_member(&mut self, origin: &str, account_id: u64) -> Option<bool> {
-        trace!(
-            "Getting origin membership for {} {} from memcached",
-            origin,
-            account_id
-        );
+        trace!("Getting origin membership for {} {} from memcached",
+               origin,
+               account_id);
 
         let key = format!("member:{}/{}", origin, account_id);
 
         let start_time = PreciseTime::now();
         let ret = self.get_bool(&key);
         let end_time = PreciseTime::now();
-        trace!(
-            "Memcache get_origin_member time: {} ms",
-            start_time.to(end_time).num_milliseconds()
-        );
+        trace!("Memcache get_origin_member time: {} ms",
+               start_time.to(end_time).num_milliseconds());
         Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
 
         ret
@@ -251,10 +234,8 @@ impl MemcacheClient {
         trace!("Reset namespace {} to {}", namespace_key, val);
 
         if let Err(err) = self.cli.set(namespace_key, val, self.ttl * 60) {
-            warn!(
-                "Failed to reset namespace {} to {}: {}",
-                namespace_key, val, err
-            )
+            warn!("Failed to reset namespace {} to {}: {}",
+                  namespace_key, val, err)
         }
 
         format!("{}", val)
@@ -292,9 +273,7 @@ impl MemcacheClient {
     }
 }
 
-fn package_ns_key(origin: &str, name: &str) -> String {
-    format!("package:{}/{}", origin, name)
-}
+fn package_ns_key(origin: &str, name: &str) -> String { format!("package:{}/{}", origin, name) }
 
 fn channel_ns_key(origin: &str, channel: &ChannelIdent) -> String {
     format!("channel:{}/{}", origin, channel)

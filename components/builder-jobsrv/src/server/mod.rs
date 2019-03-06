@@ -20,64 +20,66 @@ mod metrics;
 mod scheduler;
 mod worker_manager;
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc,
+                RwLock};
 use time::PreciseTime;
 
 use actix;
-use actix_web::http::{Method, StatusCode};
-use actix_web::middleware::Logger;
-use actix_web::server::{self, KeepAlive};
-use actix_web::{App, HttpRequest, HttpResponse, Json};
+use actix_web::{http::{Method,
+                       StatusCode},
+                middleware::Logger,
+                server::{self,
+                         KeepAlive},
+                App,
+                HttpRequest,
+                HttpResponse,
+                Json};
 
-use crate::bldr_core::rpc::RpcMessage;
-use crate::bldr_core::target_graph::TargetGraph;
-use crate::db::DbPool;
-use crate::hab_core::package::PackageTarget;
+use crate::{bldr_core::{rpc::RpcMessage,
+                        target_graph::TargetGraph},
+            db::DbPool,
+            hab_core::package::PackageTarget};
 
-use self::log_archiver::LogArchiver;
-use self::log_directory::LogDirectory;
-use self::log_ingester::LogIngester;
-use self::scheduler::ScheduleMgr;
-use self::worker_manager::WorkerMgr;
+use self::{log_archiver::LogArchiver,
+           log_directory::LogDirectory,
+           log_ingester::LogIngester,
+           scheduler::ScheduleMgr,
+           worker_manager::WorkerMgr};
 
-use crate::config::{Config, GatewayCfg};
-use crate::data_store::DataStore;
-use crate::error::Result;
+use crate::{config::{Config,
+                     GatewayCfg},
+            data_store::DataStore,
+            error::Result};
 
 // Application state
 pub struct AppState {
-    archiver: Box<LogArchiver>,
-    datastore: DataStore,
-    db: DbPool,
-    graph: Arc<RwLock<TargetGraph>>,
-    log_dir: LogDirectory,
+    archiver:      Box<LogArchiver>,
+    datastore:     DataStore,
+    db:            DbPool,
+    graph:         Arc<RwLock<TargetGraph>>,
+    log_dir:       LogDirectory,
     build_targets: Vec<PackageTarget>,
 }
 
 impl AppState {
-    pub fn new(
-        cfg: &Config,
-        datastore: &DataStore,
-        db: DbPool,
-        graph: &Arc<RwLock<TargetGraph>>,
-    ) -> Self {
-        AppState {
-            archiver: log_archiver::from_config(&cfg.archive).unwrap(),
-            datastore: datastore.clone(),
-            db,
-            graph: graph.clone(),
-            log_dir: LogDirectory::new(&cfg.log_dir),
-            build_targets: cfg.build_targets.clone(),
-        }
+    pub fn new(cfg: &Config,
+               datastore: &DataStore,
+               db: DbPool,
+               graph: &Arc<RwLock<TargetGraph>>)
+               -> Self {
+        AppState { archiver: log_archiver::from_config(&cfg.archive).unwrap(),
+                   datastore: datastore.clone(),
+                   db,
+                   graph: graph.clone(),
+                   log_dir: LogDirectory::new(&cfg.log_dir),
+                   build_targets: cfg.build_targets.clone() }
     }
 }
 
 /// Endpoint for determining availability of builder-jobsrv components.
 ///
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
-fn status(_req: &HttpRequest<AppState>) -> HttpResponse {
-    HttpResponse::new(StatusCode::OK)
-}
+fn status(_req: &HttpRequest<AppState>) -> HttpResponse { HttpResponse::new(StatusCode::OK) }
 
 fn handle_rpc((req, msg): (HttpRequest<AppState>, Json<RpcMessage>)) -> HttpResponse {
     debug!("Got RPC message, body =\n{:?}", msg);
@@ -124,10 +126,8 @@ pub fn run(config: Config) -> Result<()> {
     info!("Graph build stats ({} sec):", start_time.to(end_time));
 
     for stat in res {
-        info!(
-            "Target {}: {} nodes, {} edges",
-            stat.target, stat.node_count, stat.edge_count,
-        );
+        info!("Target {}: {} nodes, {} edges",
+              stat.target, stat.node_count, stat.edge_count,);
     }
 
     let graph_arc = Arc::new(RwLock::new(graph));
@@ -140,28 +140,24 @@ pub fn run(config: Config) -> Result<()> {
     WorkerMgr::start(&config, &datastore, db_pool.clone())?;
     ScheduleMgr::start(&datastore, db_pool.clone(), &config.log_path)?;
 
-    info!(
-        "builder-jobsrv listening on {}:{}",
-        cfg.listen_addr(),
-        cfg.listen_port()
-    );
+    info!("builder-jobsrv listening on {}:{}",
+          cfg.listen_addr(),
+          cfg.listen_port());
 
     server::new(move || {
         let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
 
-        App::with_state(app_state)
-            .middleware(Logger::default().exclude("/status"))
-            .resource("/status", |r| {
-                r.get().f(status);
-                r.head().f(status)
-            })
-            .route("/rpc", Method::POST, handle_rpc)
-    })
-    .workers(cfg.handler_count())
-    .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
-    .bind(cfg.http.clone())
-    .unwrap()
-    .start();
+        App::with_state(app_state).middleware(Logger::default().exclude("/status"))
+                                  .resource("/status", |r| {
+                                      r.get().f(status);
+                                      r.head().f(status)
+                                  })
+                                  .route("/rpc", Method::POST, handle_rpc)
+    }).workers(cfg.handler_count())
+      .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
+      .bind(cfg.http.clone())
+      .unwrap()
+      .start();
 
     let _ = sys.run();
     Ok(())

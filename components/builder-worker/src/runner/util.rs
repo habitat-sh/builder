@@ -17,11 +17,13 @@ use std::path::Path;
 #[cfg(not(windows))]
 use std::process::Command;
 
-use serde_json::{self, Value as JsonValue};
+use serde_json::{self,
+                 Value as JsonValue};
 
-use crate::error::{Error, Result};
-use crate::runner::docker::DockerExporterSpec;
-use crate::runner::workspace::Workspace;
+use crate::{error::{Error,
+                    Result},
+            runner::{docker::DockerExporterSpec,
+                     workspace::Workspace}};
 
 // TODO fn: The horror... well, it's not that bad. There isn't a quick win for recursive chown'ing
 // a path, so we'll use the `chown` binary as provided by busybox and guarenteed by the Supervisor.
@@ -35,9 +37,8 @@ pub fn chown_recursive<P: AsRef<Path>>(path: P, uid: u32, gid: u32) -> Result<()
     debug!("building chown command, cmd={:?}", &cmd);
 
     debug!("spawning chown command");
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| Error::Chown(path.as_ref().to_path_buf(), uid, gid, e))?;
+    let mut child = cmd.spawn()
+                       .map_err(|e| Error::Chown(path.as_ref().to_path_buf(), uid, gid, e))?;
     let exit_status = child.wait().map_err(Error::ChownWait)?;
     debug!("completed chown command, status={:?}", exit_status);
     Ok(())
@@ -64,10 +65,11 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
         let opts: JsonValue = match serde_json::from_str(prj_integration.get_body()) {
             Ok(json) => json,
             Err(err) => {
-                return Err(Error::InvalidIntegrations(format!(
-                    "project integration body does not deserialize as JSON: {:?}",
-                    err
-                )));
+                return Err(Error::InvalidIntegrations(format!("project integration \
+                                                               body does not \
+                                                               deserialize as JSON: \
+                                                               {:?}",
+                                                              err)));
             }
         };
         // Required keys with string values
@@ -82,17 +84,16 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
                             )));
                         }
                     } else {
-                        return Err(Error::InvalidIntegrations(format!(
-                            "project integration {} value must be a string",
-                            str_key
-                        )));
+                        return Err(Error::InvalidIntegrations(format!("project integration \
+                                                                       {} value must be a \
+                                                                       string",
+                                                                      str_key)));
                     }
                 }
                 None => {
-                    return Err(Error::InvalidIntegrations(format!(
-                        "project integration {} missing",
-                        str_key
-                    )));
+                    return Err(Error::InvalidIntegrations(format!("project integration \
+                                                                   {} missing",
+                                                                  str_key)));
                 }
             }
         }
@@ -101,26 +102,26 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
             match opts.get(bool_key) {
                 Some(val) => {
                     if !val.is_boolean() {
-                        return Err(Error::InvalidIntegrations(format!(
-                            "project integration {} value must be a bool",
-                            bool_key
-                        )));
+                        return Err(Error::InvalidIntegrations(format!("project integration \
+                                                                       {} value must be a \
+                                                                       bool",
+                                                                      bool_key)));
                     }
                 }
                 None => {
-                    return Err(Error::InvalidIntegrations(format!(
-                        "project integration {} missing",
-                        bool_key
-                    )));
+                    return Err(Error::InvalidIntegrations(format!("project integration \
+                                                                   {} missing",
+                                                                  bool_key)));
                 }
             }
         }
         // Optional keys with string values
         if let Some(val) = opts.get("custom_tag") {
             if !val.is_string() {
-                return Err(Error::InvalidIntegrations(
-                    "project integration custom_tag value must be a string".to_string(),
-                ));
+                return Err(Error::InvalidIntegrations("project integration \
+                                                       custom_tag value must be a \
+                                                       string"
+                                                              .to_string()));
             }
         }
     }
@@ -128,9 +129,9 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
     {
         let org_integrations = workspace.job.get_integrations();
         if org_integrations.is_empty() {
-            return Err(Error::InvalidIntegrations(
-                "missing Docker credentials from origin integrations".to_string(),
-            ));
+            return Err(Error::InvalidIntegrations("missing Docker credentials from origin \
+                                                   integrations"
+                                                                .to_string()));
         }
         let org_integration = org_integrations.first().unwrap();
 
@@ -138,10 +139,11 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
         let creds: JsonValue = match serde_json::from_str(org_integration.get_body()) {
             Ok(json) => json,
             Err(err) => {
-                return Err(Error::InvalidIntegrations(format!(
-                    "origin integration body does not deserialize as JSON: {:?}",
-                    err
-                )));
+                return Err(Error::InvalidIntegrations(format!("origin integration \
+                                                               body does not \
+                                                               deserialize as JSON: \
+                                                               {:?}",
+                                                              err)));
             }
         };
         // Required keys with string values
@@ -150,23 +152,22 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
                 Some(s) => {
                     if s.is_string() {
                         if s.as_str().unwrap().is_empty() {
-                            return Err(Error::InvalidIntegrations(format!(
-                                "origin integration {} value must be a nonempty string",
-                                str_key
-                            )));
+                            return Err(Error::InvalidIntegrations(format!("origin integration \
+                                                                           {} value must be a \
+                                                                           nonempty string",
+                                                                          str_key)));
                         }
                     } else {
-                        return Err(Error::InvalidIntegrations(format!(
-                            "origin integration {} value must be a string",
-                            str_key
-                        )));
+                        return Err(Error::InvalidIntegrations(format!("origin integration \
+                                                                       {} value must be a \
+                                                                       string",
+                                                                      str_key)));
                     }
                 }
                 None => {
-                    return Err(Error::InvalidIntegrations(format!(
-                        "origin integration {} missing",
-                        str_key
-                    )));
+                    return Err(Error::InvalidIntegrations(format!("origin integration \
+                                                                   {} missing",
+                                                                  str_key)));
                 }
             }
         }
@@ -185,67 +186,56 @@ pub fn docker_exporter_spec(workspace: &Workspace) -> DockerExporterSpec {
     // above. As a result, Any panics that occur are most likely due to programmer error and not
     // input validation.
 
-    let origin_integration = workspace
-        .job
-        .get_integrations()
-        .first()
-        .expect("Origin integrations must not be empty");
+    let origin_integration = workspace.job
+                                      .get_integrations()
+                                      .first()
+                                      .expect("Origin integrations must not be empty");
 
-    let creds: JsonValue = serde_json::from_str(origin_integration.get_body())
-        .expect("Origin integrations body must be JSON");
+    let creds: JsonValue =
+        serde_json::from_str(origin_integration.get_body()).expect("Origin integrations body \
+                                                                    must be JSON");
 
-    let opts: JsonValue = serde_json::from_str(
-        workspace
-            .job
-            .get_project_integrations()
-            .first()
-            .expect("Project integrations must not be empty")
-            .get_body(),
-    )
-    .expect("Project integrations body must be JSON");
+    let opts: JsonValue =
+        serde_json::from_str(workspace.job
+                                      .get_project_integrations()
+                                      .first()
+                                      .expect("Project integrations must not be empty")
+                                      .get_body()).expect("Project integrations body must be JSON");
 
     let custom_tag = get_optional_args(&opts, String::from("custom_tag"));
     let registry_url = get_optional_args(&creds, String::from("registry_url"));
     let registry_type = origin_integration.get_integration().to_string();
 
-    DockerExporterSpec {
-        username: creds
-            .get("username")
-            .expect("username key is present")
-            .as_str()
-            .expect("username value is a string")
-            .to_string(),
-        password: creds
-            .get("password")
-            .expect("password key is present")
-            .as_str()
-            .expect("password value is a string")
-            .to_string(),
-        registry_type,
-        registry_url,
-        docker_hub_repo_name: opts
-            .get("docker_hub_repo_name")
-            .expect("docker_hub_repo_name key is present")
-            .as_str()
-            .expect("docker_hub_repo_name value is a string")
-            .to_string(),
-        latest_tag: opts
-            .get("latest_tag")
-            .expect("latest_tag key is present")
-            .as_bool()
-            .expect("latest_tag value is a bool"),
-        version_tag: opts
-            .get("version_tag")
-            .expect("version_tag key is present")
-            .as_bool()
-            .expect("version_tag value is a bool"),
-        version_release_tag: opts
-            .get("version_release_tag")
-            .expect("version_release_tag key is present")
-            .as_bool()
-            .expect("version_release_tag value is a bool"),
-        custom_tag,
-    }
+    DockerExporterSpec { username: creds.get("username")
+                                        .expect("username key is present")
+                                        .as_str()
+                                        .expect("username value is a string")
+                                        .to_string(),
+                         password: creds.get("password")
+                                        .expect("password key is present")
+                                        .as_str()
+                                        .expect("password value is a string")
+                                        .to_string(),
+                         registry_type,
+                         registry_url,
+                         docker_hub_repo_name: opts.get("docker_hub_repo_name")
+                                                   .expect("docker_hub_repo_name key is present")
+                                                   .as_str()
+                                                   .expect("docker_hub_repo_name value is a string")
+                                                   .to_string(),
+                         latest_tag: opts.get("latest_tag")
+                                         .expect("latest_tag key is present")
+                                         .as_bool()
+                                         .expect("latest_tag value is a bool"),
+                         version_tag: opts.get("version_tag")
+                                          .expect("version_tag key is present")
+                                          .as_bool()
+                                          .expect("version_tag value is a bool"),
+                         version_release_tag: opts.get("version_release_tag")
+                                                  .expect("version_release_tag key is present")
+                                                  .as_bool()
+                                                  .expect("version_release_tag value is a bool"),
+                         custom_tag }
 }
 
 fn get_optional_args(opts: &JsonValue, arg: String) -> Option<String> {

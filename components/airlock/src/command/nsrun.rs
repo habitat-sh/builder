@@ -12,52 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use std::ffi::OsStr;
-use std::fs::File;
-use std::io::Write;
-use std::os::unix::process::CommandExt;
-use std::path::Path;
-use std::process::{Command, Stdio};
+use std::{env,
+          ffi::OsStr,
+          fs::File,
+          io::Write,
+          os::unix::process::CommandExt,
+          path::Path,
+          process::{Command,
+                    Stdio}};
 
 use dirs;
 use libc;
 
-use crate::coreutils::{chmod, mkdir_p, rmdir, symlink, touch, umask};
-use crate::error::{Error, Result};
-use crate::filesystem;
-use crate::mount::{self, Mount};
-use crate::pty;
+use crate::{coreutils::{chmod,
+                        mkdir_p,
+                        rmdir,
+                        symlink,
+                        touch,
+                        umask},
+            error::{Error,
+                    Result},
+            filesystem,
+            mount::{self,
+                    Mount},
+            pty};
 
-const ROOTFS_DIRS: &[&str] = &[
-    "etc",
-    "run",
-    "src",
-    "var",
-    "hab/pkgs",
-    "hab/cache/keys",
-    "hab/cache/artifacts",
-];
+const ROOTFS_DIRS: &[&str] = &["etc",
+                               "run",
+                               "src",
+                               "var",
+                               "hab/pkgs",
+                               "hab/cache/keys",
+                               "hab/cache/artifacts"];
 
 const WHITELISTED_DEVS: &[&str] = &["null", "random", "full", "tty", "zero", "urandom"];
 
-const READONLY_PATHS: &[&str] = &[
-    "/proc/asound",
-    "/proc/bus",
-    "/proc/fs",
-    "/proc/irq",
-    "/proc/sys",
-    "/proc/sysrq-trigger",
-];
+const READONLY_PATHS: &[&str] = &["/proc/asound",
+                                  "/proc/bus",
+                                  "/proc/fs",
+                                  "/proc/irq",
+                                  "/proc/sys",
+                                  "/proc/sysrq-trigger"];
 
-const MASKED_PATHS: &[&str] = &[
-    "/proc/kcore",
-    "/proc/latency_stats",
-    "/proc/timer_list",
-    "/proc/timer_stats",
-    "/proc/sched_debug",
-    "/sys/firmware",
-];
+const MASKED_PATHS: &[&str] = &["/proc/kcore",
+                                "/proc/latency_stats",
+                                "/proc/timer_list",
+                                "/proc/timer_stats",
+                                "/proc/sched_debug",
+                                "/sys/firmware"];
 
 pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool) -> Result<()> {
     let umask_val = 0o0022;
@@ -78,36 +80,30 @@ pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool)
     // Create `/dev` filesystem
     let dev = rootfs.join("dev");
     mkdir_p(&dev)?;
-    mount::tmpfs(
-        "tmpfs",
-        &dev,
-        Some(libc::MS_NOSUID | libc::MS_NODEV | libc::MS_STRICTATIME),
-        Some(0o755),
-        Some(65536),
-    )?;
+    mount::tmpfs("tmpfs",
+                 &dev,
+                 Some(libc::MS_NOSUID | libc::MS_NODEV | libc::MS_STRICTATIME),
+                 Some(0o755),
+                 Some(65536))?;
     chmod(&dev, 0o0755)?;
 
     // Create `/dev/pts` filesystem
     let pts = rootfs.join("dev/pts");
     mkdir_p(&pts)?;
-    mount::devpts(
-        &pts,
-        libc::MS_NOSUID | libc::MS_NOEXEC,
-        Some(0o0620),
-        Some(0o0666),
-    )?;
+    mount::devpts(&pts,
+                  libc::MS_NOSUID | libc::MS_NOEXEC,
+                  Some(0o0620),
+                  Some(0o0666))?;
     chmod(&pts, 0o0755)?;
 
     // Create `/dev/shm` filesystem
     let shm = rootfs.join("dev/shm");
     mkdir_p(&shm)?;
-    mount::tmpfs(
-        "shm",
-        &shm,
-        Some(libc::MS_NOSUID | libc::MS_NOEXEC | libc::MS_NODEV),
-        Some(0o1777),
-        Some(65536),
-    )?;
+    mount::tmpfs("shm",
+                 &shm,
+                 Some(libc::MS_NOSUID | libc::MS_NOEXEC | libc::MS_NODEV),
+                 Some(0o1777),
+                 Some(65536))?;
 
     // Create `/dev/mqueue` filesystem
     let mqueue = rootfs.join("dev/mqueue");
@@ -117,12 +113,10 @@ pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool)
     // Create `/sys` filesystem
     let sys = rootfs.join("sys");
     mkdir_p(&sys)?;
-    mount::bind(
-        "/sys",
-        sys,
-        Mount::Recursive,
-        Some(libc::MS_NOSUID | libc::MS_NOEXEC | libc::MS_NODEV),
-    )?;
+    mount::bind("/sys",
+                sys,
+                Mount::Recursive,
+                Some(libc::MS_NOSUID | libc::MS_NOEXEC | libc::MS_NODEV))?;
 
     // Bind mount whitelisted devices
     let old_umask = umask(0o0000);
@@ -147,12 +141,10 @@ pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool)
     }
 
     // Bind mount /src
-    mount::bind(
-        env::current_dir()?,
-        rootfs.join("src"),
-        Mount::Nonrecursive,
-        None,
-    )?;
+    mount::bind(env::current_dir()?,
+                rootfs.join("src"),
+                Mount::Nonrecursive,
+                None)?;
 
     // TODO fn: is this necessary?
     mount::tmpfs("tmpfs", rootfs.join("run"), None, None, None)?;
@@ -167,35 +159,27 @@ pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool)
     }
 
     // Bind mount Habitat packages and key cache as read-only
-    mount::bind(
-        Path::new("/hab/pkgs"),
-        rootfs.join("hab/pkgs"),
-        Mount::Nonrecursive,
-        Some(libc::MS_RDONLY),
-    )?;
-    let source = dirs::home_dir()
-        .ok_or(Error::HomeDirectoryNotFound)?
-        .join(".hab/cache/keys");
+    mount::bind(Path::new("/hab/pkgs"),
+                rootfs.join("hab/pkgs"),
+                Mount::Nonrecursive,
+                Some(libc::MS_RDONLY))?;
+    let source = dirs::home_dir().ok_or(Error::HomeDirectoryNotFound)?
+                                 .join(".hab/cache/keys");
     mkdir_p(&source)?;
-    mount::bind(
-        source,
-        rootfs.join("hab/cache/keys"),
-        Mount::Nonrecursive,
-        Some(libc::MS_RDONLY),
-    )?;
+    mount::bind(source,
+                rootfs.join("hab/cache/keys"),
+                Mount::Nonrecursive,
+                Some(libc::MS_RDONLY))?;
 
     if mount_artifacts {
         // Bind mount outside artifact cache (and ensure outside directory exists)
-        let source = dirs::home_dir()
-            .ok_or(Error::HomeDirectoryNotFound)?
-            .join(".hab/cache/artifacts");
+        let source = dirs::home_dir().ok_or(Error::HomeDirectoryNotFound)?
+                                     .join(".hab/cache/artifacts");
         mkdir_p(&source)?;
-        mount::bind(
-            source,
-            rootfs.join("hab/cache/artifacts"),
-            Mount::Nonrecursive,
-            None,
-        )?;
+        mount::bind(source,
+                    rootfs.join("hab/cache/artifacts"),
+                    Mount::Nonrecursive,
+                    None)?;
     }
 
     // Binlink BusyBox and Habitat CLI binaries
@@ -230,12 +214,10 @@ pub fn run(rootfs: &Path, cmd: &OsStr, args: Vec<&OsStr>, mount_artifacts: bool)
         let path = Path::new(entry);
         if path.exists() {
             mount::bind(&path, &path, Mount::Recursive, None)?;
-            mount::bind(
-                &path,
-                &path,
-                Mount::Recursive,
-                Some(libc::MS_RDONLY | libc::MS_REMOUNT),
-            )?;
+            mount::bind(&path,
+                        &path,
+                        Mount::Recursive,
+                        Some(libc::MS_RDONLY | libc::MS_REMOUNT))?;
         }
     }
 

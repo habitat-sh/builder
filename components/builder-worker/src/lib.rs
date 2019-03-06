@@ -46,8 +46,9 @@ features! {
     }
 }
 
-pub use self::config::Config;
-pub use self::error::{Error, Result};
+pub use self::{config::Config,
+               error::{Error,
+                       Result}};
 
 pub const PRODUCT: &str = "builder-worker";
 pub const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));

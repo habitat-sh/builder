@@ -12,48 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::File;
-use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::{fs::File,
+          io::{self,
+               Read},
+          path::{Path,
+                 PathBuf}};
 
-use crate::hab_core::package::{PackageArchive, PackageIdent};
+use crate::hab_core::package::{PackageArchive,
+                               PackageIdent};
 
 use super::Job;
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 pub struct Workspace {
     pub job: Job,
-    out: PathBuf,
-    src: PathBuf,
-    studio: PathBuf,
-    ns_dir: PathBuf,
-    root: PathBuf,
+    out:     PathBuf,
+    src:     PathBuf,
+    studio:  PathBuf,
+    ns_dir:  PathBuf,
+    root:    PathBuf,
 }
 
 impl Workspace {
     pub fn new<T>(data_path: T, job: Job) -> Self
-    where
-        T: AsRef<Path>,
+        where T: AsRef<Path>
     {
         let root = data_path.as_ref().join(job.get_id().to_string());
         debug!("New workspace, root = {:?}", root);
-        Workspace {
-            job,
-            out: root.join("out"),
-            src: root.join("src"),
-            studio: root.join("studio"),
-            ns_dir: root.join("airlock-ns"),
-            root,
-        }
+        Workspace { job,
+                    out: root.join("out"),
+                    src: root.join("src"),
+                    studio: root.join("studio"),
+                    ns_dir: root.join("airlock-ns"),
+                    root }
     }
 
     /// Returns a `PackageArchive` representing the last built artifact from studio build
     pub fn last_built(&self) -> Result<PackageArchive> {
         let last_build = self.last_build_env();
         match StudioBuild::from_file(&last_build) {
-            Ok(build) => Ok(PackageArchive::new(
-                self.out().join(build.pkg_artifact.unwrap()),
-            )),
+            Ok(build) => Ok(PackageArchive::new(self.out().join(build.pkg_artifact.unwrap()))),
             Err(err) => Err(Error::BuildEnvFile(last_build, err)),
         }
     }
@@ -62,78 +61,59 @@ impl Workspace {
     pub fn attempted_build(&self) -> Result<PackageIdent> {
         let last_build = self.pre_build_env();
         match StudioBuild::from_file(&last_build) {
-            Ok(build) => Ok(PackageIdent::new(
-                build.pkg_origin,
-                build.pkg_name,
-                Some(build.pkg_version),
-                Some(build.pkg_release),
-            )),
+            Ok(build) => {
+                Ok(PackageIdent::new(build.pkg_origin,
+                                     build.pkg_name,
+                                     Some(build.pkg_version),
+                                     Some(build.pkg_release)))
+            }
             Err(err) => Err(Error::BuildEnvFile(last_build, err)),
         }
     }
 
     /// Directory to the output directory containing built artifacts from studio build
-    pub fn out(&self) -> &Path {
-        &self.out
-    }
+    pub fn out(&self) -> &Path { &self.out }
 
     /// Root directory of the workspace
-    pub fn root(&self) -> &Path {
-        &self.root
-    }
+    pub fn root(&self) -> &Path { &self.root }
 
     /// Directory containing cloned source for the build
-    pub fn src(&self) -> &Path {
-        &self.src
-    }
+    pub fn src(&self) -> &Path { &self.src }
 
     /// Directory containing the studio for the build
-    pub fn studio(&self) -> &Path {
-        &self.studio
-    }
+    pub fn studio(&self) -> &Path { &self.studio }
 
     /// Directory containing the airlock namespace state for the build
-    pub fn ns_dir(&self) -> &Path {
-        &self.ns_dir
-    }
+    pub fn ns_dir(&self) -> &Path { &self.ns_dir }
 
     #[cfg(not(windows))]
-    fn last_build_env(&self) -> PathBuf {
-        self.out().join("last_build.env")
-    }
+    fn last_build_env(&self) -> PathBuf { self.out().join("last_build.env") }
 
     #[cfg(windows)]
-    fn last_build_env(&self) -> PathBuf {
-        self.out().join("last_build.ps1")
-    }
+    fn last_build_env(&self) -> PathBuf { self.out().join("last_build.ps1") }
 
     #[cfg(not(windows))]
-    fn pre_build_env(&self) -> PathBuf {
-        self.out().join("pre_build.env")
-    }
+    fn pre_build_env(&self) -> PathBuf { self.out().join("pre_build.env") }
 
     #[cfg(windows)]
-    fn pre_build_env(&self) -> PathBuf {
-        self.out().join("pre_build.ps1")
-    }
+    fn pre_build_env(&self) -> PathBuf { self.out().join("pre_build.ps1") }
 }
 
 #[derive(Debug)]
 pub struct StudioBuild {
-    pub pkg_origin: String,
-    pub pkg_name: String,
-    pub pkg_version: String,
-    pub pkg_release: String,
-    pub pkg_ident: String,
-    pub pkg_artifact: Option<String>,
-    pub pkg_sha256sum: Option<String>,
+    pub pkg_origin:     String,
+    pub pkg_name:       String,
+    pub pkg_version:    String,
+    pub pkg_release:    String,
+    pub pkg_ident:      String,
+    pub pkg_artifact:   Option<String>,
+    pub pkg_sha256sum:  Option<String>,
     pub pkg_blake2bsum: Option<String>,
 }
 
 impl StudioBuild {
     pub fn from_file<S>(path: S) -> io::Result<Self>
-    where
-        S: AsRef<Path>,
+        where S: AsRef<Path>
     {
         let mut build = StudioBuild::default();
         let mut buf: Vec<u8> = vec![];
@@ -188,16 +168,14 @@ impl StudioBuild {
 
 impl Default for StudioBuild {
     fn default() -> Self {
-        StudioBuild {
-            pkg_origin: "".to_string(),
-            pkg_name: "".to_string(),
-            pkg_version: "".to_string(),
-            pkg_release: "".to_string(),
-            pkg_ident: "".to_string(),
-            pkg_artifact: None,
-            pkg_sha256sum: None,
-            pkg_blake2bsum: None,
-        }
+        StudioBuild { pkg_origin:     "".to_string(),
+                      pkg_name:       "".to_string(),
+                      pkg_version:    "".to_string(),
+                      pkg_release:    "".to_string(),
+                      pkg_ident:      "".to_string(),
+                      pkg_artifact:   None,
+                      pkg_sha256sum:  None,
+                      pkg_blake2bsum: None, }
     }
 }
 
@@ -233,10 +211,8 @@ mod tests {
         assert_eq!(build.pkg_version, "3.12.0");
         assert_eq!(build.pkg_release, "20161031181251");
         assert_eq!(build.pkg_ident, "core/valgrind/3.12.0/20161031181251");
-        assert_eq!(
-            build.pkg_artifact,
-            Some("core-valgrind-3.12.0-20161031181251-x86_64-linux.hart".to_string(),)
-        );
+        assert_eq!(build.pkg_artifact,
+                   Some("core-valgrind-3.12.0-20161031181251-x86_64-linux.hart".to_string(),));
         assert_eq!(
             build.pkg_sha256sum,
             Some("3aeacaca8cf8274740863caae350f545cf97b15c79bdf6f873c0811b1a1ffbcf".to_string(),)

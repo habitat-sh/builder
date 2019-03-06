@@ -13,13 +13,15 @@
 // limitations under the License.
 
 use chrono::prelude::*;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::path::Path;
-use std::time::Duration;
+use std::{fs::{File,
+               OpenOptions},
+          io::Write,
+          path::Path,
+          time::Duration};
 
-use crate::protocol::jobsrv::{Job, JobGroup, JobGroupProject};
+use crate::protocol::jobsrv::{Job,
+                              JobGroup,
+                              JobGroupProject};
 
 pub struct Logger {
     file: File,
@@ -27,17 +29,13 @@ pub struct Logger {
 
 impl Logger {
     pub fn init<T, U>(log_path: T, filename: U) -> Self
-    where
-        T: AsRef<Path>,
-        U: AsRef<Path>,
+        where T: AsRef<Path>,
+              U: AsRef<Path>
     {
-        Logger {
-            file: OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(log_path.as_ref().join(filename))
-                .expect("Failed to initialize log file"),
-        }
+        Logger { file: OpenOptions::new().append(true)
+                                         .create(true)
+                                         .open(log_path.as_ref().join(filename))
+                                         .expect("Failed to initialize log file"), }
     }
 
     pub fn log(&mut self, msg: &str) {
@@ -71,48 +69,39 @@ impl Logger {
     }
 
     pub fn log_group_project(&mut self, group: &JobGroup, project: &JobGroupProject) {
-        let msg = format!(
-            "P,{},{:?},{},",
-            group.get_id(),
-            project.get_state(),
-            project.get_name()
-        );
+        let msg = format!("P,{},{:?},{},",
+                          group.get_id(),
+                          project.get_state(),
+                          project.get_name());
         self.log(&msg);
     }
 
     pub fn log_group_job(&mut self, group: &JobGroup, job: &Job) {
         let suffix = if job.has_build_started_at() && job.has_build_finished_at() {
-            let start = job
-                .get_build_started_at()
-                .parse::<DateTime<Utc>>()
-                .unwrap_or_else(|_| Utc::now());
-            let stop = job
-                .get_build_finished_at()
-                .parse::<DateTime<Utc>>()
-                .unwrap_or_else(|_| Utc::now());
-            let group_start = group
-                .get_created_at()
-                .parse::<DateTime<Utc>>()
-                .unwrap_or_else(|_| Utc::now());
+            let start = job.get_build_started_at()
+                           .parse::<DateTime<Utc>>()
+                           .unwrap_or_else(|_| Utc::now());
+            let stop = job.get_build_finished_at()
+                          .parse::<DateTime<Utc>>()
+                          .unwrap_or_else(|_| Utc::now());
+            let group_start = group.get_created_at()
+                                   .parse::<DateTime<Utc>>()
+                                   .unwrap_or_else(|_| Utc::now());
 
-            let offset = start
-                .signed_duration_since(group_start)
-                .to_std()
-                .unwrap_or(Duration::from_secs(0))
-                .as_secs();
-            let duration = stop
-                .signed_duration_since(start)
-                .to_std()
-                .unwrap_or(Duration::from_secs(0))
-                .as_secs();
+            let offset = start.signed_duration_since(group_start)
+                              .to_std()
+                              .unwrap_or(Duration::from_secs(0))
+                              .as_secs();
+            let duration = stop.signed_duration_since(start)
+                               .to_std()
+                               .unwrap_or(Duration::from_secs(0))
+                               .as_secs();
 
-            format!(
-                "{},{},{},{}",
-                offset,
-                duration,
-                start.format("%Y-%m-%d %H:%M:%S").to_string(),
-                stop.format("%Y-%m-%d %H:%M:%S").to_string()
-            )
+            format!("{},{},{},{}",
+                    offset,
+                    duration,
+                    start.format("%Y-%m-%d %H:%M:%S").to_string(),
+                    stop.format("%Y-%m-%d %H:%M:%S").to_string())
         } else {
             "".to_string()
         };
@@ -123,15 +112,13 @@ impl Logger {
             "".to_string()
         };
 
-        let msg = format!(
-            "J,{},{},{:?},{},{},{}",
-            job.get_owner_id(),
-            job.get_id(),
-            job.get_state(),
-            job.get_project().get_name(),
-            suffix,
-            error
-        );
+        let msg = format!("J,{},{},{:?},{},{},{}",
+                          job.get_owner_id(),
+                          job.get_id(),
+                          job.get_state(),
+                          job.get_project().get_name(),
+                          suffix,
+                          error);
 
         self.log(&msg);
     }
@@ -139,40 +126,36 @@ impl Logger {
     pub fn log_worker_job(&mut self, job: &Job) {
         let start = if job.has_build_started_at() {
             job.get_build_started_at()
-                .parse::<DateTime<Utc>>()
-                .unwrap_or_else(|_| Utc::now())
-                .format("%Y-%m-%d %H:%M:%S")
-                .to_string()
+               .parse::<DateTime<Utc>>()
+               .unwrap_or_else(|_| Utc::now())
+               .format("%Y-%m-%d %H:%M:%S")
+               .to_string()
         } else {
             "".to_string()
         };
 
         let stop = if job.has_build_finished_at() {
             job.get_build_finished_at()
-                .parse::<DateTime<Utc>>()
-                .unwrap_or_else(|_| Utc::now())
-                .format("%Y-%m-%d %H:%M:%S")
-                .to_string()
+               .parse::<DateTime<Utc>>()
+               .unwrap_or_else(|_| Utc::now())
+               .format("%Y-%m-%d %H:%M:%S")
+               .to_string()
         } else {
             "".to_string()
         };
 
-        let msg = format!(
-            "W,{},{},{:?},{},,,{},{},{:?}",
-            job.get_owner_id(),
-            job.get_id(),
-            job.get_state(),
-            job.get_project().get_name(),
-            start,
-            stop,
-            job.get_error()
-        );
+        let msg = format!("W,{},{},{:?},{},,,{},{},{:?}",
+                          job.get_owner_id(),
+                          job.get_id(),
+                          job.get_state(),
+                          job.get_project().get_name(),
+                          start,
+                          stop,
+                          job.get_error());
         self.log(&msg);
     }
 }
 
 impl Drop for Logger {
-    fn drop(&mut self) {
-        self.file.sync_all().expect("Unable to sync log file");
-    }
+    fn drop(&mut self) { self.file.sync_all().expect("Unable to sync log file"); }
 }

@@ -16,39 +16,38 @@ use std::fmt;
 
 use base64;
 
-use crate::error::{HubError, HubResult};
+use crate::error::{HubError,
+                   HubResult};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct App {
-    pub id: u32,
-    pub owner: AppOwner,
-    pub name: String,
-    pub description: String,
+    pub id:           u32,
+    pub owner:        AppOwner,
+    pub name:         String,
+    pub description:  String,
     pub external_url: String,
-    pub html_url: String,
-    pub created_at: String,
-    pub updated_at: String,
+    pub html_url:     String,
+    pub created_at:   String,
+    pub updated_at:   String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct AppInstallationToken {
-    pub token: String,
+    pub token:      String,
     pub expires_at: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct AppAuthErr {
-    pub message: String,
+    pub message:           String,
     pub documentation_url: String,
 }
 
 impl fmt::Display for AppAuthErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "message={}, documentation_url={}",
-            self.message, self.documentation_url
-        )
+        write!(f,
+               "message={}, documentation_url={}",
+               self.message, self.documentation_url)
     }
 }
 
@@ -76,16 +75,16 @@ pub struct AppOwner {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Contents {
-    pub name: String,
-    pub path: String,
-    pub sha: String,
-    pub size: usize,
-    pub url: String,
-    pub html_url: String,
-    pub git_url: String,
+    pub name:         String,
+    pub path:         String,
+    pub sha:          String,
+    pub size:         usize,
+    pub url:          String,
+    pub html_url:     String,
+    pub git_url:      String,
     pub download_url: String,
-    pub content: String,
-    pub encoding: String,
+    pub content:      String,
+    pub encoding:     String,
 }
 
 impl Contents {
@@ -96,14 +95,14 @@ impl Contents {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DirectoryEntry {
-    pub r#type: String,
-    pub name: String,
-    pub path: String,
-    pub sha: String,
-    pub size: usize,
-    pub url: String,
-    pub html_url: String,
-    pub git_url: String,
+    pub r#type:       String,
+    pub name:         String,
+    pub path:         String,
+    pub sha:          String,
+    pub size:         usize,
+    pub url:          String,
+    pub html_url:     String,
+    pub git_url:      String,
     pub download_url: Option<String>,
 }
 
@@ -194,22 +193,22 @@ pub struct GitHubAppInstallation {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GitHubWebhookSender {
-    pub login: String,
-    pub id: u32,
-    pub avatar_url: String,
-    pub gravatar_id: Option<String>,
-    pub url: String,
-    pub html_url: String,
-    pub followers_url: String,
-    pub following_url: String,
-    pub gists_url: String,
-    pub starred_url: String,
-    pub subscriptions_url: String,
-    pub organizations_url: String,
-    pub repos_url: String,
-    pub events_url: String,
+    pub login:               String,
+    pub id:                  u32,
+    pub avatar_url:          String,
+    pub gravatar_id:         Option<String>,
+    pub url:                 String,
+    pub html_url:            String,
+    pub followers_url:       String,
+    pub following_url:       String,
+    pub gists_url:           String,
+    pub starred_url:         String,
+    pub subscriptions_url:   String,
+    pub organizations_url:   String,
+    pub repos_url:           String,
+    pub events_url:          String,
     pub received_events_url: String,
-    pub site_admin: bool,
+    pub site_admin:          bool,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -224,140 +223,140 @@ pub struct GitHubOwner {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PushRepository {
-    pub id: u32,
-    pub name: String,
-    pub full_name: String,
-    pub owner: Organization,
-    pub private: bool,
-    pub html_url: String,
-    pub description: Option<String>,
-    pub fork: bool,
-    pub git_url: String,
-    pub ssh_url: String,
-    pub clone_url: String,
+    pub id:             u32,
+    pub name:           String,
+    pub full_name:      String,
+    pub owner:          Organization,
+    pub private:        bool,
+    pub html_url:       String,
+    pub description:    Option<String>,
+    pub fork:           bool,
+    pub git_url:        String,
+    pub ssh_url:        String,
+    pub clone_url:      String,
     pub default_branch: String,
-    pub master_branch: String,
-    pub organization: String,
+    pub master_branch:  String,
+    pub organization:   String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Repository {
-    pub id: u32,
-    pub name: String,
-    pub full_name: String,
-    pub owner: User,
-    pub private: bool,
-    pub html_url: String,
-    pub description: Option<String>,
-    pub fork: bool,
-    pub git_url: String,
-    pub ssh_url: String,
-    pub clone_url: String,
+    pub id:             u32,
+    pub name:           String,
+    pub full_name:      String,
+    pub owner:          User,
+    pub private:        bool,
+    pub html_url:       String,
+    pub description:    Option<String>,
+    pub fork:           bool,
+    pub git_url:        String,
+    pub ssh_url:        String,
+    pub clone_url:      String,
     pub default_branch: String,
-    pub master_branch: String,
-    pub organization: Organization,
+    pub master_branch:  String,
+    pub organization:   Organization,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Organization {
-    pub login: String,
-    pub id: u32,
-    pub avatar_url: String,
-    pub url: String,
-    pub company: Option<String>,
-    pub description: Option<String>,
-    pub gravatar_id: Option<String>,
-    pub hooks_url: Option<String>,
-    pub html_url: Option<String>,
-    pub followers_url: Option<String>,
-    pub following_url: Option<String>,
-    pub gists_url: Option<String>,
-    pub starred_url: Option<String>,
-    pub subscriptions_url: Option<String>,
-    pub organizations_url: Option<String>,
-    pub repos_url: Option<String>,
-    pub events_url: Option<String>,
+    pub login:               String,
+    pub id:                  u32,
+    pub avatar_url:          String,
+    pub url:                 String,
+    pub company:             Option<String>,
+    pub description:         Option<String>,
+    pub gravatar_id:         Option<String>,
+    pub hooks_url:           Option<String>,
+    pub html_url:            Option<String>,
+    pub followers_url:       Option<String>,
+    pub following_url:       Option<String>,
+    pub gists_url:           Option<String>,
+    pub starred_url:         Option<String>,
+    pub subscriptions_url:   Option<String>,
+    pub organizations_url:   Option<String>,
+    pub repos_url:           Option<String>,
+    pub events_url:          Option<String>,
     pub received_events_url: Option<String>,
-    pub members_url: Option<String>,
-    pub site_admin: Option<bool>,
+    pub members_url:         Option<String>,
+    pub site_admin:          Option<bool>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Team {
-    pub id: u32,
-    pub url: String,
-    pub name: String,
-    pub slug: String,
-    pub description: Option<String>,
-    pub privacy: String,
-    pub permission: String,
-    pub members_url: String,
+    pub id:               u32,
+    pub url:              String,
+    pub name:             String,
+    pub slug:             String,
+    pub description:      Option<String>,
+    pub privacy:          String,
+    pub permission:       String,
+    pub members_url:      String,
     pub repositories_url: String,
-    pub members_count: u32,
-    pub repos_count: u32,
-    pub organization: Organization,
+    pub members_count:    u32,
+    pub repos_count:      u32,
+    pub organization:     Organization,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct User {
-    pub login: String,
-    pub id: u32,
-    pub avatar_url: String,
-    pub gravatar_id: String,
-    pub url: String,
-    pub html_url: String,
-    pub followers_url: String,
-    pub following_url: String,
-    pub gists_url: String,
-    pub starred_url: String,
-    pub subscriptions_url: String,
-    pub organizations_url: String,
-    pub repos_url: String,
-    pub events_url: String,
+    pub login:               String,
+    pub id:                  u32,
+    pub avatar_url:          String,
+    pub gravatar_id:         String,
+    pub url:                 String,
+    pub html_url:            String,
+    pub followers_url:       String,
+    pub following_url:       String,
+    pub gists_url:           String,
+    pub starred_url:         String,
+    pub subscriptions_url:   String,
+    pub organizations_url:   String,
+    pub repos_url:           String,
+    pub events_url:          String,
     pub received_events_url: String,
-    pub name: Option<String>,
-    pub company: Option<String>,
-    pub blog: Option<String>,
-    pub location: Option<String>,
-    pub email: Option<String>,
-    pub hireable: Option<bool>,
-    pub bio: Option<String>,
-    pub public_repos: Option<u32>,
-    pub public_gists: Option<u32>,
-    pub followers: Option<u32>,
-    pub following: Option<u32>,
-    pub created_at: Option<String>,
-    pub updated_at: Option<String>,
+    pub name:                Option<String>,
+    pub company:             Option<String>,
+    pub blog:                Option<String>,
+    pub location:            Option<String>,
+    pub email:               Option<String>,
+    pub hireable:            Option<bool>,
+    pub bio:                 Option<String>,
+    pub public_repos:        Option<u32>,
+    pub public_gists:        Option<u32>,
+    pub followers:           Option<u32>,
+    pub following:           Option<u32>,
+    pub created_at:          Option<String>,
+    pub updated_at:          Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UserPlan {
-    pub name: String,
-    pub space: u32,
+    pub name:          String,
+    pub space:         u32,
     pub private_repos: u32,
     pub collaborators: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Search {
-    pub total_count: u32,
+    pub total_count:        u32,
     pub incomplete_results: bool,
-    pub items: Vec<SearchItem>,
+    pub items:              Vec<SearchItem>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SearchItem {
-    pub name: String,
-    pub path: String,
-    pub sha: String,
-    pub url: String,
-    pub git_url: String,
-    pub html_url: String,
+    pub name:       String,
+    pub path:       String,
+    pub sha:        String,
+    pub url:        String,
+    pub git_url:    String,
+    pub html_url:   String,
     pub repository: Repository,
-    pub score: f32,
+    pub score:      f32,
 }
 
 #[cfg(test)]

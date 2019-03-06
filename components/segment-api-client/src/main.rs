@@ -17,11 +17,11 @@
 extern crate log;
 use segment_api_client as segment;
 
-use std::env;
-use std::process::exit;
+use std::{env,
+          process::exit};
 
-use crate::segment::client::SegmentClient;
-use crate::segment::config::SegmentCfg;
+use crate::segment::{client::SegmentClient,
+                     config::SegmentCfg};
 
 fn main() {
     let mut config = SegmentCfg::default();

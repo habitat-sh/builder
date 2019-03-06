@@ -14,14 +14,15 @@
 
 //! Configuration for a Habitat JobSrv Worker
 
-use std::net::{IpAddr, Ipv4Addr};
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{net::{IpAddr,
+                Ipv4Addr},
+          path::PathBuf,
+          str::FromStr};
 
-use crate::hab_core::config::ConfigFile;
-use crate::hab_core::package::PackageTarget;
-use crate::hab_core::url;
-use crate::hab_core::ChannelIdent;
+use crate::hab_core::{config::ConfigFile,
+                      package::PackageTarget,
+                      url,
+                      ChannelIdent};
 use github_api_client::config::GitHubCfg;
 
 use crate::error::Error;
@@ -70,29 +71,25 @@ impl Config {
         addrs
     }
 
-    pub fn ns_dir_path(&self) -> PathBuf {
-        self.data_path.join("network").join("airlock-ns")
-    }
+    pub fn ns_dir_path(&self) -> PathBuf { self.data_path.join("network").join("airlock-ns") }
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config {
-            auto_publish: true,
-            data_path: PathBuf::from("/tmp"),
-            log_path: PathBuf::from("/tmp"),
-            key_dir: PathBuf::from("/hab/svc/builder-worker/files"),
-            bldr_channel: ChannelIdent::unstable(),
-            bldr_url: url::default_bldr_url(),
-            jobsrv: vec![JobSrvAddr::default()],
-            features_enabled: "".to_string(),
-            github: GitHubCfg::default(),
-            airlock_enabled: false,
-            recreate_ns_dir: false,
-            network_interface: None,
-            network_gateway: None,
-            target: PackageTarget::from_str("x86_64-linux").unwrap(),
-        }
+        Config { auto_publish:      true,
+                 data_path:         PathBuf::from("/tmp"),
+                 log_path:          PathBuf::from("/tmp"),
+                 key_dir:           PathBuf::from("/hab/svc/builder-worker/files"),
+                 bldr_channel:      ChannelIdent::unstable(),
+                 bldr_url:          url::default_bldr_url(),
+                 jobsrv:            vec![JobSrvAddr::default()],
+                 features_enabled:  "".to_string(),
+                 github:            GitHubCfg::default(),
+                 airlock_enabled:   false,
+                 recreate_ns_dir:   false,
+                 network_interface: None,
+                 network_gateway:   None,
+                 target:            PackageTarget::from_str("x86_64-linux").unwrap(), }
     }
 }
 
@@ -103,20 +100,18 @@ impl ConfigFile for Config {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct JobSrvAddr {
-    pub host: IpAddr,
-    pub port: u16,
+    pub host:      IpAddr,
+    pub port:      u16,
     pub heartbeat: u16,
-    pub log_port: u16,
+    pub log_port:  u16,
 }
 
 impl Default for JobSrvAddr {
     fn default() -> Self {
-        JobSrvAddr {
-            host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-            port: 5566,
-            heartbeat: 5567,
-            log_port: 5568,
-        }
+        JobSrvAddr { host:      IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                     port:      5566,
+                     heartbeat: 5567,
+                     log_port:  5568, }
     }
 }
 
@@ -163,13 +158,9 @@ mod tests {
         assert_eq!(config.network_interface, Some(String::from("eth1")));
         assert_eq!(config.airlock_enabled, true);
         assert_eq!(config.recreate_ns_dir, true);
-        assert_eq!(
-            config.network_gateway,
-            Some(IpAddr::V4(Ipv4Addr::new(192, 168, 10, 1)))
-        );
-        assert_eq!(
-            config.target,
-            PackageTarget::from_str("x86_64-linux-kernel2").unwrap()
-        );
+        assert_eq!(config.network_gateway,
+                   Some(IpAddr::V4(Ipv4Addr::new(192, 168, 10, 1))));
+        assert_eq!(config.target,
+                   PackageTarget::from_str("x86_64-linux-kernel2").unwrap());
     }
 }

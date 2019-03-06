@@ -14,10 +14,11 @@
 
 use std::io;
 
-use diesel::pg::PgConnection;
-use diesel::query_dsl::RunQueryDsl;
-use diesel::result::Error as Dre;
-use diesel::{sql_query, Connection};
+use diesel::{pg::PgConnection,
+             query_dsl::RunQueryDsl,
+             result::Error as Dre,
+             sql_query,
+             Connection};
 
 use crate::error::Result;
 
@@ -25,10 +26,10 @@ embed_migrations!("src/migrations");
 
 pub fn setup(conn: &PgConnection) -> Result<()> {
     let _ = conn.transaction::<_, Dre, _>(|| {
-        setup_ids(&*conn).unwrap();
-        embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
-        Ok(())
-    });
+                    setup_ids(&*conn).unwrap();
+                    embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
+                    Ok(())
+                });
     Ok(())
 }
 

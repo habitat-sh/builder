@@ -14,21 +14,26 @@
 
 use std::env;
 
-use actix_web::http::{Method, StatusCode};
-use actix_web::FromRequest;
-use actix_web::{App, HttpRequest, HttpResponse, Path};
+use actix_web::{http::{Method,
+                       StatusCode},
+                App,
+                FromRequest,
+                HttpRequest,
+                HttpResponse,
+                Path};
 
 use oauth_client::error::Error as OAuthError;
 
-use crate::protocol::originsrv;
-use crate::server::error::{Error, Result};
-use crate::server::framework::middleware::{session_create_oauth, session_create_short_circuit};
-use crate::server::AppState;
+use crate::{protocol::originsrv,
+            server::{error::{Error,
+                             Result},
+                     framework::middleware::{session_create_oauth,
+                                             session_create_short_circuit},
+                     AppState}};
 
 pub struct Authenticate {}
 
 impl Authenticate {
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
@@ -36,7 +41,6 @@ impl Authenticate {
     }
 }
 
-//
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
@@ -56,7 +60,6 @@ fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
-//
 // Internal - these functions should return Result<..>
 //
 fn do_authenticate(req: &HttpRequest<AppState>, code: &str) -> Result<originsrv::Session> {

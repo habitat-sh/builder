@@ -27,13 +27,9 @@ pub struct SegmentCfg {
 
 impl Default for SegmentCfg {
     fn default() -> Self {
-        SegmentCfg {
-            url: DEFAULT_SEGMENT_URL.to_string(),
-            write_key: "".to_string(),
-        }
+        SegmentCfg { url:       DEFAULT_SEGMENT_URL.to_string(),
+                     write_key: "".to_string(), }
     }
 }
 
-fn default_url() -> String {
-    DEFAULT_SEGMENT_URL.to_string()
-}
+fn default_url() -> String { DEFAULT_SEGMENT_URL.to_string() }

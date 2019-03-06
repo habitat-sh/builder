@@ -14,54 +14,53 @@
 
 use retry::retry;
 
-use crate::bldr_core::api_client::ApiClient;
-use crate::bldr_core::logger::Logger;
-use crate::hab_core::package::archive::PackageArchive;
-use crate::hab_core::ChannelIdent;
+use crate::{bldr_core::{api_client::ApiClient,
+                        logger::Logger},
+            hab_core::{package::archive::PackageArchive,
+                       ChannelIdent}};
 
-use super::{RETRIES, RETRY_WAIT};
-use crate::error::{Error, Result};
+use super::{RETRIES,
+            RETRY_WAIT};
+use crate::error::{Error,
+                   Result};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct Publisher {
-    pub enabled: bool,
-    pub url: String,
+    pub enabled:     bool,
+    pub url:         String,
     pub channel_opt: Option<ChannelIdent>,
 }
 
 impl Publisher {
-    pub fn run(
-        &mut self,
-        archive: &mut PackageArchive,
-        auth_token: &str,
-        logger: &mut Logger,
-    ) -> Result<()> {
+    pub fn run(&mut self,
+               archive: &mut PackageArchive,
+               auth_token: &str,
+               logger: &mut Logger)
+               -> Result<()> {
         if !self.enabled {
             debug!("Publishing skipped (not enabled)");
             return Ok(());
         }
-        debug!(
-            "Publisher (url: {}, channel: {:?})",
-            self.url, self.channel_opt
-        );
+        debug!("Publisher (url: {}, channel: {:?})",
+               self.url, self.channel_opt);
 
         let client = ApiClient::new(&self.url);
         let ident = archive.ident().unwrap();
 
-        match retry(
-            RETRIES,
-            RETRY_WAIT,
-            || client.x_put_package(archive, auth_token),
-            |res| match *res {
-                Ok(_) => true,
-                Err(_) => {
-                    let msg = format!("Upload {}: {:?}", ident, res);
-                    debug!("{}", msg);
-                    logger.log(&msg);
-                    false
-                }
-            },
-        ) {
+        match retry(RETRIES,
+                    RETRY_WAIT,
+                    || client.x_put_package(archive, auth_token),
+                    |res| {
+                        match *res {
+                            Ok(_) => true,
+                            Err(_) => {
+                                let msg = format!("Upload {}: {:?}", ident, res);
+                                debug!("{}", msg);
+                                logger.log(&msg);
+                                false
+                            }
+                        }
+                    }) {
             Ok(_) => (),
             Err(err) => {
                 let msg = format!("Failed to upload {} after {} retries", ident, RETRIES);
@@ -73,26 +72,24 @@ impl Publisher {
 
         if let Some(channel) = &self.channel_opt {
             if channel != &ChannelIdent::stable() && channel != &ChannelIdent::unstable() {
-                match retry(
-                    RETRIES,
-                    RETRY_WAIT,
-                    || client.create_channel(&ident.origin, &channel, auth_token),
-                    |res| match *res {
-                        Ok(_) => true,
-                        Err(_) => {
-                            let msg = format!("Create channel {}: {:?}", channel, res);
-                            debug!("{}", msg);
-                            logger.log(&msg);
-                            false
-                        }
-                    },
-                ) {
+                match retry(RETRIES,
+                            RETRY_WAIT,
+                            || client.create_channel(&ident.origin, &channel, auth_token),
+                            |res| {
+                                match *res {
+                                    Ok(_) => true,
+                                    Err(_) => {
+                                        let msg = format!("Create channel {}: {:?}", channel, res);
+                                        debug!("{}", msg);
+                                        logger.log(&msg);
+                                        false
+                                    }
+                                }
+                            }) {
                     Ok(_) => (),
                     Err(err) => {
-                        let msg = format!(
-                            "Failed to create channel {} after {} retries",
-                            channel, RETRIES
-                        );
+                        let msg = format!("Failed to create channel {} after {} retries",
+                                          channel, RETRIES);
                         warn!("{}", msg);
                         logger.log(&msg);
                         return Err(Error::Retry(err));
@@ -100,25 +97,21 @@ impl Publisher {
                 }
             }
 
-            match retry(
-                RETRIES,
-                RETRY_WAIT,
-                || client.promote_package(&ident, channel, auth_token),
-                |res| {
-                    if res.is_err() {
-                        let msg = format!("Promote {} to {}: {:?}", ident, channel, res);
-                        debug!("{}", msg);
-                        logger.log(&msg);
-                    };
-                    res.is_ok()
-                },
-            ) {
+            match retry(RETRIES,
+                        RETRY_WAIT,
+                        || client.promote_package(&ident, channel, auth_token),
+                        |res| {
+                            if res.is_err() {
+                                let msg = format!("Promote {} to {}: {:?}", ident, channel, res);
+                                debug!("{}", msg);
+                                logger.log(&msg);
+                            };
+                            res.is_ok()
+                        }) {
                 Ok(_) => (),
                 Err(err) => {
-                    let msg = format!(
-                        "Failed to promote {} to {} after {} retries",
-                        ident, channel, RETRIES
-                    );
+                    let msg = format!("Failed to promote {} to {} after {} retries",
+                                      ident, channel, RETRIES);
                     warn!("{}", msg);
                     logger.log(&msg);
                     return Err(Error::Retry(err));

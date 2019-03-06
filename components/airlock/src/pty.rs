@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ffi::{CStr, CString};
-use std::os::unix::io::RawFd;
-use std::path::{Path, PathBuf};
+use std::{ffi::{CStr,
+                CString},
+          os::unix::io::RawFd,
+          path::{Path,
+                 PathBuf}};
 
 use errno;
 use libc;
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
 const DEFAULT_PTMX: &str = "/dev/ptmx";
 
@@ -28,9 +31,7 @@ pub struct Master(RawFd);
 
 impl Master {
     // `Default` trait doesn't return a `Result` so that's why we're not implementing that trait.
-    pub fn default() -> Result<Self> {
-        Self::from(DEFAULT_PTMX)
-    }
+    pub fn default() -> Result<Self> { Self::from(DEFAULT_PTMX) }
 
     pub fn from<P: AsRef<Path>>(ptmx_path: P) -> Result<Self> {
         let master = Self::new(ptmx_path)?;
@@ -43,10 +44,9 @@ impl Master {
     pub fn ptsname(&self) -> Result<PathBuf> {
         let ptr = match unsafe { libc::ptsname(self.0) } {
             c if c.is_null() => {
-                return Err(Error::Ptsname(format!(
-                    "ptsname({}) returned: NULL pointer",
-                    self.0,
-                )));
+                return Err(Error::Ptsname(format!("ptsname({}) returned: NULL \
+                                                   pointer",
+                                                  self.0,)));
             }
             c => c,
         };
@@ -57,22 +57,19 @@ impl Master {
 
     #[allow(clippy::new_ret_no_self)]
     fn new<P: AsRef<Path>>(ptmx_path: P) -> Result<Self> {
-        let c_path =
-            CString::new(ptmx_path.as_ref().to_string_lossy().as_ref()).map_err(|err| {
-                Error::CreateMaster(format!(
-                    "cannot create c string from path: {} ({})",
-                    ptmx_path.as_ref().display(),
-                    err
-                ))
-            })?;
+        let c_path = CString::new(ptmx_path.as_ref().to_string_lossy().as_ref()).map_err(|err| {
+                         Error::CreateMaster(format!("cannot create c string from path: {} ({})",
+                                                     ptmx_path.as_ref().display(),
+                                                     err))
+                     })?;
 
         match unsafe { libc::open(c_path.as_ptr(), libc::O_RDWR) } {
-            fd if fd < 0 => Err(Error::CreateMaster(format!(
-                "open({}) returned: {} ({})",
-                ptmx_path.as_ref().display(),
-                fd,
-                errno::errno(),
-            ))),
+            fd if fd < 0 => {
+                Err(Error::CreateMaster(format!("open({}) returned: {} ({})",
+                                                ptmx_path.as_ref().display(),
+                                                fd,
+                                                errno::errno(),)))
+            }
             fd => Ok(Master(fd)),
         }
     }
@@ -80,12 +77,12 @@ impl Master {
     // Grant access to the slave pseudoterminal
     fn grantpt(&self) -> Result<()> {
         match unsafe { libc::grantpt(self.0) } {
-            rc if rc < 0 => Err(Error::Grantpt(format!(
-                "grantpt({}) returned: {} ({})",
-                self.0,
-                rc,
-                errno::errno(),
-            ))),
+            rc if rc < 0 => {
+                Err(Error::Grantpt(format!("grantpt({}) returned: {} ({})",
+                                           self.0,
+                                           rc,
+                                           errno::errno(),)))
+            }
             _ => Ok(()),
         }
     }
@@ -93,12 +90,12 @@ impl Master {
     // Unlocks the pseudoterminal master/slave pair
     fn unlockpt(&self) -> Result<()> {
         match unsafe { libc::unlockpt(self.0) } {
-            rc if rc < 0 => Err(Error::Unlockpt(format!(
-                "unlockpt({}) returned: {} ({})",
-                self.0,
-                rc,
-                errno::errno(),
-            ))),
+            rc if rc < 0 => {
+                Err(Error::Unlockpt(format!("unlockpt({}) returned: {} ({})",
+                                            self.0,
+                                            rc,
+                                            errno::errno(),)))
+            }
             _ => Ok(()),
         }
     }

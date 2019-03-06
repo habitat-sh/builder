@@ -12,22 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env as std_env;
-use std::fs::{self, File};
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::{env as std_env,
+          fs::{self,
+               File},
+          io::{self,
+               Write},
+          path::{Path,
+                 PathBuf},
+          process::{Child,
+                    Command,
+                    ExitStatus,
+                    Stdio}};
 
-use crate::hab_core::env;
-use crate::hab_core::fs as hfs;
-use crate::hab_core::os::process::{self, Pid, Signal};
+use crate::hab_core::{env,
+                      fs as hfs,
+                      os::process::{self,
+                                    Pid,
+                                    Signal}};
 
-use crate::error::{Error, Result};
+use crate::error::{Error,
+                   Result};
 
-use crate::runner::job_streamer::JobStreamer;
-use crate::runner::studio::WINDOWS_ENVVARS;
-use crate::runner::workspace::Workspace;
-use crate::runner::{DEV_MODE, NONINTERACTIVE_ENVVAR, RUNNER_DEBUG_ENVVAR};
+use crate::runner::{job_streamer::JobStreamer,
+                    studio::WINDOWS_ENVVARS,
+                    workspace::Workspace,
+                    DEV_MODE,
+                    NONINTERACTIVE_ENVVAR,
+                    RUNNER_DEBUG_ENVVAR};
 
 lazy_static! {
     /// Absolute path to the Docker exporter program
@@ -46,38 +57,35 @@ lazy_static! {
 const DOCKER_HOST_ENVVAR: &str = "DOCKER_HOST";
 
 pub struct DockerExporterSpec {
-    pub username: String,
-    pub password: String,
-    pub registry_type: String,
-    pub registry_url: Option<String>,
+    pub username:             String,
+    pub password:             String,
+    pub registry_type:        String,
+    pub registry_url:         Option<String>,
     pub docker_hub_repo_name: String,
-    pub latest_tag: bool,
-    pub version_tag: bool,
-    pub version_release_tag: bool,
-    pub custom_tag: Option<String>,
+    pub latest_tag:           bool,
+    pub version_tag:          bool,
+    pub version_release_tag:  bool,
+    pub custom_tag:           Option<String>,
 }
 
 pub struct DockerExporter<'a> {
-    spec: DockerExporterSpec,
-    workspace: &'a Workspace,
-    bldr_url: &'a str,
+    spec:       DockerExporterSpec,
+    workspace:  &'a Workspace,
+    bldr_url:   &'a str,
     auth_token: &'a str,
 }
 
 impl<'a> DockerExporter<'a> {
     /// Creates a new Docker exporter for a given `Workspace` and Builder URL.
-    pub fn new(
-        spec: DockerExporterSpec,
-        workspace: &'a Workspace,
-        bldr_url: &'a str,
-        auth_token: &'a str,
-    ) -> Self {
-        DockerExporter {
-            spec,
-            workspace,
-            bldr_url,
-            auth_token,
-        }
+    pub fn new(spec: DockerExporterSpec,
+               workspace: &'a Workspace,
+               bldr_url: &'a str,
+               auth_token: &'a str)
+               -> Self {
+        DockerExporter { spec,
+                         workspace,
+                         bldr_url,
+                         auth_token }
     }
 
     /// Spawns a Docker export command, sends output streams to the given `LogStreamer` and returns
@@ -109,10 +117,8 @@ impl<'a> DockerExporter<'a> {
     }
 
     fn run_export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
-        debug!(
-            "Using pre-configured docker exporter program: {:?}",
-            &*DOCKER_EXPORTER_PROGRAM
-        );
+        debug!("Using pre-configured docker exporter program: {:?}",
+               &*DOCKER_EXPORTER_PROGRAM);
 
         let mut cmd = Command::new(&*DOCKER_EXPORTER_PROGRAM);
         cmd.current_dir(self.workspace.root());
@@ -178,10 +184,8 @@ impl<'a> DockerExporter<'a> {
 
         if cfg!(not(windows)) {
             let sock = self.dockerd_sock();
-            debug!(
-                "setting docker export command env, {}={}",
-                DOCKER_HOST_ENVVAR, sock
-            );
+            debug!("setting docker export command env, {}={}",
+                   DOCKER_HOST_ENVVAR, sock);
             cmd.env(DOCKER_HOST_ENVVAR, sock); // Use the job-specific `dockerd`
         }
         cmd.stdout(Stdio::piped());
@@ -201,21 +205,15 @@ impl<'a> DockerExporter<'a> {
         let root = self.dockerd_path();
         // TED: feels bad but we need to add sbin to the path
         // so Dockerd can get to apparmor_parser
-        let env_paths = [
-            &*DOCKERD_PROGRAM
-                .parent()
-                .expect("Dockerd parent directory exists"),
-            &Path::new("/sbin"),
-        ];
-        let env_path = std_env::join_paths(env_paths.iter())
-            .expect("Cannot join PATH elements for dockerd spawn")
-            .to_os_string();
+        let env_paths = [&*DOCKERD_PROGRAM.parent()
+                                          .expect("Dockerd parent directory exists"),
+                         &Path::new("/sbin")];
+        let env_path = std_env::join_paths(env_paths.iter()).expect("Cannot join PATH elements \
+                                                                     for dockerd spawn")
+                                                            .to_os_string();
         let daemon_json = root.join("etc/daemon.json");
-        fs::create_dir_all(
-            daemon_json
-                .parent()
-                .expect("Daemon JSON parent directory exists"),
-        )?;
+        fs::create_dir_all(daemon_json.parent()
+                                      .expect("Daemon JSON parent directory exists"))?;
         {
             let mut f = File::create(&daemon_json)?;
             f.write_all(b"{}")?;
@@ -227,8 +225,8 @@ impl<'a> DockerExporter<'a> {
         }
         cmd.arg("-H");
         cmd.arg(self.dockerd_sock());
-        // TED: Containerd has a file path limit of 67 characters and we were at 70 for most of ours.
-        // Shortning up the directories here to give us some breathing room
+        // TED: Containerd has a file path limit of 67 characters and we were at 70 for most of
+        // ours. Shortning up the directories here to give us some breathing room
         cmd.arg("--pidfile");
         cmd.arg(root.join("v/r/docker.pid"));
         cmd.arg("--data-root");
@@ -249,12 +247,8 @@ impl<'a> DockerExporter<'a> {
         cmd.env_clear();
         debug!("setting docker export command env, PATH={:?}", env_path);
         cmd.env("PATH", env_path); // Sadly, `dockerd` needs its collaborator programs on `PATH`
-        cmd.stdout(Stdio::from(File::create(
-            self.workspace.root().join("dockerd.stdout.log"),
-        )?));
-        cmd.stderr(Stdio::from(File::create(
-            self.workspace.root().join("dockerd.stderr.log"),
-        )?));
+        cmd.stdout(Stdio::from(File::create(self.workspace.root().join("dockerd.stdout.log"))?));
+        cmd.stderr(Stdio::from(File::create(self.workspace.root().join("dockerd.stderr.log"))?));
 
         debug!("spawning dockerd export command");
         cmd.spawn()
@@ -262,17 +256,13 @@ impl<'a> DockerExporter<'a> {
 
     #[cfg(not(windows))]
     fn teardown_dockerd(&self, mut dockerd: Child) -> io::Result<()> {
-        debug!(
-            "signaling dockerd to shutdown pid={}, sig={:?}",
-            dockerd.id(),
-            Signal::TERM
-        );
+        debug!("signaling dockerd to shutdown pid={}, sig={:?}",
+               dockerd.id(),
+               Signal::TERM);
         if let Err(err) = process::signal(dockerd.id() as Pid, Signal::TERM) {
-            warn!(
-                "Error sending TERM signal to dockerd, {}, {}",
-                dockerd.id(),
-                err
-            );
+            warn!("Error sending TERM signal to dockerd, {}, {}",
+                  dockerd.id(),
+                  err);
         }
         dockerd.wait()?;
         debug!("terminated dockerd");
@@ -280,17 +270,15 @@ impl<'a> DockerExporter<'a> {
         Ok(())
     }
 
-    fn dockerd_path(&self) -> PathBuf {
-        self.workspace.root().join("dockerd")
-    }
+    fn dockerd_path(&self) -> PathBuf { self.workspace.root().join("dockerd") }
 
     fn dockerd_sock(&self) -> String {
         match env::var_os(DEV_MODE) {
             Some(_) => "unix:///var/run/docker.sock".to_string(),
-            None => format!(
-                "unix://{}",
-                self.dockerd_path().join("v/r/docker.sock").display()
-            ),
+            None => {
+                format!("unix://{}",
+                        self.dockerd_path().join("v/r/docker.sock").display())
+            }
         }
     }
 }

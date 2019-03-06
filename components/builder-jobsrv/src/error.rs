@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error;
-use std::fmt;
-use std::io;
-use std::num;
-use std::path::PathBuf;
-use std::result;
+use std::{error,
+          fmt,
+          io,
+          num,
+          path::PathBuf,
+          result};
 
-use actix_web::http::StatusCode;
-use actix_web::HttpResponse;
+use actix_web::{http::StatusCode,
+                HttpResponse};
 
 use diesel;
 use postgres;
@@ -29,10 +29,10 @@ use r2d2;
 use rusoto_s3;
 use zmq;
 
-use crate::bldr_core;
-use crate::db;
-use crate::hab_core;
-use crate::protocol;
+use crate::{bldr_core,
+            db,
+            hab_core,
+            protocol};
 
 #[derive(Debug)]
 pub enum Error {
@@ -195,7 +195,7 @@ impl error::Error for Error {
             Error::BusyWorkerUpsert(ref err) => err.description(),
             Error::BusyWorkerDelete(ref err) => err.description(),
             Error::BusyWorkersGet(ref err) => err.description(),
-            Error::CaughtPanic(_, _) => "Caught a panic",
+            Error::CaughtPanic(..) => "Caught a panic",
             Error::Conflict => "Entity conflict",
             Error::Db(ref err) => err.description(),
             Error::DbPoolTimeout(ref err) => err.description(),
@@ -280,49 +280,33 @@ fn diesel_err_to_http(err: &diesel::result::Error) -> StatusCode {
 }
 
 impl From<bldr_core::Error> for Error {
-    fn from(err: bldr_core::Error) -> Error {
-        Error::BuilderCore(err)
-    }
+    fn from(err: bldr_core::Error) -> Error { Error::BuilderCore(err) }
 }
 
 impl From<hab_core::Error> for Error {
-    fn from(err: hab_core::Error) -> Error {
-        Error::HabitatCore(err)
-    }
+    fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
 }
 
 impl From<db::error::Error> for Error {
-    fn from(err: db::error::Error) -> Self {
-        Error::Db(err)
-    }
+    fn from(err: db::error::Error) -> Self { Error::Db(err) }
 }
 
 impl From<diesel::result::Error> for Error {
-    fn from(err: diesel::result::Error) -> Error {
-        Error::DieselError(err)
-    }
+    fn from(err: diesel::result::Error) -> Error { Error::DieselError(err) }
 }
 
 impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::IO(err)
-    }
+    fn from(err: io::Error) -> Error { Error::IO(err) }
 }
 
 impl From<protobuf::ProtobufError> for Error {
-    fn from(err: protobuf::ProtobufError) -> Error {
-        Error::Protobuf(err)
-    }
+    fn from(err: protobuf::ProtobufError) -> Error { Error::Protobuf(err) }
 }
 
 impl From<protocol::ProtocolError> for Error {
-    fn from(err: protocol::ProtocolError) -> Self {
-        Error::Protocol(err)
-    }
+    fn from(err: protocol::ProtocolError) -> Self { Error::Protocol(err) }
 }
 
 impl From<zmq::Error> for Error {
-    fn from(err: zmq::Error) -> Error {
-        Error::Zmq(err)
-    }
+    fn from(err: zmq::Error) -> Error { Error::Zmq(err) }
 }

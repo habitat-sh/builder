@@ -12,19 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::{Method, StatusCode};
-use actix_web::FromRequest;
-use actix_web::{App, HttpRequest, HttpResponse, Json, Path};
+use actix_web::{http::{Method,
+                       StatusCode},
+                App,
+                FromRequest,
+                HttpRequest,
+                HttpResponse,
+                Json,
+                Path};
 
-use hyper;
-use hyper::header::{Accept, ContentType};
+use hyper::{self,
+            header::{Accept,
+                     ContentType}};
 use serde_json;
 
-use crate::http_client::ApiClient;
-use crate::server::authorize::authorize_session;
-use crate::server::error::{Error, Result};
-use crate::server::services::github;
-use crate::server::AppState;
+use crate::{http_client::ApiClient,
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     services::github,
+                     AppState}};
 
 const PRODUCT: &str = "builder-api";
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
@@ -33,36 +40,29 @@ const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 pub struct Body {
     username: Option<String>,
     password: Option<String>,
-    url: Option<String>,
+    url:      Option<String>,
 }
 
 pub struct Ext;
 
 impl Ext {
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route(
-            "/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
-            Method::GET,
-            github::repo_file_content,
-        )
-        .route(
-            "/ext/integrations/{registry_type}/credentials/validate",
-            Method::POST,
-            validate_registry_credentials,
-        )
+        app.route("/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
+                  Method::GET,
+                  github::repo_file_content)
+           .route("/ext/integrations/{registry_type}/credentials/validate",
+                  Method::POST,
+                  validate_registry_credentials)
     }
 }
 
-//
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-pub fn validate_registry_credentials(
-    (req, body): (HttpRequest<AppState>, Json<Body>),
-) -> HttpResponse {
+pub fn validate_registry_credentials((req, body): (HttpRequest<AppState>, Json<Body>))
+                                     -> HttpResponse {
     if let Err(err) = authorize_session(&req, None) {
         return err.into();
     }
@@ -78,7 +78,6 @@ pub fn validate_registry_credentials(
     }
 }
 
-//
 // Internal Functions - These functions are business logic for any handlers
 //
 fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Result<()> {
@@ -89,13 +88,15 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Re
 
     let url = match body.url {
         Some(ref url) => url.to_string(),
-        None => match registry_type {
-            "docker" => "https://hub.docker.com/v2".to_string(),
-            _ => return Err(Error::BadRequest),
-        },
+        None => {
+            match registry_type {
+                "docker" => "https://hub.docker.com/v2".to_string(),
+                _ => return Err(Error::BadRequest),
+            }
+        }
     };
 
-    //TODO: This should absolutely not be our own custom http client type
+    // TODO: This should absolutely not be our own custom http client type
     // if at all possible we should stop using raw hyper calls and use an
     // actix http client builder and stop doing this
     let actual_url: &str = url.as_ref();
@@ -109,21 +110,22 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Re
     };
 
     let sbody = serde_json::to_string(&body.into_inner()).unwrap();
-    let result = client
-        .post("users/login")
-        .header(Accept::json())
-        .header(ContentType::json())
-        .body(&sbody)
-        .send();
+    let result = client.post("users/login")
+                       .header(Accept::json())
+                       .header(ContentType::json())
+                       .body(&sbody)
+                       .send();
 
     match result {
-        Ok(response) => match response.status {
-            hyper::status::StatusCode::Ok => Ok(()),
-            _ => {
-                debug!("Non-OK Response: {}", &response.status);
-                Err(Error::BadRequest)
+        Ok(response) => {
+            match response.status {
+                hyper::status::StatusCode::Ok => Ok(()),
+                _ => {
+                    debug!("Non-OK Response: {}", &response.status);
+                    Err(Error::BadRequest)
+                }
             }
-        },
+        }
         Err(e) => {
             debug!("Error sending request: {:?}", e);
             Err(Error::Authorization)

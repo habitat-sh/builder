@@ -25,19 +25,26 @@
 //! Currently the archiver must be configured with both an access key
 //! ID and a secret access key.
 
-use std::fs::OpenOptions;
-use std::io::Read;
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{fs::OpenOptions,
+          io::Read,
+          path::PathBuf,
+          str::FromStr};
 
-use futures::{Future, Stream};
-use rusoto_s3::{GetObjectRequest, PutObjectRequest, S3Client, S3};
+use futures::{Future,
+              Stream};
+use rusoto_s3::{GetObjectRequest,
+                PutObjectRequest,
+                S3Client,
+                S3};
 
-use crate::rusoto::{credential::StaticProvider, reactor::RequestDispatcher, Region};
+use crate::rusoto::{credential::StaticProvider,
+                    reactor::RequestDispatcher,
+                    Region};
 
 use super::LogArchiver;
-use crate::config::ArchiveCfg;
-use crate::error::{Error, Result};
+use crate::{config::ArchiveCfg,
+            error::{Error,
+                    Result}};
 
 pub struct S3Archiver {
     client: S3Client<StaticProvider, RequestDispatcher>,
@@ -46,23 +53,20 @@ pub struct S3Archiver {
 
 impl S3Archiver {
     pub fn new(config: &ArchiveCfg) -> Self {
-        let key = config
-            .key
-            .as_ref()
-            .cloned()
-            .expect("S3 key must be configured");
+        let key = config.key
+                        .as_ref()
+                        .cloned()
+                        .expect("S3 key must be configured");
 
-        let secret = config
-            .secret
-            .as_ref()
-            .cloned()
-            .expect("S3 secret must be configured");
+        let secret = config.secret
+                           .as_ref()
+                           .cloned()
+                           .expect("S3 secret must be configured");
 
-        let bucket = config
-            .bucket
-            .as_ref()
-            .cloned()
-            .expect("S3 bucket must be configured");
+        let bucket = config.bucket
+                           .as_ref()
+                           .cloned()
+                           .expect("S3 bucket must be configured");
 
         let region = Region::from_str(config.region.as_str()).unwrap();
 
@@ -74,9 +78,7 @@ impl S3Archiver {
 
     /// Generates the bucket key under which the job log will be
     /// stored.
-    fn key(job_id: u64) -> String {
-        format!("{}.log", job_id)
-    }
+    fn key(job_id: u64) -> String { format!("{}.log", job_id) }
 }
 
 impl LogArchiver for S3Archiver {
@@ -115,10 +117,9 @@ impl LogArchiver for S3Archiver {
 
         let body = stream.concat2().wait().unwrap();
 
-        let lines = String::from_utf8_lossy(body.as_slice())
-            .lines()
-            .map(|l| l.to_string())
-            .collect();
+        let lines = String::from_utf8_lossy(body.as_slice()).lines()
+                                                            .map(|l| l.to_string())
+                                                            .collect();
 
         Ok(lines)
     }

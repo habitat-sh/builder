@@ -12,30 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::env;
+use std::{collections::HashMap,
+          env};
 
-use actix_web::http::{self, Method, StatusCode};
-use actix_web::FromRequest;
-use actix_web::{App, HttpRequest, HttpResponse, Json, Path, Query};
+use actix_web::{http::{self,
+                       Method,
+                       StatusCode},
+                App,
+                FromRequest,
+                HttpRequest,
+                HttpResponse,
+                Json,
+                Path,
+                Query};
 use serde_json;
 
 use crate::protocol::jobsrv;
 
-use crate::hab_core::package::{PackageIdent, Plan};
+use crate::hab_core::package::{PackageIdent,
+                               Plan};
 
-use crate::db::models::jobs::*;
-use crate::db::models::origin::*;
-use crate::db::models::package::PackageVisibility;
-use crate::db::models::package::*;
-use crate::db::models::project_integration::*;
-use crate::db::models::projects::*;
+use crate::db::models::{jobs::*,
+                        origin::*,
+                        package::{PackageVisibility,
+                                  *},
+                        project_integration::*,
+                        projects::*};
 
-use crate::server::authorize::authorize_session;
-use crate::server::error::Error;
-use crate::server::framework::headers;
-use crate::server::helpers::{self, Pagination};
-use crate::server::AppState;
+use crate::server::{authorize::authorize_session,
+                    error::Error,
+                    framework::headers,
+                    helpers::{self,
+                              Pagination},
+                    AppState};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProjectCreateReq {
@@ -66,40 +75,30 @@ pub struct ProjectUpdateReq {
 pub struct Projects;
 
 impl Projects {
-    //
     // Route registration
     //
     pub fn register(app: App<AppState>) -> App<AppState> {
         app.route("/projects", Method::POST, create_project)
-            .route("/projects/{origin}", Method::GET, get_projects)
-            .route("/projects/{origin}/{name}", Method::GET, get_project)
-            .route("/projects/{origin}/{name}", Method::PUT, update_project)
-            .route("/projects/{origin}/{name}", Method::DELETE, delete_project)
-            .route("/projects/{origin}/{name}/jobs", Method::GET, get_jobs)
-            .route(
-                "/projects/{origin}/{name}/integrations/{integration}/default",
-                Method::GET,
-                get_integration,
-            )
-            .route(
-                "/projects/{origin}/{name}/integrations/{integration}/default",
-                Method::PUT,
-                create_integration,
-            )
-            .route(
-                "/projects/{origin}/{name}/integrations/{integration}/default",
-                Method::DELETE,
-                delete_integration,
-            )
-            .route(
-                "/projects/{origin}/{name}/{visibility}",
-                Method::PATCH,
-                toggle_privacy,
-            )
+           .route("/projects/{origin}", Method::GET, get_projects)
+           .route("/projects/{origin}/{name}", Method::GET, get_project)
+           .route("/projects/{origin}/{name}", Method::PUT, update_project)
+           .route("/projects/{origin}/{name}", Method::DELETE, delete_project)
+           .route("/projects/{origin}/{name}/jobs", Method::GET, get_jobs)
+           .route("/projects/{origin}/{name}/integrations/{integration}/default",
+                  Method::GET,
+                  get_integration)
+           .route("/projects/{origin}/{name}/integrations/{integration}/default",
+                  Method::PUT,
+                  create_integration)
+           .route("/projects/{origin}/{name}/integrations/{integration}/default",
+                  Method::DELETE,
+                  delete_integration)
+           .route("/projects/{origin}/{name}/{visibility}",
+                  Method::PATCH,
+                  toggle_privacy)
     }
 }
 
-//
 // Route handlers - these functions can return any Responder trait
 //
 
@@ -131,18 +130,17 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 
     // Test hook - bypass the github dance
     if env::var_os("HAB_FUNC_TEST").is_some() {
-        let new_project = NewProject {
-            owner_id: account_id as i64,
-            origin: &origin.name,
-            package_name: "testapp",
-            name: &format!("{}/{}", &origin.name, "testapp"),
-            plan_path: &body.plan_path,
-            vcs_type: "git",
-            vcs_data: "https://github.com/habitat-sh/testapp.git",
-            vcs_installation_id: Some(i64::from(body.installation_id)),
-            visibility: &PackageVisibility::Public,
-            auto_build: body.auto_build,
-        };
+        let new_project =
+            NewProject { owner_id:            account_id as i64,
+                         origin:              &origin.name,
+                         package_name:        "testapp",
+                         name:                &format!("{}/{}", &origin.name, "testapp"),
+                         plan_path:           &body.plan_path,
+                         vcs_type:            "git",
+                         vcs_data:            "https://github.com/habitat-sh/testapp.git",
+                         vcs_installation_id: Some(i64::from(body.installation_id)),
+                         visibility:          &PackageVisibility::Public,
+                         auto_build:          body.auto_build, };
 
         match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
             Ok(project) => return HttpResponse::Created().json(project),
@@ -153,10 +151,9 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
-    let token = match req
-        .state()
-        .github
-        .app_installation_token(body.installation_id)
+    let token = match req.state()
+                         .github
+                         .app_installation_token(body.installation_id)
     {
         Ok(token) => token,
         Err(err) => {
@@ -174,24 +171,27 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
-    let plan = match req
-        .state()
-        .github
-        .contents(&token, body.repo_id, &body.plan_path)
+    let plan = match req.state()
+                        .github
+                        .contents(&token, body.repo_id, &body.plan_path)
     {
-        Ok(Some(contents)) => match contents.decode() {
-            Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
-                Ok(plan) => plan,
+        Ok(Some(contents)) => {
+            match contents.decode() {
+                Ok(bytes) => {
+                    match Plan::from_bytes(bytes.as_slice()) {
+                        Ok(plan) => plan,
+                        Err(e) => {
+                            debug!("Error matching Plan. e = {:?}", e);
+                            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                        }
+                    }
+                }
                 Err(e) => {
-                    debug!("Error matching Plan. e = {:?}", e);
+                    debug!("Base64 decode failure: {:?}", e);
                     return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
                 }
-            },
-            Err(e) => {
-                debug!("Base64 decode failure: {:?}", e);
-                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
             }
-        },
+        }
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
             debug!("Error fetching contents from GH. e = {:?}", e);
@@ -201,18 +201,16 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 
     let package_name = plan.name.trim_matches('"');
 
-    let new_project = NewProject {
-        owner_id: account_id as i64,
-        origin: &origin.name,
-        package_name,
-        name: &format!("{}/{}", &origin.name, package_name),
-        plan_path: &body.plan_path,
-        vcs_type: "git",
-        vcs_data: &vcs_data,
-        vcs_installation_id: Some(i64::from(body.installation_id)),
-        visibility: &origin.default_package_visibility,
-        auto_build: body.auto_build,
-    };
+    let new_project = NewProject { owner_id: account_id as i64,
+                                   origin: &origin.name,
+                                   package_name,
+                                   name: &format!("{}/{}", &origin.name, package_name),
+                                   plan_path: &body.plan_path,
+                                   vcs_type: "git",
+                                   vcs_data: &vcs_data,
+                                   vcs_installation_id: Some(i64::from(body.installation_id)),
+                                   visibility: &origin.default_package_visibility,
+                                   auto_build: body.auto_build };
 
     match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Created().json(project),
@@ -225,9 +223,8 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 
 #[allow(clippy::needless_pass_by_value)]
 fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
+                                                                .into_inner(); // Unwrap Ok
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -251,9 +248,8 @@ fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
 
 #[allow(clippy::needless_pass_by_value)]
 fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
+                                                                .into_inner(); // Unwrap Ok
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -277,9 +273,8 @@ fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
 
 #[allow(clippy::needless_pass_by_value)]
 fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
+                                                                .into_inner(); // Unwrap Ok
 
     let account_id = match authorize_session(&req, Some(&origin)) {
         Ok(session) => session.get_id(),
@@ -310,18 +305,17 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
 
     // Test hook - bypass the github dance
     if env::var_os("HAB_FUNC_TEST").is_some() {
-        let update_project = UpdateProject {
-            id: project.id,
-            origin: &project.origin,
-            owner_id: account_id as i64,
-            package_name: "testapp",
-            plan_path: &body.plan_path,
-            vcs_type: "git",
-            vcs_data: "https://github.com/habitat-sh/testapp.git",
-            vcs_installation_id: Some(i64::from(body.installation_id)),
-            visibility: &PackageVisibility::Public,
-            auto_build: body.auto_build,
-        };
+        let update_project =
+            UpdateProject { id:                  project.id,
+                            origin:              &project.origin,
+                            owner_id:            account_id as i64,
+                            package_name:        "testapp",
+                            plan_path:           &body.plan_path,
+                            vcs_type:            "git",
+                            vcs_data:            "https://github.com/habitat-sh/testapp.git",
+                            vcs_installation_id: Some(i64::from(body.installation_id)),
+                            visibility:          &PackageVisibility::Public,
+                            auto_build:          body.auto_build, };
 
         match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
             Ok(_) => return HttpResponse::NoContent().finish(),
@@ -332,10 +326,9 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         }
     };
 
-    let token = match req
-        .state()
-        .github
-        .app_installation_token(body.installation_id)
+    let token = match req.state()
+                         .github
+                         .app_installation_token(body.installation_id)
     {
         Ok(token) => token,
         Err(err) => {
@@ -353,30 +346,33 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         }
     };
 
-    let plan = match req
-        .state()
-        .github
-        .contents(&token, body.repo_id, &body.plan_path)
+    let plan = match req.state()
+                        .github
+                        .contents(&token, body.repo_id, &body.plan_path)
     {
-        Ok(Some(contents)) => match contents.decode() {
-            Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
-                Ok(plan) => {
-                    debug!("plan = {:?}", &plan);
-                    if plan.name != name {
-                        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        Ok(Some(contents)) => {
+            match contents.decode() {
+                Ok(bytes) => {
+                    match Plan::from_bytes(bytes.as_slice()) {
+                        Ok(plan) => {
+                            debug!("plan = {:?}", &plan);
+                            if plan.name != name {
+                                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                            }
+                            plan
+                        }
+                        Err(e) => {
+                            debug!("Error matching Plan. e = {:?}", e);
+                            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                        }
                     }
-                    plan
                 }
                 Err(e) => {
-                    debug!("Error matching Plan. e = {:?}", e);
+                    debug!("Error decoding content from b64. e = {:?}", e);
                     return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
                 }
-            },
-            Err(e) => {
-                debug!("Error decoding content from b64. e = {:?}", e);
-                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
             }
-        },
+        }
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
             warn!("Erroring fetching contents from GH. e = {:?}", e);
@@ -384,18 +380,16 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         }
     };
 
-    let update_project = UpdateProject {
-        id: project.id,
-        owner_id: account_id as i64,
-        origin: &project.origin,
-        package_name: &plan.name.trim_matches('"'),
-        plan_path: &body.plan_path,
-        vcs_type: "git",
-        vcs_data: &vcs_data,
-        vcs_installation_id: Some(i64::from(body.installation_id)),
-        visibility: &project.visibility,
-        auto_build: body.auto_build,
-    };
+    let update_project = UpdateProject { id:                  project.id,
+                                         owner_id:            account_id as i64,
+                                         origin:              &project.origin,
+                                         package_name:        &plan.name.trim_matches('"'),
+                                         plan_path:           &body.plan_path,
+                                         vcs_type:            "git",
+                                         vcs_data:            &vcs_data,
+                                         vcs_installation_id: Some(i64::from(body.installation_id)),
+                                         visibility:          &project.visibility,
+                                         auto_build:          body.auto_build, };
 
     match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -421,10 +415,9 @@ fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
 
     match Project::list(&origin, &*conn) {
         Ok(projects) => {
-            let names: Vec<String> = projects
-                .iter()
-                .map(|ref p| p.package_name.clone())
-                .collect();
+            let names: Vec<String> = projects.iter()
+                                             .map(|ref p| p.package_name.clone())
+                                             .collect();
             HttpResponse::Ok().json(names)
         }
         Err(err) => {
@@ -436,9 +429,8 @@ fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
 
 #[allow(clippy::needless_pass_by_value)]
 fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
+                                                                .into_inner(); // Unwrap Ok
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -452,11 +444,9 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
     let (page, per_page) = helpers::extract_pagination_in_pages(&pagination);
     assert!(page >= 1);
 
-    let lpr = ListProjectJobs {
-        name: format!("{}/{}", origin, name),
-        page: page as i64,
-        limit: per_page as i64,
-    };
+    let lpr = ListProjectJobs { name:  format!("{}/{}", origin, name),
+                                page:  page as i64,
+                                limit: per_page as i64, };
 
     match Job::list(lpr, &*conn).map_err(Error::DieselError) {
         Ok((jobs, total_count)) => {
@@ -466,20 +456,17 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
                 len => (start + (len as isize) - 1),
             };
 
-            let list: Vec<serde_json::Value> = jobs
-                .into_iter()
-                .map(|job| {
-                    let protojob: jobsrv::Job = job.into();
-                    serde_json::to_value(protojob).unwrap()
-                })
-                .collect();
+            let list: Vec<serde_json::Value> = jobs.into_iter()
+                                                   .map(|job| {
+                                                       let protojob: jobsrv::Job = job.into();
+                                                       serde_json::to_value(protojob).unwrap()
+                                                   })
+                                                   .collect();
 
-            let body = helpers::package_results_json(
-                &list,
-                total_count as isize,
-                start as isize,
-                stop as isize,
-            );
+            let body = helpers::package_results_json(&list,
+                                                     total_count as isize,
+                                                     start as isize,
+                                                     stop as isize);
 
             let mut response = if total_count as isize > (stop + 1) {
                 HttpResponse::PartialContent()
@@ -487,10 +474,9 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
                 HttpResponse::Ok()
             };
 
-            response
-                .header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                .body(body)
+            response.header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    .body(body)
         }
         Err(err) => {
             debug!("{}", err);
@@ -501,9 +487,8 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
 
 #[allow(clippy::needless_pass_by_value)]
 fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
-    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req).unwrap()
+                                                                                     .into_inner(); // Unwrap Ok
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -526,12 +511,10 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
         Err(err) => return err.into(),
     };
 
-    let npi = NewProjectIntegration {
-        origin: &origin,
-        name: &name,
-        integration: &integration,
-        body: &body,
-    };
+    let npi = NewProjectIntegration { origin:      &origin,
+                                      name:        &name,
+                                      integration: &integration,
+                                      body:        &body, };
 
     match ProjectIntegration::create(&npi, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -544,9 +527,8 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
 
 #[allow(clippy::needless_pass_by_value)]
 fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req).unwrap()
+                                                                                     .into_inner(); // Unwrap Ok
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -570,9 +552,8 @@ fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
 
 #[allow(clippy::needless_pass_by_value)]
 fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req).unwrap()
+                                                                                     .into_inner(); // Unwrap Ok
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -585,16 +566,18 @@ fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
 
     match ProjectIntegration::get(&origin, &name, &integration, &*conn).map_err(Error::DieselError)
     {
-        Ok(integration) => match serde_json::from_str(&integration.body) {
-            Ok(v) => {
-                let json_value: serde_json::Value = v;
-                HttpResponse::Ok().json(json_value)
+        Ok(integration) => {
+            match serde_json::from_str(&integration.body) {
+                Ok(v) => {
+                    let json_value: serde_json::Value = v;
+                    HttpResponse::Ok().json(json_value)
+                }
+                Err(e) => {
+                    debug!("Error parsing to JSON. e = {:?}", e);
+                    Error::SerdeJson(e).into()
+                }
             }
-            Err(e) => {
-                debug!("Error parsing to JSON. e = {:?}", e);
-                Error::SerdeJson(e).into()
-            }
-        },
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
@@ -604,9 +587,8 @@ fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
 
 #[allow(clippy::needless_pass_by_value)]
 fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name, visibility) = Path::<(String, String, String)>::extract(&req)
-        .unwrap()
-        .into_inner(); // Unwrap Ok
+    let (origin, name, visibility) = Path::<(String, String, String)>::extract(&req).unwrap()
+                                                                                    .into_inner(); // Unwrap Ok
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -641,18 +623,16 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
 
     let package_name = project.package_name.clone();
 
-    let update_project = UpdateProject {
-        id: project.id,
-        owner_id: project.owner_id,
-        origin: &project.origin,
-        package_name: &package_name,
-        plan_path: &project.plan_path,
-        vcs_type: &project.vcs_type,
-        vcs_data: &project.vcs_data,
-        vcs_installation_id: project.vcs_installation_id,
-        visibility: &pv,
-        auto_build: project.auto_build,
-    };
+    let update_project = UpdateProject { id:                  project.id,
+                                         owner_id:            project.owner_id,
+                                         origin:              &project.origin,
+                                         package_name:        &package_name,
+                                         plan_path:           &project.plan_path,
+                                         vcs_type:            &project.vcs_type,
+                                         vcs_data:            &project.vcs_data,
+                                         vcs_installation_id: project.vcs_installation_id,
+                                         visibility:          &pv,
+                                         auto_build:          project.auto_build, };
 
     if let Err(err) = Project::update(&update_project, &*conn).map_err(Error::DieselError) {
         debug!("{}", err);
@@ -676,16 +656,14 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
     // For each row, store its id in our map, keyed on visibility
     for pkg in pkgs {
         map.entry(pkg.visibility)
-            .or_insert_with(Vec::new)
-            .push(pkg.id);
+           .or_insert_with(Vec::new)
+           .push(pkg.id);
     }
 
     // Now do a bulk update for each different visibility
     for (vis, id_vector) in map.iter() {
-        let upv = UpdatePackageVisibility {
-            visibility: vis.clone(),
-            ids: id_vector.clone(),
-        };
+        let upv = UpdatePackageVisibility { visibility: vis.clone(),
+                                            ids:        id_vector.clone(), };
 
         if let Err(err) = Package::update_visibility_bulk(upv, &*conn).map_err(Error::DieselError) {
             return {

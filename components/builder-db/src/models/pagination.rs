@@ -1,8 +1,8 @@
-use diesel::pg::Pg;
-use diesel::prelude::*;
-use diesel::query_builder::*;
-use diesel::query_dsl::methods::LoadQuery;
-use diesel::sql_types::BigInt;
+use diesel::{pg::Pg,
+             prelude::*,
+             query_builder::*,
+             query_dsl::methods::LoadQuery,
+             sql_types::BigInt};
 
 pub trait Paginate: Sized {
     fn paginate(self, page: i64) -> Paginated<Self>;
@@ -10,11 +10,9 @@ pub trait Paginate: Sized {
 
 impl<T> Paginate for T {
     fn paginate(self, page: i64) -> Paginated<Self> {
-        Paginated {
-            query: self,
-            per_page: DEFAULT_PER_PAGE,
-            page,
-        }
+        Paginated { query: self,
+                    per_page: DEFAULT_PER_PAGE,
+                    page }
     }
 }
 
@@ -22,19 +20,16 @@ const DEFAULT_PER_PAGE: i64 = 50;
 
 #[derive(Debug, Clone, Copy, QueryId)]
 pub struct Paginated<T> {
-    query: T,
-    page: i64,
+    query:    T,
+    page:     i64,
     per_page: i64,
 }
 
 impl<T> Paginated<T> {
-    pub fn per_page(self, per_page: i64) -> Self {
-        Paginated { per_page, ..self }
-    }
+    pub fn per_page(self, per_page: i64) -> Self { Paginated { per_page, ..self } }
 
     pub fn load_and_count_pages<U>(self, conn: &PgConnection) -> QueryResult<(Vec<U>, i64)>
-    where
-        Self: LoadQuery<PgConnection, (U, i64)>,
+        where Self: LoadQuery<PgConnection, (U, i64)>
     {
         let per_page = self.per_page;
         let results = self.load::<(U, i64)>(conn)?;
@@ -45,8 +40,7 @@ impl<T> Paginated<T> {
     }
 
     pub fn load_and_count_records<U>(self, conn: &PgConnection) -> QueryResult<(Vec<U>, i64)>
-    where
-        Self: LoadQuery<PgConnection, (U, i64)>,
+        where Self: LoadQuery<PgConnection, (U, i64)>
     {
         let results = self.load::<(U, i64)>(conn)?;
         let total = results.get(0).map(|x| x.1).unwrap_or(0);
@@ -61,9 +55,7 @@ impl<T: Query> Query for Paginated<T> {
 
 impl<T> RunQueryDsl<PgConnection> for Paginated<T> {}
 
-impl<T> QueryFragment<Pg> for Paginated<T>
-where
-    T: QueryFragment<Pg>,
+impl<T> QueryFragment<Pg> for Paginated<T> where T: QueryFragment<Pg>
 {
     fn walk_ast(&self, mut out: AstPass<Pg>) -> QueryResult<()> {
         out.push_sql("SELECT *, COUNT(*) OVER () FROM (");

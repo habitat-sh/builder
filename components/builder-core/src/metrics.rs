@@ -12,11 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use dogstatsd::{Client, Options};
-use std::borrow::{Borrow, Cow};
-use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
-use std::sync::{Once, ONCE_INIT};
-use std::thread;
+use dogstatsd::{Client,
+                Options};
+use std::{borrow::{Borrow,
+                   Cow},
+          sync::{mpsc::{channel,
+                        sync_channel,
+                        Receiver,
+                        Sender,
+                        SyncSender},
+                 Once,
+                 ONCE_INIT},
+          thread};
 
 use crate::hab_core::env;
 
@@ -47,13 +54,12 @@ pub trait Metric {
 pub trait CounterMetric: Metric {
     /// Increment the metric by one
     fn increment(&self) {
-        match sender().send((
-            MetricType::Counter,
-            MetricOperation::Increment,
-            self.id(),
-            None,
-            vec![],
-        )) {
+        match sender().send((MetricType::Counter,
+                             MetricOperation::Increment,
+                             self.id(),
+                             None,
+                             vec![]))
+        {
             Ok(_) => (),
             Err(e) => error!("Failed to increment counter, error: {:?}", e),
         }
@@ -63,13 +69,8 @@ pub trait CounterMetric: Metric {
 pub trait GaugeMetric: Metric {
     /// Set the value of the gauge
     fn set(&self, val: MetricValue) {
-        match sender().send((
-            MetricType::Gauge,
-            MetricOperation::Set,
-            self.id(),
-            Some(val),
-            vec![],
-        )) {
+        match sender().send((MetricType::Gauge, MetricOperation::Set, self.id(), Some(val), vec![]))
+        {
             Ok(_) => (),
             Err(e) => error!("Failed to set gauge, error: {:?}", e),
         }
@@ -79,13 +80,12 @@ pub trait GaugeMetric: Metric {
 pub trait HistogramMetric: Metric {
     /// Set the value of the gauge
     fn set(&self, val: MetricValue) {
-        match sender().send((
-            MetricType::Histogram,
-            MetricOperation::Set,
-            self.id(),
-            Some(val),
-            vec![],
-        )) {
+        match sender().send((MetricType::Histogram,
+                             MetricOperation::Set,
+                             self.id(),
+                             Some(val),
+                             vec![]))
+        {
             Ok(_) => (),
             Err(e) => error!("Failed to set gauge, error: {:?}", e),
         }
@@ -110,13 +110,7 @@ enum MetricOperation {
 }
 
 type MetricValue = f64;
-type MetricTuple = (
-    MetricType,
-    MetricOperation,
-    MetricId,
-    Option<MetricValue>,
-    Vec<String>,
-);
+type MetricTuple = (MetricType, MetricOperation, MetricId, Option<MetricValue>, Vec<String>);
 
 // One-time initialization
 static mut SENDER: *const Sender<MetricTuple> = 0 as *const Sender<MetricTuple>;
@@ -126,8 +120,8 @@ static INIT: Once = ONCE_INIT;
 fn sender() -> Sender<MetricTuple> {
     unsafe {
         INIT.call_once(|| {
-            SENDER = Box::into_raw(Box::new(init()));
-        });
+                SENDER = Box::into_raw(Box::new(init()));
+            });
         (*SENDER).clone()
     }
 }
@@ -138,10 +132,9 @@ fn init() -> Sender<MetricTuple> {
     let (tx, rx) = channel::<MetricTuple>();
     let (rztx, rzrx) = sync_channel(0); // rendezvous channel
 
-    thread::Builder::new()
-        .name("metrics".to_string())
-        .spawn(move || receive(&rztx, &rx))
-        .expect("couldn't start metrics thread");
+    thread::Builder::new().name("metrics".to_string())
+                          .spawn(move || receive(&rztx, &rx))
+                          .expect("couldn't start metrics thread");
 
     match rzrx.recv() {
         Ok(()) => tx,
@@ -164,29 +157,39 @@ fn receive(rz: &SyncSender<()>, rx: &Receiver<MetricTuple>) {
                         MetricOperation::Increment => {
                             let mid_str: &str = mid.borrow();
                             cli.incr(mid_str, &mtags)
-                                .unwrap_or_else(|e| warn!("Could not increment metric; {:?}", e))
+                               .unwrap_or_else(|e| warn!("Could not increment metric; {:?}", e))
                         }
                         _ => warn!("Unexpected metric operation!"),
                     };
                 }
-                MetricType::Gauge => match mop {
-                    MetricOperation::Set => {
-                        let mid_str: &str = mid.borrow();
-                        let val_str = format!("{}", mval.unwrap());
-                        cli.gauge(mid_str, val_str, &mtags)
-                            .unwrap_or_else(|e| warn!("Could not set metric; {:?}", e))
+                MetricType::Gauge => {
+                    match mop {
+                        MetricOperation::Set => {
+                            let mid_str: &str = mid.borrow();
+                            let val_str = format!("{}", mval.unwrap());
+                            cli.gauge(mid_str, val_str, &mtags).unwrap_or_else(|e| {
+                                                                   warn!("Could not set metric; \
+                                                                          {:?}",
+                                                                         e)
+                                                               })
+                        }
+                        _ => warn!("Unexpected metric operation!"),
                     }
-                    _ => warn!("Unexpected metric operation!"),
-                },
-                MetricType::Histogram => match mop {
-                    MetricOperation::Set => {
-                        let mid_str: &str = mid.borrow();
-                        let val_str = format!("{}", mval.unwrap());
-                        cli.histogram(mid_str, val_str, &mtags)
-                            .unwrap_or_else(|e| warn!("Could not set metric; {:?}", e))
+                }
+                MetricType::Histogram => {
+                    match mop {
+                        MetricOperation::Set => {
+                            let mid_str: &str = mid.borrow();
+                            let val_str = format!("{}", mval.unwrap());
+                            cli.histogram(mid_str, val_str, &mtags).unwrap_or_else(|e| {
+                                                                       warn!("Could not set \
+                                                                              metric; {:?}",
+                                                                             e)
+                                                                   })
+                        }
+                        _ => warn!("Unexpected metric operation!"),
                     }
-                    _ => warn!("Unexpected metric operation!"),
-                },
+                }
             }
         }
     }

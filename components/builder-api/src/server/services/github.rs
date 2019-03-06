@@ -12,37 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{collections::HashSet,
+          path::PathBuf,
+          str::FromStr};
 
-use actix_web::http::StatusCode;
-use actix_web::{error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Path};
+use actix_web::{error,
+                http::StatusCode,
+                FromRequest,
+                HttpMessage,
+                HttpRequest,
+                HttpResponse,
+                Path};
 
-use crate::bldr_core::build_config::{BuildCfg, BLDR_CFG};
-use crate::bldr_core::metrics::CounterMetric;
-use crate::hab_core::package::target::{self, PackageTarget};
-use crate::hab_core::{crypto, package::Plan};
-use crate::protocol::jobsrv::{JobGroup, JobGroupSpec, JobGroupTrigger};
+use crate::{bldr_core::{build_config::{BuildCfg,
+                                       BLDR_CFG},
+                        metrics::CounterMetric},
+            hab_core::{crypto,
+                       package::{target::{self,
+                                          PackageTarget},
+                                 Plan}},
+            protocol::jobsrv::{JobGroup,
+                               JobGroupSpec,
+                               JobGroupTrigger}};
 
-use github_api_client::types::GitHubWebhookPush;
-use github_api_client::{AppToken, GitHubClient};
+use github_api_client::{types::GitHubWebhookPush,
+                        AppToken,
+                        GitHubClient};
 use hex;
-use openssl::hash::MessageDigest;
-use openssl::pkey::PKey;
-use openssl::sign::Signer;
+use openssl::{hash::MessageDigest,
+              pkey::PKey,
+              sign::Signer};
 use serde_json;
 
-use crate::db::models::account::Account;
-use crate::db::models::projects::Project;
+use crate::db::models::{account::Account,
+                        projects::Project};
 
-use crate::server::authorize::authorize_session;
-use crate::server::error::Error;
-use crate::server::feat;
-use crate::server::framework::headers;
-use crate::server::framework::middleware::route_message;
-use crate::server::services::metrics::Counter;
-use crate::server::AppState;
+use crate::server::{authorize::authorize_session,
+                    error::Error,
+                    feat,
+                    framework::{headers,
+                                middleware::route_message},
+                    services::metrics::Counter,
+                    AppState};
 
 pub enum GitHubEvent {
     Push,
@@ -108,10 +119,8 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
     let computed_signature = format!("sha1={}", &hex::encode(hmac));
 
     if !crypto::secure_eq(&gh_signature, &computed_signature) {
-        warn!(
-            "Web hook signatures don't match. GH = {:?}, Our = {:?}",
-            gh_signature, computed_signature
-        );
+        warn!("Web hook signatures don't match. GH = {:?}, Our = {:?}",
+              gh_signature, computed_signature);
         return Error::BadRequest.into();
     }
 
@@ -157,13 +166,9 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
         Ok(hook) => hook,
         Err(err) => return Error::SerdeJson(err).into(),
     };
-    debug!(
-        "GITHUB-WEBHOOK builder_api::github::handle_push: received hook; repository={} repository_id={} ref={} installation_id={}",
-        hook.repository.full_name,
-        hook.repository.id,
-        hook.git_ref,
-        hook.installation.id
-    );
+    debug!("GITHUB-WEBHOOK builder_api::github::handle_push: received hook; repository={} \
+            repository_id={} ref={} installation_id={}",
+           hook.repository.full_name, hook.repository.id, hook.git_ref, hook.installation.id);
 
     let conn = match req.state().db.get_conn() {
         Ok(conn_ref) => conn_ref,
@@ -196,22 +201,19 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
     let plans = read_plans(&github, &token, &hook, &config);
     debug!("Triggered Plans, {:?}", plans);
 
-    build_plans(
-        &req,
-        &hook.repository.clone_url,
-        &hook.pusher.name,
-        account_id,
-        &plans,
-    )
+    build_plans(&req,
+                &hook.repository.clone_url,
+                &hook.pusher.name,
+                account_id,
+                &plans)
 }
 
-fn build_plans(
-    req: &HttpRequest<AppState>,
-    repo_url: &str,
-    pusher: &str,
-    account_id: Option<u64>,
-    plans: &[PlanWithTarget],
-) -> HttpResponse {
+fn build_plans(req: &HttpRequest<AppState>,
+               repo_url: &str,
+               pusher: &str,
+               account_id: Option<u64>,
+               plans: &[PlanWithTarget])
+               -> HttpResponse {
     let mut request = JobGroupSpec::new();
 
     let conn = match req.state().db.get_conn() {
@@ -224,18 +226,14 @@ fn build_plans(
         match Project::get(&project_name, &*conn) {
             Ok(project) => {
                 if repo_url != project.vcs_data {
-                    warn!(
-                        "Repo URL ({}) doesn't match project vcs data ({}). Aborting.",
-                        repo_url, project.vcs_data
-                    );
+                    warn!("Repo URL ({}) doesn't match project vcs data ({}). Aborting.",
+                          repo_url, project.vcs_data);
                     continue;
                 }
             }
             Err(err) => {
-                debug!(
-                    "Failed to fetch project (plan may not be connected): {}, {:?}",
-                    project_name, err
-                );
+                debug!("Failed to fetch project (plan may not be connected): {}, {:?}",
+                       project_name, err);
                 continue;
             }
         }
@@ -271,19 +269,23 @@ fn build_plans(
 
 fn read_bldr_config(github: &GitHubClient, token: &AppToken, hook: &GitHubWebhookPush) -> BuildCfg {
     match github.contents(&token, hook.repository.id, BLDR_CFG) {
-        Ok(Some(contents)) => match contents.decode() {
-            Ok(ref bytes) => match BuildCfg::from_slice(bytes) {
-                Ok(cfg) => cfg,
+        Ok(Some(contents)) => {
+            match contents.decode() {
+                Ok(ref bytes) => {
+                    match BuildCfg::from_slice(bytes) {
+                        Ok(cfg) => cfg,
+                        Err(err) => {
+                            debug!("unable to parse bldr.toml, {}", err);
+                            BuildCfg::default()
+                        }
+                    }
+                }
                 Err(err) => {
-                    debug!("unable to parse bldr.toml, {}", err);
+                    debug!("unable to read bldr.toml, {}", err);
                     BuildCfg::default()
                 }
-            },
-            Err(err) => {
-                debug!("unable to read bldr.toml, {}", err);
-                BuildCfg::default()
             }
-        },
+        }
         Ok(None) => BuildCfg::default(),
         Err(err) => {
             warn!("unable to retrieve bldr.toml, {}", err);
@@ -292,12 +294,11 @@ fn read_bldr_config(github: &GitHubClient, token: &AppToken, hook: &GitHubWebhoo
     }
 }
 
-fn read_plans(
-    github: &GitHubClient,
-    token: &AppToken,
-    hook: &GitHubWebhookPush,
-    bldr_cfg: &BuildCfg,
-) -> Vec<PlanWithTarget> {
+fn read_plans(github: &GitHubClient,
+              token: &AppToken,
+              hook: &GitHubWebhookPush,
+              bldr_cfg: &BuildCfg)
+              -> Vec<PlanWithTarget> {
     let mut plans = Vec::with_capacity(bldr_cfg.projects().len());
     for project_cfg in bldr_cfg.triggered_by(hook.branch(), hook.changed().as_slice()) {
         let targets = read_plan_targets(github, token, hook, project_cfg.plan_path());
@@ -320,28 +321,31 @@ fn read_plans(
     plans
 }
 
-fn read_plan(
-    github: &GitHubClient,
-    token: &AppToken,
-    hook: &GitHubWebhookPush,
-    path: &str,
-) -> Option<Plan> {
+fn read_plan(github: &GitHubClient,
+             token: &AppToken,
+             hook: &GitHubWebhookPush,
+             path: &str)
+             -> Option<Plan> {
     debug!("Reading plan from: {:?}", path);
 
     match github.contents(&token, hook.repository.id, path) {
-        Ok(Some(contents)) => match contents.decode() {
-            Ok(bytes) => match Plan::from_bytes(bytes.as_slice()) {
-                Ok(plan) => Some(plan),
+        Ok(Some(contents)) => {
+            match contents.decode() {
+                Ok(bytes) => {
+                    match Plan::from_bytes(bytes.as_slice()) {
+                        Ok(plan) => Some(plan),
+                        Err(err) => {
+                            debug!("unable to read plan, {}, {}", path, err);
+                            None
+                        }
+                    }
+                }
                 Err(err) => {
                     debug!("unable to read plan, {}, {}", path, err);
                     None
                 }
-            },
-            Err(err) => {
-                debug!("unable to read plan, {}, {}", path, err);
-                None
             }
-        },
+        }
         Ok(None) => None,
         Err(err) => {
             warn!("unable to retrieve plan, {}, {}", path, err);
@@ -350,12 +354,11 @@ fn read_plan(
     }
 }
 
-fn read_plan_targets(
-    github: &GitHubClient,
-    token: &AppToken,
-    hook: &GitHubWebhookPush,
-    path: &PathBuf,
-) -> HashSet<PackageTarget> {
+fn read_plan_targets(github: &GitHubClient,
+                     token: &AppToken,
+                     hook: &GitHubWebhookPush,
+                     path: &PathBuf)
+                     -> HashSet<PackageTarget> {
     debug!("Reading plan targets from {:?}", path);
     let mut targets: HashSet<PackageTarget> = HashSet::new();
 

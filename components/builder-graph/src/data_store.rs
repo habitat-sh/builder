@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr,
+          sync::Arc};
 
 use postgres;
-use protobuf;
-use protobuf::RepeatedField;
+use protobuf::{self,
+               RepeatedField};
 
-use crate::config::Config;
-use crate::db::pool::Pool;
-use crate::error::{Error, Result};
-use crate::protocol::originsrv;
+use crate::{config::Config,
+            db::pool::Pool,
+            error::{Error,
+                    Result},
+            protocol::originsrv};
 
 // DataStore inherits Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Debug, Clone)]
@@ -43,26 +44,21 @@ impl DataStore {
     }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
-    pub fn from_pool(pool: Pool, _: Arc<String>) -> Result<DataStore> {
-        Ok(DataStore { pool })
-    }
+    pub fn from_pool(pool: Pool, _: Arc<String>) -> Result<DataStore> { Ok(DataStore { pool }) }
 
     /// Setup the datastore.
     ///
     /// This includes all the schema and data migrations, along with stored procedures for data
     /// access.
-    pub fn setup(&self) -> Result<()> {
-        Ok(())
-    }
+    pub fn setup(&self) -> Result<()> { Ok(()) }
 
     pub fn get_job_graph_packages(&self) -> Result<RepeatedField<originsrv::OriginPackage>> {
         let mut packages = RepeatedField::new();
 
         let conn = self.pool.get()?;
 
-        let rows = &conn
-            .query("SELECT * FROM get_graph_packages_v1()", &[])
-            .map_err(Error::JobGraphPackagesGet)?;
+        let rows = &conn.query("SELECT * FROM get_graph_packages_v1()", &[])
+                        .map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
             warn!("No packages found");
@@ -80,9 +76,8 @@ impl DataStore {
     pub fn get_job_graph_package(&self, ident: &str) -> Result<originsrv::OriginPackage> {
         let conn = self.pool.get()?;
 
-        let rows = &conn
-            .query("SELECT * FROM get_graph_package_v1($1)", &[&ident])
-            .map_err(Error::JobGraphPackagesGet)?;
+        let rows = &conn.query("SELECT * FROM get_graph_package_v1($1)", &[&ident])
+                        .map_err(Error::JobGraphPackagesGet)?;
 
         if rows.is_empty() {
             error!("No package found");

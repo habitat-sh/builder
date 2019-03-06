@@ -1,45 +1,68 @@
-use std::fmt;
-use std::io::Write;
-use std::ops::Deref;
-use std::str::{self, FromStr};
+use std::{fmt,
+          io::Write,
+          ops::Deref,
+          str::{self,
+                FromStr}};
 
 use chrono::NaiveDateTime;
 use protobuf;
 use time::PreciseTime;
 
-use diesel;
-use diesel::deserialize::{self, FromSql};
-use diesel::dsl::{count, sql};
-use diesel::pg::expression::dsl::any;
-use diesel::pg::{Pg, PgConnection};
-use diesel::prelude::*;
-use diesel::result::QueryResult;
-use diesel::serialize::{self, IsNull, Output, ToSql};
-use diesel::sql_types::Text;
-use diesel::PgArrayExpressionMethods;
-use diesel::RunQueryDsl;
-use diesel_full_text_search::{to_tsquery, TsQueryExtensions};
+use diesel::{self,
+             deserialize::{self,
+                           FromSql},
+             dsl::{count,
+                   sql},
+             pg::{expression::dsl::any,
+                  Pg,
+                  PgConnection},
+             prelude::*,
+             result::QueryResult,
+             serialize::{self,
+                         IsNull,
+                         Output,
+                         ToSql},
+             sql_types::Text,
+             PgArrayExpressionMethods,
+             RunQueryDsl};
+use diesel_full_text_search::{to_tsquery,
+                              TsQueryExtensions};
 
 use super::db_id_format;
-use crate::hab_core;
-use crate::hab_core::{
-    package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget},
-    ChannelIdent,
-};
-use crate::models::channel::{Channel, OriginChannelPackage, OriginChannelPromote};
-use crate::models::pagination::*;
+use crate::{hab_core::{self,
+                       package::{FromArchive,
+                                 Identifiable,
+                                 PackageArchive,
+                                 PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent},
+            models::{channel::{Channel,
+                               OriginChannelPackage,
+                               OriginChannelPromote},
+                     pagination::*}};
 
-use crate::schema::channel::{origin_channel_packages, origin_channels};
-use crate::schema::origin::origins;
-use crate::schema::package::{
-    origin_package_versions, origin_packages, packages_with_channel_platform,
-};
+use crate::schema::{channel::{origin_channel_packages,
+                              origin_channels},
+                    origin::origins,
+                    package::{origin_package_versions,
+                              origin_packages,
+                              packages_with_channel_platform}};
 
-use crate::bldr_core::metrics::{CounterMetric, HistogramMetric};
-use crate::metrics::{Counter, Histogram};
-use crate::protocol::originsrv::{OriginPackage, OriginPackageIdent, OriginPackageVisibility};
+use crate::{bldr_core::metrics::{CounterMetric,
+                                 HistogramMetric},
+            metrics::{Counter,
+                      Histogram},
+            protocol::originsrv::{OriginPackage,
+                                  OriginPackageIdent,
+                                  OriginPackageVisibility}};
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable)]
+#[derive(Debug,
+         Serialize,
+         Deserialize,
+         QueryableByName,
+         Queryable,
+         Clone,
+         Identifiable)]
 #[table_name = "origin_packages"]
 pub struct Package {
     #[serde(with = "db_id_format")]
@@ -62,9 +85,14 @@ pub struct Package {
     pub origin: String,
 }
 
-#[derive(
-    Debug, Serialize, Deserialize, QueryableByName, Queryable, Clone, Identifiable, PartialEq,
-)]
+#[derive(Debug,
+         Serialize,
+         Deserialize,
+         QueryableByName,
+         Queryable,
+         Clone,
+         Identifiable,
+         PartialEq)]
 #[table_name = "packages_with_channel_platform"]
 pub struct PackageWithChannelPlatform {
     #[serde(with = "db_id_format")]
@@ -91,54 +119,50 @@ pub struct PackageWithChannelPlatform {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct PackageIdentWithChannelPlatform {
-    pub origin: String,
-    pub name: String,
-    pub version: Option<String>,
-    pub release: Option<String>,
-    pub channels: Vec<String>,
+    pub origin:    String,
+    pub name:      String,
+    pub version:   Option<String>,
+    pub release:   Option<String>,
+    pub channels:  Vec<String>,
     pub platforms: Vec<String>,
 }
 
 /// We literally never want to select `ident_vector`
 /// so we provide this type and constant to pass to `.select`
 
-type AllColumns = (
-    origin_packages::id,
-    origin_packages::owner_id,
-    origin_packages::name,
-    origin_packages::ident,
-    origin_packages::ident_array,
-    origin_packages::checksum,
-    origin_packages::manifest,
-    origin_packages::config,
-    origin_packages::target,
-    origin_packages::deps,
-    origin_packages::tdeps,
-    origin_packages::exposes,
-    origin_packages::visibility,
-    origin_packages::created_at,
-    origin_packages::updated_at,
-    origin_packages::origin,
-);
+type AllColumns = (origin_packages::id,
+                   origin_packages::owner_id,
+                   origin_packages::name,
+                   origin_packages::ident,
+                   origin_packages::ident_array,
+                   origin_packages::checksum,
+                   origin_packages::manifest,
+                   origin_packages::config,
+                   origin_packages::target,
+                   origin_packages::deps,
+                   origin_packages::tdeps,
+                   origin_packages::exposes,
+                   origin_packages::visibility,
+                   origin_packages::created_at,
+                   origin_packages::updated_at,
+                   origin_packages::origin);
 
-pub const ALL_COLUMNS: AllColumns = (
-    origin_packages::id,
-    origin_packages::owner_id,
-    origin_packages::name,
-    origin_packages::ident,
-    origin_packages::ident_array,
-    origin_packages::checksum,
-    origin_packages::manifest,
-    origin_packages::config,
-    origin_packages::target,
-    origin_packages::deps,
-    origin_packages::tdeps,
-    origin_packages::exposes,
-    origin_packages::visibility,
-    origin_packages::created_at,
-    origin_packages::updated_at,
-    origin_packages::origin,
-);
+pub const ALL_COLUMNS: AllColumns = (origin_packages::id,
+                                     origin_packages::owner_id,
+                                     origin_packages::name,
+                                     origin_packages::ident,
+                                     origin_packages::ident_array,
+                                     origin_packages::checksum,
+                                     origin_packages::manifest,
+                                     origin_packages::config,
+                                     origin_packages::target,
+                                     origin_packages::deps,
+                                     origin_packages::tdeps,
+                                     origin_packages::exposes,
+                                     origin_packages::visibility,
+                                     origin_packages::created_at,
+                                     origin_packages::updated_at,
+                                     origin_packages::origin);
 
 type All = diesel::dsl::Select<origin_packages::table, AllColumns>;
 
@@ -163,36 +187,36 @@ pub struct NewPackage {
 
 #[derive(Debug)]
 pub struct GetLatestPackage {
-    pub ident: BuilderPackageIdent,
-    pub target: BuilderPackageTarget,
+    pub ident:      BuilderPackageIdent,
+    pub target:     BuilderPackageTarget,
     pub visibility: Vec<PackageVisibility>,
 }
 
 #[derive(Debug)]
 pub struct GetPackage {
-    pub ident: BuilderPackageIdent,
+    pub ident:      BuilderPackageIdent,
     pub visibility: Vec<PackageVisibility>,
-    pub target: BuilderPackageTarget,
+    pub target:     BuilderPackageTarget,
 }
 
 #[derive(Debug)]
 pub struct UpdatePackageVisibility {
     pub visibility: PackageVisibility,
-    pub ids: Vec<i64>,
+    pub ids:        Vec<i64>,
 }
 
 pub struct ListPackages {
-    pub ident: BuilderPackageIdent,
+    pub ident:      BuilderPackageIdent,
     pub visibility: Vec<PackageVisibility>,
-    pub page: i64,
-    pub limit: i64,
+    pub page:       i64,
+    pub limit:      i64,
 }
 
 pub struct SearchPackages {
-    pub query: String,
+    pub query:      String,
     pub account_id: Option<i64>,
-    pub page: i64,
-    pub limit: i64,
+    pub page:       i64,
+    pub limit:      i64,
 }
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginPackageVersions {
@@ -206,7 +230,16 @@ pub struct OriginPackageVersions {
     pub visibility: PackageVisibility,
 }
 
-#[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone, ToSql, FromSql)]
+#[derive(DbEnum,
+         Debug,
+         Eq,
+         Hash,
+         Serialize,
+         Deserialize,
+         PartialEq,
+         Clone,
+         ToSql,
+         FromSql)]
 #[PgType = "origin_package_visibility"]
 #[postgres(name = "origin_package_visibility")]
 pub enum PackageVisibility {
@@ -247,69 +280,56 @@ impl FromStr for PackageVisibility {
 
 impl PackageVisibility {
     pub fn all() -> Vec<Self> {
-        vec![
-            PackageVisibility::Public,
-            PackageVisibility::Private,
-            PackageVisibility::Hidden,
-        ]
+        vec![PackageVisibility::Public,
+             PackageVisibility::Private,
+             PackageVisibility::Hidden,]
     }
 
-    pub fn private() -> Vec<Self> {
-        vec![PackageVisibility::Private, PackageVisibility::Hidden]
-    }
+    pub fn private() -> Vec<Self> { vec![PackageVisibility::Private, PackageVisibility::Hidden] }
 }
 
 impl Package {
-    pub fn get_without_target(
-        ident: BuilderPackageIdent,
-        visibility: Vec<PackageVisibility>,
-        conn: &PgConnection,
-    ) -> QueryResult<Package> {
+    pub fn get_without_target(ident: BuilderPackageIdent,
+                              visibility: Vec<PackageVisibility>,
+                              conn: &PgConnection)
+                              -> QueryResult<Package> {
         Counter::DBCall.increment();
-        Self::all()
-            .filter(origin_packages::ident.eq(ident))
-            .filter(origin_packages::visibility.eq(any(visibility)))
-            .get_result(conn)
+        Self::all().filter(origin_packages::ident.eq(ident))
+                   .filter(origin_packages::visibility.eq(any(visibility)))
+                   .get_result(conn)
     }
 
     pub fn get(req: GetPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        Self::all()
-            .filter(origin_packages::ident.eq(req.ident))
-            .filter(origin_packages::visibility.eq(any(req.visibility)))
-            .filter(origin_packages::target.eq(req.target))
-            .get_result(conn)
+        Self::all().filter(origin_packages::ident.eq(req.ident))
+                   .filter(origin_packages::visibility.eq(any(req.visibility)))
+                   .filter(origin_packages::target.eq(req.target))
+                   .get_result(conn)
     }
 
-    pub fn get_all(
-        req_ident: BuilderPackageIdent,
-        conn: &PgConnection,
-    ) -> QueryResult<Vec<Package>> {
+    pub fn get_all(req_ident: BuilderPackageIdent,
+                   conn: &PgConnection)
+                   -> QueryResult<Vec<Package>> {
         Counter::DBCall.increment();
-        Self::all()
-            .filter(origin_packages::ident_array.contains(req_ident.parts()))
-            .get_results(conn)
+        Self::all().filter(origin_packages::ident_array.contains(req_ident.parts()))
+                   .get_results(conn)
     }
 
     pub fn get_latest(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let start_time = PreciseTime::now();
 
-        let result = Self::all()
-            .filter(origin_packages::ident_array.contains(req.ident.parts()))
-            .filter(origin_packages::target.eq(req.target))
-            .filter(origin_packages::visibility.eq(any(req.visibility)))
-            .order(sql::<Package>(
-                "to_semver(ident_array[3]) desc, ident_array[4] desc",
-            ))
-            .limit(1)
-            .get_result(conn);
+        let result =
+            Self::all().filter(origin_packages::ident_array.contains(req.ident.parts()))
+                       .filter(origin_packages::target.eq(req.target))
+                       .filter(origin_packages::visibility.eq(any(req.visibility)))
+                       .order(sql::<Package>("to_semver(ident_array[3]) desc, ident_array[4] desc"))
+                       .limit(1)
+                       .get_result(conn);
 
         let end_time = PreciseTime::now();
-        trace!(
-            "DBCall package::get_latest time: {} ms",
-            start_time.to(end_time).num_milliseconds()
-        );
+        trace!("DBCall package::get_latest time: {} ms",
+               start_time.to(end_time).num_milliseconds());
         Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
 
         result
@@ -317,48 +337,40 @@ impl Package {
 
     pub fn create(package: &NewPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        let package = diesel::insert_into(origin_packages::table)
-            .values(package)
-            .returning(ALL_COLUMNS)
-            .on_conflict_do_nothing()
-            .get_result::<Package>(conn)?;
+        let package = diesel::insert_into(origin_packages::table).values(package)
+                                                                 .returning(ALL_COLUMNS)
+                                                                 .on_conflict_do_nothing()
+                                                                 .get_result::<Package>(conn)?;
 
-        OriginChannelPackage::promote(
-            OriginChannelPromote {
-                ident: package.ident.clone(),
-                origin: package.origin.clone(),
-                channel: ChannelIdent::unstable(),
-            },
-            conn,
-        )?;
+        OriginChannelPackage::promote(OriginChannelPromote { ident:   package.ident.clone(),
+                                                             origin:  package.origin.clone(),
+                                                             channel: ChannelIdent::unstable(), },
+                                      conn)?;
         Ok(package)
     }
 
-    pub fn update_visibility(
-        vis: PackageVisibility,
-        idt: BuilderPackageIdent,
-        conn: &PgConnection,
-    ) -> QueryResult<usize> {
+    pub fn update_visibility(vis: PackageVisibility,
+                             idt: BuilderPackageIdent,
+                             conn: &PgConnection)
+                             -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_packages::table.filter(origin_packages::ident.eq(idt)))
             .set(origin_packages::visibility.eq(vis))
             .execute(conn)
     }
 
-    pub fn update_visibility_bulk(
-        req: UpdatePackageVisibility,
-        conn: &PgConnection,
-    ) -> QueryResult<usize> {
+    pub fn update_visibility_bulk(req: UpdatePackageVisibility,
+                                  conn: &PgConnection)
+                                  -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_packages::table.filter(origin_packages::id.eq_any(req.ids)))
             .set(origin_packages::visibility.eq(req.visibility))
             .execute(conn)
     }
 
-    pub fn list(
-        pl: ListPackages,
-        conn: &PgConnection,
-    ) -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
+    pub fn list(pl: ListPackages,
+                conn: &PgConnection)
+                -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
 
         let (mut pkgs, _) = packages_with_channel_platform::table
@@ -377,10 +389,9 @@ impl Package {
         Ok((pkgs, new_count))
     }
 
-    pub fn list_distinct(
-        pl: ListPackages,
-        conn: &PgConnection,
-    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    pub fn list_distinct(pl: ListPackages,
+                         conn: &PgConnection)
+                         -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         origin_packages::table
             .select(sql(
@@ -397,28 +408,25 @@ impl Package {
             .load_and_count_records(conn)
     }
 
-    pub fn distinct_for_origin(
-        pl: ListPackages,
-        conn: &PgConnection,
-    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    pub fn distinct_for_origin(pl: ListPackages,
+                               conn: &PgConnection)
+                               -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
-        origin_packages::table
-            .inner_join(origins::table)
-            .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
-            .filter(origins::name.eq(&pl.ident.origin))
-            .filter(origin_packages::visibility.eq(any(pl.visibility)))
-            .filter(sql("TRUE GROUP BY origin_packages.name, origins.name"))
-            .order(origins::name.asc())
-            .paginate(pl.page)
-            .per_page(pl.limit)
-            .load_and_count_records(conn)
+        origin_packages::table.inner_join(origins::table)
+                              .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
+                              .filter(origins::name.eq(&pl.ident.origin))
+                              .filter(origin_packages::visibility.eq(any(pl.visibility)))
+                              .filter(sql("TRUE GROUP BY origin_packages.name, origins.name"))
+                              .order(origins::name.asc())
+                              .paginate(pl.page)
+                              .per_page(pl.limit)
+                              .load_and_count_records(conn)
     }
 
-    pub fn list_package_channels(
-        ident: &BuilderPackageIdent,
-        visibility: Vec<PackageVisibility>,
-        conn: &PgConnection,
-    ) -> QueryResult<Vec<Channel>> {
+    pub fn list_package_channels(ident: &BuilderPackageIdent,
+                                 visibility: Vec<PackageVisibility>,
+                                 conn: &PgConnection)
+                                 -> QueryResult<Vec<Channel>> {
         Counter::DBCall.increment();
         origin_packages::table
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
@@ -429,11 +437,10 @@ impl Package {
             .get_results(conn)
     }
 
-    pub fn list_package_versions(
-        ident: &BuilderPackageIdent,
-        visibility: Vec<PackageVisibility>,
-        conn: &PgConnection,
-    ) -> QueryResult<Vec<OriginPackageVersions>> {
+    pub fn list_package_versions(ident: &BuilderPackageIdent,
+                                 visibility: Vec<PackageVisibility>,
+                                 conn: &PgConnection)
+                                 -> QueryResult<Vec<OriginPackageVersions>> {
         Counter::DBCall.increment();
         origin_package_versions::table
             .filter(origin_package_versions::origin.eq(ident.origin()))
@@ -445,16 +452,14 @@ impl Package {
 
     pub fn count_origin_packages(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
-        origin_packages::table
-            .select(count(origin_packages::id))
-            .filter(origin_packages::origin.eq(&origin))
-            .first(conn)
+        origin_packages::table.select(count(origin_packages::id))
+                              .filter(origin_packages::origin.eq(&origin))
+                              .first(conn)
     }
 
-    pub fn search(
-        sp: SearchPackages,
-        conn: &PgConnection,
-    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    pub fn search(sp: SearchPackages,
+                  conn: &PgConnection)
+                  -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let mut query = origin_packages::table
             .inner_join(origins::table)
@@ -474,17 +479,15 @@ impl Package {
             query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
 
-        query
-            .paginate(sp.page)
-            .per_page(sp.limit)
-            .load_and_count_records(conn)
+        query.paginate(sp.page)
+             .per_page(sp.limit)
+             .load_and_count_records(conn)
     }
 
     // This is me giving up on fighting the typechecker and just duplicating a bunch of code
-    pub fn search_distinct(
-        sp: SearchPackages,
-        conn: &PgConnection,
-    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    pub fn search_distinct(sp: SearchPackages,
+                           conn: &PgConnection)
+                           -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
 
         let mut query = origin_packages::table
@@ -507,20 +510,17 @@ impl Package {
 
         // Because of the filter hack it is very important that this be the last filter
         query = query.filter(sql("TRUE GROUP BY origin_packages.name, origins.name"));
-        query
-            .paginate(sp.page)
-            .per_page(sp.limit)
-            .load_and_count_records(conn)
+        query.paginate(sp.page)
+             .per_page(sp.limit)
+             .load_and_count_records(conn)
     }
 
-    pub fn all() -> All {
-        origin_packages::table.select(ALL_COLUMNS)
-    }
-    pub fn list_package_platforms(
-        ident: &BuilderPackageIdent,
-        visibilities: Vec<PackageVisibility>,
-        conn: &PgConnection,
-    ) -> QueryResult<Vec<BuilderPackageTarget>> {
+    pub fn all() -> All { origin_packages::table.select(ALL_COLUMNS) }
+
+    pub fn list_package_platforms(ident: &BuilderPackageIdent,
+                                  visibilities: Vec<PackageVisibility>,
+                                  conn: &PgConnection)
+                                  -> QueryResult<Vec<BuilderPackageTarget>> {
         origin_packages::table
             .select(origin_packages::target)
             .filter(origin_packages::ident_array.contains(&searchable_ident(&ident)))
@@ -533,8 +533,8 @@ impl Package {
         // determining whether a package is a service from the DB instead of needing
         // to crack the archive file to look for a SVC_USER file
         self.manifest.contains("pkg_exposes")
-            || self.manifest.contains("pkg_binds")
-            || self.manifest.contains("pkg_exports")
+        || self.manifest.contains("pkg_binds")
+        || self.manifest.contains("pkg_exports")
     }
 }
 
@@ -544,21 +544,26 @@ impl PackageWithChannelPlatform {
         // determining whether a package is a service from the DB instead of needing
         // to crack the archive file to look for a SVC_USER file
         self.manifest.contains("pkg_exposes")
-            || self.manifest.contains("pkg_binds")
-            || self.manifest.contains("pkg_exports")
+        || self.manifest.contains("pkg_binds")
+        || self.manifest.contains("pkg_exports")
     }
 }
 
 fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
-    ident
-        .to_string()
-        .split('/')
-        .map(|s| s.to_string())
-        .filter(|s| s != "")
-        .collect()
+    ident.to_string()
+         .split('/')
+         .map(|s| s.to_string())
+         .filter(|s| s != "")
+         .collect()
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression, PartialEq)]
+#[derive(Debug,
+         Serialize,
+         Deserialize,
+         Clone,
+         FromSqlRow,
+         AsExpression,
+         PartialEq)]
 #[sql_type = "Text"]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
@@ -576,8 +581,8 @@ impl FromSql<Text, Pg> for BuilderPackageIdent {
 impl ToSql<Text, Pg> for BuilderPackageIdent {
     fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
-            .map(|_| IsNull::No)
-            .map_err(Into::into)
+           .map(|_| IsNull::No)
+           .map_err(Into::into)
     }
 }
 
@@ -594,20 +599,22 @@ impl BuilderPackageIdent {
 }
 
 impl Into<PackageIdent> for BuilderPackageIdent {
-    fn into(self) -> PackageIdent {
-        self.0
-    }
+    fn into(self) -> PackageIdent { self.0 }
 }
 
 impl Deref for BuilderPackageIdent {
     type Target = PackageIdent;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromSqlRow, AsExpression, PartialEq)]
+#[derive(Debug,
+         Serialize,
+         Deserialize,
+         Clone,
+         FromSqlRow,
+         AsExpression,
+         PartialEq)]
 #[sql_type = "Text"]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
@@ -627,17 +634,15 @@ impl FromSql<Text, Pg> for BuilderPackageTarget {
 impl ToSql<Text, Pg> for BuilderPackageTarget {
     fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
-            .map(|_| IsNull::No)
-            .map_err(Into::into)
+           .map(|_| IsNull::No)
+           .map_err(Into::into)
     }
 }
 
 impl Deref for BuilderPackageTarget {
     type Target = PackageTarget;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 impl FromArchive for NewPackage {
@@ -654,41 +659,36 @@ impl FromArchive for NewPackage {
             None => String::from(""),
         };
 
-        let exposes = archive
-            .exposes()?
-            .into_iter()
-            .map(i32::from)
-            .collect::<Vec<i32>>();
+        let exposes = archive.exposes()?
+                             .into_iter()
+                             .map(i32::from)
+                             .collect::<Vec<i32>>();
 
-        let deps = archive
-            .deps()?
-            .into_iter()
-            .map(BuilderPackageIdent)
-            .collect::<Vec<BuilderPackageIdent>>();
+        let deps = archive.deps()?
+                          .into_iter()
+                          .map(BuilderPackageIdent)
+                          .collect::<Vec<BuilderPackageIdent>>();
 
-        let tdeps = archive
-            .tdeps()?
-            .into_iter()
-            .map(BuilderPackageIdent)
-            .collect::<Vec<BuilderPackageIdent>>();
+        let tdeps = archive.tdeps()?
+                           .into_iter()
+                           .map(BuilderPackageIdent)
+                           .collect::<Vec<BuilderPackageIdent>>();
 
         // Some of the values here are made up because they are required in the db but not
         // necessarially requred for a valid package
-        Ok(NewPackage {
-            ident: ident.clone(),
-            ident_array: ident.clone().parts(),
-            origin: ident.origin().to_string(),
-            manifest: archive.manifest()?,
-            target: BuilderPackageTarget(archive.target()?),
-            deps,
-            tdeps,
-            exposes,
-            config,
-            checksum: archive.checksum()?,
-            name: ident.name.to_string(),
-            owner_id: 999_999_999_999,
-            visibility: PackageVisibility::Public,
-        })
+        Ok(NewPackage { ident: ident.clone(),
+                        ident_array: ident.clone().parts(),
+                        origin: ident.origin().to_string(),
+                        manifest: archive.manifest()?,
+                        target: BuilderPackageTarget(archive.target()?),
+                        deps,
+                        tdeps,
+                        exposes,
+                        config,
+                        checksum: archive.checksum()?,
+                        name: ident.name.to_string(),
+                        owner_id: 999_999_999_999,
+                        visibility: PackageVisibility::Public })
     }
 }
 
@@ -715,11 +715,10 @@ impl Into<OriginPackageVisibility> for PackageVisibility {
 
 impl Into<OriginPackage> for Package {
     fn into(self) -> OriginPackage {
-        let exposes = self
-            .exposes
-            .into_iter()
-            .map(|e| e as u32)
-            .collect::<Vec<u32>>();
+        let exposes = self.exposes
+                          .into_iter()
+                          .map(|e| e as u32)
+                          .collect::<Vec<u32>>();
 
         let mut op = OriginPackage::new();
         let ident = &*self.ident;
@@ -739,9 +738,7 @@ impl Into<OriginPackage> for Package {
 }
 
 impl Into<OriginPackageIdent> for BuilderPackageIdent {
-    fn into(self) -> OriginPackageIdent {
-        self.0.into()
-    }
+    fn into(self) -> OriginPackageIdent { self.0.into() }
 }
 
 fn into_idents(column: Vec<BuilderPackageIdent>) -> protobuf::RepeatedField<OriginPackageIdent> {
@@ -757,26 +754,22 @@ impl Into<PackageIdentWithChannelPlatform> for PackageWithChannelPlatform {
         let mut platforms = self.platforms.clone();
         platforms.dedup();
 
-        PackageIdentWithChannelPlatform {
-            origin: self.ident.origin.clone(),
-            name: self.ident.name.clone(),
-            version: self.ident.version.clone(),
-            release: self.ident.release.clone(),
-            channels: self.channels,
-            platforms,
-        }
+        PackageIdentWithChannelPlatform { origin: self.ident.origin.clone(),
+                                          name: self.ident.name.clone(),
+                                          version: self.ident.version.clone(),
+                                          release: self.ident.release.clone(),
+                                          channels: self.channels,
+                                          platforms }
     }
 }
 
 impl Into<PackageIdentWithChannelPlatform> for BuilderPackageIdent {
     fn into(self) -> PackageIdentWithChannelPlatform {
-        PackageIdentWithChannelPlatform {
-            origin: self.origin.clone(),
-            name: self.name.clone(),
-            version: self.version.clone(),
-            release: self.release.clone(),
-            channels: Vec::new(),
-            platforms: Vec::new(),
-        }
+        PackageIdentWithChannelPlatform { origin:    self.origin.clone(),
+                                          name:      self.name.clone(),
+                                          version:   self.version.clone(),
+                                          release:   self.release.clone(),
+                                          channels:  Vec::new(),
+                                          platforms: Vec::new(), }
     }
 }

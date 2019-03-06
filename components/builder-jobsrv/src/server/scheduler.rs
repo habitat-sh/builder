@@ -12,31 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::path::Path;
-use std::str::FromStr;
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
+use std::{collections::HashMap,
+          path::Path,
+          str::FromStr,
+          sync::mpsc,
+          thread::{self,
+                   JoinHandle}};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime,
+             Utc};
 use diesel;
 use zmq;
 
-use crate::data_store::DataStore;
-use crate::db::DbPool;
-use crate::error::{Error, Result};
-use crate::protocol::jobsrv;
+use crate::{data_store::DataStore,
+            db::DbPool,
+            error::{Error,
+                    Result},
+            protocol::jobsrv};
 
-use crate::db::models::jobs::*;
-use crate::db::models::projects::*;
+use crate::db::models::{jobs::*,
+                        projects::*};
 
-use crate::bldr_core::logger::Logger;
-use crate::bldr_core::metrics::{CounterMetric, GaugeMetric, HistogramMetric};
-use crate::bldr_core::socket::DEFAULT_CONTEXT;
-use crate::hab_core::package::{target, PackageTarget};
+use crate::{bldr_core::{logger::Logger,
+                        metrics::{CounterMetric,
+                                  GaugeMetric,
+                                  HistogramMetric},
+                        socket::DEFAULT_CONTEXT},
+            hab_core::package::{target,
+                                PackageTarget}};
 
-use super::metrics::{Counter, Gauge, Histogram};
-use super::worker_manager::WorkerMgrClient;
+use super::{metrics::{Counter,
+                      Gauge,
+                      Histogram},
+            worker_manager::WorkerMgrClient};
 
 const SCHEDULER_ADDR: &str = "inproc://scheduler";
 const SOCKET_TIMEOUT_MS: i64 = 60_000;
@@ -66,19 +74,18 @@ impl Default for ScheduleClient {
 }
 
 pub struct ScheduleMgr {
-    datastore: DataStore,
-    db: DbPool,
-    logger: Logger,
-    msg: zmq::Message,
+    datastore:    DataStore,
+    db:           DbPool,
+    logger:       Logger,
+    msg:          zmq::Message,
     schedule_cli: ScheduleClient,
-    socket: zmq::Socket,
-    worker_mgr: WorkerMgrClient,
+    socket:       zmq::Socket,
+    worker_mgr:   WorkerMgrClient,
 }
 
 impl ScheduleMgr {
     pub fn new<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Self
-    where
-        T: AsRef<Path>,
+        where T: AsRef<Path>
     {
         let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
 
@@ -88,29 +95,25 @@ impl ScheduleMgr {
         let mut worker_mgr = WorkerMgrClient::default();
         worker_mgr.connect().unwrap();
 
-        ScheduleMgr {
-            datastore: datastore.clone(),
-            db,
-            logger: Logger::init(log_path, "builder-scheduler.log"),
-            msg: zmq::Message::new().unwrap(),
-            schedule_cli,
-            socket,
-            worker_mgr,
-        }
+        ScheduleMgr { datastore: datastore.clone(),
+                      db,
+                      logger: Logger::init(log_path, "builder-scheduler.log"),
+                      msg: zmq::Message::new().unwrap(),
+                      schedule_cli,
+                      socket,
+                      worker_mgr }
     }
 
     pub fn start<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Result<JoinHandle<()>>
-    where
-        T: AsRef<Path>,
+        where T: AsRef<Path>
     {
         let (tx, rx) = mpsc::sync_channel(1);
         let mut schedule_mgr = Self::new(datastore, db, log_path);
-        let handle = thread::Builder::new()
-            .name("scheduler".to_string())
-            .spawn(move || {
-                schedule_mgr.run(&tx).unwrap();
-            })
-            .unwrap();
+        let handle = thread::Builder::new().name("scheduler".to_string())
+                                           .spawn(move || {
+                                               schedule_mgr.run(&tx).unwrap();
+                                           })
+                                           .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("scheduler thread startup error, err={}", e),
@@ -183,14 +186,11 @@ impl ScheduleMgr {
         for group in groups.iter() {
             assert!(group.get_state() == jobsrv::JobGroupState::GroupQueued);
 
-            if !self
-                .datastore
-                .is_job_group_active(group.get_project_name())?
+            if !self.datastore
+                    .is_job_group_active(group.get_project_name())?
             {
-                debug!(
-                    "Setting group {} from queued to pending",
-                    group.get_project_name()
-                );
+                debug!("Setting group {} from queued to pending",
+                       group.get_project_name());
                 self.datastore
                     .set_job_group_state(group.get_id(), jobsrv::JobGroupState::GroupPending)?;
             }
@@ -237,49 +237,48 @@ impl ScheduleMgr {
             assert!(project.get_state() == jobsrv::JobGroupProjectState::NotStarted);
 
             match self.schedule_job(group.get_id(), project.get_name(), group.get_target()) {
-                Ok(job_opt) => match job_opt {
-                    Some(job) => self.datastore.set_job_group_job_state(&job).unwrap(),
-                    None => {
-                        debug!("Skipping project: {:?}", project.get_name());
-                        self.datastore.set_job_group_project_state(
+                Ok(job_opt) => {
+                    match job_opt {
+                        Some(job) => self.datastore.set_job_group_job_state(&job).unwrap(),
+                        None => {
+                            debug!("Skipping project: {:?}", project.get_name());
+                            self.datastore.set_job_group_project_state(
                             group.get_id(),
                             project.get_name(),
                             jobsrv::JobGroupProjectState::Skipped,
                         )?;
 
-                        let skip_list = match self.skip_projects(&group, project.get_name()) {
-                            Ok(v) => v,
-                            Err(e) => {
-                                self.log_error(&format!(
-                                    "Error skipping projects for {:?} (group: {}): {:?}",
-                                    project.get_name(),
-                                    group.get_id(),
-                                    e
-                                ));
-                                return Err(e);
+                            let skip_list = match self.skip_projects(&group, project.get_name()) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    self.log_error(&format!("Error skipping projects for {:?} \
+                                                             (group: {}): {:?}",
+                                                            project.get_name(),
+                                                            group.get_id(),
+                                                            e));
+                                    return Err(e);
+                                }
+                            };
+                            for name in skip_list {
+                                skipped.insert(name, true);
                             }
-                        };
-                        for name in skip_list {
-                            skipped.insert(name, true);
                         }
                     }
-                },
+                }
                 Err(err) => {
-                    self.log_error(&format!(
-                        "Failed to schedule job for {} (group: {}), err: {:?}",
-                        project.get_name(),
-                        group.get_id(),
-                        err
-                    ));
+                    self.log_error(&format!("Failed to schedule job for {} (group: {}), err: \
+                                             {:?}",
+                                            project.get_name(),
+                                            group.get_id(),
+                                            err));
 
                     // TODO: Is this the right thing to do?
                     self.datastore
                         .set_job_group_state(group.get_id(), jobsrv::JobGroupState::GroupFailed)?;
-                    self.datastore.set_job_group_project_state(
-                        group.get_id(),
-                        project.get_name(),
-                        jobsrv::JobGroupProjectState::Failure,
-                    )?;
+                    self.datastore
+                        .set_job_group_project_state(group.get_id(),
+                                                     project.get_name(),
+                                                     jobsrv::JobGroupProjectState::Failure)?;
 
                     // TODO: Make this cleaner later
                     let mut updated_group = group.clone();
@@ -293,15 +292,13 @@ impl ScheduleMgr {
         Ok(())
     }
 
-    fn dispatchable_projects(
-        &mut self,
-        group: &jobsrv::JobGroup,
-    ) -> Result<Vec<jobsrv::JobGroupProject>> {
+    fn dispatchable_projects(&mut self,
+                             group: &jobsrv::JobGroup)
+                             -> Result<Vec<jobsrv::JobGroupProject>> {
         let mut projects = Vec::new();
-        for project in group
-            .get_projects()
-            .iter()
-            .filter(|x| x.get_state() == jobsrv::JobGroupProjectState::NotStarted)
+        for project in group.get_projects()
+                            .iter()
+                            .filter(|x| x.get_state() == jobsrv::JobGroupProjectState::NotStarted)
         {
             // Check the deps for the project. If we don't find any dep that
             // is in our project list and needs to be built, we can dispatch the project.
@@ -326,18 +323,16 @@ impl ScheduleMgr {
                 projects.push(project.clone());
             }
         }
-        debug!(
-            "Found {} dispatchable projects for group {}",
-            projects.len(),
-            group.get_id()
-        );
+        debug!("Found {} dispatchable projects for group {}",
+               projects.len(),
+               group.get_id());
         Ok(projects)
     }
 
     fn check_dispatchable(&mut self, group: &jobsrv::JobGroup, name: &str) -> bool {
         for project in group.get_projects() {
             if (project.get_name() == name)
-                && (project.get_state() != jobsrv::JobGroupProjectState::Success)
+               && (project.get_state() != jobsrv::JobGroupProjectState::Success)
             {
                 return false;
             }
@@ -345,29 +340,25 @@ impl ScheduleMgr {
         true
     }
 
-    fn skip_projects(
-        &mut self,
-        group: &jobsrv::JobGroup,
-        project_name: &str,
-    ) -> Result<Vec<String>> {
+    fn skip_projects(&mut self,
+                     group: &jobsrv::JobGroup,
+                     project_name: &str)
+                     -> Result<Vec<String>> {
         let mut skipped = HashMap::new();
         skipped.insert(project_name.to_string(), true);
 
-        for project in group
-            .get_projects()
-            .iter()
-            .filter(|x| x.get_state() == jobsrv::JobGroupProjectState::NotStarted)
+        for project in group.get_projects()
+                            .iter()
+                            .filter(|x| x.get_state() == jobsrv::JobGroupProjectState::NotStarted)
         {
             // Check the deps for the project. If we find any dep that is in the
             // skipped list, we set the project status to Skipped and add it to the list
             let package = match self.datastore.get_job_graph_package(&project.get_ident()) {
                 Ok(package) => package,
                 Err(err) => {
-                    warn!(
-                        "Unable to retrieve job graph package {}, err: {:?}",
-                        project.get_ident(),
-                        err
-                    );
+                    warn!("Unable to retrieve job graph package {}, err: {:?}",
+                          project.get_ident(),
+                          err);
                     continue;
                 }
             };
@@ -378,11 +369,10 @@ impl ScheduleMgr {
 
                 if skipped.contains_key(&name) {
                     debug!("Skipping project {:?}", project.get_name());
-                    self.datastore.set_job_group_project_state(
-                        group.get_id(),
-                        project.get_name(),
-                        jobsrv::JobGroupProjectState::Skipped,
-                    )?;
+                    self.datastore
+                        .set_job_group_project_state(group.get_id(),
+                                                     project.get_name(),
+                                                     jobsrv::JobGroupProjectState::Skipped)?;
                     skipped.insert(project.get_name().to_string(), true);
                     break;
                 }
@@ -392,12 +382,11 @@ impl ScheduleMgr {
         Ok(skipped.keys().map(|s| s.to_string()).collect())
     }
 
-    fn schedule_job(
-        &mut self,
-        group_id: u64,
-        project_name: &str,
-        target: &str,
-    ) -> Result<Option<jobsrv::Job>> {
+    fn schedule_job(&mut self,
+                    group_id: u64,
+                    project_name: &str,
+                    target: &str)
+                    -> Result<Option<jobsrv::Job>> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
         let project = match Project::get(&project_name, &*conn) {
@@ -408,10 +397,9 @@ impl ScheduleMgr {
                 return Ok(None);
             }
             Err(err) => {
-                self.log_error(&format!(
-                    "Unable to retrieve project: {:?} (group: {}), error: {:?}",
-                    project_name, group_id, err
-                ));
+                self.log_error(&format!("Unable to retrieve project: {:?} (group: {}), error: \
+                                         {:?}",
+                                        project_name, group_id, err));
                 return Ok(None);
             }
         };
@@ -442,15 +430,15 @@ impl ScheduleMgr {
         msg.set_include_projects(true);
 
         match self.datastore.get_job_group(&msg) {
-            Ok(group_opt) => match group_opt {
-                Some(group) => Ok(group),
-                None => Err(Error::UnknownJobGroup),
-            },
+            Ok(group_opt) => {
+                match group_opt {
+                    Some(group) => Ok(group),
+                    None => Err(Error::UnknownJobGroup),
+                }
+            }
             Err(err) => {
-                self.log_error(&format!(
-                    "Failed to get group {} from datastore: {:?}",
-                    group_id, err
-                ));
+                self.log_error(&format!("Failed to get group {} from datastore: {:?}",
+                                        group_id, err));
                 Err(err)
             }
         }
@@ -491,10 +479,9 @@ impl ScheduleMgr {
 
                     let build_started_at =
                         job.get_build_started_at().parse::<DateTime<Utc>>().unwrap();
-                    let build_finished_at = job
-                        .get_build_finished_at()
-                        .parse::<DateTime<Utc>>()
-                        .unwrap();
+                    let build_finished_at = job.get_build_finished_at()
+                                               .parse::<DateTime<Utc>>()
+                                               .unwrap();
 
                     let build_duration = build_finished_at - build_started_at;
                     Histogram::JobCompletionTime(target).set(build_duration.num_seconds() as f64);
@@ -509,12 +496,11 @@ impl ScheduleMgr {
                         match self.skip_projects(&group, job.get_project().get_name()) {
                             Ok(_) => (),
                             Err(e) => {
-                                self.log_error(&format!(
-                                    "Error skipping projects for {:?} (group: {}): {:?}",
-                                    job.get_project().get_name(),
-                                    job.get_owner_id(),
-                                    e
-                                ));
+                                self.log_error(&format!("Error skipping projects for {:?} \
+                                                         (group: {}): {:?}",
+                                                        job.get_project().get_name(),
+                                                        job.get_owner_id(),
+                                                        e));
                             }
                         };
                     }
@@ -537,12 +523,12 @@ impl ScheduleMgr {
                     // Unset the sync state
                     self.datastore.set_job_sync(job.get_id())?;
                 }
-                Err(err) => self.log_error(&format!(
-                    "Failed to update job state for {} (group: {}): {:?}",
-                    job.get_project().get_name(),
-                    job.get_owner_id(),
-                    err
-                )),
+                Err(err) => {
+                    self.log_error(&format!("Failed to update job state for {} (group: {}): {:?}",
+                                            job.get_project().get_name(),
+                                            job.get_owner_id(),
+                                            err))
+                }
             }
         }
 
@@ -604,11 +590,9 @@ impl ScheduleMgr {
                 self.logger.log_group(&updated_group);
             }
         } else {
-            debug!(
-                "Skipping group update because state is {:?} for group id: {}",
-                group.get_state(),
-                group_id
-            );
+            debug!("Skipping group update because state is {:?} for group id: {}",
+                   group.get_state(),
+                   group_id);
         }
 
         Ok(())
