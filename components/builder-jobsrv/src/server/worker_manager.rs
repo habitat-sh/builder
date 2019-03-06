@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{path::PathBuf,
+use std::{collections::HashSet,
+          path::PathBuf,
           str::{from_utf8,
                 FromStr},
           sync::mpsc,
@@ -161,6 +162,7 @@ pub struct WorkerMgr {
     worker_heartbeat: String,
     schedule_cli:     ScheduleClient,
     job_timeout:      u64,
+    build_targets:    HashSet<PackageTarget>,
 }
 
 impl WorkerMgr {
@@ -185,7 +187,8 @@ impl WorkerMgr {
                     worker_command: cfg.net.worker_command_addr(),
                     worker_heartbeat: cfg.net.worker_heartbeat_addr(),
                     schedule_cli,
-                    job_timeout: cfg.job_timeout }
+                    job_timeout: cfg.job_timeout,
+                    build_targets: cfg.build_targets.clone() }
     }
 
     pub fn start(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<JoinHandle<()>> {
@@ -280,16 +283,20 @@ impl WorkerMgr {
                 }
 
                 for target in PackageTarget::supported_targets() {
-                    if let Err(err) = self.process_work(*target) {
-                        warn!("Worker-manager unable to process work: err {:?}", err);
+                    if self.build_targets.contains(&target) {
+                        if let Err(err) = self.process_work(*target) {
+                            warn!("Worker-manager unable to process work: err {:?}", err);
+                        }
                     }
                 }
                 last_processed = now;
             }
 
             for target in PackageTarget::supported_targets() {
-                if let Err(err) = self.process_metrics(*target) {
-                    warn!("Worker-manager unable to process metrics: err {:?}", err);
+                if self.build_targets.contains(target) {
+                    if let Err(err) = self.process_metrics(*target) {
+                        warn!("Worker-manager unable to process metrics: err {:?}", err);
+                    }
                 }
             }
         }

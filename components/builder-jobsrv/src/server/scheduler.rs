@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap,
-          path::Path,
+use std::{collections::{HashMap,
+                        HashSet},
           str::FromStr,
           sync::mpsc,
           thread::{self,
@@ -24,7 +24,8 @@ use chrono::{DateTime,
 use diesel;
 use zmq;
 
-use crate::{data_store::DataStore,
+use crate::{config::Config,
+            data_store::DataStore,
             db::DbPool,
             error::{Error,
                     Result},
@@ -74,19 +75,18 @@ impl Default for ScheduleClient {
 }
 
 pub struct ScheduleMgr {
-    datastore:    DataStore,
-    db:           DbPool,
-    logger:       Logger,
-    msg:          zmq::Message,
-    schedule_cli: ScheduleClient,
-    socket:       zmq::Socket,
-    worker_mgr:   WorkerMgrClient,
+    datastore:     DataStore,
+    db:            DbPool,
+    logger:        Logger,
+    msg:           zmq::Message,
+    schedule_cli:  ScheduleClient,
+    socket:        zmq::Socket,
+    worker_mgr:    WorkerMgrClient,
+    build_targets: HashSet<PackageTarget>,
 }
 
 impl ScheduleMgr {
-    pub fn new<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Self
-        where T: AsRef<Path>
-    {
+    pub fn new(cfg: &Config, datastore: &DataStore, db: DbPool) -> Self {
         let socket = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
 
         let mut schedule_cli = ScheduleClient::default();
@@ -97,18 +97,17 @@ impl ScheduleMgr {
 
         ScheduleMgr { datastore: datastore.clone(),
                       db,
-                      logger: Logger::init(log_path, "builder-scheduler.log"),
+                      logger: Logger::init(cfg.log_path.clone(), "builder-scheduler.log"),
                       msg: zmq::Message::new().unwrap(),
                       schedule_cli,
                       socket,
-                      worker_mgr }
+                      worker_mgr,
+                      build_targets: cfg.build_targets.clone() }
     }
 
-    pub fn start<T>(datastore: &DataStore, db: DbPool, log_path: T) -> Result<JoinHandle<()>>
-        where T: AsRef<Path>
-    {
+    pub fn start(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(1);
-        let mut schedule_mgr = Self::new(datastore, db, log_path);
+        let mut schedule_mgr = Self::new(cfg, datastore, db);
         let handle = thread::Builder::new().name("scheduler".to_string())
                                            .spawn(move || {
                                                schedule_mgr.run(&tx).unwrap();
@@ -138,21 +137,23 @@ impl ScheduleMgr {
             }
 
             for target in PackageTarget::supported_targets() {
-                if let Err(err) = self.process_metrics(*target) {
-                    warn!("Scheduler unable to process metrics: err {:?}", err);
+                if self.build_targets.contains(target) {
+                    if let Err(err) = self.process_metrics(*target) {
+                        warn!("Scheduler unable to process metrics: err {:?}", err);
+                    }
+
+                    if let Err(err) = self.process_status(*target) {
+                        warn!("Scheduler unable to process status: err {:?}", err);
+                    }
+
+                    if let Err(err) = self.process_queue(*target) {
+                        warn!("Scheduler unable to process queue: err {:?}", err);
+                    }
+
+                    if let Err(err) = self.process_work(*target) {
+                        warn!("Scheduler unable to process work: err {:?}", err);
+                    }
                 }
-            }
-
-            if let Err(err) = self.process_status() {
-                warn!("Scheduler unable to process status: err {:?}", err);
-            }
-
-            if let Err(err) = self.process_queue() {
-                warn!("Scheduler unable to process queue: err {:?}", err);
-            }
-
-            if let Err(err) = self.process_work() {
-                warn!("Scheduler unable to process work: err {:?}", err);
             }
 
             if socket {
@@ -180,7 +181,7 @@ impl ScheduleMgr {
         Ok(())
     }
 
-    fn process_queue(&mut self) -> Result<()> {
+    fn process_queue(&mut self, _target: PackageTarget) -> Result<()> {
         let groups = self.datastore.get_queued_job_groups()?;
 
         for group in groups.iter() {
@@ -199,29 +200,35 @@ impl ScheduleMgr {
         Ok(())
     }
 
-    fn process_work(&mut self) -> Result<()> {
+    fn process_work(&mut self, target: PackageTarget) -> Result<()> {
+        let conn = self.db.get_conn().map_err(Error::Db)?;
+
         loop {
-            // Take one group from the pending list
-            let mut groups = self.datastore.pending_job_groups(1)?;
+            // Take oldest group from the pending list
+            let group = match Group::get_pending(target, &*conn) {
+                Ok(group) => self.get_group(group.id as u64)?,
+                Err(diesel::result::Error::NotFound) => break,
+                Err(err) => {
+                    debug!("Failed to get pending group, err = {:?}", err);
+                    return Err(Error::DieselError(err));
+                }
+            };
 
-            // 0 means there are no pending groups, so we should consume our notice that we have
-            // work
-            if groups.is_empty() {
-                break;
-            }
+            debug!("Found pending group {:?} for target {}", group, target);
 
-            // This unwrap is fine, because we just checked our length
-            let group = groups.pop().unwrap();
-            assert!(group.get_state() == jobsrv::JobGroupState::GroupDispatching);
+            assert!(group.get_state() == jobsrv::JobGroupState::GroupPending);
             self.dispatch_group(&group)?;
             self.update_group_state(group.get_id())?;
         }
+
         Ok(())
     }
 
     fn dispatch_group(&mut self, group: &jobsrv::JobGroup) -> Result<()> {
         debug!("Dispatching group {}", group.get_id());
         self.logger.log_group(&group);
+        self.datastore
+            .set_job_group_state(group.get_id(), jobsrv::JobGroupState::GroupDispatching)?;
 
         let mut skipped = HashMap::new();
         let dispatchable = self.dispatchable_projects(&group)?;
@@ -444,10 +451,12 @@ impl ScheduleMgr {
         }
     }
 
-    fn process_status(&mut self) -> Result<()> {
+    fn process_status(&mut self, _target: PackageTarget) -> Result<()> {
         // Get a list of jobs with un-sync'd status
         let jobs = self.datastore.sync_jobs()?;
-        debug!("Process status: found {} updated jobs", jobs.len());
+        if !jobs.is_empty() {
+            debug!("Process status: found {} updated jobs", jobs.len());
+        }
 
         for job in jobs {
             debug!("Syncing job status: job={:?}", job);
