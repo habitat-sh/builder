@@ -33,7 +33,7 @@ matrix:
 
 #
 # Job for testing Builder Rust binaries
-# This runs lint and cargo unit tests
+# This runs cargo unit tests
 #
     - language: rust
       env:
@@ -71,12 +71,11 @@ matrix:
         - ./support/ci/compile_zmq.sh
         - source ./support/ci/rust_env.sh
       script:
-        - ./support/ci/rustfmt.sh
         - ./support/ci/rust_tests.sh
 
 #
 # Job for testing Builder Rust libraries
-# This runs lint and cargo unit tests
+# This runs cargo unit tests
 #
     - language: rust
       env:
@@ -112,11 +111,10 @@ matrix:
         - ./support/ci/compile_zmq.sh
         - source ./support/ci/rust_env.sh
       script:
-        - ./support/ci/rustfmt.sh
         - ./support/ci/rust_tests.sh
 
 #
-# Job for linting with clippy
+# Job for linting with clippy and running rustfmt
 #
     - language: rust
       env:
@@ -152,12 +150,18 @@ matrix:
         - ./support/ci/compile_libarchive.sh
         - ./support/ci/compile_zmq.sh
         - source ./support/ci/rust_env.sh
+        # We need to build habitat-builder-protocol first, otherwise rustfmt
+        # barfs when it encounters
+        # components/builder-protocol/src/message/mod.rs which references
+        # modules that don't exist yet.
+        - cargo build --package habitat-builder-protocol
       script:
+        - ./support/ci/rustfmt.sh
         - cargo clippy -- -D warnings
 
 #
 # Job for testing Builder Rust services
-# This runs lint and studio-based end-to-end-tests
+# This runs studio-based end-to-end-tests
 # Cargo unit tests are NOT run
 #
     - language: rust
@@ -182,7 +186,6 @@ matrix:
         - ./support/ci/install_hab.sh
         - openssl aes-256-cbc -K $encrypted_builder_github_app_pem_key -iv $encrypted_builder_github_app_pem_iv -in ./support/ci/builder-github-app.pem.enc -out /tmp/builder-github-app.pem -d
       script:
-        - ./support/ci/rustfmt.sh
         - ./test/builder-api/test.sh
 
 # Web Jobs
