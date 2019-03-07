@@ -42,6 +42,8 @@ use crate::bldr_core::{self,
                        logger::Logger,
                        socket::DEFAULT_CONTEXT};
 
+use crate::hab_core::env;
+
 #[cfg(not(windows))]
 use crate::hab_core::os::users;
 use crate::hab_core::package::{archive::PackageArchive,
@@ -82,6 +84,10 @@ const NONINTERACTIVE_ENVVAR: &str = "HAB_NONINTERACTIVE";
 
 /// Environment variable to enable or disable debug output in runner's studio
 const RUNNER_DEBUG_ENVVAR: &str = "BUILDER_RUNNER_DEBUG";
+
+/// Environment variable to disable workspace teardown
+const RUNNER_NO_TEARDOWN: &str = "BUILDER_RUNNER_NO_TEARDOWN";
+
 /// Environment variable to enable or disable dev mode.
 const DEV_MODE: &str = "DEV_MODE";
 /// In-memory zmq address of Job RunnerMgr
@@ -400,12 +406,15 @@ impl Runner {
     }
 
     fn install_origin_secret_key(&mut self) -> Result<()> {
+        debug!("Installing origin secret key for {} to {:?}",
+               self.job().origin(),
+               self.workspace.key_path());
         match retry(RETRIES,
                     RETRY_WAIT,
                     || {
                         self.depot_cli.fetch_origin_secret_key(self.job().origin(),
                                                                &self.bldr_token,
-                                                               key_path())
+                                                               self.workspace.key_path())
                     },
                     |res| {
                         if res.is_err() {
@@ -556,12 +565,18 @@ impl Runner {
         self.logger.log_worker_job(&self.workspace.job);
 
         if self.workspace.src().exists() {
+            debug!("Workspace src exists, removing: {:?}",
+                   self.workspace.src().display());
+
             if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
                 warn!("Failed to delete directory during setup, dir={}, err={:?}",
                       self.workspace.src().display(),
                       err)
             }
         }
+
+        debug!("Creating workspace src directory: {}",
+               self.workspace.src().display());
         if let Some(err) = fs::create_dir_all(self.workspace.src()).err() {
             return Err(Error::WorkspaceSetup(format!("{}",
                                                      self.workspace
@@ -570,8 +585,14 @@ impl Runner {
                                              err));
         }
 
-        if let Some(err) = fs::create_dir_all(key_path()).err() {
-            return Err(Error::WorkspaceSetup(format!("{}", key_path().display()), err));
+        debug!("Creating workspace keys directory: {}",
+               self.workspace.key_path().display());
+        if let Some(err) = fs::create_dir_all(self.workspace.key_path()).err() {
+            return Err(Error::WorkspaceSetup(format!("{}",
+                                                     self.workspace
+                                                         .key_path()
+                                                         .display()),
+                                             err));
         }
 
         Ok(JobStreamer::new(&self.workspace))
@@ -594,12 +615,19 @@ impl Runner {
         }
 
         if self.workspace.src().exists() {
+            debug!("Workspace src exists, removing: {:?}",
+                   self.workspace.src().display());
+
             if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
                 warn!("Failed to delete directory during setup, dir={}, err={:?}",
                       self.workspace.src().display(),
                       err)
             }
         }
+
+        debug!("Creating workspace src directory: {:?}",
+               self.workspace.src().display());
+
         if let Some(err) = fs::create_dir_all(self.workspace.src()).err() {
             return Err(Error::WorkspaceSetup(format!("{}",
                                                      self.workspace
@@ -613,8 +641,14 @@ impl Runner {
             posix_perm::set_owner(self.workspace.src(), STUDIO_USER, STUDIO_GROUP)?;
         }
 
+        debug!("Creating workspace keys directory: {}",
+               self.workspace.key_path().display());
         if let Some(err) = fs::create_dir_all(key_path()).err() {
-            return Err(Error::WorkspaceSetup(format!("{}", key_path().display()), err));
+            return Err(Error::WorkspaceSetup(format!("{}",
+                                                     self.workspace
+                                                         .key_path()
+                                                         .display()),
+                                             err));
         }
         util::chown_recursive((&*studio::STUDIO_HOME).lock().unwrap().join(".hab"),
                               studio::studio_uid(),
@@ -624,17 +658,29 @@ impl Runner {
     }
 
     fn teardown(&mut self) {
-        if let Some(err) = fs::remove_dir_all(self.workspace.studio()).err() {
-            warn!("Failed to remove studio dir {}, err: {:?}",
-                  self.workspace.studio().display(),
-                  err);
+        if let Some(_val) = env::var_os(RUNNER_NO_TEARDOWN) {
+            debug!("RUNNER_DEBUG_ENVVAR ({}) is set - skipping teardown",
+                   RUNNER_NO_TEARDOWN);
+        } else {
+            debug!("Tearing down workspace: {}",
+                   self.workspace.root().display());
+
+            if let Some(err) = fs::remove_dir_all(self.workspace.studio()).err() {
+                warn!("Failed to remove studio dir {}, err: {:?}",
+                      self.workspace.studio().display(),
+                      err);
+            }
+            if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
+                warn!("Failed to remove studio dir {}, err: {:?}",
+                      self.workspace.src().display(),
+                      err);
+            }
+            if let Some(err) = fs::remove_dir_all(self.workspace.key_path()).err() {
+                warn!("Failed to remove studio dir {}, err: {:?}",
+                      self.workspace.src().display(),
+                      err);
+            }
         }
-        if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
-            warn!("Failed to remove studio dir {}, err: {:?}",
-                  self.workspace.src().display(),
-                  err);
-        }
-        // TODO fn: purge the secret origin key from worker
     }
 
     /// Determines whether or not there is a Docker integration for the job.

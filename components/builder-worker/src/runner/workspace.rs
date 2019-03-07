@@ -26,12 +26,13 @@ use crate::error::{Error,
                    Result};
 
 pub struct Workspace {
-    pub job: Job,
-    out:     PathBuf,
-    src:     PathBuf,
-    studio:  PathBuf,
-    ns_dir:  PathBuf,
-    root:    PathBuf,
+    pub job:  Job,
+    out:      PathBuf,
+    src:      PathBuf,
+    studio:   PathBuf,
+    key_path: PathBuf,
+    ns_dir:   PathBuf,
+    root:     PathBuf,
 }
 
 impl Workspace {
@@ -44,6 +45,7 @@ impl Workspace {
                     out: root.join("out"),
                     src: root.join("src"),
                     studio: root.join("studio"),
+                    key_path: root.join("keys"),
                     ns_dir: root.join("airlock-ns"),
                     root }
     }
@@ -82,6 +84,9 @@ impl Workspace {
 
     /// Directory containing the studio for the build
     pub fn studio(&self) -> &Path { &self.studio }
+
+    /// Directory containing the keys for the build
+    pub fn key_path(&self) -> &Path { &self.key_path }
 
     /// Directory containing the airlock namespace state for the build
     pub fn ns_dir(&self) -> &Path { &self.ns_dir }

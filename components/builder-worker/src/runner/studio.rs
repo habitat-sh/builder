@@ -38,6 +38,7 @@ use crate::{error::{Error,
             network::NetworkNamespace,
             runner::{job_streamer::JobStreamer,
                      workspace::Workspace,
+                     DEV_MODE,
                      NONINTERACTIVE_ENVVAR,
                      RUNNER_DEBUG_ENVVAR}};
 
@@ -136,9 +137,7 @@ impl<'a> Studio<'a> {
                     secret.get_decrypted_secret().get_value());
         }
 
-        if self.target == target::X86_64_LINUX_KERNEL2 {
-            cmd.env("HAB_ORIGIN", self.workspace.job.origin());
-        }
+        cmd.env("HAB_ORIGIN", self.workspace.job.origin());
 
         if cfg!(windows) {
             for var in WINDOWS_ENVVARS {
@@ -163,21 +162,28 @@ impl<'a> Studio<'a> {
         // generation of the build command is different for each
         // platform atm, but will eventually be simplified to be
         // a single workflow
+        let dev_mode = if let Some(_val) = env::var_os(DEV_MODE) {
+            debug!("RUNNER_DEBUG_ENVVAR ({}) is set - using non-Docker studio",
+                   DEV_MODE);
+            true
+        } else {
+            false
+        };
+
         match self.target {
-            target::X86_64_LINUX => {
-                cmd.arg("-k"); // Origin key
-                cmd.arg(self.workspace.job.origin());
-                cmd.arg("build");
-            }
-            target::X86_64_LINUX_KERNEL2 => {
+            target::X86_64_LINUX | target::X86_64_LINUX_KERNEL2 => {
                 cmd.arg("studio");
                 cmd.arg("build");
-                cmd.arg("-D"); // Use Docker studio
+                if !dev_mode {
+                    cmd.arg("-D"); // Use Docker studio
+                }
             }
             target::X86_64_WINDOWS => {
                 cmd.arg("studio");
                 cmd.arg("build");
-                cmd.arg("-D"); // Use Docker studio
+                if !dev_mode {
+                    cmd.arg("-D"); // Use Docker studio
+                }
                 cmd.arg("-R"); // Work around a bug so studio does not get removed
                                // Remove when we fix this (hab 0.75.0 or later)
                                // TODO (SA): Consider using Docker studio for Linux builds as well
@@ -246,37 +252,24 @@ impl<'a> Studio<'a> {
 
     #[cfg(not(windows))]
     fn studio_command_not_airlock(&self) -> Result<Command> {
-        let mut cmd = if self.target == target::X86_64_LINUX {
-            Command::new(&*STUDIO_PROGRAM)
-        } else {
-            Command::new(&*HAB_CLI) // Linux2 builder uses the hab cli instead of the
-                                    // explict STUDIO_PROGRAM path. This is required for
-                                    // use of Docker studio.
-                                    // TODO (SA): Consider the same change for Linux
-        };
+        let mut cmd = Command::new(&*HAB_CLI);
         cmd.env_clear();
 
-        debug!("HAB_CACHE_KEY_PATH: {:?}", key_path());
+        debug!("HAB_CACHE_KEY_PATH: {:?}", self.workspace.key_path());
         cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
-        cmd.env("HAB_CACHE_KEY_PATH", key_path()); // Sets key cache to build user's home
+        cmd.env("HAB_CACHE_KEY_PATH", self.workspace.key_path()); // Sets key cache to build user's home
 
-        info!("Airlock is not enabled, running uncontained Studio");
+        info!("Airlock is not enabled, using Docker Studio");
         Ok(cmd)
     }
 
     #[cfg(windows)]
     fn studio_command_not_airlock(&self) -> Result<Command> {
-        let mut cmd = Command::new(&*HAB_CLI); // Windows builder uses the hab cli instead of the
-                                               // explict STUDIO_PROGRAM path. This is required for
-                                               // use of Docker studio.
-                                               // TODO (SA): Consider the same change for Linux
+        let mut cmd = Command::new(&*HAB_CLI);
 
-        // Note - Windows builder does not clear the env
-        // TODO (SA): Consider the same change for Linux
-
-        debug!("HAB_CACHE_KEY_PATH: {:?}", key_path());
+        debug!("HAB_CACHE_KEY_PATH: {:?}", self.workspace.key_path());
         cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
-        cmd.env("HAB_CACHE_KEY_PATH", key_path()); // Sets key cache to build user's home
+        cmd.env("HAB_CACHE_KEY_PATH", self.workspace.key_path()); // Sets key cache to build user's home
 
         Ok(cmd)
     }
