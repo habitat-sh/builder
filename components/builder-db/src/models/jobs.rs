@@ -3,6 +3,7 @@ use chrono::prelude::*;
 use diesel::{dsl::count_star,
              pg::PgConnection,
              result::QueryResult,
+             BoolExpressionMethods,
              ExpressionMethods,
              QueryDsl,
              RunQueryDsl};
@@ -202,11 +203,30 @@ impl Group {
                      .get_result(conn)
     }
 
+    pub fn get_all_queued(target: PackageTarget, conn: &PgConnection) -> QueryResult<Vec<Group>> {
+        Counter::DBCall.increment();
+        groups::table.filter(groups::group_state.eq("Queued"))
+                     .filter(groups::target.eq(target.to_string()))
+                     .get_results(conn)
+    }
+
     pub fn get_pending(target: PackageTarget, conn: &PgConnection) -> QueryResult<Group> {
         Counter::DBCall.increment();
         groups::table.filter(groups::group_state.eq("Pending"))
                      .filter(groups::target.eq(target.to_string()))
                      .order(groups::created_at.asc())
+                     .get_result(conn)
+    }
+
+    pub fn get_active(project_name: &str,
+                      target: PackageTarget,
+                      conn: &PgConnection)
+                      -> QueryResult<Group> {
+        Counter::DBCall.increment();
+        groups::table.filter(groups::group_state.eq("Pending")
+                                                .or(groups::group_state.eq("Dispatching")))
+                     .filter(groups::target.eq(target.to_string()))
+                     .filter(groups::project_name.eq(project_name))
                      .get_result(conn)
     }
 }
