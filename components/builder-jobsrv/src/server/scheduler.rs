@@ -181,19 +181,28 @@ impl ScheduleMgr {
         Ok(())
     }
 
-    fn process_queue(&mut self, _target: PackageTarget) -> Result<()> {
-        let groups = self.datastore.get_queued_job_groups()?;
+    fn process_queue(&mut self, target: PackageTarget) -> Result<()> {
+        let conn = self.db.get_conn().map_err(Error::Db)?;
+        let groups = Group::get_all_queued(target, &*conn)?;
 
         for group in groups.iter() {
-            assert!(group.get_state() == jobsrv::JobGroupState::GroupQueued);
+            assert!(group.group_state == jobsrv::JobGroupState::GroupQueued.to_string());
 
-            if !self.datastore
-                    .is_job_group_active(group.get_project_name())?
-            {
-                debug!("Setting group {} from queued to pending",
-                       group.get_project_name());
-                self.datastore
-                    .set_job_group_state(group.get_id(), jobsrv::JobGroupState::GroupPending)?;
+            match Group::get_active(&group.project_name, target, &*conn) {
+                Ok(group) => {
+                    trace!("Found active project {} for target {}, skipping queued job",
+                           group.project_name,
+                           target);
+                }
+                Err(diesel::result::Error::NotFound) => {
+                    debug!("Setting group {} from queued to pending",
+                           group.project_name);
+                    self.datastore.set_job_group_state(group.id as u64,
+                                                        jobsrv::JobGroupState::GroupPending)?;
+                }
+                Err(err) => {
+                    debug!("Failed to get active group, err = {}", err);
+                }
             }
         }
 
