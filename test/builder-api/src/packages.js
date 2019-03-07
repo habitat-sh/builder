@@ -105,29 +105,29 @@ describe('Working with packages', function () {
     });
 
     it('uploads a windows package', function (done) {
-       request.post(`/depot/pkgs/neurosis/testapp/0.1.4/${release7}`)
-       .set('Authorization', global.boboBearer)
-       .set('Content-Length', file7.length)
-       .query({ checksum: '03d05a088fe6aeca482fe276adb4b08092fdc2c8df9e6d52ef5d78e731afbaa6' })
-       .send(file7)
-       .expect(201)
-       .end(function (err, res) {
-         expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.4/${release7}/download`);
-         done(err);
-       });
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.4/${release7}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file7.length)
+        .query({ checksum: '03d05a088fe6aeca482fe276adb4b08092fdc2c8df9e6d52ef5d78e731afbaa6' })
+        .send(file7)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.4/${release7}/download`);
+          done(err);
+        });
     });
 
     it('uploads a kernel2 package', function (done) {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release8}`)
-      .set('Authorization', global.boboBearer)
-      .set('Content-Length', file8.length)
-      .query({ checksum: 'bdae4812e37aa8d6d29eb5beae930c69334006e44edcbbbf75ec817c5e48ca2c' })
-      .send(file8)
-      .expect(201)
-      .end(function (err, res) {
-        expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.3/${release8}/download`);
-        done(err);
-      });
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file8.length)
+        .query({ checksum: 'bdae4812e37aa8d6d29eb5beae930c69334006e44edcbbbf75ec817c5e48ca2c' })
+        .send(file8)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.3/${release8}/download`);
+          done(err);
+        });
     });
 
     // Test weird versions
@@ -158,17 +158,28 @@ describe('Working with packages', function () {
         });
     });
   });
-      
+
+  describe('Downloading packages', function () {
+    it('fails for invalid target specified', function (done) {
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download?target=foo`)
+        .expect(422)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
   describe('Deleting origin after package exists', function () {
-      it('is not allowed', function (done) {
-        request.delete('/depot/origins/neurosis')
-          .set('Authorization', global.boboBearer)
-          .expect(422)
-          .end(function (err, res) {
-              expect(res.text).to.be.empty;
-              done(err)
-          });
-      });
+    it('is not allowed', function (done) {
+      request.delete('/depot/origins/neurosis')
+        .set('Authorization', global.boboBearer)
+        .expect(422)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err)
+        });
+    });
   });
 
 

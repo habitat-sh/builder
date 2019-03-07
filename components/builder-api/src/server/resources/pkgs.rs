@@ -325,7 +325,13 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
     let target = match qtarget.target {
         Some(ref t) => {
             debug!("Query requested target = {}", t);
-            PackageTarget::from_str(t).unwrap() // Unwrap Ok ?
+            match PackageTarget::from_str(t) {
+                Ok(t) => t,
+                Err(err) => {
+                    debug!("Invalid target requested: {}, err = {:?}", t, err);
+                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                }
+            }
         }
         None => helpers::target_from_headers(&req),
     };
