@@ -40,7 +40,7 @@
   # Add config to HabService.dll.config
   $svcPath = Join-Path $env:SystemDrive "hab\svc\windows-service"
   [xml]$configXml = Get-Content (Join-Path $svcPath HabService.dll.config)
-  $configXml.configuration.appSettings.add[2].value = "--no-color --peer ${peer}"
+  $configXml.configuration.appSettings.add[2].value = "${flags}"
   $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
   # Start service

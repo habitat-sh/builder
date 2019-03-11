@@ -685,7 +685,7 @@ data "template_file" "windows_worker_user_data" {
   vars {
     environment = "${var.env}"
     password    = "${var.admin_password}"
-    peer        = "${var.peers[0]}"
+    flags       = "--no-color --peer ${join(" ", var.peers)}"
     bldr_url    = "${var.bldr_url}"
     channel     = "${var.release_channel}"
   }
