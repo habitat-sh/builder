@@ -103,7 +103,7 @@ impl Pattern {
     pub fn matches<T>(&self, value: T) -> bool
         where T: AsRef<str>
     {
-        self.inner.matches_with(value.as_ref(), &self.options)
+        self.inner.matches_with(value.as_ref(), self.options)
     }
 }
 
