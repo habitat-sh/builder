@@ -415,27 +415,17 @@ resource "aws_instance" "worker" {
     destination = "/home/ubuntu/hab-sup.service"
   }
 
-  provisioner "file" {
-    content     = "${data.template_file.worker_user_toml.rendered}"
-    destination = "/tmp/worker.user.toml"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo mkdir -p /hab/svc/builder-worker",
-      "sudo mv /tmp/worker.user.toml /hab/svc/builder-worker/user.toml",
-    ]
-  }
-
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
       "sudo /tmp/install_base_packages.sh habitat/builder-worker",
-
+      "sudo iptables -I DOCKER-USER -p tcp -s 10.0.0.0/24 -j DROP",
+      "sudo iptables -I DOCKER-USER -p udp -s 10.0.0.0/24 -m multiport --sports 0:52,54:65535 -j DROP",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
+      "sleep 10",
       "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
@@ -574,60 +564,6 @@ resource "aws_instance" "windows-worker" {
     X-Environment = "${var.env}"
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
-  }
-}
-
-
-////////////////////////////////
-// Additional Networking
-
-resource "aws_network_interface" "worker_studio" {
-  subnet_id       = "${var.worker_studio_subnet_id}"
-  security_groups = ["${aws_security_group.worker_studio.id}"]
-  count           = "${aws_instance.worker.count}"
-
-  attachment {
-    instance     = "${aws_instance.worker.*.id[count.index]}"
-    device_index = 1
-  }
-}
-
-resource "null_resource" "worker_studio_network" {
-  count = "${aws_network_interface.worker_studio.count}"
-
-  triggers {
-    network_interface_id = "${element(aws_network_interface.worker_studio.*.id, count.index)}"
-  }
-
-  connection {
-    host        = "${element(aws_instance.worker.*.public_ip, count.index)}"
-    user        = "ubuntu"
-    private_key = "${file("${var.connection_private_key}")}"
-    agent       = "${var.connection_agent}"
-  }
-
-  provisioner "file" {
-    source = "${path.module}/files/51-studio-init.cfg"
-    destination = "/tmp/51-studio-init.cfg"
-  }
-
-  provisioner "remote-exec" {
-    // This sleep appears to be required. This provisioner runs and the network interface still
-    // hasn't been attached.
-    //
-    // TODO fn: This resouce will get deleted once the additional network interface is connected
-    // at instance boot time. Until then (and this is a kludge), we'll stop the Supervisor with all
-    // of its services (including `habitat/builder-worker`), ensure that any attempted airlock
-    // networking is not in place (via the `hab pkg exec` command), and finally restart the
-    // Supervisor once the host networking has completed.
-    inline = [
-      "sudo mv /tmp/51-studio-init.cfg /etc/network/interfaces.d/51-studio-init.cfg",
-      "sudo systemctl stop hab-sup",
-      "sudo hab pkg exec habitat/airlock airlock netns destroy --ns-dir /hab/svc/builder-worker/data/network/airlock-ns",
-      "sleep 60",
-      "sudo systemctl restart networking.service",
-      "sudo systemctl start hab-sup",
-    ]
   }
 }
 
