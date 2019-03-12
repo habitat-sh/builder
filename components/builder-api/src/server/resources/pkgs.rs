@@ -966,7 +966,7 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
     };
 
     // Re-create origin package as needed (eg, checksum update)
-    match Package::create(&package, &*conn).map_err(Error::DieselError) {
+    match Package::create(&package, &*conn) {
         Ok(pkg) => {
             if feat::is_enabled(feat::Jobsrv) {
                 let mut job_graph_package = jobsrv::JobGraphPackageCreate::new();
@@ -980,7 +980,13 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
                 }
             }
         }
-        Err(err) => return err.into(),
+        Err(NotFound) => {
+            debug!("Package::create returned NotFound (DB conflict handled)");
+        }
+        Err(err) => {
+            debug!("Failed to create package in DB, err: {:?}", err);
+            return Error::DieselError(err).into();
+        }
     }
 
     // Schedule re-build of dependent packages (if requested)
