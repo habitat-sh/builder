@@ -15,10 +15,8 @@
 #[cfg(windows)]
 use std::path::PathBuf;
 use std::{collections::HashMap,
-          fs,
           iter::FromIterator,
           panic,
-          path::Path,
           sync::Arc,
           thread,
           time::Duration};
@@ -27,24 +25,19 @@ use zmq;
 
 #[cfg(windows)]
 use crate::hab_core::env;
-#[cfg(not(windows))]
-use crate::hab_core::util::posix_perm;
+
 use crate::{bldr_core::{self,
                         socket::DEFAULT_CONTEXT},
-            hab_core::users,
             protocol::{jobsrv,
                        message}};
 
 use crate::{config::Config,
-            error::{Error,
-                    Result},
+            error::Result,
             feat,
             heartbeat::{HeartbeatCli,
                         HeartbeatMgr},
             log_forwarder::LogForwarder,
-            network::NetworkNamespace,
-            runner::{studio,
-                     RunnerCli,
+            runner::{RunnerCli,
                      RunnerMgr}};
 
 /// Interval for main thread to check cancel status
@@ -98,8 +91,6 @@ impl Server {
                             std::process::exit(1)
                         }));
 
-        init_users()?;
-        self.setup_networking()?;
         self.enable_features_from_config();
 
         HeartbeatMgr::start(&self.config, (&*self.net_ident).clone())?;
@@ -203,82 +194,6 @@ impl Server {
         Ok(())
     }
 
-    fn setup_networking(&self) -> Result<()> {
-        // Skip if networking details are not specified
-        if self.config.network_interface.is_none() && self.config.network_gateway.is_none() {
-            info!("airlock networking is not configured, skipping network creation");
-            return Ok(());
-        }
-        if self.config.network_interface.is_some() && self.config.network_gateway.is_none() {
-            error!("ERROR: No 'network_gateway' config value specfied when 'network_interface' \
-                    was provided. Both must be present to work correctly.");
-            return Err(Error::NoNetworkGatewayError);
-        }
-        if self.config.network_gateway.is_some() && self.config.network_interface.is_none() {
-            error!("ERROR: No 'network_interface' config value specfied when 'network_gateway' \
-                    was provided. Both must be present to work correctly.");
-            return Err(Error::NoNetworkInterfaceError);
-        }
-
-        let net_ns = NetworkNamespace::new(self.config.ns_dir_path());
-        if net_ns.exists() {
-            if self.config.recreate_ns_dir {
-                // If a network namespace appears to be setup and the recreate config is true, then
-                // we should destroy this namespace so it can be created again below
-                net_ns.destroy()?;
-            } else {
-                info!("reusing network namespace, dir={}",
-                      net_ns.ns_dir().display());
-                return Ok(());
-            }
-        }
-
-        let interface = self.config
-                            .network_interface
-                            .as_ref()
-                            .expect("network_interface is set");
-        let gateway = self.config
-                          .network_gateway
-                          .as_ref()
-                          .expect("network_gateway is set");
-        self.prepare_dirs()?;
-        net_ns.create(interface, gateway, studio::STUDIO_USER)
-    }
-
-    fn prepare_dirs(&self) -> Result<()> {
-        // Ensure that data path group ownership is set to the build user and directory perms are
-        // `0750`. This allows the namespace files to be accessed and read by the build user
-        if cfg!(not(windows)) {
-            set_owner(&self.config.data_path,
-                      users::get_current_username().unwrap_or_else(|| String::from("root"))
-                                                   .as_str(),
-                      studio::STUDIO_GROUP)?;
-            set_permissions(&self.config.data_path, 0o750)?;
-        } else {
-            unreachable!();
-        }
-
-        // Set parent directory of ns_dir to be owned by the build user so that the appropriate
-        // directories, files, and bind-mounts can be created for the build user
-        let parent_path = self.config.ns_dir_path();
-        let parent_path =
-            parent_path.parent()
-                       .expect("parent directory path segement for ns_dir should exist");
-        if !parent_path.is_dir() {
-            fs::create_dir_all(parent_path).map_err(|e| {
-                                               Error::CreateDirectory(parent_path.to_path_buf(), e)
-                                           })?;
-        }
-        if cfg!(not(windows)) {
-            set_owner(&parent_path, studio::STUDIO_USER, studio::STUDIO_GROUP)?;
-            set_permissions(&parent_path, 0o750)?;
-        } else {
-            unreachable!();
-        }
-
-        Ok(())
-    }
-
     fn enable_features_from_config(&self) {
         let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List)]);
         let features_enabled = self.config
@@ -300,47 +215,3 @@ impl Server {
 }
 
 pub fn run(config: Config) -> Result<()> { Server::new(config).run() }
-
-#[cfg(not(windows))]
-fn init_users() -> Result<()> {
-    let uid = users::get_uid_by_name(studio::STUDIO_USER).ok_or(Error::NoStudioUser)?;
-    let gid = users::get_gid_by_name(studio::STUDIO_GROUP).ok_or(Error::NoStudioGroup)?;
-    let mut home = studio::STUDIO_HOME.lock().unwrap();
-    *home = users::get_home_for_user(studio::STUDIO_USER).ok_or(Error::NoStudioGroup)?;
-    debug!("Setting STUDIO_HOME to {:?}", *home);
-    studio::set_studio_uid(uid);
-    studio::set_studio_gid(gid);
-    Ok(())
-}
-
-#[cfg(windows)]
-fn init_users() -> Result<()> {
-    let mut home = studio::STUDIO_HOME.lock().unwrap();
-    if let Some(val) = env::var_os("HOME") {
-        debug!("Setting STUDIO_HOME to {:?}", val);
-        *home = PathBuf::from(val);
-    } else {
-        debug!("HOME env var not found!");
-        debug!("Setting STUDIO_HOME to C:\\hab");
-        *home = PathBuf::from("C:\\hab");
-    }
-    Ok(())
-}
-
-#[cfg(not(windows))]
-pub fn set_owner<T: AsRef<Path>, X: AsRef<str>>(path: T, owner: X, group: X) -> Result<()> {
-    posix_perm::set_owner(path, owner, group).map_err(Error::HabitatCore)
-}
-
-#[cfg(windows)]
-pub fn set_owner<T: AsRef<Path>, X: AsRef<str>>(_path: T, _owner: X, _group: X) -> Result<()> {
-    Ok(())
-}
-
-#[cfg(not(windows))]
-pub fn set_permissions<T: AsRef<Path>>(path: T, mode: u32) -> Result<()> {
-    posix_perm::set_permissions(&path, mode).map_err(Error::HabitatCore)
-}
-
-#[cfg(windows)]
-pub fn set_permissions<T: AsRef<Path>>(_path: T, _mode: u32) -> Result<()> { Ok(()) }

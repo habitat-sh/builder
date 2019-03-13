@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(not(windows))]
-use std::path::Path;
-#[cfg(not(windows))]
-use std::process::Command;
-
 use serde_json::{self,
                  Value as JsonValue};
 
@@ -24,25 +19,6 @@ use crate::{error::{Error,
                     Result},
             runner::{docker::DockerExporterSpec,
                      workspace::Workspace}};
-
-// TODO fn: The horror... well, it's not that bad. There isn't a quick win for recursive chown'ing
-// a path, so we'll use the `chown` binary as provided by busybox and guarenteed by the Supervisor.
-// I'm wincing here right now, honest.
-#[cfg(not(windows))]
-pub fn chown_recursive<P: AsRef<Path>>(path: P, uid: u32, gid: u32) -> Result<()> {
-    let mut cmd = Command::new("chown");
-    cmd.arg("-R"); // Recursively apply ownership
-    cmd.arg(format!("{}:{}", uid, gid));
-    cmd.arg(path.as_ref());
-    debug!("building chown command, cmd={:?}", &cmd);
-
-    debug!("spawning chown command");
-    let mut child = cmd.spawn()
-                       .map_err(|e| Error::Chown(path.as_ref().to_path_buf(), uid, gid, e))?;
-    let exit_status = child.wait().map_err(Error::ChownWait)?;
-    debug!("completed chown command, status={:?}", exit_status);
-    Ok(())
-}
 
 // TODO fn: Here's a sure sign you want more data integrity throughout the system. Most of this
 // validation should happen way, way upstream, but that's future refactoring work. Also, if the

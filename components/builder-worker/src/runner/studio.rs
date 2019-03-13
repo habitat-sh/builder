@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(not(windows))]
-use std::os::unix::process::CommandExt;
-#[cfg(not(windows))]
-use std::sync::atomic::Ordering;
 use std::{path::PathBuf,
           process::{Child,
                     Command,
@@ -35,7 +31,6 @@ use crate::hab_core::{env::{self,
 
 use crate::{error::{Error,
                     Result},
-            network::NetworkNamespace,
             runner::{job_streamer::JobStreamer,
                      workspace::Workspace,
                      DEV_MODE,
@@ -46,8 +41,6 @@ pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
 pub static STUDIO_GID: AtomicUsize = ATOMIC_USIZE_INIT;
 pub const DEBUG_ENVVARS: &[&str] = &["RUST_LOG", "DEBUG", "RUST_BACKTRACE"];
 pub const WINDOWS_ENVVARS: &[&str] = &["SYSTEMDRIVE", "USERNAME", "COMPUTERNAME", "TEMP"];
-pub const STUDIO_USER: &str = "krangschnak";
-pub const STUDIO_GROUP: &str = "krangschnak";
 
 lazy_static! {
     /// Absolute path to the Studio program
@@ -68,12 +61,10 @@ lazy_static! {
 }
 
 pub struct Studio<'a> {
-    workspace:         &'a Workspace,
-    bldr_url:          &'a str,
-    auth_token:        &'a str,
-    airlock_enabled:   bool,
-    network_namespace: Option<NetworkNamespace>,
-    target:            PackageTarget,
+    workspace:  &'a Workspace,
+    bldr_url:   &'a str,
+    auth_token: &'a str,
+    target:     PackageTarget,
 }
 
 impl<'a> Studio<'a> {
@@ -81,15 +72,11 @@ impl<'a> Studio<'a> {
     pub fn new(workspace: &'a Workspace,
                bldr_url: &'a str,
                auth_token: &'a str,
-               airlock_enabled: bool,
-               network_namespace: Option<NetworkNamespace>,
                target: PackageTarget)
                -> Self {
         Studio { workspace,
                  bldr_url,
                  auth_token,
-                 airlock_enabled,
-                 network_namespace,
                  target }
     }
 
@@ -159,9 +146,6 @@ impl<'a> Studio<'a> {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        // generation of the build command is different for each
-        // platform atm, but will eventually be simplified to be
-        // a single workflow
         let dev_mode = if let Some(_val) = env::var_os(DEV_MODE) {
             debug!("RUNNER_DEBUG_ENVVAR ({}) is set - using non-Docker studio",
                    DEV_MODE);
@@ -170,27 +154,17 @@ impl<'a> Studio<'a> {
             false
         };
 
-        match self.target {
-            target::X86_64_LINUX | target::X86_64_LINUX_KERNEL2 => {
-                cmd.arg("studio");
-                cmd.arg("build");
-                if !dev_mode {
-                    cmd.arg("-D"); // Use Docker studio
-                }
-            }
-            target::X86_64_WINDOWS => {
-                cmd.arg("studio");
-                cmd.arg("build");
-                if !dev_mode {
-                    cmd.arg("-D"); // Use Docker studio
-                }
-                cmd.arg("-R"); // Work around a bug so studio does not get removed
-                               // Remove when we fix this (hab 0.75.0 or later)
-                               // TODO (SA): Consider using Docker studio for Linux builds as well
-                cmd.arg("-k"); // Origin key
-                cmd.arg(self.workspace.job.origin());
-            }
-            _ => unreachable!("Unexpected platform for build worker"),
+        cmd.arg("studio");
+        cmd.arg("build");
+        if !dev_mode {
+            cmd.arg("-D"); // Use Docker studio
+        }
+
+        if self.target == target::X86_64_WINDOWS {
+            cmd.arg("-R"); // Work around a bug so studio does not get removed
+                           // Remove when we fix this (hab 0.75.0 or later)
+            cmd.arg("-k"); // Origin key
+            cmd.arg(self.workspace.job.origin());
         }
 
         cmd.arg(build_path(self.workspace.job.get_project().get_plan_path()));
@@ -213,59 +187,11 @@ impl<'a> Studio<'a> {
         Ok(child)
     }
 
-    #[cfg(windows)]
-    fn studio_command(&self) -> Result<Command> { self.studio_command_not_airlock() }
-
-    #[cfg(not(windows))]
     fn studio_command(&self) -> Result<Command> {
-        if self.airlock_enabled && (self.target == target::X86_64_LINUX) {
-            self.studio_command_airlock()
-        } else {
-            self.studio_command_not_airlock()
-        }
-    }
-
-    #[cfg(not(windows))]
-    fn studio_command_airlock(&self) -> Result<Command> {
-        assert!(self.airlock_enabled);
-
-        let mut cmd = Command::new("airlock");
-        cmd.uid(studio_uid());
-        cmd.gid(studio_gid());
-        cmd.env_clear();
-        cmd.env("HOME", &*STUDIO_HOME.lock().unwrap()); // Sets `$HOME` for build user
-        cmd.env("USER", STUDIO_USER); // Sets `$USER` for build user
-        cmd.arg("run");
-        cmd.arg("--fs-root");
-        cmd.arg(self.workspace.studio());
-        cmd.arg("--no-rm");
-        if self.network_namespace.is_some() {
-            cmd.arg("--use-userns");
-            cmd.arg(self.network_namespace.as_ref().unwrap().userns());
-            cmd.arg("--use-netns");
-            cmd.arg(self.network_namespace.as_ref().unwrap().netns());
-        }
-        cmd.arg(&*STUDIO_PROGRAM);
-
-        Ok(cmd)
-    }
-
-    #[cfg(not(windows))]
-    fn studio_command_not_airlock(&self) -> Result<Command> {
         let mut cmd = Command::new(&*HAB_CLI);
-        cmd.env_clear();
-
-        debug!("HAB_CACHE_KEY_PATH: {:?}", self.workspace.key_path());
-        cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
-        cmd.env("HAB_CACHE_KEY_PATH", self.workspace.key_path()); // Sets key cache to build user's home
-
-        info!("Airlock is not enabled, using Docker Studio");
-        Ok(cmd)
-    }
-
-    #[cfg(windows)]
-    fn studio_command_not_airlock(&self) -> Result<Command> {
-        let mut cmd = Command::new(&*HAB_CLI);
+        if cfg!(not(windows)) {
+            cmd.env_clear();
+        }
 
         debug!("HAB_CACHE_KEY_PATH: {:?}", self.workspace.key_path());
         cmd.env("NO_ARTIFACT_PATH", "true"); // Disables artifact cache mounting
@@ -273,24 +199,6 @@ impl<'a> Studio<'a> {
 
         Ok(cmd)
     }
-}
-
-#[cfg(not(windows))]
-pub fn studio_gid() -> u32 { STUDIO_GID.load(Ordering::Relaxed) as u32 }
-
-#[cfg(not(windows))]
-pub fn studio_uid() -> u32 { STUDIO_UID.load(Ordering::Relaxed) as u32 }
-
-#[cfg(not(windows))]
-pub fn set_studio_gid(gid: u32) { STUDIO_GID.store(gid as usize, Ordering::Relaxed); }
-
-#[cfg(not(windows))]
-pub fn set_studio_uid(uid: u32) { STUDIO_UID.store(uid as usize, Ordering::Relaxed); }
-
-pub fn key_path() -> PathBuf {
-    (&*STUDIO_HOME).lock()
-                   .unwrap()
-                   .join(format!(".{}", fs::CACHE_KEY_PATH))
 }
 
 /// Returns a path argument suitable to pass to a Studio build command.
