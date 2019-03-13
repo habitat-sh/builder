@@ -112,11 +112,12 @@ impl Logger {
             "".to_string()
         };
 
-        let msg = format!("J,{},{},{:?},{},{},{}",
+        let msg = format!("J,{},{},{:?},{},{},{},{}",
                           job.get_owner_id(),
                           job.get_id(),
                           job.get_state(),
                           job.get_project().get_name(),
+                          job.get_target(),
                           suffix,
                           error);
 
@@ -144,11 +145,12 @@ impl Logger {
             "".to_string()
         };
 
-        let msg = format!("W,{},{},{:?},{},,,{},{},{:?}",
+        let msg = format!("W,{},{},{:?},{},{},,,{},{},{:?}",
                           job.get_owner_id(),
                           job.get_id(),
                           job.get_state(),
                           job.get_project().get_name(),
+                          job.get_target(),
                           start,
                           stop,
                           job.get_error());
