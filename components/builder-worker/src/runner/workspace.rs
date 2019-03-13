@@ -31,7 +31,6 @@ pub struct Workspace {
     src:      PathBuf,
     studio:   PathBuf,
     key_path: PathBuf,
-    ns_dir:   PathBuf,
     root:     PathBuf,
 }
 
@@ -46,7 +45,6 @@ impl Workspace {
                     src: root.join("src"),
                     studio: root.join("studio"),
                     key_path: root.join("keys"),
-                    ns_dir: root.join("airlock-ns"),
                     root }
     }
 
@@ -87,9 +85,6 @@ impl Workspace {
 
     /// Directory containing the keys for the build
     pub fn key_path(&self) -> &Path { &self.key_path }
-
-    /// Directory containing the airlock namespace state for the build
-    pub fn ns_dir(&self) -> &Path { &self.ns_dir }
 
     #[cfg(not(windows))]
     fn last_build_env(&self) -> PathBuf { self.out().join("last_build.env") }
