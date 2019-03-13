@@ -51,11 +51,6 @@ pub struct Config {
     pub features_enabled: String,
     /// Github application id to use for private repo access
     pub github: GitHubCfg,
-    pub airlock_enabled: bool,
-    /// Whether or not to recreate network namespace if one already exists
-    pub recreate_ns_dir: bool,
-    pub network_interface: Option<String>,
-    pub network_gateway: Option<IpAddr>,
     pub target: PackageTarget,
 }
 
@@ -76,20 +71,16 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Config { auto_publish:      true,
-                 data_path:         PathBuf::from("/tmp"),
-                 log_path:          PathBuf::from("/tmp"),
-                 key_dir:           PathBuf::from("/hab/svc/builder-worker/files"),
-                 bldr_channel:      ChannelIdent::unstable(),
-                 bldr_url:          url::default_bldr_url(),
-                 jobsrv:            vec![JobSrvAddr::default()],
-                 features_enabled:  "".to_string(),
-                 github:            GitHubCfg::default(),
-                 airlock_enabled:   false,
-                 recreate_ns_dir:   false,
-                 network_interface: None,
-                 network_gateway:   None,
-                 target:            PackageTarget::from_str("x86_64-linux").unwrap(), }
+        Config { auto_publish:     true,
+                 data_path:        PathBuf::from("/tmp"),
+                 log_path:         PathBuf::from("/tmp"),
+                 key_dir:          PathBuf::from("/hab/svc/builder-worker/files"),
+                 bldr_channel:     ChannelIdent::unstable(),
+                 bldr_url:         url::default_bldr_url(),
+                 jobsrv:           vec![JobSrvAddr::default()],
+                 features_enabled: "".to_string(),
+                 github:           GitHubCfg::default(),
+                 target:           PackageTarget::from_str("x86_64-linux").unwrap(), }
     }
 }
 
@@ -126,10 +117,6 @@ mod tests {
         log_path = "/path/to/logs"
         key_dir = "/path/to/key"
         features_enabled = "FOO,BAR"
-        airlock_enabled = true
-        recreate_ns_dir = true
-        network_interface = "eth1"
-        network_gateway = "192.168.10.1"
         target = "x86_64-linux-kernel2"
 
         [[jobsrv]]
@@ -155,11 +142,6 @@ mod tests {
         assert_eq!(config.jobsrv[1].port, 9000);
         assert_eq!(config.jobsrv[1].heartbeat, 5567);
         assert_eq!(&config.features_enabled, "FOO,BAR");
-        assert_eq!(config.network_interface, Some(String::from("eth1")));
-        assert_eq!(config.airlock_enabled, true);
-        assert_eq!(config.recreate_ns_dir, true);
-        assert_eq!(config.network_gateway,
-                   Some(IpAddr::V4(Ipv4Addr::new(192, 168, 10, 1))));
         assert_eq!(config.target,
                    PackageTarget::from_str("x86_64-linux-kernel2").unwrap());
     }

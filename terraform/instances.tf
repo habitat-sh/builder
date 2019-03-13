@@ -606,15 +606,6 @@ data "template_file" "sumo_sources_syslog" {
   }
 }
 
-data "template_file" "worker_user_toml" {
-  template = "${file("${path.module}/templates/worker.user.toml")}"
-
-  vars {
-    gateway   = "${var.worker_studio_gateway_ip}"
-    interface = "ens4"
-  }
-}
-
 data "template_file" "windows_worker_user_data" {
   template = "${file("${path.module}/templates/windows_worker_user_data")}"
 
