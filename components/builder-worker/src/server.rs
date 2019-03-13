@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use std::{collections::HashMap,
           fs,
           iter::FromIterator,
+          panic,
           path::Path,
           sync::Arc,
           thread,
@@ -86,6 +87,17 @@ impl Server {
     }
 
     pub fn run(&mut self) -> Result<()> {
+        // Set custom panic hook - a panic on the runner thread will
+        // cause the builder-worker process to exit (and be re-started
+        // by the supervisor when running under hab)
+        panic::set_hook(Box::new(|panic_info| {
+                            let backtrace = backtrace::Backtrace::new();
+                            println!("panic info: {:?}", panic_info);
+                            println!("{:?}", backtrace);
+                            println!("Exiting builder-worker process");
+                            std::process::exit(1)
+                        }));
+
         init_users()?;
         self.setup_networking()?;
         self.enable_features_from_config();
