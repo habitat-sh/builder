@@ -157,7 +157,7 @@ matrix:
         - cargo build --package habitat-builder-protocol
       script:
         - ./support/ci/rustfmt.sh
-        - cargo clippy -- -D warnings
+        - make lint
 
 #
 # Job for testing Builder Rust services

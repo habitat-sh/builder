@@ -482,10 +482,7 @@ mod tests {
 
         log.strip_ansi();
 
-        let stripped_lines: Vec<String> = log.get_content()
-                                             .into_iter()
-                                             .map(|l| l.to_string())
-                                             .collect();
+        let stripped_lines: Vec<String> = log.get_content().to_vec();
 
         let expected = vec!["» Importing origin key from standard log",
                             "★ Imported secret origin key core-20160810182414.",

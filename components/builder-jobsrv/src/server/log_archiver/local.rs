@@ -96,8 +96,8 @@ mod tests {
     #[test]
     fn local_archive_path() {
         let archiver = LocalArchiver(PathBuf::from("/archive"));
-        let job_id: u64 = 722543779847979008;
-        let expected_path = PathBuf::from("/archive/0a/6b/ef/ac/722543779847979008.log");
+        let job_id: u64 = 722_543_779_847_979_008;
+        let expected_path = PathBuf::from(format!("/archive/0a/6b/ef/ac/{}.log", job_id));
         let actual_path = archiver.archive_path(job_id);
         assert_eq!(actual_path, expected_path);
     }
