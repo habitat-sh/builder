@@ -12,7 +12,7 @@ env:
   global:
     - PATH=$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$HOME/.cargo/bin:$PATH
     # Habitat Rust program components
-    - _RUST_HAB_BIN_COMPONENTS="components/airlock"
+    - _RUST_HAB_BIN_COMPONENTS=""
     # Builder Rust program components
     - _RUST_BLDR_BIN_COMPONENTS="components/builder-api components/builder-jobsrv components/builder-worker"
     # Builder Rust crate components

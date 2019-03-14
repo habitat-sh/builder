@@ -1,6 +1,3 @@
-[airlock]
-plan_path = "components/airlock"
-
 [builder-api-proxy]
 plan_path = "components/builder-api-proxy/habitat"
 paths = [

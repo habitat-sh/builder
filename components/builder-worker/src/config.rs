@@ -65,8 +65,6 @@ impl Config {
         }
         addrs
     }
-
-    pub fn ns_dir_path(&self) -> PathBuf { self.data_path.join("network").join("airlock-ns") }
 }
 
 impl Default for Config {
