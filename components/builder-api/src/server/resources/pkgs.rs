@@ -1199,11 +1199,11 @@ fn do_get_package(req: &HttpRequest<AppState>,
 // Return a formatted string representing the filename of an archive for the given package
 // identifier pieces.
 fn archive_name(ident: &PackageIdent, target: PackageTarget) -> PathBuf {
-    PathBuf::from(ident.archive_name_with_target(&target).unwrap_or_else(|_| {
-                                                             panic!("Package ident should be \
-                                                                     fully qualified, ident={}",
-                                                                    &ident)
-                                                         }))
+    PathBuf::from(ident.archive_name_with_target(target).unwrap_or_else(|_| {
+                                                            panic!("Package ident should be fully \
+                                                                    qualified, ident={}",
+                                                                   &ident)
+                                                        }))
 }
 
 fn download_response_for_archive(archive: &PackageArchive, file_path: &PathBuf) -> HttpResponse {

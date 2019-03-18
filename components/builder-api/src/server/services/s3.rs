@@ -323,7 +323,7 @@ impl S3Handler {
 fn s3_key(ident: &PackageIdent, target: PackageTarget) -> Result<String> {
     // Calling this method first ensures that the ident is fully qualified and the correct errors
     // are returned in case of failure
-    let hart_name = ident.archive_name_with_target(&target)
+    let hart_name = ident.archive_name_with_target(target)
                          .map_err(Error::HabitatCore)?;
 
     Ok(format!("{}/{}/{}",
