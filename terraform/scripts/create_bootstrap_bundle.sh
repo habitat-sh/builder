@@ -8,9 +8,13 @@
 # Because you have to bootstrap yourself from *somewhere* :)
 #
 # You must run this as root, because `hab` is going to be installing
-# packages. Since it also uploads to S3, you'll probably want to run
-# it with `sudo -E` if you've got your AWS creds in your environment,
-# too.
+# packages.
+#
+# This script also uploads to S3, so it will need AWS credentials. We
+# use the standard AWS CLI for this, so any environment variables or
+# configuration files that it recognizes, this script will also
+# recognize. If you provide environment variables, make sure to run
+# with, say, `sudo -E` to ensure they are properly propagated.
 #
 # This generates a tar file (not tar.gz!) that has the following
 # internal structure:
@@ -41,7 +45,7 @@ log() {
 # Pass the version of the Supervisor you want to be using.
 # TODO: Alternatively, just dispense with versions altogether and just
 # get the latest stable?
-hab_version=${1}
+hab_version=${1:?Provide hab_version as argument 1}
 # TODO: Validate version?
 log "Version ${hab_version}"
 
