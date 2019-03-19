@@ -31,6 +31,8 @@ use std::{fs,
                    JoinHandle},
           time::Duration};
 
+use std::process::Command;
+
 use chrono::Utc;
 use retry::retry;
 use zmq;
@@ -431,6 +433,14 @@ impl Runner {
                 Ok(None) => {
                     if self.is_canceled() {
                         debug!("Canceling job: {}", self.job().get_id());
+                        {
+                            let mut cmd = Command::new(&"docker");
+                            cmd.arg("rm");
+                            cmd.arg("builder");
+                            cmd.arg("--force");
+                            let output = cmd.output().expect("Failed to cancel docker job");
+                            debug!("docker rm status: {}", output.status);
+                        }
                         if let Err(err) = child.kill() {
                             debug!("Failed to kill child, err: {:?}", err);
                         }

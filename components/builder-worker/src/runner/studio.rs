@@ -118,6 +118,8 @@ impl<'a> Studio<'a> {
         // for progress on this front.
         cmd.env("HAB_STUDIO_SECRET_HAB_FEAT_IGNORE_LOCAL", "true");
 
+        cmd.env("HAB_DOCKER_OPTS", "--name builder");
+
         for secret in self.workspace.job.get_secrets() {
             cmd.env(format!("HAB_STUDIO_SECRET_{}",
                             secret.get_decrypted_secret().get_name()),
