@@ -205,7 +205,7 @@ impl Default for ProjectCfg {
 mod test {
     use super::*;
 
-    const CONFIG: &'static str = r#"
+    const CONFIG: &str = r#"
     [hab-sup]
     plan_path = "components/hab-sup"
     branches = [

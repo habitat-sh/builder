@@ -183,7 +183,7 @@ impl Default for StudioBuild {
 mod tests {
     use super::*;
 
-    const LAST_BUILD: &'static str = "
+    const LAST_BUILD: &str = "
     pkg_origin=core
     pkg_name=valgrind
     pkg_version=3.12.0
@@ -194,7 +194,7 @@ mod tests {
     pkg_blake2bsum=3b38af666a8f307b89ae47ff098cb75503ee15892d1a8a98d0ae24da1cfd153b
     ";
 
-    const PRE_BUILD: &'static str = "
+    const PRE_BUILD: &str = "
     pkg_origin=core
     pkg_name=redis
     pkg_version=3.2.4

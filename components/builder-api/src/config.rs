@@ -256,6 +256,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::cyclomatic_complexity)]
     fn config_from_file() {
         let content = r#"
         [api]
