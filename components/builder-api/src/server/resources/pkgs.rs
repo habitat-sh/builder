@@ -858,23 +858,25 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
 
     debug!("Package Archive: {:#?}", archive);
 
-    let target_from_artifact = match archive.target() {
-        Ok(target) => target,
-        Err(e) => {
-            info!("Could not read the target for {:#?}: {:#?}", archive, e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           format!("ds:up:1, err={:?}", e));
+    // As a perf optimization, prefer the target that is passed in
+    // via query header instead of potentially needing to read through
+    // the entire package stream for metadata
+    let target = match qupload.target {
+        Some(ref t) => PackageTarget::from_str(t).unwrap(), // unwrap Ok
+        None => {
+            match archive.target() {
+                Ok(target) => target,
+                Err(e) => {
+                    info!("Could not read the target for {:#?}: {:#?}", archive, e);
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   format!("ds:up:1, err={:?}", e));
+                }
+            }
         }
     };
 
-    if !req.state()
-           .config
-           .api
-           .targets
-           .contains(&target_from_artifact)
-    {
-        debug!("Unsupported package platform or architecture {}.",
-               target_from_artifact);
+    if !req.state().config.api.targets.contains(&target) {
+        debug!("Unsupported package platform or architecture {}.", target);
         return HttpResponse::new(StatusCode::NOT_IMPLEMENTED);
     };
 
@@ -894,7 +896,7 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
 
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
-        match has_circular_deps(&req, ident, target_from_artifact, &mut archive) {
+        match has_circular_deps(&req, ident, target, &mut archive) {
             Ok(val) if val => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Err(err) => return err.into(),
             _ => (),
@@ -902,7 +904,7 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
     }
 
     let file_path = &req.state().config.api.data_path;
-    let filename = file_path.join(archive_name(&ident, target_from_artifact));
+    let filename = file_path.join(archive_name(&ident, target));
     let temp_ident = ident.to_owned();
 
     match fs::rename(&temp_path, &filename) {
@@ -915,10 +917,7 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
     }
 
     // TODO: Make S3 upload async
-    if let Err(err) = req.state()
-                         .packages
-                         .upload(&filename, &temp_ident, target_from_artifact)
-    {
+    if let Err(err) = req.state().packages.upload(&filename, &temp_ident, target) {
         warn!("Unable to upload archive to s3!");
         return err.into();
     }
@@ -998,7 +997,7 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
         let mut request = jobsrv::JobGroupSpec::new();
         request.set_origin(ident.origin.to_string());
         request.set_package(ident.name.to_string());
-        request.set_target(target_from_artifact.to_string());
+        request.set_target(target.to_string());
         request.set_deps_only(true);
         request.set_origin_only(false);
         request.set_package_only(false);
