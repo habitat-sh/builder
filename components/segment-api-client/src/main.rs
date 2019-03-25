@@ -13,8 +13,6 @@
 // limitations under the License.
 
 // NOTE: This is only here to allow manual testing of the API client.
-#[macro_use]
-extern crate log;
 use segment_api_client as segment;
 
 use std::{env,
@@ -34,18 +32,6 @@ fn main() {
     }
 
     let client = SegmentClient::new(config);
-    match client.identify("abc123") {
-        Ok(_) => (),
-        Err(e) => {
-            debug!("Error calling identify. e = {:?}", e);
-            exit(1);
-        }
-    }
-    match client.track("abc123", "tested tracking") {
-        Ok(_) => (),
-        Err(e) => {
-            debug!("Error calling identify. e = {:?}", e);
-            exit(1);
-        }
-    }
+    client.identify("abc123");
+    client.track("abc123", "tested tracking");
 }

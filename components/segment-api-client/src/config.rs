@@ -23,12 +23,15 @@ pub struct SegmentCfg {
     pub url: String,
     /// Write key used for Segment API requests
     pub write_key: String,
+    /// Whether Segment reporting is enabled
+    pub enabled: bool,
 }
 
 impl Default for SegmentCfg {
     fn default() -> Self {
         SegmentCfg { url:       DEFAULT_SEGMENT_URL.to_string(),
-                     write_key: "".to_string(), }
+                     write_key: "".to_string(),
+                     enabled:   false, }
     }
 }
 
