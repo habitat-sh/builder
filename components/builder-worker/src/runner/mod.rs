@@ -401,6 +401,7 @@ impl Runner {
                                  &self.config.bldr_url,
                                  &self.bldr_token,
                                  target);
+        clean_container();
 
         let mut child = studio.build(streamer)?;
         loop {
@@ -433,14 +434,7 @@ impl Runner {
                 Ok(None) => {
                     if self.is_canceled() {
                         debug!("Canceling job: {}", self.job().get_id());
-                        {
-                            let mut cmd = Command::new(&"docker");
-                            cmd.arg("rm");
-                            cmd.arg("builder");
-                            cmd.arg("--force");
-                            let output = cmd.output().expect("Failed to cancel docker job");
-                            debug!("docker rm status: {}", output.status);
-                        }
+                        clean_container();
                         if let Err(err) = child.kill() {
                             debug!("Failed to kill child, err: {:?}", err);
                         }
@@ -580,6 +574,17 @@ impl Runner {
     /// has been validated.
     fn has_docker_integration(&self) -> bool {
         !self.workspace.job.get_project_integrations().is_empty()
+    }
+}
+
+fn clean_container() {
+    let mut cmd = Command::new(&"docker");
+    cmd.arg("rm");
+    cmd.arg("builder");
+    cmd.arg("--force");
+    match cmd.output() {
+        Ok(output) => debug!("docker rm status: {}", output.status),
+        Err(err) => error!("Failed to remove docker container, err={:?}", err),
     }
 }
 
