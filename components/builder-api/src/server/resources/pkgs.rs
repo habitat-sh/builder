@@ -439,12 +439,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
     match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
         Ok(group) => {
             let msg = format!("Scheduled job group for {}", group.get_project_name());
-
-            // We don't really want to abort anything just because a call to segment failed. Let's
-            // just log it and move on.
-            if let Err(e) = req.state().segment.track(&session.get_name(), &msg) {
-                debug!("Error tracking scheduling of job group in segment, {}", e);
-            }
+            req.state().segment.track(&session.get_name(), &msg);
 
             HttpResponse::Created().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                                    .json(group)

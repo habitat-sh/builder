@@ -72,9 +72,7 @@ fn do_authenticate(req: &HttpRequest<AppState>, code: &str) -> Result<originsrv:
     let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
 
     let id_str = session.get_id().to_string();
-    if let Err(e) = req.state().segment.identify(&id_str) {
-        debug!("Error identifying a user in segment, {}", e);
-    }
+    req.state().segment.identify(&id_str);
 
     Ok(session)
 }

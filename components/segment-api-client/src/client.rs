@@ -39,6 +39,7 @@ pub struct SegmentClient {
     inner:         Client,
     pub url:       String,
     pub write_key: String,
+    pub enabled:   bool,
 }
 
 impl SegmentClient {
@@ -80,26 +81,37 @@ impl SegmentClient {
 
         SegmentClient { inner:     client.build().unwrap(),
                         url:       config.url,
-                        write_key: config.write_key, }
+                        write_key: config.write_key,
+                        enabled:   config.enabled, }
     }
 
-    pub fn identify(&self, user_id: &str) -> SegmentResult<Response> {
-        let json = json!({ "userId": user_id });
+    pub fn identify(&self, user_id: &str) {
+        if self.enabled {
+            let json = json!({ "userId": user_id });
 
-        self.http_post("identify",
-                       &self.write_key,
-                       serde_json::to_string(&json).unwrap())
+            if let Err(err) = self.http_post("identify",
+                                             &self.write_key,
+                                             serde_json::to_string(&json).unwrap())
+            {
+                debug!("Error identifying a user in segment, {}", err);
+            }
+        }
     }
 
-    pub fn track(&self, user_id: &str, event: &str) -> SegmentResult<Response> {
-        let json = json!({
-            "userId": user_id,
-            "event": event
-        });
+    pub fn track(&self, user_id: &str, event: &str) {
+        if self.enabled {
+            let json = json!({
+                "userId": user_id,
+                "event": event
+            });
 
-        self.http_post("track",
-                       &self.write_key,
-                       serde_json::to_string(&json).unwrap())
+            if let Err(err) = self.http_post("track",
+                                             &self.write_key,
+                                             serde_json::to_string(&json).unwrap())
+            {
+                debug!("Error tracking event in segment, {}", err);
+            }
+        }
     }
 
     fn http_post(&self, path: &str, token: &str, body: String) -> SegmentResult<Response> {
