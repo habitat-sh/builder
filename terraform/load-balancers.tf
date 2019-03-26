@@ -3,6 +3,7 @@ resource "aws_elb" "api" {
   security_groups = ["${aws_security_group.gateway_elb.id}"]
   subnets         = ["${var.public_subnet_id}"]
   instances       = ["${aws_instance.api.*.id}"]
+  idle_timeout    = 300
 
   listener {
     instance_port      = 80
