@@ -322,7 +322,15 @@ impl ScheduleMgr {
                 true
             } else {
                 let mut check_status = true;
-                let package = self.datastore.get_job_graph_package(&project.get_ident())?;
+                let package = match self.datastore.get_job_graph_package(&project.get_ident()) {
+                    Ok(pkg) => pkg,
+                    Err(err) => {
+                        warn!("Failed to retrieve package (possibly deleted?): {}. Err={:?}",
+                              &project.get_ident(),
+                              err);
+                        continue;
+                    }
+                };
                 let deps = package.get_deps();
                 for dep in deps {
                     let name = format!("{}/{}", dep.get_origin(), dep.get_name());

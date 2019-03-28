@@ -200,6 +200,12 @@ pub struct GetPackage {
 }
 
 #[derive(Debug)]
+pub struct DeletePackage {
+    pub ident:  BuilderPackageIdent,
+    pub target: BuilderPackageTarget,
+}
+
+#[derive(Debug)]
 pub struct UpdatePackageVisibility {
     pub visibility: PackageVisibility,
     pub ids:        Vec<i64>,
@@ -305,6 +311,16 @@ impl Package {
                    .filter(origin_packages::visibility.eq(any(req.visibility)))
                    .filter(origin_packages::target.eq(req.target))
                    .get_result(conn)
+    }
+
+    pub fn delete(req: DeletePackage, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::delete(
+            origin_packages::table
+                .filter(origin_packages::ident.eq(req.ident))
+                .filter(origin_packages::target.eq(req.target)),
+        )
+        .execute(conn)
     }
 
     pub fn get_all(req_ident: BuilderPackageIdent,
@@ -418,6 +434,7 @@ impl Package {
                               .filter(origin_packages::visibility.eq(any(pl.visibility)))
                               .filter(sql("TRUE GROUP BY origin_packages.name, origins.name"))
                               .order(origins::name.asc())
+                              .order(origin_packages::name.asc())
                               .paginate(pl.page)
                               .per_page(pl.limit)
                               .load_and_count_records(conn)

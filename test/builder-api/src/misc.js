@@ -38,8 +38,6 @@ describe('Miscellanenous API', function () {
     });
   });
 
-  // This isn't the greatest test because our testapp doesn't have any
-  // dependencies :(
   describe('Retrieving reverse dependencies', function () {
     it('returns all reverse dependencies for an origin and package name', function (done) {
       request.get('/rdeps/neurosis/testapp?target=x86_64-linux')
@@ -49,7 +47,7 @@ describe('Miscellanenous API', function () {
         .end(function (err, res) {
           expect(res.body.origin).to.equal('neurosis');
           expect(res.body.name).to.equal('testapp');
-          expect(res.body.rdeps).to.deep.equal([]);
+          expect(res.body.rdeps).to.deep.equal(["neurosis/testapp3"]);
           done(err);
         });
     });

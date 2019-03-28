@@ -63,9 +63,11 @@ use crate::protocol::{jobsrv,
                       net::NetOk,
                       originsrv};
 
-use crate::db::models::{origin::Origin,
+use crate::db::models::{channel::Channel,
+                        origin::Origin,
                         package::{BuilderPackageIdent,
                                   BuilderPackageTarget,
+                                  DeletePackage,
                                   GetLatestPackage,
                                   GetPackage,
                                   ListPackages,
@@ -164,6 +166,9 @@ impl Packages {
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                   Method::GET,
                   get_package)
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
+                  Method::DELETE,
+                  delete_package)
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
                   Method::GET,
                   download_package)
@@ -292,6 +297,106 @@ fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpRe
                               .header(http::header::CACHE_CONTROL, headers::cache(true))
                               .body(json_body)
         }
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn delete_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
+    let (origin, pkg, version, release) =
+        Path::<(String, String, String, String)>::extract(&req).unwrap()
+                                                               .into_inner(); // Unwrap Ok
+
+    if let Err(err) = authorize_session(&req, Some(&origin)) {
+        return err.into();
+    }
+
+    let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
+
+    // TODO: Deprecate target from headers
+    let target = match qtarget.target {
+        Some(ref t) => {
+            debug!("Query requested target = {}", t);
+            match PackageTarget::from_str(t) {
+                Ok(t) => t,
+                Err(err) => {
+                    debug!("Invalid target requested: {}, err = {:?}", t, err);
+                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                }
+            }
+        }
+        None => helpers::target_from_headers(&req),
+    };
+
+    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    // Check whether package is in stable channel
+    match Package::list_package_channels(&BuilderPackageIdent(ident.clone()),
+                                         helpers::all_visibilities(),
+                                         &*conn)
+    {
+        Ok(channels) => {
+            if channels.iter()
+                       .any(|c| c.name == ChannelIdent::stable().to_string())
+            {
+                debug!("Deleting package in stable channel not allowed: {}", ident);
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+        }
+        Err(err) => {
+            debug!("{}", err);
+            return Error::DieselError(err).into();
+        }
+    }
+
+    // Check whether package project has any rdeps
+    let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGet::new();
+    rdeps_get.set_origin(ident.origin().to_string());
+    rdeps_get.set_name(ident.name().to_string());
+    rdeps_get.set_target(target.to_string());
+
+    match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
+                        jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get)
+    {
+        Ok(rdeps) => {
+            if !rdeps.get_rdeps().is_empty() {
+                debug!("Deleting package with rdeps not allowed: {}", ident);
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+        }
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
+    }
+
+    // TODO (SA): Wrap in transaction, or better yet, eliminate need to do
+    // channel package deletion
+    let pkg = match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
+                                              visibility: helpers::all_visibilities(),
+                                              target:     BuilderPackageTarget(target), },
+                                 &*conn).map_err(Error::DieselError)
+    {
+        Ok(pkg) => pkg,
+        Err(err) => return err.into(),
+    };
+
+    if let Err(err) = Channel::delete_channel_package(pkg.id, &*conn).map_err(Error::DieselError) {
+        debug!("{}", err);
+        return err.into();
+    }
+
+    match Package::delete(DeletePackage { ident:  BuilderPackageIdent(ident.clone()),
+                                          target: BuilderPackageTarget(target), },
+                          &*conn).map_err(Error::DieselError)
+    {
+        Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
             err.into()

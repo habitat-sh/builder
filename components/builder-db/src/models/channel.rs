@@ -109,6 +109,15 @@ impl Channel {
         .execute(conn)
     }
 
+    pub fn delete_channel_package(package_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::delete(
+            origin_channel_packages::table
+                .filter(origin_channel_packages::package_id.eq(package_id)),
+        )
+        .execute(conn)
+    }
+
     pub fn get_latest_package(req: &GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let ident = req.ident;

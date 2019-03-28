@@ -12,7 +12,7 @@ const release5 = '20181018162212';
 const release6 = '20181018162220';
 const release7 = '20181115124506';
 const release8 = '20181116180420';
-
+const release9 = '20190327162559';
 
 const file1 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 const file2 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release2}-x86_64-linux.hart`);
@@ -22,6 +22,7 @@ const file5 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp2-v1.2.3
 const file6 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp2-v1.2.3-aaster-${release6}-x86_64-linux.hart`);
 const file7 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.4-${release7}-x86_64-windows.hart`);
 const file8 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release8}-x86_64-linux-kernel2.hart`);
+const file9 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp3-0.1.0-${release9}-x86_64-linux.hart`);
 
 var downloadedPath = '/tmp/';
 
@@ -181,7 +182,6 @@ describe('Working with packages', function () {
         });
     });
   });
-
 
   describe('Finding packages', function () {
     it('allows me to search for packages', function (done) {
@@ -423,6 +423,80 @@ describe('Working with packages', function () {
           expect(res.body.ident.version).to.equal('0.1.3');
           expect(res.body.ident.release).to.equal(release2);
           done(err);
+        });
+    });
+  });
+
+  describe('Deleting packages', function () {
+    it('uploads a leaf node package', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp3/0.1.0/${release9}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file9.length)
+        .query({ checksum: '02edaaf2d5fdb167e57026b17c86e8df5a7ca285e042f113bcb31ede765a67ce' })
+        .send(file9)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`/pkgs/neurosis/testapp3/0.1.0/${release9}/download`);
+          done(err);
+        });
+    });
+
+    it('puts the uploaded package into the stable channel', function (done) {
+      request.put(`/depot/channels/neurosis/stable/pkgs/testapp3/0.1.0/${release9}/promote`)
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('requires authentication', function (done) {
+      request.delete(`/depot/pkgs/neurosis/testapp3/0.1.0/${release9}`)
+        .expect(401)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('fails for package in stable channel', function (done) {
+      request.delete(`/depot/pkgs/neurosis/testapp3/0.1.0/${release9}`)
+        .set('Authorization', global.boboBearer)
+        .expect(422)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err)
+        });
+    });
+
+    it('demotes the uploaded package from the stable channel', function (done) {
+      request.put(`/depot/channels/neurosis/stable/pkgs/testapp3/0.1.0/${release9}/demote`)
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('fails for non-leaf packages', function (done) {
+      request.delete(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+        .set('Authorization', global.boboBearer)
+        .expect(422)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err)
+        });
+    });
+
+    it('succeeds for non-stable, leaf packages', function (done) {
+      request.delete(`/depot/pkgs/neurosis/testapp3/0.1.0/${release9}`)
+        .set('Authorization', global.boboBearer)
+        .expect(204)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err)
         });
     });
   });
