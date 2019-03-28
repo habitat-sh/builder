@@ -460,6 +460,16 @@ describe('Working with packages', function () {
         });
     });
 
+    it('requires a member of the origin', function (done) {
+      request.delete(`/depot/pkgs/neurosis/testapp3/0.1.0/${release9}`)
+        .set('Authorization', global.mystiqueBearer)
+        .expect(403)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
     it('fails for package in stable channel', function (done) {
       request.delete(`/depot/pkgs/neurosis/testapp3/0.1.0/${release9}`)
         .set('Authorization', global.boboBearer)
@@ -490,6 +500,20 @@ describe('Working with packages', function () {
         });
     });
 
+    it('returns the package in the latest call', function (done) {
+      request.get('/depot/pkgs/neurosis/testapp3/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('testapp3');
+          expect(res.body.ident.version).to.equal('0.1.0');
+          expect(res.body.ident.release).to.equal(release9);
+          done(err);
+        });
+    });
+
     it('succeeds for non-stable, leaf packages', function (done) {
       request.delete(`/depot/pkgs/neurosis/testapp3/0.1.0/${release9}`)
         .set('Authorization', global.boboBearer)
@@ -497,6 +521,17 @@ describe('Working with packages', function () {
         .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err)
+        });
+    });
+
+    it('doesnt return the package in the latest call', function (done) {
+      request.get('/depot/pkgs/neurosis/testapp3/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(404)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty
+          done(err);
         });
     });
   });

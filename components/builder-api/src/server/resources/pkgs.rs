@@ -396,7 +396,13 @@ fn delete_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> Htt
                                           target: BuilderPackageTarget(target), },
                           &*conn).map_err(Error::DieselError)
     {
-        Ok(_) => HttpResponse::NoContent().finish(),
+        Ok(_) => {
+            req.state()
+               .memcache
+               .borrow_mut()
+               .clear_cache_for_package(&ident);
+            HttpResponse::NoContent().finish()
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
