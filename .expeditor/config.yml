@@ -1,0 +1,6 @@
+---
+project:
+  alias: builder
+
+github:
+  delete_branch_on_merge: true
