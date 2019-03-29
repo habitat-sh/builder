@@ -4,15 +4,23 @@ set -euo pipefail
 
 # This is problematic if you want to be able to run this script from anywhere other than the root of the project,
 # but changing it to an idiom like we have in rustfmt.sh breaks BK, so I dunno?
+# shellcheck disable=SC1094
 source ./support/ci/shared.sh
+
+# Because sadness
+sudo chown buildkite-agent /home/buildkite-agent
+
+# Install rust!
+sudo hab pkg install core/rust --binlink
 
 toolchain="${1:-stable}"
 install_rustup
 install_rust_toolchain "$toolchain"
 
 # TODO: these should be in a shared script?
-install_hab_pkg core/bzip2 core/libarchive core/libsodium core/openssl core/xz core/zeromq core/protobuf core/libpq
-sudo hab pkg binlink core/protobuf
+install_hab_pkg core/bzip2 core/libarchive core/libsodium core/openssl core/xz core/zeromq core/libpq
+sudo hab pkg install core/protobuf --binlink
+
 export SODIUM_STATIC=true # so the libarchive crate links to sodium statically
 export LIBARCHIVE_STATIC=true # so the libarchive crate *builds* statically
 export OPENSSL_DIR # so the openssl crate knows what to build against

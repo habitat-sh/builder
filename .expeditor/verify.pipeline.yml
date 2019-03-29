@@ -11,6 +11,7 @@ steps:
   - label: "[lint] :linux: :bash: Shellcheck"
     command:
       - ./test/shellcheck.sh
+    skip: Need to update this codebase to shellcheck 0.5.0
     timeout_in_minutes: 10
     expeditor:
       executor:
@@ -18,17 +19,177 @@ steps:
 
   - label: "[lint] :linux: :bash: rustfmt"
     command:
+      - ./test/run_cargo_test.sh builder-jobsrv # this is overkill, we just need the build
       - ./support/ci/rustfmt.sh
-    timeout_in_minutes: 10
+    timeout_in_minutes: 20
+    retry:
+      automatic:
+        limit: 1
     expeditor:
       executor:
         docker:
 
   - label: "[lint] :linux: :paperclip: clippy!"
     command:
-      - sudo yum install gcc -y # install GCC since it's required for the cargo build
-      - sudo yum update bash # make sure we have 4.4 or later
-      - sudo make lint
-    agents:
-      queue: 'single-use-privileged'
-    timeout_in_minutes: 10
+      - make lint
+    timeout_in_minutes: 20
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+#######################################################################
+# Unit Tests - Linux!
+#######################################################################
+
+  - label: "[unit] :linux: builder-api"
+    command:
+      - ./test/run_cargo_test.sh builder-api
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-api-proxy"
+    command:
+      - ./test/run_cargo_test.sh builder-api-proxy
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-core"
+    command:
+      - ./test/run_cargo_test.sh builder-core
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-datastore"
+    command:
+      - ./test/run_cargo_test.sh builder-datastore
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-db"
+    command:
+      - ./test/run_cargo_test.sh builder-db
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-graph"
+    command:
+      - ./test/run_cargo_test.sh builder-graph
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-jobsrv"
+    command:
+      - ./test/run_cargo_test.sh builder-jobsrv
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-memcached"
+    command:
+      - ./test/run_cargo_test.sh builder-memcached
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-minio"
+    command:
+      - ./test/run_cargo_test.sh builder-minio
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-protocol"
+    command:
+      - ./test/run_cargo_test.sh builder-protocol
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-web"
+    command:
+      - ./test/run_cargo_test.sh builder-web
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: builder-worker"
+    command:
+      - ./test/run_cargo_test.sh builder-worker
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: github-api-client"
+    command:
+      - ./test/run_cargo_test.sh github-api-client
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: oauth-client"
+    command:
+      - ./test/run_cargo_test.sh oauth-client
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[unit] :linux: segment-api-client"
+    command:
+      - ./test/run_cargo_test.sh segment-api-client
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:

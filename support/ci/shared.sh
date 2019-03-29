@@ -27,6 +27,16 @@ install_rustup() {
   fi
 }
 
+install_rustup() {
+  if command -v rustup && command -v cargo &>/dev/null; then
+    echo "--- :rust: rustup is currently installed."
+  else
+    echo "--- :rust: Installing rustup."
+    curl https://sh.rustup.rs -sSf | sh -s -- --no-modify-path -y
+  fi
+  source "$HOME"/.cargo/env
+}
+
 install_rust_toolchain() {
   local toolchain="${1?toolchain argument required}"
 
