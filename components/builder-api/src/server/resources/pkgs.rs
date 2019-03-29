@@ -1078,11 +1078,23 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
                 let mut job_graph_package = jobsrv::JobGraphPackageCreate::new();
                 job_graph_package.set_package(pkg.into());
 
-                if let Err(err) = route_message::<jobsrv::JobGraphPackageCreate,
-                                                originsrv::OriginPackage>(&req, &job_graph_package)
-                {
-                    warn!("Failed to insert package into graph: {:?}", err);
-                    return err.into();
+                match route_message::<jobsrv::JobGraphPackageCreate, originsrv::OriginPackage>(
+                    &req,
+                    &job_graph_package,
+                ) {
+                    Ok(_) => (),
+                    Err(Error::BuilderCore(RpcError(code, _)))
+                        if StatusCode::from_u16(code).unwrap() == StatusCode::NOT_FOUND =>
+                    {
+                        debug!(
+                            "Graph not found for package target: {}",
+                            target_from_artifact
+                        );
+                    }
+                    Err(err) => {
+                        debug!("Failed to create job graph package, err={:?}", err);
+                        return err.into();
+                    }
                 }
             }
         }
@@ -1381,6 +1393,12 @@ fn has_circular_deps(req: &HttpRequest<AppState>,
         {
             debug!("Failed package circular dependency check for {}", ident);
             Ok(true)
+        }
+        Err(Error::BuilderCore(RpcError(code, _)))
+            if StatusCode::from_u16(code).unwrap() == StatusCode::NOT_FOUND =>
+        {
+            debug!("Graph not found for package target: {}", target);
+            Ok(false)
         }
         Err(err) => Err(err),
     }
