@@ -4,3 +4,11 @@ project:
 
 github:
   delete_branch_on_merge: true
+
+slack:
+  notify_channel: habitat-notify
+
+pipelines:
+  - verify:
+      description: Pull Request validation tests
+      public: true

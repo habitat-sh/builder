@@ -1,0 +1,31 @@
+expeditor:
+  defaults:
+    buildkite:
+      timeout_in_minutes: 30
+
+steps:
+#######################################################################
+# Linting!
+#######################################################################
+
+  - label: "[lint] :linux: :bash: Shellcheck"
+    command:
+      - ./test/shellcheck.sh
+    timeout_in_minutes: 10
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+
+  - label: "[lint] :linux: :bash: rustfmt"
+    command:
+      - ./support/ci/rustfmt.sh
+    timeout_in_minutes: 10
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
