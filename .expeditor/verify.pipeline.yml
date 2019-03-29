@@ -1,0 +1,35 @@
+expeditor:
+  defaults:
+    buildkite:
+      timeout_in_minutes: 30
+
+steps:
+#######################################################################
+# Linting!
+#######################################################################
+
+  - label: "[lint] :linux: :bash: Shellcheck"
+    command:
+      - ./test/shellcheck.sh
+    agents:
+      queue: 'default-privileged'
+    plugins:
+      docker#v3.0.1:
+        always-pull: true
+        user: "buildkite-agent"
+        group: "buildkite-agent"
+        image: "chefes/buildkite"
+    timeout_in_minutes: 10
+    retry:
+      automatic:
+        limit: 1
+
+  - label: "[lint] :linux: :bash: rustfmt"
+    command:
+      - ./support/ci/rustfmt.sh
+    agents:
+      queue: 'default-privileged'
+    timeout_in_minutes: 10
+    retry:
+      automatic:
+        limit: 1
