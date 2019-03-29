@@ -349,13 +349,6 @@ DEV_MODE=true
 
 load_env_config
 
-touch /etc/subuid
-touch /etc/subgid
-hab pkg exec core/shadow groupadd --force krangschnak
-if ! hab pkg exec core/coreutils id -u krangschnak > /dev/null; then
-  hab pkg exec core/shadow useradd --groups=tty --create-home -g krangschnak krangschnak
-fi
-
 trap local_cleanup EXIT
 
 welcome
