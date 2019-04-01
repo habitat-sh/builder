@@ -53,3 +53,6 @@ trailing_semicolon = true
 type_punctuation_density = "Wide"
 where_single_line = false
 wrap_comments = true
+ignore = [
+  "components/builder-protocol/src/message",
+]
