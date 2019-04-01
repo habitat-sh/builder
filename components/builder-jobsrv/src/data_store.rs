@@ -548,6 +548,8 @@ impl DataStore {
         package.set_exposes(exposes.iter().map(|e| *e as u32).collect::<Vec<u32>>());
         package.set_deps(Self::dep_to_idents(row.get("deps")));
         package.set_tdeps(Self::dep_to_idents(row.get("tdeps")));
+        package.set_build_deps(Self::dep_to_idents(row.get("build_deps")));
+        package.set_build_tdeps(Self::dep_to_idents(row.get("build_tdeps")));
 
         let pv: PackageVisibility = row.get("visibility");
         let pv2: originsrv::OriginPackageVisibility = pv.into();

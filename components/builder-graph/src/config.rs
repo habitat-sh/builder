@@ -21,14 +21,16 @@ use crate::{db::config::DataStoreCfg,
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub datastore: DataStoreCfg,
+    pub datastore:        DataStoreCfg,
+    pub features_enabled: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         let mut datastore = DataStoreCfg::default();
         datastore.database = String::from("builder");
-        Config { datastore }
+        Config { datastore,
+                 features_enabled: String::from("builddeps") }
     }
 }
 
@@ -43,6 +45,8 @@ mod tests {
     #[test]
     fn config_from_file() {
         let content = r#"
+        features_enabled = "builddeps"
+
         [datastore]
         host = "1.1.1.1"
         port = 9000

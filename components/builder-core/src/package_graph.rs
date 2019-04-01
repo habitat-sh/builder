@@ -88,19 +88,22 @@ impl PackageGraph {
         }
     }
 
-    pub fn build<T>(&mut self, packages: T) -> (usize, usize)
+    pub fn build<T>(&mut self, packages: T, use_build_deps: bool) -> (usize, usize)
         where T: Iterator<Item = originsrv::OriginPackage>
     {
         assert!(self.package_max == 0);
 
         for p in packages {
-            self.extend(&p);
+            self.extend(&p, use_build_deps);
         }
 
         (self.graph.node_count(), self.graph.edge_count())
     }
 
-    pub fn check_extend(&mut self, package: &originsrv::OriginPackage) -> bool {
+    pub fn check_extend(&mut self,
+                        package: &originsrv::OriginPackage,
+                        use_build_deps: bool)
+                        -> bool {
         let name = format!("{}", package.get_ident());
         let pkg_short_name = short_name(&name);
 
@@ -126,12 +129,22 @@ impl PackageGraph {
         // Check to see if extension would create a circular dependency
         let mut circular_dep = false;
         let mut dep_nodes = Vec::new();
-        let deps = package.get_deps();
+        let mut deps;
+        let build_deps;
+
+        if use_build_deps {
+            deps = package.get_deps().iter().collect::<Vec<_>>();
+            build_deps = package.get_build_deps();
+
+            deps.extend(build_deps);
+        } else {
+            deps = package.get_deps().iter().collect::<Vec<_>>();
+        }
+
         for dep in deps {
             let dep_name = format!("{}", dep);
             let dep_short_name = short_name(&dep_name);
 
-            // No-op if dep hasn't been added yet
             if self.package_map.contains_key(&dep_short_name) {
                 let (_, dep_node) = self.package_map[&dep_short_name];
                 dep_nodes.push(dep_node);
@@ -162,7 +175,10 @@ impl PackageGraph {
     }
 
     #[allow(clippy::map_entry)]
-    pub fn extend(&mut self, package: &originsrv::OriginPackage) -> (usize, usize) {
+    pub fn extend(&mut self,
+                  package: &originsrv::OriginPackage,
+                  use_build_deps: bool)
+                  -> (usize, usize) {
         let name = format!("{}", package.get_ident());
         let (pkg_id, pkg_node) = self.generate_id(&name);
 
@@ -197,9 +213,20 @@ impl PackageGraph {
         };
 
         if add_deps {
-            let deps = package.get_deps();
+            let mut deps;
+            let build_deps;
+
+            if use_build_deps {
+                deps = package.get_deps().iter().collect::<Vec<_>>();
+                build_deps = package.get_build_deps();
+                deps.extend(build_deps);
+            } else {
+                deps = package.get_deps().iter().collect::<Vec<_>>();
+            }
+
             for dep in deps {
                 let depname = format!("{}", dep);
+
                 let (_, dep_node) = self.generate_id(&depname);
                 self.graph.extend_with_edges(&[(dep_node, pkg_node)]);
 
@@ -324,8 +351,7 @@ mod test {
     fn empty_graph() {
         let mut graph = PackageGraph::new();
         let packages = Vec::new();
-
-        let (ncount, ecount) = graph.build(packages.into_iter());
+        let (ncount, ecount) = graph.build(packages.into_iter(), true);
         assert_eq!(ncount, 0);
         assert_eq!(ecount, 0);
     }
@@ -349,7 +375,7 @@ mod test {
         package2.set_deps(package2_deps);
         packages.push(package2.clone());
 
-        let (ncount, ecount) = graph.build(packages.into_iter());
+        let (ncount, ecount) = graph.build(packages.into_iter(), true);
 
         assert_eq!(ncount, 2);
         assert_eq!(ecount, 1); // only the first edge added
@@ -357,7 +383,7 @@ mod test {
         let stats = graph.stats();
         assert_eq!(stats.is_cyclic, false);
 
-        let pre_check = graph.check_extend(&package2);
+        let pre_check = graph.check_extend(&package2, true);
         assert_eq!(pre_check, false);
     }
 
@@ -377,14 +403,14 @@ mod test {
         package2_deps.push(originsrv::OriginPackageIdent::from_str("foo/xyz/1/2").unwrap());
         package2.set_deps(package2_deps);
 
-        let pre_check1 = graph.check_extend(&package1);
+        let pre_check1 = graph.check_extend(&package1, true);
         assert_eq!(pre_check1, true);
 
-        let (..) = graph.extend(&package1);
+        let (..) = graph.extend(&package1, true);
 
-        let pre_check2 = graph.check_extend(&package2);
+        let pre_check2 = graph.check_extend(&package2, true);
         assert_eq!(pre_check2, true);
 
-        let (..) = graph.extend(&package2);
+        let (..) = graph.extend(&package2, true);
     }
 }

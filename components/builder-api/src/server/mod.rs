@@ -66,7 +66,8 @@ features! {
     pub mod feat {
         const List = 0b0000_0001,
         const Jobsrv = 0b0000_0010,
-        const Artifactory = 0b0000_0100
+        const Artifactory = 0b0000_0100,
+        const BuildDeps = 0b0000_1000
     }
 }
 
@@ -100,7 +101,8 @@ impl AppState {
 fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List),
                                                           ("JOBSRV", feat::Jobsrv),
-                                                          ("ARTIFACTORY", feat::Artifactory)]);
+                                                          ("ARTIFACTORY", feat::Artifactory),
+                                                          ("BUILDDEPS", feat::BuildDeps)]);
     let features_enabled = config.api
                                  .features_enabled
                                  .split(',')

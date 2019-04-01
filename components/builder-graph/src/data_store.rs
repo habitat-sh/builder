@@ -113,6 +113,8 @@ impl DataStore {
         package.set_exposes(exposes);
         package.set_deps(Self::dep_to_idents(row.get("deps")));
         package.set_tdeps(Self::dep_to_idents(row.get("tdeps")));
+        package.set_build_deps(Self::dep_to_idents(row.get("build_deps")));
+        package.set_build_tdeps(Self::dep_to_idents(row.get("build_tdeps")));
 
         // let pv: String = row.get("visibility");
         // TED removing for now to kill the FromString in originsrv

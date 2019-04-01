@@ -70,14 +70,16 @@ impl Into<package::PackageIdent> for PackageIdent {
 
 #[derive(Clone, Deserialize)]
 pub struct Package {
-    pub ident:    PackageIdent,
-    pub checksum: String,
-    pub manifest: String,
-    pub target:   String,
-    pub deps:     Vec<PackageIdent>,
-    pub tdeps:    Vec<PackageIdent>,
-    pub exposes:  Vec<u32>,
-    pub config:   String,
+    pub ident:       PackageIdent,
+    pub checksum:    String,
+    pub manifest:    String,
+    pub target:      String,
+    pub deps:        Vec<PackageIdent>,
+    pub tdeps:       Vec<PackageIdent>,
+    pub build_deps:  Vec<PackageIdent>,
+    pub build_tdeps: Vec<PackageIdent>,
+    pub exposes:     Vec<u32>,
+    pub config:      String,
 }
 
 #[derive(Clone)]

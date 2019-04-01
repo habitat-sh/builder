@@ -55,6 +55,8 @@ pub struct Config {
     pub job_timeout: u64,
     /// Supported build targets
     pub build_targets: HashSet<PackageTarget>,
+    /// Feature flag toggles
+    pub features_enabled: String,
 }
 
 impl Default for Config {
@@ -70,7 +72,8 @@ impl Default for Config {
                  log_path: PathBuf::from("/tmp"),
                  job_timeout: 60,
                  build_targets: HashSet::from_iter(vec![target::X86_64_LINUX,
-                                                        target::X86_64_WINDOWS]) }
+                                                        target::X86_64_WINDOWS]),
+                 features_enabled: String::from("builddeps") }
     }
 }
 
@@ -211,9 +214,11 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::cyclomatic_complexity)]
     fn config_from_file() {
         let content = r#"
         build_targets = ["x86_64-linux"]
+        features_enabled = "foo, bar"
 
         [http]
         listen = "1.2.3.4"
@@ -257,6 +262,7 @@ mod tests {
 
         assert_eq!(config.build_targets.len(), 1);
         assert!(config.build_targets.contains(&target::X86_64_LINUX));
+        assert_eq!(config.features_enabled, "foo, bar");
 
         assert_eq!(config.net.worker_command_port, 9000);
         assert_eq!(config.net.worker_heartbeat_port, 9000);

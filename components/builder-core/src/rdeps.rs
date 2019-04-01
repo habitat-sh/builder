@@ -41,6 +41,7 @@ pub fn rdeps(g: &Graph<GType, GType>, n: NodeIndex) -> Result<Vec<GType>, GraphE
                                           .map(|k| k.index())
                                           .collect();
 
+    #[allow(clippy::redundant_closure)]
     let bfs: Vec<GType> = Bfs::new(&g, n).iter(&g).map(|k| k.index()).collect();
 
     let mut topo_map: HashMap<usize, usize> = HashMap::new(); // Node -> Topo index

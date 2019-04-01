@@ -20,7 +20,9 @@ mod metrics;
 mod scheduler;
 mod worker_manager;
 
-use std::{collections::HashSet,
+use std::{collections::{HashMap,
+                        HashSet},
+          iter::FromIterator,
           sync::{Arc,
                  RwLock}};
 use time::PreciseTime;
@@ -51,6 +53,12 @@ use crate::{config::{Config,
                      GatewayCfg},
             data_store::DataStore,
             error::Result};
+
+features! {
+    pub mod feat {
+        const BuildDeps = 0b0000_0001
+    }
+}
 
 // Application state
 pub struct AppState {
@@ -114,15 +122,38 @@ fn handle_rpc((req, msg): (HttpRequest<AppState>, Json<RpcMessage>)) -> HttpResp
     }
 }
 
+fn enable_features_from_config(cfg: &Config) {
+    let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps)]);
+    let features_enabled = cfg.features_enabled
+                              .split(',')
+                              .map(|f| f.trim().to_uppercase());
+
+    for key in features_enabled {
+        if features.contains_key(key.as_str()) {
+            info!("Enabling feature: {}", key);
+            feat::enable(features[key.as_str()]);
+        }
+    }
+
+    if feat::is_enabled(feat::BuildDeps) {
+        println!("Listing possible feature flags: {:?}", features.keys());
+        println!("Enable features by populating 'features_enabled' in config");
+    }
+}
+
 pub fn run(config: Config) -> Result<()> {
     let sys = actix::System::new("builder-jobsrv");
     let cfg = Arc::new(config.clone());
+
+    enable_features_from_config(&config);
 
     let datastore = DataStore::new(&config.datastore);
     let mut graph = TargetGraph::new();
     let packages = datastore.get_job_graph_packages()?;
     let start_time = PreciseTime::now();
-    let res = graph.build(packages.into_iter());
+
+    let res = graph.build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
+
     let end_time = PreciseTime::now();
     info!("Graph build stats ({} sec):", start_time.to(end_time));
 

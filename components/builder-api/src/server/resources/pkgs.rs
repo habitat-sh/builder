@@ -1415,6 +1415,16 @@ fn has_circular_deps(req: &HttpRequest<AppState>,
     pcr_req.set_target(target.to_string());
 
     let mut pcr_deps = protobuf::RepeatedField::new();
+    let mut pcr_build_deps = protobuf::RepeatedField::new();
+
+    let build_deps_from_artifact = match archive.build_deps() {
+        Ok(build_deps) => build_deps,
+        Err(e) => {
+            debug!("Could not get build deps from {:#?}: {:#?}", archive, e);
+            return Err(Error::HabitatCore(e));
+        }
+    };
+
     let deps_from_artifact = match archive.deps() {
         Ok(deps) => deps,
         Err(e) => {
@@ -1422,6 +1432,11 @@ fn has_circular_deps(req: &HttpRequest<AppState>,
             return Err(Error::HabitatCore(e));
         }
     };
+    for ident in build_deps_from_artifact {
+        let dep_str = format!("{}", ident);
+        pcr_build_deps.push(dep_str);
+    }
+    pcr_req.set_build_deps(pcr_build_deps);
 
     for ident in deps_from_artifact {
         let dep_str = format!("{}", ident);

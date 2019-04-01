@@ -38,7 +38,8 @@ use crate::protocol::{jobsrv,
                       net,
                       originsrv};
 
-use crate::server::{scheduler::ScheduleClient,
+use crate::server::{feat,
+                    scheduler::ScheduleClient,
                     worker_manager::WorkerMgrClient};
 
 use crate::error::{Error,
@@ -635,7 +636,7 @@ pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<Rp
         }
     };
     let start_time = PreciseTime::now();
-    let (ncount, ecount) = graph.extend(&package);
+    let (ncount, ecount) = graph.extend(&package, feat::is_enabled(feat::BuildDeps));
     let end_time = PreciseTime::now();
     debug!("Extended graph, nodes: {}, edges: {} ({} sec)\n",
            ncount,
@@ -663,7 +664,9 @@ pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result
         };
 
         let start_time = PreciseTime::now();
-        let ret = graph.check_extend(&package);
+
+        let ret = graph.check_extend(&package, feat::is_enabled(feat::BuildDeps));
+
         let end_time = PreciseTime::now();
 
         debug!("Graph pre-check: {} ({} sec)\n",

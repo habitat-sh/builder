@@ -16,6 +16,10 @@
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
 #[macro_use]
+extern crate bitflags;
+#[macro_use]
+extern crate features;
+#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
@@ -31,7 +35,8 @@ pub mod error;
 
 use std::{collections::HashMap,
           fs::File,
-          io::Write};
+          io::Write,
+          iter::FromIterator};
 
 use clap::{App,
            Arg};
@@ -61,6 +66,8 @@ fn main() {
         None => Config::default(),
     };
 
+    enable_features(&config);
+
     let mut cl = Copperline::new();
 
     println!("Connecting to {}", config.datastore.database);
@@ -73,7 +80,7 @@ fn main() {
     let mut graph = PackageGraph::new();
     let packages = datastore.get_job_graph_packages().unwrap();
     let start_time = PreciseTime::now();
-    let (ncount, ecount) = graph.build(packages.into_iter());
+    let (ncount, ecount) = graph.build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
     let end_time = PreciseTime::now();
 
     println!("OK: {} nodes, {} edges ({} sec)",
@@ -409,5 +416,31 @@ fn do_export(graph: &PackageGraph, filename: &str, filter: &str) {
         if ident.starts_with(filter) {
             file.write_fmt(format_args!("{}\n", ident)).unwrap();
         }
+    }
+}
+
+fn enable_features(config: &Config) {
+    let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps)]);
+    let features_enabled = config.features_enabled
+                                 .split(',')
+                                 .map(|f| f.trim().to_uppercase());
+
+    for key in features_enabled {
+        if features.contains_key(key.as_str()) {
+            info!("Enabling feature: {}", key);
+            feat::enable(features[key.as_str()]);
+        }
+    }
+
+    if feat::is_enabled(feat::List) {
+        println!("Listing possible feature flags: {:?}", features.keys());
+        println!("Enable features by populating 'features_enabled' in config");
+    }
+}
+
+features! {
+    pub mod feat {
+        const List = 0b0000_0001,
+        const BuildDeps = 0b0000_0010
     }
 }
