@@ -29,7 +29,8 @@ use crate::{models::{package::{BuilderPackageIdent,
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
-            hab_core::ChannelIdent,
+            hab_core::{package::PackageTarget,
+                       ChannelIdent},
             metrics::{Counter,
                       Histogram}};
 
@@ -268,11 +269,13 @@ pub struct OriginChannelPackage {
 
 pub struct OriginChannelPromote {
     pub ident:   BuilderPackageIdent,
+    pub target:  PackageTarget,
     pub origin:  String,
     pub channel: ChannelIdent,
 }
 pub struct OriginChannelDemote {
     pub ident:   BuilderPackageIdent,
+    pub target:  PackageTarget,
     pub origin:  String,
     pub channel: ChannelIdent,
 }
@@ -292,6 +295,7 @@ impl OriginChannelPackage {
                                                .get_result::<i64>(conn)?;
         let package_id =
             origin_packages::table.filter(origin_packages::ident.eq(package.ident.to_string()))
+                                  .filter(origin_packages::target.eq(package.target.to_string()))
                                   .select(origin_packages::id)
                                   .limit(1)
                                   .get_result::<i64>(conn)?;
@@ -324,6 +328,7 @@ impl OriginChannelPackage {
                         .eq(origin_packages::table
                             .select(origin_packages::id)
                             .filter(origin_packages::ident.eq(package.ident.to_string()))
+                            .filter(origin_packages::target.eq(package.target.to_string()))
                             .single_value()),
                 ),
         )

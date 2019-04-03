@@ -359,6 +359,7 @@ impl Package {
                                                                  .get_result::<Package>(conn)?;
 
         OriginChannelPackage::promote(OriginChannelPromote { ident:   package.ident.clone(),
+                                                             target:  package.target.0,
                                                              origin:  package.origin.clone(),
                                                              channel: ChannelIdent::unstable(), },
                                       conn)?;
@@ -441,6 +442,7 @@ impl Package {
     }
 
     pub fn list_package_channels(ident: &BuilderPackageIdent,
+                                 target: PackageTarget,
                                  visibility: Vec<PackageVisibility>,
                                  conn: &PgConnection)
                                  -> QueryResult<Vec<Channel>> {
@@ -449,6 +451,7 @@ impl Package {
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
             .select(origin_channels::table::all_columns())
             .filter(origin_packages::ident.eq(ident))
+            .filter(origin_packages::target.eq(target.to_string()))
             .filter(origin_packages::visibility.eq(any(visibility)))
             .order(origin_channels::name.desc())
             .get_results(conn)

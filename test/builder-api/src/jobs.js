@@ -95,7 +95,7 @@ describe('Jobs API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body).to.not.be.empty;
-          expect(['Queued', 'Dispatching']).to.include(res.body.state);
+          expect(['Queued', 'Pending', 'Dispatching']).to.include(res.body.state);
           expect(res.body.project_name).to.equal('neurosis/testapp');
           done(err);
         });
@@ -111,7 +111,7 @@ describe('Jobs API', function () {
         .end(function (err, res) {
           expect(res.body).to.not.be.empty;
           expect(res.body.length).to.equal(1);
-          expect(['Queued', 'Dispatching']).to.include(res.body[0].state);
+          expect(['Queued', 'Pending', 'Dispatching']).to.include(res.body[0].state);
           expect(res.body[0].project_name).to.equal('neurosis/testapp');
           done(err);
         });

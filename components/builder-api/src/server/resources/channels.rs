@@ -193,7 +193,7 @@ fn delete_channel(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
+fn promote_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, channel, pkg, version, release) =
         Path::<(String, String, String, String, String)>::extract(&req).unwrap()
                                                                        .into_inner();
@@ -209,6 +209,21 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
                                   Some(version.clone()),
                                   Some(release.clone()));
 
+    // TODO: Deprecate target from headers
+    let target = match qtarget.target {
+        Some(ref t) => {
+            debug!("Query requested target = {}", t);
+            match PackageTarget::from_str(t) {
+                Ok(t) => t,
+                Err(err) => {
+                    debug!("Invalid target requested: {}, err = {:?}", t, err);
+                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                }
+            }
+        }
+        None => helpers::target_from_headers(&req),
+    };
+
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
@@ -217,6 +232,7 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
     match OriginChannelPackage::promote(
         OriginChannelPromote {
             ident: BuilderPackageIdent(ident.clone()),
+            target,
             origin: origin.clone(),
             channel: channel.clone(),
         },
@@ -254,7 +270,7 @@ fn promote_package(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
+fn demote_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, channel, pkg, version, release) =
         Path::<(String, String, String, String, String)>::extract(&req).unwrap()
                                                                        .into_inner();
@@ -274,6 +290,21 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
                                   Some(version.clone()),
                                   Some(release.clone()));
 
+    // TODO: Deprecate target from headers
+    let target = match qtarget.target {
+        Some(ref t) => {
+            debug!("Query requested target = {}", t);
+            match PackageTarget::from_str(t) {
+                Ok(t) => t,
+                Err(err) => {
+                    debug!("Invalid target requested: {}, err = {:?}", t, err);
+                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                }
+            }
+        }
+        None => helpers::target_from_headers(&req),
+    };
+
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
@@ -281,8 +312,9 @@ fn demote_package(req: HttpRequest<AppState>) -> HttpResponse {
 
     match OriginChannelPackage::demote(OriginChannelDemote { ident:
                                                                  BuilderPackageIdent(ident.clone()),
-                                                             origin:  origin.clone(),
-                                                             channel: channel.clone(), },
+                                                             target,
+                                                             origin: origin.clone(),
+                                                             channel: channel.clone() },
                                        &*conn).map_err(Error::DieselError)
     {
         Ok(_) => {
@@ -572,7 +604,7 @@ fn do_get_channel_package(req: &HttpRequest<AppState>,
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident.clone(), &*conn)?;
+    let channels = channels_for_package_ident(req, &pkg.ident.clone(), target, &*conn)?;
 
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
@@ -593,6 +625,7 @@ fn do_get_channel_package(req: &HttpRequest<AppState>,
 
 pub fn channels_for_package_ident(req: &HttpRequest<AppState>,
                                   package: &BuilderPackageIdent,
+                                  target: PackageTarget,
                                   conn: &PgConnection)
                                   -> Result<Option<Vec<String>>> {
     let opt_session_id = match authorize_session(req, None) {
@@ -601,6 +634,7 @@ pub fn channels_for_package_ident(req: &HttpRequest<AppState>,
     };
 
     match Package::list_package_channels(package,
+                                         target,
                                          visibility_for_optional_session(req,
                                                                          opt_session_id,
                                                                          &package.clone().origin),

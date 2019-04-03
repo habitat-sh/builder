@@ -338,6 +338,7 @@ fn delete_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> Htt
 
     // Check whether package is in stable channel
     match Package::list_package_channels(&BuilderPackageIdent(ident.clone()),
+                                         target,
                                          helpers::all_visibilities(),
                                          &*conn)
     {
@@ -610,7 +611,7 @@ fn get_origin_schedule_status((qoss, req): (Query<OriginScheduleStatus>, HttpReq
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
+fn get_package_channels((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
     let (origin, name, version, release) =
         Path::<(String, String, String, String)>::extract(&req).unwrap()
                                                                .into_inner(); // Unwrap Ok
@@ -631,7 +632,23 @@ fn get_package_channels(req: HttpRequest<AppState>) -> HttpResponse {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
+    // TODO: Deprecate target from headers
+    let target = match qtarget.target {
+        Some(ref t) => {
+            debug!("Query requested target = {}", t);
+            match PackageTarget::from_str(t) {
+                Ok(t) => t,
+                Err(err) => {
+                    debug!("Invalid target requested: {}, err = {:?}", t, err);
+                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                }
+            }
+        }
+        None => helpers::target_from_headers(&req),
+    };
+
     match Package::list_package_channels(&BuilderPackageIdent(ident.clone()),
+                                         target,
                                          helpers::visibility_for_optional_session(&req,
                                                                                   opt_session_id,
                                                                                   &ident.origin),
@@ -1292,7 +1309,7 @@ fn do_get_package(req: &HttpRequest<AppState>,
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident.clone(), &*conn)?;
+    let channels = channels_for_package_ident(req, &pkg.ident.clone(), target, &*conn)?;
 
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
