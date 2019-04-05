@@ -46,6 +46,7 @@ impl Publisher {
 
         let client = ApiClient::new(&self.url);
         let ident = archive.ident().unwrap();
+        let target = archive.target().unwrap();
 
         match retry(RETRIES,
                     RETRY_WAIT,
@@ -99,7 +100,7 @@ impl Publisher {
 
             match retry(RETRIES,
                         RETRY_WAIT,
-                        || client.promote_package(&ident, channel, auth_token),
+                        || client.promote_package((&ident, target), channel, auth_token),
                         |res| {
                             if res.is_err() {
                                 let msg = format!("Promote {} to {}: {:?}", ident, channel, res);
