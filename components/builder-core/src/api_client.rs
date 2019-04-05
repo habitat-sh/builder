@@ -43,7 +43,8 @@ use crate::{error::{Error,
                     Result},
             hab_core::{package::{self,
                                  Identifiable,
-                                 PackageArchive},
+                                 PackageArchive,
+                                 PackageTarget},
                        ChannelIdent}};
 
 header! { (XFileName, "X-Filename") => [String] }
@@ -213,6 +214,8 @@ impl ApiClient {
     pub fn x_put_package(&self, pa: &mut PackageArchive, token: &str) -> Result<()> {
         let checksum = pa.checksum()?;
         let ident = pa.ident()?;
+        let target = pa.target()?;
+
         let file = File::open(&pa.path).map_err(Error::IO)?;
         let file_size = file.metadata().map_err(Error::IO)?.len();
 
@@ -220,6 +223,7 @@ impl ApiClient {
 
         let mut qparams: HashMap<&str, &str> = HashMap::new();
         qparams.insert("checksum", &checksum);
+        qparams.insert("target", &target);
         qparams.insert("builder", "");
 
         debug!("Reading from {}", &pa.path.display());
@@ -266,15 +270,22 @@ impl ApiClient {
     }
 
     // TODO: make channel type hab_core::ChannelIdent
-    pub fn promote_package<I>(&self, ident: &I, channel: &ChannelIdent, token: &str) -> Result<()>
+    pub fn promote_package<I>(&self,
+                              (ident, target): (&I, PackageTarget),
+                              channel: &ChannelIdent,
+                              token: &str)
+                              -> Result<()>
         where I: Identifiable
     {
         let url_path = format!("{}/v1/{}",
                                self.url,
                                channel_package_promote(channel, ident));
-        debug!("Promoting package {}", ident);
+        debug!("Promoting package {}, target {}", ident, target);
 
-        let resp = self.http_call(Method::Put, &url_path, None, Some(token), &HashMap::new())?;
+        let mut qparams: HashMap<&str, &str> = HashMap::new();
+        qparams.insert("target", &target);
+
+        let resp = self.http_call(Method::Put, &url_path, None, Some(token), &qparams)?;
 
         if resp.status() != StatusCode::Ok {
             return Err(err_from_response(resp));
