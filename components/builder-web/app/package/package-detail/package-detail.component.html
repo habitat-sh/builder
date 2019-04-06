@@ -36,6 +36,7 @@
             [name]="package.ident.name"
             [version]="package.ident.version"
             [release]="package.ident.release"
+            [target]="package.target"
             channel="stable"
             *ngIf="promotable(package)">
           </hab-package-promote>

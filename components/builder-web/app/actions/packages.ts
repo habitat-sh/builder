@@ -72,13 +72,13 @@ function clearPackageVersions() {
   };
 }
 
-export function demotePackage(origin: string, name: string, version: string, release: string, channel: string, token: string) {
+export function demotePackage(origin: string, name: string, version: string, release: string, target: string, channel: string, token: string) {
   return dispatch => {
-    depotApi.demotePackage(origin, name, version, release, channel, token)
+    depotApi.demotePackage(origin, name, version, release, target, channel, token)
       .then(response => {
         dispatch(addNotification({
           title: 'Package demoted',
-          body: `${origin}/${name}/${version}/${release} has been removed from the ${channel} channel.`,
+          body: `${origin}/${name}/${version}/${release} (${target}) has been removed from the ${channel} channel.`,
           type: SUCCESS
         }));
         dispatch(fetchLatestInChannel(origin, name, 'stable'));
@@ -222,13 +222,13 @@ export function populateDashboardRecent(data) {
   };
 }
 
-export function promotePackage(origin: string, name: string, version: string, release: string, channel: string, token: string) {
+export function promotePackage(origin: string, name: string, version: string, release: string, target: string, channel: string, token: string) {
   return dispatch => {
-    depotApi.promotePackage(origin, name, version, release, channel, token)
+    depotApi.promotePackage(origin, name, version, release, target, channel, token)
       .then(response => {
         dispatch(addNotification({
           title: 'Package promoted',
-          body: `${origin}/${name}/${version}/${release} has been promoted to the ${channel} channel.`,
+          body: `${origin}/${name}/${version}/${release} (${target}) has been promoted to the ${channel} channel.`,
           type: SUCCESS
         }));
         dispatch(fetchLatestInChannel(origin, name, 'stable'));

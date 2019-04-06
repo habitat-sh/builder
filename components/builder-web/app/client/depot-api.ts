@@ -60,8 +60,8 @@ function handleUnauthorized(response, reject) {
   return response;
 }
 
-export function demotePackage(origin: string, name: string, version: string, release: string, channel: string, token: string) {
-  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/demote`;
+export function demotePackage(origin: string, name: string, version: string, release: string, target: string, channel: string, token: string) {
+  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/demote?target=${target}`;
 
   return new Promise((resolve, reject) => {
     fetch(url, {
@@ -238,8 +238,8 @@ export function getPackageVersions(origin: string, pkg: string) {
   });
 }
 
-export function promotePackage(origin: string, name: string, version: string, release: string, channel: string, token: string) {
-  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/promote`;
+export function promotePackage(origin: string, name: string, version: string, release: string, target: string, channel: string, token: string) {
+  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/promote?target=${target}`;
 
   return new Promise((resolve, reject) => {
     fetch(url, {

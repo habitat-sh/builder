@@ -24,7 +24,7 @@ import { demotePackage } from '../../actions/index';
 export class PackageDetailComponent {
   @Input() package: any;
 
-  constructor(private store: AppStore) {}
+  constructor(private store: AppStore) { }
 
   get channels() {
     return this.store.getState().packages.currentChannels;
@@ -52,7 +52,7 @@ export class PackageDetailComponent {
   handleDemote(channel) {
     let p = this.package.ident;
     let token = this.store.getState().session.token;
-    this.store.dispatch(demotePackage(p.origin, p.name, p.version, p.release, channel, token));
+    this.store.dispatch(demotePackage(p.origin, p.name, p.version, p.release, this.package.target, channel, token));
   }
 
   promotable(pkg) {
