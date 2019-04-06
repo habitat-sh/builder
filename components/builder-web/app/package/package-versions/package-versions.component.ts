@@ -90,7 +90,7 @@ export class PackageVersionsComponent implements OnDestroy {
 
   handleDemote(pkg, channel) {
     let token = this.store.getState().session.token;
-    this.store.dispatch(demotePackage(pkg.origin, pkg.name, pkg.version, pkg.release, channel, token));
+    this.store.dispatch(demotePackage(pkg.origin, pkg.name, pkg.version, pkg.release, pkg.target, channel, token));
   }
 
   promotable(pkg) {

@@ -14,6 +14,7 @@ export class PackagePromoteComponent {
   @Input() version: string;
   @Input() release: string;
   @Input() channel: string;
+  @Input() target: string;
 
   promoting: boolean = false;
 
@@ -41,7 +42,7 @@ export class PackagePromoteComponent {
 
           setTimeout(() => {
             this.store.dispatch(
-              promotePackage(this.origin, this.name, this.version, this.release, this.channel, this.store.getState().session.token)
+              promotePackage(this.origin, this.name, this.version, this.release, this.target, this.channel, this.store.getState().session.token)
             );
           }, 1000);
         }
