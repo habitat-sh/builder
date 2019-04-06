@@ -53,7 +53,7 @@
                 [name]="pkg.name"
                 [version]="pkg.version"
                 [release]="pkg.release"
-                [target]="pkg.target"
+                [target]="pkg.platforms[0]"
                 channel="stable"
                 *ngIf="promotable(pkg)">
               </hab-package-promote>
