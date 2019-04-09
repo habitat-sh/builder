@@ -1,3 +1,9 @@
+data "aws_acm_certificate" "ssl" {
+  domain      = "habitat.sh"
+  types       = ["AMAZON_ISSUED"]
+  most_recent = true
+}
+
 resource "aws_elb" "api" {
   name            = "builder-api-gateway-${var.env}"
   security_groups = ["${aws_security_group.gateway_elb.id}"]
@@ -10,7 +16,7 @@ resource "aws_elb" "api" {
     instance_protocol  = "HTTP"
     lb_port            = 443
     lb_protocol        = "HTTPS"
-    ssl_certificate_id = "${var.ssl_certificate_arn}"
+    ssl_certificate_id = "${data.aws_acm_certificate.ssl.arn}"
   }
 
   health_check {
