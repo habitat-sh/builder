@@ -69,10 +69,6 @@ variable "http_listen_port" {
   default     = 9631
 }
 
-variable "ssl_certificate_arn" {
-  description = "Amazon Resource Name (ARN) for the environment's ssl certificate"
-}
-
 variable "public_subnet_id" {
   description = "Identifier for public AWS subnet"
 }
