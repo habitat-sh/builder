@@ -3,6 +3,7 @@ debug = true
 
 [workspace]
 members = [
+  "components/artifactory-client",
   "components/builder-api",
   "components/builder-core",
   "components/builder-db",

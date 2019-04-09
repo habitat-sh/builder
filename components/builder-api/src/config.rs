@@ -27,6 +27,7 @@ use std::{env,
 
 use num_cpus;
 
+use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
 use oauth_client::config::OAuth2Cfg;
 use segment_api_client::SegmentCfg;
@@ -52,30 +53,32 @@ pub trait GatewayCfg {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub api:       ApiCfg,
-    pub github:    GitHubCfg,
-    pub http:      HttpCfg,
-    pub oauth:     OAuth2Cfg,
-    pub s3:        S3Cfg,
-    pub segment:   SegmentCfg,
-    pub ui:        UiCfg,
-    pub memcache:  MemcacheCfg,
-    pub jobsrv:    JobsrvCfg,
-    pub datastore: DataStoreCfg,
+    pub api:         ApiCfg,
+    pub artifactory: ArtifactoryCfg,
+    pub github:      GitHubCfg,
+    pub http:        HttpCfg,
+    pub oauth:       OAuth2Cfg,
+    pub s3:          S3Cfg,
+    pub segment:     SegmentCfg,
+    pub ui:          UiCfg,
+    pub memcache:    MemcacheCfg,
+    pub jobsrv:      JobsrvCfg,
+    pub datastore:   DataStoreCfg,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config { api:       ApiCfg::default(),
-                 github:    GitHubCfg::default(),
-                 http:      HttpCfg::default(),
-                 oauth:     OAuth2Cfg::default(),
-                 s3:        S3Cfg::default(),
-                 segment:   SegmentCfg::default(),
-                 ui:        UiCfg::default(),
-                 memcache:  MemcacheCfg::default(),
-                 jobsrv:    JobsrvCfg::default(),
-                 datastore: DataStoreCfg::default(), }
+        Config { api:         ApiCfg::default(),
+                 artifactory: ArtifactoryCfg::default(),
+                 github:      GitHubCfg::default(),
+                 http:        HttpCfg::default(),
+                 oauth:       OAuth2Cfg::default(),
+                 s3:          S3Cfg::default(),
+                 segment:     SegmentCfg::default(),
+                 ui:          UiCfg::default(),
+                 memcache:    MemcacheCfg::default(),
+                 jobsrv:      JobsrvCfg::default(),
+                 datastore:   DataStoreCfg::default(), }
     }
 }
 

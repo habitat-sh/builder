@@ -23,6 +23,7 @@ use actix_web::{self,
                 http::StatusCode,
                 HttpResponse,
                 ResponseError};
+use artifactory_client::error::ArtifactoryError;
 use diesel;
 use github_api_client::HubError;
 use oauth_client::error::Error as OAuthError;
@@ -36,6 +37,7 @@ use crate::{bldr_core,
 
 #[derive(Debug)]
 pub enum Error {
+    Artifactory(ArtifactoryError),
     Authentication,
     Authorization,
     BadRequest,
@@ -70,6 +72,7 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::Artifactory(ref e) => format!("{}", e),
             Error::Authentication => "User is not authenticated".to_string(),
             Error::Authorization => "User is not authorized to perform operation".to_string(),
             Error::BadRequest => "Bad request".to_string(),
@@ -105,6 +108,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::Artifactory(ref err) => err.description(),
             Error::Authentication => "User is not authenticated",
             Error::Authorization => "User is not authorized to perform operation",
             Error::BadRequest => "Http request formation error",
@@ -139,6 +143,7 @@ impl error::Error for Error {
 impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
         match self {
+            Error::Artifactory(ref e) => HttpResponse::new(artifactory_err_to_http(&e)),
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),
@@ -159,6 +164,7 @@ impl ResponseError for Error {
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {
+            Error::Artifactory(ref e) => HttpResponse::new(artifactory_err_to_http(&e)),
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),
@@ -174,6 +180,13 @@ impl Into<HttpResponse> for Error {
             // Default
             _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
         }
+    }
+}
+
+fn artifactory_err_to_http(err: &ArtifactoryError) -> StatusCode {
+    match err {
+        ArtifactoryError::ApiError(code, _) => StatusCode::from_u16(code.as_u16()).unwrap(),
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

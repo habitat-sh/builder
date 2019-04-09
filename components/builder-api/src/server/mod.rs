@@ -39,6 +39,7 @@ use crate::{bldr_core::rpc::RpcClient,
                  DbPool}};
 use github_api_client::GitHubClient;
 
+use artifactory_client::client::ArtifactoryClient;
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
@@ -64,20 +65,22 @@ use crate::config::{Config,
 features! {
     pub mod feat {
         const List = 0b0000_0001,
-        const Jobsrv = 0b0000_0010
+        const Jobsrv = 0b0000_0010,
+        const Artifactory = 0b0000_0100
     }
 }
 
 // Application state
 pub struct AppState {
-    config:   Config,
-    packages: S3Handler,
-    github:   GitHubClient,
-    jobsrv:   RpcClient,
-    oauth:    OAuth2Client,
-    segment:  SegmentClient,
-    memcache: RefCell<MemcacheClient>,
-    db:       DbPool,
+    config:      Config,
+    packages:    S3Handler,
+    github:      GitHubClient,
+    jobsrv:      RpcClient,
+    oauth:       OAuth2Client,
+    segment:     SegmentClient,
+    memcache:    RefCell<MemcacheClient>,
+    artifactory: ArtifactoryClient,
+    db:          DbPool,
 }
 
 impl AppState {
@@ -89,13 +92,15 @@ impl AppState {
                    oauth: OAuth2Client::new(config.oauth.clone()),
                    segment: SegmentClient::new(config.segment.clone()),
                    memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
+                   artifactory: ArtifactoryClient::new(config.artifactory.clone()),
                    db }
     }
 }
 
 fn enable_features(config: &Config) {
-    let features: HashMap<_, _> =
-        HashMap::from_iter(vec![("LIST", feat::List), ("JOBSRV", feat::Jobsrv)]);
+    let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List),
+                                                          ("JOBSRV", feat::Jobsrv),
+                                                          ("ARTIFACTORY", feat::Artifactory)]);
     let features_enabled = config.api
                                  .features_enabled
                                  .split(',')
