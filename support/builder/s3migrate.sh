@@ -36,7 +36,7 @@ getHarts() {
     # artifact that exists in that path
 
     TARGETDIR=${1}
-    for f in ${TARGETDIR}/*; do
+    for f in "${TARGETDIR}"/*; do
         if [[ -d "${f}" ]]; then
             getHarts "${f}"
         elif [[ "${f}" == *.hart ]]; then
@@ -247,8 +247,8 @@ credCheck(){
             break
         fi
 
-        if [[ ! -z ${AWS_ACCESS_KEY_ID:-} ]]; then
-            if [[ ! -z ${AWS_SECRET_ACCESS_KEY:-} ]]; then
+        if [[ -n ${AWS_ACCESS_KEY_ID:-} ]]; then
+            if [[ -n ${AWS_SECRET_ACCESS_KEY:-} ]]; then
                 echo ""
                 echo "AWS Credentials configured via ENVVAR detected."
                 echo ""

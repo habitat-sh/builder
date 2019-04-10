@@ -13,7 +13,18 @@ get_current_toolchain() {
   # break the way rustfmt uses rustc. Therefore, before updating the pin below, double check
   # that the nightly version you're going to update it to includes rustfmt. You can do that
   # using https://mexus.github.io/rustup-components-history/x86_64-unknown-linux-gnu.html
-  echo "nightly-2019-03-18"
+  echo "nightly-2019-04-09"
+}
+
+install_rustup() {
+  if command -v rustup && command -v cargo &>/dev/null; then
+    echo "--- :rust: rustup is currently installed."
+  else
+    echo "--- :rust: Installing rustup."
+    curl https://sh.rustup.rs -sSf | sh -s -- --no-modify-path -y
+    # shellcheck disable=SC1090
+    source "$HOME"/.cargo/env
+  fi
 }
 
 install_rust_toolchain() {

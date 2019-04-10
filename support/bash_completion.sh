@@ -12,6 +12,7 @@
 #   source "`hab pkg path core/bash-completion`/etc/profile.d/bash_completion.sh"
 
 # bash_completion for hab
+# shellcheck disable=2207
 _hab()
 {
     local cur prev

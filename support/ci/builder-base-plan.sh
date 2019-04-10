@@ -29,9 +29,9 @@ do_builder_before() {
 }
 
 do_builder_build() {
-  pushd "$PLAN_CONTEXT"/.. > /dev/null
+  pushd "$PLAN_CONTEXT"/.. > /dev/null || exit
   cargo build "${builder_build_type#--debug}" --target="$rustc_target" --verbose
-  popd > /dev/null
+  popd > /dev/null || exit
 }
 
 do_builder_install() {
