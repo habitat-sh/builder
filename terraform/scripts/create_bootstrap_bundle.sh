@@ -73,8 +73,8 @@ hab pkg binlink core/coreutils sort
 # also changed and released relatively infrequently. We can just ask
 # the depot for the latest stable version of it.
 sup_packages=(core/hab-launcher
-              core/hab/${hab_version}
-              core/hab-sup/${hab_version})
+              core/hab/"${hab_version}"
+              core/hab-sup/"${hab_version}")
 
 # If the HAB_BLDR_URL environment variable is set, we'll use that
 # when downloading packages. Otherwise, we'll just default to the

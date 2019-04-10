@@ -225,13 +225,13 @@ _stop-builder() {
 stop-builder() { stop-on-failure _stop-builder "$@"; }
 
 generate_bldr_keys() {
-  keys=( $(find /hab/cache/keys -name "bldr-*.pub") )
+  mapfile -t keys < <(find /hab/cache/keys -name "bldr-*.pub")
 
   if [ "${#keys[@]}" -gt 0 ]; then
-    KEY_NAME=$(echo "${keys[0]}" | grep -Po "bldr-\d+")
+    KEY_NAME=$(echo "${keys[0]}" | grep -Po "bldr-\\d+")
     echo "Re-using existing builder key: $KEY_NAME"
   else
-    KEY_NAME=$(hab user key generate bldr | grep -Po "bldr-\d+")
+    KEY_NAME=$(hab user key generate bldr | grep -Po "bldr-\\d+")
     echo "Generated new builder key: $KEY_NAME"
   fi
 
@@ -305,7 +305,7 @@ local_cleanup() {
 alias help=dev_docs
 
 welcome() {
-  cat <<WMSG
+  cat <<'WMSG'
 Welcome to...
  ____        _ _     _
 | __ ) _   _(_) | __| | ___ _ __

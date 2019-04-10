@@ -97,10 +97,10 @@ do_install() {
   export PATH="${PATH}:${pkg_prefix}/bin"
   build_line "Added postgresql binaries to PATH: ${pkg_prefix}/bin"
 
-  pushd "$ext_semver_cache_path" > /dev/null
+  pushd "$ext_semver_cache_path" > /dev/null || exit
   build_line "Building ${ext_semver_dirname}"
   make
   build_line "Installing ${ext_semver_dirname}"
   make install
-  popd > /dev/null
+  popd > /dev/null || exit
 }
