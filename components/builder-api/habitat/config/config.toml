@@ -17,6 +17,9 @@ app_private_key = "{{pkg.svc_files_path}}/builder-github-app.pem"
 [s3]
 {{toToml cfg.s3}}
 
+[artifactory]
+{{toToml cfg.artifactory}}
+
 [segment]
 {{toToml cfg.segment}}
 

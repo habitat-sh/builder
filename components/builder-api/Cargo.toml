@@ -61,6 +61,9 @@ features = [ "suggestions", "color", "unstable" ]
 git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
 
+[dependencies.artifactory-client]
+path = "../artifactory-client"
+
 [dependencies.oauth-client]
 path = "../oauth-client"
 

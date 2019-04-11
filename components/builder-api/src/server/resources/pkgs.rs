@@ -462,15 +462,31 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
                 tempdir_in(&req.state().config.api.data_path).expect("Unable to create a tempdir!");
             let file_path = dir.path().join(archive_name(&package.ident, target));
             let temp_ident = ident.to_owned();
-            match req.state()
-                     .packages
-                     .download(&file_path, &temp_ident, target)
-            {
-                Ok(archive) => download_response_for_archive(&archive, &file_path),
-                Err(e) => {
-                    warn!("Failed to download package, ident={}, err={:?}",
-                          temp_ident, e);
-                    HttpResponse::new(StatusCode::NOT_FOUND)
+
+            // TODO: Aggregate Artifactory/S3 into a provider model
+            if feat::is_enabled(feat::Artifactory) {
+                match req.state()
+                         .artifactory
+                         .download(&file_path, &temp_ident, target)
+                {
+                    Ok(archive) => download_response_for_archive(&archive, &file_path),
+                    Err(e) => {
+                        warn!("Failed to download package, ident={}, err={:?}",
+                              temp_ident, e);
+                        HttpResponse::new(StatusCode::NOT_FOUND)
+                    }
+                }
+            } else {
+                match req.state()
+                         .packages
+                         .download(&file_path, &temp_ident, target)
+                {
+                    Ok(archive) => download_response_for_archive(&archive, &file_path),
+                    Err(e) => {
+                        warn!("Failed to download package, ident={}, err={:?}",
+                              temp_ident, e);
+                        HttpResponse::new(StatusCode::NOT_FOUND)
+                    }
                 }
             }
         }
@@ -1037,10 +1053,20 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
         }
     }
 
-    // TODO: Make S3 upload async
-    if let Err(err) = req.state()
-                         .packages
-                         .upload(&filename, &temp_ident, target_from_artifact)
+    // TODO: Make upload async
+    // TODO: Aggregate Artifactory/S3 into a provider model
+    if feat::is_enabled(feat::Artifactory) {
+        if let Err(err) = req.state()
+                             .artifactory
+                             .upload(&filename, &temp_ident, target_from_artifact)
+                             .map_err(Error::Artifactory)
+        {
+            warn!("Unable to upload archive to artifactory!");
+            return err.into();
+        }
+    } else if let Err(err) = req.state()
+                                .packages
+                                .upload(&filename, &temp_ident, target_from_artifact)
     {
         warn!("Unable to upload archive to s3!");
         return err.into();
