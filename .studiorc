@@ -71,6 +71,14 @@ install-packages() {
   core/curl \
   core/aws-cli \
   -b -c stable
+
+  # workaround for https://github.com/habitat-sh/habitat/issues/6418
+  hab pkg binlink core/cacerts
+  hab pkg binlink core/net-tools
+  hab pkg binlink core/procps-ng
+  hab pkg binlink core/shadow
+  hab pkg binlink core/curl
+  hab pkg binlink core/aws-cli
 }
 
 _build-builder-component() {
