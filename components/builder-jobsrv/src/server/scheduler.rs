@@ -32,6 +32,7 @@ use crate::{config::Config,
             protocol::jobsrv};
 
 use crate::db::models::{jobs::*,
+                        package::*,
                         projects::*};
 
 use crate::{bldr_core::{logger::Logger,
@@ -40,6 +41,7 @@ use crate::{bldr_core::{logger::Logger,
                                   HistogramMetric},
                         socket::DEFAULT_CONTEXT},
             hab_core::package::{target,
+                                PackageIdent,
                                 PackageTarget}};
 
 use super::{metrics::{Counter,
@@ -311,6 +313,7 @@ impl ScheduleMgr {
     fn dispatchable_projects(&mut self,
                              group: &jobsrv::JobGroup)
                              -> Result<Vec<jobsrv::JobGroupProject>> {
+        let conn = self.db.get_conn().map_err(Error::Db)?;
         let mut projects = Vec::new();
         for project in group.get_projects()
                             .iter()
@@ -322,18 +325,36 @@ impl ScheduleMgr {
                 true
             } else {
                 let mut check_status = true;
-                let package = match self.datastore.get_job_graph_package(&project.get_ident()) {
+
+                let package = match Package::get(
+                    GetPackage {
+                        ident: BuilderPackageIdent(
+                            PackageIdent::from_str(&project.get_ident()).unwrap(),
+                        ),
+                        visibility: vec![
+                            PackageVisibility::Public,
+                            PackageVisibility::Private,
+                            PackageVisibility::Hidden,
+                        ],
+                        target: BuilderPackageTarget(
+                            PackageTarget::from_str(group.get_target()).unwrap(),
+                        ),
+                    },
+                    &*conn,
+                ) {
                     Ok(pkg) => pkg,
                     Err(err) => {
-                        warn!("Failed to retrieve package (possibly deleted?): {}. Err={:?}",
-                              &project.get_ident(),
-                              err);
+                        warn!(
+                            "Failed to retrieve package (possibly deleted?): {} ({}). Err={:?}",
+                            &project.get_ident(),
+                            &group.get_target(),
+                            err
+                        );
                         continue;
                     }
                 };
-                let deps = package.get_deps();
-                for dep in deps {
-                    let name = format!("{}/{}", dep.get_origin(), dep.get_name());
+                for dep in package.deps {
+                    let name = format!("{}/{}", dep.origin, dep.name);
 
                     if !self.check_dispatchable(group, &name) {
                         check_status = false;
@@ -368,6 +389,7 @@ impl ScheduleMgr {
                      group: &jobsrv::JobGroup,
                      project_name: &str)
                      -> Result<Vec<String>> {
+        let conn = self.db.get_conn().map_err(Error::Db)?;
         let mut skipped = HashMap::new();
         skipped.insert(project_name.to_string(), true);
 
@@ -377,19 +399,36 @@ impl ScheduleMgr {
         {
             // Check the deps for the project. If we find any dep that is in the
             // skipped list, we set the project status to Skipped and add it to the list
-            let package = match self.datastore.get_job_graph_package(&project.get_ident()) {
+            let package = match Package::get(
+                GetPackage {
+                    ident: BuilderPackageIdent(
+                        PackageIdent::from_str(&project.get_ident()).unwrap(),
+                    ),
+                    visibility: vec![
+                        PackageVisibility::Public,
+                        PackageVisibility::Private,
+                        PackageVisibility::Hidden,
+                    ],
+                    target: BuilderPackageTarget(
+                        PackageTarget::from_str(group.get_target()).unwrap(),
+                    ),
+                },
+                &*conn,
+            ) {
                 Ok(package) => package,
                 Err(err) => {
-                    warn!("Unable to retrieve job graph package {}, err: {:?}",
-                          project.get_ident(),
-                          err);
+                    warn!(
+                        "Unable to retrieve job graph package {} ({}), err: {:?}",
+                        project.get_ident(),
+                        group.get_target(),
+                        err
+                    );
                     continue;
                 }
             };
-            let deps = package.get_deps();
 
-            for dep in deps {
-                let name = format!("{}/{}", dep.get_origin(), dep.get_name());
+            for dep in package.deps {
+                let name = format!("{}/{}", dep.origin, dep.name);
 
                 if skipped.contains_key(&name) {
                     debug!("Skipping project {:?}", project.get_name());

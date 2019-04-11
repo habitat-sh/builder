@@ -365,25 +365,6 @@ impl DataStore {
         Ok(packages)
     }
 
-    pub fn get_job_graph_package(&self, ident: &str) -> Result<originsrv::OriginPackage> {
-        let conn = self.pool.get()?;
-        let visibilities = vec![PackageVisibility::Public,
-                                PackageVisibility::Private,
-                                PackageVisibility::Hidden,];
-        let rows = &conn.query("SELECT * FROM get_origin_package_v5($1, $2)",
-                               &[&ident, &visibilities])
-                        .map_err(Error::JobGraphPackagesGet)?;
-
-        if rows.is_empty() {
-            error!("No package found");
-            return Err(Error::UnknownJobGraphPackage);
-        }
-
-        assert!(rows.len() == 1);
-        let package = self.row_to_origin_package(&rows.get(0))?;
-        Ok(package)
-    }
-
     pub fn is_job_group_active(&self, project_name: &str) -> Result<bool> {
         let conn = self.pool.get()?;
 
