@@ -160,6 +160,8 @@ impl<'a> Studio<'a> {
         cmd.arg("build");
         if !dev_mode {
             cmd.arg("-D"); // Use Docker studio
+            cmd.arg("--no-tty"); // Need this as of hab 0.79.0
+            cmd.arg("--non-interactive"); // Need this as of hab 0.79.0
         }
 
         if self.target == target::X86_64_WINDOWS {
