@@ -269,6 +269,7 @@ fn do_group_promotion_or_demotion(req: &HttpRequest<AppState>,
                                   channel: &ChannelIdent,
                                   projects: Vec<&jobsrv::JobGroupProject>,
                                   origin: &str,
+                                  target: PackageTarget,
                                   promote: bool)
                                   -> Result<Vec<i64>> {
     let session = authorize_session(req, Some(&origin))?;
@@ -303,12 +304,11 @@ fn do_group_promotion_or_demotion(req: &HttpRequest<AppState>,
            .clear_cache_for_package(&OriginPackageIdent::from_str(project.get_ident()).unwrap()
                                                                                       .into());
 
-        // TODO (SA): Expand build targets - currently Builder only supports x86_64-linux
         let op = Package::get(
             GetPackage {
                 ident: BuilderPackageIdent(PackageIdent::from_str(project.get_ident()).unwrap()),
                 visibility: helpers::all_visibilities(),
-                target: BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap()), // Unwrap OK
+                target: BuilderPackageTarget(target),
             },
             &*conn,
         )?;
@@ -345,6 +345,7 @@ fn promote_or_demote_job_group(req: &HttpRequest<AppState>,
     group_get.set_group_id(group_id);
     group_get.set_include_projects(true);
     let group = route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(req, &group_get)?;
+    let target = PackageTarget::from_str(group.get_target()).unwrap();
 
     let mut origin_map = HashMap::new();
     let mut ident_map = HashMap::new();
@@ -384,7 +385,13 @@ fn promote_or_demote_job_group(req: &HttpRequest<AppState>,
     let conn = req.state().db.get_conn().map_err(Error::DbError)?;
 
     for (origin, projects) in origin_map.iter() {
-        match do_group_promotion_or_demotion(req, channel, projects.to_vec(), &origin, promote) {
+        match do_group_promotion_or_demotion(req,
+                                             channel,
+                                             projects.to_vec(),
+                                             &origin,
+                                             target,
+                                             promote)
+        {
             Ok(package_ids) => {
                 let pco = if promote {
                     PackageChannelOperation::Promote
