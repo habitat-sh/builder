@@ -1,0 +1,19 @@
+expeditor:
+  defaults:
+    buildkite:
+      timeout_in_minutes: 30
+
+steps:
+#######################################################################
+# Whatever needs to happen!
+#######################################################################
+
+  - label: "[test_type] :windows: component"
+    command:
+      - dir
+    agents:
+      queue: 'default-windows-privileged'
+    retry:
+      automatic:
+        limit: 1
+
