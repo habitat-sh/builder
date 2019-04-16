@@ -1,0 +1,10 @@
+#!/bin/bash
+set -ueo pipefail
+
+# Windows API has a 260 character maximum length for a path.
+# Shortening BUILDKITE_BUILD_CHECKOUT_PATH helps avoid build failures for repos with long paths.
+#
+# reference: https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file#maximum-path-length-limitation
+if [[ $OSTYPE == "msys" ]] ; then
+  BUILDKITE_BUILD_CHECKOUT_PATH="C:/builds"
+fi
