@@ -297,6 +297,11 @@ mod tests {
         endpoint = "http://localhost:9000"
         bucket_name = "hibbity-bibbity-poopity-scoopity"
 
+        [artifactory]
+        api_url = "http://abcde"
+        api_key = "secret"
+        repo = "abracadabra"
+
         [github]
         api_url = "https://api.github.com"
 
@@ -362,6 +367,11 @@ mod tests {
                    "aW5S3c437Key7hIn817s7o7a11yN457y70Wr173L1k37h15");
         assert_eq!(config.s3.endpoint, "http://localhost:9000");
         assert_eq!(config.s3.bucket_name, "hibbity-bibbity-poopity-scoopity");
+
+        assert_eq!(config.artifactory.api_url, "http://abcde");
+        assert_eq!(config.artifactory.api_key, "secret");
+        assert_eq!(config.artifactory.repo, "abracadabra");
+
         assert_eq!(config.datastore.port, 9000);
         assert_eq!(config.datastore.user, "test");
         assert_eq!(config.datastore.database, "test");
