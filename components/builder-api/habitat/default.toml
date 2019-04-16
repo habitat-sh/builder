@@ -34,6 +34,11 @@ secret_key = "password"
 endpoint = "http://localhost:9000"
 bucket_name = "habitat-builder-artifact-store.default"
 
+[artifactory]
+api_url = "http://localhost:8080"
+api_key = "key"
+repo = "habitat-builder-artifact-store.default"
+
 [memcache]
 ttl = 15
 
