@@ -39,6 +39,16 @@ steps:
       executor:
         docker:
 
+  - label: "[lint] :windows: :paperclip: clippy!"
+    command:
+      - .\test\run_clippy.ps1 .\test\unexamined_lints.txt .\test\allowed_lints.txt .\test\lints_to_fix.txt .\test\denied_lints.txt
+    timeout_in_minutes: 40
+    expeditor:
+      executor:
+        docker:
+          host_os: windows 
+          shell: ["powershell", "-Command"]   
+
 #######################################################################
 # Unit Tests - Linux!
 #######################################################################
