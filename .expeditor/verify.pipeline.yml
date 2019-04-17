@@ -12,9 +12,6 @@ steps:
     command:
       - ./test/shellcheck.sh
     timeout_in_minutes: 10
-    retry:
-      automatic:
-        limit: 1
     expeditor:
       executor:
         docker:
@@ -23,9 +20,15 @@ steps:
     command:
       - ./support/ci/rustfmt.sh
     timeout_in_minutes: 10
-    retry:
-      automatic:
-        limit: 1
     expeditor:
       executor:
         docker:
+
+  - label: "[lint] :linux: :paperclip: clippy!"
+    command:
+      - sudo yum install gcc -y # install GCC since it's required for the cargo build
+      - sudo yum update bash # make sure we have 4.4 or later
+      - sudo make lint
+    agents:
+      queue: 'single-use-privileged'
+    timeout_in_minutes: 10

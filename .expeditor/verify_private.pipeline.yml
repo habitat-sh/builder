@@ -5,15 +5,13 @@ expeditor:
 
 steps:
 #######################################################################
-# Whatever needs to happen!
+# Linting!
 #######################################################################
 
-  - label: "[test_type] :windows: component"
+  - label: "[lint] :windows: :paperclip: clippy!"
     command:
-      - dir
+      - cd components\builder-worker
+      - ..\..\test\run_clippy.ps1 stable ..\..\test\unexamined_lints.txt ..\..\test\allowed_lints.txt ..\..\test\lints_to_fix.txt ..\..\test\denied_lints.txt
     agents:
-      queue: 'default-windows-privileged'
-    retry:
-      automatic:
-        limit: 1
-
+      queue: 'single-use-windows-privileged'
+    timeout_in_minutes: 25

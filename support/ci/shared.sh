@@ -43,3 +43,15 @@ install_rustfmt() {
   install_rust_toolchain "$toolchain"
   rustup component add --toolchain "$toolchain" rustfmt
 }
+
+install_hab_pkg() {
+  for ident; do
+    installed_pkgs=$(hab pkg list "$ident")
+
+    if [[ -z $installed_pkgs ]]; then
+      sudo hab pkg install "$ident"
+    else
+      echo "$ident already installed"
+    fi
+  done
+}
