@@ -114,52 +114,6 @@ matrix:
         - ./support/ci/rust_tests.sh
 
 #
-# Job for linting with clippy and running rustfmt
-#
-    - language: rust
-      env:
-        - AFFECTED_FILES=""
-        - AFFECTED_DIRS="$_RUST_HAB_BIN_COMPONENTS $_RUST_BLDR_BIN_COMPONENTS $_RUST_BLDR_LIB_COMPONENTS"
-      rust: 1.34.0
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - kalakris-cmake
-          packages:
-            - build-essential
-            - ca-certificates
-            - cmake
-            - curl
-            - libbz2-dev
-            - liblzma-dev
-            - libssl-dev
-            - pkg-config
-      cache:
-        apt: true
-        cargo: true
-        directories:
-          - "$HOME/pkgs"
-      before_script:
-        - rustup component add clippy
-      before_install:
-        - ./support/ci/fast_pass.sh || exit 0
-        - ./support/ci/install_hab.sh
-        - ./support/ci/install_protobuf.sh
-        - ./support/ci/compile_libsodium.sh
-        - ./support/ci/compile_libarchive.sh
-        - ./support/ci/compile_zmq.sh
-        - source ./support/ci/rust_env.sh
-        # We need to build habitat-builder-protocol first, otherwise rustfmt
-        # barfs when it encounters
-        # components/builder-protocol/src/message/mod.rs which references
-        # modules that don't exist yet.
-        - cargo build --package habitat-builder-protocol
-      script:
-        - ./support/ci/rustfmt.sh
-        - make lint
-
-#
 # Job for testing Builder Rust services
 # This runs studio-based end-to-end-tests
 # Cargo unit tests are NOT run
