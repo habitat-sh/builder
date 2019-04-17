@@ -327,7 +327,7 @@ dependencies = [
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "walkdir 2.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "zmq 0.8.3 (git+https://github.com/erickt/rust-zmq?branch=release/v0.8)",
+ "zmq 0.8.3 (git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8)",
 ]
 
 [[package]]
@@ -1015,7 +1015,7 @@ dependencies = [
  "toml 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "zmq 0.8.3 (git+https://github.com/erickt/rust-zmq?branch=release/v0.8)",
+ "zmq 0.8.3 (git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8)",
 ]
 
 [[package]]
@@ -1107,7 +1107,7 @@ dependencies = [
  "sha2 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "zmq 0.8.3 (git+https://github.com/erickt/rust-zmq?branch=release/v0.8)",
+ "zmq 0.8.3 (git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8)",
 ]
 
 [[package]]
@@ -1135,7 +1135,7 @@ dependencies = [
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "zmq 0.8.3 (git+https://github.com/erickt/rust-zmq?branch=release/v0.8)",
+ "zmq 0.8.3 (git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8)",
 ]
 
 [[package]]
@@ -3416,17 +3416,17 @@ dependencies = [
 [[package]]
 name = "zmq"
 version = "0.8.3"
-source = "git+https://github.com/erickt/rust-zmq?branch=release/v0.8#0d371fec87b6e3f13ea91c873e215319661cf176"
+source = "git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8#0d371fec87b6e3f13ea91c873e215319661cf176"
 dependencies = [
  "libc 0.2.51 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "zmq-sys 0.8.3 (git+https://github.com/erickt/rust-zmq?branch=release/v0.8)",
+ "zmq-sys 0.8.3 (git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8)",
 ]
 
 [[package]]
 name = "zmq-sys"
 version = "0.8.3"
-source = "git+https://github.com/erickt/rust-zmq?branch=release/v0.8#0d371fec87b6e3f13ea91c873e215319661cf176"
+source = "git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8#0d371fec87b6e3f13ea91c873e215319661cf176"
 dependencies = [
  "libc 0.2.51 (registry+https://github.com/rust-lang/crates.io-index)",
  "metadeps 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3780,5 +3780,5 @@ dependencies = [
 "checksum winutil 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7daf138b6b14196e3830a588acf1e86966c694d3e8fb026fb105b8b5dca07e6e"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xml-rs 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3c1cb601d29fe2c2ac60a2b2e5e293994d87a1f6fa9687a31a15270f909be9c2"
-"checksum zmq 0.8.3 (git+https://github.com/erickt/rust-zmq?branch=release/v0.8)" = "<none>"
-"checksum zmq-sys 0.8.3 (git+https://github.com/erickt/rust-zmq?branch=release/v0.8)" = "<none>"
+"checksum zmq 0.8.3 (git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8)" = "<none>"
+"checksum zmq-sys 0.8.3 (git+https://github.com/habitat-sh/rust-zmq?branch=release/v0.8)" = "<none>"
