@@ -13,7 +13,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-actix = "*"
+actix = "0.7.9" # JB: pinning this because newer versions panic on server startup and it's not clear why
 bytes = "*"
 base64 = "*"
 bitflags = "1"
@@ -74,13 +74,13 @@ path = "../github-api-client"
 path = "../segment-api-client"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/core.git"
+git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
 
 [dependencies.habitat_http_client]
-git = "https://github.com/habitat-sh/core.git"
+git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.habitat_builder_db]
 path = "../builder-db"

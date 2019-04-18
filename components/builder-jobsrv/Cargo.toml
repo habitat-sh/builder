@@ -13,7 +13,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-actix = "*"
+actix = "0.7.9" # JB: pinning this because newer versions panic on server startup and it's not clear why
 builder_core = { path = "../builder-core" }
 clippy = {version = "*", optional = true}
 chrono = { version = "*", features = ["serde"] }
@@ -53,4 +53,4 @@ git = "https://github.com/erickt/rust-zmq"
 branch = "release/v0.8"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/core.git"
+git = "https://github.com/habitat-sh/habitat.git"

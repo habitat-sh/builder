@@ -43,7 +43,7 @@ branch = "release/v0.8"
 path = "../github-api-client"
 
 [dependencies.habitat_core]
-git = "https://github.com/habitat-sh/core.git"
+git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
