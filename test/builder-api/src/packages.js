@@ -175,7 +175,7 @@ describe('Working with packages', function () {
     it('is not allowed', function (done) {
       request.delete('/depot/origins/neurosis')
         .set('Authorization', global.boboBearer)
-        .expect(422)
+        .expect(409)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err)

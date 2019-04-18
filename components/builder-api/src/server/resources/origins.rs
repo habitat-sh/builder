@@ -66,7 +66,6 @@ use crate::db::models::{account::*,
                         secrets::*};
 
 use crate::server::{authorize::{authorize_session,
-                                check_origin_empty,
                                 check_origin_owner},
                     error::{Error,
                             Result},
@@ -278,10 +277,6 @@ fn delete_origin(req: HttpRequest<AppState>) -> HttpResponse {
 
     debug!("Request to delete origin {}", &origin);
 
-    if !check_origin_empty(&req, &origin).unwrap_or(false) {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
@@ -290,8 +285,8 @@ fn delete_origin(req: HttpRequest<AppState>) -> HttpResponse {
     match Origin::delete(&origin, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().into(),
         Err(err) => {
-            debug!("{}", err);
-            err.into()
+            debug!("Origin {} is not deletable, err = {}", origin, err);
+            HttpResponse::new(StatusCode::CONFLICT)
         }
     }
 }

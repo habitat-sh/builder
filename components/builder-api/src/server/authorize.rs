@@ -16,8 +16,7 @@ use actix_web::HttpRequest;
 
 use crate::{bldr_core::{access_token::BUILDER_ACCOUNT_ID,
                         privilege::*},
-            db::models::{origin::*,
-                         package::Package},
+            db::models::origin::*,
             protocol::originsrv};
 
 use crate::server::{error::{Error,
@@ -99,9 +98,4 @@ pub fn check_origin_member(req: &HttpRequest<AppState>,
         let conn = req.state().db.get_conn().map_err(Error::DbError)?;
         Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError)
     }
-}
-pub fn check_origin_empty(req: &HttpRequest<AppState>, origin: &str) -> Result<bool> {
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
-    let count = Package::count_origin_packages(&origin, &*conn).map_err(Error::DieselError)?;
-    Ok(count == 0)
 }

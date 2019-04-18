@@ -9,7 +9,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 clean_test_artifacts() {
    local sql origins
-  origins=( neurosis xmen )
+  origins=( neurosis xmen umbrella )
 
   # clean origins
   local origins origin_tables
