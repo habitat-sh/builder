@@ -16,7 +16,11 @@
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
 #[macro_use]
+extern crate bitflags;
+#[macro_use]
 extern crate diesel_migrations;
+#[macro_use]
+extern crate features;
 #[macro_use]
 extern crate log;
 #[macro_use]

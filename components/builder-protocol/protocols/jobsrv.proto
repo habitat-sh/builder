@@ -200,6 +200,7 @@ message JobGraphPackagePreCreate {
   optional string ident = 1;
   repeated string deps = 2;
   optional string target = 3;
+  repeated string build_deps = 4;
 }
 
 message JobGraphPackageReverseDependenciesGet {

@@ -45,6 +45,8 @@ message OriginPackage {
   optional string config = 10;
   optional string target = 11;
   optional OriginPackageVisibility visibility = 12;
+  repeated OriginPackageIdent build_deps = 13;
+  repeated OriginPackageIdent build_tdeps = 14;
 }
 
 message OriginPackageIdent {

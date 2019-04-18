@@ -66,12 +66,12 @@ impl TargetGraph {
         }
     }
 
-    pub fn build<T>(&mut self, packages: T) -> Vec<TargetGraphStats>
+    pub fn build<T>(&mut self, packages: T, use_build_deps: bool) -> Vec<TargetGraphStats>
         where T: Iterator<Item = originsrv::OriginPackage>
     {
         for p in packages {
             if let Some(ref mut graph) = self.graph_mut(p.get_target()) {
-                graph.extend(&p);
+                graph.extend(&p, use_build_deps);
             }
         }
 

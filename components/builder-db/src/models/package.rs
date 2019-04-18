@@ -78,6 +78,8 @@ pub struct Package {
     pub target: BuilderPackageTarget,
     pub deps: Vec<BuilderPackageIdent>,
     pub tdeps: Vec<BuilderPackageIdent>,
+    pub build_deps: Vec<BuilderPackageIdent>,
+    pub build_tdeps: Vec<BuilderPackageIdent>,
     pub exposes: Vec<i32>,
     pub visibility: PackageVisibility,
     pub created_at: Option<NaiveDateTime>,
@@ -108,6 +110,8 @@ pub struct PackageWithChannelPlatform {
     pub target: BuilderPackageTarget,
     pub deps: Vec<BuilderPackageIdent>,
     pub tdeps: Vec<BuilderPackageIdent>,
+    pub build_deps: Vec<BuilderPackageIdent>,
+    pub build_tdeps: Vec<BuilderPackageIdent>,
     pub exposes: Vec<i32>,
     pub visibility: PackageVisibility,
     pub created_at: Option<NaiveDateTime>,
@@ -141,6 +145,8 @@ type AllColumns = (origin_packages::id,
                    origin_packages::target,
                    origin_packages::deps,
                    origin_packages::tdeps,
+                   origin_packages::build_deps,
+                   origin_packages::build_tdeps,
                    origin_packages::exposes,
                    origin_packages::visibility,
                    origin_packages::created_at,
@@ -158,6 +164,8 @@ pub const ALL_COLUMNS: AllColumns = (origin_packages::id,
                                      origin_packages::target,
                                      origin_packages::deps,
                                      origin_packages::tdeps,
+                                     origin_packages::build_deps,
+                                     origin_packages::build_tdeps,
                                      origin_packages::exposes,
                                      origin_packages::visibility,
                                      origin_packages::created_at,
@@ -181,6 +189,8 @@ pub struct NewPackage {
     pub target: BuilderPackageTarget,
     pub deps: Vec<BuilderPackageIdent>,
     pub tdeps: Vec<BuilderPackageIdent>,
+    pub build_deps: Vec<BuilderPackageIdent>,
+    pub build_tdeps: Vec<BuilderPackageIdent>,
     pub exposes: Vec<i32>,
     pub visibility: PackageVisibility,
 }
@@ -570,6 +580,8 @@ impl PackageWithChannelPlatform {
 }
 
 fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
+    // https://github.com/rust-lang/rust-clippy/issues/3071U
+    #[allow(clippy::redundant_closure)]
     ident.to_string()
          .split('/')
          .map(|s| s.to_string())
@@ -608,6 +620,7 @@ impl ToSql<Text, Pg> for BuilderPackageIdent {
 
 impl BuilderPackageIdent {
     pub fn parts(self) -> Vec<String> {
+        #[allow(clippy::redundant_closure)]
         self.to_string()
             .split('/')
             .map(|s| s.to_string())
@@ -694,6 +707,16 @@ impl FromArchive for NewPackage {
                            .map(BuilderPackageIdent)
                            .collect::<Vec<BuilderPackageIdent>>();
 
+        let build_deps = archive.build_deps()?
+                                .into_iter()
+                                .map(BuilderPackageIdent)
+                                .collect::<Vec<BuilderPackageIdent>>();
+
+        let build_tdeps = archive.build_tdeps()?
+                                 .into_iter()
+                                 .map(BuilderPackageIdent)
+                                 .collect::<Vec<BuilderPackageIdent>>();
+
         // Some of the values here are made up because they are required in the db but not
         // necessarially requred for a valid package
         Ok(NewPackage { ident: ident.clone(),
@@ -703,6 +726,8 @@ impl FromArchive for NewPackage {
                         target: BuilderPackageTarget(archive.target()?),
                         deps,
                         tdeps,
+                        build_deps,
+                        build_tdeps,
                         exposes,
                         config,
                         checksum: archive.checksum()?,
@@ -748,6 +773,8 @@ impl Into<OriginPackage> for Package {
         op.set_target(self.target.to_string());
         op.set_deps(into_idents(self.deps));
         op.set_tdeps(into_idents(self.tdeps));
+        op.set_build_deps(into_idents(self.build_deps));
+        op.set_build_tdeps(into_idents(self.build_tdeps));
         op.set_exposes(exposes);
         op.set_config(self.config);
         op.set_checksum(self.checksum);

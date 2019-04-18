@@ -127,6 +127,7 @@ impl StudioBuild {
     pub fn parse_into(env: &mut StudioBuild, buf: &[u8]) {
         let content = String::from_utf8_lossy(buf).into_owned();
         for line in content.lines() {
+            #[allow(clippy::redundant_closure)]
             let split: Vec<&str> = line.split('=').map(|e| e.trim()).collect();
             match split[0] {
                 "pkg_origin" => env.pkg_origin = split[1].to_string(),

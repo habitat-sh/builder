@@ -260,9 +260,15 @@ impl Into<OriginPackage> for JobGraphPackagePreCreate {
                        .map(|x| originsrv::OriginPackageIdent::from_str(&x).unwrap())
                        .collect();
 
+        let build_deps = self.get_build_deps()
+                             .iter()
+                             .map(|x| originsrv::OriginPackageIdent::from_str(&x).unwrap())
+                             .collect();
+
         package.set_ident(originsrv::OriginPackageIdent::from_str(&name).unwrap());
         package.set_target(target);
         package.set_deps(deps);
+        package.set_build_deps(build_deps);
         package
     }
 }
@@ -476,6 +482,8 @@ mod tests {
                          "[1;33m» Installing core/hab-backline[0m",
                          "[1;32m↓ Downloading[0m core/hab-backline/0.23.0/20170511220008",];
 
+        // https://github.com/rust-lang/rust-clippy/issues/3071U
+        #[allow(clippy::redundant_closure)]
         let input_lines = lines.iter().map(|l| l.to_string());
         let content = RepeatedField::from_iter(input_lines);
         log.set_content(content);
