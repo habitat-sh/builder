@@ -14,6 +14,8 @@ use diesel::{self,
              dsl::{count,
                    sql},
              pg::{expression::dsl::any,
+                  upsert::{excluded,
+                           on_constraint},
                   Pg,
                   PgConnection},
              prelude::*,
@@ -363,17 +365,35 @@ impl Package {
 
     pub fn create(package: &NewPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
-        let package = diesel::insert_into(origin_packages::table).values(package)
-                                                                 .returning(ALL_COLUMNS)
-                                                                 .on_conflict_do_nothing()
-                                                                 .get_result::<Package>(conn)?;
+        let pkg = diesel::insert_into(origin_packages::table)
+            .values(package)
+            .returning(ALL_COLUMNS)
+            .on_conflict(on_constraint("origin_packages_ident_target_key"))
+            .do_update()
+            .set((
+                origin_packages::origin.eq(excluded(origin_packages::origin)),
+                origin_packages::owner_id.eq(excluded(origin_packages::owner_id)),
+                origin_packages::name.eq(excluded(origin_packages::name)),
+                origin_packages::ident.eq(excluded(origin_packages::ident)),
+                origin_packages::checksum.eq(excluded(origin_packages::checksum)),
+                origin_packages::manifest.eq(excluded(origin_packages::manifest)),
+                origin_packages::config.eq(excluded(origin_packages::config)),
+                origin_packages::target.eq(excluded(origin_packages::target)),
+                origin_packages::deps.eq(excluded(origin_packages::deps)),
+                origin_packages::tdeps.eq(excluded(origin_packages::tdeps)),
+                origin_packages::build_deps.eq(excluded(origin_packages::build_deps)),
+                origin_packages::build_tdeps.eq(excluded(origin_packages::build_tdeps)),
+                origin_packages::exposes.eq(excluded(origin_packages::exposes)),
+                origin_packages::visibility.eq(excluded(origin_packages::visibility)),
+            ))
+            .get_result::<Package>(conn)?;
 
         OriginChannelPackage::promote(OriginChannelPromote { ident:   package.ident.clone(),
                                                              target:  package.target.0,
                                                              origin:  package.origin.clone(),
                                                              channel: ChannelIdent::unstable(), },
                                       conn)?;
-        Ok(package)
+        Ok(pkg)
     }
 
     pub fn update_visibility(vis: PackageVisibility,
