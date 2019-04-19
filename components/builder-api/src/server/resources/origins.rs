@@ -300,18 +300,27 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let pair =
-        SigKeyPair::generate_pair_for_origin(&origin).expect("failed to generate origin key pair");
+    let pair = match SigKeyPair::generate_pair_for_origin(&origin).map_err(Error::HabitatCore) {
+        Ok(pair) => pair,
+        Err(err) => {
+            error!("Failed to generate origin key pair for {}, err={}",
+                   origin, err);
+            return err.into();
+        }
+    };
 
     let conn = match req.state().db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
+        Err(err) => {
+            error!("create_keys: Failed to get DB connection, err={}", err);
+            return err.into();
+        }
     };
 
     let pk_body = match pair.to_public_string().map_err(Error::HabitatCore) {
         Ok(pk) => pk.into_bytes(),
         Err(err) => {
-            debug!("{}", err);
+            error!("create_keys: Failed to get pk body, err={}", err);
             return err.into();
         }
     };
@@ -326,7 +335,7 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
     match OriginPublicSigningKey::create(&new_pk, &*conn).map_err(Error::DieselError) {
         Ok(_) => (),
         Err(err) => {
-            debug!("{}", err);
+            error!("create_keys: Failed to create public key, err={}", err);
             return err.into();
         }
     }
@@ -334,7 +343,7 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
     let sk_body = match pair.to_secret_string().map_err(Error::HabitatCore) {
         Ok(sk) => sk.into_bytes(),
         Err(err) => {
-            debug!("{}", err);
+            error!("create_keys: Failed to get sk body, err={}", err);
             return err.into();
         }
     };
@@ -349,7 +358,7 @@ fn create_keys(req: HttpRequest<AppState>) -> HttpResponse {
     match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
         Ok(_) => (),
         Err(err) => {
-            debug!("{}", err);
+            error!("create_keys: Failed to create private key, err={}", err);
             return err.into();
         }
     }
