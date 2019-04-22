@@ -2,7 +2,7 @@
 
 ## Preparing for release
 
-Create a status update on statuspage.io. This will post notifications to Slack and Twitter.
+If the release requires downtime, create a status update on statuspage.io . This will post notifications to Slack and Twitter.
 
 ## Promote packages
 
@@ -13,4 +13,4 @@ Create a status update on statuspage.io. This will post notifications to Slack a
 ## Verify
 
 * Ensure all services are operating normally in sumologic and datadog
-* Close out maintenance notice in statuspage.io
+* Close out the maintenance notice in statuspage.io as needed
