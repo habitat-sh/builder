@@ -31,7 +31,7 @@ uploadMsg() {
 }
 
 getLatest() {
-    echo curl -s "${bldr_url}/v1/depot/channels/core/stable/pkgs/${1}/latest" | jq -r '.ident | [.origin,.name,.version,.release] | join("/")'
+   curl -s "${bldr_url}"/v1/depot/channels/core/stable/pkgs/"${1}"/latest | jq -r '.ident | [.origin,.name,.version,.release] | join("/")'
 }
 
 getHarts() {
@@ -39,30 +39,27 @@ getHarts() {
     # creates an array from each package
     # artifact that exists in that path
     origin="core"
-    # shellcheck disable=SC2207
     core_dirs=()
     if [ "${s3type}" == 'minio' ]; then
+        # shellcheck disable=SC2207
         core_dirs=( $(aws --endpoint-url "${AWS_REGION}" s3 ls "s3://${S3_BUCKET}/${origin}/") )
     else
+        # shellcheck disable=SC2207
         core_dirs=( $(aws --region "${AWS_REGION}" s3 ls "s3://${S3_BUCKET}/${origin}/") )
     fi
 
     for dir in "${core_dirs[@]}"; do
         if [[ "${dir}" != "PRE" ]]; then
-            echo package entry found for "${dir}"
-            latest=$(getLatest "${dir}")
-            echo "latest = ${latest}"
-            artifacts+=( latest )
+            # shellcheck disable=SC2207
+            artifacts+=( $(curl -s "${bldr_url}/v1/depot/channels/core/stable/pkgs/${dir}latest" | jq -r '.ident | [.origin,.name,.version,.release] | join("/")') )
         fi;
     done
-
     echo ""
     echo "Downloading latest artifacts"
     echo "This may take a moment"
     echo ""
 
     for hart in "${artifacts[@]}"; do
-        echo "${hart}"
         downloadHarts "${AWS_REGION}" "${S3_BUCKET}" "${hart}"
     done
 }
@@ -74,8 +71,7 @@ downloadHarts() {
     if [ "${s3type}" == 'minio' ]; then
       aws --endpoint-url "${1}" s3 cp --recursive "s3://${2}/${3}" "${download_path}"
     else
-      echo "RUN aws cp cmd, region=${1}, bucket=${2}, path=${3}"
-      # aws --region "${1}" s3 cp --recursive "s3://${2}/${3}" "${download_path}"
+      aws --region "${1}" s3 cp --recursive "s3://${2}/${3}" "${download_path}"
     fi
 }
 
@@ -218,6 +214,7 @@ uploadHarts() {
 }
 
 putArtifacts() {
+    # shellcheck disable=SC2044
     for file in $(find /tmp/harts/ -name '*.hart'); do
         hab pkg upload --url "${bldr_url}" "${file}" --force
     done
