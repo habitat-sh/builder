@@ -31,7 +31,7 @@ uploadMsg() {
 }
 
 getLatest() {
-    curl -s https://bldr.habitat.sh/v1/depot/channels/core/stable/pkgs/${1}/latest | jq -r '.ident | [.origin,.name,.version,.release] | join("/")'
+    echo curl -s "${bldr_url}/v1/depot/channels/core/stable/pkgs/${1}/latest" | jq -r '.ident | [.origin,.name,.version,.release] | join("/")'
 }
 
 getHarts() {
@@ -40,12 +40,19 @@ getHarts() {
     # artifact that exists in that path
     origin="core"
     # shellcheck disable=SC2207
-    core_dirs=( $(aws --endpoint-url "${region}" s3 ls "s3://${bucket}/${origin}/") )
-   
+    core_dirs=()
+    if [ "${s3type}" == 'minio' ]; then
+        core_dirs=( $(aws --endpoint-url "${AWS_REGION}" s3 ls "s3://${S3_BUCKET}/${origin}/") )
+    else
+        core_dirs=( $(aws --region "${AWS_REGION}" s3 ls "s3://${S3_BUCKET}/${origin}/") )
+    fi
+
     for dir in "${core_dirs[@]}"; do
         if [[ "${dir}" != "PRE" ]]; then
             echo package entry found for "${dir}"
-            artifacts+=( "$(getLatest "${dir}")" )
+            latest=$(getLatest "${dir}")
+            echo "latest = ${latest}"
+            artifacts+=( latest )
         fi;
     done
 
@@ -56,14 +63,20 @@ getHarts() {
 
     for hart in "${artifacts[@]}"; do
         echo "${hart}"
-        downloadHarts "${region}" "${bucket}" "${hart}"
+        downloadHarts "${AWS_REGION}" "${S3_BUCKET}" "${hart}"
     done
 }
 
 downloadHarts() {
     download_path="/tmp/harts/"
     mkdir -p "${download_path}"
-    aws --endpoint-url "${1}" s3 cp --recursive "s3://${2}/${3}" "${download_path}"
+
+    if [ "${s3type}" == 'minio' ]; then
+      aws --endpoint-url "${1}" s3 cp --recursive "s3://${2}/${3}" "${download_path}"
+    else
+      echo "RUN aws cp cmd, region=${1}, bucket=${2}, path=${3}"
+      # aws --region "${1}" s3 cp --recursive "s3://${2}/${3}" "${download_path}"
+    fi
 }
 
 checkBucket() {
@@ -238,25 +251,33 @@ setBldrUrl() {
     echo "Package ingestion can be pointed towards public builder or"
     echo "an on-prem builder instance."
 
-    echo ""
-    read -r -p "Will you be uploading to public builder? [y/N]" response
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-            export bldr_url="https://bldr.habitat.sh"
-        else
-            echo ""
-            echo "Please provide the URL so your builder instance"
-            echo "Ex: https://bldr.habitat.sh or http://localhost"
-            read -r -p ": " response
-                export bldr_url="${response}"
-            echo ""
-            echo "Your builder URL is now configured to ${bldr_url}"
-            read -r -p "Is this correct? [y/N]" response
-                if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-                    return
-                else
-                    setBldrUrl
-                fi
+    if [[ -n ${HAB_BLDR_URL} ]]; then
+       echo ""
+       echo "Builder URL configured via ENVVAR detected."
+       echo ""
+       echo "HAB_BLDR_URL=${HAB_BLDR_URL}"
+       export bldr_url="${HAB_BLDR_URL}"
+    else
+        echo ""
+        read -r -p "Will you be uploading to public builder? [y/N]" response
+            if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+                export bldr_url="https://bldr.habitat.sh"
+            else
+                echo ""
+                echo "Please provide the URL so your builder instance"
+                echo "Ex: https://bldr.habitat.sh or http://localhost"
+                read -r -p ": " response
+                    export bldr_url="${response}"
+                echo ""
+                echo "Your builder URL is now configured to ${bldr_url}"
+                read -r -p "Is this correct? [y/N]" response
+                    if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+                        return
+                    else
+                        setBldrUrl
+                    fi
         fi
+    fi
 }
 
 credSelect() {
@@ -413,7 +434,7 @@ case ${1} in
         welcome
         setRegion
         setBucket
-        getHarts 
+        getHarts
         time uploadHarts
     ;;
     'aws')
@@ -423,11 +444,10 @@ case ${1} in
         welcome
         setRegion
         setBucket
-        getHarts 
+        getHarts
         time uploadHarts
     ;;
     *) echo "Invalid argument. Arg must be 'minio' or 'aws'"
         exit 1
     ;;
 esac
-
