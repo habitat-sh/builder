@@ -65,7 +65,7 @@ getHarts() {
 }
 
 downloadHarts() {
-    download_path="/tmp/harts/"
+    download_path="/hab/tmp/harts/"
     mkdir -p "${download_path}"
 
     if [ "${s3type}" == 'minio' ]; then
@@ -215,7 +215,7 @@ uploadHarts() {
 
 putArtifacts() {
     # shellcheck disable=SC2044
-    for file in $(find /tmp/harts/ -name '*.hart'); do
+    for file in $(find /hab/tmp/harts/ -name '*.hart'); do
         hab pkg upload --url "${bldr_url}" "${file}" --force
     done
 }
