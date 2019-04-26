@@ -53,29 +53,9 @@ steps:
       executor:
         docker:
 
-  - label: "[unit] :linux: builder-api-proxy"
-    command:
-      - ./test/run_cargo_test.sh builder-api-proxy
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-
   - label: "[unit] :linux: builder-core"
     command:
       - ./test/run_cargo_test.sh builder-core
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-
-  - label: "[unit] :linux: builder-datastore"
-    command:
-      - ./test/run_cargo_test.sh builder-datastore
     retry:
       automatic:
         limit: 1
@@ -113,39 +93,9 @@ steps:
       executor:
         docker:
 
-  - label: "[unit] :linux: builder-memcached"
-    command:
-      - ./test/run_cargo_test.sh builder-memcached
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-
-  - label: "[unit] :linux: builder-minio"
-    command:
-      - ./test/run_cargo_test.sh builder-minio
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-
   - label: "[unit] :linux: builder-protocol"
     command:
       - ./test/run_cargo_test.sh builder-protocol
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-
-  - label: "[unit] :linux: builder-web"
-    command:
-      - ./test/run_cargo_test.sh builder-web
     retry:
       automatic:
         limit: 1
