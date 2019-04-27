@@ -90,11 +90,27 @@ impl ArtifactoryClient {
 
         let file = File::open(source_path).map_err(ArtifactoryError::IO)?;
 
-        self.inner
-            .put(&url)
-            .body(file)
-            .send()
-            .map_err(ArtifactoryError::HttpClient)
+        let resp = match self.inner
+                             .put(&url)
+                             .body(file)
+                             .send()
+                             .map_err(ArtifactoryError::HttpClient)
+        {
+            Ok(resp) => resp,
+            Err(err) => {
+                error!("ArtifactoryClient upload failed, err={}", err);
+                return Err(err);
+            }
+        };
+
+        debug!("Artifactory response status: {:?}", resp.status());
+
+        if resp.status().is_success() {
+            Ok(resp)
+        } else {
+            error!("Artifactory upload non-success status: {:?}", resp.status());
+            Err(ArtifactoryError::ApiError(resp.status(), HashMap::new()))
+        }
     }
 
     pub fn download(&self,
@@ -108,10 +124,17 @@ impl ArtifactoryClient {
         let url = self.url_path_for(ident, target);
         debug!("ArtifactoryClient download url = {}", url);
 
-        let mut resp = self.inner
-                           .get(&url)
-                           .send()
-                           .map_err(ArtifactoryError::HttpClient)?;
+        let mut resp = match self.inner
+                                 .get(&url)
+                                 .send()
+                                 .map_err(ArtifactoryError::HttpClient)
+        {
+            Ok(resp) => resp,
+            Err(err) => {
+                error!("ArtifactoryClient download failed, err={}", err);
+                return Err(err);
+            }
+        };
 
         debug!("Artifactory response status: {:?}", resp.status());
 
@@ -120,6 +143,8 @@ impl ArtifactoryClient {
             std::io::copy(&mut resp, &mut file)?;
             Ok(PackageArchive::new(destination_path))
         } else {
+            error!("Artifactory download non-success status: {:?}",
+                   resp.status());
             Err(ArtifactoryError::ApiError(resp.status(), HashMap::new()))
         }
     }
