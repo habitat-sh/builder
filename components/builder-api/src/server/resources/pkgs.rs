@@ -357,23 +357,25 @@ fn delete_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> Htt
     }
 
     // Check whether package project has any rdeps
-    let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGet::new();
-    rdeps_get.set_origin(ident.origin().to_string());
-    rdeps_get.set_name(ident.name().to_string());
-    rdeps_get.set_target(target.to_string());
+    if feat::is_enabled(feat::Jobsrv) {
+        let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGet::new();
+        rdeps_get.set_origin(ident.origin().to_string());
+        rdeps_get.set_name(ident.name().to_string());
+        rdeps_get.set_target(target.to_string());
 
-    match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
-                        jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get)
-    {
-        Ok(rdeps) => {
-            if !rdeps.get_rdeps().is_empty() {
-                debug!("Deleting package with rdeps not allowed: {}", ident);
-                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
+                            jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get)
+        {
+            Ok(rdeps) => {
+                if !rdeps.get_rdeps().is_empty() {
+                    debug!("Deleting package with rdeps not allowed: {}", ident);
+                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                }
             }
-        }
-        Err(err) => {
-            debug!("{}", err);
-            return err.into();
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
         }
     }
 
