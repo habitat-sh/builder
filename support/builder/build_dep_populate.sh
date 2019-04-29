@@ -2,166 +2,42 @@
 
 set -euo pipefail
 
-aggMsg() {
+echoMsg() {
     echo ""
-    echo "Aggregating remotely stored artifacts."
+    echo "${1}"
     echo "======================================"
     echo ""
-
 }
 
 configMsg(){
-    echo ""
-    echo "Configuring environment for dep ingestion."
-    echo "======================================"
-    echo ""
-}
-
-keyMsg() {
-    echo ""
-    echo "Generating S3 Object Keys."
-    echo "======================================"
-    echo ""
+    echoMsg "Configuring environment for dep ingestion."
 }
 
 uploadMsg() {
-    echo ""
-    echo "Uploading hartfiles."
-    echo "======================================"
+    echoMsg "Uploading hartfiles."
+}
+
+strip_double_quotes() {
+    printf "%s" "${1//\"}"
+}
+
+promptUser() {
+    local response
+    read -r -p "${1} [y/N] " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+        true
+    else
+        false
+    fi
 }
 
 getLatest() {
    curl -s "${bldr_url}"/v1/depot/channels/core/stable/pkgs/"${1}"/latest | jq -r '.ident | [.origin,.name,.version,.release] | join("/")'
 }
 
-getHarts() {
-    # Traverses Core path in S3 bucket and
-    # creates an array from each package
-    # artifact that exists in that path
-    origin="core"
-    core_dirs=()
-    if [ "${s3type}" == 'minio' ]; then
-        # shellcheck disable=SC2207
-        core_dirs=( $(aws --endpoint-url "${AWS_REGION}" s3 ls "s3://${S3_BUCKET}/${origin}/") )
-    else
-        # shellcheck disable=SC2207
-        core_dirs=( $(aws --region "${AWS_REGION}" s3 ls "s3://${S3_BUCKET}/${origin}/") )
-    fi
-
-    for dir in "${core_dirs[@]}"; do
-        if [[ "${dir}" != "PRE" ]]; then
-            # shellcheck disable=SC2207
-            artifacts+=( $(curl -s "${bldr_url}/v1/depot/channels/core/stable/pkgs/${dir}latest" | jq -r '.ident | [.origin,.name,.version,.release] | join("/")') )
-        fi;
-    done
-    echo ""
-    echo "Downloading latest artifacts"
-    echo "This may take a moment"
-    echo ""
-
-    for hart in "${artifacts[@]}"; do
-        downloadHarts "${AWS_REGION}" "${S3_BUCKET}" "${hart}"
-    done
-}
-
-downloadHarts() {
-    download_path="/hab/tmp/harts/"
-    mkdir -p "${download_path}"
-
-    if [ "${s3type}" == 'minio' ]; then
-      aws --endpoint-url "${1}" s3 cp --recursive "s3://${2}/${3}" "${download_path}"
-    else
-      aws --region "${1}" s3 cp --recursive "s3://${2}/${3}" "${download_path}"
-    fi
-}
-
-checkBucket() {
-    region="${1}"
-    bucket="${2}"
-    aws --endpoint-url "${region}" s3api list-objects --bucket "${bucket}"
-}
-
-installDeps() {
-    PDEPS=("core/aws-cli" "core/jq-static" "habitat/s3-bulk-uploader")
-
-    configMsg
-
-    for bin in "${!PDEPS[@]}"; do
-        HAB_AUTH_TOKEN="" hab pkg install -b "${PDEPS[$bin]}"
-    done
-}
-
-setBucket() {
-    # Configure the bucket name to use for the upload
-    sgroups=("default" "dev" "prod" "acceptance" "live" "blue" "green")
-    for i in "${sgroups[@]}"; do
-        if curl -s localhost:9631/services/builder-api/"${i}" > /dev/null; then
-            bucket_name=$(curl -s localhost:9631/services/builder-api/"${i}" | jq .cfg.s3.bucket_name)
-            if [[ -n $bucket_name ]]; then
-                echo ""
-                echo "We've detected your minio bucket configuration set to: ${bucket_name}!"
-                read -r -p "Would you like to use this minio bucket? [y/N] " response
-                if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-                    echo "Setting bucket to ${bucket_name}"
-                    bucket_name="${bucket_name//\"}"
-                    break
-                fi
-            fi
-        fi
-    done
-
-    if [[ -z ${bucket_name:-} ]]; then
-      echo ""
-      echo "Please enter a target bucket name and press [ENTER]:"
-      read -r bucket_name
-    fi
-
-    # Check if bucket exists
-    if [ "${s3type}" == 'minio' ]; then
-        if checkBucket "${AWS_REGION}" "${bucket_name}" >/dev/null; then
-            echo ""
-            echo "Bucket: ${bucket_name} found!"
-            echo ""
-            read -r -p "Are you sure you would like to use this bucket? [y/N] " response
-            if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-                echo "Using specified bucket."
-                export S3_BUCKET=${bucket_name}
-            else
-                setBucket
-            fi
-        else
-            echo "Bucket: ${bucket_name} not found!"
-            echo "Please specify a different bucket and try again."
-            setBucket
-        fi
-    else
-        if aws s3api list-objects --bucket "${bucket_name}" --region "${AWS_REGION}" >/dev/null; then
-            echo "Bucket: ${bucket_name} found!"
-            echo "WARNING: Specified bucket is not empty!"
-            read -r -p "Are you sure you would like to use this bucket? [y/N] " response
-            if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-                echo "Using specified bucket."
-                export S3_BUCKET=${bucket_name}
-            else
-                setBucket
-            fi
-        else
-            echo "Bucket: ${bucket_name} not found!"
-            echo "Please specify a different bucket and try again."
-            setBucket
-        fi
-    fi
-}
-
-checkBucket() {
-    region="${1}"
-    bucket="${2}"
-    aws --endpoint-url "${region}" s3api list-objects --bucket "${bucket}"
-}
-
 setRegion() {
     # Sets the region used by the bucket
-    if [ "${s3type}" == 'minio' ]; then
+    if [[ "${s3type}" == 'minio' ]]; then
         sgroups=("default" "dev" "prod" "acceptance" "live" "blue" "green")
         for i in "${sgroups[@]}"; do
             if curl -s localhost:9631/services/builder-minio/"${i}" > /dev/null; then
@@ -169,13 +45,16 @@ setRegion() {
                 echo ""
                 echo "We've detected your minio instance at: ${minioIP}!"
                 echo ""
-                read -r -p "Would you like to use this minio instance? [y/N] " response
-                if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+                if promptUser "Would you like to use this minio instance?"; then
+                    # This pattern `//\"` strips the double quotes from an interpolated string.
+                    # we use this regularly throughout this script
                     echo "Setting endpoint to ${minioIP//\"}:9000"
                     if curl -s localhost:9631/services/builder-minio/"${i}" | jq .cfg.use_ssl | grep "true"> /dev/null; then
-                        export AWS_REGION="https://${minioIP//\"}:9000"
+                        AWS_REGION="https://$(strip_double_quotes "$minioIP"):9000"
+                        export AWS_REGION
                     else
-                        export AWS_REGION="http://${minioIP//\"}:9000"
+                        AWS_REGION="http://$(strip_double_quotes "$minioIP"):9000"
+                        export AWS_REGION
                     fi
                     return
                 else
@@ -201,6 +80,112 @@ setRegion() {
     fi
 }
 
+getHarts() {
+    # Traverses Core path in S3 bucket and
+    # creates an array from each package
+    # artifact that exists in that path
+    origin="core"
+    mapfile -t core_dirs < <(aws "${region_option}" "${AWS_REGION}" s3 ls "s3://${S3_BUCKET}/${origin}/" | awk '{print $2}')
+
+    for dir in "${core_dirs[@]}"; do
+            # shellcheck disable=SC2207
+            artifacts+=( $(curl -s "${bldr_url}"/v1/depot/channels/core/stable/pkgs/"${dir}"latest | jq -r '.ident | [.origin,.name,.version,.release] | join("/")') )
+    done
+    echo ""
+    echo "Downloading latest artifacts"
+    echo "This may take a moment"
+    echo ""
+    na
+
+    for hart in "${artifacts[@]}"; do
+        downloadHarts "${hart}"
+    done
+}
+
+downloadHarts() {
+    download_path="/hab/tmp/harts/"
+    mkdir -p "${download_path}"
+
+    aws "${region_option}" "${AWS_REGION}" s3 cp --recursive "s3://${S3_BUCKET}/${1}" "${download_path}"
+}
+
+checkBucket() {
+    aws "${region_option}" "${AWS_REGION}" s3api list-objects --bucket "${bucket_name}" >/dev/null
+}
+
+installDeps() (
+    pdeps=("core/aws-cli" "core/jq-static" "habitat/s3-bulk-uploader")
+    unset HAB_AUTH_TOKEN
+
+    configMsg
+
+    for bin in "${pdeps[@]}"; do
+        hab pkg install -b "${bin}"
+    done
+)
+
+setBucket() {
+    # Configure the bucket name to use for the upload
+    sgroups=("default" "dev" "prod" "acceptance" "live" "blue" "green")
+    for i in "${sgroups[@]}"; do
+        if services=$(curl -s localhost:9631/services/builder-api/"${i}"); then
+            bucket_name=$(echo "$services" | jq .cfg.s3.bucket_name)
+            if [[ -n $bucket_name ]]; then
+                echo ""
+                echo "We've detected your minio bucket configuration set to: ${bucket_name}!"
+                if promptUser "Would you like to use this minio bucket?"; then
+                    echo "Setting bucket to ${bucket_name}"
+                    bucket_name="$(strip_double_quotes "$bucket_name")"
+                    break
+                fi
+            fi
+        fi
+    done
+
+    if [[ -z "${bucket_name}" ]]; then
+      echo ""
+      echo "Please enter a target bucket name and press [ENTER]:"
+      read -r bucket_name
+    fi
+
+    # Check if bucket exists
+    if [[ "${s3type}" == 'minio' ]]; then
+        if checkBucket; then
+            echo ""
+            echo "Configured bucket: ${bucket_name} has been verified!"
+            echo ""
+            if promptUser "Are you sure you would like to use this bucket?"; then 
+                echo "Using specified bucket."
+                S3_BUCKET=${bucket_name}
+            else
+                setBucket
+            fi
+        else
+            echo "Configured Bucket: ${bucket_name} was not found!"
+            echo "Please specify a different bucket and try again."
+            setBucket
+        fi
+    else
+        if aws s3api list-objects --bucket "${bucket_name}" --region "${AWS_REGION}" >/dev/null; then
+            echo "Bucket: ${bucket_name} found!"
+            echo "WARNING: Specified bucket is not empty!"
+            if promptUser "Are you sure you would like to use this bucket?"; then
+                echo "Using specified bucket."
+                S3_BUCKET=${bucket_name}
+            else
+                setBucket
+            fi
+        else
+            echo "Bucket: ${bucket_name} not found!"
+            echo "Please specify a different bucket and try again."
+            setBucket
+        fi
+    fi
+}
+
+
+
+failed_uploads=()
 uploadHarts() {
     # Takes the artifact array generated via
     # traversing the data path and uploads to s3
@@ -211,32 +196,42 @@ uploadHarts() {
     echo "${#artifacts[@]} Artifacts have been ingested!"
     echo "########################################"
     echo ""
+
+    if [[ "${#failed_uploads[@]}" -gt 0 ]]; then
+        echo ""
+        echo "########################################"
+        echo "The following artifacts failed on upload:"
+        for failure in "${failed_uploads[@]}"; do
+            echo "${failure}"
+        done
+        echo "########################################"
+    fi
 }
 
 putArtifacts() {
-    # shellcheck disable=SC2044
-    for file in $(find /hab/tmp/harts/ -name '*.hart'); do
-        hab pkg upload --url "${bldr_url}" "${file}" --force
-    done
+    while IFS= read -r -d '' file; do
+        if ! hab pkg upload --url "${bldr_url}" "${file}" --force; then
+            failed_uploads+=("${file}")
+        fi
+    done < <(find /hab/tmp/harts/ -name '*.hart' -print0)
 }
 
 genS3Config() {
     echo ""
-    read -r -p "AWS Access Key ID: " access_key_id
-        export AWS_ACCESS_KEY_ID="${access_key_id}"
-    read -r -p "AWS Secret Access Key: " secret_access_key
-        export AWS_SECRET_ACCESS_KEY="${secret_access_key}"
+    read -r -p "AWS Access Key ID: " AWS_ACCESS_KEY_ID
+        export AWS_ACCESS_KEY_ID
+    read -r -p "AWS Secret Access Key: " AWS_SECRET_ACCESS_KEY
+        export AWS_SECRET_ACCESS_KEY
 }
 
 genBldrCreds() {
     echo ""
     echo "Please provide a Builder Auth Token."
-    read -r -p "Builder Auth token: " bldr_auth_token
-        export HAB_AUTH_TOKEN="${bldr_auth_token}"
+    read -r -p "Builder Auth token: " HAB_AUTH_TOKEN
+        export HAB_AUTH_TOKEN
     echo ""
     echo "Builder auth token set to: ${HAB_AUTH_TOKEN}"
-    read -r -p "Would you like to use this auth token? [y/N]" response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+    if promptUser "Would you like to use this auth token?"; then
         return
     else
         genBldrCreds
@@ -248,44 +243,40 @@ setBldrUrl() {
     echo "Package ingestion can be pointed towards public builder or"
     echo "an on-prem builder instance."
 
-    if [[ -n ${HAB_BLDR_URL} ]]; then
+    if [[ -n "${HAB_BLDR_URL:+x}" ]]; then
        echo ""
        echo "Builder URL configured via ENVVAR detected."
        echo ""
        echo "HAB_BLDR_URL=${HAB_BLDR_URL}"
-       export bldr_url="${HAB_BLDR_URL}"
+       bldr_url="${HAB_BLDR_URL}"
     else
         echo ""
-        read -r -p "Will you be uploading to public builder? [y/N]" response
-            if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+        if promptUser "Will you be uploading to public builder?"; then
                 export bldr_url="https://bldr.habitat.sh"
+        else
+            echo ""
+            echo "Please provide the URL so your builder instance"
+            echo "Ex: https://bldr.habitat.sh or http://localhost"
+            read -r -p ": " response
+                bldr_url="${response}"
+            echo ""
+            echo "Your builder URL is now configured to ${bldr_url}"
+            if promptUser "Is this correct?"; then
+                return
             else
-                echo ""
-                echo "Please provide the URL so your builder instance"
-                echo "Ex: https://bldr.habitat.sh or http://localhost"
-                read -r -p ": " response
-                    export bldr_url="${response}"
-                echo ""
-                echo "Your builder URL is now configured to ${bldr_url}"
-                read -r -p "Is this correct? [y/N]" response
-                    if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-                        return
-                    else
-                        setBldrUrl
-                    fi
+                setBldrUrl
+            fi
         fi
     fi
 }
 
 credSelect() {
     echo ""
-    read -r -p "Would you like to use these credentials? [y/N] " response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+    if promptUser "Would you like to use these credentials?"; then
         return
     else
         echo ""
-        read -r -p "Would you like to configure with custom credentials now? [y/N]" response
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+        if promptUser "Would you like to configure with custom credentials now?"; then
             genS3Config
         else
             echo "Please reconfigure your AWS credentials and re-run s3migrate."
@@ -295,9 +286,9 @@ credSelect() {
 }
 
 credCheck(){
-    CREDS=( "${HOME}/.aws/credentials" "${HOME}/.aws/config" "/root/.aws/credentials" "/root/.aws/config")
-    for location in "${CREDS[@]}"; do
-        if [ -f "${location}" ]; then
+    creds=( "${HOME}/.aws/credentials" "${HOME}/.aws/config" "/root/.aws/credentials" "/root/.aws/config")
+    for location in "${creds[@]}"; do
+        if [[ -f "${location}" ]]; then
             echo ""
             echo "AWS Credentials file located at ${location}"
             cat "${location}"
@@ -311,8 +302,8 @@ credCheck(){
                 echo ""
                 echo "AWS Credentials configured via ENVVAR detected."
                 echo ""
-                echo "aws_access_key_id=${AWS_ACCESS_KEY_ID:-}"
-                echo "aws_secret_access_key=${AWS_SECRET_ACCESS_KEY:-}"
+                echo "aws_access_key_id=${AWS_ACCESS_KEY_ID}"
+                echo "aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}"
                 credSelect
                 credsConfigured=true
                 break
@@ -331,8 +322,7 @@ credCheck(){
     else
         echo ""
         echo "WARNING: No AWS credentials detected!"
-        read -r -p "Would you like to generate them now? [y/N] " response
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+        if promptUse "Would you like to generate them now?"; then
             genS3Config
         else
             echo "Please configure your AWS credentials and re-run s3migrate."
@@ -356,52 +346,51 @@ welcome() {
 
     setBldrUrl
 
-
-
-    if [[ -n "${HAB_AUTH_TOKEN+x}" ]]; then
+    if [[ -n "${HAB_AUTH_TOKEN:-}" ]]; then
         echo ""
         echo "We were able to discover your builder auth token as: "
         echo "${HAB_AUTH_TOKEN}"
-        read -r -p "Would you like to use these credentials? [y/N]" response
-            if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-                echo "Setting detected credentials"
-            fi
+        if promptUser "Would you like to use these credentials?"; then
+           echo "Setting detected credentials"
+       else 
+           genBldrCreds
+        fi
     else
         echo ""
         echo "WARNING: No Builder credentials detected!"
-        read -r -p "Would you like to generate them now? [y/N] " response
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+        if promptUser "Would you like to generate them now?"; then
             genBldrCreds
         else
-            echo "Please configure your builder auth-token and re-run s3migrate."
+            echo "Please configure your builder auth-token and re-run $(basename "${0}")."
             echo ""
             exit 1
         fi
     fi
 
-    if [ "$s3type" = "minio" ]; then
+    if [[ "$s3type" = "minio" ]]; then
         echo ""
         echo "It looks like you specified an ingestion from minio!"
 
         sgroups=("default" "dev" "prod")
         for i in "${sgroups[@]}"; do
-            if curl -s localhost:9631/services/builder-minio/"${i}" | jq .cfg.key_id > /dev/null; then
-                access_key_id=$(curl -s localhost:9631/services/builder-minio/default | jq .cfg.key_id)
-                secret_access_key=$(curl -s localhost:9631/services/builder-minio/default | jq .cfg.secret_key)
+            if minio_output=$(curl -s localhost:9631/services/builder-minio/"${i}" ); then
+                access_key_id=$(echo "$minio_output" | jq .cfg.key_id)
+                secret_access_key=$(jq .cfg.secret_key <<< "$minio_output")
                 echo ""
                 echo "We were able to detect your minio credentials!"
                 echo "(ACCESS_KEY_ID) Username: ${access_key_id}"
                 echo "(SECRET ACCESS_KEY) Password: ${secret_access_key}"
                 echo ""
-                read -r -p "Would you like to use these credentials? [y/N] " response
-                    if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-                        echo "Setting detected credentials"
-                        export AWS_ACCESS_KEY_ID=${access_key_id//\"}
-                        export AWS_SECRET_ACCESS_KEY=${secret_access_key//\"}
-                        return
-                    else
-                        credCheck
-                    fi
+                if promptUser "Would you like to use these credentials?"; then
+                    echo "Setting detected credentials"
+                    AWS_ACCESS_KEY_ID="$(strip_double_quotes "$access_key_id")"
+                    export AWS_ACCESS_KEY_ID
+                    AWS_SECRET_ACCESS_KEY="$(strip_double_quotes "$secret_access_key")"
+                    export AWS_SECRET_ACCESS_KEY
+                    return
+                else
+                    credCheck
+                fi
             else
                 echo ""
                 echo "Minio will use whatever credentials you've configured it with."
@@ -417,16 +406,14 @@ welcome() {
 }
 
 artifacts=()
+bucket_name=""
+S3_BUCKET=""
 
-if [[ -z ${1:-} ]]; then
-    echo "Invalid Argument. Argument must be either 'minio' or 'aws'"
-    exit 1
-fi
-
-case ${1} in
+case ${1:-} in
     'minio')
         echo "Starting ingestion from minio instance."
-        export s3type="minio"
+        s3type="minio"
+        region_option="--endpoint-url"
         installDeps
         welcome
         setRegion
@@ -437,6 +424,7 @@ case ${1} in
     'aws')
         echo "Starting ingestion  AWS S3."
         export s3type="aws"
+        export region_option="--region"
         installDeps
         welcome
         setRegion
