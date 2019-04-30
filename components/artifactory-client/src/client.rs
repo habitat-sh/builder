@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use std::{collections::HashMap,
-          env,
           fs::File,
           path::PathBuf};
 
+use env_proxy;
 use reqwest::{header::{Headers,
                        UserAgent},
               Client,
-              Proxy,
               Response};
+use url::Url;
 
 use crate::{config::ArtifactoryCfg,
             error::{ArtifactoryError,
@@ -51,24 +51,31 @@ impl ArtifactoryClient {
         let mut client = Client::builder();
         client.default_headers(headers);
 
-        if let Ok(url) = env::var("HTTP_PROXY") {
-            debug!("Using HTTP_PROXY: {}", url);
-            match Proxy::http(&url) {
-                Ok(p) => {
-                    client.proxy(p);
-                }
-                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
-            }
-        }
+        let url = Url::parse(&config.api_url).expect("valid Artifactory url must be configured");
+        debug!("ArtifactoryClient checking proxy for url: {:?}", url);
 
-        if let Ok(url) = env::var("HTTPS_PROXY") {
-            debug!("Using HTTPS_PROXY: {}", url);
-            match Proxy::https(&url) {
-                Ok(p) => {
-                    client.proxy(p);
+        if let Some(proxy_url) = env_proxy::for_url(&url).to_string() {
+            if url.scheme() == "http" {
+                debug!("Setting http_proxy to {}", proxy_url);
+                match reqwest::Proxy::http(&proxy_url) {
+                    Ok(p) => {
+                        client.proxy(p);
+                    }
+                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
                 }
-                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
             }
+
+            if url.scheme() == "https" {
+                debug!("Setting https proxy to {}", proxy_url);
+                match reqwest::Proxy::https(&proxy_url) {
+                    Ok(p) => {
+                        client.proxy(p);
+                    }
+                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
+                }
+            }
+        } else {
+            debug!("No proxy configured for url: {:?}", url);
         }
 
         ArtifactoryClient { inner:   client.build().unwrap(),
