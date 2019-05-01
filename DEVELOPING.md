@@ -194,6 +194,34 @@ Once the build kicks off, you should be able to see the streaming logs for the b
 
 ## Developing Builder services
 
+Before building Builder you must ensure that your Personal Access Token is set to the production instance of Builder. This can be done by clearing the `HAB_AUTH_TOKEN` environment variable or explicitly setting it to your production token.
+
+`export HAB_AUTH_TOKEN=<your production token>`
+
+If the `HAB_AUTH_TOKEN` is not set correctly, you will likely see an error similar to the following when trying to build.
+
+```
+Unloading builder-api
+Unloading habitat/builder-api
+   : Loading /src/components/builder-api/habitat-dev/plan.sh
+   builder-api: Plan loaded
+   builder-api: Validating plan metadata
+   builder-api: Using HAB_BIN=/hab/pkgs/core/hab/0.79.1/20190410220617/bin/hab for installs, signing, and hashing
+   builder-api: hab-plan-build setup
+   builder-api: Writing pre_build file
+   builder-api: Resolving build dependencies
+» Installing core/protobuf-cpp
+☁ Determining latest version of core/protobuf-cpp in the 'stable' channel
+✗✗✗
+✗✗✗ [401 Unauthorized] Please check that you have specified a valid Personal Access Token.
+✗✗✗
+   builder-api: WARN: Could not find a suitable installed package for 'core/protobuf-cpp'
+   builder-api: ERROR: Resolving 'core/protobuf-cpp' failed, should this be built first?
+   builder-api: Build time: 0m0s
+   builder-api: Exiting on error
+ERROR: _build-builder aborted due to error
+```
+
 If you are developing the Builder services and changing the back end code, you will want to update the Builder services with the latest code. When first doing this, you will need to issue a full build by doing the following from within your Studio:
 
 `build-builder`
