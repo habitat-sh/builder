@@ -118,11 +118,11 @@ export function fetchPackageChannels(origin: string, name: string, version: stri
   };
 }
 
-export function fetchLatestPackage(origin: string, name: string) {
+export function fetchLatestPackage(origin: string, name: string, target: string) {
   return dispatch => {
     dispatch(clearLatestPackage());
 
-    depotApi.getLatest(origin, name).then(response => {
+      depotApi.getLatest(origin, name, target).then(response => {
       dispatch(setLatestPackage(response));
 
       const ident = response['ident'];

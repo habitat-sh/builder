@@ -36,7 +36,11 @@ const routes: Routes = [
       },
       {
         path: 'latest',
-        component: PackageLatestComponent
+        redirectTo: 'latest/x86_64-linux',
+      },
+      {
+        path: 'latest/:target',
+        component: PackageLatestComponent,
       },
       {
         path: 'jobs',

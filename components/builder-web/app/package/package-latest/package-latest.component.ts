@@ -26,6 +26,7 @@ import config from '../../config';
 export class PackageLatestComponent implements OnDestroy {
   origin: string;
   name: string;
+  target: string;
 
   private sub: Subscription;
 
@@ -33,7 +34,15 @@ export class PackageLatestComponent implements OnDestroy {
     this.route.parent.params.subscribe((params) => {
       this.origin = params['origin'];
       this.name = params['name'];
-      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Latest | Habitat`);
+      // These bits are triggered in both subscribe blocks since it's not guaranteed which will fire first
+      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Latest ${this.target} | Habitat`);
+      this.fetchLatest();
+    });
+
+    this.route.params.subscribe((params) => {
+      this.target = params['target'];
+      // These bits are triggered in both subscribe blocks since it's not guaranteed which will fire first
+      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Latest ${this.target} | Habitat`);
       this.fetchLatest();
     });
   }
@@ -68,6 +77,8 @@ export class PackageLatestComponent implements OnDestroy {
   }
 
   private fetchLatest() {
-    this.store.dispatch(fetchLatestPackage(this.origin, this.name));
+    if (this.origin && this.name && this.target) {
+      this.store.dispatch(fetchLatestPackage(this.origin, this.name, this.target));
+    }
   }
 }

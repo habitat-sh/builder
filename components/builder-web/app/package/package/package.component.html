@@ -42,11 +42,17 @@
   </a>
 </nav>
 <div class="body">
+  <nav class="targets">
+      <a class="linux" routerLink="latest/x86_64-linux" routerLinkActive="active"><span>Linux</span></a>
+      <a class="linux2" routerLink="latest/x86_64-linux-kernel2" routerLinkActive="active"><span>Linux 2</span></a>
+      <a class="windows" routerLink="latest/x86_64-windows" routerLinkActive="active"><span>Windows</span></a>
+      <a class="darwin" routerLink="latest/x86_64-darwin" routerLinkActive="active"><span>MacOS</span></a>
+  </nav>
   <div class="content" [class.full]="useFullWidth">
     <hab-job-notice [job]="activeJob" *ngIf="showActiveJob"></hab-job-notice>
     <router-outlet (activate)="onRouteActivate($event)"></router-outlet>
   </div>
   <aside *ngIf="showSidebar">
-    <hab-package-sidebar [origin]="origin" [name]="name" [building]="building" [buildable]="buildable"></hab-package-sidebar>
+    <hab-package-sidebar [origin]="origin" [name]="name" [target]="target" [building]="building" [buildable]="buildable"></hab-package-sidebar>
   </aside>
 </div>

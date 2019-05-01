@@ -114,8 +114,8 @@ export function getUnique(origin: string, nextRange: number = 0, token: string =
   });
 }
 
-export function getLatest(origin: string, pkg: string) {
-  const url = `${urlPrefix}/depot/pkgs/${origin}/${pkg}/latest?target=x86_64-linux`;
+export function getLatest(origin: string, pkg: string, target: string) {
+  const url = `${urlPrefix}/depot/pkgs/${origin}/${pkg}/latest?target=${target}`;
 
   return new Promise((resolve, reject) => {
     fetch(url, opts())
@@ -260,8 +260,8 @@ export function promotePackage(origin: string, name: string, version: string, re
   });
 }
 
-export function submitJob(origin: string, pkg: string, token: string) {
-  const url = `${urlPrefix}/depot/pkgs/schedule/${origin}/${pkg}`;
+export function submitJob(origin: string, pkg: string, target: string, token: string) {
+  const url = `${urlPrefix}/depot/pkgs/schedule/${origin}/${pkg}?target=${target}`;
 
   return new Promise((resolve, reject) => {
     fetch(url, {

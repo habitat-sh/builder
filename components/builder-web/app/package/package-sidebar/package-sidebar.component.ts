@@ -23,6 +23,7 @@ import { fetchLatestInChannel, fetchPackageVersions, submitJob } from '../../act
 export class PackageSidebarComponent implements OnChanges {
   @Input() origin: string;
   @Input() name: string;
+  @Input() target: string;
   @Input() building: boolean = false;
   @Input() buildable: boolean = false;
 
@@ -50,7 +51,7 @@ export class PackageSidebarComponent implements OnChanges {
   build() {
     if (this.buildable) {
       let token = this.store.getState().session.token;
-      this.store.dispatch(submitJob(this.origin, this.name, token));
+      this.store.dispatch(submitJob(this.origin, this.name, this.target, token));
     }
   }
 

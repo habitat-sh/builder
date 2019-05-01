@@ -44,6 +44,12 @@
 
     .body {
       display: flex;
+      flex-wrap: wrap;
+
+      nav {
+        flex: 1 0 100%;
+        padding: $default-margin 0;
+      }
 
       .content {
         flex: 9;

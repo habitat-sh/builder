@@ -16,6 +16,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { List } from 'immutable';
+import { get } from 'lodash/fp';
 import { PackageJobComponent } from '../package-job/package-job.component';
 import { PackageJobsComponent } from '../package-jobs/package-jobs.component';
 import { PackageLatestComponent } from '../package-latest/package-latest.component';
@@ -30,19 +31,26 @@ import { fetchJobs, fetchIntegrations, fetchLatestInChannel, fetchOrigin, fetchP
 export class PackageComponent implements OnInit, OnDestroy {
   origin: string;
   name: string;
+  target: string;
   showSidebar: boolean = false;
   showActiveJob: boolean = false;
   useFullWidth: boolean = true;
 
-  private sub: Subscription;
+  private subs: Subscription[] = [];
   private poll: number;
 
-  constructor(private route: ActivatedRoute, private store: AppStore) {
-    this.sub = this.route.params.subscribe(params => {
-      this.origin = params['origin'];
-      this.name = params['name'];
-      this.store.dispatch(fetchOrigin(this.origin));
-    });
+  constructor(route: ActivatedRoute, private store: AppStore) {
+    this.subs = [
+      // Subscriptions to route changes
+      route.params.subscribe(({origin, name}) => {
+        this.origin = origin;
+        this.name = name;
+        this.store.dispatch(fetchOrigin(this.origin));
+      }),
+      route.firstChild.params.subscribe(({target}) => {
+        this.target = target;
+      })
+    ];
   }
 
   ngOnInit() {
@@ -59,9 +67,11 @@ export class PackageComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     window.clearInterval(this.poll);
 
-    if (this.sub) {
-      this.sub.unsubscribe();
-    }
+    this.subs.forEach((sub) => {
+      if (sub) {
+          sub.unsubscribe();
+      }
+    });
   }
 
   get ident() {
