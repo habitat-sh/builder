@@ -38,7 +38,7 @@ curl https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/
 for pkg in "${sup_packages[@]}"
 do
     pkg_name=${pkg##core/} # strip "core/" if it's there
-    hab pkg install core/"${pkg_name}"
+    HAB_LICENSE="accept" hab pkg install core/"${pkg_name}"
 done
 
 # Install builder packages
