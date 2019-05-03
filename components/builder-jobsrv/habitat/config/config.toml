@@ -2,7 +2,7 @@ key_dir = "{{pkg.svc_files_path}}"
 log_path = "{{cfg.log_path}}"
 job_timeout = {{cfg.job_timeout}}
 build_targets = {{toToml cfg.build_targets}}
-features_enabled = ""
+features_enabled = "{{cfg.features_enabled}}"
 
 [datastore]
 {{toToml cfg.datastore}}
