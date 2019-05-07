@@ -79,7 +79,7 @@ sup_packages=(core/hab-launcher
 # If the HAB_BLDR_URL environment variable is set, we'll use that
 # when downloading packages. Otherwise, we'll just default to the
 # production depot.
-if [[ ! -z "${HAB_BLDR_URL:-}" ]]
+if [[ -n "${HAB_BLDR_URL:-}" ]]
 then
     log "Using HAB_BLDR_URL from environment: ${HAB_BLDR_URL}"
     depot_flag="HAB_BLDR_URL=${HAB_BLDR_URL}"
@@ -133,6 +133,7 @@ artifact_dir=${sandbox_dir}/hab/cache/artifacts
 log "Creating TAR for all artifacts"
 
 sup_artifact=$(echo "${artifact_dir}"/core-hab-sup-*)
+export sup_artifact
 archive_name=${this_bootstrap_bundle}.tar
 log "Generating archive: ${archive_name}"
 
