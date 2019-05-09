@@ -34,6 +34,8 @@
   [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
 
   # Install hab as a Windows service
+  $env:HAB_LICENSE='accept';
+  SETX HAB_LICENSE accept /m;
   hab pkg install core/windows-service
   hab pkg exec core/windows-service install
 
