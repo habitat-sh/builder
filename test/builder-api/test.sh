@@ -96,9 +96,7 @@ echo "BUILDING BUILDER"
 build-builder > /dev/null
 echo "BUILDER BUILT build-builder returned $?"
 
-hab pkg install -b core/node
-# workaround for https://github.com/habitat-sh/habitat/issues/6418
-hab pkg binlink core/node
+hab pkg install core/node -b
 cd /src/test/builder-api
 npm install mocha
 hab pkg binlink core/coreutils -d /usr/bin env
@@ -132,7 +130,7 @@ else
   clean_test_artifacts # start with a clean slate
 
   if ! command -v npm >/dev/null 2>&1; then
-    hab pkg install -b core/node
+    hab pkg install core/node -b
   fi
 
   if ! [ -f /usr/bin/env ]; then
