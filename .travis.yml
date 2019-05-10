@@ -123,6 +123,7 @@ matrix:
         - COMPONENTS=srv
         - AFFECTED_FILES="Cargo.lock .travis.yml .envrc .studiorc"
         - AFFECTED_DIRS=".secrets support $_RUST_BLDR_BIN_COMPONENTS $_RUST_BLDR_LIB_COMPONENTS"
+        - HAB_LICENSE="accept-no-persist"
       rust: 1.34.0
       sudo: required
       addons:
