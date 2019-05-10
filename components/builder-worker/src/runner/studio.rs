@@ -1,17 +1,18 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
+use crate::{error::{Error,
+                    Result},
+            hab_core::{env::{self,
+                             Config},
+                       fs,
+                       package::target::{self,
+                                         PackageTarget},
+                       url::BLDR_URL_ENVVAR,
+                       ChannelIdent,
+                       AUTH_TOKEN_ENVVAR},
+            runner::{job_streamer::JobStreamer,
+                     workspace::Workspace,
+                     DEV_MODE,
+                     NONINTERACTIVE_ENVVAR,
+                     RUNNER_DEBUG_ENVVAR}};
 use std::{path::PathBuf,
           process::{Child,
                     Command,
@@ -19,23 +20,6 @@ use std::{path::PathBuf,
           sync::{atomic::{AtomicUsize,
                           ATOMIC_USIZE_INIT},
                  Mutex}};
-
-use crate::hab_core::{env::{self,
-                            Config},
-                      fs,
-                      package::target::{self,
-                                        PackageTarget},
-                      url::BLDR_URL_ENVVAR,
-                      ChannelIdent,
-                      AUTH_TOKEN_ENVVAR};
-
-use crate::{error::{Error,
-                    Result},
-            runner::{job_streamer::JobStreamer,
-                     workspace::Workspace,
-                     DEV_MODE,
-                     NONINTERACTIVE_ENVVAR,
-                     RUNNER_DEBUG_ENVVAR}};
 
 pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
 pub static STUDIO_GID: AtomicUsize = ATOMIC_USIZE_INIT;
@@ -118,6 +102,11 @@ impl<'a> Studio<'a> {
         // for progress on this front.
         cmd.env("HAB_STUDIO_SECRET_HAB_FEAT_IGNORE_LOCAL", "true");
 
+        // TODO JB: remove the HAB_STUDIO_SECRET_HAB_LICENSE line after our (n-1) version exceeds
+        // 0.81.0
+        cmd.env("HAB_LICENSE", "accept-no-persist");
+        cmd.env("HAB_STUDIO_SECRET_HAB_LICENSE", "accept-no-persist");
+
         cmd.env("HAB_DOCKER_OPTS", "--name builder");
 
         for secret in self.workspace.job.get_secrets() {
@@ -158,10 +147,9 @@ impl<'a> Studio<'a> {
 
         cmd.arg("studio");
         cmd.arg("build");
+
         if !dev_mode {
             cmd.arg("-D"); // Use Docker studio
-            cmd.arg("--no-tty"); // Need this as of hab 0.79.0
-            cmd.arg("--non-interactive"); // Need this as of hab 0.79.0
         }
 
         if self.target == target::X86_64_WINDOWS {
