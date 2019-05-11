@@ -17,12 +17,11 @@ use std::{path::PathBuf,
           process::{Child,
                     Command,
                     Stdio},
-          sync::{atomic::{AtomicUsize,
-                          ATOMIC_USIZE_INIT},
+          sync::{atomic::AtomicUsize,
                  Mutex}};
 
-pub static STUDIO_UID: AtomicUsize = ATOMIC_USIZE_INIT;
-pub static STUDIO_GID: AtomicUsize = ATOMIC_USIZE_INIT;
+pub static STUDIO_UID: AtomicUsize = AtomicUsize::new(0);
+pub static STUDIO_GID: AtomicUsize = AtomicUsize::new(0);
 pub const DEBUG_ENVVARS: &[&str] = &["RUST_LOG", "DEBUG", "RUST_BACKTRACE"];
 pub const WINDOWS_ENVVARS: &[&str] = &["SYSTEMDRIVE", "USERNAME", "COMPUTERNAME", "TEMP"];
 
