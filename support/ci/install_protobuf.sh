@@ -1,3 +1,4 @@
 #!/bin/sh
 
-sudo hab pkg install core/protobuf-cpp -b
+export HAB_LICENSE="accept-no-persist"
+sudo -E hab pkg install core/protobuf-cpp -b
