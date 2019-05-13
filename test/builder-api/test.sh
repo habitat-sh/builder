@@ -96,7 +96,9 @@ echo "BUILDING BUILDER"
 build-builder > /dev/null
 echo "BUILDER BUILT build-builder returned $?"
 
-hab pkg install core/node -b
+hab pkg install core/node
+hab pkg binlink core/node --dest /hab/bin
+
 cd /src/test/builder-api
 npm install mocha
 hab pkg binlink core/coreutils -d /usr/bin env
