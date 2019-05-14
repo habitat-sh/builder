@@ -48,6 +48,7 @@ use crate::schema::{channel::{origin_channel_packages,
                     origin::origins,
                     package::{origin_package_versions,
                               origin_packages,
+                              origin_packages_with_version_array,
                               packages_with_channel_platform}};
 
 use crate::{bldr_core::metrics::{CounterMetric,
@@ -348,10 +349,13 @@ impl Package {
         let start_time = PreciseTime::now();
 
         let result =
-            Self::all().filter(origin_packages::ident_array.contains(req.ident.parts()))
+            Self::all().inner_join(origin_packages_with_version_array::table)
+                       .filter(origin_packages::ident_array.contains(req.ident.parts()))
                        .filter(origin_packages::target.eq(req.target))
                        .filter(origin_packages::visibility.eq(any(req.visibility)))
-                       .order(sql::<Package>("to_semver(ident_array[3]) desc, ident_array[4] desc"))
+                       .order(sql::<Package>("regexp_split_to_array(version_array[1],'\\.')::\
+                                              numeric[]desc, version_array[2] desc, \
+                                              origin_packages.ident_array[4] desc"))
                        .limit(1)
                        .get_result(conn);
 
@@ -496,7 +500,7 @@ impl Package {
             .filter(origin_package_versions::origin.eq(ident.origin()))
             .filter(origin_package_versions::name.eq(ident.name()))
             .filter(origin_package_versions::visibility.eq(any(visibility)))
-            .order(sql::<OriginPackageVersions>("to_semver(version) desc"))
+            .order(sql::<OriginPackageVersions>("regexp_split_to_array(version_array[1],'\\.')::numeric[]desc, version_array[2] desc"))
             .get_results(conn)
     }
 

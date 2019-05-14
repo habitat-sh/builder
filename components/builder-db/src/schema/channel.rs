@@ -19,13 +19,16 @@ table! {
 }
 
 use super::{origin::origins,
-            package::origin_packages};
+            package::{origin_packages,
+                      origin_packages_with_version_array}};
 
 joinable!(origin_channel_packages -> origin_packages (package_id));
+joinable!(origin_channel_packages -> origin_packages_with_version_array (package_id));
 joinable!(origin_channel_packages -> origin_channels (channel_id));
 joinable!(origin_channels -> origins (origin));
 
 allow_tables_to_appear_in_same_query!(origin_channels,
                                       origin_channel_packages,
                                       origin_packages,
+                                      origin_packages_with_version_array,
                                       origins);
