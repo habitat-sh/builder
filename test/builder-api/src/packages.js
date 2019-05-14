@@ -749,50 +749,48 @@ describe('Working with packages', function () {
         });
     });
 
-    // FAILING TEST - incorrect semver sort
+    it('returns the latest release of package oddversion1', function (done) {
+      request.get('/depot/pkgs/neurosis/oddversion1/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('oddversion1');
+          expect(res.body.ident.version).to.equal('R16B03-1');
+          expect(res.body.ident.release).to.equal(ov13release);
+          done(err);
+        });
+    });
 
-    // it('returns the latest release of package oddversion1', function (done) {
-    //   request.get('/depot/pkgs/neurosis/oddversion1/latest')
-    //     .type('application/json')
-    //     .accept('application/json')
-    //     .expect(200)
-    //     .end(function (err, res) {
-    //       expect(res.body.ident.origin).to.equal('neurosis');
-    //       expect(res.body.ident.name).to.equal('oddversion1');
-    //       expect(res.body.ident.version).to.equal('R16B03-1');
-    //       expect(res.body.ident.release).to.equal(ov13release);
-    //       done(err);
-    //     });
-    // });
+    it('returns the latest package oddversion1 in unstable channel', function (done) {
+      request.get('/depot/channels/neurosis/unstable/pkgs/oddversion1/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('oddversion1');
+          expect(res.body.ident.version).to.equal('R16B03-1');
+          expect(res.body.ident.release).to.equal(ov13release);
+          done(err);
+        });
+    });
 
-    // it('returns the latest package oddversion1 in unstable channel', function (done) {
-    //   request.get('/depot/channels/neurosis/unstable/pkgs/oddversion1/latest')
-    //     .type('application/json')
-    //     .accept('application/json')
-    //     .expect(200)
-    //     .end(function (err, res) {
-    //       expect(res.body.ident.origin).to.equal('neurosis');
-    //       expect(res.body.ident.name).to.equal('oddversion1');
-    //       expect(res.body.ident.version).to.equal('R16B03-1');
-    //       expect(res.body.ident.release).to.equal(ov13release);
-    //       done(err);
-    //     });
-    // });
-
-    // it('lists all versions of the package oddversion1', function (done) {
-    //   request.get('/depot/pkgs/neurosis/oddversion1/versions')
-    //     .type('application/json')
-    //     .accept('application/json')
-    //     .expect(200)
-    //     .end(function (err, res) {
-    //       expect(res.body.length).to.equal(5);
-    //       expect(res.body[0].origin).to.equal('neurosis');
-    //       expect(res.body[0].name).to.equal('oddversion1');
-    //       expect(res.body[0].version).to.equal('R16B03-1');
-    //       expect(res.body[0].latest).to.equal(ov13release);
-    //       done(err);
-    //     });
-    // });
+    it('lists all versions of the package oddversion1', function (done) {
+      request.get('/depot/pkgs/neurosis/oddversion1/versions')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.length).to.equal(5);
+          expect(res.body[0].origin).to.equal('neurosis');
+          expect(res.body[0].name).to.equal('oddversion1');
+          expect(res.body[0].version).to.equal('R16B03-1');
+          expect(res.body[0].latest).to.equal(ov13release);
+          done(err);
+        });
+    });
 
     it('Uploads odd version package21', function (done) {
       request.post(`/depot/pkgs/neurosis/oddversion2/19.209-37/${ov21release}`)
@@ -1031,50 +1029,48 @@ describe('Working with packages', function () {
         });
     });
 
-    // FAILING TEST - bad semver value
+    it('returns the latest release of package oddversion5', function (done) {
+      request.get('/depot/pkgs/neurosis/oddversion5/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('oddversion5');
+          expect(res.body.ident.version).to.equal('1.7.3');
+          expect(res.body.ident.release).to.equal(ov52release);
+          done(err);
+        });
+    });
 
-    // it('returns the latest release of package oddversion5', function (done) {
-    //   request.get('/depot/pkgs/neurosis/oddversion5/latest')
-    //     .type('application/json')
-    //     .accept('application/json')
-    //     .expect(200)
-    //     .end(function (err, res) {
-    //       expect(res.body.ident.origin).to.equal('neurosis');
-    //       expect(res.body.ident.name).to.equal('oddversion5');
-    //       expect(res.body.ident.version).to.equal('1.7.3');
-    //       expect(res.body.ident.release).to.equal(ov52release);
-    //       done(err);
-    //     });
-    // });
+    it('returns the latest package oddversion5 in unstable channel', function (done) {
+      request.get('/depot/channels/neurosis/unstable/pkgs/oddversion5/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('oddversion5');
+          expect(res.body.ident.version).to.equal('1.7.3');
+          expect(res.body.ident.release).to.equal(ov52release);
+          done(err);
+        });
+    });
 
-    // it('returns the latest package oddversion5 in unstable channel', function (done) {
-    //   request.get('/depot/channels/neurosis/unstable/pkgs/oddversion5/latest')
-    //     .type('application/json')
-    //     .accept('application/json')
-    //     .expect(200)
-    //     .end(function (err, res) {
-    //       expect(res.body.ident.origin).to.equal('neurosis');
-    //       expect(res.body.ident.name).to.equal('oddversion5');
-    //       expect(res.body.ident.version).to.equal('1.7.3');
-    //       expect(res.body.ident.release).to.equal(ov52release);
-    //       done(err);
-    //     });
-    // });
-
-    // it('lists all versions of the package oddversion5', function (done) {
-    //   request.get('/depot/pkgs/neurosis/oddversion5/versions')
-    //     .type('application/json')
-    //     .accept('application/json')
-    //     .expect(200)
-    //     .end(function (err, res) {
-    //       expect(res.body.length).to.equal(2);
-    //       expect(res.body[0].origin).to.equal('neurosis');
-    //       expect(res.body[0].name).to.equal('oddversion5');
-    //       expect(res.body[0].version).to.equal('1.7.3');
-    //       expect(res.body[0].latest).to.equal(ov52release);
-    //       done(err);
-    //     });
-    // });
+    it('lists all versions of the package oddversion5', function (done) {
+      request.get('/depot/pkgs/neurosis/oddversion5/versions')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.length).to.equal(2);
+          expect(res.body[0].origin).to.equal('neurosis');
+          expect(res.body[0].name).to.equal('oddversion5');
+          expect(res.body[0].version).to.equal('1.7.3');
+          expect(res.body[0].latest).to.equal(ov52release);
+          done(err);
+        });
+    });
 
     it('Uploads odd version package61', function (done) {
       request.post(`/depot/pkgs/neurosis/oddversion6/1.2.3/${ov61release}`)

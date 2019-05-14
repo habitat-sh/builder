@@ -26,6 +26,15 @@ table! {
 }
 
 table! {
+    use diesel::sql_types::{Array, BigInt, Text};
+    origin_packages_with_version_array {
+        id -> BigInt,
+        ident_array -> Array<Text>,
+        version_array -> Array<Text>,
+    }
+}
+
+table! {
     use crate::models::package::PackageVisibilityMapping;
     use diesel::sql_types::{Array, BigInt, Integer, Text, Nullable, Timestamptz};
     use diesel_full_text_search::TsVector;
@@ -70,4 +79,5 @@ use super::origin::{origins,
                     origins_with_stats};
 
 joinable!(origin_packages -> origins (origin));
+joinable!(origin_packages -> origin_packages_with_version_array (id));
 joinable!(origin_packages -> origins_with_stats (origin));

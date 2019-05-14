@@ -25,7 +25,8 @@ use crate::{models::{package::{BuilderPackageIdent,
                      channel::{origin_channel_packages,
                                origin_channels},
                      origin::origins,
-                     package::origin_packages}};
+                     package::{origin_packages,
+                               origin_packages_with_version_array}}};
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
@@ -125,14 +126,20 @@ impl Channel {
         let start_time = PreciseTime::now();
 
         let result = Package::all()
-            .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
+            .inner_join(
+                origin_channel_packages::table
+                    .inner_join(origin_channels::table)
+                    .inner_join(origin_packages_with_version_array::table),
+            )
             .filter(origin_packages::origin.eq(&ident.origin))
             .filter(origin_channels::name.eq(req.channel.as_str()))
             .filter(origin_packages::target.eq(req.target))
             .filter(origin_packages::visibility.eq(any(req.visibility)))
             .filter(origin_packages::ident_array.contains(ident.clone().parts()))
             .order(sql::<Package>(
-                "to_semver(ident_array[3]) desc, ident_array[4] desc",
+                "regexp_split_to_array(version_array[1],'\\.')::\
+                 numeric[]desc, version_array[2] desc, \
+                 origin_packages.ident_array[4] desc",
             ))
             .limit(1)
             .get_result(conn);
