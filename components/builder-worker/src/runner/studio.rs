@@ -106,7 +106,7 @@ impl<'a> Studio<'a> {
         cmd.env("HAB_LICENSE", "accept-no-persist");
         cmd.env("HAB_STUDIO_SECRET_HAB_LICENSE", "accept-no-persist");
 
-        cmd.env("HAB_DOCKER_OPTS", "--name builder");
+        cmd.env("HAB_DOCKER_OPTS", "--name builder --storage-opt size=20G");
 
         for secret in self.workspace.job.get_secrets() {
             cmd.env(format!("HAB_STUDIO_SECRET_{}",
