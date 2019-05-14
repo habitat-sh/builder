@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(not(windows))]
 use std::{env as std_env,
           fs::{self,
                File},
@@ -24,11 +25,22 @@ use std::{env as std_env,
                     ExitStatus,
                     Stdio}};
 
+#[cfg(windows)]
+use std::{path::PathBuf,
+          process::{Command,
+                    ExitStatus,
+                    Stdio}};
+
+#[cfg(not(windows))]
 use crate::hab_core::{env,
                       fs as hfs,
                       os::process::{self,
                                     Pid,
                                     Signal}};
+
+#[cfg(windows)]
+use crate::hab_core::{env,
+                      fs as hfs};
 
 use crate::error::{Error,
                    Result};

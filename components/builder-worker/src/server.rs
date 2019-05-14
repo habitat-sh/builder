@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(windows)]
-use std::path::PathBuf;
 use std::{collections::HashMap,
           iter::FromIterator,
           panic,
@@ -22,9 +20,6 @@ use std::{collections::HashMap,
           time::Duration};
 
 use zmq;
-
-#[cfg(windows)]
-use crate::hab_core::env;
 
 use crate::{bldr_core::{self,
                         socket::DEFAULT_CONTEXT},
