@@ -13,15 +13,8 @@
 // limitations under the License.
 
 #[cfg(not(windows))]
-use std::{env as std_env,
-          fs::{self,
-               File},
-          io::{self,
-               Write},
-          path::{Path,
-                 PathBuf},
-          process::{Child,
-                    Command,
+use std::{path::PathBuf,
+          process::{Command,
                     ExitStatus,
                     Stdio}};
 
@@ -33,10 +26,7 @@ use std::{path::PathBuf,
 
 #[cfg(not(windows))]
 use crate::hab_core::{env,
-                      fs as hfs,
-                      os::process::{self,
-                                    Pid,
-                                    Signal}};
+                      fs as hfs};
 
 #[cfg(windows)]
 use crate::hab_core::{env,
@@ -48,7 +38,6 @@ use crate::error::{Error,
 use crate::runner::{job_streamer::JobStreamer,
                     studio::WINDOWS_ENVVARS,
                     workspace::Workspace,
-                    DEV_MODE,
                     NONINTERACTIVE_ENVVAR,
                     RUNNER_DEBUG_ENVVAR};
 
@@ -65,8 +54,6 @@ lazy_static! {
         include_str!(concat!(env!("OUT_DIR"), "/DOCKER_PKG_IDENT")),
     );
 }
-
-const DOCKER_HOST_ENVVAR: &str = "DOCKER_HOST";
 
 pub struct DockerExporterSpec {
     pub username:             String,
@@ -108,23 +95,8 @@ impl<'a> DockerExporter<'a> {
     /// * If the child process can't be spawned
     /// * If the calling thread can't wait on the child process
     /// * If the `LogStreamer` fails to stream outputs
-    #[cfg(not(windows))]
     pub fn export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
-        let dockerd = self.spawn_dockerd().map_err(Error::Exporter)?;
-        let exit_status = self.run_export(streamer);
-
-        if let Some(e) = self.teardown_dockerd(dockerd).err() {
-            error!("failed to teardown dockerd instance, err={:?}", e);
-        }
-
-        exit_status
-    }
-
-    #[cfg(windows)]
-    pub fn export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
-        // Windows builder does not spawn off a Docker daemon for every job,
-        // and assumes there is a persistent pre-installed daemon running already
-        // TODO (SA): Consider the same approach for Linux
+        // TODO: We should determine what broke this behavior and restore it
         self.run_export(streamer)
     }
 
@@ -194,12 +166,6 @@ impl<'a> DockerExporter<'a> {
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
 
-        if cfg!(not(windows)) {
-            let sock = self.dockerd_sock();
-            debug!("setting docker export command env, {}={}",
-                   DOCKER_HOST_ENVVAR, sock);
-            cmd.env(DOCKER_HOST_ENVVAR, sock); // Use the job-specific `dockerd`
-        }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
@@ -210,87 +176,5 @@ impl<'a> DockerExporter<'a> {
         debug!("completed docker export command, status={:?}", exit_status);
 
         Ok(exit_status)
-    }
-
-    #[cfg(not(windows))]
-    fn spawn_dockerd(&self) -> io::Result<Child> {
-        let root = self.dockerd_path();
-        // TED: feels bad but we need to add sbin to the path
-        // so Dockerd can get to apparmor_parser
-        let env_paths = [&*DOCKERD_PROGRAM.parent()
-                                          .expect("Dockerd parent directory exists"),
-                         &Path::new("/sbin")];
-        let env_path = std_env::join_paths(env_paths.iter()).expect("Cannot join PATH elements \
-                                                                     for dockerd spawn")
-                                                            .to_os_string();
-        let daemon_json = root.join("etc/daemon.json");
-        fs::create_dir_all(daemon_json.parent()
-                                      .expect("Daemon JSON parent directory exists"))?;
-        {
-            let mut f = File::create(&daemon_json)?;
-            f.write_all(b"{}")?;
-        }
-
-        let mut cmd = Command::new(&*DOCKERD_PROGRAM);
-        if env::var_os(RUNNER_DEBUG_ENVVAR).is_some() {
-            cmd.arg("-D");
-        }
-        cmd.arg("-H");
-        cmd.arg(self.dockerd_sock());
-        // TED: Containerd has a file path limit of 67 characters and we were at 70 for most of
-        // ours. Shortning up the directories here to give us some breathing room
-        cmd.arg("--pidfile");
-        cmd.arg(root.join("v/r/docker.pid"));
-        cmd.arg("--data-root");
-        cmd.arg(root.join("v/l/docker"));
-        cmd.arg("--exec-root");
-        cmd.arg(root.join("v/r/d"));
-        cmd.arg("--config-file");
-        cmd.arg(daemon_json);
-        // TODO fn: Hard-coding this feels wrong. I'd like the {{pkg.svc_run_group}} for this
-        // service ideally. Probably plumb more config through for this.
-        cmd.arg("--group");
-        cmd.arg("hab");
-        cmd.arg("--iptables=false");
-        cmd.arg("--ip-masq=false");
-        cmd.arg("--ipv6=false");
-        cmd.arg("--raw-logs");
-        debug!("building dockerd command, cmd={:?}", &cmd);
-        cmd.env_clear();
-        debug!("setting docker export command env, PATH={:?}", env_path);
-        cmd.env("PATH", env_path); // Sadly, `dockerd` needs its collaborator programs on `PATH`
-        cmd.stdout(Stdio::from(File::create(self.workspace.root().join("dockerd.stdout.log"))?));
-        cmd.stderr(Stdio::from(File::create(self.workspace.root().join("dockerd.stderr.log"))?));
-
-        debug!("spawning dockerd export command");
-        cmd.spawn()
-    }
-
-    #[cfg(not(windows))]
-    fn teardown_dockerd(&self, mut dockerd: Child) -> io::Result<()> {
-        debug!("signaling dockerd to shutdown pid={}, sig={:?}",
-               dockerd.id(),
-               Signal::TERM);
-        if let Err(err) = process::signal(dockerd.id() as Pid, Signal::TERM) {
-            warn!("Error sending TERM signal to dockerd, {}, {}",
-                  dockerd.id(),
-                  err);
-        }
-        dockerd.wait()?;
-        debug!("terminated dockerd");
-        // TODO fn: clean up `self.dockerd_root()` directory
-        Ok(())
-    }
-
-    fn dockerd_path(&self) -> PathBuf { self.workspace.root().join("dockerd") }
-
-    fn dockerd_sock(&self) -> String {
-        match env::var_os(DEV_MODE) {
-            Some(_) => "unix:///var/run/docker.sock".to_string(),
-            None => {
-                format!("unix://{}",
-                        self.dockerd_path().join("v/r/docker.sock").display())
-            }
-        }
     }
 }
