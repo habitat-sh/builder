@@ -1317,7 +1317,7 @@ fn do_get_package(req: &HttpRequest<AppState>,
             },
             &*conn,
         ) {
-            Ok(pkg) => pkg,
+            Ok(pkg) => pkg.into(),
             Err(NotFound) => {
                 let mut memcache = req.state().memcache.borrow_mut();
                 memcache.set_package(

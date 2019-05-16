@@ -16,8 +16,8 @@ use diesel::{self,
              TextExpressionMethods};
 
 use crate::{models::{package::{BuilderPackageIdent,
-                               Package,
-                               PackageVisibility},
+                               PackageVisibility,
+                               PackageWithVersionArray},
                      pagination::Paginate},
             protocol::jobsrv::JobGroupTrigger,
             schema::{audit::{audit_package,
@@ -120,26 +120,24 @@ impl Channel {
         .execute(conn)
     }
 
-    pub fn get_latest_package(req: &GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
+    pub fn get_latest_package(req: &GetLatestPackage,
+                              conn: &PgConnection)
+                              -> QueryResult<PackageWithVersionArray> {
         Counter::DBCall.increment();
         let ident = req.ident;
         let start_time = PreciseTime::now();
 
-        let result = Package::all()
-            .inner_join(
-                origin_channel_packages::table
-                    .inner_join(origin_channels::table)
-                    .inner_join(origin_packages_with_version_array::table),
-            )
-            .filter(origin_packages::origin.eq(&ident.origin))
+        let result = PackageWithVersionArray::all()
+            .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
+            .filter(origin_packages_with_version_array::origin.eq(&ident.origin))
             .filter(origin_channels::name.eq(req.channel.as_str()))
-            .filter(origin_packages::target.eq(req.target))
-            .filter(origin_packages::visibility.eq(any(req.visibility)))
-            .filter(origin_packages::ident_array.contains(ident.clone().parts()))
-            .order(sql::<Package>(
-                "regexp_split_to_array(version_array[1],'\\.')::\
-                 numeric[]desc, version_array[2] desc, \
-                 origin_packages.ident_array[4] desc",
+            .filter(origin_packages_with_version_array::target.eq(req.target))
+            .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
+            .filter(origin_packages_with_version_array::ident_array.contains(ident.clone().parts()))
+            .order(sql::<PackageWithVersionArray>(
+                "string_to_array(version_array[1],'.')::\
+                 numeric[] desc, version_array[2] desc, \
+                 ident_array[4] desc",
             ))
             .limit(1)
             .get_result(conn);
