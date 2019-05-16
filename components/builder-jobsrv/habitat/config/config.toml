@@ -6,12 +6,6 @@ features_enabled = "{{cfg.features_enabled}}"
 
 [datastore]
 {{toToml cfg.datastore}}
-{{~#eachAlive bind.datastore.members as |member|}}
-{{~#if @first}}
-host = "{{member.sys.ip}}"
-port = {{member.cfg.port}}
-{{~/if}}
-{{~/eachAlive}}
 
 [archive]
 local_dir = "{{pkg.svc_data_path}}"
