@@ -96,6 +96,38 @@ pub struct Package {
          QueryableByName,
          Queryable,
          Clone,
+         Identifiable)]
+#[table_name = "origin_packages_with_version_array"]
+pub struct PackageWithVersionArray {
+    #[serde(with = "db_id_format")]
+    pub id: i64,
+    #[serde(with = "db_id_format")]
+    pub owner_id: i64,
+    pub name: String,
+    pub ident: BuilderPackageIdent,
+    pub ident_array: Vec<String>,
+    pub checksum: String,
+    pub manifest: String,
+    pub config: String,
+    pub target: BuilderPackageTarget,
+    pub deps: Vec<BuilderPackageIdent>,
+    pub tdeps: Vec<BuilderPackageIdent>,
+    pub exposes: Vec<i32>,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub visibility: PackageVisibility,
+    pub origin: String,
+    pub build_deps: Vec<BuilderPackageIdent>,
+    pub build_tdeps: Vec<BuilderPackageIdent>,
+    pub version_array: Vec<Option<String>>,
+}
+
+#[derive(Debug,
+         Serialize,
+         Deserialize,
+         QueryableByName,
+         Queryable,
+         Clone,
          Identifiable,
          PartialEq)]
 #[table_name = "packages_with_channel_platform"]
@@ -176,6 +208,50 @@ pub const ALL_COLUMNS: AllColumns = (origin_packages::id,
                                      origin_packages::origin);
 
 type All = diesel::dsl::Select<origin_packages::table, AllColumns>;
+
+type AllColumnsWithVersion = (origin_packages_with_version_array::id,
+                              origin_packages_with_version_array::owner_id,
+                              origin_packages_with_version_array::name,
+                              origin_packages_with_version_array::ident,
+                              origin_packages_with_version_array::ident_array,
+                              origin_packages_with_version_array::checksum,
+                              origin_packages_with_version_array::manifest,
+                              origin_packages_with_version_array::config,
+                              origin_packages_with_version_array::target,
+                              origin_packages_with_version_array::deps,
+                              origin_packages_with_version_array::tdeps,
+                              origin_packages_with_version_array::exposes,
+                              origin_packages_with_version_array::created_at,
+                              origin_packages_with_version_array::updated_at,
+                              origin_packages_with_version_array::visibility,
+                              origin_packages_with_version_array::origin,
+                              origin_packages_with_version_array::build_deps,
+                              origin_packages_with_version_array::build_tdeps,
+                              origin_packages_with_version_array::version_array);
+
+pub const ALL_COLUMNS_WITH_VERSION: AllColumnsWithVersion =
+    (origin_packages_with_version_array::id,
+     origin_packages_with_version_array::owner_id,
+     origin_packages_with_version_array::name,
+     origin_packages_with_version_array::ident,
+     origin_packages_with_version_array::ident_array,
+     origin_packages_with_version_array::checksum,
+     origin_packages_with_version_array::manifest,
+     origin_packages_with_version_array::config,
+     origin_packages_with_version_array::target,
+     origin_packages_with_version_array::deps,
+     origin_packages_with_version_array::tdeps,
+     origin_packages_with_version_array::exposes,
+     origin_packages_with_version_array::created_at,
+     origin_packages_with_version_array::updated_at,
+     origin_packages_with_version_array::visibility,
+     origin_packages_with_version_array::origin,
+     origin_packages_with_version_array::build_deps,
+     origin_packages_with_version_array::build_tdeps,
+     origin_packages_with_version_array::version_array);
+
+type AllWithVersion =
+    diesel::dsl::Select<origin_packages_with_version_array::table, AllColumnsWithVersion>;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable)]
 #[table_name = "origin_packages"]
@@ -307,6 +383,12 @@ impl PackageVisibility {
     pub fn private() -> Vec<Self> { vec![PackageVisibility::Private, PackageVisibility::Hidden] }
 }
 
+impl PackageWithVersionArray {
+    pub fn all() -> AllWithVersion {
+        origin_packages_with_version_array::table.select(ALL_COLUMNS_WITH_VERSION)
+    }
+}
+
 impl Package {
     pub fn get_without_target(ident: BuilderPackageIdent,
                               visibility: Vec<PackageVisibility>,
@@ -344,20 +426,23 @@ impl Package {
                    .get_results(conn)
     }
 
-    pub fn get_latest(req: GetLatestPackage, conn: &PgConnection) -> QueryResult<Package> {
+    pub fn get_latest(req: GetLatestPackage,
+                      conn: &PgConnection)
+                      -> QueryResult<PackageWithVersionArray> {
         Counter::DBCall.increment();
         let start_time = PreciseTime::now();
 
-        let result =
-            Self::all().inner_join(origin_packages_with_version_array::table)
-                       .filter(origin_packages::ident_array.contains(req.ident.parts()))
-                       .filter(origin_packages::target.eq(req.target))
-                       .filter(origin_packages::visibility.eq(any(req.visibility)))
-                       .order(sql::<Package>("regexp_split_to_array(version_array[1],'\\.')::\
-                                              numeric[]desc, version_array[2] desc, \
-                                              origin_packages.ident_array[4] desc"))
-                       .limit(1)
-                       .get_result(conn);
+        let result = origin_packages_with_version_array::table
+            .filter(origin_packages_with_version_array::ident_array.contains(req.ident.parts()))
+            .filter(origin_packages_with_version_array::target.eq(req.target))
+            .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
+            .order(sql::<PackageWithVersionArray>(
+                "string_to_array(version_array[1],'.')::\
+                 numeric[] desc, version_array[2] desc, \
+                 ident_array[4] desc",
+            ))
+            .limit(1)
+            .get_result(conn);
 
         let end_time = PreciseTime::now();
         trace!("DBCall package::get_latest time: {} ms",
@@ -500,7 +585,9 @@ impl Package {
             .filter(origin_package_versions::origin.eq(ident.origin()))
             .filter(origin_package_versions::name.eq(ident.name()))
             .filter(origin_package_versions::visibility.eq(any(visibility)))
-            .order(sql::<OriginPackageVersions>("regexp_split_to_array(version_array[1],'\\.')::numeric[]desc, version_array[2] desc"))
+            .order(sql::<OriginPackageVersions>(
+                "string_to_array(version_array[1],'.')::numeric[]desc, version_array[2] desc",
+            ))
             .get_results(conn)
     }
 
@@ -805,6 +892,29 @@ impl Into<OriginPackage> for Package {
         op.set_owner_id(self.owner_id as u64);
         op.set_visibility(self.visibility.into());
         op
+    }
+}
+
+impl Into<Package> for PackageWithVersionArray {
+    fn into(self) -> Package {
+        Package { id:          self.id,
+                  owner_id:    self.owner_id,
+                  name:        self.name.clone(),
+                  ident:       self.ident.clone(),
+                  ident_array: self.ident_array.clone(),
+                  checksum:    self.checksum.clone(),
+                  manifest:    self.manifest.clone(),
+                  config:      self.config.clone(),
+                  target:      self.target,
+                  deps:        self.deps.clone(),
+                  tdeps:       self.tdeps.clone(),
+                  build_deps:  self.build_deps.clone(),
+                  build_tdeps: self.build_tdeps.clone(),
+                  exposes:     self.exposes.clone(),
+                  visibility:  self.visibility,
+                  created_at:  self.created_at,
+                  updated_at:  self.updated_at,
+                  origin:      self.origin.clone(), }
     }
 }
 

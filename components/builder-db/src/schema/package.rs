@@ -26,11 +26,28 @@ table! {
 }
 
 table! {
-    use diesel::sql_types::{Array, BigInt, Text};
+    use crate::models::package::PackageVisibilityMapping;
+    use diesel::sql_types::{Array, BigInt, Integer, Text,  Nullable, Timestamptz};
     origin_packages_with_version_array {
         id -> BigInt,
+        owner_id -> BigInt,
+        name -> Text,
+        ident -> Text,
         ident_array -> Array<Text>,
-        version_array -> Array<Text>,
+        checksum -> Text,
+        manifest -> Text,
+        config -> Text,
+        target -> Text,
+        deps -> Array<Text>,
+        tdeps -> Array<Text>,
+        exposes -> Array<Integer>,
+        created_at -> Nullable<Timestamptz>,
+        updated_at -> Nullable<Timestamptz>,
+        visibility -> PackageVisibilityMapping,
+        origin -> Text,
+        build_deps -> Array<Text>,
+        build_tdeps -> Array<Text>,
+        version_array -> Array<Nullable<Text>>,
     }
 }
 
@@ -79,5 +96,4 @@ use super::origin::{origins,
                     origins_with_stats};
 
 joinable!(origin_packages -> origins (origin));
-joinable!(origin_packages -> origin_packages_with_version_array (id));
 joinable!(origin_packages -> origins_with_stats (origin));

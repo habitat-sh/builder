@@ -581,7 +581,7 @@ fn do_get_channel_package(req: &HttpRequest<AppState>,
         Err(e) => return Err(e.into()),
     };
 
-    let pkg = match Channel::get_latest_package(
+    let pkg: Package = match Channel::get_latest_package(
         &GetLatestPackage {
             ident: &BuilderPackageIdent(ident.clone()),
             channel,
@@ -594,7 +594,7 @@ fn do_get_channel_package(req: &HttpRequest<AppState>,
         },
         &*conn,
     ) {
-        Ok(pkg) => pkg,
+        Ok(pkg) => pkg.into(),
         Err(NotFound) => {
             let mut memcache = req.state().memcache.borrow_mut();
             memcache.set_package(&req_ident, None, channel, &target, opt_session_id);
