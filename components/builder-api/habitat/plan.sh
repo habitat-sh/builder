@@ -14,7 +14,6 @@ pkg_exports=(
 pkg_exposes=(port)
 pkg_binds=(
   [memcached]="port"
-  [datastore]="port"
 )
 pkg_binds_optional=(
   [jobsrv]="rpc_port"

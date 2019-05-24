@@ -49,3 +49,5 @@ database = "builder"
 connection_retry_ms = 300
 connection_timeout_sec = 3600
 db_workers = 4
+host = "127.0.0.1"
+port = 5432
