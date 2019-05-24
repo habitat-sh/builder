@@ -399,11 +399,11 @@ resource "aws_instance" "worker" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo mkdir -p /home/ubuntu/.hab/accepted-licenses"
-      "sudo mkdir -p /home/hab/.hab/accepted-licenses"
-      "sudo mkdir -p /hab/accepted-licenses"
-      "sudo touch /home/ubuntu/.hab/accepted-licenses/habitat"
-      "sudo touch /home/hab/.hab/accepted-licenses/habitat"
+      "sudo mkdir -p /home/ubuntu/.hab/accepted-licenses",
+      "sudo mkdir -p /home/hab/.hab/accepted-licenses",
+      "sudo mkdir -p /hab/accepted-licenses",
+      "sudo touch /home/ubuntu/.hab/accepted-licenses/habitat",
+      "sudo touch /home/hab/.hab/accepted-licenses/habitat",
       "sudo touch /hab/accepted-licenses/habitat"
       ]
   }
