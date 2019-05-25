@@ -1,5 +1,3 @@
-CREATE EXTENSION semver;
-
 CREATE TYPE origin_package_visibility AS ENUM ('public', 'private', 'hidden');
 
 ALTER TABLE origin_packages ALTER COLUMN visibility DROP DEFAULT;
