@@ -14,5 +14,3 @@ CREATE OR REPLACE VIEW origin_packages_with_version_array AS
         ident_array,
         regexp_matches(ident_array[3], '([\d\.]+)(.+)?') as version_array
     FROM origin_packages;
-
-DROP EXTENSION semver;

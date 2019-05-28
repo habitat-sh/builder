@@ -87,3 +87,5 @@ CREATE OR REPLACE VIEW origin_package_versions AS
     MAX(ident_array[4]) as latest, ARRAY_AGG(DISTINCT target) as platforms
     FROM origin_packages
     GROUP BY ident_array[3], origin, name, visibility;
+
+CREATE INDEX ident_index ON origin_packages USING gin(ident_vector);
