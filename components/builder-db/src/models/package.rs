@@ -452,6 +452,23 @@ impl Package {
         result
     }
 
+    pub fn get_all_latest(conn: &PgConnection) -> QueryResult<Vec<PackageWithVersionArray>> {
+        Counter::DBCall.increment();
+        let start_time = PreciseTime::now();
+        let result = origin_packages_with_version_array::table
+            .distinct_on((origin_packages_with_version_array::origin, origin_packages_with_version_array::name))
+            .order(sql::<PackageWithVersionArray>(
+                "origin, name, string_to_array(version_array[1],'.')::\
+                numeric[] desc, ident_array[4] desc",
+            ))
+            .get_results(conn);
+        let end_time = PreciseTime::now();
+        trace!("DBCall package::get_all_latest time: {} ms",
+               start_time.to(end_time).num_milliseconds());
+        Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+        result
+    }
+
     pub fn create(package: &NewPackage, conn: &PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let pkg = diesel::insert_into(origin_packages::table)
@@ -870,6 +887,32 @@ impl Into<OriginPackageVisibility> for PackageVisibility {
 }
 
 impl Into<OriginPackage> for Package {
+    fn into(self) -> OriginPackage {
+        let exposes = self.exposes
+                          .into_iter()
+                          .map(|e| e as u32)
+                          .collect::<Vec<u32>>();
+
+        let mut op = OriginPackage::new();
+        let ident = &*self.ident;
+        op.set_id(self.id as u64);
+        op.set_ident(OriginPackageIdent::from(ident.clone()));
+        op.set_manifest(self.manifest);
+        op.set_target(self.target.to_string());
+        op.set_deps(into_idents(self.deps));
+        op.set_tdeps(into_idents(self.tdeps));
+        op.set_build_deps(into_idents(self.build_deps));
+        op.set_build_tdeps(into_idents(self.build_tdeps));
+        op.set_exposes(exposes);
+        op.set_config(self.config);
+        op.set_checksum(self.checksum);
+        op.set_owner_id(self.owner_id as u64);
+        op.set_visibility(self.visibility.into());
+        op
+    }
+}
+
+impl Into<OriginPackage> for PackageWithVersionArray {
     fn into(self) -> OriginPackage {
         let exposes = self.exposes
                           .into_iter()
