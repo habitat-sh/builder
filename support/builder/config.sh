@@ -47,6 +47,7 @@ app_id = $GITHUB_APP_ID
 
 [datastore]
 password = "$PGPASSWORD"
+port = 5433
 EOT
 
 mkdir -p /hab/svc/builder-api-proxy
@@ -87,6 +88,7 @@ handler_count = 15
 
 [datastore]
 password = "$PGPASSWORD"
+port = 5433
 
 [archive]
 backend = "local"
