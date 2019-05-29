@@ -559,9 +559,21 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
     request.set_origin(origin_name);
     request.set_package(package);
     request.set_target(qschedule.target.clone());
-    request.set_deps_only(qschedule.deps_only.is_some());
-    request.set_origin_only(qschedule.origin_only.is_some());
-    request.set_package_only(qschedule.package_only.is_some());
+    request.set_deps_only(qschedule.deps_only
+                                   .clone()
+                                   .unwrap_or("false".to_string())
+                                   .parse()
+                                   .unwrap_or(false));
+    request.set_origin_only(qschedule.origin_only
+                                     .clone()
+                                     .unwrap_or("false".to_string())
+                                     .parse()
+                                     .unwrap_or(false));
+    request.set_package_only(qschedule.package_only
+                                      .clone()
+                                      .unwrap_or("false".to_string())
+                                      .parse()
+                                      .unwrap_or(false));
     request.set_trigger(helpers::trigger_from_request(&req));
     request.set_requester_id(session.get_id());
     request.set_requester_name(session.get_name().to_string());
