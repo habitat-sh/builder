@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use std::{error::Error,
-          fmt,
-          net::{IpAddr,
-                Ipv4Addr}};
+          fmt};
 
 use num_cpus;
 use postgres_shared::params::{ConnectParams,
@@ -27,7 +25,7 @@ use url::percent_encoding::{utf8_percent_encode,
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct DataStoreCfg {
-    pub host: IpAddr,
+    pub host: String,
     pub port: u16,
     pub user: String,
     pub password: Option<String>,
@@ -44,7 +42,7 @@ pub struct DataStoreCfg {
 
 impl Default for DataStoreCfg {
     fn default() -> Self {
-        DataStoreCfg { host:                   IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        DataStoreCfg { host:                   String::from("localhost"),
                        port:                   5432,
                        user:                   String::from("hab"),
                        password:               None,
