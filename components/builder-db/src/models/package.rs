@@ -458,8 +458,7 @@ impl Package {
         let result = origin_packages_with_version_array::table
             .distinct_on((origin_packages_with_version_array::origin, origin_packages_with_version_array::name))
             .order(sql::<PackageWithVersionArray>(
-                "origin, name, string_to_array(version_array[1],'.')::\
-                numeric[] desc, ident_array[4] desc",
+                "origin, name, string_to_array(version_array[1],'.') desc, ident_array[4] desc",
             ))
             .get_results(conn);
         let end_time = PreciseTime::now();

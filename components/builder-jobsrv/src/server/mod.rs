@@ -157,7 +157,6 @@ pub fn run(config: Config) -> Result<()> {
     let packages = Package::get_all_latest(&pkg_conn)?;
     let origin_packages: Vec<OriginPackage> = packages.iter().map(|p| p.clone().into()).collect();
     let start_time = PreciseTime::now();
-
     let res = graph.build(origin_packages.into_iter(),
                           feat::is_enabled(feat::BuildDeps));
 
