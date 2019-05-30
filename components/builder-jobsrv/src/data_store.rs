@@ -17,7 +17,6 @@
 embed_migrations!("src/migrations");
 
 use std::{io,
-          str::FromStr,
           sync::Arc};
 
 use chrono::{DateTime,
@@ -31,7 +30,6 @@ use protobuf::{self,
 
 use crate::db::{config::DataStoreCfg,
                 migration::setup_ids,
-                models::package::PackageVisibility,
                 pool::Pool,
                 DbPool};
 
@@ -343,28 +341,6 @@ impl DataStore {
         Ok(workers)
     }
 
-    pub fn get_job_graph_packages(&self) -> Result<RepeatedField<originsrv::OriginPackage>> {
-        let mut packages = RepeatedField::new();
-
-        let conn = self.pool.get()?;
-
-        let rows = &conn.query("SELECT * FROM get_all_origin_packages_for_ident_v1($1)",
-                               &[&String::from("")])
-                        .map_err(Error::JobGraphPackagesGet)?;
-
-        if rows.is_empty() {
-            warn!("No packages found");
-            return Ok(packages);
-        }
-
-        for row in rows {
-            let package = self.row_to_origin_package(&row)?;
-            packages.push(package);
-        }
-
-        Ok(packages)
-    }
-
     pub fn is_job_group_active(&self, project_name: &str) -> Result<bool> {
         let conn = self.pool.get()?;
 
@@ -529,42 +505,6 @@ impl DataStore {
         }
 
         Ok(Some(group))
-    }
-
-    fn row_to_origin_package(&self, row: &postgres::rows::Row) -> Result<originsrv::OriginPackage> {
-        let mut package = originsrv::OriginPackage::new();
-        let id: i64 = row.get("id");
-        package.set_id(id as u64);
-        package.set_origin(row.get("origin"));
-        let owner_id: i64 = row.get("owner_id");
-        package.set_owner_id(owner_id as u64);
-        let ident: String = row.get("ident");
-        package.set_ident(originsrv::OriginPackageIdent::from_str(ident.as_str()).unwrap());
-        package.set_checksum(row.get("checksum"));
-        package.set_manifest(row.get("manifest"));
-        package.set_config(row.get("config"));
-        package.set_target(row.get("target"));
-        let exposes: Vec<i32> = row.get("exposes");
-        package.set_exposes(exposes.iter().map(|e| *e as u32).collect::<Vec<u32>>());
-        package.set_deps(Self::dep_to_idents(row.get("deps")));
-        package.set_tdeps(Self::dep_to_idents(row.get("tdeps")));
-        package.set_build_deps(Self::dep_to_idents(row.get("build_deps")));
-        package.set_build_tdeps(Self::dep_to_idents(row.get("build_tdeps")));
-
-        let pv: PackageVisibility = row.get("visibility");
-        let pv2: originsrv::OriginPackageVisibility = pv.into();
-        package.set_visibility(pv2);
-
-        Ok(package)
-    }
-
-    fn dep_to_idents(column: Vec<String>)
-                     -> protobuf::RepeatedField<originsrv::OriginPackageIdent> {
-        let mut idents = protobuf::RepeatedField::new();
-        for ident in column {
-            idents.push(originsrv::OriginPackageIdent::from_str(&ident).unwrap());
-        }
-        idents
     }
 
     fn row_to_job_group(&self, row: &postgres::rows::Row) -> Result<jobsrv::JobGroup> {

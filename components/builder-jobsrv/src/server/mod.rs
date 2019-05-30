@@ -22,7 +22,8 @@ mod worker_manager;
 
 use std::{collections::{HashMap,
                         HashSet},
-          iter::FromIterator,
+          iter::{FromIterator,
+                 Iterator},
           sync::{Arc,
                  RwLock}};
 use time::PreciseTime;
@@ -40,8 +41,10 @@ use actix_web::{http::{Method,
 
 use crate::{bldr_core::{rpc::RpcMessage,
                         target_graph::TargetGraph},
-            db::DbPool,
-            hab_core::package::PackageTarget};
+            db::{models::package::*,
+                 DbPool},
+            hab_core::package::PackageTarget,
+            protocol::originsrv::OriginPackage};
 
 use self::{log_archiver::LogArchiver,
            log_directory::LogDirectory,
@@ -148,11 +151,15 @@ pub fn run(config: Config) -> Result<()> {
     enable_features_from_config(&config);
 
     let datastore = DataStore::new(&config.datastore);
+    let db_pool = DbPool::new(&config.datastore.clone());
     let mut graph = TargetGraph::new();
-    let packages = datastore.get_job_graph_packages()?;
+    let pkg_conn = &db_pool.get_conn()?;
+    let packages = Package::get_all_latest(&pkg_conn)?;
+    let origin_packages: Vec<OriginPackage> = packages.iter().map(|p| p.clone().into()).collect();
     let start_time = PreciseTime::now();
 
-    let res = graph.build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
+    let res = graph.build(origin_packages.into_iter(),
+                          feat::is_enabled(feat::BuildDeps));
 
     let end_time = PreciseTime::now();
     info!("Graph build stats ({} sec):", start_time.to(end_time));
@@ -166,8 +173,6 @@ pub fn run(config: Config) -> Result<()> {
     LogDirectory::validate(&config.log_dir)?;
     let log_dir = LogDirectory::new(&config.log_dir);
     LogIngester::start(&config, log_dir, datastore.clone())?;
-
-    let db_pool = DbPool::new(&config.datastore.clone());
 
     WorkerMgr::start(&config, &datastore, db_pool.clone())?;
     ScheduleMgr::start(&config, &datastore, db_pool.clone())?;
