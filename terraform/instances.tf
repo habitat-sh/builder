@@ -118,123 +118,6 @@ resource "aws_instance" "api" {
 ////////////////////////////////
 // Back-end Instances
 
-resource "aws_instance" "datastore" {
-  ami           = "${lookup(var.aws_ami, var.aws_region)}"
-  instance_type = "${var.instance_size_datastore}"
-  key_name      = "${var.aws_key_pair}"
-  subnet_id     = "${var.public_subnet_id}"
-  count         = 1
-
-  vpc_security_group_ids = [
-    "${var.aws_admin_sg}",
-    "${var.hab_sup_sg}",
-    "${aws_security_group.datastore.id}",
-  ]
-
-  connection {
-    // JW TODO: switch to private ip after VPN is ready
-    host        = "${self.public_ip}"
-    user        = "ubuntu"
-    private_key = "${file("${var.connection_private_key}")}"
-    agent       = "${var.connection_agent}"
-  }
-
-  tags {
-    Name          = "builder-datastore-${count.index}"
-    X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
-    X-Application = "builder"
-    X-ManagedBy   = "Terraform"
-  }
-}
-
-resource "null_resource" "datastore_provision" {
-  triggers {
-    ebs_volume = "${aws_volume_attachment.database.id}"
-  }
-
-  connection {
-    host        = "${aws_instance.datastore.public_ip}"
-    user        = "ubuntu"
-    private_key = "${file("${var.connection_private_key}")}"
-    agent       = "${var.connection_agent}"
-  }
-
-  provisioner "file" {
-    source = "${path.module}/scripts/install_base_packages.sh"
-    destination = "/tmp/install_base_packages.sh"
-  }
-
-  provisioner "remote-exec" {
-    scripts = [
-      "${path.module}/scripts/foundation.sh",
-    ]
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
-      "sudo sed -i \"$ a tags: env:${var.env}, role:datastore\" /etc/dd-agent/datadog.conf",
-      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
-    ]
-  }
-
-  provisioner "file" {
-    source = "${path.module}/files/sumocollector.service"
-    destination = "/tmp/sumocollector.service"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
-      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
-      "sudo systemctl start sumocollector.service"
-    ]
-  }
-
-  provisioner "file" {
-    source = "${path.module}/files/postgres.yaml"
-    destination = "/tmp/postgres.yaml"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo awk 'BEGIN{getline l < \"/hab/svc/builder-datastore/config/pwfile\"}/REPLACETHIS/{gsub(\"REPLACETHIS\",l)}1' /tmp/postgres.yaml > /tmp/postgres.yaml.rendered",
-      "sudo cp /tmp/postgres.yaml.rendered /etc/dd-agent/conf.d/postgres.yaml",
-      "sudo /etc/init.d/datadog-agent start"
-    ]
-  }
-
-  provisioner "file" {
-    content     = "${data.template_file.sumo_sources_worker.rendered}"
-    destination = "/home/ubuntu/sumo_sources_worker.json"
-  }
-
-  provisioner "file" {
-    content     = "${data.template_file.sumo_sources_syslog.rendered}"
-    destination = "/home/ubuntu/sumo_sources_syslog.json"
-  }
-
-  provisioner "file" {
-    content     = "${data.template_file.sup_service.rendered}"
-    destination = "/home/ubuntu/hab-sup.service"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh habitat/builder-datastore",
-
-      "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
-      "sudo systemctl daemon-reload",
-      "sudo systemctl start hab-sup",
-      "sudo systemctl enable hab-sup",
-      "sudo hab svc load habitat/builder-datastore --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
-      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
-    ]
-  }
-}
-
 resource "aws_instance" "jobsrv" {
   ami           = "${lookup(var.aws_ami, var.aws_region)}"
   instance_type = "t2.medium"
@@ -543,7 +426,7 @@ data "aws_ami" "amazon_windows_server" {
 }
 
 resource "aws_instance" "windows-worker" {
-  ami           = "${data.aws_ami.amazon_windows_server.image_id}"
+  ami           = "ami-02dc57b59edc3b7a2"
   instance_type = "${var.instance_size_windows_worker}"
   key_name      = "${var.aws_key_pair}"
   // JW TODO: switch to private subnet after VPN is ready

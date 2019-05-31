@@ -93,7 +93,6 @@ fi
 # our bundle.
 builder_packages=(habitat/builder-api
                   habitat/builder-api-proxy
-                  habitat/builder-datastore
                   habitat/builder-jobsrv
                   habitat/builder-worker)
 
