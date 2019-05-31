@@ -47,7 +47,7 @@ describe('Miscellanenous API', function () {
         .end(function (err, res) {
           expect(res.body.origin).to.equal('neurosis');
           expect(res.body.name).to.equal('testapp');
-          expect(res.body.rdeps).to.deep.equal(["neurosis/testapp3"]);
+            expect(res.body.rdeps).to.deep.equal(["neurosis/oddversion7","neurosis/testapp3"]);
           done(err);
         });
     });
