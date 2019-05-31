@@ -118,10 +118,6 @@ variable "instance_size_worker" {
   description = "AWS instance size for builder-worker server(s)"
 }
 
-variable "database_ebs_volume_id" {
-  description = "ID for EBS volume to attach to the database server"
-}
-
 variable "admin_password" {
   description = "Windows Administrator password to login as"
 }
@@ -136,10 +132,6 @@ variable "instance_size_windows_worker" {
 
 variable "instance_size_linux2_worker" {
   description = "AWS instance size for Linux2 worker server(s)"
-}
-
-variable "instance_size_datastore" {
-  description = "AWS instance size for DB server(s)"
 }
 
 variable "linux2_worker_count" {
