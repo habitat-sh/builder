@@ -163,6 +163,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-4.8
+            - libgconf-2-4
             - wget
       cache:
         apt: true
