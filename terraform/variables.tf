@@ -114,6 +114,10 @@ variable "instance_size_api" {
   description = "AWS instance size for builder-api server(s)"
 }
 
+variable "instance_size_jobsrv" {
+  description = "AWS instance size for builder-jobsrv server"
+}
+
 variable "instance_size_worker" {
   description = "AWS instance size for builder-worker server(s)"
 }
