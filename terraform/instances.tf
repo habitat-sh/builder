@@ -99,6 +99,7 @@ resource "aws_instance" "api" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
+      "sleep 10",
       "sudo hab svc load habitat/builder-memcached --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load habitat/builder-api --group ${var.env} --bind memcached:builder-memcached.${var.env} --bind jobsrv:builder-jobsrv.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load habitat/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
@@ -120,7 +121,7 @@ resource "aws_instance" "api" {
 
 resource "aws_instance" "jobsrv" {
   ami           = "${lookup(var.aws_ami, var.aws_region)}"
-  instance_type = "t2.medium"
+  instance_type = "${var.instance_size_jobsrv}"
   key_name      = "${var.aws_key_pair}"
   // JW TODO: switch to private subnet after VPN is ready
   subnet_id     = "${var.public_subnet_id}"
@@ -209,6 +210,7 @@ resource "aws_instance" "jobsrv" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
+      "sleep 10",
       "sudo hab svc load habitat/builder-jobsrv --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
