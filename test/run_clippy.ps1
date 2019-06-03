@@ -51,6 +51,7 @@ rustup component add clippy
 
 # TODO: these should be in a shared script?
 Write-Host "--- Installing required prerequisites"
+$env:HAB_LICENSE = "accept-no-persist"
 hab pkg install core/cacerts
 hab pkg install core/libarchive
 hab pkg install core/libsodium
