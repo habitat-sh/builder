@@ -561,17 +561,17 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
     request.set_target(qschedule.target.clone());
     request.set_deps_only(qschedule.deps_only
                                    .clone()
-                                   .unwrap_or("false".to_string())
+                                   .unwrap_or_else(|| "false".to_string())
                                    .parse()
                                    .unwrap_or(false));
     request.set_origin_only(qschedule.origin_only
                                      .clone()
-                                     .unwrap_or("false".to_string())
+                                     .unwrap_or_else(|| "false".to_string())
                                      .parse()
                                      .unwrap_or(false));
     request.set_package_only(qschedule.package_only
                                       .clone()
-                                      .unwrap_or("false".to_string())
+                                      .unwrap_or_else(|| "false".to_string())
                                       .parse()
                                       .unwrap_or(false));
     request.set_trigger(helpers::trigger_from_request(&req));
@@ -1001,7 +1001,7 @@ fn do_upload_package_start(req: &HttpRequest<AppState>,
 }
 
 // TODO: Break this up further, convert S3 upload to async
-#[allow(clippy::cyclomatic_complexity)]
+#[allow(clippy::cognitive_complexity)]
 fn do_upload_package_finish(req: &HttpRequest<AppState>,
                             qupload: &Query<Upload>,
                             ident: &PackageIdent,

@@ -214,7 +214,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::cyclomatic_complexity)]
+    #[allow(clippy::cognitive_complexity)]
     fn config_from_file() {
         let content = r#"
         build_targets = ["x86_64-linux"]

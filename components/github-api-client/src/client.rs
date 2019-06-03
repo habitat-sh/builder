@@ -334,11 +334,7 @@ mod tests {
                 let cfg = config::GitHubCfg::default();
                 let client = GitHubClient::new(cfg);
                 assert_eq!(client.meta().unwrap(), ());
-            } else {
-                assert!(true);
             }
-        } else {
-            assert!(true);
         }
     }
 }
