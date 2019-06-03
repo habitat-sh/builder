@@ -158,8 +158,7 @@ impl Origin {
 
 impl OriginMember {
     pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<String>> {
-        use crate::schema::{account::accounts,
-                            member::origin_members};
+        use crate::schema::account::accounts;
 
         Counter::DBCall.increment();
         origin_members::table.inner_join(accounts::table)
