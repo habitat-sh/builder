@@ -15,7 +15,7 @@ get_current_toolchain() {
   # break the way rustfmt uses rustc. Therefore, before updating the pin below, double check
   # that the nightly version you're going to update it to includes rustfmt. You can do that
   # using https://mexus.github.io/rustup-components-history/x86_64-unknown-linux-gnu.html
-  echo "nightly-2019-05-10"
+  echo "nightly-2019-06-06"
 }
 
 get_toolchain() {

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use retry::{delay::Fixed,
-            retry};
+use retry::retry;
 
 use crate::{bldr_core::{api_client::ApiClient,
                         logger::Logger},
             hab_core::{package::archive::PackageArchive,
+                       util::wait_for,
                        ChannelIdent}};
 
 use super::{RETRIES,
@@ -49,17 +49,15 @@ impl Publisher {
         let ident = archive.ident().unwrap();
         let target = archive.target().unwrap();
 
-        match retry(Fixed::from_millis(RETRY_WAIT).take(RETRIES), || {
-                  // let res = client.x_put_package(archive, auth_token);
-                  match client.x_put_package(archive, auth_token) {
-                      Ok(_) => Ok(()),
-                      Err(err) => {
-                          let msg = format!("Upload {}: {:?}", ident, err);
-                          debug!("{}", msg);
-                          logger.log(&msg);
-                          Err(err)
-                      }
+        match retry(wait_for(RETRY_WAIT, RETRIES), || {
+                  let res = client.x_put_package(archive, auth_token);
+                  if let Err(ref err) = res {
+                      let msg = format!("Upload {}: {:?}", ident, err);
+                      debug!("{}", msg);
+                      logger.log(&msg);
                   }
+
+                  res
               }) {
             Ok(_) => (),
             Err(err) => {
@@ -72,17 +70,15 @@ impl Publisher {
 
         if let Some(channel) = &self.channel_opt {
             if channel != &ChannelIdent::stable() && channel != &ChannelIdent::unstable() {
-                match retry(Fixed::from_millis(RETRY_WAIT).take(RETRIES), || {
+                match retry(wait_for(RETRY_WAIT, RETRIES), || {
                           let res = client.create_channel(&ident.origin, &channel, auth_token);
-                          match res {
-                              Ok(_) => Ok(()),
-                              Err(err) => {
-                                  let msg = format!("Create channel {}: {:?}", channel, err);
-                                  debug!("{}", msg);
-                                  logger.log(&msg);
-                                  Err(err)
-                              }
+                          if let Err(ref err) = res {
+                              let msg = format!("Create channel {}: {:?}", channel, err);
+                              debug!("{}", msg);
+                              logger.log(&msg);
                           }
+
+                          res
                       }) {
                     Ok(_) => (),
                     Err(err) => {
@@ -95,7 +91,7 @@ impl Publisher {
                 }
             }
 
-            match retry(Fixed::from_millis(RETRY_WAIT).take(RETRIES), || {
+            match retry(wait_for(RETRY_WAIT, RETRIES), || {
                       let res = client.promote_package((&ident, target), channel, auth_token);
                       if res.is_err() {
                           let msg = format!("Promote {} to {}: {:?}", ident, channel, res);
