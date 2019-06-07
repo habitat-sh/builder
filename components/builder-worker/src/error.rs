@@ -51,7 +51,7 @@ pub enum Error {
     NotHTTPSCloneUrl(url::Url),
     Protobuf(protobuf::ProtobufError),
     Protocol(protocol::ProtocolError),
-    Retry(retry::RetryError),
+    Retry(retry::Error<builder_core::error::Error>),
     StreamLine(io::Error),
     StreamTargetSend(zmq::Error),
     StudioBuild(PathBuf, io::Error),

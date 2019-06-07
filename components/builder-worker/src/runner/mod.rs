@@ -34,7 +34,8 @@ use std::{fs,
 use std::process::Command;
 
 use chrono::Utc;
-use retry::retry;
+use retry::{delay::Fixed,
+            retry};
 use zmq;
 
 use crate::bldr_core::{self,
@@ -94,7 +95,7 @@ const WORK_START: &str = "S";
 /// Protocol message to indicate the Runner Cli is sending a cancel request
 const WORK_CANCEL: &str = "X";
 
-pub const RETRIES: u64 = 10;
+pub const RETRIES: usize = 10;
 pub const RETRY_WAIT: u64 = 60000;
 
 /// Interval for main thread to check child status
@@ -363,21 +364,17 @@ impl Runner {
         debug!("Installing origin secret key for {} to {:?}",
                self.job().origin(),
                self.workspace.key_path());
-        match retry(RETRIES,
-                    RETRY_WAIT,
-                    || {
-                        self.depot_cli.fetch_origin_secret_key(self.job().origin(),
-                                                               &self.bldr_token,
-                                                               self.workspace.key_path())
-                    },
-                    |res| {
-                        if res.is_err() {
-                            debug!("Failed to fetch origin secret key, err={:?}", res);
-                        };
-                        res.is_ok()
-                    }) {
-            Ok(res) => {
-                let dst = res.unwrap();
+        match retry(Fixed::from_millis(RETRY_WAIT).take(RETRIES), || {
+                  let res = self.depot_cli.fetch_origin_secret_key(self.job().origin(),
+                                                                   &self.bldr_token,
+                                                                   self.workspace.key_path());
+                  if res.is_err() {
+                      debug!("Failed to fetch origin secret key, err={:?}", res);
+                  };
+
+                  res
+              }) {
+            Ok(dst) => {
                 debug!("Imported origin secret key, dst={:?}.", dst);
                 Ok(())
             }
