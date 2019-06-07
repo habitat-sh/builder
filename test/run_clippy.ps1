@@ -51,6 +51,7 @@ rustup component add clippy
 
 # TODO: these should be in a shared script?
 Write-Host "--- Installing required prerequisites"
+$env:HAB_LICENSE = "accept-no-persist"
 hab pkg install core/cacerts
 hab pkg install core/libarchive
 hab pkg install core/libsodium
@@ -99,7 +100,8 @@ $clippyArgs += Convert-ArrayToArgs -arg A -list (Get-Content $AllowedLintsPath)
 $clippyArgs += Convert-ArrayToArgs -arg W -list (Get-Content $LintsToFixPath)
 $clippyArgs += Convert-ArrayToArgs -arg D -list (Get-Content $DeniedLintsPath)
 
-$clippyCommand = "cargo +$toolchain clippy --all-targets --tests -- $clippyArgs"
+# builder-worker is the only crate that compiles on windows right now, so only check it instead of all targets
+$clippyCommand = "cargo +$toolchain clippy --package habitat_builder_worker --tests -- $clippyArgs"
 Write-Host "--- Running clippy!"
 Write-Host "Clippy rules: $clippyCommand"
 Invoke-Expression $clippyCommand

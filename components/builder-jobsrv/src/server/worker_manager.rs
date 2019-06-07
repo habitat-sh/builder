@@ -205,7 +205,7 @@ impl WorkerMgr {
         }
     }
 
-    #[allow(clippy::cyclomatic_complexity)]
+    #[allow(clippy::cognitive_complexity)]
     fn run(&mut self, rz: &mpsc::SyncSender<()>) -> Result<()> {
         self.work_mgr_sock.bind(WORKER_MGR_ADDR)?;
         println!("Listening for commands on {}", self.worker_command);
