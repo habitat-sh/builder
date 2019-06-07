@@ -100,7 +100,8 @@ $clippyArgs += Convert-ArrayToArgs -arg A -list (Get-Content $AllowedLintsPath)
 $clippyArgs += Convert-ArrayToArgs -arg W -list (Get-Content $LintsToFixPath)
 $clippyArgs += Convert-ArrayToArgs -arg D -list (Get-Content $DeniedLintsPath)
 
-$clippyCommand = "cargo +$toolchain clippy --all-targets --tests -- $clippyArgs"
+# builder-worker is the only crate that compiles on windows right now, so only check it instead of all targets
+$clippyCommand = "cargo +$toolchain clippy --package habitat_builder_worker --tests -- $clippyArgs"
 Write-Host "--- Running clippy!"
 Write-Host "Clippy rules: $clippyCommand"
 Invoke-Expression $clippyCommand
