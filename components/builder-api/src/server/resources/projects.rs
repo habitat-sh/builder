@@ -16,15 +16,15 @@ use std::{collections::HashMap,
           env};
 
 use actix_web::{http::{self,
-                       Method,
                        StatusCode},
-                App,
-                FromRequest,
+                web::{self,
+                      Data,
+                      Json,
+                      Path,
+                      Query,
+                      ServiceConfig},
                 HttpRequest,
-                HttpResponse,
-                Json,
-                Path,
-                Query};
+                HttpResponse};
 use serde_json;
 
 use crate::protocol::jobsrv;
@@ -77,25 +77,22 @@ pub struct Projects;
 impl Projects {
     // Route registration
     //
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/projects", Method::POST, create_project)
-           .route("/projects/{origin}", Method::GET, get_projects)
-           .route("/projects/{origin}/{name}", Method::GET, get_project)
-           .route("/projects/{origin}/{name}", Method::PUT, update_project)
-           .route("/projects/{origin}/{name}", Method::DELETE, delete_project)
-           .route("/projects/{origin}/{name}/jobs", Method::GET, get_jobs)
+    pub fn register(cfg: &mut ServiceConfig) {
+        cfg.route("/projects", web::post().to(create_project))
+           .route("/projects/{origin}", web::get().to(get_projects))
+           .route("/projects/{origin}/{name}", web::get().to(get_project))
+           .route("/projects/{origin}/{name}", web::put().to(update_project))
+           .route("/projects/{origin}/{name}",
+                  web::delete().to(delete_project))
+           .route("/projects/{origin}/{name}/jobs", web::get().to(get_jobs))
            .route("/projects/{origin}/{name}/integrations/{integration}/default",
-                  Method::GET,
-                  get_integration)
+                  web::get().to(get_integration))
            .route("/projects/{origin}/{name}/integrations/{integration}/default",
-                  Method::PUT,
-                  create_integration)
+                  web::put().to(create_integration))
            .route("/projects/{origin}/{name}/integrations/{integration}/default",
-                  Method::DELETE,
-                  delete_integration)
+                  web::delete().to(delete_integration))
            .route("/projects/{origin}/{name}/{visibility}",
-                  Method::PATCH,
-                  toggle_privacy)
+                  web::patch().to(toggle_privacy));
     }
 }
 
@@ -104,7 +101,10 @@ impl Projects {
 
 // TODO: the project creation API needs to be simplified
 #[allow(clippy::needless_pass_by_value)]
-fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) -> HttpResponse {
+fn create_project(req: HttpRequest,
+                  body: Json<ProjectCreateReq>,
+                  state: Data<AppState>)
+                  -> HttpResponse {
     if body.origin.is_empty() || body.plan_path.is_empty() {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -114,7 +114,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         Err(err) => return err.into(),
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -151,10 +151,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
-    let token = match req.state()
-                         .github
-                         .app_installation_token(body.installation_id)
-    {
+    let token = match state.github.app_installation_token(body.installation_id) {
         Ok(token) => token,
         Err(err) => {
             warn!("Error authenticating github app installation, {}", err);
@@ -162,7 +159,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
-    let vcs_data = match req.state().github.repo(&token, body.repo_id) {
+    let vcs_data = match state.github.repo(&token, body.repo_id) {
         Ok(Some(repo)) => repo.clone_url,
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
@@ -171,10 +168,7 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
         }
     };
 
-    let plan = match req.state()
-                        .github
-                        .contents(&token, body.repo_id, &body.plan_path)
-    {
+    let plan = match state.github.contents(&token, body.repo_id, &body.plan_path) {
         Ok(Some(contents)) => {
             match contents.decode() {
                 Ok(bytes) => {
@@ -222,9 +216,11 @@ fn create_project((req, body): (HttpRequest<AppState>, Json<ProjectCreateReq>)) 
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                .into_inner(); // Unwrap Ok
+fn get_project(req: HttpRequest,
+               path: Path<(String, String)>,
+               state: Data<AppState>)
+               -> HttpResponse {
+    let (origin, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -232,7 +228,7 @@ fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
 
     let project_get = format!("{}/{}", &origin, &name);
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -247,9 +243,11 @@ fn get_project(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                .into_inner(); // Unwrap Ok
+fn delete_project(req: HttpRequest,
+                  path: Path<(String, String)>,
+                  state: Data<AppState>)
+                  -> HttpResponse {
+    let (origin, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -257,7 +255,7 @@ fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
 
     let project_delete = format!("{}/{}", &origin, &name);
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -272,9 +270,12 @@ fn delete_project(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                .into_inner(); // Unwrap Ok
+fn update_project(req: HttpRequest,
+                  path: Path<(String, String)>,
+                  body: Json<ProjectUpdateReq>,
+                  state: Data<AppState>)
+                  -> HttpResponse {
+    let (origin, name) = path.into_inner();
 
     let account_id = match authorize_session(&req, Some(&origin)) {
         Ok(session) => session.get_id(),
@@ -285,7 +286,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -326,10 +327,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         }
     };
 
-    let token = match req.state()
-                         .github
-                         .app_installation_token(body.installation_id)
-    {
+    let token = match state.github.app_installation_token(body.installation_id) {
         Ok(token) => token,
         Err(err) => {
             debug!("Error authenticating github app installation, {}", err);
@@ -337,7 +335,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         }
     };
 
-    let vcs_data = match req.state().github.repo(&token, body.repo_id) {
+    let vcs_data = match state.github.repo(&token, body.repo_id) {
         Ok(Some(repo)) => repo.clone_url,
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
@@ -346,10 +344,7 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
         }
     };
 
-    let plan = match req.state()
-                        .github
-                        .contents(&token, body.repo_id, &body.plan_path)
-    {
+    let plan = match state.github.contents(&token, body.repo_id, &body.plan_path) {
         Ok(Some(contents)) => {
             match contents.decode() {
                 Ok(bytes) => {
@@ -401,14 +396,14 @@ fn update_project((req, body): (HttpRequest<AppState>, Json<ProjectUpdateReq>)) 
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
-    let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+fn get_projects(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
+    let origin = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
     }
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -428,15 +423,18 @@ fn get_projects(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                .into_inner(); // Unwrap Ok
+fn get_jobs(req: HttpRequest,
+            path: Path<(String, String)>,
+            pagination: Query<Pagination>,
+            state: Data<AppState>)
+            -> HttpResponse {
+    let (origin, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
     }
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -486,9 +484,12 @@ fn get_jobs((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> Ht
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
-    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req).unwrap()
-                                                                                     .into_inner(); // Unwrap Ok
+fn create_integration(req: HttpRequest,
+                      path: Path<(String, String, String)>,
+                      body: String,
+                      state: Data<AppState>)
+                      -> HttpResponse {
+    let (origin, name, integration) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -506,7 +507,7 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
         }
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -526,15 +527,17 @@ fn create_integration((req, body): (HttpRequest<AppState>, String)) -> HttpRespo
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req).unwrap()
-                                                                                     .into_inner(); // Unwrap Ok
+fn delete_integration(req: HttpRequest,
+                      path: Path<(String, String, String)>,
+                      state: Data<AppState>)
+                      -> HttpResponse {
+    let (origin, name, integration) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
     }
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -551,15 +554,17 @@ fn delete_integration(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name, integration) = Path::<(String, String, String)>::extract(&req).unwrap()
-                                                                                     .into_inner(); // Unwrap Ok
+fn get_integration(req: HttpRequest,
+                   path: Path<(String, String, String)>,
+                   state: Data<AppState>)
+                   -> HttpResponse {
+    let (origin, name, integration) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
     }
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -586,9 +591,11 @@ fn get_integration(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name, visibility) = Path::<(String, String, String)>::extract(&req).unwrap()
-                                                                                    .into_inner(); // Unwrap Ok
+fn toggle_privacy(req: HttpRequest,
+                  path: Path<(String, String, String)>,
+                  state: Data<AppState>)
+                  -> HttpResponse {
+    let (origin, name, visibility) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -607,7 +614,7 @@ fn toggle_privacy(req: HttpRequest<AppState>) -> HttpResponse {
         }
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };

@@ -16,15 +16,14 @@ use std::{collections::HashMap,
           str::FromStr};
 
 use actix_web::{http::{self,
-                       Method,
                        StatusCode},
-                App,
-                FromRequest,
+                web::{self,
+                      Json,
+                      Path,
+                      Query,
+                      ServiceConfig},
                 HttpRequest,
-                HttpResponse,
-                Json,
-                Path,
-                Query};
+                HttpResponse};
 use serde_json;
 
 use crate::protocol::{jobsrv,
@@ -48,10 +47,10 @@ use crate::server::{authorize::authorize_session,
                     framework::{headers,
                                 middleware::route_message},
                     helpers::{self,
+                              req_state,
                               Target},
                     resources::{channels::channels_for_package_ident,
-                                pkgs::platforms_for_package_ident},
-                    AppState};
+                                pkgs::platforms_for_package_ident}};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GroupPromoteReq {
@@ -78,27 +77,28 @@ pub struct Jobs;
 impl Jobs {
     // Route registration
     //
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/jobs/group/{id}/promote/{channel}",
-                  Method::POST,
-                  promote_job_group)
+    pub fn register(cfg: &mut ServiceConfig) {
+        cfg.route("/jobs/group/{id}/promote/{channel}",
+                  web::post().to(promote_job_group))
            .route("/jobs/group/{id}/demote/{channel}",
-                  Method::POST,
-                  demote_job_group)
-           .route("/jobs/group/{id}/cancel", Method::POST, cancel_job_group)
-           .route("/rdeps/{origin}/{name}", Method::GET, get_rdeps)
-           .route("/rdeps/{origin}/{name}/group", Method::GET, get_rdeps_group)
-           .route("/jobs/{id}", Method::GET, get_job)
-           .route("/jobs/{id}/log", Method::GET, get_job_log)
+                  web::post().to(demote_job_group))
+           .route("/jobs/group/{id}/cancel", web::post().to(cancel_job_group))
+           .route("/rdeps/{origin}/{name}", web::get().to(get_rdeps))
+           .route("/rdeps/{origin}/{name}/group",
+                  web::get().to(get_rdeps_group))
+           .route("/jobs/{id}", web::get().to(get_job))
+           .route("/jobs/{id}/log", web::get().to(get_job_log));
     }
 }
 
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                .into_inner(); // Unwrap Ok
+fn get_rdeps(req: HttpRequest,
+             path: Path<(String, String)>,
+             qtarget: Query<Target>)
+             -> HttpResponse {
+    let (origin, name) = path.into_inner();
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
@@ -129,9 +129,11 @@ fn get_rdeps((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResp
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_rdeps_group((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                .into_inner(); // Unwrap Ok
+fn get_rdeps_group(req: HttpRequest,
+                   path: Path<(String, String)>,
+                   qtarget: Query<Target>)
+                   -> HttpResponse {
+    let (origin, name) = path.into_inner();
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
@@ -162,8 +164,8 @@ fn get_rdeps_group((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> Ht
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
-    let id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+fn get_job(req: HttpRequest, path: Path<String>) -> HttpResponse {
+    let id_str = path.into_inner();
 
     let job_id = match id_str.parse::<u64>() {
         Ok(id) => id,
@@ -186,9 +188,11 @@ fn get_job(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_job_log((pagination, req): (Query<JobLogPagination>, HttpRequest<AppState>))
+fn get_job_log(req: HttpRequest,
+               path: Path<String>,
+               pagination: Query<JobLogPagination>)
                -> HttpResponse {
-    let id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+    let id_str = path.into_inner();
 
     let job_id = match id_str.parse::<u64>() {
         Ok(id) => id,
@@ -213,9 +217,11 @@ fn get_job_log((pagination, req): (Query<JobLogPagination>, HttpRequest<AppState
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)) -> HttpResponse {
-    let (group_id, channel) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                     .into_inner(); // Unwrap Ok
+fn promote_job_group(req: HttpRequest,
+                     path: Path<(String, String)>,
+                     body: Json<GroupPromoteReq>)
+                     -> HttpResponse {
+    let (group_id, channel) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
     match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, true) {
@@ -228,9 +234,11 @@ fn promote_job_group((req, body): (HttpRequest<AppState>, Json<GroupPromoteReq>)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn demote_job_group((req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>)) -> HttpResponse {
-    let (group_id, channel) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                     .into_inner(); // Unwrap Ok
+fn demote_job_group(req: HttpRequest,
+                    path: Path<(String, String)>,
+                    body: Json<GroupDemoteReq>)
+                    -> HttpResponse {
+    let (group_id, channel) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
     match promote_or_demote_job_group(&req, &group_id, &body.idents, &channel, false) {
@@ -243,8 +251,8 @@ fn demote_job_group((req, body): (HttpRequest<AppState>, Json<GroupDemoteReq>)) 
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
-    let id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+fn cancel_job_group(req: HttpRequest, path: Path<String>) -> HttpResponse {
+    let id_str = path.into_inner();
 
     let group_id = match id_str.parse::<u64>() {
         Ok(id) => id,
@@ -265,7 +273,7 @@ fn cancel_job_group(req: HttpRequest<AppState>) -> HttpResponse {
 
 // Internal - these functions should return Result<..>
 //
-fn do_group_promotion_or_demotion(req: &HttpRequest<AppState>,
+fn do_group_promotion_or_demotion(req: &HttpRequest,
                                   channel: &ChannelIdent,
                                   projects: Vec<&jobsrv::JobGroupProject>,
                                   origin: &str,
@@ -274,7 +282,7 @@ fn do_group_promotion_or_demotion(req: &HttpRequest<AppState>,
                                   -> Result<Vec<i64>> {
     let session = authorize_session(req, Some(&origin))?;
 
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     let channel = match Channel::get(origin, channel, &*conn) {
         Ok(channel) => channel,
@@ -298,11 +306,10 @@ fn do_group_promotion_or_demotion(req: &HttpRequest<AppState>,
     let mut package_ids = Vec::new();
 
     for project in projects {
-        req.state()
-           .memcache
-           .borrow_mut()
-           .clear_cache_for_package(&OriginPackageIdent::from_str(project.get_ident()).unwrap()
-                                                                                      .into());
+        req_state(req).memcache
+             .borrow_mut()
+             .clear_cache_for_package(&OriginPackageIdent::from_str(project.get_ident()).unwrap()
+                                                                                        .into());
 
         let op = Package::get(
             GetPackage {
@@ -325,7 +332,7 @@ fn do_group_promotion_or_demotion(req: &HttpRequest<AppState>,
     Ok(package_ids)
 }
 
-fn promote_or_demote_job_group(req: &HttpRequest<AppState>,
+fn promote_or_demote_job_group(req: &HttpRequest,
                                group_id_str: &str,
                                idents: &[String],
                                channel: &ChannelIdent,
@@ -382,7 +389,7 @@ fn promote_or_demote_job_group(req: &HttpRequest<AppState>,
 
     let jgt = helpers::trigger_from_request(req);
     let trigger = PackageChannelTrigger::from(jgt);
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     for (origin, projects) in origin_map.iter() {
         match do_group_promotion_or_demotion(req,
@@ -429,8 +436,8 @@ fn promote_or_demote_job_group(req: &HttpRequest<AppState>,
 
 // TODO: this should be redesigned to not have fan-out, and also to return
 // a Job instead of a String
-fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+fn do_get_job(req: &HttpRequest, job_id: u64) -> Result<String> {
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     match Job::get(job_id as i64, &*conn) {
         Ok(job) => {
@@ -464,7 +471,7 @@ fn do_get_job(req: &HttpRequest<AppState>, job_id: u64) -> Result<String> {
     }
 }
 
-fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Result<jobsrv::JobLog> {
+fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jobsrv::JobLog> {
     let mut job_get = jobsrv::JobGet::new();
     let mut request = jobsrv::JobLogGet::new();
     request.set_start(start);
@@ -481,7 +488,7 @@ fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Resul
             // not contain things like visibility settings. We need to fetch the project from
             // database.
             // TODO (SA): Update the project information in the job to match the DB
-            let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+            let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
             let project = Project::get(job.get_project().get_name(), &*conn)?;
 
             if vec![PackageVisibility::Private, PackageVisibility::Hidden]
@@ -496,7 +503,7 @@ fn do_get_job_log(req: &HttpRequest<AppState>, job_id: u64, start: u64) -> Resul
     }
 }
 
-fn do_cancel_job_group(req: &HttpRequest<AppState>, group_id: u64) -> Result<NetOk> {
+fn do_cancel_job_group(req: &HttpRequest, group_id: u64) -> Result<NetOk> {
     let mut jgg = jobsrv::JobGroupGet::new();
     jgg.set_group_id(group_id);
     jgg.set_include_projects(true);

@@ -22,22 +22,21 @@ use std::{fs::{self,
           path::PathBuf,
           str::FromStr};
 
-use actix_web::{error,
+use actix_web::{body::Body,
+                error,
                 http::{self,
                        header::{ContentDisposition,
                                 ContentType,
                                 DispositionParam,
                                 DispositionType},
-                       Method,
                        StatusCode},
-                App,
-                AsyncResponder,
-                FromRequest,
-                HttpMessage,
+                web::{self,
+                      Data,
+                      Path,
+                      Query,
+                      ServiceConfig},
                 HttpRequest,
-                HttpResponse,
-                Path,
-                Query};
+                HttpResponse};
 use bytes::Bytes;
 use diesel::result::Error::NotFound;
 use futures::{future::ok as fut_ok,
@@ -85,6 +84,7 @@ use crate::server::{authorize::authorize_session,
                     framework::{headers,
                                 middleware::route_message},
                     helpers::{self,
+                              req_state,
                               Pagination,
                               Target},
                     resources::channels::channels_for_package_ident,
@@ -135,49 +135,38 @@ pub struct Packages {}
 impl Packages {
     // Route registration
     //
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/depot/pkgs/{origin}", Method::GET, get_packages_for_origin)
-           .route("/depot/pkgs/search/{query}", Method::GET, search_packages)
-           .route("/depot/pkgs/schedule/{groupid}", Method::GET, get_schedule)
+    pub fn register(cfg: &mut ServiceConfig) {
+        cfg.route("/depot/pkgs/{origin}",
+                  web::get().to(get_packages_for_origin))
+           .route("/depot/pkgs/search/{query}", web::get().to(search_packages))
+           .route("/depot/pkgs/schedule/{groupid}",
+                  web::get().to(get_schedule))
            .route("/depot/pkgs/{origin}/{pkg}",
-                  Method::GET,
-                  get_packages_for_origin_package)
+                  web::get().to(get_packages_for_origin_package))
            .route("/depot/pkgs/schedule/{origin}/status",
-                  Method::GET,
-                  get_origin_schedule_status)
+                  web::get().to(get_origin_schedule_status))
            .route("/depot/pkgs/schedule/{origin}/{pkg}",
-                  Method::POST,
-                  schedule_job_group)
+                  web::post().to(schedule_job_group))
            .route("/depot/pkgs/{origin}/{pkg}/latest",
-                  Method::GET,
-                  get_latest_package_for_origin_package)
+                  web::get().to(get_latest_package_for_origin_package))
            .route("/depot/pkgs/{origin}/{pkg}/versions",
-                  Method::GET,
-                  list_package_versions)
+                  web::get().to(list_package_versions))
            .route("/depot/pkgs/{origin}/{pkg}/{version}",
-                  Method::GET,
-                  get_packages_for_origin_package_version)
+                  web::get().to(get_packages_for_origin_package_version))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/latest",
-                  Method::GET,
-                  get_latest_package_for_origin_package_version)
+                  web::get().to(get_latest_package_for_origin_package_version))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
-                  Method::POST,
-                  upload_package)
+                  web::post().to(upload_package))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
-                  Method::GET,
-                  get_package)
+                  web::get().to(get_package))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
-                  Method::DELETE,
-                  delete_package)
+                  web::delete().to(delete_package))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
-                  Method::GET,
-                  download_package)
+                  web::get().to(download_package))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}/channels",
-                  Method::GET,
-                  get_package_channels)
+                  web::get().to(get_package_channels))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}/{visibility}",
-                  Method::PATCH,
-                  package_privacy_toggle)
+                  web::patch().to(package_privacy_toggle));
     }
 }
 
@@ -185,9 +174,11 @@ impl Packages {
 //
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin((pagination, req): (Query<Pagination>, HttpRequest<AppState>))
+fn get_packages_for_origin(req: HttpRequest,
+                           path: Path<String>,
+                           pagination: Query<Pagination>)
                            -> HttpResponse {
-    let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+    let origin = path.into_inner();
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
     match do_get_packages(&req, &ident, &pagination) {
@@ -202,10 +193,11 @@ fn get_packages_for_origin((pagination, req): (Query<Pagination>, HttpRequest<Ap
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin_package((pagination, req): (Query<Pagination>, HttpRequest<AppState>))
+fn get_packages_for_origin_package(req: HttpRequest,
+                                   path: Path<(String, String)>,
+                                   pagination: Query<Pagination>)
                                    -> HttpResponse {
-    let (origin, pkg) = Path::<(String, String)>::extract(&req).unwrap()
-                                                               .into_inner(); // Unwrap Ok
+    let (origin, pkg) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
@@ -221,11 +213,11 @@ fn get_packages_for_origin_package((pagination, req): (Query<Pagination>, HttpRe
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin_package_version((pagination, req): (Query<Pagination>,
-                                            HttpRequest<AppState>))
+fn get_packages_for_origin_package_version(req: HttpRequest,
+                                           path: Path<(String, String, String)>,
+                                           pagination: Query<Pagination>)
                                            -> HttpResponse {
-    let (origin, pkg, version) = Path::<(String, String, String)>::extract(&req).unwrap()
-                                                                                .into_inner(); // Unwrap Ok
+    let (origin, pkg, version) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
@@ -241,10 +233,11 @@ fn get_packages_for_origin_package_version((pagination, req): (Query<Pagination>
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_latest_package_for_origin_package((qtarget, req): (Query<Target>, HttpRequest<AppState>))
+fn get_latest_package_for_origin_package(req: HttpRequest,
+                                         path: Path<(String, String)>,
+                                         qtarget: Query<Target>)
                                          -> HttpResponse {
-    let (origin, pkg) = Path::<(String, String)>::extract(&req).unwrap()
-                                                               .into_inner(); // Unwrap Ok
+    let (origin, pkg) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
@@ -262,11 +255,11 @@ fn get_latest_package_for_origin_package((qtarget, req): (Query<Target>, HttpReq
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_latest_package_for_origin_package_version((qtarget, req): (Query<Target>,
-                                                  HttpRequest<AppState>))
+fn get_latest_package_for_origin_package_version(req: HttpRequest,
+                                                 path: Path<(String, String, String)>,
+                                                 qtarget: Query<Target>)
                                                  -> HttpResponse {
-    let (origin, pkg, version) = Path::<(String, String, String)>::extract(&req).unwrap()
-                                                                                .into_inner(); // Unwrap Ok
+    let (origin, pkg, version) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
@@ -284,10 +277,11 @@ fn get_latest_package_for_origin_package_version((qtarget, req): (Query<Target>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, pkg, version, release) =
-        Path::<(String, String, String, String)>::extract(&req).unwrap()
-                                                               .into_inner(); // Unwrap Ok
+fn get_package(req: HttpRequest,
+               path: Path<(String, String, String, String)>,
+               qtarget: Query<Target>)
+               -> HttpResponse {
+    let (origin, pkg, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
@@ -305,10 +299,12 @@ fn get_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpRe
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, pkg, version, release) =
-        Path::<(String, String, String, String)>::extract(&req).unwrap()
-                                                               .into_inner(); // Unwrap Ok
+fn delete_package(req: HttpRequest,
+                  path: Path<(String, String, String, String)>,
+                  qtarget: Query<Target>,
+                  state: Data<AppState>)
+                  -> HttpResponse {
+    let (origin, pkg, version, release) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin)) {
         return err.into();
@@ -331,7 +327,7 @@ fn delete_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> Htt
         None => helpers::target_from_headers(&req),
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -400,10 +396,7 @@ fn delete_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> Htt
                           &*conn).map_err(Error::DieselError)
     {
         Ok(_) => {
-            req.state()
-               .memcache
-               .borrow_mut()
-               .clear_cache_for_package(&ident);
+            state.memcache.borrow_mut().clear_cache_for_package(&ident);
             HttpResponse::NoContent().finish()
         }
         Err(err) => {
@@ -415,12 +408,14 @@ fn delete_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> Htt
 
 // TODO : Convert to async
 #[allow(clippy::needless_pass_by_value)]
-fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, name, version, release) =
-        Path::<(String, String, String, String)>::extract(&req).unwrap()
-                                                               .into_inner(); // Unwrap Ok
+fn download_package(req: HttpRequest,
+                    path: Path<(String, String, String, String)>,
+                    qtarget: Query<Target>,
+                    state: Data<AppState>)
+                    -> HttpResponse {
+    let (origin, name, version, release) = path.into_inner();
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -450,7 +445,7 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
         None => helpers::target_from_headers(&req),
     };
 
-    if !req.state().config.api.targets.contains(&target) {
+    if !state.config.api.targets.contains(&target) {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
@@ -460,17 +455,13 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
                        &*conn)
     {
         Ok(package) => {
-            let dir =
-                tempdir_in(&req.state().config.api.data_path).expect("Unable to create a tempdir!");
+            let dir = tempdir_in(&state.config.api.data_path).expect("Unable to create a tempdir!");
             let file_path = dir.path().join(archive_name(&package.ident, target));
             let temp_ident = ident.to_owned();
 
             // TODO: Aggregate Artifactory/S3 into a provider model
             if feat::is_enabled(feat::Artifactory) {
-                match req.state()
-                         .artifactory
-                         .download(&file_path, &temp_ident, target)
-                {
+                match state.artifactory.download(&file_path, &temp_ident, target) {
                     Ok(archive) => download_response_for_archive(&archive, &file_path),
                     Err(e) => {
                         warn!("Failed to download package, ident={}, err={:?}",
@@ -479,10 +470,7 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
                     }
                 }
             } else {
-                match req.state()
-                         .packages
-                         .download(&file_path, &temp_ident, target)
-                {
+                match state.packages.download(&file_path, &temp_ident, target) {
                     Ok(archive) => download_response_for_archive(&archive, &file_path),
                     Err(e) => {
                         warn!("Failed to download package, ident={}, err={:?}",
@@ -497,11 +485,13 @@ fn download_package((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> H
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn upload_package((qupload, req): (Query<Upload>, HttpRequest<AppState>))
+fn upload_package(req: HttpRequest,
+                  path: Path<(String, String, String, String)>,
+                  qupload: Query<Upload>,
+                  stream: web::Payload,
+                  state: Data<AppState>)
                   -> Box<Future<Item = HttpResponse, Error = Error>> {
-    let (origin, name, version, release) =
-        Path::<(String, String, String, String)>::extract(&req).unwrap()
-                                                               .into_inner(); // Unwrap Ok
+    let (origin, name, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
 
@@ -513,11 +503,8 @@ fn upload_package((qupload, req): (Query<Upload>, HttpRequest<AppState>))
 
     match do_upload_package_start(&req, &qupload, &ident) {
         Ok((temp_path, writer)) => {
-            req.state()
-               .memcache
-               .borrow_mut()
-               .clear_cache_for_package(&ident);
-            do_upload_package_async(req, qupload, ident, temp_path, writer)
+            state.memcache.borrow_mut().clear_cache_for_package(&ident);
+            do_upload_package_async(req, stream, qupload, ident, temp_path, writer)
         }
         Err(Error::Conflict) => {
             debug!("Failed to upload package {}, metadata already exists",
@@ -533,9 +520,12 @@ fn upload_package((qupload, req): (Query<Upload>, HttpRequest<AppState>))
 
 // TODO REVIEW: should this path be under jobs instead?
 #[allow(clippy::needless_pass_by_value)]
-fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin_name, package) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                        .into_inner(); // Unwrap Ok
+fn schedule_job_group(req: HttpRequest,
+                      path: Path<(String, String)>,
+                      qschedule: Query<Schedule>,
+                      state: Data<AppState>)
+                      -> HttpResponse {
+    let (origin_name, package) = path.into_inner();
 
     let session = match authorize_session(&req, Some(&origin_name)) {
         Ok(session) => session,
@@ -550,7 +540,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
         }
     };
 
-    if !req.state().config.api.build_targets.contains(&target) {
+    if !state.config.api.build_targets.contains(&target) {
         debug!("Rejecting build with target: {}", qschedule.target);
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
@@ -581,7 +571,7 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
     match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
         Ok(group) => {
             let msg = format!("Scheduled job group for {}", group.get_project_name());
-            req.state().segment.track(&session.get_name(), &msg);
+            state.segment.track(&session.get_name(), &msg);
 
             HttpResponse::Created().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                                    .json(group)
@@ -594,8 +584,11 @@ fn schedule_job_group((qschedule, req): (Query<Schedule>, HttpRequest<AppState>)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_schedule((qgetschedule, req): (Query<GetSchedule>, HttpRequest<AppState>)) -> HttpResponse {
-    let group_id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+fn get_schedule(req: HttpRequest,
+                path: Path<String>,
+                qgetschedule: Query<GetSchedule>)
+                -> HttpResponse {
+    let group_id_str = path.into_inner();
     let group_id = match group_id_str.parse::<u64>() {
         Ok(id) => id,
         Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
@@ -618,9 +611,11 @@ fn get_schedule((qgetschedule, req): (Query<GetSchedule>, HttpRequest<AppState>)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_origin_schedule_status((qoss, req): (Query<OriginScheduleStatus>, HttpRequest<AppState>))
+fn get_origin_schedule_status(req: HttpRequest,
+                              path: Path<String>,
+                              qoss: Query<OriginScheduleStatus>)
                               -> HttpResponse {
-    let origin = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+    let origin = path.into_inner();
     let limit = qoss.limit.parse::<u32>().unwrap_or(10);
 
     let mut request = jobsrv::JobGroupOriginGet::new();
@@ -641,17 +636,19 @@ fn get_origin_schedule_status((qoss, req): (Query<OriginScheduleStatus>, HttpReq
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_package_channels((qtarget, req): (Query<Target>, HttpRequest<AppState>)) -> HttpResponse {
-    let (origin, name, version, release) =
-        Path::<(String, String, String, String)>::extract(&req).unwrap()
-                                                               .into_inner(); // Unwrap Ok
+fn get_package_channels(req: HttpRequest,
+                        path: Path<(String, String, String, String)>,
+                        qtarget: Query<Target>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
+    let (origin, name, version, release) = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -699,16 +696,18 @@ fn get_package_channels((qtarget, req): (Query<Target>, HttpRequest<AppState>)) 
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name) = Path::<(String, String)>::extract(&req).unwrap()
-                                                                .into_inner(); // Unwrap Ok
+fn list_package_versions(req: HttpRequest,
+                         path: Path<(String, String)>,
+                         state: Data<AppState>)
+                         -> HttpResponse {
+    let (origin, name) = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -735,17 +734,21 @@ fn list_package_versions(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)) -> HttpResponse {
+fn search_packages(req: HttpRequest,
+                   path: Path<String>,
+                   pagination: Query<Pagination>,
+                   state: Data<AppState>)
+                   -> HttpResponse {
     Counter::SearchPackages.increment();
 
-    let query = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+    let query = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None) {
         Ok(session) => Some(session.get_id() as i64),
         Err(_) => None,
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -798,10 +801,11 @@ fn search_packages((pagination, req): (Query<Pagination>, HttpRequest<AppState>)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
-    let (origin, name, version, release, visibility) =
-        Path::<(String, String, String, String, String)>::extract(&req).unwrap()
-                                                                       .into_inner(); // Unwrap Ok
+fn package_privacy_toggle(req: HttpRequest,
+                          path: Path<(String, String, String, String, String)>,
+                          state: Data<AppState>)
+                          -> HttpResponse {
+    let (origin, name, version, release, visibility) = path.into_inner();
 
     let ident = PackageIdent::new(origin.clone(), name, Some(version), Some(release));
 
@@ -822,7 +826,7 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
         return err.into();
     }
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -835,10 +839,7 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
     match Package::update_visibility(pv, BuilderPackageIdent(ident.clone()), &*conn) {
         Ok(_) => {
             trace!("Clearing cache for {}", ident);
-            req.state()
-               .memcache
-               .borrow_mut()
-               .clear_cache_for_package(&ident);
+            state.memcache.borrow_mut().clear_cache_for_package(&ident);
             HttpResponse::Ok().finish()
         }
         Err(err) => {
@@ -851,7 +852,7 @@ fn package_privacy_toggle(req: HttpRequest<AppState>) -> HttpResponse {
 // Public helpers
 //
 
-pub fn postprocess_package_list(_req: &HttpRequest<AppState>,
+pub fn postprocess_package_list(_req: &HttpRequest,
                                 packages: &[BuilderPackageIdent],
                                 count: i64,
                                 pagination: &Query<Pagination>)
@@ -880,7 +881,7 @@ pub fn postprocess_package_list(_req: &HttpRequest<AppState>,
             .body(body)
 }
 
-pub fn postprocess_extended_package_list(_req: &HttpRequest<AppState>,
+pub fn postprocess_extended_package_list(_req: &HttpRequest,
                                          packages: &[PackageIdentWithChannelPlatform],
                                          count: i64,
                                          pagination: &Query<Pagination>)
@@ -911,7 +912,7 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest<AppState>,
 
 // Internal - these functions should return Result<..>
 //
-fn do_get_packages(req: &HttpRequest<AppState>,
+fn do_get_packages(req: &HttpRequest,
                    ident: &PackageIdent,
                    pagination: &Query<Pagination>)
                    -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
@@ -922,7 +923,7 @@ fn do_get_packages(req: &HttpRequest<AppState>,
 
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
 
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     let lpr = ListPackages { ident:      BuilderPackageIdent(ident.clone()),
                              visibility: helpers::visibility_for_optional_session(&req,
@@ -954,13 +955,13 @@ fn do_get_packages(req: &HttpRequest<AppState>,
 
 //  Async helpers
 //
-fn do_upload_package_start(req: &HttpRequest<AppState>,
+fn do_upload_package_start(req: &HttpRequest,
                            qupload: &Query<Upload>,
                            ident: &PackageIdent)
                            -> Result<(PathBuf, BufWriter<File>)> {
     authorize_session(req, Some(&ident.origin))?;
 
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     if qupload.forced {
         debug!("Upload was forced (bypassing existing package check) for: {}",
@@ -992,7 +993,7 @@ fn do_upload_package_start(req: &HttpRequest<AppState>,
 
     // Create a temp file at the data path
     let temp_name = format!("{}.tmp", Uuid::new_v4());
-    let temp_path = req.state().config.api.data_path.join(temp_name);
+    let temp_path = req_state(req).config.api.data_path.join(temp_name);
 
     let file = File::create(&temp_path)?;
     let writer = BufWriter::new(file);
@@ -1002,7 +1003,7 @@ fn do_upload_package_start(req: &HttpRequest<AppState>,
 
 // TODO: Break this up further, convert S3 upload to async
 #[allow(clippy::cognitive_complexity)]
-fn do_upload_package_finish(req: &HttpRequest<AppState>,
+fn do_upload_package_finish(req: &HttpRequest,
                             qupload: &Query<Upload>,
                             ident: &PackageIdent,
                             temp_path: &PathBuf)
@@ -1016,15 +1017,14 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
         Err(e) => {
             info!("Could not read the target for {:#?}: {:#?}", archive, e);
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           format!("ds:up:1, err={:?}", e));
+                                           Body::from_message(format!("ds:up:1, err={:?}", e)));
         }
     };
 
-    if !req.state()
-           .config
-           .api
-           .targets
-           .contains(&target_from_artifact)
+    if !req_state(req).config
+                      .api
+                      .targets
+                      .contains(&target_from_artifact)
     {
         debug!("Unsupported package platform or architecture {}.",
                target_from_artifact);
@@ -1035,14 +1035,16 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
         Ok(cksum) => cksum,
         Err(e) => {
             debug!("Could not compute a checksum for {:#?}: {:#?}", archive, e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:2");
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                           Body::from_message("ds:up:2"));
         }
     };
 
     if qupload.checksum != checksum_from_artifact {
         debug!("Checksums did not match: from_param={:?}, from_artifact={:?}",
                qupload.checksum, checksum_from_artifact);
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:3");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                       Body::from_message("ds:up:3"));
     }
 
     // Check with scheduler to ensure we don't have circular deps, if configured
@@ -1054,7 +1056,7 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
         }
     }
 
-    let file_path = &req.state().config.api.data_path;
+    let file_path = &req_state(req).config.api.data_path;
     let filename = file_path.join(archive_name(&ident, target_from_artifact));
     let temp_ident = ident.to_owned();
 
@@ -1070,17 +1072,15 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
     // TODO: Make upload async
     // TODO: Aggregate Artifactory/S3 into a provider model
     if feat::is_enabled(feat::Artifactory) {
-        if let Err(err) = req.state()
-                             .artifactory
-                             .upload(&filename, &temp_ident, target_from_artifact)
-                             .map_err(Error::Artifactory)
+        if let Err(err) = req_state(req).artifactory
+                                        .upload(&filename, &temp_ident, target_from_artifact)
+                                        .map_err(Error::Artifactory)
         {
             warn!("Unable to upload archive to artifactory!");
             return err.into();
         }
-    } else if let Err(err) = req.state()
-                                .packages
-                                .upload(&filename, &temp_ident, target_from_artifact)
+    } else if let Err(err) = req_state(req).packages
+                                           .upload(&filename, &temp_ident, target_from_artifact)
     {
         warn!("Unable to upload archive to s3!");
         return err.into();
@@ -1101,12 +1101,13 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
         debug!("Ident mismatch, expected={:?}, got={:?}",
                ident, package.ident);
 
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, "ds:up:6");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                       Body::from_message("ds:up:6"));
     }
 
     let session = authorize_session(&req, None).unwrap(); // Unwrap Ok
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match req_state(req).db.get_conn().map_err(Error::DbError) {
         Ok(conn) => conn,
         Err(err) => return err.into(),
     };
@@ -1168,7 +1169,7 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
     // Don't schedule builds if the upload is being done by the builder
     if qupload.builder.is_none()
        && feat::is_enabled(feat::Jobsrv)
-       && req.state().config.api.build_on_upload
+       && req_state(req).config.api.build_on_upload
     {
         let mut request = jobsrv::JobGroupSpec::new();
         request.set_origin(ident.origin.to_string());
@@ -1211,13 +1212,15 @@ fn do_upload_package_finish(req: &HttpRequest<AppState>,
                            .body(format!("/pkgs/{}/download", *package.ident))
 }
 
-fn do_upload_package_async(req: HttpRequest<AppState>,
+fn do_upload_package_async(req: HttpRequest,
+                           stream: web::Payload,
                            qupload: Query<Upload>,
                            ident: PackageIdent,
                            temp_path: PathBuf,
                            writer: BufWriter<File>)
                            -> Box<Future<Item = HttpResponse, Error = Error>> {
-    req.payload()
+    Box::new(
+             stream
         // `Future::from_err` acts like `?` in that it coerces the error type from
         // the future into the final error type
         .from_err()
@@ -1232,11 +1235,11 @@ fn do_upload_package_async(req: HttpRequest<AppState>,
                 Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path))
             }
             Err(err) => Err(Error::InnerError(err)),
-        })
-        .responder()
+        }),
+    )
 }
 
-fn do_get_package(req: &HttpRequest<AppState>,
+fn do_get_package(req: &HttpRequest,
                   qtarget: &Query<Target>,
                   ident: &PackageIdent)
                   -> Result<String> {
@@ -1246,7 +1249,7 @@ fn do_get_package(req: &HttpRequest<AppState>,
     };
     Counter::GetPackage.increment();
 
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     let target = match qtarget.target {
         Some(ref t) => {
@@ -1260,7 +1263,7 @@ fn do_get_package(req: &HttpRequest<AppState>,
     // scope before the visibility_for_optional_session call
     // below
     {
-        let mut memcache = req.state().memcache.borrow_mut();
+        let mut memcache = req_state(req).memcache.borrow_mut();
         match memcache.get_package(&ident, &ChannelIdent::unstable(), &target, opt_session_id) {
             (true, Some(pkg_json)) => {
                 trace!("Package {} {} {:?} - cache hit with pkg json",
@@ -1302,7 +1305,7 @@ fn do_get_package(req: &HttpRequest<AppState>,
         {
             Ok(pkg) => pkg,
             Err(NotFound) => {
-                let mut memcache = req.state().memcache.borrow_mut();
+                let mut memcache = req_state(req).memcache.borrow_mut();
                 memcache.set_package(&ident,
                                      None,
                                      &ChannelIdent::unstable(),
@@ -1331,7 +1334,7 @@ fn do_get_package(req: &HttpRequest<AppState>,
         ) {
             Ok(pkg) => pkg.into(),
             Err(NotFound) => {
-                let mut memcache = req.state().memcache.borrow_mut();
+                let mut memcache = req_state(req).memcache.borrow_mut();
                 memcache.set_package(
                     &ident,
                     None,
@@ -1357,7 +1360,7 @@ fn do_get_package(req: &HttpRequest<AppState>,
     let json_body = serde_json::to_string(&pkg_json).unwrap();
 
     {
-        let mut memcache = req.state().memcache.borrow_mut();
+        let mut memcache = req_state(req).memcache.borrow_mut();
         memcache.set_package(&ident,
                              Some(&json_body),
                              &ChannelIdent::unstable(),
@@ -1419,7 +1422,7 @@ fn write_archive_async(mut writer: BufWriter<File>, chunk: Bytes) -> Result<BufW
     Ok(writer)
 }
 
-fn has_circular_deps(req: &HttpRequest<AppState>,
+fn has_circular_deps(req: &HttpRequest,
                      ident: &PackageIdent,
                      target: PackageTarget,
                      archive: &mut PackageArchive)
@@ -1476,7 +1479,7 @@ fn has_circular_deps(req: &HttpRequest<AppState>,
     }
 }
 
-pub fn platforms_for_package_ident(req: &HttpRequest<AppState>,
+pub fn platforms_for_package_ident(req: &HttpRequest,
                                    package: &BuilderPackageIdent)
                                    -> Result<Option<Vec<String>>> {
     let opt_session_id = match authorize_session(req, None) {
@@ -1484,7 +1487,7 @@ pub fn platforms_for_package_ident(req: &HttpRequest<AppState>,
         Err(_) => None,
     };
 
-    let conn = req.state().db.get_conn()?;
+    let conn = req_state(req).db.get_conn()?;
 
     match Package::list_package_platforms(&package,
                                           helpers::visibility_for_optional_session(req,

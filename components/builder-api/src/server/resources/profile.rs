@@ -13,14 +13,14 @@
 // limitations under the License.
 //
 use actix_web::{http::{self,
-                       Method,
                        StatusCode},
-                App,
-                FromRequest,
+                web::{self,
+                      Data,
+                      Json,
+                      Path,
+                      ServiceConfig},
                 HttpRequest,
-                HttpResponse,
-                Json,
-                Path};
+                HttpResponse};
 use serde_json;
 
 use crate::{bldr_core,
@@ -32,6 +32,7 @@ use crate::server::{authorize::authorize_session,
                     error::{Error,
                             Result},
                     framework::headers,
+                    helpers::req_state,
                     AppState};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -45,24 +46,20 @@ pub struct Profile {}
 impl Profile {
     // Route registration
     //
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/profile", Method::GET, get_account)
-           .route("/profile", Method::PATCH, update_account)
-           .route("/profile/access-tokens", Method::GET, get_access_tokens)
+    pub fn register(cfg: &mut ServiceConfig) {
+        cfg.route("/profile", web::get().to(get_account))
+           .route("/profile", web::patch().to(update_account))
+           .route("/profile/access-tokens", web::get().to(get_access_tokens))
            .route("/profile/access-tokens",
-                  Method::POST,
-                  generate_access_token)
+                  web::post().to(generate_access_token))
            .route("/profile/access-tokens/{id}",
-                  Method::DELETE,
-                  revoke_access_token)
+                  web::delete().to(revoke_access_token));
     }
 }
 
 // do_get_access_tokens is used in the framework middleware so it has to be public
-pub fn do_get_access_tokens(req: &HttpRequest<AppState>,
-                            account_id: u64)
-                            -> Result<Vec<AccountToken>> {
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+pub fn do_get_access_tokens(req: &HttpRequest, account_id: u64) -> Result<Vec<AccountToken>> {
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     AccountToken::list(account_id, &*conn).map_err(Error::DieselError)
 }
@@ -70,13 +67,13 @@ pub fn do_get_access_tokens(req: &HttpRequest<AppState>,
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
+fn get_account(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id() as i64,
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -91,7 +88,7 @@ fn get_account(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
+fn get_access_tokens(req: HttpRequest) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
@@ -114,13 +111,13 @@ fn get_access_tokens(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
+fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -142,7 +139,7 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         session.get_flags()
     };
 
-    let token = bldr_core::access_token::generate_user_token(&req.state().config.api.key_path,
+    let token = bldr_core::access_token::generate_user_token(&state.config.api.key_path,
                                                              account_id,
                                                              flags).unwrap();
 
@@ -151,7 +148,7 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
 
     match AccountToken::create(&new_token, &*conn).map_err(Error::DieselError) {
         Ok(account_token) => {
-            let mut memcache = req.state().memcache.borrow_mut();
+            let mut memcache = state.memcache.borrow_mut();
             for token in access_tokens {
                 memcache.delete_session_key(&token.token)
             }
@@ -165,8 +162,11 @@ fn generate_access_token(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
-    let token_id_str = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+fn revoke_access_token(req: HttpRequest,
+                       path: Path<String>,
+                       state: Data<AppState>)
+                       -> HttpResponse {
+    let token_id_str = path.into_inner();
     let token_id = match token_id_str.parse::<u64>() {
         Ok(id) => id,
         Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
@@ -177,7 +177,7 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -192,7 +192,7 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
 
     match AccountToken::delete(token_id, &*conn).map_err(Error::DieselError) {
         Ok(_) => {
-            let mut memcache = req.state().memcache.borrow_mut();
+            let mut memcache = state.memcache.borrow_mut();
             for token in access_tokens {
                 memcache.delete_session_key(&token.token)
             }
@@ -206,7 +206,10 @@ fn revoke_access_token(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> HttpResponse {
+fn update_account(req: HttpRequest,
+                  body: Json<UserUpdateReq>,
+                  state: Data<AppState>)
+                  -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
@@ -216,7 +219,7 @@ fn update_account((req, body): (HttpRequest<AppState>, Json<UserUpdateReq>)) -> 
         return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };

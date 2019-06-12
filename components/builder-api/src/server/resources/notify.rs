@@ -12,25 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{http::Method,
-                App,
+use actix_web::{web::{self,
+                      ServiceConfig},
                 HttpRequest,
                 HttpResponse};
 
-use crate::server::{services::github,
-                    AppState};
+use crate::server::services::github;
 
 pub struct Notify;
 
 impl Notify {
     // Route registration
     //
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/notify", Method::POST, notify)
-    }
+    pub fn register(cfg: &mut ServiceConfig) { cfg.route("/notify", web::post().to(notify)); }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn notify((req, body): (HttpRequest<AppState>, String)) -> HttpResponse {
-    github::handle_event(req, body)
-}
+pub fn notify(req: HttpRequest, body: String) -> HttpResponse { github::handle_event(req, body) }

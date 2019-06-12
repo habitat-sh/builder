@@ -14,13 +14,12 @@
 
 use std::env;
 
-use actix_web::{http::{Method,
-                       StatusCode},
-                App,
-                FromRequest,
-                HttpRequest,
-                HttpResponse,
-                Path};
+use actix_web::{http::StatusCode,
+                web::{self,
+                      Data,
+                      Path,
+                      ServiceConfig},
+                HttpResponse};
 
 use oauth_client::error::Error as OAuthError;
 
@@ -36,19 +35,19 @@ pub struct Authenticate {}
 impl Authenticate {
     // Route registration
     //
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/authenticate/{code}", Method::GET, authenticate)
+    pub fn register(cfg: &mut ServiceConfig) {
+        cfg.route("/authenticate/{code}", web::get().to(authenticate));
     }
 }
 
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
-    let code = Path::<String>::extract(&req).unwrap().into_inner(); // Unwrap Ok
+fn authenticate(path: Path<String>, state: Data<AppState>) -> HttpResponse {
+    let code = path.into_inner();
     debug!("authenticate called, code = {}", code);
 
-    match do_authenticate(&req, &code) {
+    match do_authenticate(&code, &state) {
         Ok(session) => HttpResponse::Ok().json(session),
         Err(Error::OAuth(OAuthError::HttpResponse(_code, _response))) => {
             HttpResponse::new(StatusCode::UNAUTHORIZED)
@@ -62,17 +61,17 @@ fn authenticate(req: HttpRequest<AppState>) -> HttpResponse {
 
 // Internal - these functions should return Result<..>
 //
-fn do_authenticate(req: &HttpRequest<AppState>, code: &str) -> Result<originsrv::Session> {
+fn do_authenticate(code: &str, state: &AppState) -> Result<originsrv::Session> {
     if env::var_os("HAB_FUNC_TEST").is_some() {
-        return session_create_short_circuit(req, code);
+        return session_create_short_circuit(code, state);
     }
 
-    let oauth = &req.state().oauth;
+    let oauth = &state.oauth;
     let (token, user) = oauth.authenticate(code)?;
-    let session = session_create_oauth(req, &token, &user, &oauth.config.provider)?;
+    let session = session_create_oauth(&token, &user, &oauth.config.provider, state)?;
 
     let id_str = session.get_id().to_string();
-    req.state().segment.identify(&id_str);
+    state.segment.identify(&id_str);
 
     Ok(session)
 }

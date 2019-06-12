@@ -18,11 +18,10 @@ use std::{collections::HashSet,
 
 use actix_web::{error,
                 http::StatusCode,
-                FromRequest,
-                HttpMessage,
+                web::{Data,
+                      Path},
                 HttpRequest,
-                HttpResponse,
-                Path};
+                HttpResponse};
 
 use crate::{bldr_core::{build_config::{BuildCfg,
                                        BLDR_CFG},
@@ -52,6 +51,7 @@ use crate::server::{authorize::authorize_session,
                     feat,
                     framework::{headers,
                                 middleware::route_message},
+                    helpers::req_state,
                     services::metrics::Counter,
                     AppState};
 
@@ -79,7 +79,7 @@ impl FromStr for GitHubEvent {
 struct PlanWithTarget(Plan, PackageTarget);
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
+pub fn handle_event(req: HttpRequest, body: String) -> HttpResponse {
     Counter::GitHubEvent.increment();
 
     let event = match req.headers().get(headers::XGITHUBEVENT) {
@@ -101,7 +101,7 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
     };
 
     // Authenticate the hook
-    let github = &req.state().github;
+    let github = &req_state(&req).github;
     let gh_signature = match req.headers().get(headers::XHUBSIGNATURE) {
         Some(sig) => sig.clone(),
         None => {
@@ -131,15 +131,16 @@ pub fn handle_event(req: HttpRequest<AppState>, body: String) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn repo_file_content(req: HttpRequest<AppState>) -> HttpResponse {
+pub fn repo_file_content(req: HttpRequest,
+                         path: Path<(u32, u32, String)>,
+                         state: Data<AppState>)
+                         -> HttpResponse {
     if let Err(err) = authorize_session(&req, None) {
         return err.into();
     }
 
-    let github = &req.state().github;
-    let (install_id, repo_id, path) = Path::<(u32, u32, String)>::extract(&req)
-        .unwrap() // Unwrap ok?
-        .into_inner();
+    let github = &state.github;
+    let (install_id, repo_id, path) = path.into_inner();
 
     let token = {
         match github.app_installation_token(install_id) {
@@ -161,7 +162,7 @@ pub fn repo_file_content(req: HttpRequest<AppState>) -> HttpResponse {
     }
 }
 
-fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
+fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
     let hook = match serde_json::from_str::<GitHubWebhookPush>(&body) {
         Ok(hook) => hook,
         Err(err) => return Error::SerdeJson(err).into(),
@@ -170,7 +171,7 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
             repository_id={} ref={} installation_id={}",
            hook.repository.full_name, hook.repository.id, hook.git_ref, hook.installation.id);
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req_state(req).db.get_conn() {
         Ok(conn_ref) => conn_ref,
         Err(e) => return Error::DbError(e).into(),
     };
@@ -180,7 +181,7 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
         return HttpResponse::new(StatusCode::OK);
     }
 
-    let github = &req.state().github;
+    let github = &req_state(req).github;
 
     let token = match github.app_installation_token(hook.installation.id) {
         Ok(token) => token,
@@ -208,7 +209,7 @@ fn handle_push(req: &HttpRequest<AppState>, body: &str) -> HttpResponse {
                 &plans)
 }
 
-fn build_plans(req: &HttpRequest<AppState>,
+fn build_plans(req: &HttpRequest,
                repo_url: &str,
                pusher: &str,
                account_id: Option<u64>,
@@ -216,7 +217,7 @@ fn build_plans(req: &HttpRequest<AppState>,
                -> HttpResponse {
     let mut request = JobGroupSpec::new();
 
-    let conn = match req.state().db.get_conn() {
+    let conn = match req_state(req).db.get_conn() {
         Ok(conn_ref) => conn_ref,
         Err(e) => return Error::DbError(e).into(),
     };
@@ -238,7 +239,7 @@ fn build_plans(req: &HttpRequest<AppState>,
             }
         }
 
-        if !req.state().config.api.build_targets.contains(&plan.1) {
+        if !req_state(req).config.api.build_targets.contains(&plan.1) {
             debug!("Rejecting build with target: {:?}", plan.1);
             continue;
         }
