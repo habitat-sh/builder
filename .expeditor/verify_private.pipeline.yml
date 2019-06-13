@@ -10,7 +10,13 @@ steps:
 
   - label: "[lint] :windows: :paperclip: clippy!"
     command:
-      - .\test\run_clippy.ps1 stable .\test\unexamined_lints.txt .\test\allowed_lints.txt .\test\lints_to_fix.txt .\test\denied_lints.txt
+      - .\test\run_clippy.ps1 .\test\unexamined_lints.txt .\test\allowed_lints.txt .\test\lints_to_fix.txt .\test\denied_lints.txt
     agents:
-      queue: 'single-use-windows-privileged'
-    timeout_in_minutes: 25
+      queue: 'default-windows-privileged'
+    plugins:
+      docker#v3.2.0:
+        image: "chefes/buildkite-windows"
+        shell: [ "powershell", "-Command" ]
+        always-pull: true
+        propagate-environment: true
+    timeout_in_minutes: 40

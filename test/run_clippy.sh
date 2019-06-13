@@ -8,12 +8,11 @@ set -euo pipefail
 source ./support/ci/shared.sh
 
 # Because sadness
-sudo chown buildkite-agent /home/buildkite-agent
+if ${BUILDKITE:-false}; then
+  sudo chown buildkite-agent /home/buildkite-agent
+fi
 
-# Install rust!
-sudo hab pkg install core/rust --binlink
-
-toolchain="${1:-stable}"
+toolchain="${1:-"$(get_toolchain)"}"
 install_rustup
 install_rust_toolchain "$toolchain"
 

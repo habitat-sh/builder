@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+
 get_current_toolchain() {
   # It turns out that every nightly version of rustfmt has slight tweaks from the previous version.
   # This means that if we're always using the latest version, then we're going to have enormous
@@ -14,6 +16,10 @@ get_current_toolchain() {
   # that the nightly version you're going to update it to includes rustfmt. You can do that
   # using https://mexus.github.io/rustup-components-history/x86_64-unknown-linux-gnu.html
   echo "nightly-2019-05-10"
+}
+
+get_toolchain() {
+  cat "$dir/../../rust-toolchain"
 }
 
 install_rustup() {
