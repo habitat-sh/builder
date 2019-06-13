@@ -43,11 +43,11 @@ use crate::bldr_core::{self,
                        logger::Logger,
                        socket::DEFAULT_CONTEXT};
 
-use crate::hab_core::env;
-
-use crate::hab_core::package::{archive::PackageArchive,
-                               target::{self,
-                                        PackageTarget}};
+use crate::hab_core::{env,
+                      package::{archive::PackageArchive,
+                                target::{self,
+                                         PackageTarget}},
+                      util::wait_for};
 
 pub use crate::protocol::jobsrv::JobState;
 use crate::protocol::{jobsrv,
@@ -94,8 +94,8 @@ const WORK_START: &str = "S";
 /// Protocol message to indicate the Runner Cli is sending a cancel request
 const WORK_CANCEL: &str = "X";
 
-pub const RETRIES: u64 = 10;
-pub const RETRY_WAIT: u64 = 60000;
+pub const RETRIES: usize = 10;
+pub const RETRY_WAIT: Duration = Duration::from_secs(60);
 
 /// Interval for main thread to check child status
 pub const STUDIO_CHILD_WAIT_SECS: u64 = 10;
@@ -363,21 +363,17 @@ impl Runner {
         debug!("Installing origin secret key for {} to {:?}",
                self.job().origin(),
                self.workspace.key_path());
-        match retry(RETRIES,
-                    RETRY_WAIT,
-                    || {
-                        self.depot_cli.fetch_origin_secret_key(self.job().origin(),
-                                                               &self.bldr_token,
-                                                               self.workspace.key_path())
-                    },
-                    |res| {
-                        if res.is_err() {
-                            debug!("Failed to fetch origin secret key, err={:?}", res);
-                        };
-                        res.is_ok()
-                    }) {
-            Ok(res) => {
-                let dst = res.unwrap();
+        match retry(wait_for(RETRY_WAIT, RETRIES), || {
+                  let res = self.depot_cli.fetch_origin_secret_key(self.job().origin(),
+                                                                   &self.bldr_token,
+                                                                   self.workspace.key_path());
+                  if res.is_err() {
+                      debug!("Failed to fetch origin secret key, err={:?}", res);
+                  };
+
+                  res
+              }) {
+            Ok(dst) => {
                 debug!("Imported origin secret key, dst={:?}.", dst);
                 Ok(())
             }
