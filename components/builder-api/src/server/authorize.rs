@@ -21,9 +21,9 @@ use crate::{bldr_core::{access_token::BUILDER_ACCOUNT_ID,
 
 use crate::server::{error::{Error,
                             Result},
-                    AppState};
+                    helpers::req_state};
 
-pub fn authorize_session(req: &HttpRequest<AppState>,
+pub fn authorize_session(req: &HttpRequest,
                          origin_opt: Option<&str>)
                          -> Result<originsrv::Session> {
     let session = {
@@ -41,7 +41,7 @@ pub fn authorize_session(req: &HttpRequest<AppState>,
     };
 
     if let Some(origin) = origin_opt {
-        let mut memcache = req.state().memcache.borrow_mut();
+        let mut memcache = req_state(req).memcache.borrow_mut();
 
         match memcache.get_origin_member(origin, session.get_id()) {
             Some(val) => {
@@ -76,11 +76,8 @@ pub fn authorize_session(req: &HttpRequest<AppState>,
     Ok(session)
 }
 
-pub fn check_origin_owner(req: &HttpRequest<AppState>,
-                          account_id: u64,
-                          origin: &str)
-                          -> Result<bool> {
-    let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+pub fn check_origin_owner(req: &HttpRequest, account_id: u64, origin: &str) -> Result<bool> {
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     match Origin::get(origin, &*conn).map_err(Error::DieselError) {
         Ok(origin) => Ok(origin.owner_id == account_id as i64),
@@ -88,14 +85,11 @@ pub fn check_origin_owner(req: &HttpRequest<AppState>,
     }
 }
 
-pub fn check_origin_member(req: &HttpRequest<AppState>,
-                           origin: &str,
-                           account_id: u64)
-                           -> Result<bool> {
+pub fn check_origin_member(req: &HttpRequest, origin: &str, account_id: u64) -> Result<bool> {
     if account_id == BUILDER_ACCOUNT_ID {
         Ok(true)
     } else {
-        let conn = req.state().db.get_conn().map_err(Error::DbError)?;
+        let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
         Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError)
     }
 }

@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{http::Method,
-                App,
+use actix_web::{web::{self,
+                      Data,
+                      ServiceConfig},
                 HttpRequest,
                 HttpResponse};
 
@@ -29,22 +30,22 @@ pub struct User {}
 impl User {
     // Route registration
     //
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/user/invitations", Method::GET, get_invitations)
-           .route("/user/origins", Method::GET, get_origins)
+    pub fn register(cfg: &mut ServiceConfig) {
+        cfg.route("/user/invitations", web::get().to(get_invitations))
+           .route("/user/origins", web::get().to(get_origins));
     }
 }
 
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
+fn get_invitations(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -59,13 +60,13 @@ fn get_invitations(req: HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_origins(req: HttpRequest<AppState>) -> HttpResponse {
+fn get_origins(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None) {
         Ok(session) => session.get_id() as i64,
         Err(err) => return err.into(),
     };
 
-    let conn = match req.state().db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };

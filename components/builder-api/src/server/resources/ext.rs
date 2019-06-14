@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{http::{Method,
-                       StatusCode},
-                App,
-                FromRequest,
+use actix_web::{http::StatusCode,
+                web::{self,
+                      Json,
+                      Path,
+                      ServiceConfig},
                 HttpRequest,
-                HttpResponse,
-                Json,
-                Path};
+                HttpResponse};
 
 use hyper::{self,
             header::{Accept,
@@ -30,8 +29,7 @@ use crate::{http_client::ApiClient,
             server::{authorize::authorize_session,
                      error::{Error,
                              Result},
-                     services::github,
-                     AppState}};
+                     services::github}};
 
 const PRODUCT: &str = "builder-api";
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
@@ -48,26 +46,26 @@ pub struct Ext;
 impl Ext {
     // Route registration
     //
-    pub fn register(app: App<AppState>) -> App<AppState> {
-        app.route("/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
-                  Method::GET,
-                  github::repo_file_content)
+    pub fn register(cfg: &mut ServiceConfig) {
+        cfg.route("/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
+                  web::get().to(github::repo_file_content))
            .route("/ext/integrations/{registry_type}/credentials/validate",
-                  Method::POST,
-                  validate_registry_credentials)
+                  web::post().to(validate_registry_credentials));
     }
 }
 
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-pub fn validate_registry_credentials((req, body): (HttpRequest<AppState>, Json<Body>))
+pub fn validate_registry_credentials(req: HttpRequest,
+                                     path: Path<String>,
+                                     body: Json<Body>)
                                      -> HttpResponse {
     if let Err(err) = authorize_session(&req, None) {
         return err.into();
     }
 
-    let registry_type = Path::<(String)>::extract(&req).unwrap().into_inner();
+    let registry_type = path.into_inner();
 
     match do_validate_registry_credentials(body, &registry_type) {
         Ok(_) => HttpResponse::new(StatusCode::OK),

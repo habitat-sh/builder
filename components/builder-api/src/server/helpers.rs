@@ -15,8 +15,8 @@
 use std::str::FromStr;
 
 use actix_web::{http::header,
-                HttpRequest,
-                Query};
+                web::Query,
+                HttpRequest};
 use regex::Regex;
 use serde::Serialize;
 use serde_json;
@@ -79,7 +79,7 @@ pub fn extract_pagination_in_pages(pagination: &Query<Pagination>) -> (isize, is
 }
 
 // TODO: Deprecate getting target from User Agent header
-pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
+pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
     let user_agent_header = match req.headers().get(header::USER_AGENT) {
         Some(s) => s,
         None => return PackageTarget::from_str("x86_64-linux").unwrap(),
@@ -118,7 +118,7 @@ pub fn target_from_headers(req: &HttpRequest<AppState>) -> PackageTarget {
     }
 }
 
-pub fn visibility_for_optional_session(req: &HttpRequest<AppState>,
+pub fn visibility_for_optional_session(req: &HttpRequest,
                                        optional_session_id: Option<u64>,
                                        origin: &str)
                                        -> Vec<PackageVisibility> {
@@ -139,7 +139,7 @@ pub fn all_visibilities() -> Vec<PackageVisibility> {
          PackageVisibility::Hidden,]
 }
 
-pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrigger {
+pub fn trigger_from_request(req: &HttpRequest) -> jobsrv::JobGroupTrigger {
     // TODO: the search strings should be configurable.
     if let Some(ref agent) = req.headers().get(header::USER_AGENT) {
         if let Ok(s) = agent.to_str() {
@@ -163,7 +163,7 @@ pub fn trigger_from_request(req: &HttpRequest<AppState>) -> jobsrv::JobGroupTrig
 }
 
 // TED remove function above when it's no longer used anywhere
-pub fn trigger_from_request_model(req: &HttpRequest<AppState>) -> PCT {
+pub fn trigger_from_request_model(req: &HttpRequest) -> PCT {
     // TODO: the search strings should be configurable.
     if let Some(ref agent) = req.headers().get(header::USER_AGENT) {
         if let Ok(s) = agent.to_str() {
@@ -185,3 +185,5 @@ pub fn trigger_from_request_model(req: &HttpRequest<AppState>) -> PCT {
 
     PCT::Unknown
 }
+
+pub fn req_state(req: &HttpRequest) -> &AppState { req.app_data().expect("request state") }

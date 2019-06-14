@@ -24,14 +24,13 @@ use std::{cell::RefCell,
           iter::FromIterator,
           sync::Arc};
 
-use actix;
 use actix_web::{http::StatusCode,
                 middleware::Logger,
-                server::{self,
-                         KeepAlive},
+                web,
                 App,
-                HttpRequest,
+                Error,
                 HttpResponse,
+                HttpServer,
                 Result};
 
 use crate::{bldr_core::rpc::RpcClient,
@@ -43,7 +42,7 @@ use artifactory_client::client::ArtifactoryClient;
 use oauth_client::client::OAuth2Client;
 use segment_api_client::SegmentClient;
 
-use self::framework::middleware::Authentication;
+use self::framework::middleware::authentication_middleware;
 
 use self::services::{memcache::MemcacheClient,
                      s3::S3Handler};
@@ -123,11 +122,10 @@ fn enable_features(config: &Config) {
 /// Endpoint for determining availability of builder-api components.
 ///
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
-pub fn status(_req: &HttpRequest<AppState>) -> HttpResponse { HttpResponse::new(StatusCode::OK) }
+pub fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
 
 pub fn run(config: Config) -> Result<()> {
     enable_features(&config);
-    let sys = actix::System::new("builder-api");
 
     let cfg = Arc::new(config.clone());
 
@@ -141,33 +139,30 @@ pub fn run(config: Config) -> Result<()> {
 
     migration::setup(&db_pool.get_conn().unwrap()).unwrap();
 
-    server::new(move || {
+    HttpServer::new(move || {
         let app_state = AppState::new(&config, db_pool.clone());
 
-        App::with_state(app_state).middleware(Logger::default().exclude("/v1/status"))
-                                  .middleware(Authentication)
-                                  .prefix("/v1")
-                                  .configure(Authenticate::register)
-                                  .configure(Channels::register)
-                                  .configure(Ext::register)
-                                  .configure(Jobs::register)
-                                  .configure(Notify::register)
-                                  .configure(Origins::register)
-                                  .configure(Packages::register)
-                                  .configure(Profile::register)
-                                  .configure(Projects::register)
-                                  .configure(User::register)
-                                  .resource("/status", |r| {
-                                      r.get().f(status);
-                                      r.head().f(status)
-                                  })
+        App::new().data(app_state)
+                  .wrap_fn(authentication_middleware)
+                  .wrap(Logger::default().exclude("/v1/status"))
+                  .service(web::scope("/v1")
+                      .configure(Authenticate::register)
+                      .configure(Channels::register)
+                      .configure(Ext::register)
+                      .configure(Jobs::register)
+                      .configure(Notify::register)
+                      .configure(Origins::register)
+                      .configure(Packages::register)
+                      .configure(Profile::register)
+                      .configure(Projects::register)
+                      .configure(User::register)
+                      .service(web::resource("/status")
+                          .route(web::get().to(status))
+                          .route(web::head().to(status))))
     }).workers(cfg.handler_count())
-      .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
+      .keep_alive(cfg.http.keep_alive)
       .bind(cfg.http.clone())
       .unwrap()
-      .start();
-
-    let _ = sys.run();
-
-    Ok(())
+      .run()
+      .map_err(Error::from)
 }

@@ -49,9 +49,8 @@ time = "*"
 url = "*"
 uuid = { version = "*", features = ["v4"] }
 
-# Temporarily pin to version currently used until we are ready to use 1.0.0
 [dependencies.actix-web]
-version = "= 0.7.19"
+version = "*"
 default-features = false
 
 [dependencies.clap]

@@ -14,12 +14,17 @@
 
 use std::env;
 
-use actix_web::{http,
-                middleware::{Middleware,
-                             Started},
+use actix_web::{dev::{Body,
+                      Service,
+                      ServiceRequest,
+                      ServiceResponse},
+                http,
+                Error,
                 HttpRequest,
-                HttpResponse,
-                Result};
+                HttpResponse};
+use futures::future::{ok,
+                      Either,
+                      Future};
 
 use base64;
 use oauth_client::types::OAuth2User;
@@ -36,6 +41,7 @@ use crate::{db::models::account::*,
                        originsrv}};
 
 use crate::server::{error,
+                    helpers::req_state,
                     services::metrics::Counter,
                     AppState};
 
@@ -43,54 +49,55 @@ lazy_static! {
     static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;
 }
 
-pub fn route_message<R, T>(req: &HttpRequest<AppState>, msg: &R) -> error::Result<T>
+pub fn route_message<R, T>(req: &HttpRequest, msg: &R) -> error::Result<T>
     where R: protobuf::Message,
           T: protobuf::Message
 {
     Counter::RouteMessage.increment();
     // Route via Protobuf over HTTP
-    req.state()
-       .jobsrv
-       .rpc::<R, T>(msg)
-       .map_err(error::Error::BuilderCore)
+    req_state(req).jobsrv
+                  .rpc::<R, T>(msg)
+                  .map_err(error::Error::BuilderCore)
 }
 
 // Optional Authentication - this middleware does not enforce authentication,
 // but will insert a Session if a valid Bearer token is received
-pub struct Authentication;
+pub fn authentication_middleware<S>(mut req: ServiceRequest,
+                                    srv: &mut S)
+                                    -> impl Future<Item = ServiceResponse<Body>, Error = Error>
+    where S: Service<Request = ServiceRequest, Response = ServiceResponse<Body>, Error = Error>
+{
+    let hdr = match req.headers().get(http::header::AUTHORIZATION) {
+        Some(hdr) => hdr.to_str().unwrap(), // unwrap Ok
+        None => return Either::A(srv.call(req)),
+    };
 
-impl Middleware<AppState> for Authentication {
-    fn start(&self, req: &HttpRequest<AppState>) -> Result<Started> {
-        let hdr = match req.headers().get(http::header::AUTHORIZATION) {
-            Some(hdr) => hdr.to_str().unwrap(), // unwrap Ok
-            None => return Ok(Started::Done),
-        };
-
-        let hdr_components: Vec<&str> = hdr.split_whitespace().collect();
-        if (hdr_components.len() != 2) || (hdr_components[0] != "Bearer") {
-            return Ok(Started::Response(HttpResponse::Unauthorized().finish()));
-        }
-        let token = hdr_components[1];
-
-        let session = match authenticate(req, &token) {
-            Ok(session) => session,
-            Err(_) => return Ok(Started::Response(HttpResponse::Unauthorized().finish())),
-        };
-
-        req.extensions_mut().insert::<originsrv::Session>(session);
-        Ok(Started::Done)
+    let hdr_components: Vec<&str> = hdr.split_whitespace().collect();
+    if (hdr_components.len() != 2) || (hdr_components[0] != "Bearer") {
+        return Either::B(ok(req.into_response(HttpResponse::Unauthorized().finish())));
     }
+    let token = hdr_components[1];
+
+    let session = match authenticate(&token, &req.app_data().expect("request state")) {
+        Ok(session) => session,
+        Err(_) => return Either::B(ok(req.into_response(HttpResponse::Unauthorized().finish()))),
+    };
+
+    req.head_mut()
+       .extensions_mut()
+       .insert::<originsrv::Session>(session);
+    Either::A(srv.call(req))
 }
 
-fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<originsrv::Session> {
+fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Session> {
     // Test hook - always create a valid session
     if env::var_os("HAB_FUNC_TEST").is_some() {
         debug!("HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
                env::var_os("HAB_FUNC_TEST"));
-        return session_create_short_circuit(req, token);
+        return session_create_short_circuit(token, state);
     };
 
-    let mut memcache = req.state().memcache.borrow_mut();
+    let mut memcache = state.memcache.borrow_mut();
     match memcache.get_session(token) {
         Some(session) => {
             trace!("Session {} Cache Hit!", token);
@@ -105,7 +112,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
             // Pull the session out of the current token provided so we can validate
             // it against the db's tokens
             let mut session =
-                bldr_core::access_token::validate_access_token(&req.state().config.api.key_path,
+                bldr_core::access_token::validate_access_token(&state.config.api.key_path,
                                                                token).map_err(|_| {
                                                                          error::Error::Authorization
                                                                      })?;
@@ -119,7 +126,7 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
 
             // If we can't find a token in the cache, we need to round-trip to the
             // db to see if we have a valid session token.
-            let conn = req.state().db.get_conn().map_err(error::Error::DbError)?;
+            let conn = state.db.get_conn().map_err(error::Error::DbError)?;
 
             match AccountToken::list(session.get_id(), &*conn).map_err(error::Error::DieselError) {
                 Ok(access_tokens) => {
@@ -155,14 +162,14 @@ fn authenticate(req: &HttpRequest<AppState>, token: &str) -> error::Result<origi
     }
 }
 
-pub fn session_create_oauth(req: &HttpRequest<AppState>,
-                            oauth_token: &str,
+pub fn session_create_oauth(oauth_token: &str,
                             user: &OAuth2User,
-                            provider: &str)
+                            provider: &str,
+                            state: &AppState)
                             -> error::Result<originsrv::Session> {
     let mut session = originsrv::Session::new();
     let mut session_token = originsrv::SessionToken::new();
-    let conn = req.state().db.get_conn().map_err(error::Error::DbError)?;
+    let conn = state.db.get_conn().map_err(error::Error::DbError)?;
 
     let email = match user.email {
         Some(ref email) => {
@@ -198,10 +205,9 @@ pub fn session_create_oauth(req: &HttpRequest<AppState>,
             session.set_oauth_token(oauth_token.to_owned());
 
             debug!("issuing session, {:?}", session);
-            req.state()
-               .memcache
-               .borrow_mut()
-               .set_session(&session.get_token(), &session, Some(*SESSION_DURATION));
+            state.memcache
+                 .borrow_mut()
+                 .set_session(&session.get_token(), &session, Some(*SESSION_DURATION));
             Ok(session)
         }
         Err(e) => {
@@ -211,8 +217,8 @@ pub fn session_create_oauth(req: &HttpRequest<AppState>,
     }
 }
 
-pub fn session_create_short_circuit(req: &HttpRequest<AppState>,
-                                    token: &str)
+pub fn session_create_short_circuit(token: &str,
+                                    state: &AppState)
                                     -> error::Result<originsrv::Session> {
     let (user, provider) = match token {
         "bobo" => {
@@ -245,7 +251,7 @@ pub fn session_create_short_circuit(req: &HttpRequest<AppState>,
         }
     };
 
-    session_create_oauth(req, token, &user, provider)
+    session_create_oauth(token, &user, provider, state)
 }
 
 fn encode_token(token: &originsrv::SessionToken) -> String {

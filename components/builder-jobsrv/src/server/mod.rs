@@ -28,23 +28,23 @@ use std::{collections::{HashMap,
                  RwLock}};
 use time::PreciseTime;
 
-use actix;
-use actix_web::{http::{Method,
-                       StatusCode},
+use actix_web::{dev::Body,
+                http::StatusCode,
                 middleware::Logger,
-                server::{self,
-                         KeepAlive},
+                web::{self,
+                      Data,
+                      Json},
                 App,
-                HttpRequest,
                 HttpResponse,
-                Json};
+                HttpServer};
 
 use crate::{bldr_core::{rpc::RpcMessage,
                         target_graph::TargetGraph},
             db::{models::package::*,
                  DbPool},
             hab_core::package::PackageTarget,
-            protocol::originsrv::OriginPackage};
+            protocol::originsrv::OriginPackage,
+            Error};
 
 use self::{log_archiver::LogArchiver,
            log_directory::LogDirectory,
@@ -91,31 +91,33 @@ impl AppState {
 /// Endpoint for determining availability of builder-jobsrv components.
 ///
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
-fn status(_req: &HttpRequest<AppState>) -> HttpResponse { HttpResponse::new(StatusCode::OK) }
+fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
 
-fn handle_rpc((req, msg): (HttpRequest<AppState>, Json<RpcMessage>)) -> HttpResponse {
+#[allow(clippy::needless_pass_by_value)]
+fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
     debug!("Got RPC message, body =\n{:?}", msg);
 
     let result = match msg.id.as_str() {
-        "JobGet" => handlers::job_get(&msg, req.state()),
-        "JobLogGet" => handlers::job_log_get(&msg, req.state()),
-        "JobGroupSpec" => handlers::job_group_create(&msg, req.state()),
-        "JobGroupCancel" => handlers::job_group_cancel(&msg, req.state()),
-        "JobGroupGet" => handlers::job_group_get(&msg, req.state()),
-        "JobGroupOriginGet" => handlers::job_group_origin_get(&msg, req.state()),
-        "JobGraphPackageCreate" => handlers::job_graph_package_create(&msg, req.state()),
-        "JobGraphPackagePreCreate" => handlers::job_graph_package_precreate(&msg, req.state()),
+        "JobGet" => handlers::job_get(&msg, &state),
+        "JobLogGet" => handlers::job_log_get(&msg, &state),
+        "JobGroupSpec" => handlers::job_group_create(&msg, &state),
+        "JobGroupCancel" => handlers::job_group_cancel(&msg, &state),
+        "JobGroupGet" => handlers::job_group_get(&msg, &state),
+        "JobGroupOriginGet" => handlers::job_group_origin_get(&msg, &state),
+        "JobGraphPackageCreate" => handlers::job_graph_package_create(&msg, &state),
+        "JobGraphPackagePreCreate" => handlers::job_graph_package_precreate(&msg, &state),
         "JobGraphPackageReverseDependenciesGet" => {
-            handlers::job_graph_package_reverse_dependencies_get(&msg, req.state())
+            handlers::job_graph_package_reverse_dependencies_get(&msg, &state)
         }
         "JobGraphPackageReverseDependenciesGroupedGet" => {
-            handlers::job_graph_package_reverse_dependencies_grouped_get(&msg, req.state())
+            handlers::job_graph_package_reverse_dependencies_grouped_get(&msg, &state)
         }
 
         _ => {
             let err = format!("Unknown RPC message received: {}", msg.id);
             error!("{}", err);
-            return HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR, err);
+            return HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR,
+                                           Body::from_message(err));
         }
     };
 
@@ -145,7 +147,6 @@ fn enable_features_from_config(cfg: &Config) {
 }
 
 pub fn run(config: Config) -> Result<()> {
-    let sys = actix::System::new("builder-jobsrv");
     let cfg = Arc::new(config.clone());
 
     enable_features_from_config(&config);
@@ -181,23 +182,20 @@ pub fn run(config: Config) -> Result<()> {
           cfg.listen_addr(),
           cfg.listen_port());
 
-    server::new(move || {
+    HttpServer::new(move || {
         let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
 
-        App::with_state(app_state).middleware(Logger::default().exclude("/status"))
-                                  .resource("/status", |r| {
-                                      r.get().f(status);
-                                      r.head().f(status)
-                                  })
-                                  .route("/rpc", Method::POST, handle_rpc)
+        App::new().data(app_state)
+                  .wrap(Logger::default().exclude("/status"))
+                  .service(web::resource("/status").route(web::get().to(status))
+                                                   .route(web::head().to(status)))
+                  .route("/rpc", web::post().to(handle_rpc))
     }).workers(cfg.handler_count())
-      .keep_alive(KeepAlive::Timeout(cfg.http.keep_alive))
+      .keep_alive(cfg.http.keep_alive)
       .bind(cfg.http.clone())
       .unwrap()
-      .start();
-
-    let _ = sys.run();
-    Ok(())
+      .run()
+      .map_err(Error::from)
 }
 
 pub fn migrate(config: &Config) -> Result<()> {
