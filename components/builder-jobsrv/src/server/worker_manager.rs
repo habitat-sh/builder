@@ -308,7 +308,7 @@ impl WorkerMgr {
 
         for worker in workers {
             debug!("Loading busy worker: {}", worker.ident);
-            let target = PackageTarget::from_str(&worker.target).unwrap();
+            let target = PackageTarget::from_str(&worker.target)?;
             let mut bw = Worker::new(&worker.ident, target);
             bw.busy(worker.job_id as u64, self.job_timeout);
             self.workers.insert(worker.ident.to_owned(), bw);
@@ -580,7 +580,7 @@ impl WorkerMgr {
                         .map_err(Error::DieselError)
                     {
                         Ok(key) => {
-                            let key_str = from_utf8(&key.body).unwrap();
+                            let key_str = from_utf8(&key.body)?;
                             BoxKeyPair::secret_key_from_str(key_str)?
                         }
                         Err(err) => return Err(err),
@@ -592,7 +592,7 @@ impl WorkerMgr {
                             .map_err(Error::DieselError)
                         {
                             Ok(key) => {
-                                let key_str = from_utf8(&key.body).unwrap();
+                                let key_str = from_utf8(&key.body)?;
                                 let (name, rev) = match parse_key_str(key_str) {
                                     Ok((_, name_with_rev, _)) => {
                                         parse_name_with_rev(name_with_rev)?
@@ -619,7 +619,7 @@ impl WorkerMgr {
                                         secret_decrypted.set_origin(secret.origin);
                                         secret_decrypted.set_name(secret.name.to_string());
                                         secret_decrypted.set_value(
-                                            String::from_utf8(decrypted_secret).unwrap(),
+                                            String::from_utf8(decrypted_secret)?,
                                         );
                                         secret_decrypted_wrapper
                                             .set_decrypted_secret(secret_decrypted);

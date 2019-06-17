@@ -257,7 +257,7 @@ impl ScheduleMgr {
             match self.schedule_job(group.get_id(), project.get_name(), group.get_target()) {
                 Ok(job_opt) => {
                     match job_opt {
-                        Some(job) => self.datastore.set_job_group_job_state(&job).unwrap(),
+                        Some(job) => self.datastore.set_job_group_job_state(&job)?,
                         None => {
                             debug!("Skipping project: {:?}", project.get_name());
                             self.datastore.set_job_group_project_state(
@@ -329,7 +329,7 @@ impl ScheduleMgr {
                 let package = match Package::get(
                     GetPackage {
                         ident: BuilderPackageIdent(
-                            PackageIdent::from_str(&project.get_ident()).unwrap(),
+                            PackageIdent::from_str(&project.get_ident())?,
                         ),
                         visibility: vec![
                             PackageVisibility::Public,
@@ -337,7 +337,7 @@ impl ScheduleMgr {
                             PackageVisibility::Hidden,
                         ],
                         target: BuilderPackageTarget(
-                            PackageTarget::from_str(group.get_target()).unwrap(),
+                            PackageTarget::from_str(group.get_target())?,
                         ),
                     },
                     &*conn,
@@ -402,7 +402,7 @@ impl ScheduleMgr {
             let package = match Package::get(
                 GetPackage {
                     ident: BuilderPackageIdent(
-                        PackageIdent::from_str(&project.get_ident()).unwrap(),
+                        PackageIdent::from_str(&project.get_ident())?,
                     ),
                     visibility: vec![
                         PackageVisibility::Public,
@@ -410,7 +410,7 @@ impl ScheduleMgr {
                         PackageVisibility::Hidden,
                     ],
                     target: BuilderPackageTarget(
-                        PackageTarget::from_str(group.get_target()).unwrap(),
+                        PackageTarget::from_str(group.get_target())?,
                     ),
                 },
                 &*conn,
@@ -542,11 +542,8 @@ impl ScheduleMgr {
                     assert!(job.has_build_started_at());
                     assert!(job.has_build_finished_at());
 
-                    let build_started_at =
-                        job.get_build_started_at().parse::<DateTime<Utc>>().unwrap();
-                    let build_finished_at = job.get_build_finished_at()
-                                               .parse::<DateTime<Utc>>()
-                                               .unwrap();
+                    let build_started_at = job.get_build_started_at().parse::<DateTime<Utc>>()?;
+                    let build_finished_at = job.get_build_finished_at().parse::<DateTime<Utc>>()?;
 
                     let build_duration = build_finished_at - build_started_at;
                     Histogram::JobCompletionTime(target).set(build_duration.num_seconds() as f64);
