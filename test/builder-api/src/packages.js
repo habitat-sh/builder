@@ -54,6 +54,9 @@ const ov71release = '20190531174743';
 const ov72release = '20190531174711';
 const ov73release = '20190531185313';
 
+const ov81release = '20190617213055';
+const ov82release = '20190617213102';
+
 const ov11 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddversion1-R16B-${ov11release}-x86_64-linux.hart`);
 const ov12 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddversion1-R16B02-5-${ov12release}-x86_64-linux.hart`);
 const ov13 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddversion1-R16B03-1-${ov13release}-x86_64-linux.hart`);
@@ -81,6 +84,9 @@ const ov64 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddv
 const ov71 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddversion7-17.1.0-dev.cloud-${ov71release}-x86_64-linux.hart`);
 const ov72 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddversion7-19.1.0.dev-cloud-${ov72release}-x86_64-linux.hart`);
 const ov73 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddversion7-19.1.0.-${ov73release}-x86_64-linux.hart`);
+
+const ov81 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddversion8-4-${ov81release}-x86_64-linux.hart`);
+const ov82 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddversion8-5-${ov82release}-x86_64-linux.hart`);
 
 var downloadedPath = '/tmp/';
 
@@ -1120,6 +1126,36 @@ describe('Working with packages', function () {
         });
     });
 
+    it('returns the latest release of package oddversion6', function (done) {
+      request.get('/depot/pkgs/neurosis/oddversion6/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('oddversion6');
+          expect(res.body.ident.version).to.equal('1.2.3');
+          expect(res.body.ident.release).to.equal(ov61release);
+          done(err);
+        });
+    });
+
+    it('lists all versions of the package oddversion6', function (done) {
+      request.get('/depot/pkgs/neurosis/oddversion6/versions')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.length).to.equal(3);
+          expect(res.body[0].origin).to.equal('neurosis');
+          expect(res.body[0].name).to.equal('oddversion6');
+          expect(res.body[0].version).to.equal('1.2.3');
+          expect(res.body[0].latest).to.equal(ov61release);
+          done(err);
+        });
+    });
+
+
     it('Uploads odd version package71', function (done) {
       request.post(`/depot/pkgs/neurosis/oddversion7/17.1.0-dev.cloud/${ov71release}`)
         .set('Authorization', global.boboBearer)
@@ -1159,20 +1195,6 @@ describe('Working with packages', function () {
         });
     });
 
-    it('returns the latest release of package oddversion6', function (done) {
-      request.get('/depot/pkgs/neurosis/oddversion6/latest')
-        .type('application/json')
-        .accept('application/json')
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.body.ident.origin).to.equal('neurosis');
-          expect(res.body.ident.name).to.equal('oddversion6');
-          expect(res.body.ident.version).to.equal('1.2.3');
-          expect(res.body.ident.release).to.equal(ov61release);
-          done(err);
-        });
-    });
-
     it('returns the latest release of package oddversion7', function (done) {
       request.get('/depot/pkgs/neurosis/oddversion7/latest')
         .type('application/json')
@@ -1187,31 +1209,42 @@ describe('Working with packages', function () {
         });
     });
 
-    it('returns the latest package oddversion4 in unstable channel', function (done) {
-      request.get('/depot/channels/neurosis/unstable/pkgs/oddversion6/latest')
+    it('Uploads odd version package81', function (done) {
+      request.post(`/depot/pkgs/neurosis/oddversion8/4/${ov81release}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', ov81.length)
+        .query({ checksum: 'cc2a46fd759a13e8b79564dd684b5322cd3fd106c228dc366291bdcdea983470' })
+        .send(ov81)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`/pkgs/neurosis/oddversion8/4/${ov81release}/download`);
+          done(err);
+        });
+    });
+
+    it('Uploads odd version package82', function (done) {
+      request.post(`/depot/pkgs/neurosis/oddversion8/5/${ov82release}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', ov82.length)
+        .query({ checksum: '5d665be0605fc67d0713a76e271dff3dc5828389326d82189f653e690bc42822' })
+        .send(ov82)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`/pkgs/neurosis/oddversion8/5/${ov82release}/download`);
+          done(err);
+        });
+    });
+
+    it('returns the latest package oddversion8 in unstable channel', function (done) {
+      request.get('/depot/channels/neurosis/unstable/pkgs/oddversion8/latest')
         .type('application/json')
         .accept('application/json')
         .expect(200)
         .end(function (err, res) {
           expect(res.body.ident.origin).to.equal('neurosis');
-          expect(res.body.ident.name).to.equal('oddversion6');
-          expect(res.body.ident.version).to.equal('1.2.3');
-          expect(res.body.ident.release).to.equal(ov61release);
-          done(err);
-        });
-    });
-
-    it('lists all versions of the package oddversion6', function (done) {
-      request.get('/depot/pkgs/neurosis/oddversion6/versions')
-        .type('application/json')
-        .accept('application/json')
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.body.length).to.equal(3);
-          expect(res.body[0].origin).to.equal('neurosis');
-          expect(res.body[0].name).to.equal('oddversion6');
-          expect(res.body[0].version).to.equal('1.2.3');
-          expect(res.body[0].latest).to.equal(ov61release);
+          expect(res.body.ident.name).to.equal('oddversion8');
+          expect(res.body.ident.version).to.equal('5');
+          expect(res.body.ident.release).to.equal(ov82release);
           done(err);
         });
     });
