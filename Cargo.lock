@@ -1259,6 +1259,7 @@ name = "habitat_builder_jobsrv"
 version = "0.0.0"
 dependencies = [
  "actix-web 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "backtrace 0.3.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "builder_core 0.0.0",
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
