@@ -130,6 +130,7 @@ impl Channel {
         let result = PackageWithVersionArray::all()
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
             .filter(origin_packages_with_version_array::origin.eq(&ident.origin))
+            .filter(origin_packages_with_version_array::name.eq(&ident.name))
             .filter(origin_channels::name.eq(req.channel.as_str()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))

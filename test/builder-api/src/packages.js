@@ -14,6 +14,8 @@ const release7 = '20181115124506';
 const release8 = '20181116180420';
 const release9 = '20190327162559';
 const release10 = '20190511004436';
+const release11 = '20190618173321';
+const release12 = '20190618175235';
 
 const file1 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 const file2 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release2}-x86_64-linux.hart`);
@@ -25,6 +27,8 @@ const file7 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.4-$
 const file8 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release8}-x86_64-linux-kernel2.hart`);
 const file9 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp3-0.1.0-${release9}-x86_64-linux.hart`);
 const file10 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.13-${release10}-x86_64-linux.hart`);
+const file11 = fs.readFileSync(__dirname + `/../fixtures/neurosis-neurosis-2.0-${release11}-x86_64-linux.hart`);
+const file12 = fs.readFileSync(__dirname + `/../fixtures/neurosis-abracadabra-3.0-${release12}-x86_64-linux.hart`);
 
 const ov11release = '20190510185610';
 const ov12release = '20190510185527';
@@ -230,7 +234,31 @@ describe('Working with packages', function () {
         });
     });
 
+    it('Uploads package with same name as origin', function (done) {
+      request.post(`/depot/pkgs/neurosis/neurosis/2.0/${release11}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file11.length)
+        .query({ checksum: 'd41a07f6e54bed1df00f0b6a15d8ed10890a442af4538991fdecbfe5fcbff866' })
+        .send(file11)
+        .expect(201)
+        .end(function (err, res) {
+          ov15
+          done(err);
+        });
+    });
 
+    it('Uploads package with a alphabetically smaller name', function (done) {
+      request.post(`/depot/pkgs/neurosis/abracadabra/3.0/${release12}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file12.length)
+        .query({ checksum: 'c7f7a6b254b8d6637edff3336ba13444543d675a38ea947eb7fc88e985b8ea7f' })
+        .send(file12)
+        .expect(201)
+        .end(function (err, res) {
+          ov15
+          done(err);
+        });
+    });
   });
 
   describe('Downloading packages', function () {
@@ -314,9 +342,9 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(7);
-          expect(res.body.total_count).to.equal(8);
-          expect(res.body.data.length).to.equal(8);
+          expect(res.body.range_end).to.equal(9);
+          expect(res.body.total_count).to.equal(10);
+          expect(res.body.data.length).to.equal(10);
           expect(res.body.data[2].origin).to.equal('neurosis');
           expect(res.body.data[2].name).to.equal('testapp');
           expect(res.body.data[2].version).to.equal('0.1.4');
@@ -340,13 +368,17 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(1);
-          expect(res.body.total_count).to.equal(2);
-          expect(res.body.data.length).to.equal(2);
+          expect(res.body.range_end).to.equal(3);
+          expect(res.body.total_count).to.equal(4);
+          expect(res.body.data.length).to.equal(4);
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[0].name).to.equal('abracadabra');
           expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].name).to.equal('testapp2');
+          expect(res.body.data[1].name).to.equal('neurosis');
+          expect(res.body.data[2].origin).to.equal('neurosis');
+          expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].name).to.equal('testapp2');
           done(err);
         });
     });
@@ -358,11 +390,15 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(1);
-          expect(res.body.total_count).to.equal(2);
-          expect(res.body.data.length).to.equal(2);
+          expect(res.body.range_end).to.equal(3);
+          expect(res.body.total_count).to.equal(4);
+          expect(res.body.data.length).to.equal(4);
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[0].name).to.equal('abracadabra');
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('neurosis');
+          expect(res.body.data[2].origin).to.equal('neurosis');
+          expect(res.body.data[2].name).to.equal('testapp');
           done(err);
         });
     });
@@ -440,6 +476,20 @@ describe('Working with packages', function () {
           expect(res.body.ident.name).to.equal('testapp');
           expect(res.body.ident.version).to.equal('0.1.13');
           expect(res.body.ident.release).to.equal(release10);
+          done(err);
+        });
+    });
+
+    it('returns the latest release of a package with the same origin name', function (done) {
+      request.get('/depot/pkgs/neurosis/neurosis/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('neurosis');
+          expect(res.body.ident.version).to.equal('2.0');
+          expect(res.body.ident.release).to.equal(release11);
           done(err);
         });
     });
@@ -758,8 +808,6 @@ describe('Working with packages', function () {
           done(err);
         });
     });
-
-
 
     it('returns the latest release of package oddversion1', function (done) {
       request.get('/depot/pkgs/neurosis/oddversion1/latest')
