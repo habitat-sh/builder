@@ -433,6 +433,8 @@ impl Package {
         let start_time = PreciseTime::now();
 
         let result = origin_packages_with_version_array::table
+            .filter(origin_packages_with_version_array::origin.eq(&req.ident.origin.clone()))
+            .filter(origin_packages_with_version_array::name.eq(&req.ident.name.clone()))
             .filter(origin_packages_with_version_array::ident_array.contains(req.ident.parts()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
