@@ -22,6 +22,7 @@ use std::{error,
 use actix_web::{http::StatusCode,
                 HttpResponse};
 
+use chrono;
 use diesel;
 use postgres;
 use protobuf;
@@ -48,6 +49,7 @@ pub enum Error {
     DbTransactionStart(postgres::error::Error),
     DbTransactionCommit(postgres::error::Error),
     DieselError(diesel::result::Error),
+    FromUtf8(std::string::FromUtf8Error),
     HabitatCore(hab_core::Error),
     InvalidUrl,
     IO(io::Error),
@@ -76,6 +78,7 @@ pub enum Error {
     LogDirIsNotDir(PathBuf),
     LogDirNotWritable(PathBuf),
     NotFound,
+    ParseError(chrono::format::ParseError),
     ParseVCSInstallationId(num::ParseIntError),
     Protobuf(protobuf::ProtobufError),
     Protocol(protocol::ProtocolError),
@@ -86,6 +89,7 @@ pub enum Error {
     UnknownJobGraphPackage,
     UnknownJobGroupProjectState,
     UnknownJobState(protocol::ProtocolError),
+    Utf8(std::str::Utf8Error),
     Zmq(zmq::Error),
 }
 
@@ -120,6 +124,7 @@ impl fmt::Display for Error {
                 format!("Failed to commit database transaction, {}", e)
             }
             Error::DieselError(ref e) => format!("{}", e),
+            Error::FromUtf8(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::InvalidUrl => "Bad URL!".to_string(),
             Error::IO(ref e) => format!("{}", e),
@@ -170,6 +175,7 @@ impl fmt::Display for Error {
                 format!("Build log directory {:?} is not writable!", path)
             }
             Error::NotFound => "Entity not found".to_string(),
+            Error::ParseError(ref e) => format!("Datetime could not be parsed, {}", e),
             Error::ParseVCSInstallationId(ref e) => {
                 format!("VCS installation id could not be parsed as u64, {}", e)
             }
@@ -182,6 +188,7 @@ impl fmt::Display for Error {
             Error::UnknownJobGroupProjectState => "Unknown Project State".to_string(),
             Error::UnknownVCS => "Unknown VCS".to_string(),
             Error::UnknownJobState(ref e) => format!("{}", e),
+            Error::Utf8(ref e) => format!("{}", e),
             Error::Zmq(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
@@ -203,6 +210,7 @@ impl error::Error for Error {
             Error::DbTransactionCommit(ref err) => err.description(),
             Error::DbTransactionStart(ref err) => err.description(),
             Error::DieselError(ref err) => err.description(),
+            Error::FromUtf8(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),
             Error::IO(ref err) => err.description(),
             Error::InvalidUrl => "Bad Url!",
@@ -231,6 +239,7 @@ impl error::Error for Error {
             Error::LogDirIsNotDir(_) => "Build log directory is not a directory",
             Error::LogDirNotWritable(_) => "Build log directory is not writable",
             Error::NotFound => "Entity not found",
+            Error::ParseError(ref err) => err.description(),
             Error::ParseVCSInstallationId(_) => "VCS installation id could not be parsed as u64",
             Error::Protobuf(ref err) => err.description(),
             Error::Protocol(ref err) => err.description(),
@@ -241,6 +250,7 @@ impl error::Error for Error {
             Error::UnknownJobGraphPackage => "Unknown Package",
             Error::UnknownJobGroupProjectState => "Unknown Project State",
             Error::UnknownVCS => "Unknown VCS",
+            Error::Utf8(ref err) => err.description(),
             Error::Zmq(ref err) => err.description(),
         }
     }
@@ -283,6 +293,10 @@ impl From<bldr_core::Error> for Error {
     fn from(err: bldr_core::Error) -> Error { Error::BuilderCore(err) }
 }
 
+impl From<chrono::format::ParseError> for Error {
+    fn from(err: chrono::format::ParseError) -> Error { Error::ParseError(err) }
+}
+
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
 }
@@ -305,6 +319,14 @@ impl From<protobuf::ProtobufError> for Error {
 
 impl From<protocol::ProtocolError> for Error {
     fn from(err: protocol::ProtocolError) -> Self { Error::Protocol(err) }
+}
+
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(err: std::string::FromUtf8Error) -> Error { Error::FromUtf8(err) }
+}
+
+impl From<std::str::Utf8Error> for Error {
+    fn from(err: std::str::Utf8Error) -> Error { Error::Utf8(err) }
 }
 
 impl From<zmq::Error> for Error {

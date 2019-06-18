@@ -539,13 +539,13 @@ fn compute_rdep_build_groups(state: &AppState,
     for ix in 1..rdeps.len() {
         let package = Package::get(
             GetPackage {
-                ident: BuilderPackageIdent(PackageIdent::from_str(&rdeps[ix].1.clone()).unwrap()),
+                ident: BuilderPackageIdent(PackageIdent::from_str(&rdeps[ix].1.clone())?),
                 visibility: vec![
                     PackageVisibility::Public,
                     PackageVisibility::Private,
                     PackageVisibility::Hidden,
                 ],
-                target: BuilderPackageTarget(PackageTarget::from_str(target).unwrap()),
+                target: BuilderPackageTarget(PackageTarget::from_str(target)?),
             },
             &*conn,
         )?;
