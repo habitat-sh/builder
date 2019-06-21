@@ -22,6 +22,7 @@ use std::{collections::{HashMap,
 use chrono::{DateTime,
              Utc};
 use diesel;
+use time::Duration;
 use zmq;
 
 use crate::{config::Config,
@@ -85,6 +86,7 @@ pub struct ScheduleMgr {
     socket:        zmq::Socket,
     worker_mgr:    WorkerMgrClient,
     build_targets: HashSet<PackageTarget>,
+    job_timeout:   Duration,
 }
 
 impl ScheduleMgr {
@@ -104,7 +106,8 @@ impl ScheduleMgr {
                       schedule_cli,
                       socket,
                       worker_mgr,
-                      build_targets: cfg.build_targets.clone() }
+                      build_targets: cfg.build_targets.clone(),
+                      job_timeout: Duration::minutes(cfg.job_timeout as i64) }
     }
 
     pub fn start(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<JoinHandle<()>> {
@@ -154,6 +157,10 @@ impl ScheduleMgr {
 
                     if let Err(err) = self.process_work(*target) {
                         warn!("Scheduler unable to process work: err {:?}", err);
+                    }
+
+                    if let Err(err) = self.watchdog(*target) {
+                        warn!("Scheduler unable to execute watchdog task: err: {:?}", err);
                     }
                 }
             }
@@ -232,6 +239,83 @@ impl ScheduleMgr {
             self.update_group_state(group.get_id())?;
         }
 
+        Ok(())
+    }
+
+    fn watchdog(&mut self, target: PackageTarget) -> Result<()> {
+        let conn = self.db.get_conn().map_err(Error::Db)?;
+
+        let groups = match Group::get_all_dispatching(target, &*conn) {
+            Ok(groups) => groups,
+            Err(diesel::result::Error::NotFound) => return Ok(()),
+            Err(err) => {
+                debug!("Failed to get dispatching groups, err = {:?}", err);
+                return Err(Error::DieselError(err));
+            }
+        };
+
+        if !groups.is_empty() {
+            debug!("Watchdog found {} dispatching groups for target {}: {:?}",
+                   groups.len(),
+                   target,
+                   groups);
+        }
+
+        for group in groups {
+            self.check_group(&group)?;
+        }
+
+        Ok(())
+    }
+
+    fn check_group(&mut self, group: &Group) -> Result<()> {
+        let group = self.get_group(group.id as u64)?;
+
+        let is_buildable = group.get_projects().iter().any(|x| buildable(x));
+        if !is_buildable {
+            let msg = format!("Watchdog: canceling group {} with no buildable projects",
+                              group.get_id());
+            error!("{}", &msg);
+            self.log_error(&msg);
+            self.datastore.cancel_job_group(group.get_id())?;
+        } else {
+            for project in
+                group.get_projects()
+                     .iter()
+                     .filter(|x| x.get_state() == jobsrv::JobGroupProjectState::InProgress)
+            {
+                self.check_project(&project)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn check_project(&mut self, project: &jobsrv::JobGroupProject) -> Result<()> {
+        assert!(project.get_state() == jobsrv::JobGroupProjectState::InProgress);
+        let conn = self.db.get_conn().map_err(Error::Db)?;
+        let job = match Job::get(project.get_job_id() as i64, &*conn) {
+            Ok(job) => job,
+            Err(err) => {
+                error!("Unable to retrieve job: {:?}", err);
+                return Err(Error::DieselError(err));
+            }
+        };
+
+        let utc: DateTime<Utc> = Utc::now();
+        let duration_since =
+            utc.signed_duration_since(job.created_at.expect("job has a created_at field"));
+
+        if duration_since > self.job_timeout {
+            debug!("Job {} has been running for: {:?}", job.id, duration_since);
+            let msg = format!("Watchdog: canceling job {} (exceeded timeout: {} sec)",
+                              job.id,
+                              duration_since.num_seconds());
+            error!("{}", &msg);
+            self.log_error(&msg);
+            let mut job: jobsrv::Job = job.into();
+            job.set_state(jobsrv::JobState::CancelPending);
+            self.datastore.update_job(&job)?;
+        }
         Ok(())
     }
 
@@ -658,5 +742,12 @@ impl ScheduleMgr {
         }
 
         Ok(())
+    }
+}
+
+fn buildable(project: &jobsrv::JobGroupProject) -> bool {
+    match project.get_state() {
+        jobsrv::JobGroupProjectState::NotStarted | jobsrv::JobGroupProjectState::InProgress => true,
+        _ => false,
     }
 }
