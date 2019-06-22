@@ -16,12 +16,11 @@ use std::{collections::HashMap,
           fs::File,
           path::PathBuf};
 
-use env_proxy;
-use reqwest::{header::{Headers,
-                       UserAgent},
-              Client,
+use reqwest::{header::{HeaderMap,
+                       HeaderName,
+                       HeaderValue},
+              Body,
               Response};
-use url::Url;
 
 use crate::{config::ArtifactoryCfg,
             error::{ArtifactoryError,
@@ -31,12 +30,14 @@ use crate::hab_core::package::{PackageArchive,
                                PackageIdent,
                                PackageTarget};
 
-const USER_AGENT: &str = "Habitat-Builder";
-header! { (XJFrogArtApi, "X-JFrog-Art-Api") => [String] }
+use builder_core::http_client::{HttpClient,
+                                USER_AGENT_BLDR};
+
+const X_JFROG_ART_API: &str = "x-jfrog-art-api";
 
 #[derive(Clone)]
 pub struct ArtifactoryClient {
-    inner:       Client,
+    inner:       HttpClient,
     pub api_url: String,
     pub api_key: String,
     pub repo:    String,
@@ -44,41 +45,12 @@ pub struct ArtifactoryClient {
 
 impl ArtifactoryClient {
     pub fn new(config: ArtifactoryCfg) -> Self {
-        let mut headers = Headers::new();
-        headers.set(UserAgent::new(USER_AGENT));
-        headers.set(XJFrogArtApi(config.api_key.to_owned()));
+        let mut headers = HeaderMap::new();
+        headers.insert(USER_AGENT_BLDR.0.clone(), USER_AGENT_BLDR.1.clone());
+        headers.insert(HeaderName::from_static(X_JFROG_ART_API),
+                       HeaderValue::from_str(&config.api_key).expect("Invalid API key value"));
 
-        let mut client = Client::builder();
-        client.default_headers(headers);
-
-        let url = Url::parse(&config.api_url).expect("valid Artifactory url must be configured");
-        debug!("ArtifactoryClient checking proxy for url: {:?}", url);
-
-        if let Some(proxy_url) = env_proxy::for_url(&url).to_string() {
-            if url.scheme() == "http" {
-                debug!("Setting http_proxy to {}", proxy_url);
-                match reqwest::Proxy::http(&proxy_url) {
-                    Ok(p) => {
-                        client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
-                }
-            }
-
-            if url.scheme() == "https" {
-                debug!("Setting https proxy to {}", proxy_url);
-                match reqwest::Proxy::https(&proxy_url) {
-                    Ok(p) => {
-                        client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
-                }
-            }
-        } else {
-            debug!("No proxy configured for url: {:?}", url);
-        }
-
-        ArtifactoryClient { inner:   client.build().unwrap(),
+        ArtifactoryClient { inner:   HttpClient::new(&config.api_url, headers),
                             api_url: config.api_url,
                             api_key: config.api_key,
                             repo:    config.repo, }
@@ -97,9 +69,11 @@ impl ArtifactoryClient {
 
         let file = File::open(source_path).map_err(ArtifactoryError::IO)?;
 
+        let body: Body = file.into();
+
         let resp = match self.inner
                              .put(&url)
-                             .body(file)
+                             .body(body)
                              .send()
                              .map_err(ArtifactoryError::HttpClient)
         {

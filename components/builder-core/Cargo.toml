@@ -11,6 +11,7 @@ bitflags = "*"
 chrono = { version = "*", features = ["serde"] }
 clippy = { version = "*", optional = true }
 dogstatsd = "*"
+env_proxy = "*"
 glob = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
@@ -25,8 +26,8 @@ serde_json = "*"
 time = "*"
 toml = { version = "*", default-features = false }
 walkdir = "*"
-reqwest = "0.8.1"
-hyper = "^0.11.9"
+reqwest = "=0.9.17"
+url = "*"
 zmq = { git = "https://github.com/habitat-sh/rust-zmq", branch = "release/v0.8" }
 
 [dependencies.habitat_core]

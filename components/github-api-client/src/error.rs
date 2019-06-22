@@ -18,6 +18,7 @@ use std::{collections::HashMap,
           io};
 
 use base64;
+use builder_core;
 use reqwest;
 use serde_json;
 
@@ -30,6 +31,7 @@ pub type HubResult<T> = Result<T, HubError>;
 pub enum HubError {
     ApiError(reqwest::StatusCode, HashMap<String, String>),
     AppAuth(types::AppAuthErr),
+    BuilderCore(builder_core::Error),
     ContentDecode(base64::DecodeError),
     HttpClient(reqwest::Error),
     IO(io::Error),
@@ -45,6 +47,7 @@ impl fmt::Display for HubError {
                         code, response)
             }
             HubError::AppAuth(ref e) => format!("GitHub App Authentication error, {}", e),
+            HubError::BuilderCore(ref e) => format!("{}", e),
             HubError::ContentDecode(ref e) => format!("{}", e),
             HubError::HttpClient(ref e) => format!("{}", e),
             HubError::IO(ref e) => format!("{}", e),
@@ -60,6 +63,7 @@ impl error::Error for HubError {
         match *self {
             HubError::ApiError(..) => "Response returned a non-200 status code.",
             HubError::AppAuth(_) => "GitHub App authorization error.",
+            HubError::BuilderCore(ref err) => err.description(),
             HubError::ContentDecode(ref err) => err.description(),
             HubError::HttpClient(ref err) => err.description(),
             HubError::IO(ref err) => err.description(),
@@ -75,4 +79,8 @@ impl From<io::Error> for HubError {
 
 impl From<serde_json::Error> for HubError {
     fn from(err: serde_json::Error) -> Self { HubError::Serialization(err) }
+}
+
+impl From<builder_core::Error> for HubError {
+    fn from(err: builder_core::Error) -> Self { HubError::BuilderCore(err) }
 }

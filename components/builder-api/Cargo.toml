@@ -25,12 +25,12 @@ env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
-hyper = "0.10.3"
+reqwest = "=0.9.17"
 lazy_static = "*"
 log = "*"
 memcache = "*"
 num_cpus = "*"
-openssl = "0.10"
+openssl = "*"
 protobuf = "*"
 serde = "*"
 serde_derive = "*"
@@ -41,8 +41,8 @@ futures = "0.1"
 rand = "*"
 r2d2 = "*"
 regex = "*"
-rusoto_core = "0.32.0"
-rusoto_s3 = "0.32.0"
+rusoto_core = "0.39"
+rusoto_s3 = "0.39"
 tempfile = "*"
 time = "*"
 url = "*"
@@ -77,9 +77,6 @@ git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
-
-[dependencies.habitat_http_client]
-git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.habitat_builder_db]
 path = "../builder-db"

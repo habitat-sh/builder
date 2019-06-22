@@ -32,7 +32,6 @@ use builder_core as bldr_core;
 use habitat_builder_db as db;
 use habitat_builder_protocol as protocol;
 use habitat_core as hab_core;
-use habitat_http_client as http_client;
 use rusoto_core as rusoto;
 
 pub mod config;

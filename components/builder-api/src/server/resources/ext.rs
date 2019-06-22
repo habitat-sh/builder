@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::iter::FromIterator;
+
 use actix_web::{http::StatusCode,
                 web::{self,
                       Json,
@@ -20,19 +22,19 @@ use actix_web::{http::StatusCode,
                 HttpRequest,
                 HttpResponse};
 
-use hyper::{self,
-            header::{Accept,
-                     ContentType}};
 use serde_json;
 
-use crate::{http_client::ApiClient,
-            server::{authorize::authorize_session,
-                     error::{Error,
-                             Result},
-                     services::github}};
+use reqwest::header::HeaderMap;
 
-const PRODUCT: &str = "builder-api";
-const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
+use builder_core::http_client::{HttpClient,
+                                ACCEPT_APPLICATION_JSON,
+                                CONTENT_TYPE_APPLICATION_JSON,
+                                USER_AGENT_BLDR};
+
+use crate::server::{authorize::authorize_session,
+                    error::{Error,
+                            Result},
+                    services::github};
 
 #[derive(Deserialize, Serialize)]
 pub struct Body {
@@ -94,32 +96,28 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Re
         }
     };
 
-    // TODO: This should absolutely not be our own custom http client type
-    // if at all possible we should stop using raw hyper calls and use an
-    // actix http client builder and stop doing this
     let actual_url: &str = url.as_ref();
 
-    let client = match ApiClient::new(actual_url, PRODUCT, VERSION, None) {
-        Ok(c) => c,
-        Err(e) => {
-            debug!("Error: Unable to create HTTP client: {}", e);
-            return Err(Error::BadRequest);
-        }
-    };
+    let header_values = vec![USER_AGENT_BLDR.clone(),
+                             ACCEPT_APPLICATION_JSON.clone(),
+                             CONTENT_TYPE_APPLICATION_JSON.clone()];
+    let headers = HeaderMap::from_iter(header_values.into_iter());
 
+    let client = HttpClient::new(actual_url, headers);
     let sbody = serde_json::to_string(&body.into_inner()).unwrap();
-    let result = client.post("users/login")
-                       .header(Accept::json())
-                       .header(ContentType::json())
-                       .body(&sbody)
-                       .send();
 
-    match result {
+    let body: reqwest::Body = sbody.into();
+
+    match client.post("users/login")
+                .body(body)
+                .send()
+                .map_err(Error::HttpClient)
+    {
         Ok(response) => {
-            match response.status {
-                hyper::status::StatusCode::Ok => Ok(()),
+            match response.status() {
+                StatusCode::OK => Ok(()),
                 _ => {
-                    debug!("Non-OK Response: {}", &response.status);
+                    debug!("Non-OK Response: {}", &response.status());
                     Err(Error::BadRequest)
                 }
             }

@@ -49,6 +49,8 @@ use rusoto_s3::{CompleteMultipartUploadRequest,
                 UploadPartRequest,
                 S3};
 
+use rusoto_core::HttpClient;
+
 use super::metrics::Counter;
 use crate::{bldr_core::metrics::CounterMetric,
             config::{S3Backend,
@@ -57,7 +59,6 @@ use crate::{bldr_core::metrics::CounterMetric,
                                 PackageIdent,
                                 PackageTarget},
             rusoto::{credential::StaticProvider,
-                     reactor::RequestDispatcher,
                      Region},
             server::error::{Error,
                             Result}};
@@ -68,7 +69,7 @@ use crate::{bldr_core::metrics::CounterMetric,
 const MINLIMIT: usize = 10240 * 1024;
 
 pub struct S3Handler {
-    client: S3Client<StaticProvider, RequestDispatcher>,
+    client: S3Client,
     bucket: String,
 }
 
@@ -87,7 +88,11 @@ impl S3Handler {
         let aws_id = config.key_id;
         let aws_secret = config.secret_key;
         let cred_provider = StaticProvider::new_minimal(aws_id, aws_secret);
-        let client = S3Client::new(RequestDispatcher::default(), cred_provider, region);
+        let http_client = match HttpClient::new() {
+            Ok(client) => client,
+            Err(err) => panic!("Unable to create Rusoto http client, err = {}", err),
+        };
+        let client = S3Client::new_with(http_client, cred_provider, region);
         let bucket = config.bucket_name;
 
         S3Handler { client, bucket }
@@ -124,7 +129,7 @@ impl S3Handler {
         request.bucket = self.bucket.clone();
         request.key = object_key.to_string();
 
-        match self.client.head_object(&request).sync() {
+        match self.client.head_object(request).sync() {
             Ok(object) => {
                 info!("Verified {} was written to minio!", object_key);
                 debug!("Head Object check returned: {:?}", object);
@@ -142,7 +147,7 @@ impl S3Handler {
         match self.bucket_exists() {
             Ok(_) => Ok(()),
             Err(_) => {
-                match self.client.create_bucket(&request).sync() {
+                match self.client.create_bucket(request).sync() {
                     Ok(_response) => Ok(()),
                     Err(e) => {
                         debug!("{:?}", e);
@@ -187,12 +192,12 @@ impl S3Handler {
         request.bucket = self.bucket.to_owned();
         request.key = key;
 
-        let payload = self.client.get_object(&request).sync();
+        let payload = self.client.get_object(request).sync();
         let body = match payload {
             Ok(response) => response.body,
             Err(e) => {
-                warn!("Failed to retrieve object from S3, key={}: {:?}",
-                      request.key, e);
+                warn!("Failed to retrieve object from S3, ident={}: {:?}",
+                      ident, e);
                 return Err(Error::PackageDownload(e));
             }
         };
@@ -220,9 +225,9 @@ impl S3Handler {
         let mut request = PutObjectRequest::default();
         request.key = key.to_string();
         request.bucket = bucket;
-        request.body = Some(object);
+        request.body = Some(object.into());
 
-        match self.client.put_object(&request).sync() {
+        match self.client.put_object(request).sync() {
             Ok(_) => {
                 let end_time = PreciseTime::now();
                 info!("Upload completed for {} (in {} sec):",
@@ -248,13 +253,8 @@ impl S3Handler {
         mprequest.key = key.to_string();
         mprequest.bucket = self.bucket.clone();
 
-        match self.client.create_multipart_upload(&mprequest).sync() {
+        match self.client.create_multipart_upload(mprequest).sync() {
             Ok(output) => {
-                let mut request = UploadPartRequest::default();
-                request.key = mprequest.key;
-                request.bucket = mprequest.bucket;
-                request.upload_id = output.upload_id.clone().unwrap(); // unwrap safe
-
                 let mut reader = BufReader::with_capacity(MINLIMIT, hart);
                 let mut part_num: i64 = 0;
                 let mut should_break = false;
@@ -267,10 +267,15 @@ impl S3Handler {
                             should_break = true;
                         }
                         part_num += 1;
-                        request.body = Some(buffer.to_vec());
+
+                        let mut request = UploadPartRequest::default();
+                        request.key = key.to_string();
+                        request.bucket = self.bucket.clone();
+                        request.upload_id = output.upload_id.clone().unwrap(); // unwrap safe
+                        request.body = Some(buffer.to_vec().into());
                         request.part_number = part_num;
 
-                        match self.client.upload_part(&request).sync() {
+                        match self.client.upload_part(request).sync() {
                             Ok(upo) => {
                                 p.push(CompletedPart { e_tag:       upo.e_tag,
                                                        part_number: Some(part_num), });
@@ -296,7 +301,7 @@ impl S3Handler {
                                                      upload_id:        output.upload_id.unwrap(),
                                                      request_payer:    None, };
 
-                match self.client.complete_multipart_upload(&completion).sync() {
+                match self.client.complete_multipart_upload(completion).sync() {
                     Ok(_) => {
                         let end_time = PreciseTime::now();
                         info!("Upload completed for {} (in {} sec):",

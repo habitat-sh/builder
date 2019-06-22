@@ -12,31 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use env_proxy;
+use std::iter::FromIterator;
+
 use serde_json;
-use url::Url;
 
-use reqwest::{header::{qitem,
-                       Accept,
-                       Authorization,
-                       Basic,
-                       ContentType,
-                       Headers,
-                       UserAgent},
-              mime,
-              Client,
-              Proxy,
-              Response};
+use reqwest::{header::HeaderMap,
+              Body};
 
-use crate::{config::SegmentCfg,
-            error::{SegmentError,
-                    SegmentResult}};
+use builder_core::http_client::{HttpClient,
+                                ACCEPT_APPLICATION_JSON,
+                                CONTENT_TYPE_APPLICATION_JSON,
+                                USER_AGENT_BLDR};
 
-const USER_AGENT: &str = "Habitat-Builder";
+use crate::config::SegmentCfg;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct SegmentClient {
-    inner:         Client,
+    inner:         HttpClient,
     pub url:       String,
     pub write_key: String,
     pub enabled:   bool,
@@ -44,42 +36,12 @@ pub struct SegmentClient {
 
 impl SegmentClient {
     pub fn new(config: SegmentCfg) -> Self {
-        let mut headers = Headers::new();
-        headers.set(UserAgent::new(USER_AGENT));
-        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
-        headers.set(ContentType(mime::APPLICATION_JSON));
+        let header_values = vec![USER_AGENT_BLDR.clone(),
+                                 ACCEPT_APPLICATION_JSON.clone(),
+                                 CONTENT_TYPE_APPLICATION_JSON.clone()];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        let mut client = Client::builder();
-        client.default_headers(headers);
-
-        let url = Url::parse(&config.url).expect("valid segment url must be configured");
-        trace!("Checking proxy for url: {:?}", url);
-
-        if let Some(proxy_url) = env_proxy::for_url(&url).to_string() {
-            if url.scheme() == "http" {
-                trace!("Setting http_proxy to {}", proxy_url);
-                match Proxy::http(&proxy_url) {
-                    Ok(p) => {
-                        client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
-                }
-            }
-
-            if url.scheme() == "https" {
-                trace!("Setting https proxy to {}", proxy_url);
-                match Proxy::https(&proxy_url) {
-                    Ok(p) => {
-                        client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
-                }
-            }
-        } else {
-            trace!("No proxy configured for url: {:?}", url);
-        }
-
-        SegmentClient { inner:     client.build().unwrap(),
+        SegmentClient { inner:     HttpClient::new(&config.url, headers),
                         url:       config.url,
                         write_key: config.write_key,
                         enabled:   config.enabled, }
@@ -88,10 +50,14 @@ impl SegmentClient {
     pub fn identify(&self, user_id: &str) {
         if self.enabled {
             let json = json!({ "userId": user_id });
+            let sbody = serde_json::to_string(&json).unwrap();
+            let body: Body = sbody.into();
 
-            if let Err(err) = self.http_post("identify",
-                                             &self.write_key,
-                                             serde_json::to_string(&json).unwrap())
+            if let Err(err) = self.inner
+                                  .post(&self.url_path_for("identity"))
+                                  .body(body)
+                                  .basic_auth("", Some(&self.write_key))
+                                  .send()
             {
                 debug!("Error identifying a user in segment, {}", err);
             }
@@ -105,27 +71,19 @@ impl SegmentClient {
                 "event": event
             });
 
-            if let Err(err) = self.http_post("track",
-                                             &self.write_key,
-                                             serde_json::to_string(&json).unwrap())
+            let sbody = serde_json::to_string(&json).unwrap();
+            let body: Body = sbody.into();
+
+            if let Err(err) = self.inner
+                                  .post(&self.url_path_for("track"))
+                                  .body(body)
+                                  .basic_auth("", Some(&self.write_key))
+                                  .send()
             {
                 debug!("Error tracking event in segment, {}", err);
             }
         }
     }
 
-    fn http_post(&self, path: &str, token: &str, body: String) -> SegmentResult<Response> {
-        let url_path = format!("{}/v1/{}", &self.url, path);
-
-        let mut headers = Headers::new();
-        headers.set(Authorization(Basic { username: "".to_owned(),
-                                          password: Some(token.to_owned()), }));
-
-        self.inner
-            .post(&url_path)
-            .headers(headers)
-            .body(body)
-            .send()
-            .map_err(SegmentError::HttpClient)
-    }
+    fn url_path_for(&self, path: &str) -> String { format!("{}/v1/{}", &self.url, path) }
 }

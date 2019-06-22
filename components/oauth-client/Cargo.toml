@@ -8,13 +8,11 @@ edition = "2018"
 
 [dependencies]
 log = "*"
-reqwest = "0.8.1"
+reqwest = "=0.9.17"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-env_proxy = "*"
 url = "*"
 
-# For metrics library
 [dependencies.builder_core]
 path = "../builder-core"

@@ -6,13 +6,13 @@ workspace = "../../"
 edition = "2018"
 
 [dependencies]
-env_proxy = "*"
-reqwest = "0.8.1"
+reqwest = "=0.9.17"
 log = "*"
 serde = "*"
 serde_derive = "*"
-hyper = "0.11"
-url = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
+
+[dependencies.builder_core]
+path = "../builder-core"

@@ -16,14 +16,12 @@ use std::{error,
           fmt,
           io};
 
-use reqwest;
 use serde_json;
 
 pub type SegmentResult<T> = Result<T, SegmentError>;
 
 #[derive(Debug)]
 pub enum SegmentError {
-    HttpClient(reqwest::Error),
     IO(io::Error),
     Serialization(serde_json::Error),
 }
@@ -31,7 +29,6 @@ pub enum SegmentError {
 impl fmt::Display for SegmentError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
-            SegmentError::HttpClient(ref e) => format!("{}", e),
             SegmentError::IO(ref e) => format!("{}", e),
             SegmentError::Serialization(ref e) => format!("{}", e),
         };
@@ -42,7 +39,6 @@ impl fmt::Display for SegmentError {
 impl error::Error for SegmentError {
     fn description(&self) -> &str {
         match *self {
-            SegmentError::HttpClient(ref err) => err.description(),
             SegmentError::IO(ref err) => err.description(),
             SegmentError::Serialization(ref err) => err.description(),
         }
