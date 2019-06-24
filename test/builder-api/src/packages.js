@@ -1243,6 +1243,21 @@ describe('Working with packages', function () {
         });
     });
 
+      it('returns all versions of package oddversion7', function (done) {
+          request.get('/depot/pkgs/neurosis/oddversion7/versions')
+            .type('application/json')
+            .accept('application/json')
+            .expect(200)
+              .end(function (err, res) {
+                expect(res.body.length).to.equal(3);
+                expect(res.body[2].origin).to.equal('neurosis');
+                expect(res.body[2].name).to.equal('oddversion7');
+                expect(res.body[2].version).to.equal('17.1.0-dev.cloud');
+                expect(res.body[2].latest).to.equal(ov71release);
+                done(err);
+              });
+      });
+
     it('returns the latest release of package oddversion7', function (done) {
       request.get('/depot/pkgs/neurosis/oddversion7/latest')
         .type('application/json')
