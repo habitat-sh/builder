@@ -12,5 +12,3 @@ pipelines:
   - verify:
       description: Pull Request validation tests
       public: true
-  - verify_private:
-      description: Pull Request validation tests requiring credentials
