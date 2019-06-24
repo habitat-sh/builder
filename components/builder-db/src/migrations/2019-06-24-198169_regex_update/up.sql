@@ -1,0 +1,11 @@
+DROP VIEW origin_package_versions;
+
+CREATE OR REPLACE VIEW origin_package_versions AS
+    SELECT origin, name, visibility,
+    ident_array[3] as version,
+    COUNT(ident_array[4]) as release_count, 
+    MAX(ident_array[4]) as latest,
+    ARRAY_AGG(DISTINCT target) as platforms,
+    regexp_matches(ident_array[3], '([\d\.]*\d+)(.+)?') as version_array
+    FROM origin_packages
+    GROUP BY ident_array[3], origin, name, visibility;
