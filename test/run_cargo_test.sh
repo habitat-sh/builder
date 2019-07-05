@@ -22,6 +22,8 @@ done
 component=${1?component argument required}
 cargo_test_command="cargo test ${features_string} -- --nocapture ${test_options:-}"
 
+# Accept hab license
+sudo hab license accept
 sudo hab pkg install core/rust --binlink
 sudo hab pkg install core/bzip2
 sudo hab pkg install core/libarchive
