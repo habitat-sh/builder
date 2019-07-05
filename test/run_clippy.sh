@@ -17,6 +17,7 @@ install_rustup
 install_rust_toolchain "$toolchain"
 
 # TODO: these should be in a shared script?
+sudo hab license accept
 install_hab_pkg core/bzip2 core/libarchive core/libsodium core/openssl core/xz core/zeromq core/libpq
 sudo hab pkg install core/protobuf --binlink
 
