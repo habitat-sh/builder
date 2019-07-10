@@ -32,7 +32,7 @@ export class OriginsPageComponent implements OnInit {
     private confirmDialog: MatDialog,
     private title: Title
   ) {
-    this.title.setTitle('My Origins | Habitat');
+    this.title.setTitle(`My Origins | ${store.getState().app.name}`);
   }
 
   ngOnInit() {

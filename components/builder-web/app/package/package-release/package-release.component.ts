@@ -42,7 +42,7 @@ export class PackageReleaseComponent implements OnDestroy {
       this.name = parentParams['name'];
       this.version = params['version'];
       this.release = params['release'];
-      this.title.setTitle(`Packages › ${this.origin}/${this.name}/${this.version}/${this.release} | Habitat`);
+      this.title.setTitle(`Packages › ${this.origin}/${this.name}/${this.version}/${this.release} | ${store.getState().app.name}`);
       this.fetchRelease();
     });
   }

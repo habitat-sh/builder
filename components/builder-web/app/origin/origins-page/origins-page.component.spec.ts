@@ -44,6 +44,9 @@ class MockAppStore {
             errorMessage: undefined
           }
         }
+      },
+      app: {
+        name: 'Habitat'
       }
     };
   }

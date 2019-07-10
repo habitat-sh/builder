@@ -44,7 +44,7 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.sub = this.route.parent.params.subscribe((params) => {
       this.origin = params['origin'];
-      this.title.setTitle(`Origins › ${this.origin} › Keys | Habitat`);
+      this.title.setTitle(`Origins › ${this.origin} › Keys | ${this.store.getState().app.name}`);
       this.fetchMyOrigins();
       this.fetchPublicKeys();
     });

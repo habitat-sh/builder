@@ -23,7 +23,7 @@ export class PackageJobComponent implements OnInit, OnDestroy {
 
       const origin = this.route.parent.snapshot.params['origin'];
       const name = this.route.parent.snapshot.params['name'];
-      this.title.setTitle(`Packages › ${origin}/${name} › Build Jobs › ${p.id} | Habitat`);
+      this.title.setTitle(`Packages › ${origin}/${name} › Build Jobs › ${p.id} | ${this.store.getState().app.name}`);
     });
   }
 

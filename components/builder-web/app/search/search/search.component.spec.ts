@@ -56,6 +56,9 @@ describe('SearchComponent', () => {
         ui: {
           visible: {}
         }
+      },
+      app: {
+        name: 'Habitat'
       }
     };
   });

@@ -47,10 +47,10 @@ export class SearchComponent implements OnInit, OnDestroy {
 
       if (this.query) {
         this.store.dispatch(setPackagesSearchQuery(this.query));
-        this.title.setTitle(`Search › ${this.origin} › ${this.query} › Results | Habitat`);
+        this.title.setTitle(`Search › ${this.origin} › ${this.query} › Results | ${this.store.getState().app.name}`);
       }
       else {
-        this.title.setTitle(`Packages › ${this.origin} | Habitat`);
+        this.title.setTitle(`Packages › ${this.origin} | ${this.store.getState().app.name}`);
       }
 
       this.fetchPackages();

@@ -48,7 +48,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.sub = this.route.parent.params.subscribe(params => {
       this.origin = Origin({ name: params['origin'] });
-      this.title.setTitle(`Origins › ${this.origin.name} › Members | Habitat`);
+      this.title.setTitle(`Origins › ${this.origin.name} › Members | ${this.store.getState().app.name}`);
       this.store.dispatch(fetchOriginMembers(this.origin.name, this.token));
       this.store.dispatch(fetchOriginInvitations(this.origin.name, this.token));
     });

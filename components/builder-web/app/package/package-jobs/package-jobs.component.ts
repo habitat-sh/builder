@@ -37,7 +37,7 @@ export class PackageJobsComponent implements OnDestroy {
     this.sub = this.route.parent.params.subscribe((params) => {
       this.origin = params['origin'];
       this.name = params['name'];
-      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Build Jobs | Habitat`);
+      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Build Jobs | ${store.getState().app.name}`);
     });
   }
 
