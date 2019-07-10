@@ -7,15 +7,16 @@ edition = "2018"
 
 [dependencies]
 base64 = "*"
+env_proxy = "*"
 frank_jwt = "*"
-reqwest = "0.8.1"
+reqwest = "=0.9.17"
 log = "*"
 regex = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
 time = "*"
+url = "*"
 
-# For metrics library
 [dependencies.builder_core]
 path = "../builder-core"

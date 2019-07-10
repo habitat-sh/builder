@@ -13,30 +13,23 @@
 // limitations under the License.
 
 use std::{collections::HashMap,
-          env,
           fs::{self,
                File},
           io::{self,
                Read},
+          iter::FromIterator,
           path::{Path,
                  PathBuf}};
 
 use rand::{distributions::Alphanumeric,
            thread_rng,
            Rng};
-use reqwest::{header::{qitem,
-                       Accept,
-                       Authorization,
-                       Bearer,
-                       Headers,
-                       UserAgent},
-              mime,
+
+use reqwest::{header::HeaderMap,
               Body,
-              Client,
-              Method,
-              Proxy,
               Response,
               StatusCode};
+
 use serde_json;
 
 use crate::{error::{Error,
@@ -47,9 +40,10 @@ use crate::{error::{Error,
                                  PackageTarget},
                        ChannelIdent}};
 
-header! { (XFileName, "X-Filename") => [String] }
-
-const USER_AGENT: &str = "Habitat-Builder";
+use crate::http_client::{HttpClient,
+                         ACCEPT_APPLICATION_JSON,
+                         USER_AGENT_BLDR,
+                         XFILENAME};
 
 #[derive(Clone, Deserialize)]
 pub struct PackageIdent {
@@ -84,39 +78,16 @@ pub struct Package {
 
 #[derive(Clone)]
 pub struct ApiClient {
-    inner:   Client,
+    inner:   HttpClient,
     pub url: String,
 }
 
 impl ApiClient {
     pub fn new(url: &str) -> Self {
-        let mut headers = Headers::new();
-        headers.set(UserAgent::new(USER_AGENT));
-        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
-        let mut client = Client::builder();
-        client.default_headers(headers);
+        let header_values = vec![USER_AGENT_BLDR.clone(), ACCEPT_APPLICATION_JSON.clone()];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        if let Ok(url) = env::var("HTTP_PROXY") {
-            debug!("Using HTTP_PROXY: {}", url);
-            match Proxy::http(&url) {
-                Ok(p) => {
-                    client.proxy(p);
-                }
-                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
-            }
-        }
-
-        if let Ok(url) = env::var("HTTPS_PROXY") {
-            debug!("Using HTTPS_PROXY: {}", url);
-            match Proxy::https(&url) {
-                Ok(p) => {
-                    client.proxy(p);
-                }
-                Err(e) => warn!("Invalid proxy url: {}, err: {:?}", url, e),
-            }
-        }
-
-        ApiClient { inner: client.build().unwrap(),
+        ApiClient { inner: HttpClient::new(url, headers),
                     url:   url.to_owned(), }
     }
 
@@ -137,13 +108,20 @@ impl ApiClient {
         let url_path = format!("{}/v1/{}", self.url, url);
         let mut query = HashMap::new();
         query.insert("target", target);
-        let mut resp = self.http_call(Method::Get, &url_path, None, token, &query)?;
+
+        let mut request = self.inner.get(&url_path).query(&query);
+
+        if let Some(token) = token {
+            request = request.bearer_auth(token);
+        }
+
+        let mut resp = request.send().map_err(Error::HttpClient)?;
 
         let mut body = String::new();
         resp.read_to_string(&mut body).map_err(Error::IO)?;
         debug!("Body: {:?}", body);
 
-        if resp.status() != StatusCode::Ok {
+        if resp.status() != StatusCode::OK {
             return Err(err_from_response(resp));
         }
 
@@ -180,17 +158,24 @@ impl ApiClient {
                 -> Result<PathBuf> {
         let url_path = format!("{}/v1/{}", self.url, url);
 
-        let mut resp = self.http_call(Method::Get, &url_path, None, token, &qparams)?;
+        let mut request = self.inner.get(&url_path).query(&qparams);
+
+        if let Some(token) = token {
+            request = request.bearer_auth(token);
+        }
+
+        let mut resp = request.send()?;
+
         debug!("Response: {:?}", resp);
 
-        if resp.status() != StatusCode::Ok {
+        if resp.status() != StatusCode::OK {
             return Err(err_from_response(resp));
         }
 
         fs::create_dir_all(&dst_path).map_err(Error::IO)?;
 
-        let file_name = match resp.headers().get::<XFileName>() {
-            Some(f) => f.as_str().to_owned(),
+        let file_name = match resp.headers().get(XFILENAME.clone()) {
+            Some(f) => f.to_str().expect("X-Filename header exists"),
             None => return Err(Error::BadResponse),
         };
 
@@ -219,7 +204,6 @@ impl ApiClient {
         let target = pa.target()?;
 
         let file = File::open(&pa.path).map_err(Error::IO)?;
-        let file_size = file.metadata().map_err(Error::IO)?.len();
 
         let url_path = format!("{}/v1/{}", self.url, package_path(&ident));
 
@@ -230,12 +214,18 @@ impl ApiClient {
 
         debug!("Reading from {}", &pa.path.display());
 
-        let body = Body::sized(file, file_size);
+        let body: Body = file.into();
 
-        let resp = self.http_call(Method::Post, &url_path, Some(body), Some(token), &qparams)?;
+        let resp = self.inner
+                       .post(&url_path)
+                       .query(&qparams)
+                       .body(body)
+                       .bearer_auth(token)
+                       .send()
+                       .map_err(Error::HttpClient)?;
 
         match resp.status() {
-            StatusCode::Created | StatusCode::Conflict => (), // Conflict means package already
+            StatusCode::CREATED | StatusCode::CONFLICT => (), // Conflict means package already
             // uploaded - return Ok
             _ => return Err(err_from_response(resp)),
         }
@@ -260,10 +250,14 @@ impl ApiClient {
         let url_path = format!("{}/v1/depot/channels/{}/{}", self.url, origin, channel);
         debug!("Creating channel, path: {:?}", url_path);
 
-        let resp = self.http_call(Method::Post, &url_path, None, Some(token), &HashMap::new())?;
+        let resp = self.inner
+                       .post(&url_path)
+                       .bearer_auth(token)
+                       .send()
+                       .map_err(Error::HttpClient)?;
 
         match resp.status() {
-            StatusCode::Created | StatusCode::Conflict => (), // Conflict means channel already
+            StatusCode::CREATED | StatusCode::CONFLICT => (), // Conflict means channel already
             // created - return Ok
             _ => return Err(err_from_response(resp)),
         }
@@ -287,45 +281,18 @@ impl ApiClient {
         let mut qparams: HashMap<&str, &str> = HashMap::new();
         qparams.insert("target", &target);
 
-        let resp = self.http_call(Method::Put, &url_path, None, Some(token), &qparams)?;
+        let resp = self.inner
+                       .put(&url_path)
+                       .query(&qparams)
+                       .bearer_auth(token)
+                       .send()
+                       .map_err(Error::HttpClient)?;
 
-        if resp.status() != StatusCode::Ok {
+        if resp.status() != StatusCode::OK {
             return Err(err_from_response(resp));
         };
 
         Ok(())
-    }
-
-    fn http_call<U>(&self,
-                    method: Method,
-                    url: &str,
-                    body: Option<Body>,
-                    token: Option<U>,
-                    qparams: &HashMap<&str, &str>)
-                    -> Result<Response>
-        where U: ToString
-    {
-        let mut headers = Headers::new();
-        if let Some(t) = token {
-            headers.set(Authorization(Bearer { token: t.to_string(), }))
-        }
-
-        if body.is_some() {
-            self.inner
-                .request(method, url)
-                .headers(headers)
-                .query(qparams)
-                .body(body.unwrap())
-                .send()
-                .map_err(Error::HttpClient)
-        } else {
-            self.inner
-                .request(method, url)
-                .headers(headers)
-                .query(qparams)
-                .send()
-                .map_err(Error::HttpClient)
-        }
     }
 }
 

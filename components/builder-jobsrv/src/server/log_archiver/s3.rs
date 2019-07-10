@@ -37,8 +37,9 @@ use rusoto_s3::{GetObjectRequest,
                 S3Client,
                 S3};
 
+use rusoto_core::HttpClient;
+
 use crate::rusoto::{credential::StaticProvider,
-                    reactor::RequestDispatcher,
                     Region};
 
 use super::LogArchiver;
@@ -47,7 +48,7 @@ use crate::{config::ArchiveCfg,
                     Result}};
 
 pub struct S3Archiver {
-    client: S3Client<StaticProvider, RequestDispatcher>,
+    client: S3Client,
     bucket: String,
 }
 
@@ -71,7 +72,8 @@ impl S3Archiver {
         let region = Region::from_str(config.region.as_str()).unwrap();
 
         let cred_provider = StaticProvider::new_minimal(key, secret);
-        let client = S3Client::new(RequestDispatcher::default(), cred_provider, region);
+        let http_client = HttpClient::new().expect("Rusoto http client must be availalbe");
+        let client = S3Client::new_with(http_client, cred_provider, region);
 
         S3Archiver { client, bucket }
     }
@@ -90,9 +92,9 @@ impl LogArchiver for S3Archiver {
 
         let mut file = OpenOptions::new().read(true).open(file_path)?;
         file.read_to_end(&mut buffer)?;
-        request.body = Some(buffer.as_slice().to_vec());
+        request.body = Some(buffer.into());
 
-        match self.client.put_object(&request).sync() {
+        match self.client.put_object(request).sync() {
             Ok(_) => Ok(()),
             Err(e) => {
                 warn!("Job log upload failed for {}: ({:?})", job_id, e);
@@ -106,7 +108,7 @@ impl LogArchiver for S3Archiver {
         request.bucket = self.bucket.clone();
         request.key = Self::key(job_id);
 
-        let payload = self.client.get_object(&request).sync();
+        let payload = self.client.get_object(request).sync();
         let stream = match payload {
             Ok(response) => response.body.expect("Downloaded object is not empty"),
             Err(e) => {
@@ -115,11 +117,13 @@ impl LogArchiver for S3Archiver {
             }
         };
 
-        let body = stream.concat2().wait().unwrap();
+        let bytes = stream.concat2()
+                          .wait()
+                          .expect("Unable to retrieve byte stream");
 
-        let lines = String::from_utf8_lossy(body.as_slice()).lines()
-                                                            .map(|l| l.to_string())
-                                                            .collect();
+        let lines = String::from_utf8_lossy(&bytes).lines()
+                                                   .map(|l| l.to_string())
+                                                   .collect();
 
         Ok(lines)
     }

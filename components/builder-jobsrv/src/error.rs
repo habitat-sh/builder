@@ -27,6 +27,7 @@ use diesel;
 use postgres;
 use protobuf;
 use r2d2;
+use rusoto_core;
 use rusoto_s3;
 use zmq;
 
@@ -66,8 +67,8 @@ pub enum Error {
     JobGroupProjectSetState(postgres::error::Error),
     JobCreate(postgres::error::Error),
     JobGet(postgres::error::Error),
-    JobLogArchive(u64, rusoto_s3::PutObjectError),
-    JobLogRetrieval(u64, rusoto_s3::GetObjectError),
+    JobLogArchive(u64, rusoto_core::RusotoError<rusoto_s3::PutObjectError>),
+    JobLogRetrieval(u64, rusoto_core::RusotoError<rusoto_s3::GetObjectError>),
     JobMarkArchived(postgres::error::Error),
     JobPending(postgres::error::Error),
     JobReset(postgres::error::Error),

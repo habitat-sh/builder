@@ -17,25 +17,28 @@ use std::{collections::HashMap,
           fmt,
           io};
 
+use builder_core;
 use reqwest;
 
 pub type ArtifactoryResult<T> = Result<T, ArtifactoryError>;
 
 #[derive(Debug)]
 pub enum ArtifactoryError {
-    ApiError(reqwest::StatusCode, HashMap<String, String>),
     HttpClient(reqwest::Error),
+    ApiError(reqwest::StatusCode, HashMap<String, String>),
+    BuilderCore(builder_core::Error),
     IO(io::Error),
 }
 
 impl fmt::Display for ArtifactoryError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            ArtifactoryError::HttpClient(ref e) => format!("{}", e),
             ArtifactoryError::ApiError(ref code, ref response) => {
                 format!("Received a non-200 response, status={}, response={:?}",
                         code, response)
             }
-            ArtifactoryError::HttpClient(ref e) => format!("{}", e),
+            ArtifactoryError::BuilderCore(ref e) => format!("{}", e),
             ArtifactoryError::IO(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
@@ -45,8 +48,9 @@ impl fmt::Display for ArtifactoryError {
 impl error::Error for ArtifactoryError {
     fn description(&self) -> &str {
         match *self {
-            ArtifactoryError::ApiError(..) => "Response returned a non-200 status code.",
             ArtifactoryError::HttpClient(ref err) => err.description(),
+            ArtifactoryError::ApiError(..) => "Response returned a non-200 status code.",
+            ArtifactoryError::BuilderCore(ref err) => err.description(),
             ArtifactoryError::IO(ref err) => err.description(),
         }
     }
@@ -54,4 +58,8 @@ impl error::Error for ArtifactoryError {
 
 impl From<io::Error> for ArtifactoryError {
     fn from(err: io::Error) -> Self { ArtifactoryError::IO(err) }
+}
+
+impl From<builder_core::Error> for ArtifactoryError {
+    fn from(err: builder_core::Error) -> Self { ArtifactoryError::BuilderCore(err) }
 }

@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::{header::{qitem,
-                       Accept,
-                       Authorization,
-                       Bearer,
-                       Headers},
-              mime,
-              Client};
+use std::iter::FromIterator;
+
 use serde_json;
+
+use reqwest::header::HeaderMap;
+
+use builder_core::http_client::{HttpClient,
+                                ACCEPT_APPLICATION_JSON,
+                                ACCEPT_GITHUB_JSON};
 
 use crate::{config::OAuth2Cfg,
             error::{Error,
@@ -41,20 +42,13 @@ struct User {
 }
 
 impl GitHub {
-    fn user(&self, config: &OAuth2Cfg, client: &Client, token: &str) -> Result<OAuth2User> {
-        let mut headers = Headers::new();
-        headers.set(Accept(vec![
-            qitem(mime::APPLICATION_JSON),
-            qitem("application/vnd.github.v3+json".parse().unwrap()),
-            qitem(
-                "application/vnd.github.machine-man-preview+json".parse()
-                                                                 .unwrap(),
-            ),
-        ]));
-        headers.set(Authorization(Bearer { token: token.to_string(), }));
+    fn user(&self, config: &OAuth2Cfg, client: &HttpClient, token: &str) -> Result<OAuth2User> {
+        let header_values = vec![ACCEPT_GITHUB_JSON.clone(),];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
 
         let mut resp = client.get(&config.userinfo_url)
                              .headers(headers)
+                             .bearer_auth(token)
                              .send()
                              .map_err(Error::HttpClient)?;
 
@@ -79,14 +73,14 @@ impl GitHub {
 impl OAuth2Provider for GitHub {
     fn authenticate(&self,
                     config: &OAuth2Cfg,
-                    client: &Client,
+                    client: &HttpClient,
                     code: &str)
                     -> Result<(String, OAuth2User)> {
         let url = format!("{}?client_id={}&client_secret={}&code={}",
                           config.token_url, config.client_id, config.client_secret, code);
 
-        let mut headers = Headers::new();
-        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
 
         let mut resp = client.post(&url)
                              .headers(headers)

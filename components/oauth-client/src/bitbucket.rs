@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::{header::{qitem,
-                       Accept,
-                       Authorization,
-                       Bearer,
-                       ContentType,
-                       Headers},
-              mime,
-              Client};
+use std::iter::FromIterator;
+
 use serde_json;
+
+use reqwest::{header::HeaderMap,
+              Body};
+
+use builder_core::http_client::{HttpClient,
+                                ACCEPT_APPLICATION_JSON,
+                                CONTENT_TYPE_FORM_URL_ENCODED};
 
 use crate::{config::OAuth2Cfg,
             error::{Error,
@@ -45,13 +46,13 @@ pub struct User {
 }
 
 impl Bitbucket {
-    fn user(&self, config: &OAuth2Cfg, client: &Client, token: &str) -> Result<OAuth2User> {
-        let mut headers = Headers::new();
-        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
-        headers.set(Authorization(Bearer { token: token.to_string(), }));
+    fn user(&self, config: &OAuth2Cfg, client: &HttpClient, token: &str) -> Result<OAuth2User> {
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
 
         let mut resp = client.get(&config.userinfo_url)
                              .headers(headers)
+                             .bearer_auth(token)
                              .send()
                              .map_err(Error::HttpClient)?;
 
@@ -76,20 +77,22 @@ impl Bitbucket {
 impl OAuth2Provider for Bitbucket {
     fn authenticate(&self,
                     config: &OAuth2Cfg,
-                    client: &Client,
+                    client: &HttpClient,
                     code: &str)
                     -> Result<(String, OAuth2User)> {
         let url = config.token_url.to_string();
-        let params = format!("grant_type=authorization_code&code={}", code);
+        let body = format!("grant_type=authorization_code&code={}", code);
 
-        let mut headers = Headers::new();
-        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
-        headers.set(ContentType::form_url_encoded());
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
+                                 CONTENT_TYPE_FORM_URL_ENCODED.clone()];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
+
+        let body: Body = body.into();
 
         let mut resp = client.post(&url)
                              .headers(headers)
+                             .body(body)
                              .basic_auth(&config.client_id[..], Some(&config.client_secret[..]))
-                             .body(params)
                              .send()
                              .map_err(Error::HttpClient)?;
 

@@ -15,11 +15,13 @@
 use std::{error,
           fmt};
 
+use builder_core;
 use reqwest;
 use serde_json;
 
 #[derive(Debug)]
 pub enum Error {
+    BuilderCore(builder_core::Error),
     HttpClient(reqwest::Error),
     HttpResponse(reqwest::StatusCode, String),
     Serialization(serde_json::Error),
@@ -30,6 +32,7 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::BuilderCore(ref e) => format!("{}", e),
             Error::HttpClient(ref e) => format!("{}", e),
             Error::HttpResponse(ref code, ref response) => {
                 format!("Received a non-200 response, status={}, response={}",
@@ -44,9 +47,14 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::BuilderCore(ref err) => err.description(),
             Error::HttpClient(ref err) => err.description(),
             Error::HttpResponse(..) => "Non-200 HTTP response.",
             Error::Serialization(ref err) => err.description(),
         }
     }
+}
+
+impl From<builder_core::Error> for Error {
+    fn from(err: builder_core::Error) -> Error { Error::BuilderCore(err) }
 }

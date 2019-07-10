@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::iter::FromIterator;
+
 use crate::{config::OAuth2Cfg,
             error::Result,
             types::*};
 
-use env_proxy;
-use reqwest::{self,
-              header};
-use url::Url;
+use reqwest::header::HeaderMap;
 
 use crate::{a2::A2,
             active_directory::ActiveDirectory,
@@ -30,47 +29,22 @@ use crate::{a2::A2,
             metrics::Counter,
             okta::Okta};
 
-use builder_core::metrics::CounterMetric;
+use builder_core::{http_client::{HttpClient,
+                                 USER_AGENT_BLDR},
+                   metrics::CounterMetric};
 
 pub struct OAuth2Client {
-    inner:        reqwest::Client,
+    inner:        HttpClient,
     pub config:   OAuth2Cfg,
     pub provider: Box<OAuth2Provider>,
 }
 
 impl OAuth2Client {
     pub fn new(config: OAuth2Cfg) -> Self {
-        let mut headers = header::Headers::new();
-        headers.set(header::UserAgent::new("oauth-client"));
-        let mut client = reqwest::Client::builder();
-        client.default_headers(headers);
+        let header_values = vec![USER_AGENT_BLDR.clone(),];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        let url = Url::parse(&config.token_url).expect("valid oauth url must be configured");
-        trace!("Checking proxy for url: {:?}", url);
-
-        if let Some(proxy_url) = env_proxy::for_url(&url).to_string() {
-            if url.scheme() == "http" {
-                trace!("Setting http_proxy to {}", proxy_url);
-                match reqwest::Proxy::http(&proxy_url) {
-                    Ok(p) => {
-                        client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
-                }
-            }
-
-            if url.scheme() == "https" {
-                trace!("Setting https proxy to {}", proxy_url);
-                match reqwest::Proxy::https(&proxy_url) {
-                    Ok(p) => {
-                        client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
-                }
-            }
-        } else {
-            trace!("No proxy configured for url: {:?}", url);
-        }
+        let client = HttpClient::new(&config.token_url, headers);
 
         let provider: Box<OAuth2Provider> = match &config.provider[..] {
             "active-directory" => Box::new(ActiveDirectory),
@@ -83,7 +57,7 @@ impl OAuth2Client {
             _ => panic!("Unknown OAuth provider: {}", config.provider),
         };
 
-        OAuth2Client { inner: client.build().unwrap(),
+        OAuth2Client { inner: client,
                        config,
                        provider }
     }

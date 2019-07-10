@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Read;
+use std::{io::Read,
+          iter::FromIterator};
 
-use reqwest::{header::{qitem,
-                       Accept,
-                       ContentType,
-                       Headers},
-              mime,
+use reqwest::{header::HeaderMap,
               Client,
               StatusCode};
 
 use protobuf;
 use serde_json;
 
-use crate::error::{Error,
-                   Result};
+use crate::{error::{Error,
+                    Result},
+            http_client::{ACCEPT_APPLICATION_JSON,
+                          CONTENT_TYPE_APPLICATION_JSON,
+                          USER_AGENT_BLDR}};
 
 // RPC message, transport as JSON over HTTP
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -66,15 +66,18 @@ impl RpcClient {
     pub fn new(url: &str) -> Self {
         debug!("Creating RPC client, url = {}", url);
 
-        let mut headers = Headers::new();
-        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
-        headers.set(ContentType::json());
+        let header_values = vec![USER_AGENT_BLDR.clone(),
+                                 ACCEPT_APPLICATION_JSON.clone(),
+                                 CONTENT_TYPE_APPLICATION_JSON.clone()];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        let mut cli = Client::builder();
-        cli.default_headers(headers);
+        let cli = match Client::builder().default_headers(headers).build() {
+            Ok(client) => client,
+            Err(err) => panic!("Unable to create Rpc client, err = {}", err),
+        };
 
-        RpcClient { cli:      cli.build().unwrap(),
-                    endpoint: format!("{}/rpc", url), }
+        RpcClient { cli,
+                    endpoint: format!("{}/rpc", url) }
     }
 
     pub fn rpc<R, T>(&self, req: &R) -> Result<T>
@@ -87,7 +90,13 @@ impl RpcClient {
         debug!("Sending RPC Message: {}", msg.id);
 
         let json = serde_json::to_string(&msg)?;
-        let mut res = self.cli.post(&self.endpoint).body(json).send()?;
+        let mut res = match self.cli.post(&self.endpoint).body(json).send() {
+            Ok(res) => res,
+            Err(err) => {
+                debug!("Got http error: {}", err);
+                return Err(Error::HttpClient(err));
+            }
+        };
         debug!("Got RPC response status: {}", res.status());
 
         let mut s = String::new();
@@ -95,7 +104,7 @@ impl RpcClient {
         trace!("Got http response body: {}", s);
 
         match res.status() {
-            StatusCode::Ok => {
+            StatusCode::OK => {
                 let resp_json: RpcMessage = serde_json::from_str(&s)?;
                 trace!("Got RPC JSON: {:?}", resp_json);
 

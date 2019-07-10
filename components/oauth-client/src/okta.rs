@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::{header::{qitem,
-                       Accept,
-                       Authorization,
-                       Bearer,
-                       ContentType,
-                       Headers},
-              mime,
-              Client};
+use std::iter::FromIterator;
+
 use serde_json;
+
+use reqwest::{header::HeaderMap,
+              Body};
+
+use builder_core::http_client::{HttpClient,
+                                ACCEPT_APPLICATION_JSON,
+                                CONTENT_TYPE_FORM_URL_ENCODED};
 
 use crate::{config::OAuth2Cfg,
             error::{Error,
@@ -42,13 +43,13 @@ struct User {
 }
 
 impl Okta {
-    fn user(&self, config: &OAuth2Cfg, client: &Client, token: &str) -> Result<OAuth2User> {
-        let mut headers = Headers::new();
-        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
-        headers.set(Authorization(Bearer { token: token.to_string(), }));
+    fn user(&self, config: &OAuth2Cfg, client: &HttpClient, token: &str) -> Result<OAuth2User> {
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
 
         let mut resp = client.get(&config.userinfo_url)
                              .headers(headers)
+                             .bearer_auth(token)
                              .send()
                              .map_err(Error::HttpClient)?;
 
@@ -73,21 +74,23 @@ impl Okta {
 impl OAuth2Provider for Okta {
     fn authenticate(&self,
                     config: &OAuth2Cfg,
-                    client: &Client,
+                    client: &HttpClient,
                     code: &str)
                     -> Result<(String, OAuth2User)> {
         let url = config.token_url.to_string();
-        let params = format!("client_id={}&client_secret={}&grant_type=authorization_code&\
-                              code={}&redirect_uri={}",
-                             config.client_id, config.client_secret, code, config.redirect_url);
+        let body = format!("client_id={}&client_secret={}&grant_type=authorization_code&code={}&\
+                            redirect_uri={}",
+                           config.client_id, config.client_secret, code, config.redirect_url);
 
-        let mut headers = Headers::new();
-        headers.set(Accept(vec![qitem(mime::APPLICATION_JSON)]));
-        headers.set(ContentType::form_url_encoded());
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
+                                 CONTENT_TYPE_FORM_URL_ENCODED.clone()];
+        let headers = HeaderMap::from_iter(header_values.into_iter());
+
+        let body: Body = body.into();
 
         let mut resp = client.post(&url)
                              .headers(headers)
-                             .body(params)
+                             .body(body)
                              .send()
                              .map_err(Error::HttpClient)?;
 

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest;
-
 use crate::{config::OAuth2Cfg,
             error::Result};
+
+use builder_core::http_client::HttpClient;
 
 pub struct OAuth2User {
     pub id:       String,
@@ -26,7 +26,7 @@ pub struct OAuth2User {
 pub trait OAuth2Provider: Sync + Send {
     fn authenticate(&self,
                     config: &OAuth2Cfg,
-                    client: &reqwest::Client,
+                    client: &HttpClient,
                     code: &str)
                     -> Result<(String, OAuth2User)>;
 }
