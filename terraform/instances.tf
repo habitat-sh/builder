@@ -30,7 +30,7 @@ resource "aws_instance" "api" {
   }
 
   provisioner "file" {
-    source = "${path.module}/scripts/install_base_packages.sh"
+    source      = "${path.module}/scripts/install_base_packages.sh"
     destination = "/tmp/install_base_packages.sh"
   }
 
@@ -50,17 +50,17 @@ resource "aws_instance" "api" {
   }
 
   provisioner "file" {
-    source = "${path.module}/files/nginx.yaml"
+    source      = "${path.module}/files/nginx.yaml"
     destination = "/tmp/nginx.yaml"
   }
 
   provisioner "file" {
-    source = "${path.module}/files/mcache.yaml"
+    source      = "${path.module}/files/mcache.yaml"
     destination = "/tmp/mcache.yaml"
   }
 
   provisioner "file" {
-    source = "${path.module}/files/nginx.logrotate"
+    source      = "${path.module}/files/nginx.logrotate"
     destination = "/tmp/nginx.logrotate"
   }
 
@@ -69,12 +69,12 @@ resource "aws_instance" "api" {
       "sudo cp /tmp/nginx.yaml /etc/dd-agent/conf.d/nginx.yaml",
       "sudo cp /tmp/mcache.yaml /etc/dd-agent/conf.d/mcache.yaml",
       "sudo cp /tmp/nginx.logrotate /etc/logrotate.d/nginx",
-      "sudo /etc/init.d/datadog-agent start"
+      "sudo /etc/init.d/datadog-agent start",
     ]
   }
 
   provisioner "file" {
-    source = "${path.module}/files/sumocollector.service"
+    source      = "${path.module}/files/sumocollector.service"
     destination = "/tmp/sumocollector.service"
   }
 
@@ -82,7 +82,7 @@ resource "aws_instance" "api" {
     inline = [
       "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
       "sudo systemctl enable /etc/systemd/system/sumocollector.service",
-      "sudo systemctl start sumocollector.service"
+      "sudo systemctl start sumocollector.service",
     ]
   }
 
@@ -123,9 +123,10 @@ resource "aws_instance" "jobsrv" {
   ami           = "${lookup(var.aws_ami, var.aws_region)}"
   instance_type = "${var.instance_size_jobsrv}"
   key_name      = "${var.aws_key_pair}"
+
   // JW TODO: switch to private subnet after VPN is ready
-  subnet_id     = "${var.public_subnet_id}"
-  count         = 1
+  subnet_id = "${var.public_subnet_id}"
+  count     = 1
 
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
@@ -150,7 +151,7 @@ resource "aws_instance" "jobsrv" {
   }
 
   provisioner "file" {
-    source = "${path.module}/scripts/install_base_packages.sh"
+    source      = "${path.module}/scripts/install_base_packages.sh"
     destination = "/tmp/install_base_packages.sh"
   }
 
@@ -167,7 +168,7 @@ resource "aws_instance" "jobsrv" {
   }
 
   provisioner "file" {
-    source = "${path.module}/files/builder.logrotate"
+    source      = "${path.module}/files/builder.logrotate"
     destination = "/tmp/builder.logrotate"
   }
 
@@ -179,12 +180,12 @@ resource "aws_instance" "jobsrv" {
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo cp /tmp/sch_log_parser.py /etc/dd-agent/sch_log_parser.py",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
-      "sudo /etc/init.d/datadog-agent start"
+      "sudo /etc/init.d/datadog-agent start",
     ]
   }
 
   provisioner "file" {
-    source = "${path.module}/files/sumocollector.service"
+    source      = "${path.module}/files/sumocollector.service"
     destination = "/tmp/sumocollector.service"
   }
 
@@ -192,7 +193,7 @@ resource "aws_instance" "jobsrv" {
     inline = [
       "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
       "sudo systemctl enable /etc/systemd/system/sumocollector.service",
-      "sudo systemctl start sumocollector.service"
+      "sudo systemctl start sumocollector.service",
     ]
   }
 
@@ -205,7 +206,6 @@ resource "aws_instance" "jobsrv" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
       "sudo /tmp/install_base_packages.sh habitat/builder-jobsrv",
-
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
@@ -229,9 +229,10 @@ resource "aws_instance" "worker" {
   ami           = "${lookup(var.aws_ami, var.aws_region)}"
   instance_type = "${var.instance_size_worker}"
   key_name      = "${var.aws_key_pair}"
+
   // JW TODO: switch to private subnet after VPN is ready
-  subnet_id     = "${var.public_subnet_id}"
-  count         = "${var.jobsrv_worker_count}"
+  subnet_id = "${var.public_subnet_id}"
+  count     = "${var.jobsrv_worker_count}"
 
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
@@ -255,7 +256,7 @@ resource "aws_instance" "worker" {
   }
 
   provisioner "file" {
-    source = "${path.module}/scripts/install_base_packages.sh"
+    source      = "${path.module}/scripts/install_base_packages.sh"
     destination = "/tmp/install_base_packages.sh"
   }
 
@@ -268,7 +269,7 @@ resource "aws_instance" "worker" {
   }
 
   provisioner "file" {
-    source = "${path.module}/files/builder.logrotate"
+    source      = "${path.module}/files/builder.logrotate"
     destination = "/tmp/builder.logrotate"
   }
 
@@ -278,7 +279,7 @@ resource "aws_instance" "worker" {
       "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
-      "sudo /etc/init.d/datadog-agent stop"
+      "sudo /etc/init.d/datadog-agent stop",
     ]
   }
 
@@ -289,12 +290,12 @@ resource "aws_instance" "worker" {
       "sudo mkdir -p /hab/accepted-licenses",
       "sudo touch /home/ubuntu/.hab/accepted-licenses/habitat",
       "sudo touch /home/hab/.hab/accepted-licenses/habitat",
-      "sudo touch /hab/accepted-licenses/habitat"
-      ]
+      "sudo touch /hab/accepted-licenses/habitat",
+    ]
   }
 
   provisioner "file" {
-    source = "${path.module}/files/sumocollector.service"
+    source      = "${path.module}/files/sumocollector.service"
     destination = "/tmp/sumocollector.service"
   }
 
@@ -302,7 +303,7 @@ resource "aws_instance" "worker" {
     inline = [
       "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
       "sudo systemctl enable /etc/systemd/system/sumocollector.service",
-      "sudo systemctl start sumocollector.service"
+      "sudo systemctl start sumocollector.service",
     ]
   }
 
@@ -337,12 +338,13 @@ resource "aws_instance" "worker" {
 }
 
 resource "aws_instance" "linux2-worker" {
-  ami           = "ami-0ea790e761025f9ce" // Ubuntu 14.04
+  ami           = "ami-0ea790e761025f9ce"              // Ubuntu 14.04
   instance_type = "${var.instance_size_linux2_worker}"
   key_name      = "${var.aws_key_pair}"
+
   // JW TODO: switch to private subnet after VPN is ready
-  subnet_id     = "${var.public_subnet_id}"
-  count         = "${var.linux2_worker_count}"
+  subnet_id = "${var.public_subnet_id}"
+  count     = "${var.linux2_worker_count}"
 
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
@@ -366,7 +368,7 @@ resource "aws_instance" "linux2-worker" {
   }
 
   provisioner "file" {
-    source = "${path.module}/scripts/install_linux2_packages.sh"
+    source      = "${path.module}/scripts/install_linux2_packages.sh"
     destination = "/tmp/install_linux2_packages.sh"
   }
 
@@ -374,7 +376,7 @@ resource "aws_instance" "linux2-worker" {
     scripts = [
       "${path.module}/scripts/init_filesystem.sh",
       "${path.module}/scripts/foundation.sh",
-      "${path.module}/scripts/worker_bootstrap.sh",
+      "${path.module}/scripts/linux2_worker_bootstrap.sh",
     ]
   }
 
@@ -431,9 +433,10 @@ resource "aws_instance" "windows-worker" {
   ami           = "ami-02dc57b59edc3b7a2"
   instance_type = "${var.instance_size_windows_worker}"
   key_name      = "${var.aws_key_pair}"
+
   // JW TODO: switch to private subnet after VPN is ready
-  subnet_id     = "${var.public_subnet_id}"
-  count         = "${var.windows_worker_count}"
+  subnet_id = "${var.public_subnet_id}"
+  count     = "${var.windows_worker_count}"
 
   vpc_security_group_ids = [
     "${var.aws_admin_sg}",
@@ -487,9 +490,9 @@ data "template_file" "sumo_sources_worker" {
   template = "${file("${path.module}/templates/sumo_sources_local.json")}"
 
   vars {
-    name = "${var.env}"
+    name     = "${var.env}"
     category = "${var.env}/worker"
-    path = "/tmp/builder-worker.log"
+    path     = "/tmp/builder-worker.log"
   }
 }
 
@@ -497,7 +500,7 @@ data "template_file" "sumo_sources_syslog" {
   template = "${file("${path.module}/templates/sumo_sources_syslog.json")}"
 
   vars {
-    name = "${var.env}-Syslog"
+    name     = "${var.env}-Syslog"
     category = "${var.env}/syslog"
   }
 }
