@@ -48,7 +48,8 @@ steps:
         docker:
           environment:
             - BUILDKITE
-          host_os: windows 
+          host_os: windows
+          os_version: 2016
           shell: ["powershell", "-Command"]   
 
 #######################################################################
