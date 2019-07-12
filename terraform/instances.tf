@@ -91,11 +91,18 @@ resource "aws_instance" "api" {
     destination = "/home/ubuntu/hab-sup.service"
   }
 
+  provisioner "file" {
+    source      = "${path.module}/files/sup_log.yml"
+    destination = "/tmp/sup_log.yml"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
       "sudo /tmp/install_base_packages.sh habitat/builder-api",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
+      "sudo mkdir -p /hab/sup/default/config",
+      "sudo mv /tmp/sup_log.yml /hab/sup/default/config/log.yml",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
@@ -202,11 +209,18 @@ resource "aws_instance" "jobsrv" {
     destination = "/home/ubuntu/hab-sup.service"
   }
 
+  provisioner "file" {
+    source      = "${path.module}/files/sup_log.yml"
+    destination = "/tmp/sup_log.yml"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
       "sudo /tmp/install_base_packages.sh habitat/builder-jobsrv",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
+      "sudo mkdir -p /hab/sup/default/config",
+      "sudo mv /tmp/sup_log.yml /hab/sup/default/config/log.yml",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
@@ -312,6 +326,11 @@ resource "aws_instance" "worker" {
     destination = "/home/ubuntu/hab-sup.service"
   }
 
+  provisioner "file" {
+    source      = "${path.module}/files/sup_log.yml"
+    destination = "/tmp/sup_log.yml"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
@@ -319,6 +338,8 @@ resource "aws_instance" "worker" {
       "sudo iptables -I DOCKER-USER -p tcp -s 10.0.0.0/24 -j DROP",
       "sudo iptables -I DOCKER-USER -p udp -s 10.0.0.0/24 -m multiport --sports 0:52,54:65535 -j DROP",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
+      "sudo mkdir -p /hab/sup/default/config",
+      "sudo mv /tmp/sup_log.yml /hab/sup/default/config/log.yml",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
@@ -386,6 +407,11 @@ resource "aws_instance" "linux2-worker" {
   }
 
   provisioner "file" {
+    source      = "${path.module}/files/sup_log.yml"
+    destination = "/tmp/sup_log.yml"
+  }
+
+  provisioner "file" {
     source      = "${path.module}/files/linux2-worker.user.toml"
     destination = "/tmp/worker.user.toml"
   }
@@ -404,6 +430,8 @@ resource "aws_instance" "linux2-worker" {
       "sudo iptables -I DOCKER -p tcp -s 10.0.0.0/24 -j DROP",
       "sudo iptables -I DOCKER -p udp -s 10.0.0.0/24 -m multiport --sports 0:52,54:65535 -j DROP",
       "sudo mv /tmp/hab-sup.init /etc/init/hab-sup.conf",
+      "sudo mkdir -p /hab/sup/default/config",
+      "sudo mv /tmp/sup_log.yml /hab/sup/default/config/log.yml",
       "sudo service hab-sup start",
       "sleep 10",
       "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
