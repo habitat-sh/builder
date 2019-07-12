@@ -8,6 +8,7 @@ OAUTH_TOKEN_URL="https://github.com/login/oauth/access_token"
 OAUTH_CLIENT_ID="Iv1.04b78696442708f6"
 OAUTH_CLIENT_SECRET="b4acf029896e9c7fb6613390124e8ae3c35889aa"
 OAUTH_REDIRECT_URL="http://localhost/"
+OAUTH_SIGNUP_URL="https://github.com/join"
 GITHUB_API_URL="https://api.github.com"
 GITHUB_APP_ID=8053
 GITHUB_APP_URL="https://github.com/apps/habitat-builder-dev-studio"

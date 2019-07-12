@@ -15,6 +15,7 @@ provider       = "github"
 token_url      = "https://github.com/login/oauth/access_token"
 userinfo_url   = "https://api.github.com/user"
 redirect_url   = ""
+signup_url     = ""
 client_id      = ""
 client_secret  = ""
 
