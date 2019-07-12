@@ -38,7 +38,7 @@ export class OriginSettingsTabComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.sub = this.route.parent.params.subscribe((params) => {
-      this.title.setTitle(`Origins › ${params.origin} › Settings | Habitat`);
+      this.title.setTitle(`Origins › ${params.origin} › Settings | ${this.store.getState().app.name}`);
     });
   }
 

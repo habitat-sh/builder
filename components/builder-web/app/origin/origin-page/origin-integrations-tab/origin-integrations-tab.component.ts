@@ -41,7 +41,7 @@ export class OriginIntegrationsTabComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.sub = this.route.parent.params.subscribe((params) => {
       this.store.dispatch(fetchIntegrations(params.origin, this.token));
-      this.title.setTitle(`Origins › ${params.origin} › Integrations | Habitat`);
+      this.title.setTitle(`Origins › ${params.origin} › Integrations | ${this.store.getState().app.name}`);
     });
   }
 

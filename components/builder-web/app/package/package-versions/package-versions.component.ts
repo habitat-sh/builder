@@ -39,7 +39,7 @@ export class PackageVersionsComponent implements OnDestroy {
     this.sub = this.route.parent.params.subscribe((params) => {
       this.origin = params['origin'];
       this.name = params['name'];
-      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Versions | Habitat`);
+      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Versions | ${store.getState().app.name}`);
       this.fetchVersions();
     });
   }

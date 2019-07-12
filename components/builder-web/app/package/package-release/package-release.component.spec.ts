@@ -30,6 +30,9 @@ class MockAppStore {
     return {
       packages: {
         current: Package()
+      },
+      app: {
+        name: 'Habitat'
       }
     };
   }

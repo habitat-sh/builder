@@ -38,7 +38,7 @@ export class OriginPackagesTabComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.sub = this.route.parent.params.subscribe((params) => {
-      this.title.setTitle(`Origins › ${params.origin} › Packages | Habitat`);
+      this.title.setTitle(`Origins › ${params.origin} › Packages | ${this.store.getState().app.name}`);
     });
   }
 

@@ -33,7 +33,7 @@ export class PackageLatestComponent implements OnDestroy {
     this.route.parent.params.subscribe((params) => {
       this.origin = params['origin'];
       this.name = params['name'];
-      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Latest | Habitat`);
+      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Latest | ${store.getState().app.name}`);
       this.fetchLatest();
     });
   }
