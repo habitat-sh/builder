@@ -211,7 +211,7 @@ fn promote_package(req: HttpRequest,
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
         Some(ref t) => {
-            debug!("Query requested target = {}", t);
+            trace!("Query requested target = {}", t);
             match PackageTarget::from_str(t) {
                 Ok(t) => t,
                 Err(err) => {
@@ -294,7 +294,7 @@ fn demote_package(req: HttpRequest,
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
         Some(ref t) => {
-            debug!("Query requested target = {}", t);
+            trace!("Query requested target = {}", t);
             match PackageTarget::from_str(t) {
                 Ok(t) => t,
                 Err(err) => {
@@ -530,7 +530,7 @@ fn do_get_channel_package(req: &HttpRequest,
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
         Some(ref t) => {
-            debug!("Query requested target = {}", t);
+            trace!("Query requested target = {}", t);
             PackageTarget::from_str(t)?
         }
         None => helpers::target_from_headers(req),

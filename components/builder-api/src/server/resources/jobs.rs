@@ -103,7 +103,7 @@ fn get_rdeps(req: HttpRequest,
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
         Some(ref t) => {
-            debug!("Query requested target = {}", t);
+            trace!("Query requested target = {}", t);
             match PackageTarget::from_str(t) {
                 Ok(t) => t,
                 Err(err) => return Error::HabitatCore(err).into(),
@@ -138,7 +138,7 @@ fn get_rdeps_group(req: HttpRequest,
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
         Some(ref t) => {
-            debug!("Query requested target = {}", t);
+            trace!("Query requested target = {}", t);
             match PackageTarget::from_str(t) {
                 Ok(t) => t,
                 Err(err) => return Error::HabitatCore(err).into(),
