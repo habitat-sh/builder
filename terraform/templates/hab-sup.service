@@ -12,6 +12,7 @@ ExecStart=/bin/hab run ${flags}
 ExecStop=/bin/hab sup term
 KillMode=process
 LimitNOFILE=65535
+LimitCORE=infinity
 
 [Install]
 WantedBy=default.target
