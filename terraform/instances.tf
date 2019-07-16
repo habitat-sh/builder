@@ -539,7 +539,7 @@ data "template_file" "windows_worker_user_data" {
   vars {
     environment = "${var.env}"
     password    = "${var.admin_password}"
-    flags       = "--no-color --peer ${join(" ", var.peers)}"
+    flags       = "--no-color --auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
     bldr_url    = "${var.bldr_url}"
     channel     = "${var.release_channel}"
   }
