@@ -37,12 +37,15 @@ struct AuthOk {
 
 #[derive(Deserialize)]
 pub struct UserOk {
-    pub user: User,
+    #[serde(flatten)]
+    uname: Utyped,
 }
 
 #[derive(Deserialize)]
-pub struct User {
-    pub username: String,
+#[serde(rename_all = "lowercase")]
+enum Utyped {
+    User(String),
+    Username(String),
 }
 
 impl Bitbucket {
@@ -65,8 +68,13 @@ impl Bitbucket {
                 Err(e) => return Err(Error::Serialization(e)),
             };
 
-            Ok(OAuth2User { id:       user_ok.user.username.to_string(),
-                            username: user_ok.user.username.to_string(),
+            let actual_uname = match user_ok.uname {
+                Utyped::User(val) => val,
+                Utyped::Username(val) => val,
+            };
+
+            Ok(OAuth2User { id:       actual_uname.clone(),
+                            username: actual_uname,
                             email:    None, })
         } else {
             Err(Error::HttpResponse(resp.status(), body))
