@@ -137,26 +137,26 @@ archive_name=${this_bootstrap_bundle}.tar
 log "Generating archive: ${archive_name}"
 
 tar --create \
-       --verbose \
-       --file="${archive_name}" \
-       --directory="${sandbox_dir}"/hab/cache \
-       artifacts >&2
+    --verbose \
+    --file="${archive_name}" \
+    --directory="${sandbox_dir}"/hab/cache \
+    artifacts >&2
 
 # We'll need a hab binary to bootstrap ourselves; let's take the one
 # we just downloaded, shall we?
 hab_pkg_dir=$(echo "${sandbox_dir}"/hab/pkgs/core/hab/"${hab_version}"/*)
 tar --append \
-       --verbose \
-       --file="${archive_name}" \
-       --directory="${hab_pkg_dir}" \
-       bin >&2
+    --verbose \
+    --file="${archive_name}" \
+    --directory="${hab_pkg_dir}" \
+    bin >&2
 
 # We're also going to need the public origin key(s)!
 tar --append \
-       --verbose \
-       --file="${archive_name}" \
-       --directory="${sandbox_dir}"/hab/cache \
-       keys >&2
+    --verbose \
+    --file="${archive_name}" \
+    --directory="${sandbox_dir}"/hab/cache \
+    keys >&2
 
 ########################################################################
 # Upload to S3
