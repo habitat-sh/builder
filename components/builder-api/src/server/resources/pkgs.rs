@@ -43,10 +43,10 @@ use futures::{future::ok as fut_ok,
               sync::mpsc,
               Future,
               Stream};
+use percent_encoding;
 use protobuf;
 use serde_json;
 use tempfile::tempdir_in;
-use url;
 use uuid::Uuid;
 
 use crate::{bldr_core::{error::Error::RpcError,
@@ -760,8 +760,7 @@ fn search_packages(req: HttpRequest,
     // works, set the origin appropriately and do a regular search.  If that doesn't work, do a
     // search across all origins, similar to how the "distinct" search works now, but returning all
     // the details instead of just names.
-    let decoded_query = match url::percent_encoding::percent_decode(query.as_bytes()).decode_utf8()
-    {
+    let decoded_query = match percent_encoding::percent_decode(query.as_bytes()).decode_utf8() {
         Ok(q) => q.to_string().trim_end_matches('/').replace("/", " & "),
         Err(err) => {
             debug!("{}", err);
