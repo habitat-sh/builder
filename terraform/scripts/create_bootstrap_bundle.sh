@@ -56,15 +56,28 @@ find_if_exists() {
   command -v "${1}" || { log "Required utility '${1}' cannot be found!  Aborting."; exit 1; }
 }
 
-# These are the key utilities this script uses. If any are not present
-# on the machine, the script will exit.
 hab=$(find_if_exists hab)
+
+# This is the name by which we can refer to the bundle we're making
+# right now. Note that other bundles can be made that contain the
+# exact same packages.
+this_bootstrap_bundle=hab_builder_bootstrap_$(date +%Y%m%d%H%M%S)
+
+# These are the key utilities this script uses; we'll use Habitat
+# itself to ensure they're present.
+#
+# In order to use the utilities, but not inadvertently overwrite
+# system utilities that may exist with the same name, we'll binlink to
+# a temporary directory and put that on our PATH.
 hab pkg install core/aws-cli core/coreutils core/gawk core/tar
-hab pkg binlink core/aws-cli aws
-hab pkg binlink core/gawk awk
-# hab pkg binlink core/tar tar
-hab pkg binlink core/coreutils sha256sum
-hab pkg binlink core/coreutils sort
+link_dir="/tmp/${this_bootstrap_bundle}_binlinks"
+mkdir "${link_dir}"
+hab pkg binlink core/aws-cli aws --dest="${link_dir}"
+hab pkg binlink core/gawk awk --dest="${link_dir}"
+hab pkg binlink core/tar tar --dest="${link_dir}"
+hab pkg binlink core/coreutils sha256sum --dest="${link_dir}"
+hab pkg binlink core/coreutils sort --dest="${link_dir}"
+export PATH="${link_dir}:${PATH}"
 
 # The packages needed to run a Habitat Supervisor. These will be
 # installed on all machines.
@@ -103,11 +116,6 @@ helper_packages=(core/sumologic
 
 # This is where we ultimately put all the things in S3.
 s3_bucket="habitat-builder-bootstrap"
-
-# This is the name by which we can refer to the bundle we're making
-# right now. Note that other bundles can be made that contain the
-# exact same packages.
-this_bootstrap_bundle=hab_builder_bootstrap_$(date +%Y%m%d%H%M%S)
 
 ########################################################################
 # Download all files locally
