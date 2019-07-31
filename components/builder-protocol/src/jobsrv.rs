@@ -498,5 +498,4 @@ mod tests {
                             "↓ Downloading core/hab-backline/0.23.0/20170511220008",];
         assert_eq!(stripped_lines, expected);
     }
-
 }
