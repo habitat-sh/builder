@@ -16,21 +16,29 @@
 use std::{path::PathBuf,
           process::{Command,
                     ExitStatus,
-                    Stdio}};
+                    Stdio},
+          str::FromStr};
 
 #[cfg(windows)]
 use std::{path::PathBuf,
           process::{Command,
                     ExitStatus,
-                    Stdio}};
+                    Stdio},
+          str::FromStr};
 
 #[cfg(not(windows))]
 use crate::hab_core::{env,
-                      fs as hfs};
+                      fs as hfs,
+                      fs::FS_ROOT_PATH,
+                      package::{ident::PackageIdent,
+                                PackageInstall}};
 
 #[cfg(windows)]
 use crate::hab_core::{env,
-                      fs as hfs};
+                      fs as hfs,
+                      fs::FS_ROOT_PATH,
+                      package::{ident::PackageIdent,
+                                PackageInstall}};
 
 use crate::error::{Error,
                    Result};
@@ -105,6 +113,10 @@ impl<'a> DockerExporter<'a> {
                &*DOCKER_EXPORTER_PROGRAM);
 
         let mut cmd = Command::new(&*DOCKER_EXPORTER_PROGRAM);
+
+        let exporter_ident = PackageIdent::from_str("core/hab-pkg-export-docker")?;
+        let pkg_install = PackageInstall::load(&exporter_ident, Some(&*FS_ROOT_PATH))?;
+
         cmd.current_dir(self.workspace.root());
         cmd.arg("--image-name");
         cmd.arg(&self.spec.docker_hub_repo_name);
@@ -150,6 +162,12 @@ impl<'a> DockerExporter<'a> {
 
         if cfg!(not(windows)) {
             cmd.env_clear();
+            let cmd_env = pkg_install.environment_for_command()?;
+
+            for (key, value) in cmd_env.into_iter() {
+                debug!("Setting: {}='{}'", key, value);
+                cmd.env(key, value);
+            }
         } else {
             for var in WINDOWS_ENVVARS {
                 if let Some(val) = env::var_os(var) {
@@ -163,6 +181,7 @@ impl<'a> DockerExporter<'a> {
         if env::var_os(RUNNER_DEBUG_ENVVAR).is_some() {
             cmd.env("RUST_LOG", "debug");
         }
+
         cmd.env(NONINTERACTIVE_ENVVAR, "true"); // Disables progress bars
         cmd.env("TERM", "xterm-256color"); // Emits ANSI color codes
 
