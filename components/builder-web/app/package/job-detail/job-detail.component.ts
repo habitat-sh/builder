@@ -190,8 +190,7 @@ export class JobDetailComponent implements OnChanges, OnDestroy {
 
   public scrollToEnd() {
     let appHeight = this.elementHeight(this.container);
-    let bannerHeight = this.elementHeight(this.element('hab-banner'));
-    this.scrollTo(appHeight + bannerHeight - window.innerHeight);
+    this.scrollTo(appHeight - window.innerHeight);
   }
 
   public scrollTo(x = 0) {
