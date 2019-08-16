@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{bldr_core::socket::DEFAULT_CONTEXT,
+            config::Config,
+            data_store::DataStore,
+            error::Result,
+            protocol::jobsrv::{JobLogChunk,
+                               JobLogComplete},
+            server::{log_archiver::{self,
+                                    LogArchiver},
+                     log_directory::LogDirectory}};
+use protobuf::parse_from_bytes;
 use std::{fs::{self,
                OpenOptions},
           io::Write,
@@ -19,20 +29,7 @@ use std::{fs::{self,
           sync::mpsc,
           thread::{self,
                    JoinHandle}};
-
-use protobuf::parse_from_bytes;
 use zmq;
-
-use crate::{bldr_core::socket::DEFAULT_CONTEXT,
-            protocol::jobsrv::{JobLogChunk,
-                               JobLogComplete},
-            server::{log_archiver::{self,
-                                    LogArchiver},
-                     log_directory::LogDirectory}};
-
-use crate::{config::Config,
-            data_store::DataStore,
-            error::Result};
 
 /// ZMQ protocol frame to indicate a log line is being sent
 const LOG_LINE: &str = "L";
@@ -47,7 +44,7 @@ pub struct LogIngester {
     log_dir:            LogDirectory,
     log_ingestion_addr: String,
     data_store:         DataStore,
-    archiver:           Box<LogArchiver>,
+    archiver:           Box<dyn LogArchiver>,
 }
 
 impl LogIngester {
