@@ -12,16 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fs::{self,
-               remove_file,
-               File},
-          io::{BufReader,
-               BufWriter,
-               Read,
-               Write},
-          path::PathBuf,
-          str::FromStr};
-
+use crate::{bldr_core::{error::Error::RpcError,
+                        metrics::CounterMetric},
+            db::models::{channel::Channel,
+                         origin::Origin,
+                         package::{BuilderPackageIdent,
+                                   BuilderPackageTarget,
+                                   DeletePackage,
+                                   GetLatestPackage,
+                                   GetPackage,
+                                   ListPackages,
+                                   NewPackage,
+                                   Package,
+                                   PackageIdentWithChannelPlatform,
+                                   PackageVisibility,
+                                   SearchPackages},
+                         projects::Project},
+            hab_core::{package::{FromArchive,
+                                 Identifiable,
+                                 PackageArchive,
+                                 PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent},
+            protocol::{jobsrv,
+                       net::NetOk,
+                       originsrv},
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     feat,
+                     framework::{headers,
+                                 middleware::route_message},
+                     helpers::{self,
+                               req_state,
+                               Pagination,
+                               Target},
+                     resources::channels::channels_for_package_ident,
+                     services::metrics::Counter,
+                     AppState}};
 use actix_web::{body::Body,
                 error,
                 http::{self,
@@ -46,50 +74,17 @@ use futures::{future::ok as fut_ok,
 use percent_encoding;
 use protobuf;
 use serde_json;
+use std::{fs::{self,
+               remove_file,
+               File},
+          io::{BufReader,
+               BufWriter,
+               Read,
+               Write},
+          path::PathBuf,
+          str::FromStr};
 use tempfile::tempdir_in;
 use uuid::Uuid;
-
-use crate::{bldr_core::{error::Error::RpcError,
-                        metrics::CounterMetric},
-            hab_core::{package::{FromArchive,
-                                 Identifiable,
-                                 PackageArchive,
-                                 PackageIdent,
-                                 PackageTarget},
-                       ChannelIdent}};
-
-use crate::protocol::{jobsrv,
-                      net::NetOk,
-                      originsrv};
-
-use crate::db::models::{channel::Channel,
-                        origin::Origin,
-                        package::{BuilderPackageIdent,
-                                  BuilderPackageTarget,
-                                  DeletePackage,
-                                  GetLatestPackage,
-                                  GetPackage,
-                                  ListPackages,
-                                  NewPackage,
-                                  Package,
-                                  PackageIdentWithChannelPlatform,
-                                  PackageVisibility,
-                                  SearchPackages},
-                        projects::Project};
-
-use crate::server::{authorize::authorize_session,
-                    error::{Error,
-                            Result},
-                    feat,
-                    framework::{headers,
-                                middleware::route_message},
-                    helpers::{self,
-                              req_state,
-                              Pagination,
-                              Target},
-                    resources::channels::channels_for_package_ident,
-                    services::metrics::Counter,
-                    AppState};
 
 // Query param containers
 #[derive(Debug, Deserialize)]
@@ -490,7 +485,7 @@ fn upload_package(req: HttpRequest,
                   qupload: Query<Upload>,
                   stream: web::Payload,
                   state: Data<AppState>)
-                  -> Box<Future<Item = HttpResponse, Error = Error>> {
+                  -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
     let (origin, name, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
@@ -1217,7 +1212,7 @@ fn do_upload_package_async(req: HttpRequest,
                            ident: PackageIdent,
                            temp_path: PathBuf,
                            writer: BufWriter<File>)
-                           -> Box<Future<Item = HttpResponse, Error = Error>> {
+                           -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
     Box::new(
              stream
         // `Future::from_err` acts like `?` in that it coerces the error type from

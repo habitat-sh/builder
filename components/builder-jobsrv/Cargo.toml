@@ -52,7 +52,7 @@ features = [ "suggestions", "color", "unstable" ]
 
 [dependencies.zmq]
 git = "https://github.com/habitat-sh/rust-zmq"
-branch = "release/v0.8"
+branch = "v0.8-symlinks-removed"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

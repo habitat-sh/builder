@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap,
-                       HashSet};
-
 use petgraph::{algo::{is_cyclic_directed,
                       toposort},
                graph::NodeIndex,
                visit::{Bfs,
                        Walker},
                Graph};
+use std::collections::{HashMap,
+                       HashSet};
 
 #[derive(Debug, PartialEq)]
 pub enum GraphErr {
@@ -105,7 +104,7 @@ mod tests {
 
         match rdeps(&deps, a) {
             Ok(v) => {
-                static EXPECTED: &'static [usize] = &[2, 4, 5];
+                static EXPECTED: &[usize] = &[2, 4, 5];
                 assert_eq!(v.as_slice(), EXPECTED);
             }
             Err(e) => {
@@ -115,7 +114,7 @@ mod tests {
 
         match rdeps(&deps, b) {
             Ok(v) => {
-                static EXPECTED: &'static [usize] = &[2, 4, 5];
+                static EXPECTED: &[usize] = &[2, 4, 5];
                 assert_eq!(v.as_slice(), EXPECTED);
             }
             Err(e) => {

@@ -12,31 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::iter::FromIterator;
-
-use crate::{config::OAuth2Cfg,
-            error::Result,
-            types::*};
-
-use reqwest::header::HeaderMap;
-
 use crate::{a2::A2,
             active_directory::ActiveDirectory,
             azure_ad::AzureAD,
             bitbucket::Bitbucket,
+            config::OAuth2Cfg,
+            error::Result,
             github::GitHub,
             gitlab::GitLab,
             metrics::Counter,
-            okta::Okta};
-
+            okta::Okta,
+            types::*};
 use builder_core::{http_client::{HttpClient,
                                  USER_AGENT_BLDR},
                    metrics::CounterMetric};
+use reqwest::header::HeaderMap;
+use std::iter::FromIterator;
 
 pub struct OAuth2Client {
     inner:        HttpClient,
     pub config:   OAuth2Cfg,
-    pub provider: Box<OAuth2Provider>,
+    pub provider: Box<dyn OAuth2Provider>,
 }
 
 impl OAuth2Client {
@@ -46,7 +42,7 @@ impl OAuth2Client {
 
         let client = HttpClient::new(&config.token_url, headers);
 
-        let provider: Box<OAuth2Provider> = match &config.provider[..] {
+        let provider: Box<dyn OAuth2Provider> = match &config.provider[..] {
             "active-directory" => Box::new(ActiveDirectory),
             "azure-ad" => Box::new(AzureAD),
             "github" => Box::new(GitHub),

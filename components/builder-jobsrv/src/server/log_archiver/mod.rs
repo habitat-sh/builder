@@ -23,10 +23,9 @@
 pub mod local;
 pub mod s3;
 
-use std::path::PathBuf;
-
 use crate::{config::ArchiveCfg,
             error::Result};
+use std::path::PathBuf;
 
 /// Currently implemented log archiving backends
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -47,7 +46,7 @@ pub trait LogArchiver: Send {
 }
 
 /// Create appropriate LogArchiver variant based on configuration values.
-pub fn from_config(config: &ArchiveCfg) -> Result<Box<LogArchiver>> {
+pub fn from_config(config: &ArchiveCfg) -> Result<Box<dyn LogArchiver>> {
     match config.backend {
         ArchiveBackend::Local => Ok(Box::new(local::LocalArchiver::new(&config))),
         ArchiveBackend::S3 => Ok(Box::new(s3::S3Archiver::new(&config))),

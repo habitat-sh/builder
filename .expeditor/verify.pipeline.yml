@@ -50,7 +50,7 @@ steps:
             - BUILDKITE
           host_os: windows
           os_version: 2016
-          shell: ["powershell", "-Command"]   
+          shell: ["powershell", "-Command"]
 
 #######################################################################
 # Unit Tests - Linux!

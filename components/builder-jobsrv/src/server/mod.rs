@@ -20,15 +20,22 @@ mod metrics;
 mod scheduler;
 mod worker_manager;
 
-use std::{collections::{HashMap,
-                        HashSet},
-          iter::{FromIterator,
-                 Iterator},
-          panic,
-          sync::{Arc,
-                 RwLock}};
-use time::PreciseTime;
-
+use self::{log_archiver::LogArchiver,
+           log_directory::LogDirectory,
+           log_ingester::LogIngester,
+           scheduler::ScheduleMgr,
+           worker_manager::WorkerMgr};
+use crate::{bldr_core::{rpc::RpcMessage,
+                        target_graph::TargetGraph},
+            config::{Config,
+                     GatewayCfg},
+            data_store::DataStore,
+            db::{models::package::*,
+                 DbPool},
+            error::Result,
+            hab_core::package::PackageTarget,
+            protocol::originsrv::OriginPackage,
+            Error};
 use actix_web::{dev::Body,
                 http::StatusCode,
                 middleware::Logger,
@@ -38,25 +45,14 @@ use actix_web::{dev::Body,
                 App,
                 HttpResponse,
                 HttpServer};
-
-use crate::{bldr_core::{rpc::RpcMessage,
-                        target_graph::TargetGraph},
-            db::{models::package::*,
-                 DbPool},
-            hab_core::package::PackageTarget,
-            protocol::originsrv::OriginPackage,
-            Error};
-
-use self::{log_archiver::LogArchiver,
-           log_directory::LogDirectory,
-           log_ingester::LogIngester,
-           scheduler::ScheduleMgr,
-           worker_manager::WorkerMgr};
-
-use crate::{config::{Config,
-                     GatewayCfg},
-            data_store::DataStore,
-            error::Result};
+use std::{collections::{HashMap,
+                        HashSet},
+          iter::{FromIterator,
+                 Iterator},
+          panic,
+          sync::{Arc,
+                 RwLock}};
+use time::PreciseTime;
 
 features! {
     pub mod feat {
@@ -66,7 +62,7 @@ features! {
 
 // Application state
 pub struct AppState {
-    archiver:      Box<LogArchiver>,
+    archiver:      Box<dyn LogArchiver>,
     datastore:     DataStore,
     db:            DbPool,
     graph:         Arc<RwLock<TargetGraph>>,
