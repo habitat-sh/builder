@@ -17,9 +17,9 @@ import { Subscription } from 'rxjs';
 import { AppStore } from './app.store';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { URLSearchParams } from '@angular/http';
-import { Router, NavigationStart } from '@angular/router';
+import { ActivatedRoute, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
-  routeChange, loadOAuthProvider, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
+  routeChange, loadOAuthProvider, routeChangeEnd, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
 
 const md5 = require('blueimp-md5');
 
@@ -35,7 +35,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private sub: Subscription;
 
-  constructor(private router: Router, private store: AppStore) {
+  constructor(private route: ActivatedRoute, private router: Router, private store: AppStore) {
     store.dispatch(loadFeatures());
     store.dispatch(loadOAuthProvider());
 
@@ -43,7 +43,11 @@ export class AppComponent implements OnInit, OnDestroy {
     // route data.
     this.sub = this.router.events.subscribe(event => {
       if (event instanceof NavigationStart) {
-        store.dispatch(routeChange(event));
+        store.dispatch(routeChange({ event, route }));
+      }
+
+      if (event instanceof NavigationEnd) {
+        store.dispatch(routeChangeEnd({ event, route }));
       }
 
       // Clear the package search when the route changes

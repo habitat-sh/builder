@@ -18,7 +18,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AppStore } from '../../app.store';
 import { packageString, parseDate } from '../../util';
-import { demotePackage, fetchPackageVersions, filterPackagesBy } from '../../actions/index';
+import { demotePackage, filterPackagesBy } from '../../actions/index';
 
 @Component({
   template: require('./package-versions.component.html')
@@ -40,7 +40,6 @@ export class PackageVersionsComponent implements OnDestroy {
       this.origin = params['origin'];
       this.name = params['name'];
       this.title.setTitle(`Packages › ${this.origin}/${this.name} › Versions | ${store.getState().app.name}`);
-      this.fetchVersions();
     });
   }
 
@@ -134,9 +133,5 @@ export class PackageVersionsComponent implements OnDestroy {
     }
 
     return [];
-  }
-
-  private fetchVersions() {
-    this.store.dispatch(fetchPackageVersions(this.origin, this.name));
   }
 }

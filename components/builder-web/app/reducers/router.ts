@@ -20,11 +20,16 @@ export default function router(state = initialState['router'], action) {
 
     case actionTypes.ROUTE_CHANGE:
       return state
-        .setIn(['route', 'id'], action.payload.id)
-        .setIn(['route', 'description'], action.payload.toString())
-        .setIn(['route', 'url'], action.payload.url)
-        .setIn(['route', 'urlAfterRedirects'], action.payload.url)
+        .setIn(['route', 'id'], action.payload.event.id)
+        .setIn(['route', 'description'], action.payload.event.toString())
+        .setIn(['route', 'url'], action.payload.event.url)
+        .setIn(['route', 'urlAfterRedirects'], action.payload.event.url)
         .set('requestedRoute', undefined);
+
+   case actionTypes.ROUTE_CHANGE_END:
+      return state
+        .setIn(['route', 'url'], action.payload.event.url)
+        .setIn(['route', 'params'], routeParams(action.payload.route.snapshot));
 
     case actionTypes.ROUTE_REQUESTED:
       return state.set('requestedRoute', action.payload);
@@ -32,4 +37,13 @@ export default function router(state = initialState['router'], action) {
     default:
       return state;
   }
+}
+
+function routeParams(route) {
+  let params = route.params;
+  while (route.firstChild) {
+    params = {...params, ...route.firstChild.params};
+    route = route.firstChild;
+  }
+  return params;
 }

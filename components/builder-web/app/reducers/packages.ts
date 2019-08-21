@@ -17,6 +17,7 @@ import * as actionTypes from '../actions/index';
 import initialState from '../initial-state';
 import { Package } from '../records/Package';
 import { List } from 'immutable';
+import { targetsFromPkgVersions } from '../util';
 
 export default function packages(state = initialState['packages'], action) {
   switch (action.type) {
@@ -46,7 +47,8 @@ export default function packages(state = initialState['packages'], action) {
       return state.setIn(['dashboard', 'recent'], List(action.payload));
 
     case actionTypes.CLEAR_PACKAGE_VERSIONS:
-      return state.set('versions', undefined);
+      return state.set('versions', undefined)
+        .set('currentPlatforms', []);
 
     case actionTypes.SET_CURRENT_PACKAGE:
       if (action.error) {
@@ -63,6 +65,9 @@ export default function packages(state = initialState['packages'], action) {
           setIn(['ui', 'current', 'loading'], false);
       }
 
+    case actionTypes.SET_CURRENT_PACKAGE_TARGET:
+      return state.set('currentPlatform', action.payload);
+
     case actionTypes.SET_CURRENT_PACKAGE_CHANNELS:
       return state.set('currentChannels', action.payload);
 
@@ -75,6 +80,7 @@ export default function packages(state = initialState['packages'], action) {
           setIn(['ui', 'versions', 'exists'], false);
       } else {
         return state.set('versions', action.payload).
+          set('currentPlatforms', targetsFromPkgVersions(action.payload)).
           setIn(['ui', 'versions', 'errorMessage'], undefined).
           setIn(['ui', 'versions', 'exists'], true).
           setIn(['ui', 'versions', 'loading'], false);

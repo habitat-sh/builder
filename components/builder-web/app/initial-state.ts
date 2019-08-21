@@ -164,6 +164,8 @@ export default Record({
     })(),
     visible: List(),
     versions: undefined,
+    currentPlatforms: [],
+    currentPlatform: undefined,
     nextRange: 0,
     perPage: 50,
     searchQuery: '',
@@ -223,6 +225,7 @@ export default Record({
     route: Record({
       id: undefined,
       description: undefined,
+      params: {},
       url: undefined,
       urlAfterRedirects: undefined
     })()

@@ -16,8 +16,8 @@ import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { Component, DebugElement } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
+import { get } from 'lodash';
 import { MockComponent } from 'ng2-mock-component';
 import { AppStore } from '../../app.store';
 import { Package } from '../../records/Package';
@@ -33,20 +33,24 @@ class MockAppStore {
       },
       app: {
         name: 'Habitat'
+      },
+      router: {
+        route: {
+          params: {
+            origin: 'core',
+            name: 'nginx',
+            target: 'linux'
+          }
+        }
       }
     };
   }
 
   dispatch() { }
-}
 
-class MockRoute {
-  parent = {
-    params: of({
-      origin: 'core',
-      name: 'nginx'
-    })
-  };
+  observe(path) {
+    return of(get(this.getState(), path));
+  }
 }
 
 describe('PackageLatestComponent', () => {
@@ -56,10 +60,7 @@ describe('PackageLatestComponent', () => {
   let store: MockAppStore;
 
   beforeEach(() => {
-
     store = new MockAppStore();
-    spyOn(store, 'dispatch');
-    spyOn(actions, 'fetchLatestPackage');
 
     TestBed.configureTestingModule({
       imports: [
@@ -71,21 +72,12 @@ describe('PackageLatestComponent', () => {
         MockComponent({ selector: 'hab-package-detail', inputs: ['package'] })
       ],
       providers: [
-        { provide: AppStore, useValue: store },
-        { provide: ActivatedRoute, useClass: MockRoute }
+        { provide: AppStore, useValue: store }
       ]
     });
 
     fixture = TestBed.createComponent(PackageLatestComponent);
     component = fixture.componentInstance;
     element = fixture.debugElement;
-  });
-
-  describe('given origin and name', () => {
-
-    it('fetches the latest package', () => {
-      expect(store.dispatch).toHaveBeenCalled();
-      expect(actions.fetchLatestPackage).toHaveBeenCalledWith('core', 'nginx');
-    });
   });
 });

@@ -23,6 +23,7 @@ import { MockComponent } from 'ng2-mock-component';
 import * as actions from '../../actions/index';
 import { AppStore } from '../../app.store';
 import { PackageComponent } from './package.component';
+import { get } from 'lodash';
 
 class MockAppStore {
   static state;
@@ -32,6 +33,10 @@ class MockAppStore {
   }
 
   dispatch() { }
+
+  observe(path) {
+    return of(get(this.getState(), path));
+  }
 }
 
 class MockRoute {
@@ -59,6 +64,16 @@ describe('PackageComponent', () => {
       origins: {
         mine: []
       },
+      packages: {
+        currentPlatforms: [
+          {
+            id: 'x86_64-linux',
+            name: 'Linux',
+            title: 'Linux',
+            param: 'linux'
+          }
+        ]
+      },
       projects: {
         ui: {
           current: {
@@ -73,6 +88,14 @@ describe('PackageComponent', () => {
       },
       session: {
         token: 'some-token'
+      },
+      router: {
+        route: {
+          params: {
+            origin: 'core',
+            name: 'nginx'
+          }
+        }
       }
     };
   });
@@ -87,7 +110,8 @@ describe('PackageComponent', () => {
       declarations: [
         PackageComponent,
         MockComponent({ selector: 'hab-package-breadcrumbs', inputs: ['ident'] }),
-        MockComponent({ selector: 'hab-package-sidebar', inputs: ['origin', 'name', 'building', 'buildable'] }),
+        MockComponent({ selector: 'hab-package-sidebar', inputs: ['origin', 'name', 'building', 'isOriginMember', 'hasPlan'] }),
+        MockComponent({ selector: 'hab-platform-icon', inputs: ['platform'] }),
         MockComponent({ selector: 'hab-job-notice', inputs: ['job'] }),
         MockComponent({ selector: 'hab-visibility-icon', inputs: ['visibility', 'prefix'] })
       ],

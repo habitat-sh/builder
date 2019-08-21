@@ -13,10 +13,13 @@
 // limitations under the License.
 
 import { Injectable } from '@angular/core';
-import { applyMiddleware, compose, createStore } from 'redux';
+import { applyMiddleware, compose, createStore, Store } from 'redux';
 import rootReducer from './reducers/index';
 import thunk from 'redux-thunk';
 import reduxReset from 'redux-reset';
+import { Observable, BehaviorSubject } from 'rxjs';
+import { distinctUntilChanged, map } from 'rxjs/operators';
+import { get, isEqual } from 'lodash';
 
 const composeEnhancers = window['__REDUX_DEVTOOLS_EXTENSION_COMPOSE__'] || compose;
 
@@ -34,7 +37,17 @@ const appStore = finalCreateStore(rootReducer);
 
 @Injectable()
 export class AppStore {
-  private store = appStore;
+  private store: Store = appStore;
+
+  private store$: Observable<any>;
+
+  private storeSource$: BehaviorSubject<any>;
+
+  constructor() {
+    this.storeSource$ = new BehaviorSubject(this.store.getState());
+    this.store$ = this.storeSource$.asObservable().pipe(distinctUntilChanged(isEqual));
+    this.store.subscribe(() => this.storeSource$.next(this.store.getState()));
+  }
 
   getState(): any {
     return this.store.getState();
@@ -42,6 +55,13 @@ export class AppStore {
 
   dispatch(action) {
     this.store.dispatch(action);
+  }
+
+  observe(path?: string | string[]): Observable<any> {
+    return this.store$.pipe(
+      map(state => path ? get(state, path) : state),
+      distinctUntilChanged(isEqual)
+    );
   }
 
   subscribe(listener: Function) {
