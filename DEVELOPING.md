@@ -16,6 +16,22 @@ There are potentially multiple ways of creating a Builder dev environment - but 
 
 ## Host OS Provisioning
 
+Your VM will need a static IP assigned for the Builder API to work properly. You can do so by adding the following to **the end** of your `/Library/Preferences/VMware Fusion/vmnet8/dhcpd.conf`:
+```
+host YOUR_VM_NAME {
+   hardware ethernet YOUR_VM_MAC_ADDRESS;
+   fixed-address YOUR_VM_IP_ADDRESS;
+}
+```
+
+See https://one.vg/static-ip-addresses-in-vmware-fusion/ for more detail on getting the correct MAC and IP address values when configuring `dhcpd.conf` for your VM.
+
+Then, you will need to re-start the VMWare networking on your host machine, like so:
+```
+sudo /Applications/VMware\ Fusion.app/Contents/Library/vmnet-cli --stop
+sudo /Applications/VMware\ Fusion.app/Contents/Library/vmnet-cli --start
+```
+
 If you plan to run the UI on the Host (Mac) OS, you will need to ensure that the Builder API port (9636) is forwarded from your VM to your host.
 
 You can do this by making a change to the default NAT configuration.
