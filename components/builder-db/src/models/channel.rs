@@ -73,6 +73,12 @@ pub struct ListChannelPackages<'a> {
     pub limit:      i64,
 }
 
+pub struct ListAllChannelPackages<'a> {
+    pub visibility: &'a Vec<PackageVisibility>,
+    pub channel:    &'a ChannelIdent,
+    pub origin:     &'a str,
+}
+
 impl Channel {
     pub fn list(origin: &str,
                 include_sandbox_channels: bool,
@@ -172,6 +178,31 @@ impl Channel {
             .load_and_count_records(conn)
     }
 
+    pub fn list_all_packages(lacp: &ListAllChannelPackages,
+                             conn: &PgConnection)
+                             -> QueryResult<(Vec<BuilderPackageIdent>)> {
+        Counter::DBCall.increment();
+        let start_time = PreciseTime::now();
+
+        let result = origin_packages::table
+            .inner_join(
+                origin_channel_packages::table
+                    .inner_join(origin_channels::table.inner_join(origins::table)),
+            )
+            .filter(origin_packages::visibility.eq(any(lacp.visibility)))
+            .filter(origins::name.eq(lacp.origin))
+            .filter(origin_channels::name.eq(lacp.channel.as_str()))
+            .select(origin_packages::ident)
+            .order(origin_packages::ident.asc())
+            .get_results(conn);
+
+        let end_time = PreciseTime::now();
+        trace!("DBCall channel::list_all_packages time: {} ms",
+               start_time.to(end_time).num_milliseconds());
+        Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+        result
+    }
+
     pub fn promote_packages(channel_id: i64,
                             package_ids: &[i64],
                             conn: &PgConnection)
@@ -184,6 +215,7 @@ impl Channel {
                                              })
                                              .collect();
         diesel::insert_into(origin_channel_packages::table).values(insert)
+                                                           .on_conflict_do_nothing()
                                                            .execute(conn)
     }
 

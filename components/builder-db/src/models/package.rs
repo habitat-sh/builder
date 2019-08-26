@@ -289,6 +289,12 @@ pub struct GetPackage {
 }
 
 #[derive(Debug)]
+pub struct GetPackageGroup {
+    pub pkgs:       Vec<BuilderPackageIdent>,
+    pub visibility: Vec<PackageVisibility>,
+}
+
+#[derive(Debug)]
 pub struct DeletePackage {
     pub ident:  BuilderPackageIdent,
     pub target: BuilderPackageTarget,
@@ -416,6 +422,12 @@ impl Package {
                 .filter(origin_packages::target.eq(req.target)),
         )
         .execute(conn)
+    }
+
+    pub fn get_group(req: GetPackageGroup, conn: &PgConnection) -> QueryResult<Vec<Package>> {
+        Self::all().filter(origin_packages::ident.eq(any(req.pkgs)))
+                   .filter(origin_packages::visibility.eq(any(req.visibility)))
+                   .get_results(conn)
     }
 
     pub fn get_all(req_ident: BuilderPackageIdent,

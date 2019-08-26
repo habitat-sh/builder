@@ -29,6 +29,7 @@ pub enum Counter {
     MultipartUploadRequests,
     DownloadRequests,
     UploadFailures,
+    AtomicChannelRequests,
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -46,6 +47,7 @@ impl metrics::Metric for Counter {
             Counter::MultipartUploadRequests => "upload-multi".into(),
             Counter::DownloadRequests => "download-packages".into(),
             Counter::UploadFailures => "upload-failures".into(),
+            Counter::AtomicChannelRequests => "channel-to-channel".into(),
         }
     }
 }

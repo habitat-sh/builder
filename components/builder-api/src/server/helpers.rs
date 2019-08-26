@@ -56,6 +56,12 @@ pub struct PaginatedResults<'a, T: 'a> {
     data:        &'a [T],
 }
 
+#[derive(Deserialize)]
+pub struct ToChannel {
+    #[serde(default)]
+    pub channel: String,
+}
+
 pub fn package_results_json<T: Serialize>(packages: &[T],
                                           count: isize,
                                           start: isize,
