@@ -36,11 +36,11 @@ pub struct OAuth2Client {
 }
 
 impl OAuth2Client {
-    pub fn new(config: OAuth2Cfg) -> Self {
+    pub fn new(config: OAuth2Cfg) -> Result<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(),];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        let client = HttpClient::new(&config.token_url, headers);
+        let client = HttpClient::new(&config.token_url, headers)?;
 
         let provider: Box<dyn OAuth2Provider> = match &config.provider[..] {
             "active-directory" => Box::new(ActiveDirectory),
@@ -53,9 +53,9 @@ impl OAuth2Client {
             _ => panic!("Unknown OAuth provider: {}", config.provider),
         };
 
-        OAuth2Client { inner: client,
-                       config,
-                       provider }
+        Ok(OAuth2Client { inner: client,
+                          config,
+                          provider })
     }
 
     pub fn authenticate(&self, code: &str) -> Result<(String, OAuth2User)> {

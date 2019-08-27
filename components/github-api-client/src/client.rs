@@ -84,17 +84,17 @@ pub struct GitHubClient {
 }
 
 impl GitHubClient {
-    pub fn new(config: GitHubCfg) -> Self {
+    pub fn new(config: GitHubCfg) -> HubResult<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(),
                                  ACCEPT_GITHUB_JSON.clone(),
                                  CONTENT_TYPE_APPLICATION_JSON.clone()];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        GitHubClient { inner:           HttpClient::new(&config.api_url, headers),
-                       api_url:         config.api_url,
-                       app_id:          config.app_id,
-                       app_private_key: config.app_private_key,
-                       webhook_secret:  config.webhook_secret, }
+        Ok(GitHubClient { inner:           HttpClient::new(&config.api_url, headers)?,
+                          api_url:         config.api_url,
+                          app_id:          config.app_id,
+                          app_private_key: config.app_private_key,
+                          webhook_secret:  config.webhook_secret, })
     }
 
     pub fn app(&self) -> HubResult<App> {
@@ -305,7 +305,7 @@ mod tests {
 
             if !pp.is_empty() {
                 let cfg = config::GitHubCfg::default();
-                let client = GitHubClient::new(cfg);
+                let client = GitHubClient::new(cfg).unwrap();
                 assert_eq!(client.meta().unwrap(), ());
             }
         }

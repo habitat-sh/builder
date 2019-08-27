@@ -45,7 +45,7 @@ impl Publisher {
         debug!("Publisher (url: {}, channel: {:?})",
                self.url, self.channel_opt);
 
-        let client = ApiClient::new(&self.url);
+        let client = ApiClient::new(&self.url)?;
         let ident = archive.ident().unwrap();
         let target = archive.target().unwrap();
 

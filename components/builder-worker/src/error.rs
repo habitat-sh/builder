@@ -180,6 +180,10 @@ impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
 }
 
+impl From<github_api_client::HubError> for Error {
+    fn from(err: github_api_client::HubError) -> Error { Error::GithubAppAuthErr(err) }
+}
+
 impl From<protobuf::ProtobufError> for Error {
     fn from(err: protobuf::ProtobufError) -> Error { Error::Protobuf(err) }
 }

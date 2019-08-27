@@ -24,13 +24,13 @@ num_cpus = "*"
 protobuf = "*"
 fnv = "*"
 fallible-iterator = "*"
-percent-encoding = "*"
 postgres = "*"
 postgres-derive = "*"
 postgres-shared = "*"
 r2d2_postgres = "*"
 threadpool = "*"
-url = "*"
+# Unlock with builder_core
+url = "=1.7.2"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

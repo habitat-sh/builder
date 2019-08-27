@@ -31,6 +31,7 @@ use protobuf;
 use reqwest;
 use rusoto_core::RusotoError;
 use rusoto_s3;
+use segment_api_client::SegmentError;
 use serde_json;
 
 use crate::{bldr_core,
@@ -64,6 +65,7 @@ pub enum Error {
     PartialUpload(RusotoError<rusoto_s3::UploadPartError>),
     PayloadError(actix_web::error::PayloadError),
     Protobuf(protobuf::ProtobufError),
+    Segment(SegmentError),
     SerdeJson(serde_json::Error),
     System,
     Unprocessable,
@@ -100,6 +102,7 @@ impl fmt::Display for Error {
             Error::PartialUpload(ref e) => format!("{}", e),
             Error::PayloadError(ref e) => format!("{}", e),
             Error::Protobuf(ref e) => format!("{}", e),
+            Error::Segment(ref e) => format!("{}", e),
             Error::SerdeJson(ref e) => format!("{}", e),
             Error::System => "Internal error".to_string(),
             Error::Unprocessable => "Unprocessable entity".to_string(),
@@ -137,6 +140,7 @@ impl error::Error for Error {
             Error::PartialUpload(ref err) => err.description(),
             Error::PayloadError(_) => "Http request stream error",
             Error::Protobuf(ref err) => err.description(),
+            Error::Segment(ref err) => err.description(),
             Error::SerdeJson(ref err) => err.description(),
             Error::System => "Internal error",
             Error::Unprocessable => "Unprocessable entity",
@@ -241,6 +245,14 @@ impl From<io::Error> for Error {
 
 impl From<OAuthError> for Error {
     fn from(err: OAuthError) -> Error { Error::OAuth(err) }
+}
+
+impl From<ArtifactoryError> for Error {
+    fn from(err: ArtifactoryError) -> Error { Error::Artifactory(err) }
+}
+
+impl From<SegmentError> for Error {
+    fn from(err: SegmentError) -> Error { Error::Segment(err) }
 }
 
 impl From<actix_web::error::PayloadError> for Error {

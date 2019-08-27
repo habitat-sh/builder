@@ -44,16 +44,16 @@ pub struct ArtifactoryClient {
 }
 
 impl ArtifactoryClient {
-    pub fn new(config: ArtifactoryCfg) -> Self {
+    pub fn new(config: ArtifactoryCfg) -> ArtifactoryResult<Self> {
         let mut headers = HeaderMap::new();
         headers.insert(USER_AGENT_BLDR.0.clone(), USER_AGENT_BLDR.1.clone());
         headers.insert(HeaderName::from_static(X_JFROG_ART_API),
                        HeaderValue::from_str(&config.api_key).expect("Invalid API key value"));
 
-        ArtifactoryClient { inner:   HttpClient::new(&config.api_url, headers),
-                            api_url: config.api_url,
-                            api_key: config.api_key,
-                            repo:    config.repo, }
+        Ok(ArtifactoryClient { inner:   HttpClient::new(&config.api_url, headers)?,
+                               api_url: config.api_url,
+                               api_key: config.api_key,
+                               repo:    config.repo, })
     }
 
     pub fn upload(&self,

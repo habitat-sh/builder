@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use num_cpus;
-use percent_encoding::{utf8_percent_encode,
-                       PATH_SEGMENT_ENCODE_SET};
 use postgres_shared::params::{ConnectParams,
                               Host,
                               IntoConnectParams};
 use std::{error::Error,
           fmt};
+use url::percent_encoding::{utf8_percent_encode,
+                            PATH_SEGMENT_ENCODE_SET};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
