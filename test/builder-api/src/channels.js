@@ -376,4 +376,171 @@ describe('Channels API', function () {
         });
     });
   });
+
+  describe('Channel-to-Channel promotion', function () {
+    it('requires authentication to promote all packages in channel', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote?channel=throneroom')
+        .expect(401)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('requires origin membership to promote all packages', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote?channel=throneroom')
+        .set('Authorization', global.mystiqueBearer)
+        .expect(401)
+        .end(function (err, res) {
+          done(err);
+        });
+    });
+
+    it('rejects attempts to promote packages when source_channel and target_channel match', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote?channel=foo')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to promote packages to target_channel if set to unstable', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote?channel=unstable')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('puts all channel packages into a specified channel', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=foo')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('promotes between non-default channels channel', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote?channel=throneroom')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('should ignore packages promoted to a channel where the package already exists', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=foo')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('will find all packages in a channel after promotion', function (done) {
+      request.get('/depot/channels/neurosis/foo/pkgs')
+        .type('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(30);
+          expect(res.body.total_count).to.equal(31);
+          expect(res.body.data.length).to.equal(31);
+          done(err);
+        });
+    });
+
+    it('can promote private packages', function (done) {
+      request.put('/depot/channels/neurosis/bar/pkgs/promote?channel=throneroom')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
+  describe('Channel-to-channel Demotion', function () {
+    it('requires authentication to demote all packages in channel', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/demote')
+      .expect(401)
+      .end(function (err, res) {
+        expect(res.text).to.be.empty;
+        done(err);
+      });
+    });
+
+    it('requires origin membership to demote all packages in channel', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/demote')
+        .set('Authorization', global.mystiqueBearer)
+        .expect(401)
+        .end(function (err, res) {
+          done(err);
+        });
+    });
+
+    it('removes all packages from the specified channel', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/demote?channel=throneroom')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to demote all packages from the unstable channel', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/demote?channel=unstable')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to demote packages when source_channel and target_channel match', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/demote?channel=foo')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to demote packages when source_channel is unstable', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/demote?channel=stable')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('will not find a package in a channel after it has been demoted', function (done) {
+      request.get('/depot/channels/neurosis/throneroom/pkgs')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
+          done(err);
+        });
+    });
+  });
 });

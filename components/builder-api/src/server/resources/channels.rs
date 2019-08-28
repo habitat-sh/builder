@@ -36,6 +36,7 @@ use crate::{bldr_core::metrics::CounterMetric,
 
 use crate::db::models::{channel::*,
                         package::{BuilderPackageIdent,
+                                  GetPackageGroup,
                                   Package}};
 
 use crate::server::{authorize::authorize_session,
@@ -46,7 +47,8 @@ use crate::server::{authorize::authorize_session,
                               req_state,
                               visibility_for_optional_session,
                               Pagination,
-                              Target},
+                              Target,
+                              ToChannel},
                     services::metrics::Counter,
                     AppState};
 
@@ -80,6 +82,10 @@ impl Channels {
                   web::get().to(get_latest_package_for_origin_channel_package_version))
            .route("/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}",
                   web::get().to(get_package_fully_qualified))
+           .route("/depot/channels/{origin}/{channel}/pkgs/promote",
+                  web::put().to(promote_channel_packages))
+           .route("/depot/channels/{origin}/{channel}/pkgs/demote",
+                  web::put().to(demote_channel_packages))
            .route("/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/promote",
                   web::put().to(promote_package))
            .route("/depot/channels/{origin}/{channel}/pkgs/{pkg}/{version}/{release}/demote",
@@ -187,6 +193,186 @@ fn delete_channel(req: HttpRequest,
             err.into()
         }
     }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn promote_channel_packages(req: HttpRequest,
+                            path: Path<(String, String)>,
+                            state: Data<AppState>,
+                            to_channel: Query<ToChannel>)
+                            -> HttpResponse {
+    let (origin, channel) = path.into_inner();
+
+    let session = match authorize_session(&req, Some(&origin)) {
+        Ok(session) => session,
+        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+    };
+
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let ch_source = ChannelIdent::from(channel);
+    let ch_target = ChannelIdent::from(to_channel.channel.as_ref());
+
+    match do_promote_or_demote_channel_packages(&req,
+                                                &ch_source,
+                                                &ch_target,
+                                                &origin,
+                                                true,
+                                                session.get_id() as i64)
+    {
+        Ok(pkg_ids) => {
+            match PackageGroupChannelAudit::audit(
+                PackageGroupChannelAudit {
+                    origin: &origin,
+                    channel: &ch_target.as_str(),
+                    package_ids: pkg_ids,
+                    operation: PackageChannelOperation::Promote,
+                    trigger: helpers::trigger_from_request_model(&req),
+                    requester_id: session.get_id() as i64,
+                    requester_name: session.get_name(),
+                    group_id: 0 as i64,
+                },
+                &*conn,
+            ) {
+                Ok(_) => {}
+                Err(e) => debug!("Failed to save rank change to audit log: {}", e),
+            };
+            HttpResponse::new(StatusCode::OK)
+        }
+        Err(e) => {
+            debug!("{}", e);
+            e.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn demote_channel_packages(req: HttpRequest,
+                           path: Path<(String, String)>,
+                           state: Data<AppState>,
+                           to_channel: Query<ToChannel>)
+                           -> HttpResponse {
+    let (origin, channel) = path.into_inner();
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let session = match authorize_session(&req, Some(&origin)) {
+        Ok(session) => session,
+        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+    };
+
+    let ch_source = ChannelIdent::from(channel);
+    let ch_target = ChannelIdent::from(to_channel.channel.as_ref());
+
+    match do_promote_or_demote_channel_packages(&req,
+                                                &ch_source,
+                                                &ch_target,
+                                                &origin,
+                                                false,
+                                                session.get_id() as i64)
+    {
+        Ok(pkg_ids) => {
+            match PackageGroupChannelAudit::audit(
+                PackageGroupChannelAudit {
+                    origin: &origin,
+                    channel: &ch_target.as_str(),
+                    package_ids: pkg_ids,
+                    operation: PackageChannelOperation::Demote,
+                    trigger: helpers::trigger_from_request_model(&req),
+                    requester_id: session.get_id() as i64,
+                    requester_name: session.get_name(),
+                    group_id: 0 as i64,
+                },
+                &*conn,
+            ) {
+                Ok(_) => {}
+                Err(e) => debug!("Failed to save rank change to audit log: {}", e),
+            };
+            HttpResponse::new(StatusCode::OK)
+        }
+        Err(e) => {
+            debug!("{}", e);
+            e.into()
+        }
+    }
+}
+
+fn do_promote_or_demote_channel_packages(req: &HttpRequest,
+                                         ch_source: &ChannelIdent,
+                                         ch_target: &ChannelIdent,
+                                         origin: &str,
+                                         promote: bool,
+                                         session_id: i64)
+                                         -> Result<Vec<i64>> {
+    Counter::AtomicChannelRequests.increment();
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut pkg_ids = Vec::new();
+
+    // Simple guards to protect users from bad decisioning
+    if !promote
+       && (*ch_target == ChannelIdent::unstable() || *ch_source == ChannelIdent::unstable())
+    {
+        return Err(Error::BadRequest);
+    }
+
+    if *ch_target == *ch_source {
+        return Err(Error::BadRequest);
+    }
+
+    if promote && *ch_target == ChannelIdent::unstable() {
+        return Err(Error::BadRequest);
+    }
+
+    let pkgs = do_get_all_channel_packages(&req, &origin, &ch_source)?;
+
+    #[rustfmt::skip]
+    let channel = match Channel::get(&origin, &ch_target, &*conn) {
+        Ok(channel) => channel,
+        Err(NotFound) => {
+            if (ch_target != &ChannelIdent::stable()) && (ch_target != &ChannelIdent::unstable()) {
+                Channel::create(
+                    &CreateChannel {
+                        name:     &ch_target.as_str(),
+                        origin:   &origin,
+                        owner_id: session_id,
+                    },
+                &*conn)?
+            } else {
+                warn!("Unable to retrieve target channel: {}", &ch_target);
+                return Err(Error::DieselError(NotFound));
+            }
+        }
+        Err(e) => {
+            info!("Unable to retrieve channel, err: {:?}", e);
+            return Err(Error::DieselError(e));
+        }
+    };
+
+    #[rustfmt::skip]
+    let op = Package::get_group(
+        GetPackageGroup {
+            pkgs,
+            visibility: helpers::all_visibilities()
+        },
+    &*conn)?;
+
+    let mut ids: Vec<i64> = op.iter().map(|x| x.id).collect();
+
+    pkg_ids.append(&mut ids);
+
+    if promote {
+        debug!("Bulk promoting Pkg IDs: {:?}", &pkg_ids);
+        Channel::promote_packages(channel.id, &pkg_ids, &*conn)?;
+    } else {
+        debug!("Bulk demoting Pkg IDs: {:?}", &pkg_ids);
+        Channel::demote_packages(channel.id, &pkg_ids, &*conn)?;
+    }
+    Ok(pkg_ids)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -512,6 +698,18 @@ fn do_get_channel_packages(req: &HttpRequest,
         &*conn,
     )
     .map_err(Error::DieselError)
+}
+
+fn do_get_all_channel_packages(req: &HttpRequest,
+                               origin: &str,
+                               channel: &ChannelIdent)
+                               -> Result<(Vec<BuilderPackageIdent>)> {
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+
+    Channel::list_all_packages(&ListAllChannelPackages { visibility: &helpers::all_visibilities(),
+                                                         origin: &origin,
+                                                         channel },
+                               &*conn).map_err(Error::DieselError)
 }
 
 fn do_get_channel_package(req: &HttpRequest,
