@@ -47,7 +47,8 @@ use crate::db::models::{account::Account,
                         projects::Project};
 
 use crate::server::{authorize::authorize_session,
-                    error::Error,
+                    error::{Error,
+                            Result},
                     feat,
                     framework::{headers,
                                 middleware::route_message},
@@ -68,7 +69,7 @@ impl FromStr for GitHubEvent {
             "ping" => Ok(GitHubEvent::Ping),
             "push" => Ok(GitHubEvent::Push),
             _ => {
-                warn!("Received an unknown github event type");
+                warn!("Received an unknown GitHub event type");
                 Err(Error::BadRequest)
             }
         }
@@ -94,10 +95,16 @@ pub fn handle_event(req: HttpRequest, body: String) -> HttpResponse {
 
             match GitHubEvent::from_str(event_str) {
                 Ok(event) => event,
-                Err(err) => return err.into(),
+                Err(err) => {
+                    warn!("Unable to parse XGithubEvent header, {:?}", err);
+                    return err.into();
+                }
             }
         }
-        None => return Error::BadRequest.into(),
+        None => {
+            warn!("Received a GitHub hook with no XGithubEvent header");
+            return Error::BadRequest.into();
+        }
     };
 
     // Authenticate the hook
@@ -146,7 +153,7 @@ pub fn repo_file_content(req: HttpRequest,
         match github.app_installation_token(install_id) {
             Ok(token) => token,
             Err(err) => {
-                warn!("unable to generate github app token, {}", err);
+                warn!("Unable to generate GitHub app token, {:?}", err);
                 return Error::Github(err).into();
             }
         }
@@ -156,7 +163,7 @@ pub fn repo_file_content(req: HttpRequest,
         Ok(None) => HttpResponse::new(StatusCode::NOT_FOUND),
         Ok(search) => HttpResponse::Ok().json(&search),
         Err(err) => {
-            warn!("unable to fetch github contents, {}", err);
+            warn!("Unable to fetch GitHub contents, {:?}", err);
             Error::Github(err).into()
         }
     }
@@ -167,9 +174,13 @@ fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
         Ok(hook) => hook,
         Err(err) => return Error::SerdeJson(err).into(),
     };
-    debug!("GITHUB-WEBHOOK builder_api::github::handle_push: received hook; repository={} \
-            repository_id={} ref={} installation_id={}",
-           hook.repository.full_name, hook.repository.id, hook.git_ref, hook.installation.id);
+    debug!("Received GitHub web hook; sender={}, repository={} repository_id={} ref={} \
+            installation_id={}",
+           hook.sender.login,
+           hook.repository.full_name,
+           hook.repository.id,
+           hook.git_ref,
+           hook.installation.id);
 
     let conn = match req_state(req).db.get_conn() {
         Ok(conn_ref) => conn_ref,
@@ -177,7 +188,7 @@ fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
     };
 
     if hook.commits.is_empty() {
-        debug!("GITHUB-WEBHOOK builder_api::github::handle_push: hook commits is empty!");
+        debug!("GitHub web hook does not have any commits!");
         return HttpResponse::new(StatusCode::OK);
     }
 
@@ -186,7 +197,7 @@ fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
     let token = match github.app_installation_token(hook.installation.id) {
         Ok(token) => token,
         Err(err) => {
-            warn!("unable to generate github app token, {}", err);
+            warn!("Unable to generate GitHub app token, {:?}", err);
             return Error::Github(err).into();
         }
     };
@@ -196,11 +207,17 @@ fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
         Err(_) => None,
     };
 
-    let config = read_bldr_config(&github, &token, &hook);
-    debug!("Config, {:?}", config);
+    let config = match read_bldr_config(&github, &token, &hook) {
+        Ok(config) => config,
+        Err(err) => return err.into(),
+    };
+    debug!("Config: {:#?}", config);
 
-    let plans = read_plans(&github, &token, &hook, &config);
-    debug!("Triggered Plans, {:?}", plans);
+    let plans = match read_plans(&github, &token, &hook, &config) {
+        Ok(plans) => plans,
+        Err(err) => return err.into(),
+    };
+    debug!("Triggered Plans: {:#?}", plans);
 
     build_plans(&req,
                 &hook.repository.clone_url,
@@ -268,29 +285,39 @@ fn build_plans(req: &HttpRequest,
     HttpResponse::Ok().json(&plans)
 }
 
-fn read_bldr_config(github: &GitHubClient, token: &AppToken, hook: &GitHubWebhookPush) -> BuildCfg {
-    match github.contents(&token, hook.repository.id, BLDR_CFG) {
+fn read_bldr_config(github: &GitHubClient,
+                    token: &AppToken,
+                    hook: &GitHubWebhookPush)
+                    -> Result<BuildCfg> {
+    match github.contents(&token, hook.repository.id, BLDR_CFG)
+                .map_err(Error::Github)
+    {
         Ok(Some(contents)) => {
-            match contents.decode() {
+            debug!("Found a bldr.toml for repo {}", hook.repository.full_name);
+            match contents.decode().map_err(Error::Github) {
                 Ok(ref bytes) => {
-                    match BuildCfg::from_slice(bytes) {
-                        Ok(cfg) => cfg,
+                    match BuildCfg::from_slice(bytes).map_err(Error::BuilderCore) {
+                        Ok(cfg) => Ok(cfg),
                         Err(err) => {
-                            debug!("unable to parse bldr.toml, {}", err);
-                            BuildCfg::default()
+                            warn!("Unable to parse bldr.toml, {:?}", err);
+                            Err(err)
                         }
                     }
                 }
                 Err(err) => {
-                    debug!("unable to read bldr.toml, {}", err);
-                    BuildCfg::default()
+                    warn!("Unable to decode bldr.toml, {:?}", err);
+                    Err(err)
                 }
             }
         }
-        Ok(None) => BuildCfg::default(),
+        Ok(None) => {
+            debug!("No bldr.toml found for repo {}, using default config",
+                   hook.repository.full_name);
+            Ok(BuildCfg::default())
+        }
         Err(err) => {
-            warn!("unable to retrieve bldr.toml, {}", err);
-            BuildCfg::default()
+            warn!("Unable to retrieve bldr.toml, {:?}", err);
+            Err(err)
         }
     }
 }
@@ -299,58 +326,68 @@ fn read_plans(github: &GitHubClient,
               token: &AppToken,
               hook: &GitHubWebhookPush,
               bldr_cfg: &BuildCfg)
-              -> Vec<PlanWithTarget> {
+              -> Result<Vec<PlanWithTarget>> {
     let mut plans = Vec::with_capacity(bldr_cfg.projects().len());
-    for project_cfg in bldr_cfg.triggered_by(hook.branch(), hook.changed().as_slice()) {
-        let targets = read_plan_targets(github, token, hook, project_cfg.plan_path());
-        for target in targets {
-            if project_cfg.build_targets.contains(&target) {
-                debug!("Project config contains target: {}", target);
-                let plan_file = if target == target::X86_64_WINDOWS {
-                    "plan.ps1"
-                } else {
-                    "plan.sh"
-                };
-                let plan_path = project_cfg.plan_path().join(plan_file);
 
-                if let Some(plan) = read_plan(github, &token, hook, &plan_path.to_string_lossy()) {
-                    plans.push(PlanWithTarget(plan, target));
+    for project_cfg in bldr_cfg.triggered_by(hook.branch(), hook.changed().as_slice()) {
+        for plan_path in project_cfg.plan_path_candidates() {
+            debug!("Checking targets for plan_path candidate {:?}", plan_path);
+            let targets = read_plan_targets(github, token, hook, &plan_path)?;
+
+            for target in targets {
+                if project_cfg.build_targets.contains(&target) {
+                    debug!("Project config contains target: {}", target);
+                    let plan_file = if target == target::X86_64_WINDOWS {
+                        "plan.ps1"
+                    } else {
+                        "plan.sh"
+                    };
+                    let plan_path = plan_path.join(plan_file);
+
+                    if let Some(plan) =
+                        read_plan(github, &token, hook, &plan_path.to_string_lossy())?
+                    {
+                        plans.push(PlanWithTarget(plan, target));
+                    }
                 }
             }
         }
     }
-    plans
+
+    Ok(plans)
 }
 
 fn read_plan(github: &GitHubClient,
              token: &AppToken,
              hook: &GitHubWebhookPush,
              path: &str)
-             -> Option<Plan> {
+             -> Result<Option<Plan>> {
     debug!("Reading plan from: {:?}", path);
 
-    match github.contents(&token, hook.repository.id, path) {
+    match github.contents(&token, hook.repository.id, path)
+                .map_err(Error::Github)
+    {
         Ok(Some(contents)) => {
-            match contents.decode() {
+            match contents.decode().map_err(Error::Github) {
                 Ok(bytes) => {
-                    match Plan::from_bytes(bytes.as_slice()) {
-                        Ok(plan) => Some(plan),
+                    match Plan::from_bytes(bytes.as_slice()).map_err(Error::HabitatCore) {
+                        Ok(plan) => Ok(Some(plan)),
                         Err(err) => {
-                            debug!("unable to read plan, {}, {}", path, err);
-                            None
+                            warn!("Failed to parse plan: {}, {:?}", path, err);
+                            Err(err)
                         }
                     }
                 }
                 Err(err) => {
-                    debug!("unable to read plan, {}, {}", path, err);
-                    None
+                    warn!("Failed to decode plan bytes: {}, {:?}", path, err);
+                    Err(err)
                 }
             }
         }
-        Ok(None) => None,
+        Ok(None) => Ok(None),
         Err(err) => {
-            warn!("unable to retrieve plan, {}, {}", path, err);
-            None
+            warn!("Unable to read plan: {}, {:?}", path, err);
+            Err(err)
         }
     }
 }
@@ -359,14 +396,16 @@ fn read_plan_targets(github: &GitHubClient,
                      token: &AppToken,
                      hook: &GitHubWebhookPush,
                      path: &PathBuf)
-                     -> HashSet<PackageTarget> {
+                     -> Result<HashSet<PackageTarget>> {
     debug!("Reading plan targets from {:?}", path);
     let mut targets: HashSet<PackageTarget> = HashSet::new();
 
-    match github.directory(&token, hook.repository.id, &path.to_string_lossy()) {
-        Ok(Some(directories)) => {
-            for directory in directories {
-                match &directory.name[..] {
+    match github.directory(&token, hook.repository.id, &path.to_string_lossy())
+                .map_err(Error::Github)
+    {
+        Ok(Some(entries)) => {
+            for entry in entries {
+                match &entry.name[..] {
                     "plan.ps1" => {
                         targets.insert(target::X86_64_WINDOWS);
                     }
@@ -378,9 +417,11 @@ fn read_plan_targets(github: &GitHubClient,
                 }
             }
         }
-        Ok(None) => warn!("no plan directories found, {:?}", path),
-        Err(err) => warn!("unable to retrieve plan directory, {:?}, {}", path, err),
+        Ok(None) => debug!("No plan directory found for: {:?}", path),
+        Err(err) => {
+            warn!("Failed to read plan directory: {:?}, {:?}", path, err);
+        }
     }
 
-    targets
+    Ok(targets)
 }

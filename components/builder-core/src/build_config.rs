@@ -72,12 +72,6 @@ impl Default for BuildCfg {
     fn default() -> Self {
         let mut cfg = HashMap::default();
         cfg.insert("default".into(), ProjectCfg::default());
-
-        // Handle the case where the plan.sh is at the root
-        let mut root_proj_cfg = ProjectCfg::default();
-        root_proj_cfg.plan_path = PathBuf::from("");
-        cfg.insert("root_default".into(), root_proj_cfg);
-
         BuildCfg(cfg)
     }
 }
@@ -140,13 +134,9 @@ impl Serialize for Pattern {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ProjectCfg {
-    /// Branches which trigger an automatic rebuild on push notification from a GitHub push
-    /// notification (default: ["master"]).
-    #[serde(default = "ProjectCfg::default_branches")]
-    pub branches: Vec<String>,
-    /// Additional Release Channel to promote built packages into.
-    #[serde(default)]
-    pub channels: Vec<String>,
+    /// Relative filepath to the project's Habitat Plan (default: "habitat").
+    #[serde(default = "ProjectCfg::default_plan_path")]
+    pub plan_path: PathBuf,
     /// Unix style file globs which are matched against changed files from a GitHub push
     /// notification to determine if an automatic rebuild should occur.
     #[serde(default)]
@@ -154,38 +144,67 @@ pub struct ProjectCfg {
     /// Package targets to build when changes detected
     #[serde(default = "ProjectCfg::default_build_targets")]
     pub build_targets: HashSet<PackageTarget>,
-    /// Relative filepath to the project's Habitat Plan (default: "habitat").
-    #[serde(default = "ProjectCfg::default_plan_path")]
-    plan_path: PathBuf,
 }
 
 impl ProjectCfg {
-    fn default_branches() -> Vec<String> { vec!["master".to_string()] }
-
-    fn default_path() -> Pattern { Pattern::from_str("*").unwrap() }
-
     fn default_plan_path() -> PathBuf { PathBuf::from("habitat") }
 
-    fn default_plan_pattern() -> Pattern { Pattern::from_str("habitat/*").unwrap() }
+    fn default_path_pattern() -> Pattern { Pattern::from_str("*").unwrap() }
 
     fn default_build_targets() -> HashSet<PackageTarget> {
         HashSet::from_iter(vec![target::X86_64_WINDOWS, target::X86_64_LINUX])
     }
 
-    pub fn plan_path(&self) -> &PathBuf { &self.plan_path }
+    // Enumerate all the possible candidates for plan file locations.
+    // For example, given a plan_path of "foo/bar/habitat", the possible
+    // valid paths for a plan file would be "foo/bar" and "foo/bar/habitat".
+    // The same possible valid paths would be returned if the plan_path was
+    // "foo/bar", or "foo/bar/plan.sh", or "foo/bar/plan.ps1", or even
+    // "foo/bar/habitat/plan.sh" or "foo/bar/habitat/plan.ps1".
+    // This flexibility helps us do a better job finding plans for a
+    // given bldr.toml specification.
+    pub fn plan_path_candidates(&self) -> Vec<PathBuf> {
+        let mut candidates = Vec::new();
+        let mut p = self.plan_path.clone();
+
+        if p.ends_with("plan.sh") || p.ends_with("plan.ps1") {
+            p.pop();
+        }
+
+        if p.ends_with("habitat") {
+            p.pop();
+        }
+
+        candidates.push(p.clone());
+        p.push("habitat");
+        candidates.push(p);
+
+        debug!("plan_path_candidates for {:?}: {:?}",
+               self.plan_path, candidates);
+        candidates
+    }
 
     /// Returns true if the given branch & file path combination should result in a new build
     /// being automatically triggered by a GitHub Push notification
     fn triggered_by<T>(&self, branch: &str, paths: &[T]) -> bool
         where T: AsRef<str>
     {
-        if !self.branches.iter().any(|b| b == branch) {
+        if branch != "master" {
             return false;
         }
-        let plan_pattern = Pattern::from_str(&self.plan_path.join("*").to_string_lossy())
-            .unwrap_or_else(|_| Self::default_plan_pattern());
+
+        // Create the match patterns for all the plan path candidates
+        let candidates = self.plan_path_candidates();
+        let mut plan_patterns = candidates.iter().map(|p| {
+            Pattern::from_str(&p.join("*").to_string_lossy()).unwrap_or_else(|_| {
+                                                                 Self::default_path_pattern()
+                                                             })
+        });
+
+        // Check to see if any of the passed in paths match either the plan
+        // patterns or the path patterns
         paths.iter().any(|p| {
-                        plan_pattern.matches(p.as_ref())
+                        plan_patterns.any(|i| i.matches(p.as_ref()))
                         || self.paths.iter().any(|i| i.matches(p.as_ref()))
                     })
     }
@@ -193,10 +212,8 @@ impl ProjectCfg {
 
 impl Default for ProjectCfg {
     fn default() -> Self {
-        ProjectCfg { branches:      ProjectCfg::default_branches(),
-                     channels:      vec![],
-                     paths:         vec![ProjectCfg::default_path()],
-                     plan_path:     ProjectCfg::default_plan_path(),
+        ProjectCfg { plan_path:     ProjectCfg::default_plan_path(),
+                     paths:         vec![ProjectCfg::default_path_pattern()],
                      build_targets: ProjectCfg::default_build_targets(), }
     }
 }
@@ -208,13 +225,6 @@ mod test {
     const CONFIG: &str = r#"
     [hab-sup]
     plan_path = "components/hab-sup"
-    branches = [
-      "master",
-      "dev",
-    ]
-    channels = [
-      "stable"
-    ]
     paths = [
       "components/net/*"
     ]
@@ -225,6 +235,9 @@ mod test {
       "components/net/*"
     ]
     build_targets = [ "x86_64-windows" ]
+
+    [full-plan-path]
+    plan_path = "components/builder-api/habitat/plan.sh"
 
     [default]
     "#;
@@ -238,7 +251,8 @@ mod test {
 
         assert!(hab_sup.triggered_by("master", &["components/hab-sup/Cargo.toml"],));
         assert!(hab_sup.triggered_by("master", &["components/hAb-Sup/Cargo.toml"],));
-        assert!(hab_sup.triggered_by("dev", &["components/hab-sup/Cargo.toml"],));
+        assert_eq!(hab_sup.triggered_by("dev", &["components/hab-sup/Cargo.toml"]),
+                   false);
         assert_eq!(hab_sup.triggered_by("master", &["components"]), false);
 
         assert!(bldr_api.triggered_by("master", &["components/builder-api/habitat/plan.sh"],));
@@ -249,7 +263,7 @@ mod test {
         assert!(default.triggered_by("master", &["habitat/plan.sh"]));
         assert!(default.triggered_by("master", &["habitat/hooks/init"]));
         assert_eq!(default.triggered_by("dev", &["habitat/plan.sh"]), false);
-        assert_eq!(default.triggered_by("master", &["components"]), false);
+        assert_eq!(default.triggered_by("master", &["components"]), true);
     }
 
     #[test]
@@ -257,7 +271,16 @@ mod test {
         let cfg = BuildCfg::default();
 
         assert_eq!(cfg.triggered_by("dev", &["habitat/plan.sh"]).len(), 0);
-        assert_eq!(cfg.triggered_by("master", &["habitat/plan.sh"]).len(), 2);
-        assert_eq!(cfg.triggered_by("master", &["plan.sh"]).len(), 2);
+        assert_eq!(cfg.triggered_by("master", &["habitat/plan.sh"]).len(), 1);
+        assert_eq!(cfg.triggered_by("master", &["plan.sh"]).len(), 1);
+    }
+
+    #[test]
+    fn full_plan_path() {
+        let cfg = BuildCfg::from_slice(CONFIG.as_bytes()).unwrap();
+        let full_plan_path = cfg.get("full-plan-path").unwrap();
+        assert!(full_plan_path.plan_path.ends_with("plan.sh"));
+        assert!(full_plan_path.triggered_by("master",
+                                            &["components/builder-api/habitat/Cargo.toml"],));
     }
 }
