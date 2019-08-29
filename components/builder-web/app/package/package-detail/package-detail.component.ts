@@ -26,10 +26,6 @@ export class PackageDetailComponent {
 
   constructor(private store: AppStore) { }
 
-  get channels() {
-    return this.store.getState().packages.currentChannels;
-  }
-
   get fullName() {
     const ident = this.package['ident'];
     let props = [];
@@ -57,8 +53,8 @@ export class PackageDetailComponent {
 
   promotable(pkg) {
     return this.memberOfOrigin &&
-      this.channels.length > 0 &&
-      this.channels.indexOf('stable') === -1;
+      pkg.channels.length > 0 &&
+      pkg.channels.indexOf('stable') === -1;
   }
 
   releaseToDate(release) {

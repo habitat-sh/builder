@@ -47,6 +47,12 @@
     <router-outlet (activate)="onRouteActivate($event)"></router-outlet>
   </div>
   <aside *ngIf="showSidebar">
-    <hab-package-sidebar [origin]="origin" [name]="name" [building]="building" [buildable]="buildable"></hab-package-sidebar>
+    <hab-package-sidebar
+      [origin]="origin"
+      [name]="name"
+      [isOriginMember]="isOriginMember"
+      [hasPlan]="hasPlan"
+      [building]="building">
+    </hab-package-sidebar>
   </aside>
 </div>

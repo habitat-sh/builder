@@ -39,6 +39,10 @@ const routes: Routes = [
         component: PackageLatestComponent
       },
       {
+        path: 'latest/:target',
+        component: PackageLatestComponent
+      },
+      {
         path: 'jobs',
         component: PackageJobsComponent,
         canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]

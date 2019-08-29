@@ -23,6 +23,8 @@ export const CLEAR_LATEST_PACKAGE = 'CLEAR_LATEST_PACKAGE';
 export const CLEAR_PACKAGE_VERSIONS = 'CLEAR_PACKAGE_VERSIONS';
 export const POPULATE_DASHBOARD_RECENT = 'POPULATE_DASHBOARD_RECENT';
 export const SET_CURRENT_PACKAGE = 'SET_CURRENT_PACKAGE';
+export const SET_CURRENT_PACKAGE_TARGET = 'SET_CURRENT_PACKAGE_TARGET';
+export const SET_CURRENT_PACKAGE_TARGETS = 'SET_CURRENT_PACKAGE_TARGETS';
 export const SET_LATEST_IN_CHANNEL = 'SET_LATEST_IN_CHANNEL';
 export const SET_LATEST_PACKAGE = 'SET_LATEST_PACKAGE';
 export const SET_CURRENT_PACKAGE_CHANNELS = 'SET_CURRENT_PACKAGE_CHANNELS';
@@ -66,7 +68,7 @@ export function fetchDashboardRecent(origin: string) {
   };
 }
 
-function clearPackageVersions() {
+export function clearPackageVersions() {
   return {
     type: CLEAR_PACKAGE_VERSIONS
   };
@@ -81,7 +83,7 @@ export function demotePackage(origin: string, name: string, version: string, rel
           body: `${origin}/${name}/${version}/${release} (${target}) has been removed from the ${channel} channel.`,
           type: SUCCESS
         }));
-        dispatch(fetchLatestInChannel(origin, name, 'stable'));
+        dispatch(fetchLatestInChannel(origin, name, 'stable', target));
         dispatch(fetchPackageChannels(origin, name, version, release));
         dispatch(fetchPackageVersions(origin, name));
       })
@@ -118,11 +120,11 @@ export function fetchPackageChannels(origin: string, name: string, version: stri
   };
 }
 
-export function fetchLatestPackage(origin: string, name: string) {
+export function fetchLatestPackage(origin: string, name: string, target: string) {
   return dispatch => {
     dispatch(clearLatestPackage());
 
-    depotApi.getLatest(origin, name).then(response => {
+    depotApi.getLatest(origin, name, target).then(response => {
       dispatch(setLatestPackage(response));
 
       const ident = response['ident'];
@@ -133,11 +135,11 @@ export function fetchLatestPackage(origin: string, name: string) {
   };
 }
 
-export function fetchLatestInChannel(origin: string, name: string, channel: string) {
+export function fetchLatestInChannel(origin: string, name: string, channel: string, target: string) {
   return dispatch => {
     dispatch(clearLatestInChannel(channel));
 
-    depotApi.getLatestInChannel(origin, name, channel)
+    depotApi.getLatestInChannel(origin, name, channel, target)
       .then(response => {
         dispatch(setLatestInChannel(channel, response));
       })
@@ -231,7 +233,7 @@ export function promotePackage(origin: string, name: string, version: string, re
           body: `${origin}/${name}/${version}/${release} (${target}) has been promoted to the ${channel} channel.`,
           type: SUCCESS
         }));
-        dispatch(fetchLatestInChannel(origin, name, 'stable'));
+        dispatch(fetchLatestInChannel(origin, name, 'stable', target));
         dispatch(fetchPackageChannels(origin, name, version, release));
         dispatch(fetchPackageVersions(origin, name));
       })
@@ -251,6 +253,21 @@ export function setCurrentPackage(pkg, error = undefined) {
     type: SET_CURRENT_PACKAGE,
     payload: pkg,
     error: error,
+  };
+}
+
+export function setCurrentPackageTarget(payload) {
+  return {
+    type: SET_CURRENT_PACKAGE_TARGET,
+    payload
+  };
+}
+
+
+export function setCurrentPackageTargets(payload) {
+  return {
+    type: SET_CURRENT_PACKAGE_TARGETS,
+    payload
   };
 }
 

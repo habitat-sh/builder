@@ -10,4 +10,31 @@
       }
     }
   }
+
+  .platform-options {
+    display: flex;
+    padding: 0 0 16px;
+
+    a {
+      display: block;
+      padding: 4px 8px;
+      border: $default-border;
+      border-radius: 2px;
+      font-size: 16px;
+      margin-right: 16px;
+      color: #007FAB;
+      position: relative;
+
+      &:hover,
+      &.active {
+        color: #007FAB;
+      }
+
+      &.active {
+        background-color: #007FAB;
+        border-color: #007FAB;
+        color: #FFFFFF;
+      }
+    }
+  }
 }

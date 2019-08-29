@@ -208,16 +208,13 @@ main {
   aside {
     margin-top: $default-margin;
     padding-top: $default-padding;
-    border-top: $default-border;
   }
 
   @include tablet-up {
     aside {
       margin-top: 0;
       padding-top: 0;
-      border-top-width: 0;
       padding-left: $default-padding;
-      border-left: $default-border;
     }
   }
 }

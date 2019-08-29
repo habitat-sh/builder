@@ -146,13 +146,18 @@ export {
   SET_CURRENT_PACKAGE_CHANNELS,
   SET_CURRENT_PACKAGE_VERSIONS,
   SET_CURRENT_PACKAGE,
+  SET_CURRENT_PACKAGE_TARGET,
+  SET_CURRENT_PACKAGE_TARGETS,
   SET_LATEST_IN_CHANNEL,
   SET_LATEST_PACKAGE,
   SET_PACKAGES_NEXT_RANGE,
   SET_PACKAGES_SEARCH_QUERY,
   SET_PACKAGES_TOTAL_COUNT,
   SET_VISIBLE_PACKAGES,
+  clearPackageVersions,
   setCurrentPackage,
+  setCurrentPackageTarget,
+  setCurrentPackageTargets,
   setPackagesSearchQuery,
   setVisiblePackages
 } from './packages';
@@ -178,8 +183,10 @@ export {
 export {
   requestRoute,
   ROUTE_CHANGE,
+  ROUTE_CHANGE_END,
   ROUTE_REQUESTED,
   routeChange,
+  routeChangeEnd
 } from './router';
 
 export {

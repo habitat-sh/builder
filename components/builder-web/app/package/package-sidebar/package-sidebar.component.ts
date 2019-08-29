@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { AppStore } from '../../app.store';
 import { fetchLatestInChannel, fetchPackageVersions, submitJob } from '../../actions/index';
 
@@ -20,42 +20,27 @@ import { fetchLatestInChannel, fetchPackageVersions, submitJob } from '../../act
   selector: 'hab-package-sidebar',
   template: require('./package-sidebar.component.html')
 })
-export class PackageSidebarComponent implements OnChanges {
+export class PackageSidebarComponent {
   @Input() origin: string;
   @Input() name: string;
+  @Input() target: string;
   @Input() building: boolean = false;
-  @Input() buildable: boolean = false;
+  @Input() isOriginMember: boolean = false;
+  @Input() hasPlan: boolean = false;
 
   constructor(private store: AppStore) { }
 
-  ngOnChanges(changes: SimpleChanges) {
-    let fetch = false;
-
-    if (changes['origin']) {
-      this.origin = changes['origin'].currentValue;
-      fetch = true;
-    }
-
-    if (changes['name']) {
-      this.name = changes['name'].currentValue;
-      fetch = true;
-    }
-
-    if (fetch) {
-      this.fetchLatestStable();
-      this.fetchPackageVersions();
-    }
-  }
-
   build() {
-    if (this.buildable) {
-      let token = this.store.getState().session.token;
-      this.store.dispatch(submitJob(this.origin, this.name, token));
-    }
+    let token = this.store.getState().session.token;
+    this.store.dispatch(submitJob(this.origin, this.name, token));
   }
 
   get buildButtonLabel() {
     return this.building ? 'Build pending' : 'Build latest version';
+  }
+
+  get buildButtonAriaLabel() {
+    return this.building ? 'Build pending' : `Build latest ${this.platform.name} version`;
   }
 
   get exportCommand() {
@@ -94,26 +79,7 @@ export class PackageSidebarComponent implements OnChanges {
     return this.project.vcs_data.replace('.git', '');
   }
 
-  get platforms() {
-    let targets = [];
-    let versions = this.store.getState().packages.versions || [];
-
-    versions.forEach((v) => {
-      v.platforms.forEach((p) => {
-        if (targets.indexOf(p) === -1) {
-          targets.push(p);
-        }
-      });
-    });
-
-    return targets.sort();
-  }
-
-  private fetchLatestStable() {
-    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable'));
-  }
-
-  private fetchPackageVersions() {
-    this.store.dispatch(fetchPackageVersions(this.origin, this.name));
+  get platform() {
+    return this.store.getState().packages.currentPlatform;
   }
 }

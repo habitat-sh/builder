@@ -82,12 +82,4 @@ describe('PackageVersionsComponent', () => {
     component = fixture.componentInstance;
     element = fixture.debugElement;
   });
-
-  describe('given origin and name', () => {
-
-    it('fetches the list of versions', () => {
-      expect(store.dispatch).toHaveBeenCalled();
-      expect(actions.fetchPackageVersions).toHaveBeenCalledWith('core', 'nginx');
-    });
-  });
 });
