@@ -70,9 +70,6 @@ path = "../oauth-client"
 [dependencies.github-api-client]
 path = "../github-api-client"
 
-[dependencies.segment-api-client]
-path = "../segment-api-client"
-
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
 

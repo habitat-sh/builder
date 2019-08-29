@@ -30,7 +30,6 @@ use num_cpus;
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
 use oauth_client::config::OAuth2Cfg;
-use segment_api_client::SegmentCfg;
 
 use crate::{db::config::DataStoreCfg,
             hab_core::{self,
@@ -59,7 +58,6 @@ pub struct Config {
     pub http:        HttpCfg,
     pub oauth:       OAuth2Cfg,
     pub s3:          S3Cfg,
-    pub segment:     SegmentCfg,
     pub ui:          UiCfg,
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
@@ -74,7 +72,6 @@ impl Default for Config {
                  http:        HttpCfg::default(),
                  oauth:       OAuth2Cfg::default(),
                  s3:          S3Cfg::default(),
-                 segment:     SegmentCfg::default(),
                  ui:          UiCfg::default(),
                  memcache:    MemcacheCfg::default(),
                  jobsrv:      JobsrvCfg::default(),
@@ -358,8 +355,6 @@ mod tests {
         assert_eq!(config.github.api_url, "https://api.github.com");
 
         assert_eq!(config.ui.root, Some("/some/path".to_string()));
-
-        assert_eq!(config.segment.url, "https://api.segment.io");
 
         assert_eq!(config.s3.backend, S3Backend::Minio);
         assert_eq!(config.s3.key_id, "AWSKEYIDORSOMETHING");

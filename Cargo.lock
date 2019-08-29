@@ -1184,7 +1184,6 @@ dependencies = [
  "reqwest 0.9.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_core 0.39.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_s3 0.39.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "segment-api-client 0.0.0",
  "serde 1.0.98 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.98 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2709,20 +2708,6 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "core-foundation-sys 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "segment-api-client"
-version = "0.0.0"
-dependencies = [
- "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "builder_core 0.0.0",
- "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "reqwest 0.9.17 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.98 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.98 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

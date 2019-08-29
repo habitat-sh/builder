@@ -68,10 +68,6 @@ fn do_authenticate(code: &str, state: &AppState) -> Result<originsrv::Session> {
 
     let oauth = &state.oauth;
     let (token, user) = oauth.authenticate(code)?;
-    let session = session_create_oauth(&token, &user, &oauth.config.provider, state)?;
 
-    let id_str = session.get_id().to_string();
-    state.segment.identify(&id_str);
-
-    Ok(session)
+    session_create_oauth(&token, &user, &oauth.config.provider, state)
 }

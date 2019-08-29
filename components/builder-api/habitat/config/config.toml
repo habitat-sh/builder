@@ -20,9 +20,6 @@ app_private_key = "{{pkg.svc_files_path}}/builder-github-app.pem"
 [artifactory]
 {{toToml cfg.artifactory}}
 
-[segment]
-{{toToml cfg.segment}}
-
 [ui]
 root = "{{pkg.svc_static_path}}"
 

@@ -145,13 +145,3 @@ steps:
     expeditor:
       executor:
         docker:
-
-  - label: "[unit] :linux: segment-api-client"
-    command:
-      - ./test/run_cargo_test.sh segment-api-client
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
