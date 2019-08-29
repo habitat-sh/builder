@@ -1238,6 +1238,44 @@ securitySchemes:
                             description: Origin or channel does not exist
                         500:
                             description: Server error
+                /promote:
+                    post:
+                        description: Promotes all packages in a channel
+                            queryParameters:
+                                channel:
+                                    description: Channel packages will be promoted into
+                                    type: string
+                                    required: true
+                                    default: false
+                                    example: custom_channel
+                        responses:
+                            200:
+                                description: Packages successfully promoted
+                            400:
+                                description: Forbidden packages/Badly formed request for promotion
+                            401:
+                                description: You are not authorized to request promotion for this origin
+                            500:
+                                description: Server error
+                /demote:
+                    post:
+                        description: Demotes list of packages from a channel
+                            queryParameters:
+                                channel:
+                                    description: Channel packages will be demoted out of
+                                    type: string
+                                    required: true
+                                    default: false
+                                    example: custom_channel
+                        responses:
+                            200:
+                                description: Packages successfully demoted
+                            400:
+                                description: Forbidden packages/Badly formed request for demotion
+                            401:
+                                description: You are not authorized to request demotion for this origin
+                            500:
+                                description: Server error
                 /{pkg}:
                     get:
                         description: List all packages in a channel that match the specified identifier
