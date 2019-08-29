@@ -110,21 +110,25 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(job: Job, config: Arc<Config>, net_ident: &str, cancel: Arc<AtomicBool>) -> Self {
+    pub fn new(job: Job,
+               config: Arc<Config>,
+               net_ident: &str,
+               cancel: Arc<AtomicBool>)
+               -> Result<Self> {
         debug!("Creating new Runner with config: {:?}", config);
-        let depot_cli = ApiClient::new(&config.bldr_url);
+        let depot_cli = ApiClient::new(&config.bldr_url)?;
 
         let log_path = config.log_path.clone();
         let mut logger = Logger::init(log_path, "builder-worker.log");
         logger.log_ident(net_ident);
         let bldr_token = bldr_core::access_token::generate_bldr_token(&config.key_dir).unwrap();
 
-        Runner { workspace: Workspace::new(&config.data_path, job),
-                 config,
-                 depot_cli,
-                 logger,
-                 bldr_token,
-                 cancel }
+        Ok(Runner { workspace: Workspace::new(&config.data_path, job),
+                    config,
+                    depot_cli,
+                    logger,
+                    bldr_token,
+                    cancel })
     }
 
     pub fn job(&self) -> &Job { &self.workspace.job }
@@ -214,7 +218,7 @@ impl Runner {
         self.check_cancel(tx)?;
         let mut section = streamer.start_section(Section::CloneRepository)?;
 
-        let vcs = VCS::from_job(&self.job(), self.config.github.clone());
+        let vcs = VCS::from_job(&self.job(), self.config.github.clone())?;
         if let Some(err) = vcs.clone(&self.workspace.src()).err() {
             let msg = format!("Failed to clone remote source repository for {}, err={:?}",
                               self.workspace.job.get_project().get_name(),
@@ -734,7 +738,7 @@ impl RunnerMgr {
         let runner = Runner::new(job,
                                  self.config.clone(),
                                  &self.net_ident,
-                                 self.cancel.clone());
+                                 self.cancel.clone())?;
 
         let _ = thread::Builder::new().name("job_runner".to_string())
                                       .spawn(move || runner.run(&tx))

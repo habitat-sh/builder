@@ -34,7 +34,7 @@ pub struct VCS {
 }
 
 impl VCS {
-    pub fn from_job(job: &Job, config: GitHubCfg) -> Self {
+    pub fn from_job(job: &Job, config: GitHubCfg) -> Result<Self> {
         match job.get_project().get_vcs_type() {
             "git" => {
                 let installation_id: Option<u32> = {
@@ -57,11 +57,11 @@ impl VCS {
                data: String,
                config: GitHubCfg,
                installation_id: Option<u32>)
-               -> Self {
-        VCS { vcs_type,
-              data,
-              github_client: GitHubClient::new(config),
-              installation_id }
+               -> Result<Self> {
+        Ok(VCS { vcs_type,
+                 data,
+                 github_client: GitHubClient::new(config)?,
+                 installation_id })
     }
 
     pub fn clone(&self, path: &Path) -> Result<()> {

@@ -83,12 +83,12 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
-    pub fn new(url: &str) -> Self {
+    pub fn new(url: &str) -> Result<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(), ACCEPT_APPLICATION_JSON.clone()];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        ApiClient { inner: HttpClient::new(url, headers),
-                    url:   url.to_owned(), }
+        Ok(ApiClient { inner: HttpClient::new(url, headers)?,
+                       url:   url.to_owned(), })
     }
 
     pub fn show_package<I>(&self,

@@ -24,7 +24,8 @@ use builder_core::http_client::{HttpClient,
                                 CONTENT_TYPE_APPLICATION_JSON,
                                 USER_AGENT_BLDR};
 
-use crate::config::SegmentCfg;
+use crate::{config::SegmentCfg,
+            error::SegmentResult};
 
 #[derive(Clone)]
 pub struct SegmentClient {
@@ -35,16 +36,16 @@ pub struct SegmentClient {
 }
 
 impl SegmentClient {
-    pub fn new(config: SegmentCfg) -> Self {
+    pub fn new(config: SegmentCfg) -> SegmentResult<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(),
                                  ACCEPT_APPLICATION_JSON.clone(),
                                  CONTENT_TYPE_APPLICATION_JSON.clone()];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        SegmentClient { inner:     HttpClient::new(&config.url, headers),
-                        url:       config.url,
-                        write_key: config.write_key,
-                        enabled:   config.enabled, }
+        Ok(SegmentClient { inner:     HttpClient::new(&config.url, headers)?,
+                           url:       config.url,
+                           write_key: config.write_key,
+                           enabled:   config.enabled, })
     }
 
     pub fn identify(&self, user_id: &str) {

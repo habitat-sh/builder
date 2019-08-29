@@ -84,16 +84,16 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: &Config, db: DbPool) -> AppState {
-        AppState { config: config.clone(),
-                   packages: S3Handler::new(config.s3.clone()),
-                   github: GitHubClient::new(config.github.clone()),
-                   jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
-                   oauth: OAuth2Client::new(config.oauth.clone()),
-                   segment: SegmentClient::new(config.segment.clone()),
-                   memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
-                   artifactory: ArtifactoryClient::new(config.artifactory.clone()),
-                   db }
+    pub fn new(config: &Config, db: DbPool) -> error::Result<AppState> {
+        Ok(AppState { config: config.clone(),
+                      packages: S3Handler::new(config.s3.clone()),
+                      github: GitHubClient::new(config.github.clone())?,
+                      jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
+                      oauth: OAuth2Client::new(config.oauth.clone())?,
+                      segment: SegmentClient::new(config.segment.clone())?,
+                      memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
+                      artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
+                      db })
     }
 }
 
@@ -140,7 +140,13 @@ pub fn run(config: Config) -> Result<()> {
     migration::setup(&db_pool.get_conn().unwrap()).unwrap();
 
     HttpServer::new(move || {
-        let app_state = AppState::new(&config, db_pool.clone());
+        let app_state = match AppState::new(&config, db_pool.clone()) {
+            Ok(state) => state,
+            Err(err) => {
+                error!("Unable to create application state, err = {}", err);
+                panic!("Cannot start without valid application state");
+            }
+        };
 
         App::new().data(app_state)
                   .wrap_fn(authentication_middleware)

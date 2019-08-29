@@ -1,15 +1,23 @@
 use std::ops::Deref;
 
+use std::{fs,
+          path::Path};
+
 use reqwest::{header::{HeaderMap,
                        HeaderName,
                        HeaderValue,
                        ACCEPT,
                        CONTENT_TYPE,
                        USER_AGENT},
+              Certificate,
               Client,
+              IntoUrl,
               Proxy};
 
 use url::Url;
+
+use crate::error::{Error,
+                   Result};
 
 const BLDR_USER_AGENT: &str = "Habitat-Builder";
 const APPLICATION_JSON: &str = "application/json";
@@ -31,37 +39,17 @@ lazy_static::lazy_static! {
 pub struct HttpClient(Client);
 
 impl HttpClient {
-    pub fn new(url: &str, headers: HeaderMap) -> Self {
-        let mut client = Client::builder();
+    pub fn new<T>(url: T, headers: HeaderMap) -> Result<Self>
+        where T: IntoUrl
+    {
+        let url = url.into_url().map_err(Error::HttpClient)?;
+        let mut client = Client::builder().proxy(proxy_for(&url)?)
+                                          .default_headers(headers);
 
-        trace!("HttpClient: checking proxy for url: {:?}", url);
-        let url = Url::parse(url).expect("valid client url must be configured");
+        client = certificates()?.into_iter()
+                                .fold(client, |client, cert| client.add_root_certificate(cert));
 
-        if let Some(proxy_url) = env_proxy::for_url(&url).to_string() {
-            if url.scheme() == "http" {
-                trace!("Setting http_proxy to {}", proxy_url);
-                match Proxy::http(&proxy_url) {
-                    Ok(p) => {
-                        client = client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
-                }
-            }
-
-            if url.scheme() == "https" {
-                trace!("Setting https proxy to {}", proxy_url);
-                match Proxy::https(&proxy_url) {
-                    Ok(p) => {
-                        client = client.proxy(p);
-                    }
-                    Err(e) => warn!("Invalid proxy, err: {:?}", e),
-                }
-            }
-        } else {
-            trace!("No proxy configured for url: {:?}", url);
-        }
-
-        HttpClient(client.default_headers(headers).build().unwrap())
+        Ok(HttpClient(client.build()?))
     }
 }
 
@@ -69,4 +57,92 @@ impl Deref for HttpClient {
     type Target = Client;
 
     fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+fn proxy_for(url: &Url) -> reqwest::Result<Proxy> {
+    trace!("Checking proxy for url: {:?}", url);
+
+    if let Some(proxy_url) = env_proxy::for_url(url).to_string() {
+        match url.scheme() {
+            "http" => {
+                debug!("Setting http_proxy to {}", proxy_url);
+                Proxy::http(&proxy_url)
+            }
+            "https" => {
+                debug!("Setting https proxy to {}", proxy_url);
+                Proxy::https(&proxy_url)
+            }
+            _ => unimplemented!(),
+        }
+    } else {
+        debug!("No proxy configured for url: {:?}", url);
+        Ok(Proxy::custom(|_| None::<Url>))
+    }
+}
+
+/// We need a set of root certificates when connected to SSL/TLS web endpoints.
+///
+/// Builder (and on-prem Builder) will generally have a SSL_CERT_FILE environment
+/// configured in the running environment that points to an installed core/cacerts
+/// PEM file. The SSL_CERT_FILE environment variable will be respected by default.
+///
+/// In addtion, other certs files (for example self-signed certs) that are found in
+/// the SSL cache directory (/hab/cache/ssl) will also get loaded into the root certs list.
+/// Both PEM and DER formats are supported. All files will be assumed to be one of the
+/// supported formats, and any errors will be ignored silently (other than debug logging)
+fn certificates() -> Result<Vec<Certificate>> {
+    let mut certificates = Vec::new();
+
+    // Note: we don't use the fs::cache_ssl_path because it defaults to using the
+    // $HOME environment which is set to the /hab/svc/... path for Builder, which
+    // is not what we want to be using here
+    process_cache_dir("/hab/cache/ssl", &mut certificates);
+    Ok(certificates)
+}
+
+fn process_cache_dir<P>(cache_path: P, mut certificates: &mut Vec<Certificate>)
+    where P: AsRef<Path>
+{
+    debug!("Processing cache directory: {:?}", cache_path.as_ref());
+
+    match fs::read_dir(cache_path) {
+        Ok(entries) => {
+            for entry in entries {
+                match entry {
+                    Ok(entry) => {
+                        let path = entry.path();
+                        if path.is_file() {
+                            process_cert_file(&mut certificates, &path);
+                        }
+                    }
+                    Err(err) => debug!("Unable to read cache entry, err = {:?}", err),
+                }
+            }
+        }
+        Err(err) => {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                debug!("Unable to read cache directory, err = {:?}", err)
+            }
+        }
+    }
+}
+
+fn process_cert_file(certificates: &mut Vec<Certificate>, file_path: &Path) {
+    debug!("Processing cert file: {}", file_path.display());
+
+    match cert_from_file(&file_path) {
+        Ok(cert) => certificates.push(cert),
+        Err(err) => {
+            debug!("Unable to process cert file: {}, err={:?}",
+                   file_path.display(),
+                   err)
+        }
+    }
+}
+
+fn cert_from_file(file_path: &Path) -> Result<Certificate> {
+    let buf = fs::read(file_path).map_err(Error::IO)?;
+
+    Certificate::from_pem(&buf).or_else(|_| Certificate::from_der(&buf))
+                               .map_err(Error::HttpClient)
 }

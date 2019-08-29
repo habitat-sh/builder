@@ -31,7 +31,7 @@ fn main() {
         }
     }
 
-    let client = SegmentClient::new(config);
+    let client = SegmentClient::new(config).expect("Valid segment client");
     client.identify("abc123");
     client.track("abc123", "tested tracking");
 }
