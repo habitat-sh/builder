@@ -565,9 +565,6 @@ fn schedule_job_group(req: HttpRequest,
 
     match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
         Ok(group) => {
-            let msg = format!("Scheduled job group for {}", group.get_project_name());
-            state.segment.track(&session.get_name(), &msg);
-
             HttpResponse::Created().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                                    .json(group)
         }

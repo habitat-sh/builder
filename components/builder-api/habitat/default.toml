@@ -23,10 +23,6 @@ api_url        = "https://api.github.com"
 app_id         = 5565
 webhook_secret = ""
 
-[segment]
-url       = "https://api.segment.io"
-write_key = ""
-
 [s3]
 backend = "minio"
 key_id = "depot"

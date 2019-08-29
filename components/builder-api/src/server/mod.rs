@@ -40,7 +40,6 @@ use github_api_client::GitHubClient;
 
 use artifactory_client::client::ArtifactoryClient;
 use oauth_client::client::OAuth2Client;
-use segment_api_client::SegmentClient;
 
 use self::framework::middleware::authentication_middleware;
 
@@ -77,7 +76,6 @@ pub struct AppState {
     github:      GitHubClient,
     jobsrv:      RpcClient,
     oauth:       OAuth2Client,
-    segment:     SegmentClient,
     memcache:    RefCell<MemcacheClient>,
     artifactory: ArtifactoryClient,
     db:          DbPool,
@@ -90,7 +88,6 @@ impl AppState {
                       github: GitHubClient::new(config.github.clone())?,
                       jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
                       oauth: OAuth2Client::new(config.oauth.clone())?,
-                      segment: SegmentClient::new(config.segment.clone())?,
                       memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
                       artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
                       db })

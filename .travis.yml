@@ -16,7 +16,7 @@ env:
     # Builder Rust program components
     - _RUST_BLDR_BIN_COMPONENTS="components/builder-api components/builder-jobsrv components/builder-worker"
     # Builder Rust crate components
-    - _RUST_BLDR_LIB_COMPONENTS="components/builder-core components/builder-db components/github-api-client components/segment-api-client"
+    - _RUST_BLDR_LIB_COMPONENTS="components/builder-core components/builder-db components/github-api-client"
 
 matrix:
   include:
