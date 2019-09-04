@@ -260,8 +260,8 @@ export function promotePackage(origin: string, name: string, version: string, re
   });
 }
 
-export function submitJob(origin: string, pkg: string, token: string) {
-  const url = `${urlPrefix}/depot/pkgs/schedule/${origin}/${pkg}`;
+export function submitJob(origin: string, pkg: string, target: string, token: string) {
+  const url = `${urlPrefix}/depot/pkgs/schedule/${origin}/${pkg}?target=${target}`;
 
   return new Promise((resolve, reject) => {
     fetch(url, {

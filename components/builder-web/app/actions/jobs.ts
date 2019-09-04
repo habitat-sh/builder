@@ -47,9 +47,9 @@ export function clearJobs() {
   };
 }
 
-export function submitJob(origin: string, name: string, token: string) {
+export function submitJob(origin: string, name: string, target: string, token: string) {
   return dispatch => {
-    return depotApi.submitJob(origin, name, token)
+    return depotApi.submitJob(origin, name, target, token)
       .then(response => {
         dispatch(addNotification({
           title: 'Job submitted',
