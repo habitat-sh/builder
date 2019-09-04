@@ -32,7 +32,7 @@ export class PackageSidebarComponent {
 
   build() {
     let token = this.store.getState().session.token;
-    this.store.dispatch(submitJob(this.origin, this.name, token));
+    this.store.dispatch(submitJob(this.origin, this.name, this.target, token));
   }
 
   get buildButtonLabel() {
