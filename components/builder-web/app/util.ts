@@ -114,7 +114,7 @@ export function isEarlyAccess() {
   return !!(flags & FeatureFlags.EARLY_ACCESS);
 }
 
-const targets = [
+export const targets = [
   {
     id: 'x86_64-linux',
     name: 'Linux',

@@ -15,6 +15,7 @@
 import { Component, Input } from '@angular/core';
 import { AppStore } from '../../app.store';
 import { fetchLatestInChannel, fetchPackageVersions, submitJob } from '../../actions/index';
+import { targets } from '../../util';
 
 @Component({
   selector: 'hab-package-sidebar',
@@ -26,21 +27,28 @@ export class PackageSidebarComponent {
   @Input() target: string;
   @Input() building: boolean = false;
   @Input() isOriginMember: boolean = false;
+  @Input() isNewProject: boolean = false;
   @Input() hasPlan: boolean = false;
 
   constructor(private store: AppStore) { }
 
   build() {
     let token = this.store.getState().session.token;
-    this.store.dispatch(submitJob(this.origin, this.name, this.target, token));
+    if (this.isNewProject) {
+      targets.forEach(target => this.store.dispatch(submitJob(this.origin, this.name, target.id, token)));
+    } else {
+      this.store.dispatch(submitJob(this.origin, this.name, this.target, token));
+    }
   }
 
   get buildButtonLabel() {
-    return this.building ? 'Build pending' : 'Build latest version';
+    return this.building ? 'Build pending' :
+           this.isNewProject ? 'Build latest versions' : 'Build latest version';
   }
 
   get buildButtonAriaLabel() {
-    return this.building ? 'Build pending' : `Build latest ${this.platform.name} version`;
+    return this.building ? 'Build pending' :
+           this.isNewProject ? 'Build latest versions' : `Build latest ${this.platform.name} version`;
   }
 
   get exportCommand() {

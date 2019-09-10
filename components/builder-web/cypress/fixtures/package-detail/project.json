@@ -1,0 +1,15 @@
+{
+  "id": "1318646724968865392",
+  "origin": "core",
+  "owner_id": "1307498689208139520",
+  "package_name": "cacerts",
+  "name": "core/cacerts",
+  "plan_path": "cacerts/plan.sh",
+  "visibility": "public",
+  "vcs_type": "git",
+  "vcs_data": "https://github.com/sauron/core-plans.git",
+  "vcs_installation_id": "1261365",
+  "auto_build": false,
+  "created_at": "2019-08-22T08:05:30.246592",
+  "updated_at": "2019-08-22T08:05:30.246592"
+}

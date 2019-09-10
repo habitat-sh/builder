@@ -1,14 +1,12 @@
 <div class="package-latest-component">
-  <ng-container *ngIf="store.observe('packages.currentPlatforms') | async; let targets">
-    <nav class="platform-options" *ngIf="targets.length > 1">
-      <a *ngFor="let target of targets; index as i"
-        [routerLink]="['/pkgs', origin, name, 'latest', target.param]"
-        [class.active]="(store.observe('packages.currentPlatform.id') | async) === target.id">
-        <hab-platform-icon [platform]="target.id"></hab-platform-icon>
-        {{ target.name }}
-      </a>
-    </nav>
-  </ng-container>
+  <nav class="platform-options" *ngIf="targets.length > 1">
+    <a *ngFor="let target of targets; index as i"
+      [routerLink]="['/pkgs', origin, name, 'latest', target.param]"
+      [class.active]="(store.observe('packages.currentPlatform.id') | async) === target.id">
+      <hab-platform-icon [platform]="target.id"></hab-platform-icon>
+      {{ target.name }}
+    </a>
+  </nav>
   <hab-icon symbol="loading" class="spinning" *ngIf="ui.loading"></hab-icon>
   <ng-container *ngIf="!ui.loading">
     <hab-package-detail [package]="latest" *ngIf="hasLatest"></hab-package-detail>
@@ -27,7 +25,7 @@
         </li>
         <li>
           Set up automated builds under
-          <a [routerLink]="['../settings']">Build Settings</a> by connecting a plan file to Habitat Builder.
+          <a [routerLink]="['/pkgs', origin, name, 'settings']">Build Settings</a> by connecting a plan file to Habitat Builder.
         </li>
       </ol>
       <p>

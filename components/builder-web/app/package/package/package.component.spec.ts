@@ -110,7 +110,7 @@ describe('PackageComponent', () => {
       declarations: [
         PackageComponent,
         MockComponent({ selector: 'hab-package-breadcrumbs', inputs: ['ident'] }),
-        MockComponent({ selector: 'hab-package-sidebar', inputs: ['origin', 'name', 'target', 'building', 'isOriginMember', 'hasPlan'] }),
+        MockComponent({ selector: 'hab-package-sidebar', inputs: ['origin', 'name', 'target', 'building', 'isOriginMember', 'isNewProject', 'hasPlan'] }),
         MockComponent({ selector: 'hab-platform-icon', inputs: ['platform'] }),
         MockComponent({ selector: 'hab-job-notice', inputs: ['job'] }),
         MockComponent({ selector: 'hab-visibility-icon', inputs: ['visibility', 'prefix'] })
