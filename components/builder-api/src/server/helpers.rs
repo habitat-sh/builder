@@ -79,7 +79,7 @@ pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
         Err(_) => return PackageTarget::from_str("x86_64-linux").unwrap(),
     };
 
-    debug!("Parsing target from UserAgent header: {}", &user_agent);
+    trace!("Parsing target from UserAgent header: {}", &user_agent);
 
     let user_agent_regex =
         Regex::new(r"(?P<client>[^\s]+)\s?(\((?P<target>\w+-\w+); (?P<kernel>.*)\))?").unwrap();

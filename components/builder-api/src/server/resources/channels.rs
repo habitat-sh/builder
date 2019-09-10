@@ -121,8 +121,9 @@ fn get_channels(path: Path<String>,
             HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                               .json(ident_list)
         }
+        Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to get channels, err={}", err);
             err.into()
         }
     }
@@ -155,7 +156,7 @@ fn create_channel(req: HttpRequest,
             HttpResponse::Conflict().into()
         }
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to create channel, err={}", err);
             Error::DieselError(err).into()
         }
     }
@@ -189,7 +190,7 @@ fn delete_channel(req: HttpRequest,
     match Channel::delete(&origin, &channel, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to delete channel, err={}", err);
             err.into()
         }
     }
@@ -243,7 +244,7 @@ fn promote_channel_packages(req: HttpRequest,
             HttpResponse::new(StatusCode::OK)
         }
         Err(e) => {
-            debug!("{}", e);
+            debug!("Failed to promote channel packages, err={}", e);
             e.into()
         }
     }
@@ -296,7 +297,7 @@ fn demote_channel_packages(req: HttpRequest,
             HttpResponse::new(StatusCode::OK)
         }
         Err(e) => {
-            debug!("{}", e);
+            debug!("Failed to demote channel packages, err={}", e);
             e.into()
         }
     }
@@ -448,7 +449,7 @@ fn promote_package(req: HttpRequest,
             HttpResponse::new(StatusCode::OK)
         }
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to promote package, err={}", err);
             err.into()
         }
     }
@@ -524,7 +525,7 @@ fn demote_package(req: HttpRequest,
             HttpResponse::new(StatusCode::OK)
         }
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to demote package, err={}", err);
             err.into()
         }
     }
@@ -544,8 +545,9 @@ fn get_packages_for_origin_channel_package_version(req: HttpRequest,
         Ok((packages, count)) => {
             postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
+        Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to get packages, err={}", err);
             err.into()
         }
     }
@@ -565,8 +567,9 @@ fn get_packages_for_origin_channel_package(req: HttpRequest,
         Ok((packages, count)) => {
             postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
+        Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to get packages, err={}", err);
             err.into()
         }
     }
@@ -587,8 +590,9 @@ fn get_packages_for_origin_channel(req: HttpRequest,
         Ok((packages, count)) => {
             postprocess_channel_package_list(&req, &packages, count, &pagination)
         }
+        Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to get packages, err={}", err);
             err.into()
         }
     }
@@ -610,8 +614,9 @@ fn get_latest_package_for_origin_channel_package(req: HttpRequest,
                               .header(http::header::CACHE_CONTROL, headers::cache(false))
                               .body(json_body)
         }
+        Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to get latest package, err={}", err);
             err.into()
         }
     }
@@ -636,8 +641,9 @@ fn get_latest_package_for_origin_channel_package_version(req: HttpRequest,
                               .header(http::header::CACHE_CONTROL, headers::cache(false))
                               .body(json_body)
         }
+        Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to get latest package, err={}", err);
             err.into()
         }
     }
@@ -659,8 +665,9 @@ fn get_package_fully_qualified(req: HttpRequest,
                               .header(http::header::CACHE_CONTROL, headers::cache(false))
                               .body(json_body)
         }
+        Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
-            debug!("{}", err);
+            debug!("Failed to get package, err={}", err);
             err.into()
         }
     }
