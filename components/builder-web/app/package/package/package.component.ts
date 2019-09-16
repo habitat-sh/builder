@@ -23,7 +23,7 @@ import { PackageReleaseComponent } from '../package-release/package-release.comp
 import { PackageVersionsComponent } from '../package-versions/package-versions.component';
 import { AppStore } from '../../app.store';
 import { fetchJobs, fetchIntegrations, fetchLatestPackage, fetchLatestInChannel, fetchOrigin, fetchProject, fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions } from '../../actions/index';
-import { targetFrom } from '../../util';
+import { targetFrom, targets as allPlatforms } from '../../util';
 
 @Component({
   template: require('./package.component.html')
@@ -45,8 +45,7 @@ export class PackageComponent implements OnInit, OnDestroy {
     const target$ = this.store.observe('router.route.params.target');
     const token$ = this.store.observe('session.token');
     const origins$ = this.store.observe('origins.mine');
-    const platforms$ = this.store.observe('packages.currentPlatforms')
-      .pipe(filter(platforms => platforms.length > 0));
+    const platforms$ = this.store.observe('packages.currentPlatforms');
 
     combineLatest(origin$, name$)
       .pipe(takeUntil(this.isDestroyed$))
@@ -58,10 +57,10 @@ export class PackageComponent implements OnInit, OnDestroy {
         this.fetchJobs();
       });
 
-    combineLatest(target$, platforms$)
+    combineLatest(origin$, name$, target$, platforms$)
       .pipe(takeUntil(this.isDestroyed$))
-      .subscribe(([target, platforms]) => {
-        const defaultTarget = platforms[0];
+      .subscribe(([origin, name, target, platforms]) => {
+        const defaultTarget = platforms.length ? platforms[0] : allPlatforms[0];
         const currentTarget = target ?
           targetFrom('param', target || defaultTarget.param) :
           targetFrom('id', this.target || defaultTarget.id);
@@ -109,6 +108,10 @@ export class PackageComponent implements OnInit, OnDestroy {
     return !!this.store.getState().origins.mine.find((o) => {
       return o.name === this.origin;
     });
+  }
+
+  get isNewProject() {
+    return this.store.getState().packages.currentPlatforms.length === 0;
   }
 
   get hasPlan() {

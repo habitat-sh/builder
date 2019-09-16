@@ -43,6 +43,10 @@ export class PackageLatestComponent implements OnDestroy {
     this.isDestroyed$.complete();
   }
 
+  get targets() {
+    return this.store.getState().packages.currentPlatforms;
+  }
+
   get config() {
     return config;
   }

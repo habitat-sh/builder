@@ -1,0 +1,35 @@
+[
+  {
+    "origin": "core",
+    "name": "cacerts",
+    "version": "2018.12.05",
+    "release_count": "1",
+    "latest": "20190115014206",
+    "platforms": [
+      "x86_64-linux"
+    ],
+    "visibility": "public"
+  },
+  {
+    "origin": "core",
+    "name": "cacerts",
+    "version": "2018.06.20",
+    "release_count": "1",
+    "latest": "20180927173225",
+    "platforms": [
+      "x86_64-linux-kernel2"
+    ],
+    "visibility": "public"
+  },
+  {
+    "origin": "core",
+    "name": "cacerts",
+    "version": "2017.01.17",
+    "release_count": "1",
+    "latest": "20170209064044",
+    "platforms": [
+      "x86_64-windows"
+    ],
+    "visibility": "public"
+  }
+]

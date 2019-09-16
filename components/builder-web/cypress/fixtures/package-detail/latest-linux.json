@@ -1,0 +1,35 @@
+{
+  "build_deps": [],
+  "build_tdeps": [],
+  "channels": [
+    "unstable",
+    "stable"
+  ],
+  "checksum": "c68daa563972effb33a068cdcf7cd56e8201c6edbf64ce3c78ae13296c697be1",
+  "config": "",
+  "created_at": "2019-08-13T19:31:55.349545",
+  "deps": [],
+  "exposes": [],
+  "id": "1312469229022773248",
+  "ident": {
+    "name": "cacerts",
+    "origin": "core",
+    "release": "20190115014206",
+    "version": "2018.12.05"
+  },
+  "ident_array": [
+    "core",
+    "cacerts",
+    "2018.12.05",
+    "20190115014206"
+  ],
+  "is_a_service": false,
+  "manifest": "# core / cacerts\nThe Mozilla CA certificate store in PEM format (around 250KB uncompressed).\n\n\n* __Maintainer__: The Habitat Maintainers <humans@habitat.sh>\n* __Version__: 2018.12.05\n* __Release__: 20190115014206\n* __Target__: x86_64-linux\n* __Upstream URL__: [https://curl.haxx.se/docs/caextract.html](https://curl.haxx.se/docs/caextract.html)\n* __License__: MPL-2.0 \n* __Source__: [http://curl.haxx.se/ca/cacert.pem](http://curl.haxx.se/ca/cacert.pem)\n* __SHA__: SHA256 checksum not provided or required\n* __Path__: `/hab/pkgs/core/cacerts/2018.12.05/20190115014206`\n* __Build Dependencies__: no build dependencies or undefined\n* __Dependencies__: no runtime dependencies or undefined\n* __Interpreters__: no interpreters or undefined\n\n# Plan\n\n## Build Flags\n\n```bash\nCFLAGS: no CFLAGS\nCPPFLAGS: no CPPFLAGS\nCXXFLAGS: no CXXFLAGS\nLDFLAGS: no LDFLAGS\nLD_RUN_PATH: no LD_RUN_PATH\n```\n\n## Plan Source\n\n```bash\npkg_name=cacerts\npkg_origin=core\npkg_description=\"\\\nThe Mozilla CA certificate store in PEM format (around 250KB uncompressed).\n\"\npkg_upstream_url=\"https://curl.haxx.se/docs/caextract.html\"\npkg_license=('MPL-2.0')\npkg_maintainer=\"The Habitat Maintainers <humans@habitat.sh>\"\npkg_source=\"http://curl.haxx.se/ca/cacert.pem\"\npkg_deps=()\npkg_build_deps=()\n\npkg_version() {\n  local build_date\n  # Extract the build date of the certificates file\n  # shellcheck disable=SC2002\n  build_date=\"$(cat \"$HAB_CACHE_SRC_PATH/$pkg_filename\" \\\n    | grep 'Certificate data from Mozilla' \\\n    | sed 's/^## Certificate data from Mozilla as of: //')\"\n\n  # Update the `$pkg_version` value with the build date\n  date --date=\"$build_date\" \"+%Y.%m.%d\"\n}\n\ndo_download() {\n  do_default_download\n  update_pkg_version\n}\n\n# Verify? This file? From the internet? Not just yet... ;)\ndo_verify() {\n  build_line \"Not going to verify this until we have a stable solution\"\n  return 0\n}\n\ndo_unpack() {\n  mkdir -pv \"$HAB_CACHE_SRC_PATH/$pkg_dirname\"\n  cp -v \"$HAB_CACHE_SRC_PATH/$pkg_filename\" \"$HAB_CACHE_SRC_PATH/$pkg_dirname\"\n}\n\ndo_build() {\n  return 0\n}\n\ndo_install() {\n  mkdir -pv \"$pkg_prefix/ssl/certs\"\n  cp -v \"$pkg_filename\" \"$pkg_prefix/ssl/certs\"\n  ln -sv certs/cacert.pem \"$pkg_prefix/ssl/cert.pem\"\n}\n```",
+  "name": "cacerts",
+  "origin": "core",
+  "owner_id": "1307498689308139520",
+  "target": "x86_64-linux",
+  "tdeps": [],
+  "updated_at": "2019-08-13T19:31:55.349545",
+  "visibility": "public"
+}
