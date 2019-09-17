@@ -706,13 +706,15 @@ fn list_package_versions(req: HttpRequest,
 
     let ident = PackageIdent::new(origin.to_string(), name, None, None);
 
-    match Package::list_package_versions(&BuilderPackageIdent(ident),
+    match Package::list_package_versions(&BuilderPackageIdent(ident.clone()),
                                          helpers::visibility_for_optional_session(&req,
                                                                                   opt_session_id,
                                                                                   &origin),
                                          &*conn)
     {
         Ok(packages) => {
+            trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "list_package_versions for {} found {} package versions: {:?}", ident, packages.len(), packages);
+
             let body = serde_json::to_string(&packages).unwrap();
             HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
                               .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
@@ -938,6 +940,9 @@ fn do_get_packages(req: &HttpRequest,
         Ok((packages, count)) => {
             let ident_pkgs: Vec<PackageIdentWithChannelPlatform> =
                 packages.into_iter().map(|p| p.into()).collect();
+
+            trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "do_get_packages for {}, got {} packages, idents: {:?}", ident, count, ident_pkgs);
+
             Ok((ident_pkgs, count))
         }
         Err(e) => Err(e),
