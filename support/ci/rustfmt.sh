@@ -16,7 +16,7 @@ install_rustup
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 # shellcheck disable=SC1090
 source "$dir/shared.sh"
-toolchain=$(get_current_toolchain)
+toolchain=$(get_rustfmt_toolchain)
 
 install_rustup
 install_rustfmt "$toolchain"
