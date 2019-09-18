@@ -141,7 +141,7 @@ impl ScheduleMgr {
                 }
             }
 
-            for target in PackageTarget::supported_targets() {
+            for target in PackageTarget::targets() {
                 if self.build_targets.contains(target) {
                     if let Err(err) = self.process_metrics(*target) {
                         warn!("Scheduler unable to process metrics: err {:?}", err);
