@@ -21,7 +21,36 @@ mod toml_builder;
 mod util;
 mod workspace;
 
+use self::{docker::DockerExporter,
+           job_streamer::{JobStreamer,
+                          Section},
+           postprocessor::post_process,
+           studio::Studio,
+           workspace::Workspace};
+pub use crate::protocol::jobsrv::JobState;
+use crate::{bldr_core::{self,
+                        api_client::ApiClient,
+                        job::Job,
+                        logger::Logger,
+                        socket::DEFAULT_CONTEXT},
+            config::Config,
+            error::{Error,
+                    Result},
+            hab_core::{env,
+                       package::{archive::PackageArchive,
+                                 target::{self,
+                                          PackageTarget}}},
+            protocol::{jobsrv,
+                       message,
+                       net::{self,
+                             ErrCode},
+                       originsrv::OriginPackageIdent},
+            vcs::VCS};
+use chrono::Utc;
+use retry::{delay,
+            retry};
 use std::{fs,
+          process::Command,
           str::FromStr,
           sync::{atomic::{AtomicBool,
                           Ordering},
@@ -30,44 +59,7 @@ use std::{fs,
           thread::{self,
                    JoinHandle},
           time::Duration};
-
-use std::process::Command;
-
-use chrono::Utc;
-use retry::retry;
 use zmq;
-
-use crate::bldr_core::{self,
-                       api_client::ApiClient,
-                       job::Job,
-                       logger::Logger,
-                       socket::DEFAULT_CONTEXT};
-
-use crate::hab_core::{env,
-                      package::{archive::PackageArchive,
-                                target::{self,
-                                         PackageTarget}},
-                      util::wait_for};
-
-pub use crate::protocol::jobsrv::JobState;
-use crate::protocol::{jobsrv,
-                      message,
-                      net::{self,
-                            ErrCode},
-                      originsrv::OriginPackageIdent};
-
-use self::{docker::DockerExporter,
-           job_streamer::{JobStreamer,
-                          Section},
-           postprocessor::post_process,
-           studio::Studio,
-           workspace::Workspace};
-
-use crate::{config::Config,
-            error::{Error,
-                    Result}};
-
-use crate::vcs::VCS;
 
 // TODO fn: copied from `components/common/src/ui.rs`. As this component doesn't currently depend
 // on habitat_common it didnt' seem worth it to add a dependency for only this constant. Probably
@@ -367,7 +359,7 @@ impl Runner {
         debug!("Installing origin secret key for {} to {:?}",
                self.job().origin(),
                self.workspace.key_path());
-        match retry(wait_for(RETRY_WAIT, RETRIES), || {
+        match retry(delay::Fixed::from(RETRY_WAIT).take(RETRIES), || {
                   let res = self.depot_cli.fetch_origin_secret_key(self.job().origin(),
                                                                    &self.bldr_token,
                                                                    self.workspace.key_path());

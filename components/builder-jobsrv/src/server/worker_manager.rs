@@ -282,7 +282,7 @@ impl WorkerMgr {
                     warn!("Worker-manager unable to process cancels: err {:?}", err);
                 }
 
-                for target in PackageTarget::supported_targets() {
+                for target in PackageTarget::targets() {
                     if self.build_targets.contains(&target) {
                         if let Err(err) = self.process_work(*target) {
                             warn!("Worker-manager unable to process work: err {:?}", err);
@@ -292,7 +292,7 @@ impl WorkerMgr {
                 last_processed = now;
             }
 
-            for target in PackageTarget::supported_targets() {
+            for target in PackageTarget::targets() {
                 if self.build_targets.contains(target) {
                     if let Err(err) = self.process_metrics(*target) {
                         warn!("Worker-manager unable to process metrics: err {:?}", err);
