@@ -48,18 +48,6 @@ describe('Jobs API', function () {
         });
     });
 
-    it('does not schedule a build for Linux kernel2', function (done) {
-      request.post('/depot/pkgs/schedule/neurosis/testapp?target=x86_64-linux-kernel2')
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.boboBearer)
-        .expect(404)
-        .end(function (err, res) {
-          expect(res.text).to.be.empty;
-          done(err);
-        });
-    });
-
     it('returns the group', function (done) {
       request.post('/depot/pkgs/schedule/neurosis/testapp')
         .type('application/json')

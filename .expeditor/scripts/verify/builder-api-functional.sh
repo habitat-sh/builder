@@ -12,6 +12,6 @@ echo "--- Copying habitat-env"
 cp .secrets/habitat-env.sample .secrets/habitat-env
 
 echo "--- Entering studio"
-env HAB_INTERACTIVE=true \
+env HAB_NONINTERACTIVE=true \
     HAB_STUDIO_SUP=false \
     hab studio enter
