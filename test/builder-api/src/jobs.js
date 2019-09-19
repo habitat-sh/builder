@@ -53,7 +53,7 @@ describe('Jobs API', function () {
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
-        .expect(400)
+        .expect(404)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);

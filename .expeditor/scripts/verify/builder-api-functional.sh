@@ -3,7 +3,7 @@
 set -euo pipefail
 
 echo "--- Generating signing key"
-hab origin key generate $HAB_ORIGIN
+hab origin key generate "$HAB_ORIGIN"
 
 echo "--- Updating .studiorc" 
 cat .expeditor/templates/studiorc >> .studiorc

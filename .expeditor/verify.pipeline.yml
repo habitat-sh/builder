@@ -156,7 +156,7 @@ steps:
       executor:
         docker:
 
-  - label: "[functional] :linux: :mocha: buidler-api"
+  - label: "[functional] :linux: :mocha: builder-api"
     command:
       - .expeditor/scripts/verify/builder-api-functional.sh
     artifact_paths:
