@@ -145,3 +145,20 @@ steps:
     expeditor:
       executor:
         docker:
+
+  - label: "[functional] :linux: :mocha: builder-api"
+    command:
+      - .expeditor/scripts/verify/builder-api-functional.sh
+    artifact_paths:
+      - "logs/**/*"
+    retry: 
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+          privileged: true
+          environment:
+            - HAB_ORIGIN=habitat
+
+  

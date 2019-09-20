@@ -1,0 +1,71 @@
+# vi: ft=sh
+cd /src
+
+echo "--- Installing prerequisites" 
+hab pkg install core/openssl
+hab pkg install core/node --binlink
+hab pkg install core/coreutils 
+hab pkg binlink core/coreutils env -d /usr/bin
+( 
+  # At the point studiorc is evaluated, our cwd is /
+  cd /src/test/builder-api
+  npm install mocha 
+)
+
+echo "--- Creating fake builder-github-app.pem"
+hab pkg exec core/openssl openssl genrsa \
+  -out /src/.secrets/builder-github-app.pem 2048 
+
+echo "--- Creating log directory"
+mkdir -p logs
+echo "--- Starting the supervisor"
+env HAB_FUNC_TEST=1 hab sup run > logs/sup.log & 2>&1
+
+until hab sup status >/dev/null 2>&1; 
+  do echo "waiting for hab sup to start"
+  sleep 1 
+done
+
+echo "--- Starting builder"
+start-builder
+
+while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ];
+do
+    echo "Waiting for builder-github-app.pem"
+    ls /hab/svc/builder-api/files
+    sleep 10
+done
+
+# In most cases, these builds will be noise in the log files
+# Redirect the output into a file that is automatically uploaded 
+# to buildkite so we can inspect if necessary
+echo "--- Building changed builder components"
+echo "--- Building builder-api"
+echo "Redirecting log output; See build artifact 'builder-api.build.log'"
+build-builder api > logs/builder-api.build.log 2>&1
+echo "--- Building builder-jobsrv"
+echo "Redirecting log output; See build artifact 'builder-jobsrv.build.log'"
+build-builder jobsrv > logs/builder-jobsrv.build.log 2>&1
+echo "--- Building builder-worker"
+echo "Redirecting log output; See build artifact 'builder-worker.build.log'"
+build-builder worker > logs/builder-worker.build.log 2>&1
+
+echo "--- Waiting for services to start"
+while hab sup status | grep --quiet down;
+do
+  echo "Waiting for services to start..."
+  sleep 10
+done
+
+echo "--- Waiting for builder-github-app.pem to arrive"
+while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ];
+do
+    echo "Waiting for builder-github-app.pem"
+    ls /hab/svc/builder-api/files
+    sleep 10
+done
+
+echo "--- :mocha: Running tests"
+test/builder-api/test.sh
+# Explicitly exit with the tests status, as we're in a studio at this point
+exit $?

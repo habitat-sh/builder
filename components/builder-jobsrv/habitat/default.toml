@@ -1,7 +1,7 @@
 log_level = "info"
 log_path = "/tmp"
 job_timeout = 60
-build_targets = ["x86_64-linux", "x86_64-windows"]
+build_targets = ["x86_64-linux", "x86_64-windows", "x86_64-linux-kernel2"]
 features_enabled = ""
 
 [http]
