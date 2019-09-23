@@ -132,6 +132,12 @@ export const targets = [
     name: 'Windows',
     title: 'Windows',
     param: 'windows'
+  },
+  {
+    id: 'x86_64-darwin',
+    name: 'macOS',
+    title: 'macOS',
+    param: 'mac'
   }
 ];
 
@@ -140,21 +146,21 @@ export function targetFrom(key: string, value: string): any {
 }
 
 export function targetsFromIds(ids: string[]) {
-  return ids.map(id => targetFrom('id', id));
+  return ids.map(id => targetFrom('id', id)).filter(target => target);
 }
 
 export function targetsFromPkgVersions(versions = []) {
-  let targets = [];
+  let targetIds = [];
 
   versions.forEach((v) => {
     v.platforms.forEach((p) => {
-      if (targets.indexOf(p) === -1) {
-        targets.push(p);
+      if (targetIds.indexOf(p) === -1) {
+        targetIds.push(p);
       }
     });
   });
 
-  return targetsFromIds(targets.sort());
+  return targetsFromIds(targetIds).sort((a, b) => targets.indexOf(a) - targets.indexOf(b));
 }
 
 // Return a job state's proper icon symbol

@@ -112,10 +112,11 @@ describe('Package Detail', () => {
         cy.visit('/#/pkgs/core/cacerts/latest');
 
         platformNav().should('be.visible');
-        platformNavLinks().should('have.length', 3);
+        platformNavLinks().should('have.length', 4);
         platformNavLinks().eq(0).should('contain', 'Linux');
         platformNavLinks().eq(1).should('contain', 'Linux 2');
         platformNavLinks().eq(2).should('contain', 'Windows');
+        platformNavLinks().eq(3).should('contain', 'macOS');
       });
     });
 

@@ -51,6 +51,12 @@ export class PackageSidebarComponent {
            this.isNewProject ? 'Build latest versions' : `Build latest ${this.platform.name} version`;
   }
 
+  get buildButtonDisabledMessage() {
+    return this.targetIsMac ?
+      `* Builder can't build the package because a macOS plan file is not supported yet.` :
+      `* Builder can't build the package because there is no ${this.platform.name} Plan file.`;
+  }
+
   get exportCommand() {
     return `hab pkg export docker ${this.origin}/${this.name}`;
   }
@@ -89,5 +95,13 @@ export class PackageSidebarComponent {
 
   get platform() {
     return this.store.getState().packages.currentPlatform;
+  }
+
+  get targetIsMac() {
+    return this.target === 'x86_64-darwin';
+  }
+
+  get isBuildable() {
+    return this.isOriginMember && this.hasPlan && !this.targetIsMac && !this.building;
   }
 }
