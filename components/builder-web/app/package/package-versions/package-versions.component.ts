@@ -17,7 +17,7 @@ import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AppStore } from '../../app.store';
-import { packageString, parseDate } from '../../util';
+import { packageString, parseDate, targetsFromPkgVersions } from '../../util';
 import { demotePackage, filterPackagesBy } from '../../actions/index';
 
 @Component({
@@ -72,15 +72,7 @@ export class PackageVersionsComponent implements OnDestroy {
   }
 
   platformsFor(version) {
-    let targets = [];
-
-    version.platforms.forEach((p) => {
-      if (targets.indexOf(p) === -1) {
-        targets.push(p);
-      }
-    });
-
-    return targets.sort();
+    return targetsFromPkgVersions([version]).map(target => target.id);
   }
 
   fetchPackages(params) {

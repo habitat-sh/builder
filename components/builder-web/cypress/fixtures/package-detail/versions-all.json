@@ -31,5 +31,16 @@
       "x86_64-windows"
     ],
     "visibility": "public"
+  },
+  {
+    "origin": "core",
+    "name": "cacerts",
+    "version": "2017.03.27",
+    "release_count": "1",
+    "latest": "20170309064044",
+    "platforms": [
+      "x86_64-darwin"
+    ],
+    "visibility": "public"
   }
 ]

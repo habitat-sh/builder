@@ -1,13 +1,13 @@
 <div class="package-sidebar-component">
   <section *ngIf="platform && isOriginMember">
     <h3>Build</h3>
-    <button class="build" mat-raised-button color="primary" (click)="build()" [disabled]="isOriginMember && (!hasPlan || building)" [attr.aria-label]="buildButtonAriaLabel">
+    <button class="build" mat-raised-button color="primary" (click)="build()" [disabled]="!isBuildable" [attr.aria-label]="buildButtonAriaLabel">
       <span aria-hidden="true">
         <hab-platform-icon [platform]="platform.id" *ngIf="!isNewProject"></hab-platform-icon>
         {{ buildButtonLabel }}
       </span>
     </button>
-    <p *ngIf="!hasPlan && !isNewProject" class="disabled-build-msg">* Builder can't build the package because there is no {{ platform.name }} Plan file.</p>
+    <p *ngIf="!isBuildable" class="disabled-build-msg">{{ buildButtonDisabledMessage }}</p>
   </section>
   <section *ngIf="isOriginMember && hasPlan">
     <h3>Settings</h3>
