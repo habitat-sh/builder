@@ -1,46 +1,25 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-use std::iter::FromIterator;
-
-use std::path::Path;
-
-use std::{collections::HashMap,
-          io::Read,
-          time::{Duration,
-                 SystemTime,
-                 UNIX_EPOCH}};
-
-use reqwest::{header::HeaderMap,
-              StatusCode};
-
+use crate::{config::GitHubCfg,
+            error::{HubError,
+                    HubResult},
+            jwt::{self,
+                  Algorithm},
+            metrics::Counter,
+            types::*};
 use builder_core::{http_client::{HttpClient,
                                  ACCEPT_GITHUB_JSON,
                                  CONTENT_TYPE_APPLICATION_JSON,
                                  USER_AGENT_BLDR},
                    metrics::CounterMetric};
-
+use reqwest::{header::HeaderMap,
+              StatusCode};
 use serde_json;
-
-use crate::jwt::{self,
-                 Algorithm};
-
-use crate::{config::GitHubCfg,
-            error::{HubError,
-                    HubResult},
-            metrics::Counter,
-            types::*};
+use std::{collections::HashMap,
+          io::Read,
+          iter::FromIterator,
+          path::Path,
+          time::{Duration,
+                 SystemTime,
+                 UNIX_EPOCH}};
 
 pub type TokenString = String;
 pub type InstallationId = u32;
@@ -299,8 +278,7 @@ mod tests {
     fn use_a_proxy_from_the_env() {
         let proxy = env::var_os("HTTPS_PROXY");
 
-        if proxy.is_some() {
-            let p = proxy.unwrap();
+        if let Some(p) = proxy {
             let pp = p.to_string_lossy();
 
             if !pp.is_empty() {

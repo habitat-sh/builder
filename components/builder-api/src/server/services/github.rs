@@ -1,39 +1,30 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-use std::{collections::HashSet,
-          path::PathBuf,
-          str::FromStr};
-
-use actix_web::{error,
-                http::StatusCode,
-                web::{Data,
-                      Path},
-                HttpRequest,
-                HttpResponse};
-
 use crate::{bldr_core::{build_config::{BuildCfg,
                                        BLDR_CFG},
                         metrics::CounterMetric},
+            db::models::{account::Account,
+                         projects::Project},
             hab_core::{crypto,
                        package::{target::{self,
                                           PackageTarget},
                                  Plan}},
             protocol::jobsrv::{JobGroup,
                                JobGroupSpec,
-                               JobGroupTrigger}};
-
+                               JobGroupTrigger},
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     feat,
+                     framework::{headers,
+                                 middleware::route_message},
+                     helpers::req_state,
+                     services::metrics::Counter,
+                     AppState}};
+use actix_web::{error,
+                http::StatusCode,
+                web::{Data,
+                      Path},
+                HttpRequest,
+                HttpResponse};
 use github_api_client::{types::GitHubWebhookPush,
                         AppToken,
                         GitHubClient};
@@ -42,19 +33,9 @@ use openssl::{hash::MessageDigest,
               pkey::PKey,
               sign::Signer};
 use serde_json;
-
-use crate::db::models::{account::Account,
-                        projects::Project};
-
-use crate::server::{authorize::authorize_session,
-                    error::{Error,
-                            Result},
-                    feat,
-                    framework::{headers,
-                                middleware::route_message},
-                    helpers::req_state,
-                    services::metrics::Counter,
-                    AppState};
+use std::{collections::HashSet,
+          path::PathBuf,
+          str::FromStr};
 
 pub enum GitHubEvent {
     Push,
@@ -268,8 +249,9 @@ fn build_plans(req: &HttpRequest,
             request.set_target(plan.1.to_string());
             request.set_trigger(JobGroupTrigger::Webhook);
             request.set_requester_name(pusher.to_string());
-            if account_id.is_some() {
-                request.set_requester_id(account_id.unwrap());
+
+            if let Some(a) = account_id {
+                request.set_requester_id(a);
             }
 
             match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
