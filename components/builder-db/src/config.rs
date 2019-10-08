@@ -37,6 +37,10 @@ pub struct DataStoreCfg {
     pub connection_test: bool,
     /// Number of database connections to start in pool.
     pub pool_size: u32,
+    pub ssl_mode: Option<String>,
+    pub ssl_cert: Option<String>,
+    pub ssl_key: Option<String>,
+    pub ssl_root_cert: Option<String>,
 }
 
 impl Default for DataStoreCfg {
@@ -49,7 +53,11 @@ impl Default for DataStoreCfg {
                        connection_retry_ms:    300,
                        connection_timeout_sec: 3600,
                        connection_test:        false,
-                       pool_size:              (num_cpus::get() * 2) as u32, }
+                       pool_size:              (num_cpus::get() * 2) as u32,
+                       ssl_mode:               None,
+                       ssl_cert:               None,
+                       ssl_key:                None,
+                       ssl_root_cert:          None, }
     }
 }
 
@@ -65,6 +73,28 @@ impl fmt::Display for DataStoreCfg {
             None => connect,
         };
         connect = format!("{}@{}:{}/{}", connect, self.host, self.port, self.database);
+        let mut opts = Vec::new();
+
+        if let Some(ref m) = self.ssl_mode {
+            opts.push(format!("sslmode={}", m));
+        }
+
+        if let Some(ref m) = self.ssl_cert {
+            opts.push(format!("sslcert={}", m));
+        }
+
+        if let Some(ref m) = self.ssl_key {
+            opts.push(format!("sslkey={}", m));
+        }
+
+        if let Some(ref m) = self.ssl_root_cert {
+            opts.push(format!("sslrootcert={}", m));
+        }
+
+        if opts.len() > 0 {
+            connect = format!("{}?{}", connect, opts.join("&"));
+        }
+
         write!(f, "{}", connect)
     }
 }
