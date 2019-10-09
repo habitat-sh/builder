@@ -49,7 +49,6 @@ steps:
           environment:
             - BUILDKITE
           host_os: windows
-          os_version: 2016
           shell: ["powershell", "-Command"]
 
 #######################################################################
@@ -151,7 +150,7 @@ steps:
       - .expeditor/scripts/verify/builder-api-functional.sh
     artifact_paths:
       - "logs/**/*"
-    retry: 
+    retry:
       automatic:
         limit: 1
     expeditor:
@@ -161,4 +160,4 @@ steps:
           environment:
             - HAB_ORIGIN=habitat
 
-  
+
