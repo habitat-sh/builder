@@ -91,7 +91,7 @@ impl fmt::Display for DataStoreCfg {
             opts.push(format!("sslrootcert={}", m));
         }
 
-        if opts.len() > 0 {
+        if !opts.is_empty() {
             connect = format!("{}?{}", connect, opts.join("&"));
         }
 
