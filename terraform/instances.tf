@@ -447,18 +447,9 @@ resource "aws_instance" "linux2-worker" {
   }
 }
 
-data "aws_ami" "amazon_windows_server" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["Windows_Server-2016-English-Full-Containers-*"]
-  }
-}
-
 resource "aws_instance" "windows-worker" {
-  ami           = "ami-02dc57b59edc3b7a2"
+  // Windows_Server-2019-English-Full-ContainersLatest-2019.10.09
+  ami           = "ami-0a6b38f2d62c0cc94"
   instance_type = "${var.instance_size_windows_worker}"
   key_name      = "${var.aws_key_pair}"
 
