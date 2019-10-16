@@ -18,7 +18,6 @@ steps:
 
   - label: "[lint] :linux: :bash: rustfmt"
     command:
-      - ./test/run_cargo_test.sh builder-jobsrv # this is overkill, we just need the build
       - ./support/ci/rustfmt.sh
     timeout_in_minutes: 20
     retry:
