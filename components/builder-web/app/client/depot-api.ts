@@ -19,7 +19,8 @@ import { AppStore } from '../app.store';
 import { addNotification, signOut } from '../actions/index';
 import { WARNING } from '../actions/notifications';
 
-const urlPrefix = '/v1';
+const urlPrefix = `${config['base_url'] || ''}/v1`;
+console.log(urlPrefix);
 
 function opts() {
   const store = new AppStore();
