@@ -52,6 +52,8 @@ pub struct ProjectCreateReq {
     pub origin: String,
     #[serde(default)]
     pub plan_path: String,
+    #[serde(default = "default_target")]
+    pub target: String,
     #[serde(default)]
     pub installation_id: u32,
     #[serde(default)]
@@ -64,12 +66,18 @@ pub struct ProjectCreateReq {
 pub struct ProjectUpdateReq {
     #[serde(default)]
     pub plan_path: String,
+    #[serde(default = "default_target")]
+    pub target: String,
     #[serde(default)]
     pub installation_id: u32,
     #[serde(default)]
     pub repo_id: u32,
     #[serde(default)]
     pub auto_build: bool,
+}
+
+fn default_target() -> String {
+    "x86_64-linux".to_string()
 }
 
 pub struct Projects;
@@ -136,10 +144,10 @@ fn create_project(req: HttpRequest,
                          package_name:        "testapp",
                          name:                &format!("{}/{}", &origin.name, "testapp"),
                          plan_path:           &body.plan_path,
+                         target:              &body.target,
                          vcs_type:            "git",
                          vcs_data:            "https://github.com/habitat-sh/testapp.git",
                          vcs_installation_id: Some(i64::from(body.installation_id)),
-                         visibility:          &PackageVisibility::Public,
                          auto_build:          body.auto_build, };
 
         match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
@@ -194,16 +202,15 @@ fn create_project(req: HttpRequest,
     };
 
     let package_name = plan.name.trim_matches('"');
-
     let new_project = NewProject { owner_id: account_id as i64,
                                    origin: &origin.name,
                                    package_name,
                                    name: &format!("{}/{}", &origin.name, package_name),
                                    plan_path: &body.plan_path,
+                                   target: &body.target,
                                    vcs_type: "git",
                                    vcs_data: &vcs_data,
                                    vcs_installation_id: Some(i64::from(body.installation_id)),
-                                   visibility: &origin.default_package_visibility,
                                    auto_build: body.auto_build };
 
     match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
@@ -312,10 +319,10 @@ fn update_project(req: HttpRequest,
                             owner_id:            account_id as i64,
                             package_name:        "testapp",
                             plan_path:           &body.plan_path,
+                            target:              &body.target,
                             vcs_type:            "git",
                             vcs_data:            "https://github.com/habitat-sh/testapp.git",
                             vcs_installation_id: Some(i64::from(body.installation_id)),
-                            visibility:          &PackageVisibility::Public,
                             auto_build:          body.auto_build, };
 
         match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
@@ -380,10 +387,10 @@ fn update_project(req: HttpRequest,
                                          origin:              &project.origin,
                                          package_name:        &plan.name.trim_matches('"'),
                                          plan_path:           &body.plan_path,
+                                         target:              &body.target,
                                          vcs_type:            "git",
                                          vcs_data:            &vcs_data,
                                          vcs_installation_id: Some(i64::from(body.installation_id)),
-                                         visibility:          &project.visibility,
                                          auto_build:          body.auto_build, };
 
     match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
@@ -635,10 +642,10 @@ fn toggle_privacy(req: HttpRequest,
                                          origin:              &project.origin,
                                          package_name:        &package_name,
                                          plan_path:           &project.plan_path,
+                                         target:              &project.target,
                                          vcs_type:            &project.vcs_type,
                                          vcs_data:            &project.vcs_data,
                                          vcs_installation_id: project.vcs_installation_id,
-                                         visibility:          &pv,
                                          auto_build:          project.auto_build, };
 
     if let Err(err) = Project::update(&update_project, &*conn).map_err(Error::DieselError) {
