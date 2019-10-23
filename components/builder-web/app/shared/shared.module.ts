@@ -149,7 +149,7 @@ export class SharedModule {
     };
 
     matIconRegistry.addSvgIconSet(
-      sanitizer.bypassSecurityTrustResourceUrl('/assets/images/icons/all.svg')
+      sanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/all.svg')
     );
   }
 }

@@ -39,7 +39,7 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
     private keyGenerateDialog: MatDialog,
     private originService: OriginService,
     private title: Title
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.sub = this.route.parent.params.subscribe((params) => {
@@ -116,7 +116,7 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
   }
 
   urlFor(key) {
-    return `/v1/depot${key.location}`;
+    return `v1/depot${key.location}`;
   }
 
   private download(blob, name) {
