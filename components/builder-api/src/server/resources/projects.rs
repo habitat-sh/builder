@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap,
-          env};
+use std::env;
 
 use actix_web::{http::{self,
                        StatusCode},
@@ -29,15 +28,16 @@ use serde_json;
 
 use crate::protocol::jobsrv;
 
-use crate::hab_core::package::{PackageIdent,
-                               Plan};
+use crate::hab_core::package::Plan;
 
 use crate::db::models::{jobs::*,
                         origin::*,
-                        package::{PackageVisibility,
-                                  *},
+                        package::PackageVisibility,
                         project_integration::*,
-                        projects::*};
+                        projects::*,
+                        settings::{GetOriginPackageSettings,
+                                   OriginPackageSettings,
+                                   UpdateOriginPackageSettings}};
 
 use crate::server::{authorize::authorize_session,
                     error::Error,
@@ -76,9 +76,7 @@ pub struct ProjectUpdateReq {
     pub auto_build: bool,
 }
 
-fn default_target() -> String {
-    "x86_64-linux".to_string()
-}
+fn default_target() -> String { "x86_64-linux".to_string() }
 
 pub struct Projects;
 
@@ -626,65 +624,27 @@ fn toggle_privacy(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let project_get = format!("{}/{}", &origin, &name);
-    let project = match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
-        Ok(project) => project,
+    let ops = match OriginPackageSettings::get(&GetOriginPackageSettings { origin,
+                                                                           name, },
+                                               &*conn).map_err(Error::DieselError)
+    {
+        Ok(pkg_settings) => pkg_settings,
         Err(err) => {
             debug!("{}", err);
             return err.into();
         }
     };
 
-    let package_name = project.package_name.clone();
+    let update_project = UpdateOriginPackageSettings { origin:     ops.origin,
+                                                       name:       ops.name,
+                                                       visibility: pv,
+                                                       owner_id:   ops.owner_id, };
 
-    let update_project = UpdateProject { id:                  project.id,
-                                         owner_id:            project.owner_id,
-                                         origin:              &project.origin,
-                                         package_name:        &package_name,
-                                         plan_path:           &project.plan_path,
-                                         target:              &project.target,
-                                         vcs_type:            &project.vcs_type,
-                                         vcs_data:            &project.vcs_data,
-                                         vcs_installation_id: project.vcs_installation_id,
-                                         auto_build:          project.auto_build, };
-
-    if let Err(err) = Project::update(&update_project, &*conn).map_err(Error::DieselError) {
+    if let Err(err) =
+        OriginPackageSettings::update(&update_project, &*conn).map_err(Error::DieselError)
+    {
         debug!("{}", err);
         return err.into();
-    }
-
-    let ident = PackageIdent::new(project.origin.clone(), project.package_name, None, None);
-    let pkgs =
-        match Package::get_all(BuilderPackageIdent(ident), &*conn).map_err(Error::DieselError) {
-            Ok(pkgs) => pkgs,
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        };
-
-    let mut map = HashMap::new();
-
-    // TODO (SA): This needs to be refactored to all get done in a single transaction
-
-    // For each row, store its id in our map, keyed on visibility
-    for pkg in pkgs {
-        map.entry(pkg.visibility)
-           .or_insert_with(Vec::new)
-           .push(pkg.id);
-    }
-
-    // Now do a bulk update for each different visibility
-    for (vis, id_vector) in map.iter() {
-        let upv = UpdatePackageVisibility { visibility: vis.clone(),
-                                            ids:        id_vector.clone(), };
-
-        if let Err(err) = Package::update_visibility_bulk(upv, &*conn).map_err(Error::DieselError) {
-            return {
-                debug!("{}", err);
-                err.into()
-            };
-        };
     }
 
     HttpResponse::NoContent().finish()

@@ -14,6 +14,7 @@ pub mod pagination;
 pub mod project_integration;
 pub mod projects;
 pub mod secrets;
+pub mod settings;
 
 mod db_id_format {
     use serde::{self,

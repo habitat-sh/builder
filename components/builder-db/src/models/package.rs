@@ -48,7 +48,6 @@ use crate::schema::{channel::{origin_channel_packages,
                     origin::origins,
                     package::{origin_package_versions,
                               origin_packages,
-                              origin_package_settings,
                               origin_packages_with_version_array,
                               packages_with_channel_platform}};
 
@@ -331,33 +330,6 @@ pub struct OriginPackageVersions {
     pub platforms: Vec<String>,
     pub visibility: PackageVisibility,
 }
-
-#[derive(Debug, Serialize, Deserialize, Queryable)]
-pub struct OriginPackageSettings {
-    #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub origin: String,
-    pub name: String,
-    pub visibility: PackageVisibility,
-    pub owner_id: i64,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
-}
-
-#[derive(Debug)]
-pub struct CreateOriginPackageSettings;
-
-#[derive(Debug)]
-pub struct UpdateOriginPackageSettings;
-
-#[derive(Debug)]
-pub struct GetOriginPackageSettings {
-    pub origin: String,
-    pub name: String,
-}
-
-#[derive(Debug)]
-pub struct DeleteOriginPackageSettings;
 
 #[derive(DbEnum,
          Debug,
@@ -741,43 +713,6 @@ impl Package {
         || self.manifest.contains("pkg_exports")
     }
 }
-
-impl OriginPackageSettings {
-    pub fn get(req: &GetOriginPackageSettings, conn: &PgConnection) -> QueryResult<OriginPackageSettings> {
-        Counter::DBCall.increment();
-        origin_package_settings::table
-            .filter(origin_package_settings::origin.eq(&req.origin))
-            .filter(origin_package_settings::name.eq(&req.name))
-                              .get_result(conn)
-    }
-
-    // pub fn delete(req: &DeleteOriginPackageSettings, conn: &PgConnection) -> QueryResult<usize> {
-    //     unimplemented!();
-    //     Counter::DBCall.increment();
-    //     diesel::delete(origin_package_settings::table.filter(origin_package_settings::name.eq(self.name))).execute(conn)
-    // }
-
-    // pub fn create(req: &NewOriginPackageSettings, conn: &PgConnection) -> QueryResult<usize> {
-    //     unimplemented!();
-    //     Counter::DBCall.increment();
-    //     diesel::insert_into(origin_package_settings::table).values(project)
-    //                                                .get_result(conn)
-    // }
-
-    // pub fn update(project: &UpdateOriginPackageSettings, conn: &PgConnection) -> QueryResult<usize> {
-    //     unimplemented!();
-    //     Counter::DBCall.increment();
-    //     diesel::update(origin_package_settings::table.find(project.id)).set(project)
-    //                                                            .execute(conn)
-    // }
-
-    // pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginPackageSettings>> {
-    //     unimplemented!();
-    //     Counter::DBCall.increment();
-    //     origin_projects::table.filter(origin_package_settings::origin.eq(origin))
-    //                           .get_results(conn)
-    // }
-} 
 
 impl PackageWithChannelPlatform {
     pub fn is_a_service(&self) -> bool {

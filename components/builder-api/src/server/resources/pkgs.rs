@@ -20,16 +20,16 @@ use crate::{bldr_core::{error::Error::RpcError,
                                    BuilderPackageTarget,
                                    DeletePackage,
                                    GetLatestPackage,
-                                   GetOriginPackageSettings,
                                    GetPackage,
                                    ListPackages,
                                    NewPackage,
-                                   OriginPackageSettings,
                                    Package,
                                    PackageIdentWithChannelPlatform,
                                    PackageVisibility,
                                    SearchPackages},
-                         projects::Project},
+                         settings::{GetOriginPackageSettings,
+                                    NewOriginPackageSettings,
+                                    OriginPackageSettings}},
             hab_core::{package::{FromArchive,
                                  Identifiable,
                                  PackageArchive,
@@ -1122,7 +1122,17 @@ fn do_upload_package_finish(req: &HttpRequest,
         Ok(pkg) => pkg.visibility,
         Err(_) => {
             match Origin::get(&ident.origin, &*conn) {
-                Ok(o) => o.default_package_visibility,
+                Ok(o) => {
+                        match OriginPackageSettings::create(&NewOriginPackageSettings {
+                                                                origin: ident.origin.clone(),
+                                                                name: ident.name.clone(),
+                                                                visibility: o.default_package_visibility,
+                                                                owner_id: package.owner_id,},
+                                                            &*conn) {
+                        Ok(pkg_settings) => pkg_settings.visibility ,
+                        Err(err) => return Error::DieselError(err).into(),
+                        }
+                },
                 Err(err) => return Error::DieselError(err).into(),
             }
         }

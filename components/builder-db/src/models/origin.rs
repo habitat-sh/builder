@@ -22,7 +22,8 @@ use crate::schema::{channel::origin_channels,
                     member::origin_members,
                     origin::{origins,
                              origins_with_secret_key,
-                             origins_with_stats}};
+                             origins_with_stats},
+                    settings::origin_package_settings};
 
 use crate::{bldr_core::metrics::CounterMetric,
             hab_core::ChannelIdent,
@@ -132,6 +133,8 @@ impl Origin {
             diesel::delete(origin_public_keys::table.filter(origin_public_keys::origin.eq(origin)))
                 .execute(conn)?;
             diesel::delete(origin_members::table.filter(origin_members::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_package_settings::table.filter(origin_package_settings::origin.eq(origin)))
                 .execute(conn)?;
             // TODO: Add migration to include origin as fkey constraint on
             // origin_integrations, remove this delete

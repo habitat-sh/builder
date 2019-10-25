@@ -8,8 +8,7 @@ use diesel::{self,
              QueryDsl,
              RunQueryDsl};
 
-use crate::{models::package::PackageVisibility,
-            protocol::originsrv,
+use crate::{protocol::originsrv,
             schema::project::origin_projects};
 
 use crate::{bldr_core::metrics::CounterMetric,

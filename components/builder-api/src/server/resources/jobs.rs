@@ -38,7 +38,8 @@ use crate::hab_core::{package::{Identifiable,
 use crate::db::models::{channel::*,
                         jobs::*,
                         package::*,
-                        projects::*};
+                        projects::*,
+                        settings::*};
 use diesel::result::Error::NotFound;
 
 use crate::server::{authorize::authorize_session,
@@ -490,11 +491,14 @@ fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jobsrv::
             // TODO (SA): Update the project information in the job to match the DB
             let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
             let project = Project::get(job.get_project().get_name(), &*conn)?;
-            let settings = OriginPackageSettings::get(
-                &GetOriginPackageSettings {
-                    origin: job.get_project().get_origin_name().to_string(),
-                    name: job.get_project().get_name().to_string(),
-                 }, &*conn)?;
+            let settings =
+                OriginPackageSettings::get(&GetOriginPackageSettings { origin: job.get_project()
+                                                                                  .get_origin_name()
+                                                                                  .to_string(),
+                                                                       name:   job.get_project()
+                                                                                  .get_name()
+                                                                                  .to_string(), },
+                                           &*conn)?;
 
             if vec![PackageVisibility::Private, PackageVisibility::Hidden]
                 .contains(&settings.visibility)
