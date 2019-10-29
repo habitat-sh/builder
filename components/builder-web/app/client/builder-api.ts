@@ -25,10 +25,11 @@ export enum ErrorCode {
 export class BuilderApiClient {
   private headers;
   private jsonHeaders;
-  private urlPrefix: string = '/v1';
+  private urlPrefix: string;
   private store: AppStore;
 
   constructor(private token: string = '') {
+    this.urlPrefix = 'v1';
     this.headers = token ? { 'Authorization': `Bearer ${token}` } : {};
     this.jsonHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
     this.store = new AppStore();

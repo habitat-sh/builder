@@ -96,7 +96,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   get avatarUrl() {
     const user = this.state.users.current;
-    let url = '/assets/images/avatar.svg';
+    let url = 'assets/images/avatar.svg';
 
     if (config.use_gravatar && user.profile.email) {
       url = `https://secure.gravatar.com/avatar/${md5(user.profile.email.toLowerCase().trim())}?d=retro&s=40`;
