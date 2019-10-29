@@ -315,6 +315,10 @@ mod tests {
         connection_timeout_sec = 4800
         connection_test = true
         pool_size = 1
+        ssl_mode = "verify_ca"
+        ssl_root_cert = "/root_ca.crt"
+        ssl_key = "/ssl.key"
+        ssl_cert = "/ssl.crt"
         "#;
 
         let config = Config::from_raw(&content).unwrap();
@@ -374,6 +378,11 @@ mod tests {
         assert_eq!(config.datastore.connection_timeout_sec, 4800);
         assert_eq!(config.datastore.connection_test, true);
         assert_eq!(config.datastore.pool_size, 1);
+        assert_eq!(config.datastore.ssl_mode, Some("verify_ca".to_string()));
+        assert_eq!(config.datastore.ssl_root_cert,
+                   Some("/root_ca.crt".to_string()));
+        assert_eq!(config.datastore.ssl_key, Some("/ssl.key".to_string()));
+        assert_eq!(config.datastore.ssl_cert, Some("/ssl.crt".to_string()));
     }
 
     #[test]
