@@ -14,6 +14,7 @@
 
 use actix_web::{http::StatusCode,
                 web::{self,
+                      Data,
                       Json,
                       Path,
                       ServiceConfig},
@@ -26,7 +27,8 @@ use crate::db::models::{origin::*,
 
 use crate::server::{authorize::authorize_session,
                     error::Error,
-                    helpers::req_state};
+                    helpers::req_state,
+                    AppState};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UpdateOriginPackageSettingsReq {
@@ -50,20 +52,21 @@ impl Settings {
 }
 
 // get_origin_package_settings
+#[allow(clippy::needless_pass_by_value)]
 fn get_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
-    let _account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    if let Err(err) = authorize_session(&req, Some(&origin)) {
+        return err.into();
+    }
 
     let conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    let get_ops = &GetOriginPackageSettings { origin, name: pkg };
+    let get_ops = &GetOriginPackageSettings { origin: &origin,
+                                              name:   &pkg, };
 
     match OriginPackageSettings::get(&get_ops, &*conn).map_err(Error::DieselError) {
         Ok(ops) => HttpResponse::Ok().json(ops),
@@ -75,7 +78,11 @@ fn get_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -
 }
 
 // create_origin_package_settings
-fn create_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -> HttpResponse {
+#[allow(clippy::needless_pass_by_value)]
+fn create_origin_package_settings(req: HttpRequest,
+                                  path: Path<(String, String)>,
+                                  state: Data<AppState>)
+                                  -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let account_id = match authorize_session(&req, Some(&origin)) {
@@ -83,7 +90,7 @@ fn create_origin_package_settings(req: HttpRequest, path: Path<(String, String)>
         Err(err) => return err.into(),
     };
 
-    let conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -99,13 +106,15 @@ fn create_origin_package_settings(req: HttpRequest, path: Path<(String, String)>
 
     match OriginPackageSettings::create(
         &NewOriginPackageSettings {
-            origin: oname,
-            name: pkg,
-            visibility: pv,
+            origin: &oname,
+            name: &pkg,
+            visibility: &pv,
             owner_id: account_id as i64,
         },
         &*conn).map_err(Error::DieselError) {
-        Ok(ops) => HttpResponse::Created().json(ops),
+        Ok(ops) => {
+            HttpResponse::Created().json(ops)
+        },
         Err(err) => {
             debug!("{}", err);
             err.into()
@@ -113,6 +122,7 @@ fn create_origin_package_settings(req: HttpRequest, path: Path<(String, String)>
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn update_origin_package_settings(req: HttpRequest,
                                   path: Path<(String, String)>,
                                   body: Json<UpdateOriginPackageSettingsReq>)
@@ -141,17 +151,73 @@ fn update_origin_package_settings(req: HttpRequest,
         }
     };
 
-    match OriginPackageSettings::update(&UpdateOriginPackageSettings { origin,
-                                                                       name: pkg,
-                                                                       visibility: pv,
-                                                                       owner_id: account_id
-                                                                                 as i64 },
+    match OriginPackageSettings::update(&UpdateOriginPackageSettings { origin:     &origin,
+                                                                       name:       &pkg,
+                                                                       visibility: &pv,
+                                                                       owner_id:   account_id
+                                                                                   as i64, },
                                         &*conn).map_err(Error::DieselError)
     {
-        Ok(_) => HttpResponse::NoContent().into(),
+        Ok(ups) => HttpResponse::Ok().json(ups),
         Err(err) => {
             debug!("{}", err);
             err.into()
         }
     }
+}
+
+// This function is deprecated.
+#[allow(clippy::needless_pass_by_value)]
+pub fn do_toggle_privacy(req: HttpRequest,
+                         path: Path<(String, String, String)>,
+                         state: Data<AppState>)
+                         -> HttpResponse {
+    let (origin, name, visibility) = path.into_inner();
+
+    if let Err(err) = authorize_session(&req, Some(&origin)) {
+        return err.into();
+    }
+
+    // users aren't allowed to set projects to hidden manually
+    if visibility.to_lowercase() == "hidden" {
+        return HttpResponse::new(StatusCode::BAD_REQUEST);
+    }
+
+    let pv: PackageVisibility = match visibility.parse() {
+        Ok(o) => o,
+        Err(err) => {
+            debug!("{:?}", err);
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
+    };
+
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let ops = match OriginPackageSettings::get(&GetOriginPackageSettings { origin: &origin,
+                                                                           name:   &name, },
+                                               &*conn).map_err(Error::DieselError)
+    {
+        Ok(pkg_settings) => pkg_settings,
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
+    };
+
+    let update_project = UpdateOriginPackageSettings { origin:     &ops.origin,
+                                                       name:       &ops.name,
+                                                       visibility: &pv,
+                                                       owner_id:   ops.owner_id, };
+
+    if let Err(err) =
+        OriginPackageSettings::update(&update_project, &*conn).map_err(Error::DieselError)
+    {
+        debug!("{}", err);
+        return err.into();
+    }
+
+    HttpResponse::NoContent().finish()
 }

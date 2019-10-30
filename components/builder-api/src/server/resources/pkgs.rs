@@ -28,7 +28,6 @@ use crate::{bldr_core::{error::Error::RpcError,
                                    PackageVisibility,
                                    SearchPackages},
                          settings::{GetOriginPackageSettings,
-                                    NewOriginPackageSettings,
                                     OriginPackageSettings}},
             hab_core::{package::{FromArchive,
                                  Identifiable,
@@ -1113,30 +1112,20 @@ fn do_upload_package_finish(req: &HttpRequest,
     package.owner_id = session.get_id() as i64;
     package.origin = ident.clone().origin;
 
-    package.visibility = match OriginPackageSettings::get(
-        &GetOriginPackageSettings {
-            origin: package.origin.clone(),
-            name: package.name.clone(),
-        }, &*conn) {
-        // TED if this is in-fact optional in the db it should be an option in the model
-        Ok(pkg) => pkg.visibility,
-        Err(_) => {
-            match Origin::get(&ident.origin, &*conn) {
-                Ok(o) => {
-                        match OriginPackageSettings::create(&NewOriginPackageSettings {
-                                                                origin: ident.origin.clone(),
-                                                                name: ident.name.clone(),
-                                                                visibility: o.default_package_visibility,
-                                                                owner_id: package.owner_id,},
-                                                            &*conn) {
-                        Ok(pkg_settings) => pkg_settings.visibility ,
-                        Err(err) => return Error::DieselError(err).into(),
-                        }
-                },
-                Err(err) => return Error::DieselError(err).into(),
+    package.visibility =
+        match OriginPackageSettings::get(&GetOriginPackageSettings { origin: &package.origin,
+                                                                     name:   &package.name, },
+                                         &*conn)
+        {
+            // TED if this is in-fact optional in the db it should be an option in the model
+            Ok(pkg) => pkg.visibility,
+            Err(_) => {
+                match Origin::get(&ident.origin, &*conn) {
+                    Ok(o) => o.default_package_visibility,
+                    Err(err) => return Error::DieselError(err).into(),
+                }
             }
-        }
-    };
+        };
 
     // Re-create origin package as needed (eg, checksum update)
     match Package::create(&package, &*conn) {

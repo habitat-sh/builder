@@ -28,6 +28,7 @@ pub struct OriginPackageSettings {
     pub origin: String,
     pub name: String,
     pub visibility: PackageVisibility,
+    #[serde(with = "db_id_format")]
     pub owner_id: i64,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
@@ -35,32 +36,26 @@ pub struct OriginPackageSettings {
 
 #[derive(Debug, Insertable)]
 #[table_name = "origin_package_settings"]
-pub struct NewOriginPackageSettings {
-    pub origin:     String,
-    pub name:       String,
-    pub visibility: PackageVisibility,
+pub struct NewOriginPackageSettings<'a> {
+    pub origin:     &'a str,
+    pub name:       &'a str,
+    pub visibility: &'a PackageVisibility,
     pub owner_id:   i64,
 }
 
 #[derive(AsChangeset, Debug)]
 #[table_name = "origin_package_settings"]
-pub struct UpdateOriginPackageSettings {
-    pub origin:     String,
-    pub name:       String,
-    pub visibility: PackageVisibility,
+pub struct UpdateOriginPackageSettings<'a> {
+    pub origin:     &'a str,
+    pub name:       &'a str,
+    pub visibility: &'a PackageVisibility,
     pub owner_id:   i64,
 }
 
 #[derive(Debug)]
-pub struct GetOriginPackageSettings {
-    pub origin: String,
-    pub name:   String,
-}
-
-#[derive(Debug)]
-pub struct DeleteOriginPackageSettings {
-    pub origin: String,
-    pub name:   String,
+pub struct GetOriginPackageSettings<'a> {
+    pub origin: &'a str,
+    pub name:   &'a str,
 }
 
 impl OriginPackageSettings {
@@ -73,12 +68,6 @@ impl OriginPackageSettings {
                                       .get_result(conn)
     }
 
-    // pub fn delete(req: &DeleteOriginPackageSettings, conn: &PgConnection) -> QueryResult<usize> {
-    //     unimplemented!();
-    //     Counter::DBCall.increment();
-    //     diesel::delete(origin_package_settings::table.filter(origin_package_settings::name.
-    // eq(self.name))).execute(conn) }
-
     pub fn create(req: &NewOriginPackageSettings,
                   conn: &PgConnection)
                   -> QueryResult<OriginPackageSettings> {
@@ -87,19 +76,14 @@ impl OriginPackageSettings {
                                                            .get_result(conn)
     }
 
-    pub fn update(req: &UpdateOriginPackageSettings, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn update(req: &UpdateOriginPackageSettings,
+                  conn: &PgConnection)
+                  -> QueryResult<OriginPackageSettings> {
         Counter::DBCall.increment();
         diesel::update(origin_package_settings::table
             .filter(origin_package_settings::origin.eq(&req.origin))
             .filter(origin_package_settings::name.eq(&req.name)))
             .set(req)
-            .execute(conn)
+            .get_result(conn)
     }
-
-    // pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginPackageSettings>> {
-    //     unimplemented!();
-    //     Counter::DBCall.increment();
-    //     origin_projects::table.filter(origin_package_settings::origin.eq(origin))
-    //                           .get_results(conn)
-    // }
 }

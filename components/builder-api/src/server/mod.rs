@@ -55,6 +55,7 @@ use self::resources::{authenticate::Authenticate,
                       pkgs::Packages,
                       profile::Profile,
                       projects::Projects,
+                      settings::Settings,
                       user::User};
 
 use crate::config::{Config,
@@ -158,6 +159,7 @@ pub fn run(config: Config) -> Result<()> {
                       .configure(Packages::register)
                       .configure(Profile::register)
                       .configure(Projects::register)
+                      .configure(Settings::register)
                       .configure(User::register)
                       .service(web::resource("/status")
                           .route(web::get().to(status))

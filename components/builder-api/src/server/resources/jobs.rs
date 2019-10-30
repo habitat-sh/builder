@@ -492,12 +492,12 @@ fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jobsrv::
             let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
             let project = Project::get(job.get_project().get_name(), &*conn)?;
             let settings =
-                OriginPackageSettings::get(&GetOriginPackageSettings { origin: job.get_project()
-                                                                                  .get_origin_name()
-                                                                                  .to_string(),
-                                                                       name:   job.get_project()
-                                                                                  .get_name()
-                                                                                  .to_string(), },
+                OriginPackageSettings::get(&GetOriginPackageSettings { origin:
+                                                                           job.get_project()
+                                                                              .get_origin_name(),
+                                                                       name:
+                                                                           job.get_project()
+                                                                              .get_package_name(), },
                                            &*conn)?;
 
             if vec![PackageVisibility::Private, PackageVisibility::Hidden]

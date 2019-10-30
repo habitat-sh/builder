@@ -32,18 +32,15 @@ use crate::hab_core::package::Plan;
 
 use crate::db::models::{jobs::*,
                         origin::*,
-                        package::PackageVisibility,
                         project_integration::*,
-                        projects::*,
-                        settings::{GetOriginPackageSettings,
-                                   OriginPackageSettings,
-                                   UpdateOriginPackageSettings}};
+                        projects::*};
 
 use crate::server::{authorize::authorize_session,
                     error::Error,
                     framework::headers,
                     helpers::{self,
                               Pagination},
+                    resources::settings::do_toggle_privacy,
                     AppState};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -595,57 +592,14 @@ fn get_integration(req: HttpRequest,
     }
 }
 
+// This function is deprecated. Ultimately it should be removed as a route.
+// In the meantime we pass this off to a function in the settings module
+// For real though. This behavior is available via routes in settings
+// and this should just be disabled.
 #[allow(clippy::needless_pass_by_value)]
 fn toggle_privacy(req: HttpRequest,
                   path: Path<(String, String, String)>,
                   state: Data<AppState>)
                   -> HttpResponse {
-    let (origin, name, visibility) = path.into_inner();
-
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
-        return err.into();
-    }
-
-    // users aren't allowed to set projects to hidden manually
-    if visibility.to_lowercase() == "hidden" {
-        return HttpResponse::new(StatusCode::BAD_REQUEST);
-    }
-
-    let pv: PackageVisibility = match visibility.parse() {
-        Ok(o) => o,
-        Err(err) => {
-            debug!("{:?}", err);
-            return HttpResponse::new(StatusCode::BAD_REQUEST);
-        }
-    };
-
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    let ops = match OriginPackageSettings::get(&GetOriginPackageSettings { origin,
-                                                                           name, },
-                                               &*conn).map_err(Error::DieselError)
-    {
-        Ok(pkg_settings) => pkg_settings,
-        Err(err) => {
-            debug!("{}", err);
-            return err.into();
-        }
-    };
-
-    let update_project = UpdateOriginPackageSettings { origin:     ops.origin,
-                                                       name:       ops.name,
-                                                       visibility: pv,
-                                                       owner_id:   ops.owner_id, };
-
-    if let Err(err) =
-        OriginPackageSettings::update(&update_project, &*conn).map_err(Error::DieselError)
-    {
-        debug!("{}", err);
-        return err.into();
-    }
-
-    HttpResponse::NoContent().finish()
+    do_toggle_privacy(req, path, state)
 }
