@@ -27,7 +27,8 @@ use crate::{bldr_core::{error::Error::RpcError,
                                    PackageIdentWithChannelPlatform,
                                    PackageVisibility,
                                    SearchPackages},
-                         projects::Project},
+                         settings::{GetOriginPackageSettings,
+                                    OriginPackageSettings}},
             hab_core::{package::{FromArchive,
                                  Identifiable,
                                  PackageArchive,
@@ -1111,19 +1112,20 @@ fn do_upload_package_finish(req: &HttpRequest,
     package.owner_id = session.get_id() as i64;
     package.origin = ident.clone().origin;
 
-    // First, try to fetch visibility settings from a project, if one exists
-    let project_name = format!("{}/{}", ident.origin.clone(), ident.name.clone());
-
-    package.visibility = match Project::get(&project_name, &*conn) {
-        // TED if this is in-fact optional in the db it should be an option in the model
-        Ok(proj) => proj.visibility,
-        Err(_) => {
-            match Origin::get(&ident.origin, &*conn) {
-                Ok(o) => o.default_package_visibility,
-                Err(err) => return Error::DieselError(err).into(),
+    package.visibility =
+        match OriginPackageSettings::get(&GetOriginPackageSettings { origin: &package.origin,
+                                                                     name:   &package.name, },
+                                         &*conn)
+        {
+            // TED if this is in-fact optional in the db it should be an option in the model
+            Ok(pkg) => pkg.visibility,
+            Err(_) => {
+                match Origin::get(&ident.origin, &*conn) {
+                    Ok(o) => o.default_package_visibility,
+                    Err(err) => return Error::DieselError(err).into(),
+                }
             }
-        }
-    };
+        };
 
     // Re-create origin package as needed (eg, checksum update)
     match Package::create(&package, &*conn) {

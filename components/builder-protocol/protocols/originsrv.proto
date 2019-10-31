@@ -74,6 +74,7 @@ message OriginProject {
   optional uint32 vcs_installation_id = 12;
   optional OriginPackageVisibility visibility = 13;
   optional bool auto_build = 14;
+  optional string target = 15;
 }
 
 // Origin Secret

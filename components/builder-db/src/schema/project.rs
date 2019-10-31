@@ -1,6 +1,5 @@
 table! {
     use diesel::sql_types::{Bool, BigInt, Text, Nullable, Timestamptz};
-    use crate::models::package::PackageVisibilityMapping;
 
     origin_projects (id) {
         id -> BigInt,
@@ -9,7 +8,7 @@ table! {
         package_name -> Text,
         name -> Text,
         plan_path -> Text,
-        visibility -> PackageVisibilityMapping,
+        target -> Text,
         vcs_type -> Text,
         vcs_data -> Text,
         vcs_installation_id -> Nullable<BigInt>,

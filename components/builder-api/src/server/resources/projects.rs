@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap,
-          env};
+use std::env;
 
 use actix_web::{http::{self,
                        StatusCode},
@@ -29,13 +28,10 @@ use serde_json;
 
 use crate::protocol::jobsrv;
 
-use crate::hab_core::package::{PackageIdent,
-                               Plan};
+use crate::hab_core::package::Plan;
 
 use crate::db::models::{jobs::*,
                         origin::*,
-                        package::{PackageVisibility,
-                                  *},
                         project_integration::*,
                         projects::*};
 
@@ -44,6 +40,7 @@ use crate::server::{authorize::authorize_session,
                     framework::headers,
                     helpers::{self,
                               Pagination},
+                    resources::settings::do_toggle_privacy,
                     AppState};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -52,6 +49,8 @@ pub struct ProjectCreateReq {
     pub origin: String,
     #[serde(default)]
     pub plan_path: String,
+    #[serde(default = "default_target")]
+    pub target: String,
     #[serde(default)]
     pub installation_id: u32,
     #[serde(default)]
@@ -64,6 +63,8 @@ pub struct ProjectCreateReq {
 pub struct ProjectUpdateReq {
     #[serde(default)]
     pub plan_path: String,
+    #[serde(default = "default_target")]
+    pub target: String,
     #[serde(default)]
     pub installation_id: u32,
     #[serde(default)]
@@ -71,6 +72,8 @@ pub struct ProjectUpdateReq {
     #[serde(default)]
     pub auto_build: bool,
 }
+
+fn default_target() -> String { "x86_64-linux".to_string() }
 
 pub struct Projects;
 
@@ -136,10 +139,10 @@ fn create_project(req: HttpRequest,
                          package_name:        "testapp",
                          name:                &format!("{}/{}", &origin.name, "testapp"),
                          plan_path:           &body.plan_path,
+                         target:              &body.target,
                          vcs_type:            "git",
                          vcs_data:            "https://github.com/habitat-sh/testapp.git",
                          vcs_installation_id: Some(i64::from(body.installation_id)),
-                         visibility:          &PackageVisibility::Public,
                          auto_build:          body.auto_build, };
 
         match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
@@ -194,16 +197,15 @@ fn create_project(req: HttpRequest,
     };
 
     let package_name = plan.name.trim_matches('"');
-
     let new_project = NewProject { owner_id: account_id as i64,
                                    origin: &origin.name,
                                    package_name,
                                    name: &format!("{}/{}", &origin.name, package_name),
                                    plan_path: &body.plan_path,
+                                   target: &body.target,
                                    vcs_type: "git",
                                    vcs_data: &vcs_data,
                                    vcs_installation_id: Some(i64::from(body.installation_id)),
-                                   visibility: &origin.default_package_visibility,
                                    auto_build: body.auto_build };
 
     match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
@@ -312,10 +314,10 @@ fn update_project(req: HttpRequest,
                             owner_id:            account_id as i64,
                             package_name:        "testapp",
                             plan_path:           &body.plan_path,
+                            target:              &body.target,
                             vcs_type:            "git",
                             vcs_data:            "https://github.com/habitat-sh/testapp.git",
                             vcs_installation_id: Some(i64::from(body.installation_id)),
-                            visibility:          &PackageVisibility::Public,
                             auto_build:          body.auto_build, };
 
         match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
@@ -380,10 +382,10 @@ fn update_project(req: HttpRequest,
                                          origin:              &project.origin,
                                          package_name:        &plan.name.trim_matches('"'),
                                          plan_path:           &body.plan_path,
+                                         target:              &body.target,
                                          vcs_type:            "git",
                                          vcs_data:            &vcs_data,
                                          vcs_installation_id: Some(i64::from(body.installation_id)),
-                                         visibility:          &project.visibility,
                                          auto_build:          body.auto_build, };
 
     match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
@@ -590,95 +592,14 @@ fn get_integration(req: HttpRequest,
     }
 }
 
+// This function is deprecated. Ultimately it should be removed as a route.
+// In the meantime we pass this off to a function in the settings module
+// For real though. This behavior is available via routes in settings
+// and this should just be disabled.
 #[allow(clippy::needless_pass_by_value)]
 fn toggle_privacy(req: HttpRequest,
                   path: Path<(String, String, String)>,
                   state: Data<AppState>)
                   -> HttpResponse {
-    let (origin, name, visibility) = path.into_inner();
-
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
-        return err.into();
-    }
-
-    // users aren't allowed to set projects to hidden manually
-    if visibility.to_lowercase() == "hidden" {
-        return HttpResponse::new(StatusCode::BAD_REQUEST);
-    }
-
-    let pv: PackageVisibility = match visibility.parse() {
-        Ok(o) => o,
-        Err(err) => {
-            debug!("{:?}", err);
-            return HttpResponse::new(StatusCode::BAD_REQUEST);
-        }
-    };
-
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    let project_get = format!("{}/{}", &origin, &name);
-    let project = match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
-        Ok(project) => project,
-        Err(err) => {
-            debug!("{}", err);
-            return err.into();
-        }
-    };
-
-    let package_name = project.package_name.clone();
-
-    let update_project = UpdateProject { id:                  project.id,
-                                         owner_id:            project.owner_id,
-                                         origin:              &project.origin,
-                                         package_name:        &package_name,
-                                         plan_path:           &project.plan_path,
-                                         vcs_type:            &project.vcs_type,
-                                         vcs_data:            &project.vcs_data,
-                                         vcs_installation_id: project.vcs_installation_id,
-                                         visibility:          &pv,
-                                         auto_build:          project.auto_build, };
-
-    if let Err(err) = Project::update(&update_project, &*conn).map_err(Error::DieselError) {
-        debug!("{}", err);
-        return err.into();
-    }
-
-    let ident = PackageIdent::new(project.origin.clone(), project.package_name, None, None);
-    let pkgs =
-        match Package::get_all(BuilderPackageIdent(ident), &*conn).map_err(Error::DieselError) {
-            Ok(pkgs) => pkgs,
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        };
-
-    let mut map = HashMap::new();
-
-    // TODO (SA): This needs to be refactored to all get done in a single transaction
-
-    // For each row, store its id in our map, keyed on visibility
-    for pkg in pkgs {
-        map.entry(pkg.visibility)
-           .or_insert_with(Vec::new)
-           .push(pkg.id);
-    }
-
-    // Now do a bulk update for each different visibility
-    for (vis, id_vector) in map.iter() {
-        let upv = UpdatePackageVisibility { visibility: vis.clone(),
-                                            ids:        id_vector.clone(), };
-
-        if let Err(err) = Package::update_visibility_bulk(upv, &*conn).map_err(Error::DieselError) {
-            return {
-                debug!("{}", err);
-                err.into()
-            };
-        };
-    }
-
-    HttpResponse::NoContent().finish()
+    do_toggle_privacy(req, path, state)
 }

@@ -8,8 +8,7 @@ use diesel::{self,
              QueryDsl,
              RunQueryDsl};
 
-use crate::{models::package::PackageVisibility,
-            protocol::originsrv,
+use crate::{protocol::originsrv,
             schema::project::origin_projects};
 
 use crate::{bldr_core::metrics::CounterMetric,
@@ -26,7 +25,7 @@ pub struct Project {
     pub package_name: String,
     pub name: String,
     pub plan_path: String,
-    pub visibility: PackageVisibility,
+    pub target: String,
     pub vcs_type: String,
     pub vcs_data: String,
     #[serde(with = "db_optional_id_format")]
@@ -44,10 +43,10 @@ pub struct NewProject<'a> {
     pub name:                &'a str,
     pub package_name:        &'a str,
     pub plan_path:           &'a str,
+    pub target:              &'a str,
     pub vcs_type:            &'a str,
     pub vcs_data:            &'a str,
     pub vcs_installation_id: Option<i64>,
-    pub visibility:          &'a PackageVisibility,
     pub auto_build:          bool,
 }
 
@@ -59,10 +58,10 @@ pub struct UpdateProject<'a> {
     pub origin:              &'a str,
     pub package_name:        &'a str,
     pub plan_path:           &'a str,
+    pub target:              &'a str,
     pub vcs_type:            &'a str,
     pub vcs_data:            &'a str,
     pub vcs_installation_id: Option<i64>,
-    pub visibility:          &'a PackageVisibility,
     pub auto_build:          bool,
 }
 
@@ -106,6 +105,7 @@ impl Into<originsrv::OriginProject> for Project {
         proj.set_package_name(self.package_name);
         proj.set_name(self.name);
         proj.set_plan_path(self.plan_path);
+        proj.set_target(self.target);
         proj.set_vcs_type(self.vcs_type);
         proj.set_vcs_data(self.vcs_data);
         if let Some(install_id) = self.vcs_installation_id {
