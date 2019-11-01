@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
+use std::{env,
+          str::FromStr};
 
 use actix_web::{http::{self,
                        StatusCode},
@@ -28,7 +29,8 @@ use serde_json;
 
 use crate::protocol::jobsrv;
 
-use crate::hab_core::package::Plan;
+use crate::hab_core::package::{PackageTarget,
+                               Plan};
 
 use crate::db::models::{jobs::*,
                         origin::*,
@@ -39,7 +41,8 @@ use crate::server::{authorize::authorize_session,
                     error::Error,
                     framework::headers,
                     helpers::{self,
-                              Pagination},
+                              Pagination,
+                              Target},
                     resources::settings::do_toggle_privacy,
                     AppState};
 
@@ -131,6 +134,14 @@ fn create_project(req: HttpRequest,
         }
     };
 
+    let target = match PackageTarget::from_str(&body.target) {
+        Ok(t) => t,
+        Err(err) => {
+            debug!("Invalid target requested: err = {:?}", err);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+    };
+
     // Test hook - bypass the github dance
     if env::var_os("HAB_FUNC_TEST").is_some() {
         let new_project =
@@ -139,7 +150,7 @@ fn create_project(req: HttpRequest,
                          package_name:        "testapp",
                          name:                &format!("{}/{}", &origin.name, "testapp"),
                          plan_path:           &body.plan_path,
-                         target:              &body.target,
+                         target:              &target,
                          vcs_type:            "git",
                          vcs_data:            "https://github.com/habitat-sh/testapp.git",
                          vcs_installation_id: Some(i64::from(body.installation_id)),
@@ -202,7 +213,7 @@ fn create_project(req: HttpRequest,
                                    package_name,
                                    name: &format!("{}/{}", &origin.name, package_name),
                                    plan_path: &body.plan_path,
-                                   target: &body.target,
+                                   target: &target,
                                    vcs_type: "git",
                                    vcs_data: &vcs_data,
                                    vcs_installation_id: Some(i64::from(body.installation_id)),
@@ -220,6 +231,7 @@ fn create_project(req: HttpRequest,
 #[allow(clippy::needless_pass_by_value)]
 fn get_project(req: HttpRequest,
                path: Path<(String, String)>,
+               qtarget: Query<Target>,
                state: Data<AppState>)
                -> HttpResponse {
     let (origin, name) = path.into_inner();
@@ -228,14 +240,15 @@ fn get_project(req: HttpRequest,
         return err.into();
     }
 
-    let project_get = format!("{}/{}", &origin, &name);
-
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
+    let target = helpers::extract_target(&qtarget);
+    let project = format!("{}/{}", &origin, &name);
+
+    match Project::get(&project, &target, &*conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Ok().json(project),
         Err(err) => {
             debug!("{}", err);
@@ -247,6 +260,7 @@ fn get_project(req: HttpRequest,
 #[allow(clippy::needless_pass_by_value)]
 fn delete_project(req: HttpRequest,
                   path: Path<(String, String)>,
+                  qtarget: Query<Target>,
                   state: Data<AppState>)
                   -> HttpResponse {
     let (origin, name) = path.into_inner();
@@ -255,14 +269,15 @@ fn delete_project(req: HttpRequest,
         return err.into();
     }
 
-    let project_delete = format!("{}/{}", &origin, &name);
-
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match Project::delete(&project_delete, &*conn).map_err(Error::DieselError) {
+    let target = helpers::extract_target(&qtarget);
+    let project_delete = format!("{}/{}", &origin, &name);
+
+    match Project::delete(&project_delete, &target, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -293,12 +308,20 @@ fn update_project(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
+    let target = match PackageTarget::from_str(&body.target) {
+        Ok(t) => t,
+        Err(err) => {
+            debug!("Invalid target requested, err = {:?}", err);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+    };
+
     // TODO (SA): We should not need to fetch the origin project here.
     // Simplify origin project update sproc to not require project id,
     // and to not need to pass in the origin id again
     let project_get = format!("{}/{}", &origin, &name);
 
-    let project = match Project::get(&project_get, &*conn).map_err(Error::DieselError) {
+    let project = match Project::get(&project_get, &target, &*conn).map_err(Error::DieselError) {
         Ok(project) => project,
         Err(err) => {
             debug!("{}", err);
@@ -314,7 +337,7 @@ fn update_project(req: HttpRequest,
                             owner_id:            account_id as i64,
                             package_name:        "testapp",
                             plan_path:           &body.plan_path,
-                            target:              &body.target,
+                            target:              &target,
                             vcs_type:            "git",
                             vcs_data:            "https://github.com/habitat-sh/testapp.git",
                             vcs_installation_id: Some(i64::from(body.installation_id)),
@@ -382,7 +405,7 @@ fn update_project(req: HttpRequest,
                                          origin:              &project.origin,
                                          package_name:        &plan.name.trim_matches('"'),
                                          plan_path:           &body.plan_path,
-                                         target:              &body.target,
+                                         target:              &target,
                                          vcs_type:            "git",
                                          vcs_data:            &vcs_data,
                                          vcs_installation_id: Some(i64::from(body.installation_id)),

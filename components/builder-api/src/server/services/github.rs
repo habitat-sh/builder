@@ -222,7 +222,7 @@ fn build_plans(req: &HttpRequest,
 
     for plan in plans.iter() {
         let project_name = format!("{}/{}", &plan.0.origin, &plan.0.name);
-        match Project::get(&project_name, &*conn) {
+        match Project::get(&project_name, &plan.1, &*conn) {
             Ok(project) => {
                 if repo_url != project.vcs_data {
                     warn!("Repo URL ({}) doesn't match project vcs data ({}). Aborting.",

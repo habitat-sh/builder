@@ -490,7 +490,7 @@ fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jobsrv::
             // database.
             // TODO (SA): Update the project information in the job to match the DB
             let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-            let project = Project::get(job.get_project().get_name(), &*conn)?;
+            let project = Project::get(job.get_project().get_name(), job.get_target(), &*conn)?;
             let settings =
                 OriginPackageSettings::get(&GetOriginPackageSettings { origin:
                                                                            job.get_project()

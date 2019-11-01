@@ -66,15 +66,16 @@ pub struct UpdateProject<'a> {
 }
 
 impl Project {
-    pub fn get(name: &str, conn: &PgConnection) -> QueryResult<Project> {
+    pub fn get(name: &str, target: &str, conn: &PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
         origin_projects::table.filter(origin_projects::name.eq(name))
+                              .filter(origin_projects::target.eq(target))
                               .get_result(conn)
     }
 
-    pub fn delete(name: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(name: &str, target: &str, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::delete(origin_projects::table.filter(origin_projects::name.eq(name))).execute(conn)
+        diesel::delete(origin_projects::table.filter(origin_projects::name.eq(name)).filter(origin_projects::target.eq(target))).execute(conn)
     }
 
     pub fn create(project: &NewProject, conn: &PgConnection) -> QueryResult<Project> {

@@ -219,13 +219,13 @@ pub fn job_group_cancel(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     RpcMessage::make(&net::NetOk::new()).map_err(Error::BuilderCore)
 }
 
-fn is_project_buildable(state: &AppState, project_name: &str) -> bool {
+fn is_project_buildable(state: &AppState, project_name: &str, target: &str) -> bool {
     let conn = match state.db.get_conn().map_err(Error::Db) {
         Ok(conn_ref) => conn_ref,
         Err(_) => return false,
     };
 
-    match Project::get(project_name, &*conn) {
+    match Project::get(project_name, &target, &*conn) {
         Ok(project) => project.auto_build,
         Err(diesel::result::Error::NotFound) => false,
         Err(err) => {
@@ -253,7 +253,7 @@ fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
         // If the project is not linked to Builder, or is not auto-buildable
         // then we will skip it, as well as any later projects that depend on it
         // TODO (SA): Move the project list creation/vetting to background thread
-        if !is_project_buildable(state, &s.0) {
+        if !is_project_buildable(state, &s.0, &msg.get_target()) {
             debug!("Project is not linked to Builder or not auto-buildable - not adding: {}",
                    &s.0);
             excluded.insert(s.0.clone());
@@ -349,7 +349,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     debug!("Resolved project name: {} sec\n", start_time.to(end_time));
 
     // Bail if auto-build is false, and the project has not been manually kicked off
-    if !is_project_buildable(state, &project_name) {
+    if !is_project_buildable(state, &project_name, &target) {
         match msg.get_trigger() {
             jobsrv::JobGroupTrigger::HabClient | jobsrv::JobGroupTrigger::BuilderUI => (),
             _ => {

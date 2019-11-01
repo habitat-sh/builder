@@ -8,7 +8,6 @@ const repoId = 114932712;
 const projectCreatePayload = {
   origin: 'neurosis',
   plan_path: 'plan.sh',
-  target: 'x86_64-linux',
   installation_id: installationId,
   repo_id: repoId,
   auto_build: true
@@ -208,6 +207,7 @@ describe('Projects API', function () {
         .send({
           plan_path: 'awesome/plan.sh',
           installation_id: installationId,
+          target: 'x86_64-linux',
           repo_id: repoId
         })
         .expect(204)
