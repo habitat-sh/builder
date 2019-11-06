@@ -216,7 +216,7 @@ describe('Origin API', function () {
         });
     });
 
-    it('succeeds in deleting the associated project', function (done) {
+    it('succeeds in deleting associated project', function (done) {
       request.delete('/projects/umbrella/testapp')
         .type('application/json')
         .accept('application/json')

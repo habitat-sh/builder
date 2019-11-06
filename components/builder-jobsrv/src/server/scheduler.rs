@@ -536,7 +536,7 @@ impl ScheduleMgr {
                     -> Result<Option<jobsrv::Job>> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        let project = match Project::get(&project_name, &*conn) {
+        let project = match Project::get(&project_name, &target, &*conn) {
             Ok(project) => project,
             Err(diesel::result::Error::NotFound) => {
                 // It's valid to not have a project connected
