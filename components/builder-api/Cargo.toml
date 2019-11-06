@@ -52,6 +52,7 @@ uuid = { version = "*", features = ["v4"] }
 [dependencies.actix-web]
 version = "*"
 default-features = false
+features = [ "ssl" ]
 
 [dependencies.clap]
 version = "*"

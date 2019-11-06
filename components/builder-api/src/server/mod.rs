@@ -28,10 +28,8 @@ use actix_web::{http::StatusCode,
                 middleware::Logger,
                 web,
                 App,
-                Error,
                 HttpResponse,
-                HttpServer,
-                Result};
+                HttpServer};
 
 use crate::{bldr_core::rpc::RpcClient,
             db::{migration,
@@ -45,6 +43,11 @@ use self::framework::middleware::authentication_middleware;
 
 use self::services::{memcache::MemcacheClient,
                      s3::S3Handler};
+
+use openssl::ssl::{SslAcceptor,
+                   SslFiletype,
+                   SslMethod,
+                   SslVerifyMode};
 
 use self::resources::{authenticate::Authenticate,
                       channels::Channels,
@@ -60,6 +63,11 @@ use self::resources::{authenticate::Authenticate,
 
 use crate::config::{Config,
                     GatewayCfg};
+
+const TLS_CIPHERS: &str = "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:\
+                           ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:\
+                           ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\
+                           DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
 
 features! {
     pub mod feat {
@@ -122,52 +130,79 @@ fn enable_features(config: &Config) {
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
 pub fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
 
-pub fn run(config: Config) -> Result<()> {
+pub fn run(config: Config) -> error::Result<()> {
     enable_features(&config);
 
     let cfg = Arc::new(config.clone());
+    let db_pool = DbPool::new(&config.datastore.clone());
+
+    migration::setup(&db_pool.get_conn().unwrap()).unwrap();
+
+    let mut srv = HttpServer::new(move || {
+                      let app_state = match AppState::new(&config, db_pool.clone()) {
+                          Ok(state) => state,
+                          Err(err) => {
+                              error!("Unable to create application state, err = {}", err);
+                              panic!("Cannot start without valid application state");
+                          }
+                      };
+
+                      App::new()
+            .data(app_state)
+            .wrap_fn(authentication_middleware)
+            .wrap(Logger::default().exclude("/v1/status"))
+            .service(
+                web::scope("/v1")
+                    .configure(Authenticate::register)
+                    .configure(Channels::register)
+                    .configure(Ext::register)
+                    .configure(Jobs::register)
+                    .configure(Notify::register)
+                    .configure(Origins::register)
+                    .configure(Packages::register)
+                    .configure(Profile::register)
+                    .configure(Projects::register)
+                    .configure(Settings::register)
+                    .configure(User::register)
+                    .service(
+                        web::resource("/status")
+                            .route(web::get().to(status))
+                            .route(web::head().to(status)),
+                    ),
+            )
+                  }).workers(cfg.handler_count())
+                    .keep_alive(cfg.http.keep_alive);
 
     info!("builder-api listening on {}:{}",
           cfg.listen_addr(),
           cfg.listen_port());
 
-    // TED TODO: When originsrv gets removed we need to do the migrations here
+    srv = match &cfg.http.tls {
+        Some(tls_cfg) => {
+            info!("TLS enabled (key: {:?}, cert: {:?})",
+                  tls_cfg.key_path, tls_cfg.cert_path);
+            let mut builder = SslAcceptor::mozilla_modern(SslMethod::tls())?;
+            builder.set_private_key_file(&tls_cfg.key_path, SslFiletype::PEM)?;
+            builder.set_certificate_chain_file(&tls_cfg.cert_path)?;
+            builder.set_cipher_list(TLS_CIPHERS)?;
 
-    let db_pool = DbPool::new(&config.datastore.clone());
-
-    migration::setup(&db_pool.get_conn().unwrap()).unwrap();
-
-    HttpServer::new(move || {
-        let app_state = match AppState::new(&config, db_pool.clone()) {
-            Ok(state) => state,
-            Err(err) => {
-                error!("Unable to create application state, err = {}", err);
-                panic!("Cannot start without valid application state");
+            match &tls_cfg.ca_cert_path {
+                None => {
+                    info!("TLS client authentication disabled");
+                }
+                Some(ca_cert_path) => {
+                    info!("TLS client authentication enabled");
+                    let mut verify_mode = SslVerifyMode::empty();
+                    verify_mode.insert(SslVerifyMode::PEER);
+                    verify_mode.insert(SslVerifyMode::FAIL_IF_NO_PEER_CERT);
+                    builder.set_verify(verify_mode);
+                    builder.set_ca_file(&ca_cert_path)?;
+                }
             }
-        };
 
-        App::new().data(app_state)
-                  .wrap_fn(authentication_middleware)
-                  .wrap(Logger::default().exclude("/v1/status"))
-                  .service(web::scope("/v1")
-                      .configure(Authenticate::register)
-                      .configure(Channels::register)
-                      .configure(Ext::register)
-                      .configure(Jobs::register)
-                      .configure(Notify::register)
-                      .configure(Origins::register)
-                      .configure(Packages::register)
-                      .configure(Profile::register)
-                      .configure(Projects::register)
-                      .configure(Settings::register)
-                      .configure(User::register)
-                      .service(web::resource("/status")
-                          .route(web::get().to(status))
-                          .route(web::head().to(status))))
-    }).workers(cfg.handler_count())
-      .keep_alive(cfg.http.keep_alive)
-      .bind(cfg.http.clone())
-      .unwrap()
-      .run()
-      .map_err(Error::from)
+            srv.bind_ssl(cfg.http.clone(), builder)?
+        }
+        None => srv.bind(cfg.http.clone())?,
+    };
+    srv.run().map_err(error::Error::from)
 }
