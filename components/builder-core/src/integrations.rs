@@ -27,7 +27,7 @@ use crate::{error::{Error,
 
 // TBD - these functions should take keys directly instead of key directory.
 
-pub fn encrypt<A>(key_dir: A, bytes: &[u8]) -> Result<String>
+pub fn encrypt<A>(key_dir: A, bytes: &[u8]) -> Result<(String, String)>
     where A: AsRef<Path>
 {
     let display_path = key_dir.as_ref().display();
@@ -55,7 +55,7 @@ pub fn encrypt<A>(key_dir: A, bytes: &[u8]) -> Result<String>
     // is consistently base64 and does not have random text interspersed with readable text.
     // This makes it easier to pass around, eg, for access tokens, and is by design.
     // The downside is that there is double base64 happening.
-    Ok(base64::encode(wsb.as_bytes()))
+    Ok((base64::encode(wsb.as_bytes()), kp.rev))
 }
 
 // This function takes in a double base64 encoded string

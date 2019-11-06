@@ -330,12 +330,22 @@ fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> H
         }
     };
 
-    let new_sk = NewOriginPrivateSigningKey { owner_id:  account_id as i64,
-                                              origin:    &origin,
-                                              full_name: &format!("{}-{}", &origin, &pair.rev),
-                                              name:      &origin,
-                                              revision:  &pair.rev,
-                                              body:      &sk_body, };
+    let (sk_encrypted, bldr_key_rev) = match encrypt(&req, &Bytes::from(sk_body)) {
+        Ok((encrypted, rev)) => (encrypted, rev),
+        Err(err) => {
+            debug!("create_keys: Failed to encrypt sk_body, err={:?}", err);
+            return err.into();
+        }
+    };
+
+    let new_sk = NewOriginPrivateSigningKey { owner_id:           account_id as i64,
+                                              origin:             &origin,
+                                              full_name:          &format!("{}-{}",
+                                                                           &origin, &pair.rev),
+                                              name:               &origin,
+                                              revision:           &pair.rev,
+                                              body:               &sk_encrypted.as_bytes(),
+                                              encryption_key_rev: &bldr_key_rev, };
 
     match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
         Ok(_) => (),
@@ -697,12 +707,22 @@ fn upload_origin_secret_key(req: HttpRequest,
         }
     }
 
-    let new_sk = NewOriginPrivateSigningKey { owner_id:  account_id as i64,
-                                              origin:    &origin,
-                                              name:      &origin,
-                                              full_name: &format!("{}-{}", &origin, &revision),
-                                              revision:  &revision,
-                                              body:      &body, };
+    let (encrypted_body, bldr_key_rev) = match encrypt(&req, &body) {
+        Ok((encrypted, rev)) => (encrypted, rev),
+        Err(err) => {
+            debug!("Failed to encrypt body, err={:?}", err);
+            return err.into();
+        }
+    };
+
+    let new_sk = NewOriginPrivateSigningKey { owner_id:           account_id as i64,
+                                              origin:             &origin,
+                                              name:               &origin,
+                                              full_name:          &format!("{}-{}",
+                                                                           &origin, &revision),
+                                              revision:           &revision,
+                                              body:               &encrypted_body.as_bytes(),
+                                              encryption_key_rev: &bldr_key_rev, };
 
     match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Created().finish(),
@@ -737,8 +757,27 @@ fn download_latest_origin_secret_key(req: HttpRequest,
         }
     };
 
+    let key_body = if key.encryption_key_rev.is_some() {
+        let str_body = match String::from_utf8(key.body).map_err(Error::Utf8) {
+            Ok(s) => s,
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
+        match decrypt(&req, &str_body) {
+            Ok(decrypted) => decrypted.as_bytes().to_vec(),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        }
+    } else {
+        key.body
+    };
+
     let xfilename = format!("{}-{}.sig.key", key.name, key.revision);
-    download_content_as_file(&key.body, xfilename)
+    download_content_as_file(&key_body, xfilename)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -1164,7 +1203,7 @@ fn create_origin_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let encrypted = match encrypt(&req, &body) {
+    let (encrypted, _) = match encrypt(&req, &body) {
         Ok(encrypted) => encrypted,
         Err(err) => {
             debug!("{}", err);
@@ -1320,7 +1359,7 @@ fn generate_origin_encryption_keys(origin: &str,
     OriginPublicEncryptionKey::create(&new_pk, &*conn).map_err(Error::DieselError)
 }
 
-fn encrypt(req: &HttpRequest, content: &Bytes) -> Result<String> {
+fn encrypt(req: &HttpRequest, content: &Bytes) -> Result<(String, String)> {
     bldr_core::integrations::encrypt(&req_state(req).config.api.key_path, content)
         .map_err(Error::BuilderCore)
 }
