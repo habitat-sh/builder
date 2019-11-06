@@ -6,9 +6,9 @@ data "aws_acm_certificate" "ssl" {
 
 resource "aws_elb" "api" {
   name            = "builder-api-gateway-${var.env}"
-  security_groups = ["${aws_security_group.gateway_elb.id}"]
-  subnets         = ["${var.public_subnet_id}"]
-  instances       = ["${aws_instance.api.*.id}"]
+  security_groups = [aws_security_group.gateway_elb.id]
+  subnets         = [var.public_subnet_id]
+  instances       = aws_instance.api.*.id
   idle_timeout    = 300
 
   listener {
@@ -16,7 +16,7 @@ resource "aws_elb" "api" {
     instance_protocol  = "HTTP"
     lb_port            = 443
     lb_protocol        = "HTTPS"
-    ssl_certificate_id = "${data.aws_acm_certificate.ssl.arn}"
+    ssl_certificate_id = data.aws_acm_certificate.ssl.arn
   }
 
   health_check {
@@ -27,8 +27,8 @@ resource "aws_elb" "api" {
     interval            = 30
   }
 
-  tags {
-    X-Environment = "${var.env}"
+  tags = {
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -38,7 +38,7 @@ resource "aws_elb" "api" {
 // current default AWS ELB set (ELBSecurityPolicy-2015-05)
 resource "aws_lb_ssl_negotiation_policy" "api" {
   name          = "builder-api"
-  load_balancer = "${aws_elb.api.id}"
+  load_balancer = aws_elb.api.id
   lb_port       = 443
 
   attribute {
@@ -161,3 +161,4 @@ resource "aws_lb_ssl_negotiation_policy" "api" {
     value = "false"
   }
 }
+

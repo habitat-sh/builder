@@ -6,7 +6,7 @@
 // use instance roles.
 
 resource "aws_iam_user" "jobs" {
-  name = "jobs-${var.env}"
+  name          = "jobs-${var.env}"
   force_destroy = false # be explicit here, because we will have access keys
 }
 
@@ -15,32 +15,33 @@ resource "aws_iam_user" "jobs" {
 resource "aws_s3_bucket" "jobs" {
   bucket = "habitat-jobs-${var.env}"
   acl    = "private"
-  region = "${var.aws_region}"
+  region = var.aws_region
 
   lifecycle {
     prevent_destroy = true
   }
 
-  tags {
+  tags = {
     Name          = "habitat-jobs-${var.env}"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-ManagedBy   = "Terraform"
   }
 }
 
 data "aws_iam_policy_document" "job_user_can_get_and_put_logs" {
-  statement = {
-    effect = "Allow"
-    actions = ["s3:GetObject", "s3:PutObject"]
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:GetObject", "s3:PutObject"]
     resources = ["${aws_s3_bucket.jobs.arn}/*"]
-    principals = {
-      type = "AWS"
-      identifiers = ["${aws_iam_user.jobs.arn}"]
+    principals {
+      type        = "AWS"
+      identifiers = [aws_iam_user.jobs.arn]
     }
   }
 }
 
 resource "aws_s3_bucket_policy" "jobs" {
-  bucket = "${aws_s3_bucket.jobs.id}"
-  policy = "${data.aws_iam_policy_document.job_user_can_get_and_put_logs.json}"
+  bucket = aws_s3_bucket.jobs.id
+  policy = data.aws_iam_policy_document.job_user_can_get_and_put_logs.json
 }
+
