@@ -1,6 +1,11 @@
 ////////////////////////////////
 // Front-end Instances
 
+provider "aws" {
+  region = var.aws_region
+  profile = "habitat"
+}
+
 resource "aws_instance" "api" {
   ami           = var.aws_ami[var.aws_region]
   instance_type = var.instance_size_api
