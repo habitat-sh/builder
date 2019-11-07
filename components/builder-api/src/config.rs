@@ -192,8 +192,8 @@ impl Default for HttpCfg {
 
 impl Default for TLSCfg {
     fn default() -> Self {
-        TLSCfg { cert_path:    PathBuf::from("/hab/svc/builder-api/config/service.crt"),
-                 key_path:     PathBuf::from("/hab/svc/builder-api/config/service.key"),
+        TLSCfg { cert_path:    PathBuf::from("/hab/svc/builder-api/files/service.crt"),
+                 key_path:     PathBuf::from("/hab/svc/builder-api/files/service.key"),
                  ca_cert_path: None, }
     }
 }
