@@ -23,6 +23,10 @@ resource "aws_instance" "api" {
     agent       = "${var.connection_agent}"
   }
 
+  root_block_device {
+    volume_size = 20
+  }
+
   ebs_block_device {
     device_name = "/dev/xvdf"
     volume_size = 100
@@ -151,6 +155,10 @@ resource "aws_instance" "jobsrv" {
     agent       = "${var.connection_agent}"
   }
 
+  root_block_device {
+    volume_size = 20
+  }
+
   ebs_block_device {
     device_name = "/dev/xvdf"
     volume_size = 100
@@ -261,6 +269,10 @@ resource "aws_instance" "worker" {
     user        = "ubuntu"
     private_key = "${file("${var.connection_private_key}")}"
     agent       = "${var.connection_agent}"
+  }
+
+  root_block_device {
+    volume_size = 20
   }
 
   ebs_block_device {
@@ -380,6 +392,10 @@ resource "aws_instance" "linux2-worker" {
     user        = "ubuntu"
     private_key = "${file("${var.connection_private_key}")}"
     agent       = "${var.connection_agent}"
+  }
+
+  root_block_device {
+    volume_size = 20
   }
 
   ebs_block_device {
