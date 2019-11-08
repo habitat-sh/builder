@@ -166,7 +166,7 @@ impl GatewayCfg for Config {
 pub struct HttpCfg {
     pub listen:        IpAddr,
     pub port:          u16,
-    pub tls:           Option<TLSCfg>,
+    pub tls:           Option<TLSServerCfg>,
     pub handler_count: usize,
     pub keep_alive:    usize,
 }
@@ -174,10 +174,36 @@ pub struct HttpCfg {
 /// Optional TLS configuration
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
-pub struct TLSCfg {
+pub struct TLSServerCfg {
     pub cert_path:    PathBuf,
     pub key_path:     PathBuf,
     pub ca_cert_path: Option<PathBuf>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct TLSClientCfg {
+    pub cert_path:    Option<PathBuf>,
+    pub key_path:     Option<PathBuf>,
+    pub ca_cert_path: Option<PathBuf>,
+    pub verify:       bool,
+}
+
+impl Default for TLSServerCfg {
+    fn default() -> Self {
+        TLSServerCfg { cert_path:    PathBuf::from("/hab/svc/builder-api/files/service.crt"),
+                       key_path:     PathBuf::from("/hab/svc/builder-api/files/service.key"),
+                       ca_cert_path: None, }
+    }
+}
+
+impl Default for TLSClientCfg {
+    fn default() -> Self {
+        TLSClientCfg { cert_path:    None,
+                       key_path:     None,
+                       ca_cert_path: None,
+                       verify:       true, }
+    }
 }
 
 impl Default for HttpCfg {
@@ -187,14 +213,6 @@ impl Default for HttpCfg {
                   tls:           None,
                   handler_count: Config::default_handler_count(),
                   keep_alive:    60, }
-    }
-}
-
-impl Default for TLSCfg {
-    fn default() -> Self {
-        TLSCfg { cert_path:    PathBuf::from("/hab/svc/builder-api/files/service.crt"),
-                 key_path:     PathBuf::from("/hab/svc/builder-api/files/service.key"),
-                 ca_cert_path: None, }
     }
 }
 
@@ -221,6 +239,7 @@ pub struct UiCfg {
 pub struct MemcacheCfgHosts {
     pub host: String,
     pub port: u16,
+    pub tls:  Option<TLSClientCfg>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -233,7 +252,8 @@ pub struct MemcacheCfg {
 impl Default for MemcacheCfgHosts {
     fn default() -> Self {
         MemcacheCfgHosts { host: String::from("localhost"),
-                           port: 11211, }
+                           port: 11211,
+                           tls:  None, }
     }
 }
 
@@ -244,9 +264,50 @@ impl Default for MemcacheCfg {
     }
 }
 
+impl MemcacheCfg {
+    pub fn memcache_hosts(&self) -> Vec<String> {
+        self.hosts
+            .iter()
+            .map(|h| h.to_string_with_params())
+            .collect()
+    }
+}
+
+impl MemcacheCfgHosts {
+    pub fn to_string_with_params(&self) -> String {
+        let mut url = format!("{}?tcp_nodelay=true", self); // tcp_nodelay is a significant perf gain
+        if let Some(tls_config) = &self.tls {
+            if tls_config.ca_cert_path.is_some() {
+                url.push_str(&format!("&ca_path={}",
+                                      tls_config.ca_cert_path.as_ref().unwrap().to_string_lossy()))
+            }
+
+            if tls_config.key_path.is_some() {
+                url.push_str(&format!("&key_path={}",
+                                      tls_config.key_path.as_ref().unwrap().to_string_lossy()))
+            }
+
+            if tls_config.cert_path.is_some() {
+                url.push_str(&format!("&cert_path={}",
+                                      tls_config.cert_path.as_ref().unwrap().to_string_lossy()))
+            }
+
+            if tls_config.verify {
+                url.push_str("&verify_mode=peer");
+            } else {
+                url.push_str("&verify_mode=none");
+            }
+        }
+        url
+    }
+}
+
 impl fmt::Display for MemcacheCfgHosts {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "memcache://{}:{}", self.host, self.port)
+        match &self.tls {
+            Some(_) => write!(f, "memcache+tls://{}:{}", self.host, self.port),
+            None => write!(f, "memcache://{}:{}", self.host, self.port),
+        }
     }
 }
 

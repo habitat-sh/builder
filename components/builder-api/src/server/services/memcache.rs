@@ -37,11 +37,7 @@ pub struct MemcacheClient {
 impl MemcacheClient {
     pub fn new(config: &MemcacheCfg) -> Self {
         trace!("Creating memcache client, hosts: {:?}", config.hosts);
-        let memcache_host_strings: Vec<String> = config
-            .hosts
-            .iter()
-            .map(|h| format!("{}?tcp_nodelay=true", h)) // tcp_nodelay is a significant perf gain
-            .collect();
+        let memcache_host_strings = config.memcache_hosts();
         let memcache_hosts: Vec<&str> = memcache_host_strings.iter().map(AsRef::as_ref).collect();
         MemcacheClient { cli: memcache::Client::connect(memcache_hosts).unwrap(),
                          ttl: config.ttl, }
