@@ -64,6 +64,15 @@ use self::resources::{authenticate::Authenticate,
 use crate::config::{Config,
                     GatewayCfg};
 
+// This cipher list corresponds to the "intermediate" configuration
+// recommended by Mozilla:
+//
+// https://ssl-config.mozilla.org/#server=nginx&server-version=1.17.0&config=intermediate&hsts=false&ocsp=false
+//
+// TODO(ssd) 2019-11-08: We can remove this when we upgrade the
+// openssl create to a version that includes mozilla_intermediate_v5:
+//
+// https://github.com/sfackler/rust-openssl/commit/1b3e0c8a15f11f07b076f1b83278d5ec99881ff1
 const TLS_CIPHERS: &str = "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:\
                            ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:\
                            ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\
