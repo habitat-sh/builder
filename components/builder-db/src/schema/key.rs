@@ -23,6 +23,7 @@ table! {
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
         origin -> Text,
+        encryption_key_rev -> Nullable<Text>,
     }
 }
 
