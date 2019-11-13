@@ -4,7 +4,7 @@ resource "aws_iam_user" "www" {
 
 resource "aws_iam_user_policy" "www" {
   name = "www-${var.env}"
-  user = "${aws_iam_user.www.name}"
+  user = aws_iam_user.www.name
 
   policy = <<EOF
 {
@@ -27,6 +27,7 @@ resource "aws_iam_user_policy" "www" {
   ]
 }
 EOF
+
 }
 
 resource "aws_s3_bucket" "www" {
@@ -37,9 +38,9 @@ resource "aws_s3_bucket" "www" {
     prevent_destroy = true
   }
 
-  tags {
+  tags = {
     Name          = "habitat-www-${var.env}"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-ManagedBy   = "Terraform"
   }
 
@@ -80,4 +81,6 @@ resource "aws_s3_bucket" "www" {
   ]
 }
 EOF
+
 }
+

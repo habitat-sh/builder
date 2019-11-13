@@ -1,26 +1,32 @@
 ////////////////////////////////
 // Front-end Instances
 
+provider "aws" {
+  region = var.aws_region
+  profile = "habitat"
+}
+
 resource "aws_instance" "api" {
-  ami           = "${lookup(var.aws_ami, var.aws_region)}"
-  instance_type = "${var.instance_size_api}"
-  key_name      = "${var.aws_key_pair}"
-  subnet_id     = "${var.public_subnet_id}"
-  count         = "${var.api_count}"
+  ami           = var.aws_ami[var.aws_region]
+  instance_type = var.instance_size_api
+  key_name      = var.aws_key_pair
+  subnet_id     = var.public_subnet_id
+  count         = var.api_count
 
   vpc_security_group_ids = [
-    "${var.aws_admin_sg}",
-    "${var.hab_sup_sg}",
-    "${aws_security_group.datastore_client.id}",
-    "${aws_security_group.gateway.id}",
+    var.aws_admin_sg,
+    var.hab_sup_sg,
+    aws_security_group.datastore_client.id,
+    aws_security_group.gateway.id,
   ]
 
   connection {
+    type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
-    host        = "${self.public_ip}"
+    host        = self.public_ip
     user        = "ubuntu"
-    private_key = "${file("${var.connection_private_key}")}"
-    agent       = "${var.connection_agent}"
+    private_key = file(var.connection_private_key)
+    agent       = var.connection_agent
   }
 
   ebs_block_device {
@@ -87,7 +93,7 @@ resource "aws_instance" "api" {
   }
 
   provisioner "file" {
-    content     = "${data.template_file.sup_service.rendered}"
+    content     = data.template_file.sup_service.rendered
     destination = "/home/ubuntu/hab-sup.service"
   }
 
@@ -114,10 +120,10 @@ resource "aws_instance" "api" {
     ]
   }
 
-  tags {
+  tags = {
     Name          = "builder-api-${count.index}"
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -127,28 +133,29 @@ resource "aws_instance" "api" {
 // Back-end Instances
 
 resource "aws_instance" "jobsrv" {
-  ami           = "${lookup(var.aws_ami, var.aws_region)}"
-  instance_type = "${var.instance_size_jobsrv}"
-  key_name      = "${var.aws_key_pair}"
+  ami           = var.aws_ami[var.aws_region]
+  instance_type = var.instance_size_jobsrv
+  key_name      = var.aws_key_pair
 
   // JW TODO: switch to private subnet after VPN is ready
-  subnet_id = "${var.public_subnet_id}"
+  subnet_id = var.public_subnet_id
   count     = 1
 
   vpc_security_group_ids = [
-    "${var.aws_admin_sg}",
-    "${var.hab_sup_sg}",
-    "${aws_security_group.datastore_client.id}",
-    "${aws_security_group.jobsrv.id}",
-    "${aws_security_group.service.id}",
+    var.aws_admin_sg,
+    var.hab_sup_sg,
+    aws_security_group.datastore_client.id,
+    aws_security_group.jobsrv.id,
+    aws_security_group.service.id,
   ]
 
   connection {
+    type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
-    host        = "${self.public_ip}"
+    host        = self.public_ip
     user        = "ubuntu"
-    private_key = "${file("${var.connection_private_key}")}"
-    agent       = "${var.connection_agent}"
+    private_key = file(var.connection_private_key)
+    agent       = var.connection_agent
   }
 
   ebs_block_device {
@@ -170,7 +177,7 @@ resource "aws_instance" "jobsrv" {
   }
 
   provisioner "file" {
-    content     = "${data.template_file.sch_log_parser.rendered}"
+    content     = data.template_file.sch_log_parser.rendered
     destination = "/tmp/sch_log_parser.py"
   }
 
@@ -205,7 +212,7 @@ resource "aws_instance" "jobsrv" {
   }
 
   provisioner "file" {
-    content     = "${data.template_file.sup_service.rendered}"
+    content     = data.template_file.sup_service.rendered
     destination = "/home/ubuntu/hab-sup.service"
   }
 
@@ -230,37 +237,38 @@ resource "aws_instance" "jobsrv" {
     ]
   }
 
-  tags {
+  tags = {
     Name          = "builder-jobsrv-${count.index}"
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
 }
 
 resource "aws_instance" "worker" {
-  ami           = "${lookup(var.aws_ami, var.aws_region)}"
-  instance_type = "${var.instance_size_worker}"
-  key_name      = "${var.aws_key_pair}"
+  ami           = var.aws_ami[var.aws_region]
+  instance_type = var.instance_size_worker
+  key_name      = var.aws_key_pair
 
   // JW TODO: switch to private subnet after VPN is ready
-  subnet_id = "${var.public_subnet_id}"
-  count     = "${var.jobsrv_worker_count}"
+  subnet_id = var.public_subnet_id
+  count     = var.jobsrv_worker_count
 
   vpc_security_group_ids = [
-    "${var.aws_admin_sg}",
-    "${var.hab_sup_sg}",
-    "${aws_security_group.jobsrv_client.id}",
-    "${aws_security_group.worker.id}",
+    var.aws_admin_sg,
+    var.hab_sup_sg,
+    aws_security_group.jobsrv_client.id,
+    aws_security_group.worker.id,
   ]
 
   connection {
+    type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
-    host        = "${self.public_ip}"
+    host        = self.public_ip
     user        = "ubuntu"
-    private_key = "${file("${var.connection_private_key}")}"
-    agent       = "${var.connection_agent}"
+    private_key = file(var.connection_private_key)
+    agent       = var.connection_agent
   }
 
   ebs_block_device {
@@ -322,7 +330,7 @@ resource "aws_instance" "worker" {
   }
 
   provisioner "file" {
-    content     = "${data.template_file.sup_service.rendered}"
+    content     = data.template_file.sup_service.rendered
     destination = "/home/ubuntu/hab-sup.service"
   }
 
@@ -349,37 +357,38 @@ resource "aws_instance" "worker" {
     ]
   }
 
-  tags {
+  tags = {
     Name          = "builder-worker-${count.index}"
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
 }
 
 resource "aws_instance" "linux2-worker" {
-  ami           = "ami-0ea790e761025f9ce"              // Ubuntu 14.04
-  instance_type = "${var.instance_size_linux2_worker}"
-  key_name      = "${var.aws_key_pair}"
+  ami           = "ami-0ea790e761025f9ce" // Ubuntu 14.04
+  instance_type = var.instance_size_linux2_worker
+  key_name      = var.aws_key_pair
 
   // JW TODO: switch to private subnet after VPN is ready
-  subnet_id = "${var.public_subnet_id}"
-  count     = "${var.linux2_worker_count}"
+  subnet_id = var.public_subnet_id
+  count     = var.linux2_worker_count
 
   vpc_security_group_ids = [
-    "${var.aws_admin_sg}",
-    "${var.hab_sup_sg}",
-    "${aws_security_group.jobsrv_client.id}",
-    "${aws_security_group.worker.id}",
+    var.aws_admin_sg,
+    var.hab_sup_sg,
+    aws_security_group.jobsrv_client.id,
+    aws_security_group.worker.id,
   ]
 
   connection {
+    type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
-    host        = "${self.public_ip}"
+    host        = self.public_ip
     user        = "ubuntu"
-    private_key = "${file("${var.connection_private_key}")}"
-    agent       = "${var.connection_agent}"
+    private_key = file(var.connection_private_key)
+    agent       = var.connection_agent
   }
 
   ebs_block_device {
@@ -402,7 +411,7 @@ resource "aws_instance" "linux2-worker" {
   }
 
   provisioner "file" {
-    content     = "${data.template_file.linux2_init.rendered}"
+    content     = data.template_file.linux2_init.rendered
     destination = "/tmp/hab-sup.init"
   }
 
@@ -438,10 +447,10 @@ resource "aws_instance" "linux2-worker" {
     ]
   }
 
-  tags {
+  tags = {
     Name          = "builder-linux2-worker-${count.index}"
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -450,36 +459,37 @@ resource "aws_instance" "linux2-worker" {
 resource "aws_instance" "windows-worker" {
   // Windows_Server-2019-English-Full-ContainersLatest-2019.10.09
   ami           = "ami-0a6b38f2d62c0cc94"
-  instance_type = "${var.instance_size_windows_worker}"
-  key_name      = "${var.aws_key_pair}"
+  instance_type = var.instance_size_windows_worker
+  key_name      = var.aws_key_pair
 
   // JW TODO: switch to private subnet after VPN is ready
-  subnet_id = "${var.public_subnet_id}"
-  count     = "${var.windows_worker_count}"
+  subnet_id = var.public_subnet_id
+  count     = var.windows_worker_count
 
   vpc_security_group_ids = [
-    "${var.aws_admin_sg}",
-    "${var.hab_sup_sg}",
-    "${aws_security_group.jobsrv_client.id}",
-    "${aws_security_group.windows-worker.id}",
+    var.aws_admin_sg,
+    var.hab_sup_sg,
+    aws_security_group.jobsrv_client.id,
+    aws_security_group.windows-worker.id,
   ]
 
   connection {
+    host     = coalesce(self.public_ip, self.private_ip)
     type     = "winrm"
     user     = "Administrator"
-    password = "${var.admin_password}"
+    password = var.admin_password
   }
 
   root_block_device {
     volume_size = "100"
   }
 
-  user_data = "${data.template_file.windows_worker_user_data.rendered}"
+  user_data = data.template_file.windows_worker_user_data.rendered
 
-  tags {
+  tags = {
     Name          = "builder-windows-worker-${count.index}"
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -489,58 +499,59 @@ resource "aws_instance" "windows-worker" {
 // Template Files
 
 data "template_file" "sup_service" {
-  template = "${file("${path.module}/templates/hab-sup.service")}"
+  template = file("${path.module}/templates/hab-sup.service")
 
-  vars {
+  vars = {
     flags     = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-    log_level = "${var.log_level}"
+    log_level = var.log_level
   }
 }
 
 data "template_file" "sch_log_parser" {
-  template = "${file("${path.module}/templates/sch_log_parser.py")}"
+  template = file("${path.module}/templates/sch_log_parser.py")
 
-  vars {
-    bldr_url = "${var.bldr_url}"
+  vars = {
+    bldr_url = var.bldr_url
   }
 }
 
 data "template_file" "sumo_sources_worker" {
-  template = "${file("${path.module}/templates/sumo_sources_local.json")}"
+  template = file("${path.module}/templates/sumo_sources_local.json")
 
-  vars {
-    name     = "${var.env}"
+  vars = {
+    name     = var.env
     category = "${var.env}/worker"
     path     = "/tmp/builder-worker.log"
   }
 }
 
 data "template_file" "sumo_sources_syslog" {
-  template = "${file("${path.module}/templates/sumo_sources_syslog.json")}"
+  template = file("${path.module}/templates/sumo_sources_syslog.json")
 
-  vars {
+  vars = {
     name     = "${var.env}-Syslog"
     category = "${var.env}/syslog"
   }
 }
 
 data "template_file" "windows_worker_user_data" {
-  template = "${file("${path.module}/templates/windows_worker_user_data")}"
+  template = file("${path.module}/templates/windows_worker_user_data")
 
-  vars {
-    environment = "${var.env}"
-    password    = "${var.admin_password}"
+  vars = {
+    environment = var.env
+    password    = var.admin_password
     flags       = "--no-color --auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-    bldr_url    = "${var.bldr_url}"
-    channel     = "${var.release_channel}"
+    bldr_url    = var.bldr_url
+    channel     = var.release_channel
   }
 }
 
 data "template_file" "linux2_init" {
-  template = "${file("${path.module}/templates/hab-sup.init")}"
+  template = file("${path.module}/templates/hab-sup.init")
 
-  vars {
+  vars = {
     flags     = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-    log_level = "${var.log_level}"
+    log_level = var.log_level
   }
 }
+

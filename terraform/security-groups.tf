@@ -1,7 +1,7 @@
 resource "aws_security_group" "datastore" {
   name        = "builder-datastore-${var.env}"
   description = "Builder datastore instance"
-  vpc_id      = "${var.aws_vpc_id}"
+  vpc_id      = var.aws_vpc_id
 
   ingress {
     from_port = 5432
@@ -9,7 +9,7 @@ resource "aws_security_group" "datastore" {
     protocol  = "tcp"
 
     security_groups = [
-      "${aws_security_group.datastore_client.id}",
+      aws_security_group.datastore_client.id,
     ]
   }
 
@@ -20,9 +20,9 @@ resource "aws_security_group" "datastore" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -31,11 +31,11 @@ resource "aws_security_group" "datastore" {
 resource "aws_security_group" "datastore_client" {
   name        = "builder-datastore-client-${var.env}"
   description = "Grants an instance client traffic to and from a datastore"
-  vpc_id      = "${var.aws_vpc_id}"
+  vpc_id      = var.aws_vpc_id
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -44,7 +44,7 @@ resource "aws_security_group" "datastore_client" {
 resource "aws_security_group" "gateway" {
   name        = "builder-gateway-${var.env}"
   description = "Habitat Builder Gateway"
-  vpc_id = "${var.aws_vpc_id}"
+  vpc_id      = var.aws_vpc_id
 
   ingress {
     from_port = 80
@@ -52,7 +52,7 @@ resource "aws_security_group" "gateway" {
     protocol  = "tcp"
 
     security_groups = [
-      "${aws_security_group.gateway_elb.id}",
+      aws_security_group.gateway_elb.id,
     ]
   }
 
@@ -62,7 +62,7 @@ resource "aws_security_group" "gateway" {
     protocol  = "tcp"
 
     security_groups = [
-      "${aws_security_group.gateway_elb.id}",
+      aws_security_group.gateway_elb.id,
     ]
   }
 
@@ -80,9 +80,9 @@ resource "aws_security_group" "gateway" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -91,7 +91,7 @@ resource "aws_security_group" "gateway" {
 resource "aws_security_group" "gateway_elb" {
   name        = "builder-gateway-elb-${var.env}"
   description = "Habitat Builder Gateway Load Balancer"
-  vpc_id      = "${var.aws_vpc_id}"
+  vpc_id      = var.aws_vpc_id
 
   ingress {
     from_port   = 443
@@ -107,9 +107,9 @@ resource "aws_security_group" "gateway_elb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -118,7 +118,7 @@ resource "aws_security_group" "gateway_elb" {
 resource "aws_security_group" "jobsrv" {
   name        = "builder-jobsrv-${var.env}"
   description = "Builder JobSrv instance"
-  vpc_id      = "${var.aws_vpc_id}"
+  vpc_id      = var.aws_vpc_id
 
   ingress {
     from_port = 5566
@@ -126,7 +126,7 @@ resource "aws_security_group" "jobsrv" {
     protocol  = "tcp"
 
     security_groups = [
-      "${aws_security_group.jobsrv_client.id}",
+      aws_security_group.jobsrv_client.id,
     ]
   }
 
@@ -136,13 +136,13 @@ resource "aws_security_group" "jobsrv" {
     protocol  = "tcp"
 
     security_groups = [
-      "${aws_security_group.gateway.id}",
+      aws_security_group.gateway.id,
     ]
   }
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -151,11 +151,11 @@ resource "aws_security_group" "jobsrv" {
 resource "aws_security_group" "jobsrv_client" {
   name        = "builder-jobsrv-client-${var.env}"
   description = "Grants an instance client traffic to and from a JobSrv"
-  vpc_id      = "${var.aws_vpc_id}"
+  vpc_id      = var.aws_vpc_id
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -163,7 +163,7 @@ resource "aws_security_group" "jobsrv_client" {
 
 resource "aws_security_group" "service" {
   name   = "builder-service-${var.env}"
-  vpc_id = "${var.aws_vpc_id}"
+  vpc_id = var.aws_vpc_id
 
   egress {
     from_port   = 0
@@ -172,9 +172,9 @@ resource "aws_security_group" "service" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -182,7 +182,7 @@ resource "aws_security_group" "service" {
 
 resource "aws_security_group" "worker" {
   name   = "builder-worker-${var.env}"
-  vpc_id = "${var.aws_vpc_id}"
+  vpc_id = var.aws_vpc_id
 
   egress {
     from_port   = 0
@@ -191,9 +191,9 @@ resource "aws_security_group" "worker" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -201,7 +201,7 @@ resource "aws_security_group" "worker" {
 
 resource "aws_security_group" "windows-worker" {
   name   = "builder-windows-worker-${var.env}"
-  vpc_id = "${var.aws_vpc_id}"
+  vpc_id = var.aws_vpc_id
 
   # RDP access
   ingress {
@@ -226,9 +226,9 @@ resource "aws_security_group" "windows-worker" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
@@ -236,7 +236,7 @@ resource "aws_security_group" "windows-worker" {
 
 resource "aws_security_group" "worker_studio" {
   name   = "builder-worker-studio-${var.env}"
-  vpc_id = "${var.aws_vpc_id}"
+  vpc_id = var.aws_vpc_id
 
   egress {
     from_port   = 0
@@ -245,10 +245,11 @@ resource "aws_security_group" "worker_studio" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = "${var.env}"
+    X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
 }
+

@@ -86,7 +86,7 @@ variable "worker_studio_gateway_ip" {
 }
 
 variable "peers" {
-  type        = "list"
+  type        = list(string)
   description = "List of addresses for initial Supervisor peer(s)"
 }
 
@@ -141,3 +141,4 @@ variable "instance_size_linux2_worker" {
 variable "linux2_worker_count" {
   description = "Number of Linux2 workers to start"
 }
+
