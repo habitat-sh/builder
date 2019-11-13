@@ -69,7 +69,7 @@ pub fn generate_access_token(key_dir: &PathBuf,
     token.set_expires(expires);
 
     let bytes = message::encode(&token).map_err(Error::Protocol)?;
-    let ciphertext = encrypt(key_dir, &bytes)?;
+    let (ciphertext, _) = encrypt(key_dir, &bytes)?;
 
     Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, ciphertext))
 }
