@@ -57,6 +57,7 @@ pub struct OriginPrivateSigningKey {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub origin: String,
+    pub encryption_key_rev: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
@@ -100,12 +101,13 @@ pub struct NewOriginPrivateEncryptionKey<'a> {
 #[derive(Insertable)]
 #[table_name = "origin_secret_keys"]
 pub struct NewOriginPrivateSigningKey<'a> {
-    pub owner_id:  i64,
-    pub name:      &'a str,
-    pub full_name: &'a str,
-    pub revision:  &'a str,
-    pub body:      &'a [u8],
-    pub origin:    &'a str,
+    pub owner_id:           i64,
+    pub name:               &'a str,
+    pub full_name:          &'a str,
+    pub revision:           &'a str,
+    pub body:               &'a [u8],
+    pub origin:             &'a str,
+    pub encryption_key_rev: &'a str,
 }
 
 #[derive(Insertable)]
