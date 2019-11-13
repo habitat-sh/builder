@@ -66,6 +66,7 @@ pub enum Error {
     Protobuf(protobuf::ProtobufError),
     SerdeJson(serde_json::Error),
     System,
+    TLSError(openssl::error::ErrorStack),
     Unprocessable,
     Utf8(string::FromUtf8Error),
 }
@@ -102,6 +103,7 @@ impl fmt::Display for Error {
             Error::Protobuf(ref e) => format!("{}", e),
             Error::SerdeJson(ref e) => format!("{}", e),
             Error::System => "Internal error".to_string(),
+            Error::TLSError(ref e) => format!("{}", e),
             Error::Unprocessable => "Unprocessable entity".to_string(),
             Error::Utf8(ref e) => format!("{}", e),
         };
@@ -139,6 +141,7 @@ impl error::Error for Error {
             Error::Protobuf(ref err) => err.description(),
             Error::SerdeJson(ref err) => err.description(),
             Error::System => "Internal error",
+            Error::TLSError(ref err) => err.description(),
             Error::Unprocessable => "Unprocessable entity",
             Error::Utf8(ref err) => err.description(),
         }
@@ -261,6 +264,10 @@ impl From<db::error::Error> for Error {
 
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Error { Error::SerdeJson(err) }
+}
+
+impl From<openssl::error::ErrorStack> for Error {
+    fn from(err: openssl::error::ErrorStack) -> Error { Error::TLSError(err) }
 }
 
 impl From<string::FromUtf8Error> for Error {

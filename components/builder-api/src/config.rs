@@ -166,16 +166,35 @@ impl GatewayCfg for Config {
 pub struct HttpCfg {
     pub listen:        IpAddr,
     pub port:          u16,
+    pub tls:           Option<TLSCfg>,
     pub handler_count: usize,
     pub keep_alive:    usize,
+}
+
+/// Optional TLS configuration
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct TLSCfg {
+    pub cert_path:    PathBuf,
+    pub key_path:     PathBuf,
+    pub ca_cert_path: Option<PathBuf>,
 }
 
 impl Default for HttpCfg {
     fn default() -> Self {
         HttpCfg { listen:        IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
                   port:          9636,
+                  tls:           None,
                   handler_count: Config::default_handler_count(),
                   keep_alive:    60, }
+    }
+}
+
+impl Default for TLSCfg {
+    fn default() -> Self {
+        TLSCfg { cert_path:    PathBuf::from("/hab/svc/builder-api/files/service.crt"),
+                 key_path:     PathBuf::from("/hab/svc/builder-api/files/service.key"),
+                 ca_cert_path: None, }
     }
 }
 
