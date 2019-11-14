@@ -61,6 +61,9 @@ use self::resources::{authenticate::Authenticate,
                       settings::Settings,
                       user::User};
 
+use rand::{self,
+           Rng};
+
 use crate::config::{Config,
                     GatewayCfg};
 
@@ -194,6 +197,8 @@ pub fn run(config: Config) -> error::Result<()> {
             builder.set_private_key_file(&tls_cfg.key_path, SslFiletype::PEM)?;
             builder.set_certificate_chain_file(&tls_cfg.cert_path)?;
             builder.set_cipher_list(TLS_CIPHERS)?;
+            let random_bytes = rand::thread_rng().gen::<[u8; 16]>();
+            builder.set_session_id_context(&random_bytes)?;
 
             match &tls_cfg.ca_cert_path {
                 None => {
