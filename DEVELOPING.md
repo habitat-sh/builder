@@ -38,7 +38,7 @@ You can do this by making a change to the default NAT configuration.
 
 Add the following line under the `[incomingtcp]` section in your `/Library/Preferences/VMware Fusion/vmnet8/nat.conf`:
 ```
-9636 = 9636 <VM IP addr>:9636
+9636 = <VM IP addr>:9636
 ```
 
 You can use the `ip address` command on your Guest VM to get the IP Address.
