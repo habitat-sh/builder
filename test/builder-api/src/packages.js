@@ -742,6 +742,21 @@ describe('Working with packages', function () {
       request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
         .type('application/json')
         .accept('application/json')
+        .set('Authorization', global.weskerBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('testapp');
+          expect(res.body.ident.version).to.equal('0.1.3');
+          expect(res.body.ident.release).to.equal(release2);
+          done(err);
+        });
+    });
+
+    it('allows owners of the origin to view private packages when they are authenticated', function (done) {
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+        .type('application/json')
+        .accept('application/json')
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {

@@ -23,5 +23,14 @@ describe('Authenticate API', function() {
           done(err);
         });
     });
+    it('returns wesker', function(done) {
+      request.get('/authenticate/wesker')
+        .expect(200)
+        .end(function(err, res) {
+            expect(res.body.name).to.equal('wesker');
+            global.sessionWesker = res.body;
+            done(err);
+        });
+    });
   });
 });
