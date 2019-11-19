@@ -12,7 +12,7 @@ These scripts make it easy to connect to running Habitat instances. To use them,
 
 # Testing AWS CLI
 
-Since we typically use `okta_aws`, you will likely need to specify the following environment variable: `AWS_PROFILE`.
+Since we typically use `okta_aws` and you may have multiple profiles, you will likely need to specify the following environment variable: `AWS_PROFILE`.
 Otherwise, you may receive this error: `An error occurred (InvalidClientTokenId) when calling the GetCallerIdentity operation: The security token included in the request is invalid.`
 
 Test AWS credentials:
