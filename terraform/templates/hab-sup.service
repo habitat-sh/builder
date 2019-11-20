@@ -7,6 +7,7 @@ Description=Habitat Supervisor
 # Related issue: https://github.com/habitat-sh/habitat/issues/6632
 Environment=RUST_LOG=${log_level}
 Environment=HAB_STATS_ADDR=localhost:8125
+Environment=HAB_FEAT_PIDS_FROM_LAUNCHER=1
 ExecStartPre=/bin/bash -c "/bin/systemctl set-environment SSL_CERT_FILE=$(hab pkg path core/cacerts)/ssl/cert.pem"
 ExecStart=/bin/hab run ${flags}
 ExecStop=/bin/hab sup term

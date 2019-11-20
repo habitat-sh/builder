@@ -45,6 +45,9 @@
   $configXml.configuration.appSettings.add[2].value = "${flags}"
   $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
+  # Enable PIDS_FROM_LAUNCHER feature
+  $env:HAB_FEAT_PIDS_FROM_LAUNCHER=1;
+
   # Start service
   Start-Service Habitat
 
