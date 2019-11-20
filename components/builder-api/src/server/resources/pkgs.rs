@@ -1044,6 +1044,35 @@ fn do_upload_package_finish(req: &HttpRequest,
                                        Body::from_message("ds:up:3"));
     }
 
+    let conn = match req_state(req).db.get_conn().map_err(Error::DbError) {
+        Ok(conn) => conn,
+        Err(err) => return err.into(),
+    };
+
+    // If upload was forced, and a previously uploaded package exists in DB
+    // make sure the checksums match the original (idempotency)
+    if qupload.forced {
+        match Package::get(
+            GetPackage {
+                ident: BuilderPackageIdent(ident.clone()),
+                visibility: helpers::all_visibilities(),
+                target: BuilderPackageTarget(PackageTarget::from_str(&target_from_artifact).unwrap()), // Unwrap OK
+            },
+            &*conn,
+        ) {
+            Ok(pkg) => {
+                if qupload.checksum != pkg.checksum {
+                    debug!("Checksums did not match: from_param={:?}, from_database={:?}",
+                           qupload.checksum, pkg.checksum);
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   Body::from_message("ds:up:4"));
+                }
+            }
+            Err(NotFound) => {}
+            Err(err) => return Error::DieselError(err).into(),
+        }
+    }
+
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
         match has_circular_deps(&req, ident, target_from_artifact, &mut archive) {
@@ -1103,11 +1132,6 @@ fn do_upload_package_finish(req: &HttpRequest,
     }
 
     let session = authorize_session(&req, None).unwrap(); // Unwrap Ok
-
-    let conn = match req_state(req).db.get_conn().map_err(Error::DbError) {
-        Ok(conn) => conn,
-        Err(err) => return err.into(),
-    };
 
     package.owner_id = session.get_id() as i64;
     package.origin = ident.clone().origin;
