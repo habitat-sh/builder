@@ -470,7 +470,7 @@ resource "aws_instance" "windows-worker" {
     var.aws_admin_sg,
     var.hab_sup_sg,
     aws_security_group.jobsrv_client.id,
-    aws_security_group.windows-worker.id,
+    aws_security_group.worker.id,
   ]
 
   connection {
