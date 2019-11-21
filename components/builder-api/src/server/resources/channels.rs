@@ -508,9 +508,9 @@ fn demote_package(req: HttpRequest,
         Ok(0) => {
             debug!("Requested package {} for target {} not present in channel {}",
                    ident, target, channel);
-            HttpResponse::new(StatusCode::BAD_REQUEST);
+            HttpResponse::new(StatusCode::BAD_REQUEST)
         }
-        Ok(result) => {
+        Ok(_) => {
             match PackageChannelAudit::audit(
                 &PackageChannelAudit {
                     package_ident: BuilderPackageIdent(ident.clone()),
