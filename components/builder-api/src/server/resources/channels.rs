@@ -505,7 +505,13 @@ fn demote_package(req: HttpRequest,
                                                              channel: channel.clone() },
                                        &*conn).map_err(Error::DieselError)
     {
-        Ok(_) => {
+        Ok(0) => {
+            debug!("Requested package {} for target {} not present in channel {}",
+                   ident, target, channel);
+            return HttpResponse::new(StatusCode::NOT_FOUND);
+        }
+        Ok(result) => {
+            dbg!(result);
             match PackageChannelAudit::audit(
                 &PackageChannelAudit {
                     package_ident: BuilderPackageIdent(ident.clone()),
