@@ -72,6 +72,9 @@ readonly s3_bucket="habitat-builder-bootstrap"
 
 # This will be form the name of the archive and manifest files, as
 # well as the directory into which the hart files are downloaded.
+#
+# NOTE: Do NOT alter this value to have "-" characters; see below with
+# the `hab_hart` variable.
 readonly this_bootstrap_bundle="hab_builder_bootstrap_$(date +%Y%m%d%H%M%S)"
 
 ########################################################################
@@ -100,7 +103,29 @@ hab pkg download \
 # "release" in the hart name, while also avoiding similarly-named
 # packages like
 # `core-hab-launcher-${VERSION}-${RELEASE}-x86_64-linux.hart`, etc.
-hab_hart=$(find "${sandbox_dir}"/artifacts -type f -regex '.*/core-hab-[^-]*-[^-]*-x86_64-linux.hart')
+hab_hart=$(
+    # Until habitat/builder-worker is part of our release pipeline,
+    # it's likely that we will end up with more than one `core/hab`
+    # artifact: one from the release, and the previous one, brought in
+    # by habitat/builder-worker (because, until that's automated, it
+    # won't have been updated to depend on the new one yet!)
+    #
+    # Once this is no longer the case, you can remove the warning
+    # comment at the declaration of `${this_bootstrap_bundle}`.
+    #
+    # The `sort` invocation will sort the output of `find` by the
+    # release timestamp, and then take the most recent one (i.e., the
+    # last)
+    #
+    # For example:
+    #
+    # Field 1 (using "-" as a separator)                 ...2   ...3           ...4
+    # ---------------------------------------------------V---V------V--------------V
+    # hab_builder_bootstrap_20191122182751/artifacts/core-hab-0.90.6-20191112141314-x86_64-linux.hart
+    find "${sandbox_dir}/artifacts" -type f -regex '.*/core-hab-[^-]*-[^-]*-x86_64-linux.hart' \
+        | sort --field-separator="-" --key=4 --numeric-sort \
+        | tail -n1
+)
 log "Extracting hab binary from ${hab_hart}"
 bin_dir="${sandbox_dir}/bin"
 mkdir -p "${bin_dir}"
