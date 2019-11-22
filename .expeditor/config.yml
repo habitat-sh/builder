@@ -12,3 +12,13 @@ pipelines:
   - verify:
       description: Pull Request validation tests
       public: true
+  - post_habitat_release:
+      description: "Tasks to be performed after a successful Habitat release"
+subscriptions:
+
+  # In English: do this when Habitat finishes its promotion-to-stable
+  # steps (i.e., when new `hab` and Supervisor artifacts are available
+  # in the stable channel)
+  - workload: habitat-sh/habitat:master_completed:project_promoted:habitat-sh/habitat:master:current:*
+    actions:
+      - trigger_pipeline:post_habitat_release
