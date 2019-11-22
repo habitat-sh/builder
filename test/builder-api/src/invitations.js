@@ -3,6 +3,54 @@ const supertest = require('supertest');
 const request = supertest('http://localhost:9636/v1');
 
 describe('Origin Invitations API', function () {
+  describe('Invite wesker to neurosis', function () {
+    it('requires authentication', function (done) {
+      request.post('/depot/origins/neurosis/users/wesker/invitations')
+        .expect(401)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('refuses invitations from non-members', function (done) {
+      request.post('/depot/origins/neurosis/users/wesker/invitations')
+        .set('Authorization', global.hankBearer)
+        .expect(403)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('returns the invitation', function (done) {
+      request.post('/depot/origins/neurosis/users/wesker/invitations')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.body.account_id).to.equal(global.sessionWesker.id);
+          expect(res.body.origin).to.equal(global.originNeurosis.name);
+          expect(res.body.owner_id).to.equal(global.sessionBobo.id);
+          global.inviteWeskerToNeurosis = res.body;
+          done(err);
+        });
+    });
+
+    it('shows wesker in the origins list of invitations', function (done) {
+      request.get('/depot/origins/neurosis/invitations')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.invitations[0].id).to.equal(global.inviteWeskerToNeurosis.id);
+          expect(res.body.invitations[0].account_id).to.equal(global.sessionWesker.id);
+          expect(res.body.invitations[0].account_name).to.equal('wesker');
+          expect(res.body.invitations[0].origin).to.equal(global.originNeurosis.name);
+          expect(res.body.invitations[0].owner_id).to.equal(global.sessionBobo.id);
+          done(err);
+        });
+    });
+  });
+
   describe('Invite bobo to xmen', function () {
     it('requires authentication', function (done) {
       request.post('/depot/origins/xmen/users/bobo/invitations')
@@ -63,6 +111,36 @@ describe('Origin Invitations API', function () {
           done(err);
         });
     });
+  });
+
+  describe('Wesker accepts the invitation to neurosis', function () {
+      it('requires authentication to accept the invitation', function (done) {
+        request.put('/depot/origins/neurosis/invitations/' + global.inviteWeskerToNeurosis.id)
+          .expect(401)
+          .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+        });
+      });
+      it('accepts the invitation', function (done) {
+        request.put('/depot/origins/neurosis/invitations/' + global.inviteWeskerToNeurosis.id)
+          .set('Authorization', global.boboBearer)
+          .expect(204)
+          .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+          });
+      });
+
+      it('shows wesker in neurosis origins', function (done) {
+        request.get('/user/origins')
+          .set('Authorization', global.weskerBearer)
+          .expect(200)
+          .end(function (err, res) {
+            expect(res.body[0].name).to.equal('neurosis');
+            done(err);
+          });
+      });
   });
 
   describe('Bobo accepts the invitation to the xmen', function () {
