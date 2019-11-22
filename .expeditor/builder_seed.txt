@@ -1,0 +1,14 @@
+# Supervisor and prerequisites
+core/hab-launcher
+core/hab
+core/hab-sup
+
+# Builder services
+habitat/builder-api
+habitat/builder-api-proxy
+habitat/builder-jobsrv
+habitat/builder-worker
+
+# Utilities
+core/sumologic
+core/nmap
