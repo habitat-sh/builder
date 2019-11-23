@@ -142,3 +142,14 @@ variable "linux2_worker_count" {
   description = "Number of Linux2 workers to start"
 }
 
+variable "bastion_host" {
+  description = "Jump Host to use for SSH connections"
+}
+
+variable "bastion_user" {
+  description = "Jump Host username for SSH connections"
+}
+
+variable "bastion_private_key" {
+  description = "File path to the private key to use for SSH connections via the Jump Host"
+}

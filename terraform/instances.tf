@@ -2,7 +2,7 @@
 // Front-end Instances
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
   profile = "habitat"
 }
 
@@ -23,10 +23,13 @@ resource "aws_instance" "api" {
   connection {
     type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
-    host        = self.public_ip
-    user        = "ubuntu"
-    private_key = file(var.connection_private_key)
-    agent       = var.connection_agent
+    host                = self.public_ip
+    user                = "ubuntu"
+    private_key         = file(var.connection_private_key)
+    agent               = var.connection_agent
+    bastion_host        = var.bastion_host
+    bastion_user        = var.bastion_user
+    bastion_private_key = file(var.bastion_private_key)
   }
 
   ebs_block_device {
@@ -152,10 +155,13 @@ resource "aws_instance" "jobsrv" {
   connection {
     type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
-    host        = self.public_ip
-    user        = "ubuntu"
-    private_key = file(var.connection_private_key)
-    agent       = var.connection_agent
+    host                = self.public_ip
+    user                = "ubuntu"
+    private_key         = file(var.connection_private_key)
+    agent               = var.connection_agent
+    bastion_host        = var.bastion_host
+    bastion_user        = var.bastion_user
+    bastion_private_key = file(var.bastion_private_key)
   }
 
   ebs_block_device {
@@ -265,10 +271,13 @@ resource "aws_instance" "worker" {
   connection {
     type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
-    host        = self.public_ip
-    user        = "ubuntu"
-    private_key = file(var.connection_private_key)
-    agent       = var.connection_agent
+    host                = self.public_ip
+    user                = "ubuntu"
+    private_key         = file(var.connection_private_key)
+    agent               = var.connection_agent
+    bastion_host        = var.bastion_host
+    bastion_user        = var.bastion_user
+    bastion_private_key = file(var.bastion_private_key)
   }
 
   ebs_block_device {
@@ -385,10 +394,13 @@ resource "aws_instance" "linux2-worker" {
   connection {
     type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
-    host        = self.public_ip
-    user        = "ubuntu"
-    private_key = file(var.connection_private_key)
-    agent       = var.connection_agent
+    host                = self.public_ip
+    user                = "ubuntu"
+    private_key         = file(var.connection_private_key)
+    agent               = var.connection_agent
+    bastion_host        = var.bastion_host
+    bastion_user        = var.bastion_user
+    bastion_private_key = file(var.bastion_private_key)
   }
 
   ebs_block_device {
@@ -474,10 +486,13 @@ resource "aws_instance" "windows-worker" {
   ]
 
   connection {
-    host     = coalesce(self.public_ip, self.private_ip)
-    type     = "winrm"
-    user     = "Administrator"
-    password = var.admin_password
+    host                = coalesce(self.public_ip, self.private_ip)
+    type                = "winrm"
+    user                = "Administrator"
+    password            = var.admin_password
+    bastion_host        = var.bastion_host
+    bastion_user        = var.bastion_user
+    bastion_private_key = file(var.bastion_private_key)
   }
 
   root_block_device {
