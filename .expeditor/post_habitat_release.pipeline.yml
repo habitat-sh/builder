@@ -2,7 +2,6 @@
 
 expeditor:
   accounts:
-    - aws/chef-cd # for downloading GPG keys to validate manifests
     - aws/habitat # for uploading the bootstrap bundle
 
 steps:
