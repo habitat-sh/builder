@@ -32,6 +32,10 @@ resource "aws_instance" "api" {
     bastion_private_key = file(var.bastion_private_key)
   }
 
+  root_block_device {
+    volume_size = 20
+  }
+
   ebs_block_device {
     device_name = "/dev/xvdf"
     volume_size = 100
@@ -164,6 +168,10 @@ resource "aws_instance" "jobsrv" {
     bastion_private_key = file(var.bastion_private_key)
   }
 
+  root_block_device {
+    volume_size = 20
+  }
+
   ebs_block_device {
     device_name = "/dev/xvdf"
     volume_size = 100
@@ -278,6 +286,10 @@ resource "aws_instance" "worker" {
     bastion_host        = var.bastion_host
     bastion_user        = var.bastion_user
     bastion_private_key = file(var.bastion_private_key)
+  }
+
+  root_block_device {
+    volume_size = 20
   }
 
   ebs_block_device {
@@ -401,6 +413,10 @@ resource "aws_instance" "linux2-worker" {
     bastion_host        = var.bastion_host
     bastion_user        = var.bastion_user
     bastion_private_key = file(var.bastion_private_key)
+  }
+
+  root_block_device {
+    volume_size = 20
   }
 
   ebs_block_device {
