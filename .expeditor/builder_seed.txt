@@ -8,6 +8,7 @@ habitat/builder-api
 habitat/builder-api-proxy
 habitat/builder-jobsrv
 habitat/builder-worker
+habitat/builder-memcached
 
 # Utilities
 core/sumologic
