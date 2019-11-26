@@ -16,6 +16,7 @@ pub mod authorize;
 pub mod error;
 pub mod framework;
 pub mod helpers;
+pub mod migrations;
 pub mod resources;
 pub mod services;
 
@@ -151,6 +152,8 @@ pub fn run(config: Config) -> error::Result<()> {
     let db_pool = DbPool::new(&config.datastore.clone());
 
     migration::setup(&db_pool.get_conn().unwrap()).unwrap();
+
+    migrations::migrate_to_encrypted(&db_pool.get_conn().unwrap(), &config.api.key_path).unwrap();
 
     let mut srv = HttpServer::new(move || {
                       let app_state = match AppState::new(&config, db_pool.clone()) {
