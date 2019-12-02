@@ -42,7 +42,10 @@
   # Add config to HabService.dll.config
   $svcPath = Join-Path $env:SystemDrive "hab\svc\windows-service"
   [xml]$configXml = Get-Content (Join-Path $svcPath HabService.dll.config)
-  $configXml.configuration.appSettings.add[1].value = "${flags}"
+
+  # Update the arguments for the Supervisor
+  $launcherArgs = $configxml | select-xml -xpath "//appSettings/add[@key='launcherArgs']"
+  $launcherArgs.Node.value = "${flags}"
   $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
   # Enable PIDS_FROM_LAUNCHER feature
