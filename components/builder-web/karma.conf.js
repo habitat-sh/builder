@@ -47,17 +47,17 @@ module.exports = function (config) {
         reporters: ["spec"],
 
         webpack: {
+            mode: 'development',
             devtool: "inline-source-map",
             resolve: {
-                extensions: ["", ".webpack.js", ".web.js", ".ts", ".js"]
+                extensions: [".webpack.js", ".web.js", ".ts", ".js"]
             },
             module: {
-                loaders: [
-                    { test: /\.ts$/, loader: "awesome-typescript-loader", exclude: /node_modules/ },
-                    { test: /\.html$/, loader: "raw-loader" },
+                rules: [
+                    { test: /\.ts$/, use: [{ loader: "awesome-typescript-loader" }], exclude: /node_modules/ },
+                    { test: /\.html$/, use: [{ loader: "raw-loader" }] },
                 ]
-            },
-            debug: false
+            }
         },
 
         webpackMiddleware: {

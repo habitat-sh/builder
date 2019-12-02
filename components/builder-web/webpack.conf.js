@@ -1,11 +1,23 @@
 'use strict';
 
 const webpack = require('webpack');
+const path = require('path');
 const isProduction = process.env.NODE_ENV === 'production';
 
-let loaders = [
-    { test: /\.ts$/, loader: 'awesome-typescript-loader' },
-    { test: /\.html$/, loader: 'raw-loader' }
+let rules = [
+    { test: /\.ts$/, use: [{ loader: 'awesome-typescript-loader' }] },
+    { test: /\.html$/, use: [{ loader: 'raw-loader' }] },
+    {
+        test: /\.ts$/,
+        enforce: 'pre',
+        use: [{
+            loader: 'tslint-loader',
+            options: {
+                emitErrors: true,
+                failOnHint: true
+            }
+        }]
+    }
 ];
 
 let plugins = [];
@@ -13,43 +25,25 @@ let devtool = 'source-map';
 
 if (isProduction) {
     devtool = false;
-
-    // Set up compression to only happen if NODE_ENV = production
-    loaders.push({ test: 'app.js', loader: 'uglify' });
-    plugins.push(
-        new webpack.optimize.UglifyJsPlugin({
-            compress: {
-                drop_debugger: false,
-                warnings: false
-            },
-            mangle: false,
-            sourceMap: false
-        })
-    );
 }
 
 module.exports = {
+    mode: isProduction ? 'production' : 'development',
     devtool: devtool,
     entry: './app/main.ts',
     output: {
-        filename: 'assets/app.js'
+        path: path.resolve(__dirname, 'assets'),
+        filename: 'app.js'
     },
     resolve: {
-        extensions: ['', '.webpack.js', '.web.js', '.ts', '.js']
+        extensions: ['.webpack.js', '.web.js', '.ts', '.js']
     },
     module: {
-        preLoaders: [
-            { test: /\.ts$/, loader: 'tslint' }
-        ],
-        loaders: loaders
+        rules: rules
     },
     plugins: plugins,
     stats: {
         chunks: false
-    },
-    tslint: {
-        emitErrors: true,
-        failOnHint: true
     },
     bail: true
 };
