@@ -20,7 +20,7 @@
 
   # Set Administrator password
   $admin = [adsi]("WinNT://./administrator, user")
-  $admin.psbase.invoke("SetPassword", "${password}")
+  $admin.psbase.invoke("SetPassword", "$password")
 
   # Install Chocolatey (for ease of installing debugging packages if needed)
   Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
@@ -47,11 +47,13 @@
   $launcherArgs = $configxml | select-xml -xpath "//appSettings/add[@key='launcherArgs']"
   $launcherArgs.Node.value = "${flags}"
 
-  # Enable the PIDS_FROM_LAUNCHER feature (https://github.com/habitat-sh/habitat/pull/7214)
+  %{ for feature in enabled_features ~}
+
   $child = $configXml.CreateElement("add")
-  $child.SetAttribute("key", "ENV_HAB_FEAT_PIDS_FROM_LAUNCHER")
+  $child.SetAttribute("key", "ENV_HAB_FEAT_${upper(feature)}")
   $child.SetAttribute("value", "true")
   $configXml.configuration.appSettings.AppendChild($child)
+  %{ endfor ~}
 
   $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
