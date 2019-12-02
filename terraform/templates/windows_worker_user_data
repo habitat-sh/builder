@@ -46,10 +46,14 @@
   # Update the arguments for the Supervisor
   $launcherArgs = $configxml | select-xml -xpath "//appSettings/add[@key='launcherArgs']"
   $launcherArgs.Node.value = "${flags}"
-  $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
-  # Enable PIDS_FROM_LAUNCHER feature
-  $env:HAB_FEAT_PIDS_FROM_LAUNCHER=1;
+  # Enable the PIDS_FROM_LAUNCHER feature (https://github.com/habitat-sh/habitat/pull/7214)
+  $child = $configXml.CreateElement("add")
+  $child.SetAttribute("key", "ENV_HAB_FEAT_PIDS_FROM_LAUNCHER")
+  $child.SetAttribute("value", "true")
+  $configXml.configuration.appSettings.AppendChild($child)
+
+  $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
   # Start service
   Start-Service Habitat
