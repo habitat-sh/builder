@@ -6,6 +6,18 @@ provider "aws" {
   profile = "habitat"
 }
 
+locals {
+  # We have a few instances that run on Linux, and all should have the
+  # same SystemD unit file. We declare it here to keep things DRY.
+  hab_sup_systemd_unit_content = templatefile(
+    "${path.module}/templates/hab-sup.service.tpl",
+    {
+      flags = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
+      log_level = var.log_level
+      enabled_features = var.enabled_features
+    })
+}
+
 resource "aws_instance" "api" {
   ami           = var.aws_ami[var.aws_region]
   instance_type = var.instance_size_api
@@ -100,13 +112,7 @@ resource "aws_instance" "api" {
   }
 
   provisioner "file" {
-    content = templatefile(
-      "${path.module}/templates/hab-sup.service.tpl",
-      {
-        flags = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-        log_level = var.log_level
-        enabled_features = var.enabled_features
-      })
+    content = local.hab_sup_systemd_unit_content
     destination = "/home/ubuntu/hab-sup.service"
   }
 
@@ -232,13 +238,7 @@ resource "aws_instance" "jobsrv" {
   }
 
   provisioner "file" {
-    content = templatefile(
-      "${path.module}/templates/hab-sup.service.tpl",
-      {
-        flags = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-        log_level = var.log_level
-        enabled_features = var.enabled_features
-      })
+    content = local.hab_sup_systemd_unit_content
     destination = "/home/ubuntu/hab-sup.service"
   }
 
@@ -363,13 +363,7 @@ resource "aws_instance" "worker" {
   }
 
   provisioner "file" {
-    content = templatefile(
-      "${path.module}/templates/hab-sup.service.tpl",
-      {
-        flags = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-        log_level = var.log_level
-        enabled_features = var.enabled_features
-      })
+    content = local.hab_sup_systemd_unit_content
     destination = "/home/ubuntu/hab-sup.service"
   }
 
