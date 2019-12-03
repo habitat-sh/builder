@@ -20,7 +20,7 @@
 
   # Set Administrator password
   $admin = [adsi]("WinNT://./administrator, user")
-  $admin.psbase.invoke("SetPassword", "$password")
+  $admin.psbase.invoke("SetPassword", "${password}")
 
   # Install Chocolatey (for ease of installing debugging packages if needed)
   Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
