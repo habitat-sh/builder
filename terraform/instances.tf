@@ -588,5 +588,3 @@ data "template_file" "sumo_sources_syslog" {
     category = "${var.env}/syslog"
   }
 }
-
-}
