@@ -1,7 +1,8 @@
 <div class="project-settings-component">
   <div class="connect" *ngIf="!project && !connecting">
-    <button mat-raised-button color="primary" class="button" (click)="connect()" [disabled]="!hasPrivateKey">
-      Connect a plan file
+    <!-- <button mat-raised-button color="primary" class="button" (click)="connect()" [disabled]="!hasPrivateKey"> -->
+    <button mat-raised-button color="primary" class="button" (click)="showModal()" [disabled]="!hasPrivateKey">
+      Create Package
     </button>
     <span class="no-keys" *ngIf="!hasPrivateKey">
       <hab-icon symbol="add-circle"></hab-icon>
