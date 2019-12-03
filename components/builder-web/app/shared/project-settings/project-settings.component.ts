@@ -113,10 +113,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     });
   }
 
-  onSubmit(value) {
-    console.log(value);
-    // this.createPackageDialog.closeAll();
-  }
+
 
   // End create form stuff
   ////////////////////////
