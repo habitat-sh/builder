@@ -18,4 +18,5 @@ readonly terraform_artifact="terraform_${terraform_version}_linux_amd64.zip"
 )
 
 # Validate the terraform directory
+./bin/terraform init terraform
 ./bin/terraform validate terraform
