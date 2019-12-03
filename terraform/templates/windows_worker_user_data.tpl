@@ -47,14 +47,13 @@
   $launcherArgs = $configxml | select-xml -xpath "//appSettings/add[@key='launcherArgs']"
   $launcherArgs.Node.value = "${flags}"
 
-  %{ for feature in enabled_features ~}
-
+%{ for feature in enabled_features ~}
   $child = $configXml.CreateElement("add")
   $child.SetAttribute("key", "ENV_HAB_FEAT_${upper(feature)}")
   $child.SetAttribute("value", "true")
   $configXml.configuration.appSettings.AppendChild($child)
-  %{ endfor ~}
 
+%{ endfor ~}
   $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
   # Start service
