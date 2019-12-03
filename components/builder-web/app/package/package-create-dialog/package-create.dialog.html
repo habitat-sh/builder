@@ -1,22 +1,26 @@
 <div class="dialog">
-  <section class="heading">
-    <h1>Create Package</h1>
-  </section>
-  <section class="body">
-    <h3>Package Name</h3>
-    <p>
-      Must be unique and contain no spaces, and begin with a lowercase letter or number. Allowed characters include a-z, 0-9, _, and -. No more than 255 characters.
-    </p>
-  </section>
-  <section class="selection">
-    <form>
-      <input type="text" />
-    </form>
-  </section>
-  <section class="controls">
-    <button mat-raised-button color="primary" class="button" (click)="ok()">
-      Save & Continue
-    </button>
-    <a (click)="cancel()">Cancel</a>
-  </section>
+  <form (ngSubmit)="onSubmit(createPackageForm.value)" #createPackageForm="ngForm">
+    <section class="heading">
+      <h1>Create Package</h1>
+    </section>
+    <section class="body">
+      <h3>Package Name</h3>
+      <p>
+        Must be unique and contain no spaces, and begin with a lowercase letter or number. Allowed characters include a-z, 0-9, _, and -. No more than 255 characters.
+      </p>
+      <input 
+        type="text" 
+        name="package_name"
+        autocomplete="off"
+        required 
+        ngModel
+        />
+    </section>
+    <section class="controls">
+      <button mat-raised-button color="primary" type="submit" class="button">
+        Save & Continue
+      </button>
+      <a (click)="cancel()">Cancel</a>
+    </section>
+  </form>
 </div>

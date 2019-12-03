@@ -31,6 +31,7 @@ import {
 } from '../../actions/index';
 import config from '../../config';
 
+
 @Component({
   selector: 'hab-project-settings',
   template: require('./project-settings.component.html')
@@ -62,6 +63,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   private _autoBuild;
 
   private _doAfterViewChecked: Function[] = [];
+
 
   constructor(
     private formBuilder: FormBuilder,
@@ -101,12 +103,23 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     }
   }
 
-  showModal() {
+  // ////////////////////
+  // Create form stuff
+
+  showCreatePackageDialog() {
     console.log('hello');
     this.createPackageDialog.open(PackageCreateDialog, {
       width: '480px'
     });
   }
+
+  onSubmit(value) {
+    console.log(value);
+    // this.createPackageDialog.closeAll();
+  }
+
+  // End create form stuff
+  ////////////////////////
 
   get autoBuild() {
 
