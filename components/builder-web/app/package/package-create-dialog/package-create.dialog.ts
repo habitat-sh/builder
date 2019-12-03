@@ -41,6 +41,11 @@ export class PackageCreateDialog {
     this.ref.close(true);
   }
 
+  onSubmit(value) {
+    console.log(value);
+    this.ref.close(true);
+  }
+
   cancel() {
     this.ref.close(false);
   }
