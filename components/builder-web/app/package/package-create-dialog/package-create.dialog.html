@@ -1,0 +1,20 @@
+<div class="dialog">
+  <section class="heading">
+    <h1>Create Package</h1>
+  </section>
+  <section class="body">
+    <h3>Package Name</h3>
+    <p>
+      Must be unique and contain no spaces, and begin with a lowercase letter or number. Allowed characters include a-z, 0-9, _, and -. No more than 255 characters.
+    </p>
+  </section>
+  <section class="selection">
+    select goes here
+  </section>
+  <section class="controls">
+    <button mat-raised-button color="primary" class="button" (click)="ok()">
+      Save & Continue
+    </button>
+    <a (click)="cancel()">Cancel</a>
+  </section>
+</div>

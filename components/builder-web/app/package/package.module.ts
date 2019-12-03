@@ -29,6 +29,7 @@ import { PackageSettingsComponent } from './package-settings/package-settings.co
 import { PackageReleaseComponent } from './package-release/package-release.component';
 import { PackageSidebarComponent } from './package-sidebar/package-sidebar.component';
 import { PackageVersionsComponent } from './package-versions/package-versions.component';
+import { PackageCreateDialog } from './package-create-dialog/package-create.dialog';
 import { SharedModule } from '../shared/shared.module';
 import { PackageRoutingModule } from './package-routing.module';
 
@@ -50,6 +51,7 @@ import { PackageRoutingModule } from './package-routing.module';
     JobDetailComponent,
     JobListComponent,
     PackageComponent,
+    PackageCreateDialog,
     PackageJobComponent,
     PackageJobsComponent,
     PackageLatestComponent,
@@ -59,6 +61,12 @@ import { PackageRoutingModule } from './package-routing.module';
     PackageSidebarComponent,
     PackageSettingsComponent,
     PackageVersionsComponent
+  ],
+  entryComponents: [
+    PackageCreateDialog
+  ],
+  exports: [
+    PackageCreateDialog
   ]
 })
 export class PackageModule { }

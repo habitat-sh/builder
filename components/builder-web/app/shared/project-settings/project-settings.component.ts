@@ -20,6 +20,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material';
 import { Record } from 'immutable';
 import { DisconnectConfirmDialog } from './dialog/disconnect-confirm/disconnect-confirm.dialog';
+import { PackageCreateDialog } from '../../package/package-create-dialog/package-create.dialog';
 import { DockerExportSettingsComponent } from '../../shared/docker-export-settings/docker-export-settings.component';
 import { BuilderApiClient } from '../../client/builder-api';
 import { AppStore } from '../../app.store';
@@ -66,6 +67,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     private formBuilder: FormBuilder,
     private store: AppStore,
     private disconnectDialog: MatDialog,
+    private createPackageDialog: MatDialog,
     private elementRef: ElementRef
   ) {
     this.api = new BuilderApiClient(this.token);
@@ -97,6 +99,13 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       this.selectedPath = p.currentValue.plan_path;
       this.visibility = p.currentValue.visibility || this.visibility;
     }
+  }
+
+  showModal() {
+    console.log('hello');
+    this.createPackageDialog.open(PackageCreateDialog, {
+      width: '480px'
+    });
   }
 
   get autoBuild() {
