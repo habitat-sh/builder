@@ -153,3 +153,9 @@ variable "bastion_user" {
 variable "bastion_private_key" {
   description = "File path to the private key to use for SSH connections via the Jump Host"
 }
+
+variable "enabled_features" {
+  description = "A list of feature names to enable. Use just the feature name, e.g. 'PIDS_FROM_LAUNCHER', rather than the environment variable 'HAB_FEAT_PIDS_FROM_LAUNCHER'."
+  type    = list(string)
+  default = []
+}

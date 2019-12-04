@@ -50,6 +50,13 @@ steps:
           host_os: windows
           shell: ["powershell", "-Command"]
 
+  - label: "[lint] :terraform: terraform validate"
+    command:
+      - .expeditor/scripts/verify/terraform_validate.sh
+    expeditor:
+      executor:
+        docker:
+
 #######################################################################
 # Unit Tests - Linux!
 #######################################################################
@@ -158,5 +165,3 @@ steps:
           privileged: true
           environment:
             - HAB_ORIGIN=habitat
-
-

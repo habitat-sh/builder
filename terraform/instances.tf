@@ -6,6 +6,40 @@ provider "aws" {
   profile = "habitat"
 }
 
+locals {
+  # We have a few instances that run on Linux, and all should have the
+  # same SystemD unit file. We declare it here to keep things DRY.
+  hab_sup_service_content = templatefile(
+    "${path.module}/templates/hab-sup.service.tpl",
+    {
+      flags            = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
+      log_level        = var.log_level
+      enabled_features = var.enabled_features
+    })
+
+  # Init file for Linux kernel 2 Supervisors
+  hab_sup_init_content = templatefile(
+    "${path.module}/templates/hab-sup.init.tpl",
+    {
+      flags            = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
+      log_level        = var.log_level
+      enabled_features = var.enabled_features
+    })
+
+  # Userdata for Windows workers (the only Windows Supervisors we
+  # currently run)
+  windows_worker_user_data_content = templatefile(
+    "${path.module}/templates/windows_worker_user_data.tpl",
+    {
+      environment      = var.env
+      password         = var.admin_password
+      flags            = "--no-color --auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
+      bldr_url         = var.bldr_url
+      channel          = var.release_channel
+      enabled_features = var.enabled_features
+    })
+}
+
 resource "aws_instance" "api" {
   ami           = var.aws_ami[var.aws_region]
   instance_type = var.instance_size_api
@@ -100,7 +134,7 @@ resource "aws_instance" "api" {
   }
 
   provisioner "file" {
-    content     = data.template_file.sup_service.rendered
+    content = local.hab_sup_service_content
     destination = "/home/ubuntu/hab-sup.service"
   }
 
@@ -226,7 +260,7 @@ resource "aws_instance" "jobsrv" {
   }
 
   provisioner "file" {
-    content     = data.template_file.sup_service.rendered
+    content = local.hab_sup_service_content
     destination = "/home/ubuntu/hab-sup.service"
   }
 
@@ -351,7 +385,7 @@ resource "aws_instance" "worker" {
   }
 
   provisioner "file" {
-    content     = data.template_file.sup_service.rendered
+    content = local.hab_sup_service_content
     destination = "/home/ubuntu/hab-sup.service"
   }
 
@@ -439,7 +473,7 @@ resource "aws_instance" "linux2-worker" {
   }
 
   provisioner "file" {
-    content     = data.template_file.linux2_init.rendered
+    content = local.hab_sup_init_content
     destination = "/tmp/hab-sup.init"
   }
 
@@ -515,7 +549,7 @@ resource "aws_instance" "windows-worker" {
     volume_size = "100"
   }
 
-  user_data = data.template_file.windows_worker_user_data.rendered
+  user_data = local.windows_worker_user_data_content
 
   tags = {
     Name          = "builder-windows-worker-${count.index}"
@@ -528,15 +562,6 @@ resource "aws_instance" "windows-worker" {
 
 ////////////////////////////////
 // Template Files
-
-data "template_file" "sup_service" {
-  template = file("${path.module}/templates/hab-sup.service")
-
-  vars = {
-    flags     = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-    log_level = var.log_level
-  }
-}
 
 data "template_file" "sch_log_parser" {
   template = file("${path.module}/templates/sch_log_parser.py")
@@ -564,25 +589,3 @@ data "template_file" "sumo_sources_syslog" {
     category = "${var.env}/syslog"
   }
 }
-
-data "template_file" "windows_worker_user_data" {
-  template = file("${path.module}/templates/windows_worker_user_data")
-
-  vars = {
-    environment = var.env
-    password    = var.admin_password
-    flags       = "--no-color --auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-    bldr_url    = var.bldr_url
-    channel     = var.release_channel
-  }
-}
-
-data "template_file" "linux2_init" {
-  template = file("${path.module}/templates/hab-sup.init")
-
-  vars = {
-    flags     = "--auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-    log_level = var.log_level
-  }
-}
-

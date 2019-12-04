@@ -42,11 +42,19 @@
   # Add config to HabService.dll.config
   $svcPath = Join-Path $env:SystemDrive "hab\svc\windows-service"
   [xml]$configXml = Get-Content (Join-Path $svcPath HabService.dll.config)
-  $configXml.configuration.appSettings.add[1].value = "${flags}"
-  $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
-  # Enable PIDS_FROM_LAUNCHER feature
-  $env:HAB_FEAT_PIDS_FROM_LAUNCHER=1;
+  # Update the arguments for the Supervisor
+  $launcherArgs = $configxml | select-xml -xpath "//appSettings/add[@key='launcherArgs']"
+  $launcherArgs.Node.value = "${flags}"
+
+%{ for feature in enabled_features ~}
+  $child = $configXml.CreateElement("add")
+  $child.SetAttribute("key", "ENV_HAB_FEAT_${upper(feature)}")
+  $child.SetAttribute("value", "true")
+  $configXml.configuration.appSettings.AppendChild($child)
+
+%{ endfor ~}
+  $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
   # Start service
   Start-Service Habitat
