@@ -43,7 +43,8 @@ use crate::{bldr_core::{logger::Logger,
                         socket::DEFAULT_CONTEXT},
             hab_core::package::{target,
                                 PackageIdent,
-                                PackageTarget}};
+                                PackageTarget},
+            server::feat};
 
 use super::{metrics::{Counter,
                       Gauge,
@@ -535,6 +536,12 @@ impl ScheduleMgr {
                     target: &str)
                     -> Result<Option<jobsrv::Job>> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
+
+        let target = if feat::is_enabled(feat::LegacyProject) {
+            "x86_64-linux"
+        } else {
+            target
+        };
 
         let project = match Project::get(&project_name, &target, &*conn) {
             Ok(project) => project,
