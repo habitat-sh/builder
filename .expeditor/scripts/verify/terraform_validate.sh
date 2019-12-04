@@ -2,8 +2,22 @@
 
 set -euo pipefail
 
-# TODO: sync this with terraform/versions.tf
-readonly terraform_version=0.12.13
+# In the absence of a real Terraform parser, we can use a bit of awk
+# to extract the required version from a file.
+#
+# Given a file with contents like this:
+#
+#   terraform {
+#     required_version = "0.12.13"
+#   }
+#
+# we would extract `0.12.13` (without quotes!).
+terraform_version() {
+    versions_file="${1}"
+    awk 'BEGIN { FS=" *= *"} /required_version/ {gsub("\"","",$2); print $2}' "${versions_file}"
+}
+
+readonly terraform_version="$(terraform_version terraform/versions.tf)"
 readonly terraform_artifact="terraform_${terraform_version}_linux_amd64.zip"
 
 # Install Terraform
