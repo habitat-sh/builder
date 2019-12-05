@@ -16,6 +16,7 @@ import { Component, Inject } from '@angular/core';
 import { FormGroup, FormBuilder } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 import { AppStore } from '../../app.store';
+import { BuilderApiClient } from '../../client/builder-api';
 import { createEmptyPackage } from '../../actions/index';
 
 @Component({
@@ -25,12 +26,15 @@ export class PackageCreateDialog {
   createPackageForm: FormGroup;
   isPackageNameAvailable: Function;
 
+  private api: BuilderApiClient;
+
   constructor(
     private fb: FormBuilder,
     private store: AppStore,
     private ref: MatDialogRef<PackageCreateDialog>,
     @Inject(MAT_DIALOG_DATA) private data: any
   ) {
+    this.api = new BuilderApiClient(this.token);
     this.createPackageForm = fb.group({});
 
     this.isPackageNameAvailable = packageName => {
@@ -48,6 +52,10 @@ export class PackageCreateDialog {
 
 
     };
+  }
+
+  get token() {
+    return this.store.getState().session.token;
   }
 
   cancel() {
