@@ -24,7 +24,6 @@ import { createEmptyPackage } from '../../actions/index';
 export class PackageCreateDialog {
   createPackageForm: FormGroup;
   isPackageNameAvailable: Function;
-  maxLength = 255;
 
   constructor(
     private fb: FormBuilder,
