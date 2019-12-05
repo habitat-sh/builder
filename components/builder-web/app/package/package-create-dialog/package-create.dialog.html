@@ -1,5 +1,5 @@
 <div class="dialog">
-  <form (ngSubmit)="onSubmit(createPackageForm.value)" #createPackageForm="ngForm">
+  <form [formGroup]="createPackageForm" (ngSubmit)="onSubmit(createPackageForm.value)" #formValues="ngForm">
     <section class="heading">
       <h1>Create Package</h1>
     </section>
@@ -8,25 +8,17 @@
       <p>
         Must be unique and contain no spaces, and begin with a lowercase letter or number. Allowed characters include a-z, 0-9, _, and -. No more than 255 characters.
       </p>
-      <input 
-        type="text" 
-        name="package_name"
-        autocomplete="off"
-        required 
-        ngModel
-        />
-      <!-- <hab-checking-input 
-        displayName="Name" 
-        [form]="form" 
+
+      <hab-checking-input 
+        displayName="Package Name" 
+        [form]="createPackageForm" 
         id="origin-name" 
-        [isAvailable]="isOriginAvailable" 
-        name="name"
-        [value]="isFirstOrigin ? username : ''">
-      </hab-checking-input> -->
-        <!-- make this into a true error message setup -->
-      <p *ngIf="errorMessage" [class]="status.className">
-        <hab-icon [symbol]="status.icon" [class.spinning]="package.validating"></hab-icon>
-      </p>
+        [isAvailable]="isPackageNameAvailable" 
+        name="package_name"
+        [value]="''"
+        >
+      </hab-checking-input>
+
     </section>
     <section class="controls">
       <button mat-raised-button color="primary" type="submit" class="button">
