@@ -635,10 +635,10 @@ export class BuilderApiClient {
     });
   }
 
-  public isPackageNameAvailable(name: string) {
+  public isPackageNameAvailable(origin: string, packageName: string) {
     return new Promise((resolve, reject) => {
-      // change to hit package names
-      fetch(`${this.urlPrefix}/depot/origins/${name}`, {
+
+      fetch(`${this.urlPrefix}/settings/${origin}/${packageName}`, {
         headers: this.headers,
       })
         .then(response => this.handleUnauthorized(response, reject))

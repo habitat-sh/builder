@@ -39,12 +39,16 @@ export class PackageCreateDialog {
 
     this.isPackageNameAvailable = packageName => {
       console.log('validate if name is available');
-      return this.api.isPackageNameAvailable(packageName);
+      return this.api.isPackageNameAvailable(this.currentOrigin, packageName);
     };
   }
 
   get token() {
     return this.store.getState().session.token;
+  }
+
+  get currentOrigin() {
+    return this.store.getState().origins.current.name;
   }
 
   cancel() {
