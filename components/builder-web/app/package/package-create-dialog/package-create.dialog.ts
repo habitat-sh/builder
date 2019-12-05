@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { Component, Inject } from '@angular/core';
+import { FormGroup, FormBuilder } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 import { AppStore } from '../../app.store';
 import { createEmptyPackage } from '../../actions/index';
@@ -21,12 +22,23 @@ import { createEmptyPackage } from '../../actions/index';
   template: require('./package-create.dialog.html')
 })
 export class PackageCreateDialog {
+  createPackageForm: FormGroup;
+  isPackageNameAvailable: Function;
+  maxLength = 255;
 
   constructor(
+    private fb: FormBuilder,
+    private store: AppStore,
     private ref: MatDialogRef<PackageCreateDialog>,
-    @Inject(MAT_DIALOG_DATA) private data: any,
-    private store: AppStore
-  ) { }
+    @Inject(MAT_DIALOG_DATA) private data: any
+  ) {
+    this.createPackageForm = fb.group({});
+
+    this.isPackageNameAvailable = packageName => {
+      console.log('validate name available');
+      return;
+    };
+  }
 
   cancel() {
     this.ref.close(false);
@@ -34,8 +46,12 @@ export class PackageCreateDialog {
 
   onSubmit(value) {
     console.log(value);
-    this.store.dispatch(createEmptyPackage(value.package_name));
+    this.createPackage(value.package_name);
     this.ref.close(true);
+  }
+
+  createPackage(packageName) {
+    this.store.dispatch(createEmptyPackage(packageName));
   }
 
   // onSubmit() {
