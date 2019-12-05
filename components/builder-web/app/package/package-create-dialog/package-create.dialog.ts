@@ -28,20 +28,8 @@ export class PackageCreateDialog {
     private store: AppStore
   ) { }
 
-  get heading() {
-    return this.data.heading || 'Confirm';
-  }
-
-  get body() {
-    return this.data.body || 'Are you sure?';
-  }
-
-  get action() {
-    return this.data.action || 'do it';
-  }
-
-  ok() {
-    this.ref.close(true);
+  cancel() {
+    this.ref.close(false);
   }
 
   onSubmit(value) {
@@ -71,13 +59,5 @@ export class PackageCreateDialog {
   //     this.dialogRef.close(this.model);
   //   }
   // }
-
-  cancel() {
-    this.ref.close(false);
-  }
-
-
-
-
 
 }
