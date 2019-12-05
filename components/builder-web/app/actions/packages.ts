@@ -76,7 +76,6 @@ export function clearPackageVersions() {
 }
 
 export function createEmptyPackage(packageName: string) {
-  console.log('actions createEmptyPackage');
   return {
     type: CREATE_EMPTY_PACKAGE,
     payload: { packageName }
