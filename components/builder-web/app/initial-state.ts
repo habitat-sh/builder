@@ -172,6 +172,7 @@ export default Record({
     totalCount: 0,
     ui: Record({
       current: Record({
+        creating: false,
         errorMessage: undefined,
         exists: false,
         loading: true,

@@ -14,9 +14,10 @@
 
 import { groupBy } from 'lodash';
 import * as depotApi from '../client/depot-api';
+import { BuilderApiClient } from '../client/builder-api';
 import { addNotification, SUCCESS, DANGER } from './notifications';
 
-export const CREATE_EMPTY_PACKAGE = 'CREATE_EMPTY_PACKAGE';
+export const SET_PACKAGE_CREATING_FLAG = 'SET_PACKAGE_CREATING_FLAG';
 export const CLEAR_CURRENT_PACKAGE_CHANNELS = 'CLEAR_CURRENT_PACKAGE_CHANNELS';
 export const CLEAR_PACKAGES = 'CLEAR_PACKAGES';
 export const CLEAR_LATEST_IN_CHANNEL = 'CLEAR_LATEST_IN_CHANNEL';
@@ -75,12 +76,44 @@ export function clearPackageVersions() {
   };
 }
 
-export function createEmptyPackage(packageName: string) {
+/////////////////////// CREATING PACKAGES
+
+function setPackageCreatingFlag(payload) {
   return {
-    type: CREATE_EMPTY_PACKAGE,
-    payload: { packageName }
+    type: SET_PACKAGE_CREATING_FLAG,
+    payload,
   };
 }
+
+export function createEmptyPackage(body: object, token: string, callback: Function = (packageName) => { }) {
+  return dispatch => {
+    dispatch(setPackageCreatingFlag(true));
+    console.log('creating package');
+
+    new BuilderApiClient(token).createEmptyPackage(body).then(packageName => {
+      dispatch(setPackageCreatingFlag(false));
+      console.log('finished creating package');
+
+      dispatch(addNotification({
+        title: 'Package created',
+        body: `${packageName} successfully created`,
+        type: SUCCESS,
+      }));
+
+      callback(packageName);
+
+    }).catch(error => {
+      dispatch(setPackageCreatingFlag(false));
+      dispatch(addNotification({
+        title: 'Failed to create package',
+        body: error.message,
+        type: DANGER,
+      }));
+    });
+  };
+}
+
+/////////////////////// END CREATING PACKAGES
 
 export function demotePackage(origin: string, name: string, version: string, release: string, target: string, channel: string, token: string) {
   return dispatch => {
