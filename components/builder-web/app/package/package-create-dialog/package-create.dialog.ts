@@ -14,6 +14,8 @@
 
 import { Component, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+import { AppStore } from '../../app.store';
+import { createEmptyPackage } from '../../actions/index';
 
 @Component({
   template: require('./package-create.dialog.html')
@@ -22,7 +24,8 @@ export class PackageCreateDialog {
 
   constructor(
     private ref: MatDialogRef<PackageCreateDialog>,
-    @Inject(MAT_DIALOG_DATA) private data: any
+    @Inject(MAT_DIALOG_DATA) private data: any,
+    private store: AppStore
   ) { }
 
   get heading() {
@@ -43,6 +46,7 @@ export class PackageCreateDialog {
 
   onSubmit(value) {
     console.log(value);
+    this.store.dispatch(createEmptyPackage(value.package_name));
     this.ref.close(true);
   }
 
@@ -71,4 +75,9 @@ export class PackageCreateDialog {
   cancel() {
     this.ref.close(false);
   }
+
+
+
+
+
 }

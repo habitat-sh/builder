@@ -16,6 +16,7 @@ import { groupBy } from 'lodash';
 import * as depotApi from '../client/depot-api';
 import { addNotification, SUCCESS, DANGER } from './notifications';
 
+export const CREATE_EMPTY_PACKAGE = 'CREATE_EMPTY_PACKAGE';
 export const CLEAR_CURRENT_PACKAGE_CHANNELS = 'CLEAR_CURRENT_PACKAGE_CHANNELS';
 export const CLEAR_PACKAGES = 'CLEAR_PACKAGES';
 export const CLEAR_LATEST_IN_CHANNEL = 'CLEAR_LATEST_IN_CHANNEL';
@@ -71,6 +72,14 @@ export function fetchDashboardRecent(origin: string) {
 export function clearPackageVersions() {
   return {
     type: CLEAR_PACKAGE_VERSIONS
+  };
+}
+
+export function createEmptyPackage(packageName: string) {
+  console.log('actions createEmptyPackage');
+  return {
+    type: CREATE_EMPTY_PACKAGE,
+    payload: { packageName }
   };
 }
 
