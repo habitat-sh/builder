@@ -36,7 +36,8 @@ export class PackageCreateDialog {
 
     this.isPackageNameAvailable = packageName => {
       console.log('validate name available');
-      return;
+      // just demoing for now
+      return true;
     };
   }
 
