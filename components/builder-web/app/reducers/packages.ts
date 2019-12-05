@@ -43,6 +43,10 @@ export default function packages(state = initialState['packages'], action) {
         setIn(['ui', 'latestInChannel', action.payload.channel, 'exists'], false).
         setIn(['ui', 'latestInChannel', action.payload.channel, 'loading'], true);
 
+    case actionTypes.CREATE_EMPTY_PACKAGE:
+      console.log('actions CREATE_EMPTY_PACKAGE: ' + action.payload.packageName);
+      return state;
+
     case actionTypes.POPULATE_DASHBOARD_RECENT:
       return state.setIn(['dashboard', 'recent'], List(action.payload));
 

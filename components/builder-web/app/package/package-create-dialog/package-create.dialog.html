@@ -15,6 +15,10 @@
         required 
         ngModel
         />
+        <!-- make this into a true error message setup -->
+      <p *ngIf="errorMessage" [class]="status.className">
+        <hab-icon [symbol]="status.icon" [class.spinning]="package.validating"></hab-icon>
+      </p>
     </section>
     <section class="controls">
       <button mat-raised-button color="primary" type="submit" class="button">
