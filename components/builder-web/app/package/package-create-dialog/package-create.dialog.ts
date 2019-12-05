@@ -35,9 +35,19 @@ export class PackageCreateDialog {
     this.createPackageForm = fb.group({});
 
     this.isPackageNameAvailable = packageName => {
-      console.log('validate name available');
+      console.log('validate if name is available');
+
       // just demoing for now
-      return true;
+      // a real check will get moved into builder-api.ts
+      return new Promise((resolve, reject) => {
+        if (packageName.length > 6) {
+          resolve(true);
+        } else {
+          reject(false);
+        }
+      });
+
+
     };
   }
 
@@ -54,27 +64,4 @@ export class PackageCreateDialog {
   createPackage(packageName) {
     this.store.dispatch(createEmptyPackage(packageName));
   }
-
-  // onSubmit() {
-  //   if (this.data.type === 'docker') {
-  //     this.store.dispatch(validateIntegrationCredentials(this.model.username, this.model.password, this.token, this.data.type));
-  //     let unsubscribe;
-
-  //     unsubscribe = this.store.subscribe(state => {
-  //       const creds = state.origins.currentIntegrations.ui.creds;
-
-  //       if (!creds.validating && creds.validated) {
-  //         unsubscribe();
-
-  //         if (creds.valid) {
-  //           setTimeout(() => this.dialogRef.close(this.model), 750);
-  //         }
-  //       }
-  //     });
-  //   } else {
-  //     // We can currently only validate DockerHub creds (╯︵╰,)
-  //     this.dialogRef.close(this.model);
-  //   }
-  // }
-
 }
