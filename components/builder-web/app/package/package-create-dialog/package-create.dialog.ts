@@ -43,7 +43,6 @@ export class PackageCreateDialog {
   }
 
   get token() {
-    console.log(this.store.getState());
     return this.store.getState().session.token;
   }
 
@@ -56,7 +55,6 @@ export class PackageCreateDialog {
   }
 
   onSubmit(value) {
-    console.log(value);
     this.createPackage(value.name);
     this.ref.close(true);
   }
