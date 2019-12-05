@@ -39,18 +39,7 @@ export class PackageCreateDialog {
 
     this.isPackageNameAvailable = packageName => {
       console.log('validate if name is available');
-
-      // just demoing for now
-      // a real check will get moved into builder-api.ts
-      return new Promise((resolve, reject) => {
-        if (packageName.length > 6) {
-          resolve(true);
-        } else {
-          reject(false);
-        }
-      });
-
-
+      return this.api.isPackageNameAvailable(packageName);
     };
   }
 
