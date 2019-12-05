@@ -108,6 +108,8 @@ export class BuilderApiClient {
   }
 
   public createOrigin(origin) {
+    console.log(`create origin builderApi: ${origin}`);
+    console.log(origin);
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins`, {
         body: JSON.stringify(origin),
@@ -150,6 +152,27 @@ export class BuilderApiClient {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects`, {
         body: JSON.stringify(project),
+        headers: this.jsonHeaders,
+        method: 'POST',
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public createEmptyPackage(packageInfo) {
+    const { origin, packageName } = packageInfo;
+
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/settings/${origin}/${packageName}`, {
+        body: '',
         headers: this.jsonHeaders,
         method: 'POST',
       })

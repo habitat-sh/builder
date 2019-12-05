@@ -38,12 +38,12 @@ export class PackageCreateDialog {
     this.createPackageForm = fb.group({});
 
     this.isPackageNameAvailable = packageName => {
-      console.log('validate if name is available');
       return this.api.isPackageNameAvailable(this.currentOrigin, packageName);
     };
   }
 
   get token() {
+    console.log(this.store.getState());
     return this.store.getState().session.token;
   }
 
@@ -57,11 +57,15 @@ export class PackageCreateDialog {
 
   onSubmit(value) {
     console.log(value);
-    this.createPackage(value.package_name);
+    this.createPackage(value.name);
     this.ref.close(true);
   }
 
   createPackage(packageName) {
-    this.store.dispatch(createEmptyPackage(packageName));
+    const packageInfo = {origin: this.currentOrigin, packageName};
+
+    this.store.dispatch(createEmptyPackage(packageInfo, this.token, (packageName) => {
+      console.log('implement router');
+    }));
   }
 }
