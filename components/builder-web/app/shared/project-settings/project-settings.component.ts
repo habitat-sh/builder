@@ -103,21 +103,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     }
   }
 
-  // ////////////////////
-  // Create form stuff
-
-  showCreatePackageDialog() {
-    console.log('hello');
-    this.createPackageDialog.open(PackageCreateDialog, {
-      width: '480px'
-    });
-  }
-
-
-
-  // End create form stuff
-  ////////////////////////
-
   get autoBuild() {
 
     if (typeof this._autoBuild === 'undefined') {
@@ -399,6 +384,12 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   settingChanged(setting) {
     this.visibility = setting;
+  }
+
+  showCreatePackageDialog() {
+    this.createPackageDialog.open(PackageCreateDialog, {
+      width: '480px'
+    });
   }
 
   private doAfterViewChecked(f) {

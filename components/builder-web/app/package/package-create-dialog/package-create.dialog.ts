@@ -46,6 +46,28 @@ export class PackageCreateDialog {
     this.ref.close(true);
   }
 
+  // onSubmit() {
+  //   if (this.data.type === 'docker') {
+  //     this.store.dispatch(validateIntegrationCredentials(this.model.username, this.model.password, this.token, this.data.type));
+  //     let unsubscribe;
+
+  //     unsubscribe = this.store.subscribe(state => {
+  //       const creds = state.origins.currentIntegrations.ui.creds;
+
+  //       if (!creds.validating && creds.validated) {
+  //         unsubscribe();
+
+  //         if (creds.valid) {
+  //           setTimeout(() => this.dialogRef.close(this.model), 750);
+  //         }
+  //       }
+  //     });
+  //   } else {
+  //     // We can currently only validate DockerHub creds (╯︵╰,)
+  //     this.dialogRef.close(this.model);
+  //   }
+  // }
+
   cancel() {
     this.ref.close(false);
   }
