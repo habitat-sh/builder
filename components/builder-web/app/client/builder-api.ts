@@ -635,6 +635,26 @@ export class BuilderApiClient {
     });
   }
 
+  public isPackageNameAvailable(name: string) {
+    return new Promise((resolve, reject) => {
+      // change to hit package names
+      fetch(`${this.urlPrefix}/depot/origins/${name}`, {
+        headers: this.headers,
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          // Getting a 200 means it exists and is already taken.
+          if (response.ok) {
+            reject(false);
+            // Getting a 404 means it does not exist and is available.
+          } else if (response.status === 404) {
+            resolve(true);
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public getIntegration(origin: string, type: string, name: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin}/integrations/${type}/${name}`, {
