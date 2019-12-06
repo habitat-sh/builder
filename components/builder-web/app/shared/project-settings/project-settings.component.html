@@ -44,107 +44,83 @@
       </li>
     </ul>
   </div>
-  <div class="connecting" *ngIf="connecting">
-    <form [formGroup]="form" #formValues="ngForm">
-      <div class="note" *ngIf="!loadingInstallations">
-        <div class="icon">
-          <hab-icon symbol="github"></hab-icon>
-        </div>
-        <div class="info">
-          {{ gitHubAppNote }}
-        </div>
-        <div class="cta">
-          <a href="{{ config['github_app_url'] }}" mat-raised-button color="accent" class="button" target="_blank">
-            {{ gitHubAppLabel }} GitHub App
-          </a>
-        </div>
-      </div>
-      <ol>
-        <li [class.active]="!selectedInstallation" (click)="clearConnection()">Select a GitHub repo</li>
-        <li [class.active]="selectedInstallation">Set path to Habitat plan file</li>
-      </ol>
-      <div class="installation" *ngIf="!selectedInstallation">
-        <div *ngIf="loadingInstallations">
-          <hab-icon symbol="loading" class="spinning"></hab-icon>
-        </div>
-        <div *ngIf="!loadingInstallations">
-          <p *ngIf="installations.size === 0">
-            It looks like you haven't yet installed the Habitat Builder app.
-            <a href="{{ config['github_app_url'] }}" target="_blank">Install it on GitHub</a>, then come back here and
-            <a class="try-again" (click)="connect()">
-              <hab-icon symbol="loading"></hab-icon>try again</a>. (It may take a few minutes for the changes to be recognized.)
-          </p>
-          <div *ngIf="installations.size > 0">
-            <p>
-              Choose the GitHub organization and repository that
-              <strong>contain your Habitat plan file</strong>.
-            </p>
-            <div class="installation-selector">
-              <div>
-                <h3>Organization</h3>
-                <ul class="select-list installations">
-                  <li class="item" *ngFor="let install of installations"
-                    [class.active]="activeInstallation === install"
-                    (click)="pickInstallation(install)">
-                    {{ install.get('account').get('login') }}
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h3>Repository</h3>
-                <div *ngIf="!activeInstallation && !loadingRepositories">
-                  Choose an organization.
+  <div class="connecting connect-plan-overlay" *ngIf="connecting">
+    <div class="overlay-header">
+      <h1 class="overlay-title">Connect a plan file</h1>
+      <a class="overlay-close" (click)="clearConnection()">&times;</a>
+    </div>
+    <div class="overlay-body">
+      <form [formGroup]="form" #formValues="ngForm">
+        <div class="installation">
+          <div *ngIf="loadingInstallations">
+            <hab-icon symbol="loading" class="spinning"></hab-icon>
+          </div>
+          <div *ngIf="!loadingInstallations">
+            <div *ngIf="installations.size > 0">
+              <p>Choose the GitHub organization and repository that contain your Habitat plan file.</p>
+              <div class="installation-selector">
+                <div>
+                  <h3>Organization</h3>
+                  <ul class="select-list installations">
+                    <li class="item" *ngFor="let install of installations"
+                      [class.active]="activeInstallation === install"
+                      (click)="pickInstallation(install)">
+                      {{ install.get('account').get('login') }}
+                    </li>
+                  </ul>
                 </div>
-                <div *ngIf="loadingRepositories">
-                  <hab-icon symbol="loading" class="spinning"></hab-icon>
+                <div>
+                  <h3>Repository</h3>
+                  <div *ngIf="!activeInstallation && !loadingRepositories">
+                    Choose an organization.
+                  </div>
+                  <div *ngIf="loadingRepositories">
+                    <hab-icon symbol="loading" class="spinning"></hab-icon>
+                  </div>
+                  <ul class="select-list repositories" *ngIf="activeInstallation && !loadingRepositories">
+                    <li class="item" *ngFor="let repo of repositories"
+                      [class.active]="activeRepo === repo"
+                      (click)="pickRepo(repo)">
+                      {{ repo.get('name') }}
+                    </li>
+                  </ul>
                 </div>
-                <ul class="select-list repositories" *ngIf="activeInstallation && !loadingRepositories">
-                  <li class="item" *ngFor="let repo of repositories"
-                    [class.active]="activeRepo === repo"
-                    (click)="pickRepo(repo)">
-                    {{ repo.get('name') }}
-                  </li>
-                </ul>
               </div>
+            </div>
+            <div class="github-note">
+              <p>* Don't see the organization or repository? Grant builder access in <a href="{{ config['github_app_url'] }}" target="_blank">Builder GitHub App <hab-icon symbol="open-in-new"></hab-icon></a> and <a>Refresh</a> the page.</p>
             </div>
           </div>
         </div>
-      </div>
-      <div *ngIf="selectedInstallation">
-        <a class="repo-link" href="{{ repoUrl }}" target="_blank">
-          <hab-icon symbol="open-in-new"></hab-icon>
-          Go to your repo
-        </a>
-        <h3>Path to Plan File</h3>
-        <p>
-          Enter the path to your plan file from the root of your repo. By default, we check for
-          <code>habitat/plan.sh</code>.
-        </p>
-        <div class="files">
-          <hab-checking-input id="plan_path" name="plan_path" availableMessage="found." notAvailableMessage="does not exist in the repository."
-            unmatchedMessage="must be named either plan.sh or plan.ps1." displayName="Plan file" [form]="form" [pattern]="false"
-            [maxLength]="false" [isAvailable]="doesFileExist" [value]="selectedPath">
-          </hab-checking-input>
+        <div>
+          <h3>Path to Plan File</h3>
+          <p>
+            Enter the path to your plan file from the root of your repo. By default, we check for
+            <code>habitat/plan.sh</code>.
+          </p>
+          <div class="files">
+            <hab-checking-input id="plan_path" name="plan_path" availableMessage="found." notAvailableMessage="does not exist in the repository."
+              unmatchedMessage="must be named either plan.sh or plan.ps1." displayName="Plan file" [form]="form" [pattern]="false"
+              [maxLength]="false" [isAvailable]="doesFileExist" [value]="selectedPath" [disabled]="!selectedInstallation">
+            </hab-checking-input>
+          </div>
+          <hr>
+          <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)"></hab-visibility-selector>
+          <hr>
+          <hab-docker-export-settings #docker *ngIf="selectedInstallation" [origin]="origin" [package]="name" [integrations]="integrations"
+            [current]="dockerSettings" [enabled]="dockerEnabled">
+          </hab-docker-export-settings>
+          <hr>
+          <hab-auto-build-settings [enabled]="autoBuild" (toggled)="autoBuildToggled($event)"></hab-auto-build-settings>
+          <hr>
         </div>
-        <hr>
-        <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)"></hab-visibility-selector>
-        <hr>
-        <hab-docker-export-settings #docker *ngIf="selectedInstallation" [origin]="origin" [package]="name" [integrations]="integrations"
-          [current]="dockerSettings" [enabled]="dockerEnabled">
-        </hab-docker-export-settings>
-        <hr>
-        <hab-auto-build-settings [enabled]="autoBuild" (toggled)="autoBuildToggled($event)"></hab-auto-build-settings>
-        <hr>
-      </div>
-      <div class="controls">
-        <button *ngIf="!selectedInstallation" mat-raised-button color="primary" class="button" (click)="next()" [disabled]="!repoSelected">
-          Next &raquo;
-        </button>
-        <button *ngIf="selectedInstallation" mat-raised-button color="primary" class="button" (click)="saveConnection()" [disabled]="!validProject">
-          {{ connectButtonLabel }} Connection
-        </button>
-        <a (click)="clearConnection()">Cancel</a>
-      </div>
-    </form>
+        <div class="controls">
+          <button mat-raised-button color="primary" class="button" (click)="saveConnection()" [disabled]="!validProject">
+            {{ connectButtonLabel }} Connection
+          </button>
+          <a (click)="clearConnection()">Cancel</a>
+        </div>
+      </form>
+    </div>
   </div>
 </div>

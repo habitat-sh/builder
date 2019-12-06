@@ -22,54 +22,8 @@
     }
   }
 
-  .note {
-    margin-bottom: $default-margin;
-    padding: $default-padding;
-    background-color: $very-light-gray;
-    border-radius: $default-radius;
-    color: $dark-blue;
-
-    hab-icon {
-      width: 24px;
-      height: 24px;
-    }
-
-    .icon, .info {
-      margin-right: $default-margin;
-      margin-bottom: $default-margin;
-    }
-
-    .icon {
-      float: left;
-    }
-
-    .cta {
-      margin-right: $default-margin;
-
-      .button {
-        @include cta;
-      }
-    }
-
-    @include tablet-up {
-      display: flex;
-
-      .icon {
-        flex: 0 0 24px;
-      }
-
-      .info {
-        flex: 1;
-      }
-
-      .cta {
-        flex: 0 0 140px;
-
-        .button {
-          @include cta;
-        }
-      }
-    }
+  .github-note p {
+    margin-top: 0;
   }
 
   code {
@@ -207,6 +161,35 @@
         font-size: rem(14);
         margin-right: 16px;
       }
+    }
+  }
+
+  .connect-plan-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: #fff;
+    overflow: scroll;
+
+    .overlay-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10%;
+      overflow: hidden;
+      background: $very-light-gray;
+
+      .overlay-close {
+        font-size: 30px;
+        height: 30px;
+      }
+    }
+
+    .overlay-body {
+      padding: 1em 10%;
     }
   }
 }

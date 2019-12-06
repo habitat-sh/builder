@@ -72,6 +72,10 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this.selectedPath = this.defaultPath;
 
     this.doesFileExist = (path) => {
+      if (!this.selectedInstallation) {
+        return new Promise(resolve => resolve(null));
+      }
+
       return this.api.findFileInRepo(
         this.selectedInstallation.get('installation_id'),
         this.selectedInstallation.get('org'),
@@ -345,6 +349,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   pickRepo(repo) {
     this.activeRepo = repo;
+    this.selectRepository(this.activeRepo);
   }
 
   saveConnection() {
@@ -361,12 +366,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   }
 
   selectRepository(repo) {
-    setTimeout(() => {
-      if (this.planField) {
-        this.planField.markAsDirty();
-      }
-    }, 1000);
-
     this.selectedInstallation = Record({
       repo_id: repo.get('id'),
       app_id: this.config.github_app_id,
@@ -376,6 +375,10 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       name: repo.get('name'),
       url: repo.get('url')
     })();
+
+    if (this.planField) {
+      this.planField.dirty ? this.planField.updateValueAndValidity() : this.planField.markAsDirty();
+    }
   }
 
   settingChanged(setting) {
