@@ -172,7 +172,6 @@ export class BuilderApiClient {
 
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/settings/${origin}/${packageName}`, {
-        body: '',
         headers: this.jsonHeaders,
         method: 'POST',
       })
