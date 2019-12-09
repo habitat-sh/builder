@@ -65,7 +65,7 @@ export class PackageCreateDialog {
     const packageInfo = {origin: this.currentOrigin, packageName};
 
     this.store.dispatch(createEmptyPackage(packageInfo, this.token, (newPackage) => {
-      this.router.navigate(['/origins', newPackage.name, 'settings']);
+      this.router.navigate(['/pkgs', newPackage.origin, newPackage.name, 'settings']);
     }));
   }
 }
