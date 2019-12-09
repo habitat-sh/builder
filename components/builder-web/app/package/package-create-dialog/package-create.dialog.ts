@@ -14,6 +14,7 @@
 
 import { Component, Inject } from '@angular/core';
 import { FormGroup, FormBuilder } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 import { AppStore } from '../../app.store';
 import { BuilderApiClient } from '../../client/builder-api';
@@ -31,6 +32,7 @@ export class PackageCreateDialog {
   constructor(
     private fb: FormBuilder,
     private store: AppStore,
+    private router: Router,
     private ref: MatDialogRef<PackageCreateDialog>,
     @Inject(MAT_DIALOG_DATA) private data: any
   ) {
@@ -62,8 +64,8 @@ export class PackageCreateDialog {
   createPackage(packageName) {
     const packageInfo = {origin: this.currentOrigin, packageName};
 
-    this.store.dispatch(createEmptyPackage(packageInfo, this.token, (packageName) => {
-      console.log('implement router');
+    this.store.dispatch(createEmptyPackage(packageInfo, this.token, (newPackage) => {
+      this.router.navigate(['/origins', newPackage.name, 'settings']);
     }));
   }
 }
