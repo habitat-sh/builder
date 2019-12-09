@@ -85,22 +85,20 @@ function setPackageCreatingFlag(payload) {
   };
 }
 
-export function createEmptyPackage(body: object, token: string, callback: Function = (packageName) => { }) {
+export function createEmptyPackage(body: object, token: string, callback: Function = (newPackage) => { }) {
   return dispatch => {
     dispatch(setPackageCreatingFlag(true));
-    console.log('creating package');
 
-    new BuilderApiClient(token).createEmptyPackage(body).then(packageName => {
+    new BuilderApiClient(token).createEmptyPackage(body).then(newPackage => {
       dispatch(setPackageCreatingFlag(false));
-      console.log('finished creating package');
 
       dispatch(addNotification({
         title: 'Package created',
-        body: `${packageName} successfully created`,
+        body: `${newPackage.name} successfully created`,
         type: SUCCESS,
       }));
 
-      callback(packageName);
+      callback(newPackage);
 
     }).catch(error => {
       dispatch(setPackageCreatingFlag(false));
