@@ -22,9 +22,9 @@ diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"
 diesel-derive-enum = { version = "*", features = ["postgres"] }
 diesel_migrations = "*"
 features = "*"
-futures = "*"
-rusoto_core = "0.39"
-rusoto_s3 = "0.39"
+futures = "0.1"
+rusoto_core = "*"
+rusoto_s3 = "*"
 env_logger = "*"
 habitat_builder_db = { path = "../builder-db" }
 habitat-builder-protocol = { path = "../builder-protocol" }
