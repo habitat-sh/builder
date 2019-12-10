@@ -76,6 +76,7 @@ describe('PackageCreateDialog', () => {
     fixture = TestBed.createComponent(PackageCreateDialog);
     component = fixture.componentInstance;
     element = fixture.debugElement;
+    fixture.detectChanges();
   });
 
   it('should create', () => {
@@ -85,9 +86,8 @@ describe('PackageCreateDialog', () => {
   fdescribe('when the form submits', () => {
 
     it('should call createPackage()', () => {
-      spyOn(component, 'onSubmit');
-      spyOn(component, 'createPackage');
-      fixture.detectChanges();
+      spyOn(component, 'onSubmit').and.callThrough();
+      spyOn(component, 'createPackage').and.callThrough();
 
       component.createPackageForm.value.name = 'testPackageName';
       const submitButton = element.query(By.css('#package-submit-button'));
@@ -95,9 +95,8 @@ describe('PackageCreateDialog', () => {
 
       submitButton.nativeElement.click();
       expect(component.onSubmit).toHaveBeenCalled();
-
-      // expect(component.createPackage).toHaveBeenCalled();
-      // expect(actions.createEmptyPackage).toHaveBeenCalled();
+      expect(component.createPackage).toHaveBeenCalled();
+      expect(actions.createEmptyPackage).toHaveBeenCalled();
     });
   });
 });
