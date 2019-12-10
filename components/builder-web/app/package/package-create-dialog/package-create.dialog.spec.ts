@@ -22,6 +22,7 @@ import { AppStore } from '../../app.store';
 import { PackageCreateDialog } from '../package-create-dialog/package-create.dialog';
 import * as actions from '../../actions';
 import { MatDialog } from '@angular/material';
+import { FormsModule } from '@angular/forms';
 
 class MockAppStore {
   getState() {
@@ -55,21 +56,31 @@ describe('PackageCreateDialog', () => {
     spyOn(actions, 'createEmptyPackage');
 
     TestBed.configureTestingModule({
-      imports: [],
+      imports: [FormsModule],
       declarations: [
-        PackageCreateDialog
+        PackageCreateDialog,
+        MockComponent({ selector: 'hab-checking-input', inputs: ['form', 'isAvailable']})
       ],
       providers: [
         { provide: AppStore, useValue: store },
         { provide: MatDialog, useClass: MockDialog }
       ]
     });
+
+    fixture = TestBed.createComponent(PackageCreateDialog);
+    component = fixture.componentInstance;
+    element = fixture.debugElement;
   });
 
-  describe('something', () => {
+  describe('when the form submits', () => {
 
-    it('tests something', () => {
-      console.log('test goes here');
+    it('should call createPackage()', () => {
+      // fixture.detectChanges();
+      // spyOn(component, 'createPackage');
+      // console.log(element);
+      // element.query(By.css('form button[type="submit"]')).nativeElement.click();
+      // fixture.detectChanges();
+      // expect(actions.createEmptyPackage).toHaveBeenCalledWith('testPackageName');
     });
   });
 });
