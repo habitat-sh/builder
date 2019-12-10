@@ -65,8 +65,6 @@ import { PackageRoutingModule } from './package-routing.module';
   entryComponents: [
     PackageCreateDialog
   ],
-  exports: [
-    PackageCreateDialog
-  ]
+  exports: []
 })
 export class PackageModule { }
