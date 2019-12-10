@@ -14,6 +14,7 @@
 
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { DebugElement } from '@angular/core';
+import { RouterTestingModule } from '@angular/router/testing';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 import { MockComponent } from 'ng2-mock-component';
@@ -21,8 +22,8 @@ import { Package } from '../../records/Package';
 import { AppStore } from '../../app.store';
 import { PackageCreateDialog } from '../package-create-dialog/package-create.dialog';
 import * as actions from '../../actions';
-import { MatDialog } from '@angular/material';
-import { FormsModule } from '@angular/forms';
+import { MatDialog, MatDialogRef } from '@angular/material';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 class MockAppStore {
   getState() {
@@ -56,14 +57,19 @@ describe('PackageCreateDialog', () => {
     spyOn(actions, 'createEmptyPackage');
 
     TestBed.configureTestingModule({
-      imports: [FormsModule],
+      imports: [
+        FormsModule,
+        ReactiveFormsModule,
+        RouterTestingModule
+      ],
       declarations: [
         PackageCreateDialog,
         MockComponent({ selector: 'hab-checking-input', inputs: ['form', 'isAvailable']})
       ],
       providers: [
         { provide: AppStore, useValue: store },
-        { provide: MatDialog, useClass: MockDialog }
+        { provide: MatDialog, useClass: MockDialog },
+        { provide: MatDialogRef, useValue: {} },
       ]
     });
 
@@ -72,14 +78,19 @@ describe('PackageCreateDialog', () => {
     element = fixture.debugElement;
   });
 
-  describe('when the form submits', () => {
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  fdescribe('when the form submits', () => {
 
     it('should call createPackage()', () => {
-      // fixture.detectChanges();
+      // spyOn(component, 'onSubmit');
       // spyOn(component, 'createPackage');
-      // console.log(element);
       // element.query(By.css('form button[type="submit"]')).nativeElement.click();
       // fixture.detectChanges();
+      // expect(component.onSubmit).toHaveBeenCalled();
+      // expect(component.createPackage).toHaveBeenCalled();
       // expect(actions.createEmptyPackage).toHaveBeenCalledWith('testPackageName');
     });
   });

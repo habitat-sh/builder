@@ -13,9 +13,9 @@
 // limitations under the License.
 
 import { Component, Inject } from '@angular/core';
-import { FormGroup, FormBuilder } from '@angular/forms';
+import { FormGroup, FormBuilder  } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+import { MatDialogRef } from '@angular/material';
 import { AppStore } from '../../app.store';
 import { BuilderApiClient } from '../../client/builder-api';
 import { createEmptyPackage } from '../../actions/index';
@@ -33,8 +33,7 @@ export class PackageCreateDialog {
     private fb: FormBuilder,
     private store: AppStore,
     private router: Router,
-    private ref: MatDialogRef<PackageCreateDialog>,
-    @Inject(MAT_DIALOG_DATA) private data: any
+    private ref: MatDialogRef<PackageCreateDialog>
   ) {
     this.api = new BuilderApiClient(this.token);
     this.createPackageForm = fb.group({});
