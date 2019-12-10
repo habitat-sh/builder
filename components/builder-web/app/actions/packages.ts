@@ -76,8 +76,6 @@ export function clearPackageVersions() {
   };
 }
 
-/////////////////////// CREATING PACKAGES
-
 function setPackageCreatingFlag(payload) {
   return {
     type: SET_PACKAGE_CREATING_FLAG,
@@ -110,8 +108,6 @@ export function createEmptyPackage(body: object, token: string, callback: Functi
     });
   };
 }
-
-/////////////////////// END CREATING PACKAGES
 
 export function demotePackage(origin: string, name: string, version: string, release: string, target: string, channel: string, token: string) {
   return dispatch => {
