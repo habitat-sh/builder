@@ -87,7 +87,7 @@ export function createEmptyPackage(body: object, token: string, callback: Functi
   return dispatch => {
     dispatch(setPackageCreatingFlag(true));
 
-    new BuilderApiClient(token).createEmptyPackage(body).then(newPackage => {
+    new BuilderApiClient(token).createEmptyPackage(body).then((newPackage: any) => {
       dispatch(setPackageCreatingFlag(false));
 
       dispatch(addNotification({
