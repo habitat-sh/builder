@@ -29,5 +29,6 @@ export const Package = Record({
   config: undefined,
   channels: [],
   target: undefined,
-  is_a_service: undefined
+  is_a_service: undefined,
+  default_artifact_visibility: 'public'
 });
