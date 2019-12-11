@@ -60,7 +60,7 @@ export class PackageCreateDialog {
     this.ref.close(true);
   }
 
-  createPackage(packageName) {
+  private createPackage(packageName) {
     const packageInfo = {origin: this.currentOrigin, packageName};
 
     this.store.dispatch(createEmptyPackage(packageInfo, this.token, (newPackage) => {
