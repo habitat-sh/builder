@@ -16,6 +16,7 @@ pub mod authorize;
 pub mod error;
 pub mod framework;
 pub mod helpers;
+pub mod migrations;
 pub mod resources;
 pub mod services;
 
@@ -85,6 +86,7 @@ features! {
     pub mod feat {
         const List = 0b0000_0001,
         const Jobsrv = 0b0000_0010,
+        const LegacyProject = 0b0000_0011,
         const Artifactory = 0b0000_0100,
         const BuildDeps = 0b0000_1000
     }
@@ -118,6 +120,7 @@ impl AppState {
 fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List),
                                                           ("JOBSRV", feat::Jobsrv),
+                                                          ("LEGACYPROJECT", feat::LegacyProject),
                                                           ("ARTIFACTORY", feat::Artifactory),
                                                           ("BUILDDEPS", feat::BuildDeps)]);
     let features_enabled = config.api
@@ -149,6 +152,8 @@ pub fn run(config: Config) -> error::Result<()> {
     let db_pool = DbPool::new(&config.datastore.clone());
 
     migration::setup(&db_pool.get_conn().unwrap()).unwrap();
+
+    migrations::migrate_to_encrypted(&db_pool.get_conn().unwrap(), &config.api.key_path).unwrap();
 
     let mut srv = HttpServer::new(move || {
                       let app_state = match AppState::new(&config, db_pool.clone()) {

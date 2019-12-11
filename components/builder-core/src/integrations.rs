@@ -27,6 +27,39 @@ use crate::{error::{Error,
 
 // TBD - these functions should take keys directly instead of key directory.
 
+pub fn encrypt_with_keypair(key_pair: &BoxKeyPair, bytes: &[u8]) -> Result<String> {
+    let wsb = match key_pair.encrypt(bytes, Some(&key_pair)) {
+        Ok(s) => s,
+        Err(err) => {
+            let e = format!("Unable to encrypt with bldr key pair, err={:?}", &err);
+            error!("Unable to encrypt with bldr key pair, err={:?}", err);
+            return Err(Error::EncryptError(e));
+        }
+    };
+
+    // kp.encrypt returns a WrappedSealedBox which contains readable metadata and base64
+    // ciphertext. We base64 encode the WrappedSealedBox again, so that the returned string
+    // is consistently base64 and does not have random text interspersed with readable text.
+    // This makes it easier to pass around, eg, for access tokens, and is by design.
+    // The downside is that there is double base64 happening.
+    Ok(base64::encode(wsb.as_bytes()))
+}
+
+pub fn get_keypair_helper<A>(key_dir: A) -> Result<BoxKeyPair>
+    where A: AsRef<Path>
+{
+    // This probably could be rewritten as a map_err
+    let display_path = key_dir.as_ref().display();
+    match BoxKeyPair::get_latest_pair_for(keys::BUILDER_KEY_NAME, &key_dir.as_ref()) {
+        Ok(p) => Ok(p),
+        Err(err) => {
+            let e = format!("Can't find bldr key pair at {}, err={}", &display_path, err);
+            error!("Can't find bldr key pair at {}", &display_path);
+            Err(Error::EncryptError(e))
+        }
+    }
+}
+
 pub fn encrypt<A>(key_dir: A, bytes: &[u8]) -> Result<(String, String)>
     where A: AsRef<Path>
 {
@@ -41,21 +74,7 @@ pub fn encrypt<A>(key_dir: A, bytes: &[u8]) -> Result<(String, String)>
         }
     };
 
-    let wsb = match kp.encrypt(bytes, Some(&kp)) {
-        Ok(s) => s,
-        Err(err) => {
-            let e = format!("Unable to encrypt with bldr key pair, err={:?}", &err);
-            error!("Unable to encrypt with bldr key pair, err={:?}", err);
-            return Err(Error::EncryptError(e));
-        }
-    };
-
-    // kp.encrypt returns a WrappedSealedBox which contains readable metadata and base64
-    // ciphertext. We base64 encode the WrappedSealedBox again, so that the returned string
-    // is consistently base64 and does not have random text interspersed with readable text.
-    // This makes it easier to pass around, eg, for access tokens, and is by design.
-    // The downside is that there is double base64 happening.
-    Ok((base64::encode(wsb.as_bytes()), kp.rev))
+    encrypt_with_keypair(&kp, bytes).map(|x| (x, kp.rev))
 }
 
 // This function takes in a double base64 encoded string

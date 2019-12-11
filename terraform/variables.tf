@@ -142,3 +142,20 @@ variable "linux2_worker_count" {
   description = "Number of Linux2 workers to start"
 }
 
+variable "bastion_host" {
+  description = "Jump Host to use for SSH connections"
+}
+
+variable "bastion_user" {
+  description = "Jump Host username for SSH connections"
+}
+
+variable "bastion_private_key" {
+  description = "File path to the private key to use for SSH connections via the Jump Host"
+}
+
+variable "enabled_features" {
+  description = "A list of feature names to enable. Use just the feature name, e.g. 'PIDS_FROM_LAUNCHER', rather than the environment variable 'HAB_FEAT_PIDS_FROM_LAUNCHER'."
+  type    = list(string)
+  default = []
+}

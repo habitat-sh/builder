@@ -1,0 +1,12 @@
+# Tasks that must be performed after a successful release of Habitat.
+
+expeditor:
+  accounts:
+    - aws/habitat # for uploading the bootstrap bundle
+
+steps:
+  - label: ":s3: Create new Bootstrap Bundle"
+    command: ".expeditor/scripts/generate_bootstrap_bundle.sh"
+    expeditor:
+      executor:
+        docker:

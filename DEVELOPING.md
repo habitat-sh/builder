@@ -38,7 +38,7 @@ You can do this by making a change to the default NAT configuration.
 
 Add the following line under the `[incomingtcp]` section in your `/Library/Preferences/VMware Fusion/vmnet8/nat.conf`:
 ```
-9636 = 9636 <VM IP addr>:9636
+9636 = <VM IP addr>:9636
 ```
 
 You can use the `ip address` command on your Guest VM to get the IP Address.
@@ -66,6 +66,7 @@ Before you can successfully build, you need to provision the OS with some basic 
 1. Use `visudo` to grant your account the ability to do passwordless sudo. Add a line similar to the following to the end of your sudoers file: `<username> ALL=(ALL) NOPASSWD: ALL`
 
 2. Run the following provisioning script: `./support/linux/provision.sh`
+   (Complete the repository setup step below to run this script)
 
 3. Ensure you have your github SSH keys in your `~/.ssh` directory (will need for cloning in the next step)
 

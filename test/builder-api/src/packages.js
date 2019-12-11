@@ -30,6 +30,8 @@ const file10 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.13
 const file11 = fs.readFileSync(__dirname + `/../fixtures/neurosis-neurosis-2.0-${release11}-x86_64-linux.hart`);
 const file12 = fs.readFileSync(__dirname + `/../fixtures/neurosis-abracadabra-3.0-${release12}-x86_64-linux.hart`);
 
+const fakefile1 = fs.readFileSync(__dirname + `/../fixtures/fake/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
+
 const ov11release = '20190510185610';
 const ov12release = '20190510185527';
 const ov13release = '20190510185500';
@@ -262,6 +264,47 @@ describe('Working with packages', function () {
         .expect(201)
         .end(function (err, res) {
           ov15
+          done(err);
+        });
+    });
+  });
+
+  describe('Re-uploading package', function () {
+    it('fails when a force flag is not specified', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file1.length)
+        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .send(file1)
+        .expect(409)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('succeeds when forced on package with same checksum', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}?forced=true`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file1.length)
+        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .send(file1)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.3/${release1}/download`);
+          done(err);
+        });
+    });
+
+    it('fails when forced on package with different checksum', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}?forced=true`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', fakefile1.length)
+        .query({ checksum: '918eecd70c8bb5d665af71fbd8156ac4aa6baee8bff28af70ee1ebf63d54a1cf' })
+        .send(fakefile1)
+        .expect(422)
+        .end(function (err, res) {
+          expect(res.text).to.equal('ds:up:4');
           done(err);
         });
     });
@@ -739,6 +782,21 @@ describe('Working with packages', function () {
     });
 
     it('allows members of the origin to view private packages when they are authenticated', function (done) {
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.weskerBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('testapp');
+          expect(res.body.ident.version).to.equal('0.1.3');
+          expect(res.body.ident.release).to.equal(release2);
+          done(err);
+        });
+    });
+
+    it('allows owners of the origin to view private packages when they are authenticated', function (done) {
       request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
         .type('application/json')
         .accept('application/json')
@@ -1243,20 +1301,20 @@ describe('Working with packages', function () {
         });
     });
 
-      it('returns all versions of package oddversion7', function (done) {
-          request.get('/depot/pkgs/neurosis/oddversion7/versions')
-            .type('application/json')
-            .accept('application/json')
-            .expect(200)
-              .end(function (err, res) {
-                expect(res.body.length).to.equal(3);
-                expect(res.body[2].origin).to.equal('neurosis');
-                expect(res.body[2].name).to.equal('oddversion7');
-                expect(res.body[2].version).to.equal('17.1.0-dev.cloud');
-                expect(res.body[2].latest).to.equal(ov71release);
-                done(err);
-              });
-      });
+    it('returns all versions of package oddversion7', function (done) {
+      request.get('/depot/pkgs/neurosis/oddversion7/versions')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.length).to.equal(3);
+          expect(res.body[2].origin).to.equal('neurosis');
+          expect(res.body[2].name).to.equal('oddversion7');
+          expect(res.body[2].version).to.equal('17.1.0-dev.cloud');
+          expect(res.body[2].latest).to.equal(ov71release);
+          done(err);
+        });
+    });
 
     it('returns the latest release of package oddversion7', function (done) {
       request.get('/depot/pkgs/neurosis/oddversion7/latest')

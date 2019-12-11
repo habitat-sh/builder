@@ -27,7 +27,7 @@
 
   # Install habitat
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-  iwr https://api.bintray.com/content/habitat/stable/windows/x86_64/hab-%24latest-x86_64-windows.zip?bt_package=hab-x86_64-windows -Outfile c:\habitat.zip
+  iwr https://packages.chef.io/files/stable/habitat/latest/hab-x86_64-windows.zip -Outfile c:\habitat.zip
   Expand-Archive c:/habitat.zip c:/
   mv c:/hab-* c:/habitat
   $env:Path = $env:Path,"C:\habitat" -join ";"
@@ -42,7 +42,18 @@
   # Add config to HabService.dll.config
   $svcPath = Join-Path $env:SystemDrive "hab\svc\windows-service"
   [xml]$configXml = Get-Content (Join-Path $svcPath HabService.dll.config)
-  $configXml.configuration.appSettings.add[2].value = "${flags}"
+
+  # Update the arguments for the Supervisor
+  $launcherArgs = $configxml | select-xml -xpath "//appSettings/add[@key='launcherArgs']"
+  $launcherArgs.Node.value = "${flags}"
+
+%{ for feature in enabled_features ~}
+  $child = $configXml.CreateElement("add")
+  $child.SetAttribute("key", "ENV_HAB_FEAT_${upper(feature)}")
+  $child.SetAttribute("value", "true")
+  $configXml.configuration.appSettings.AppendChild($child)
+
+%{ endfor ~}
   $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
   # Start service

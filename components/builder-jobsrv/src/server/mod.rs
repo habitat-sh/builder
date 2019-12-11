@@ -56,7 +56,8 @@ use time::PreciseTime;
 
 features! {
     pub mod feat {
-        const BuildDeps = 0b0000_0001
+        const BuildDeps = 0b0000_0001,
+        const LegacyProject = 0b0000_0010
     }
 }
 
@@ -125,7 +126,8 @@ fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
 }
 
 fn enable_features_from_config(cfg: &Config) {
-    let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps)]);
+    let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps),
+                                                          ("LEGACYPROJECT", feat::LegacyProject)]);
     let features_enabled = cfg.features_enabled
                               .split(',')
                               .map(|f| f.trim().to_uppercase());

@@ -32,6 +32,7 @@ do
     echo "  User ubuntu" >> ~/.ssh/config
     echo "  IdentitiesOnly yes" >> ~/.ssh/config
     echo "  IdentityFile ~/.ssh/habitat-srv-admin" >> ~/.ssh/config
+    echo "  ProxyJump jump.chef.co" >> ~/.ssh/config
     echo "" >> ~/.ssh/config
 done
 

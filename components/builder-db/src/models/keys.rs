@@ -235,4 +235,33 @@ impl OriginPrivateSigningKey {
         diesel::insert_into(origin_secret_keys::table).values(req)
                                                       .get_result(conn)
     }
+
+    pub fn update_key(id: i64,
+                      body: &[u8],
+                      key_rev: &str,
+                      conn: &PgConnection)
+                      -> QueryResult<OriginPrivateSigningKey> {
+        Counter::DBCall.increment();
+        diesel::update(origin_secret_keys::table.filter(origin_secret_keys::id.eq(id)))
+            .set((
+                origin_secret_keys::body.eq(body),
+                origin_secret_keys::encryption_key_rev.eq(Some(key_rev)),
+            ))
+            .get_result(conn)
+    }
+
+    // Get values with a null encryption_key_rev, meaning that it's unencrypted.
+    // The structure of this may need to be tweaked to do the right thing, but the intent
+    // is to use the btree index on id to cause us to start the linear search for null keys
+    // at the point we left off, and search in increasing id order
+    pub fn list_unencrypted(start: i64,
+                            count: i64,
+                            conn: &PgConnection)
+                            -> QueryResult<Vec<OriginPrivateSigningKey>> {
+        origin_secret_keys::table.filter(origin_secret_keys::id.ge(start))
+                                 .filter(origin_secret_keys::encryption_key_rev.is_null())
+                                 .limit(count)
+                                 .order(origin_secret_keys::id.asc())
+                                 .get_results(conn)
+    }
 }
