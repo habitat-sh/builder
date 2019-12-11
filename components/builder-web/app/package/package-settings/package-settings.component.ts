@@ -86,15 +86,14 @@ export class PackageSettingsComponent implements OnDestroy {
     return this.store.getState().session.token;
   }
 
-  get package() {
-    console.log(this.store.getState().packages.current);
+  get packageData() {
+    // need to call api to get package data
+    // will need to check if default visibility is being set somewhere else already
     return this.store.getState().packages.current;
   }
 
   get visibility() {
-    const vis = this.package.default_package_visibility;
-    // console.log(vis);
-    return vis;
+    return console.log('get default visibility from packageData.');
   }
 
   saved(project) {
