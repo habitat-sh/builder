@@ -26,6 +26,7 @@ import { AppStore } from '../../app.store';
 export class PackageSettingsComponent implements OnDestroy {
   name: string;
   origin: string;
+  visibilitySelectorContent: any;
 
   private sub: Subscription;
 
@@ -39,6 +40,18 @@ export class PackageSettingsComponent implements OnDestroy {
       this.origin = params['origin'];
       this.name = params['name'];
       this.title.setTitle(`Packages › ${this.origin}/${this.name} › Settings | ${store.getState().app.name}`);
+
+      this.visibilitySelectorContent = {
+        option1: {
+          title: 'Public artifact',
+          description: 'Artifacts will appear in public search results and can be utilized by any user.',
+        },
+        option2: {
+          title: 'Private artifact',
+          description: 'Artifacts will NOT appear in public search results and can ONLY be utilized by members of this origin.',
+        }
+      };
+
     });
   }
 
@@ -69,7 +82,25 @@ export class PackageSettingsComponent implements OnDestroy {
     return this.store.getState().projects.ui.current.loading;
   }
 
+  get token() {
+    return this.store.getState().session.token;
+  }
+
+  get package() {
+    return console.log('call store and get package info');
+  }
+
+
+  get visibility() {
+    return console.log('call store and get default package visibility');
+  }
+
   saved(project) {
     window.scroll(0, 0);
+  }
+
+  updatePackageVisibility(setting) {
+    console.log('dispatch to store and update package visibility setting');
+    // this.store.dispatch(updateOrigin({ name: this.origin.name, default_package_visibility: setting }, this.token));
   }
 }

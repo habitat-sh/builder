@@ -12,18 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+
+export interface Option {
+  title: string;
+  description: string;
+}
 
 @Component({
   selector: 'hab-visibility-selector',
   template: require('./visibility-selector.component.html')
 })
-export class VisibilitySelectorComponent {
 
+export class VisibilitySelectorComponent implements OnInit {
+
+  @Input() visibilityContent?: any;
   @Input() setting: string = 'public';
   @Output() changed: EventEmitter<string> = new EventEmitter<string>();
+  option1: Option = { title: '', description: ''};
+  option2: Option = { title: '', description: '' };
+
+  ngOnInit() {
+    this.getOptions();
+  }
+
+  getOptions(): void {
+    this.getOption1();
+    this.getOption2();
+  }
+
+  getOption1(): void {
+    this.option1.title = this.visibilityContent ? this.visibilityContent.option1.title : 'Public packages';
+    this.option1.description = this.visibilityContent ? this.visibilityContent.option1.description : 'Package builds will appear in public search results and can be utilized by any user.';
+  }
+
+  getOption2(): void {
+    this.option2.title = this.visibilityContent ? this.visibilityContent.option2.title : 'Public packages';
+    this.option2.description = this.visibilityContent ? this.visibilityContent.option2.description : 'Package builds will NOT appear in public search results and can ONLY be utilized by members of this origin.';
+  }
 
   change() {
     this.changed.emit(this.setting);
   }
+
+
 }
