@@ -16,7 +16,6 @@ import { DebugElement } from '@angular/core';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { MatDialog, MatDialogRef } from '@angular/material';
 import { MockComponent } from 'ng2-mock-component';
@@ -49,14 +48,9 @@ describe('PackageCreateDialog', () => {
   let element: DebugElement;
   let store: MockAppStore;
 
-  let router = {
-    navigate: jasmine.createSpy('navigate')
-  };
-
   beforeEach(() => {
 
     store = new MockAppStore();
-
     spyOn(store, 'dispatch');
     spyOn(actions, 'createEmptyPackage');
 
@@ -73,8 +67,7 @@ describe('PackageCreateDialog', () => {
       providers: [
         { provide: AppStore, useValue: store },
         { provide: MatDialog, useClass: MockDialog },
-        { provide: MatDialogRef, useValue: {} },
-        { provide: Router, useValue: router }
+        { provide: MatDialogRef, useValue: {} }
       ]
     });
 
@@ -92,7 +85,6 @@ describe('PackageCreateDialog', () => {
 
     it('should call createPackage()', () => {
       spyOn(component, 'onSubmit').and.callThrough();
-      spyOn(component, 'createPackage').and.callThrough();
 
       component.createPackageForm.value.name = 'testPackageName';
       const submitButton = element.query(By.css('#package-submit-button'));
@@ -100,16 +92,7 @@ describe('PackageCreateDialog', () => {
       fixture.detectChanges();
 
       expect(component.onSubmit).toHaveBeenCalled();
-      expect(component.createPackage).toHaveBeenCalled();
       expect(actions.createEmptyPackage).toHaveBeenCalled();
-    });
-
-    xit('should route to the package settings tab after createEmptyPackage success', () => {
-      component.createPackage('testPackage');
-
-      expect(actions.createEmptyPackage).toHaveBeenCalled();
-      expect(router.navigate).toHaveBeenCalled();
-      // expect(router.navigate).toHaveBeenCalledWith(['/pkgs', 'mock-origin', 'testPackage', 'settings']);
     });
   });
 });
