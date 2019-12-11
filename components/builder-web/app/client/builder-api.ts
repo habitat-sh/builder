@@ -108,8 +108,6 @@ export class BuilderApiClient {
   }
 
   public createOrigin(origin) {
-    console.log(`create origin builderApi: ${origin}`);
-    console.log(origin);
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins`, {
         body: JSON.stringify(origin),
