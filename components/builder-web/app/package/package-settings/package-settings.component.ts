@@ -87,12 +87,14 @@ export class PackageSettingsComponent implements OnDestroy {
   }
 
   get package() {
-    return console.log('call store and get package info');
+    console.log(this.store.getState().packages.current);
+    return this.store.getState().packages.current;
   }
 
-
   get visibility() {
-    return console.log('call store and get default package visibility');
+    const vis = this.package.default_package_visibility;
+    // console.log(vis);
+    return vis;
   }
 
   saved(project) {
