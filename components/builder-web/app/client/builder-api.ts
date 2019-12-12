@@ -165,26 +165,6 @@ export class BuilderApiClient {
     });
   }
 
-  // PLACEHOLDER to get package settings
-  public getOriginPackageSettings(pkg) {
-    return new Promise((resolve, reject) => {
-      // "/settings/{origin}/{name}"
-      fetch(`/settings/${origin}/${pkg}`, {
-        method: 'GET',
-        headers: this.jsonHeaders
-      })
-      .then(response => this.handleUnauthorized(response, reject))
-      .then(response => {
-        if (response.ok) {
-          resolve(response.json());
-        } else {
-          reject(new Error(response.statusText));
-        }
-      })
-      .catch(error => this.handleError(error, reject));
-    });
-  }
-
   public findFileInRepo(installationId: string, owner: string, repoId: string, path: string, page: number = 1, per_page: number = 100) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/ext/installations/${installationId}/repos/${repoId}/contents/${encodeURIComponent(path)}`, {

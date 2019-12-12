@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material';
@@ -23,7 +23,7 @@ import { AppStore } from '../../app.store';
   selector: 'hab-package-settings',
   template: require('./package-settings.component.html')
 })
-export class PackageSettingsComponent implements OnDestroy {
+export class PackageSettingsComponent implements OnDestroy, OnInit {
   name: string;
   origin: string;
   visibilitySelectorContent: any;
@@ -57,6 +57,10 @@ export class PackageSettingsComponent implements OnDestroy {
     });
   }
 
+  ngOnInit() {
+    this.getPackageSettingsData();
+  }
+
   ngOnDestroy() {
     if (this.sub) {
       this.sub.unsubscribe();
@@ -76,6 +80,10 @@ export class PackageSettingsComponent implements OnDestroy {
     }
   }
 
+  get token() {
+    return this.store.getState().session.token;
+  }
+
   get integrations() {
     return this.store.getState().origins.currentIntegrations.integrations || [];
   }
@@ -84,11 +92,7 @@ export class PackageSettingsComponent implements OnDestroy {
     return this.store.getState().projects.ui.current.loading;
   }
 
-  get token() {
-    return this.store.getState().session.token;
-  }
-
-  get packageData() {
+  getPackageSettingsData() {
     // need to call api to get package data
     // will need to check if default visibility is being set somewhere else already
     return this.store.getState().packages.current;
