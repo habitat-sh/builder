@@ -20,7 +20,6 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material';
 import { Record } from 'immutable';
 import { DisconnectConfirmDialog } from './dialog/disconnect-confirm/disconnect-confirm.dialog';
-import { PackageCreateDialog } from '../../package/package-create-dialog/package-create.dialog';
 import { DockerExportSettingsComponent } from '../../shared/docker-export-settings/docker-export-settings.component';
 import { BuilderApiClient } from '../../client/builder-api';
 import { AppStore } from '../../app.store';
@@ -30,7 +29,6 @@ import {
   deleteProjectIntegration
 } from '../../actions/index';
 import config from '../../config';
-
 
 @Component({
   selector: 'hab-project-settings',
@@ -69,7 +67,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     private formBuilder: FormBuilder,
     private store: AppStore,
     private disconnectDialog: MatDialog,
-    private createPackageDialog: MatDialog,
     private elementRef: ElementRef
   ) {
     this.api = new BuilderApiClient(this.token);
@@ -384,12 +381,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   settingChanged(setting) {
     this.visibility = setting;
-  }
-
-  showCreatePackageDialog() {
-    this.createPackageDialog.open(PackageCreateDialog, {
-      width: '480px'
-    });
   }
 
   private doAfterViewChecked(f) {

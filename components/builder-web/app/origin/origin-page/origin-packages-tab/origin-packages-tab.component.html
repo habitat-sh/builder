@@ -1,6 +1,12 @@
 <div class="body">
   <div class="content">
     <section *ngIf="builderEnabled && memberOfOrigin">
+
+      <!-- create package button here -->
+      <button mat-raised-button color="primary" class="button" (click)="showCreatePackageDialog()" [disabled]="!hasPrivateKey">
+        Create Package
+      </button>
+      <!-- end create packabe button -->
       <hab-project-settings
         [origin]="origin"
         [integrations]="integrations"
