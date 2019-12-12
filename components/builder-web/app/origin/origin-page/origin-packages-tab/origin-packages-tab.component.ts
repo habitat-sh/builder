@@ -15,10 +15,12 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatDialog } from '@angular/material';
 import { Subscription } from 'rxjs';
 import { AppStore } from '../../../app.store';
 import { getUniquePackages } from '../../../actions/index';
 import config from '../../../config';
+import { PackageCreateDialog } from '../../../package/package-create-dialog/package-create.dialog';
 
 @Component({
   selector: 'hab-origin-packages-tab',
@@ -33,8 +35,9 @@ export class OriginPackagesTabComponent implements OnInit, OnDestroy {
     private store: AppStore,
     private router: Router,
     private route: ActivatedRoute,
-    private title: Title
-  ) { }
+    private title: Title,
+    private createPackageDialog: MatDialog,
+  ) {}
 
   ngOnInit() {
     this.sub = this.route.parent.params.subscribe((params) => {
@@ -62,6 +65,11 @@ export class OriginPackagesTabComponent implements OnInit, OnDestroy {
 
   get origin() {
     return this.store.getState().origins.current.name;
+  }
+
+  get hasPrivateKey() {
+    const currentOrigin = this.store.getState().origins.current;
+    return currentOrigin.name === this.origin && !!currentOrigin.private_key_name;
   }
 
   get packagesUi() {
@@ -112,5 +120,11 @@ export class OriginPackagesTabComponent implements OnInit, OnDestroy {
 
   toggled(active) {
     this.selectingPlan = active;
+  }
+
+  showCreatePackageDialog() {
+    this.createPackageDialog.open(PackageCreateDialog, {
+      width: '480px'
+    });
   }
 }
