@@ -47,7 +47,7 @@ export class VisibilitySelectorComponent implements OnInit {
   }
 
   getOption2(): void {
-    this.option2.title = this.visibilityContent ? this.visibilityContent.option2.title : 'Public packages';
+    this.option2.title = this.visibilityContent ? this.visibilityContent.option2.title : 'Private packages';
     this.option2.description = this.visibilityContent ? this.visibilityContent.option2.description : 'Package builds will NOT appear in public search results and can ONLY be utilized by members of this origin.';
   }
 
