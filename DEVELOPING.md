@@ -65,7 +65,7 @@ Before you can successfully build, you need to provision the OS with some basic 
 
 1. Use `visudo` to grant your account the ability to do passwordless sudo. Add a line similar to the following to the end of your sudoers file: `<username> ALL=(ALL) NOPASSWD: ALL`
 
-2. Run the following provisioning script: `/src/support/linux/provision.sh`
+2. Run the following provisioning script: `./support/linux/provision.sh`
    (Complete the repository setup step below to run this script)
 
 3. Ensure you have your github SSH keys in your `~/.ssh` directory (will need for cloning in the next step)
