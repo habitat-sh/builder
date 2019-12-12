@@ -41,6 +41,7 @@ export class PackageSettingsComponent implements OnDestroy {
       this.name = params['name'];
       this.title.setTitle(`Packages › ${this.origin}/${this.name} › Settings | ${store.getState().app.name}`);
 
+       // Move this to its own Data file?
       this.visibilitySelectorContent = {
         option1: {
           title: 'Public artifact',
@@ -51,6 +52,7 @@ export class PackageSettingsComponent implements OnDestroy {
           description: 'Artifacts will NOT appear in public search results and can ONLY be utilized by members of this origin.',
         }
       };
+      // end move
 
     });
   }
