@@ -165,10 +165,11 @@ export class BuilderApiClient {
     });
   }
 
-  // PLACEHOLDER FOR GETPACKAGE
-  public getPackage(pkg) {
+  // PLACEHOLDER to get package settings
+  public getOriginPackageSettings(pkg) {
     return new Promise((resolve, reject) => {
-      fetch(`someurl/${pkg}`, {
+      // "/settings/{origin}/{name}"
+      fetch(`/settings/${origin}/${pkg}`, {
         method: 'GET',
         headers: this.jsonHeaders
       })
@@ -180,7 +181,7 @@ export class BuilderApiClient {
           reject(new Error(response.statusText));
         }
       })
-      .catch(error => this.handleError(error, reject))
+      .catch(error => this.handleError(error, reject));
     });
   }
 
