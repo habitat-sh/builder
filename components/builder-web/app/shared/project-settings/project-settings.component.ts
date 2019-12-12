@@ -62,7 +62,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   private _doAfterViewChecked: Function[] = [];
 
-
   constructor(
     private formBuilder: FormBuilder,
     private store: AppStore,
