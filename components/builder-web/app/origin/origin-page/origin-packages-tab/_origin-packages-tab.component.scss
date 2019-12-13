@@ -1,7 +1,5 @@
-h4.testing {
-  background: red;
-  color: blue;
-}
+// table needs border radius still
+// must be done via th or td
 
 table {
   width: 100%;
@@ -16,41 +14,72 @@ table {
 
 tr {
   border: 1px solid #DCE6EE;
-  
+
   a {
     display: block;
+    padding: 16px;
   }
 }
 
 th, td {
-  padding: 16px;
   color: #5C6670;
   text-align: left;
 }
 
 th {
+  padding: 16px;
   background-color: #E8F0F6;
   font-size: 12px;
   font-family: Montserrat,Verdana;
   text-transform: uppercase;
 }
 
-.package-name {
-  width: 30%;
+td {
+  position: relative;
 
-  span {
-    color: #5C6670;
-    font-weight: 600;
-    word-wrap: break-word;
+  &.package-name {
+    width: 30%;
+  
+    span {
+      color: #5C6670;
+      font-weight: 600;
+      word-wrap: break-word;
+    }
+  }
+  
+  &.platform {
+    width: 65%;
+
+    hab-icon {
+      display: none;
+      visibility: hidden;
+      position: absolute;
+      right: 6px;
+      top: calc(50% - 11px); // hab icon is 22px tall.  this centers the icon vertically
+
+    .mat-icon {
+      color: #5C6670;
+      height: 22px;
+      width: 22px;
+      }
+    }
+  }
+
+  &.opt-chevron-right {
+    width: 5%
   }
 }
 
-// .package-name span {
-//   color: #5C6670;
-//   font-weight: 600;
-//   word-wrap: break-word;
-// }
+tr {
 
-.platform {
-  width: 70%;
+  &:hover {
+    td {
+      background-color: #fbfbfb;
+    }
+
+    hab-icon {
+      display: block;
+      visibility: visible;
+    }
+  }
 }

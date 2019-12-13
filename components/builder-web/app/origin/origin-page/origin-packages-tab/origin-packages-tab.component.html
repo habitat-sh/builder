@@ -22,16 +22,20 @@
         </thead>
         <tbody>
           <tr *ngFor="let proj of projects">
+
             <td class="package-name">
-                <a [routerLink]="['/pkgs', origin, proj, 'latest']">
-                  <span class="column name">{{ proj }}</span>
-                </a>
-              </td>
-              <td class="platform">
-                <a [routerLink]="['/pkgs', origin, proj, 'latest']">
-                icons
-                </a>
-              </td>
+              <a [routerLink]="['/pkgs', origin, proj, 'latest']">
+                <span class="column name">{{ proj }}</span>
+              </a>
+            </td>
+
+            <td class="platform">
+              <a [routerLink]="['/pkgs', origin, proj, 'latest']">
+                platform icons go here
+                <hab-icon symbol="chevron-right"></hab-icon>
+              </a>
+            </td>
+
           </tr>
         </tbody>
       </table>
@@ -41,7 +45,7 @@
 
       <ul class="nav-list" *ngIf="projectsExist">
         <li class="heading">
-          <h4 class="testing">Package Name</h4>
+          <h4 class="testing">Connected Packages</h4>
         </li>
         <li class="item" *ngFor="let proj of projects">
           <a [routerLink]="['/pkgs', origin, proj, 'latest']">
