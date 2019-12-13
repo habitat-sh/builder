@@ -2,3 +2,55 @@ h4.testing {
   background: red;
   color: blue;
 }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+
+  color: #5C6670;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 rgba(217,224,230,0.4);
+}
+
+
+tr {
+  border: 1px solid #DCE6EE;
+  
+  a {
+    display: block;
+  }
+}
+
+th, td {
+  padding: 16px;
+  color: #5C6670;
+  text-align: left;
+}
+
+th {
+  background-color: #E8F0F6;
+  font-size: 12px;
+  font-family: Montserrat,Verdana;
+  text-transform: uppercase;
+}
+
+.package-name {
+  width: 30%;
+
+  span {
+    color: #5C6670;
+    font-weight: 600;
+    word-wrap: break-word;
+  }
+}
+
+// .package-name span {
+//   color: #5C6670;
+//   font-weight: 600;
+//   word-wrap: break-word;
+// }
+
+.platform {
+  width: 70%;
+}

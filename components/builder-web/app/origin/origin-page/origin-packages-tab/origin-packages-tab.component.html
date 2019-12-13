@@ -10,6 +10,35 @@
     </section>
 
     <section *ngIf="!selectingPlan">
+
+      <!-- new table -->
+
+      <table>
+        <thead>
+          <tr>
+            <th>Package Name</th>
+            <th>Platforms</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let proj of projects">
+            <td class="package-name">
+                <a [routerLink]="['/pkgs', origin, proj, 'latest']">
+                  <span class="column name">{{ proj }}</span>
+                </a>
+              </td>
+              <td class="platform">
+                <a [routerLink]="['/pkgs', origin, proj, 'latest']">
+                icons
+                </a>
+              </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- end new table  -->
+
+
       <ul class="nav-list" *ngIf="projectsExist">
         <li class="heading">
           <h4 class="testing">Package Name</h4>
