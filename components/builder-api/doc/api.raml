@@ -864,6 +864,20 @@ securitySchemes:
                                 description: Integration deleted
                             500:
                                 description: Internal server error
+        /transfer:
+            /{user}:
+              post:
+                  description: Transfer ownership of origin to new origin member
+                  securedBy: [oauth_2_0]
+                  responses:
+                    204:
+                      description: Transfer successful
+                    403:
+                      description: Not authorized to transfer ownership
+                    422:
+                      description: Cannot transfer to self or non-members
+                    500:
+                      description: Internal server error
         /invitations:
             /{invitationId}:
                 put:
@@ -1401,3 +1415,70 @@ securitySchemes:
                                             description: Origin or channel or identifier or version or release does not exist
                                         500:
                                             description: Server error
+/settings:
+    /{origin}:
+        /{name}:
+          /post:
+              securedBy: [oauth_2_0]
+              description: Create new package settings entry
+              responses:
+                  201:
+                      description: Package settings created successfully
+                      body:
+                        application/json:
+                            example: |
+                                {
+                                    "id": "b675d604257e42",
+                                    "origin": "bridges",
+                                    "name": "q-pid",
+                                    "visibility": "public",
+                                    "owner_id": "53O71239",
+                                    "created_at": "2300-02-18-1891688"
+                                    "updated_at": "2300-02-18-1891688"
+                                }
+                  500:
+                      description: Internal server error
+          /get:
+              description: Get package settings for top level package 
+              responses: Returns current package settings for top level pacakge 
+                  200:
+                      description: Successful request of current package settings
+                      body:
+                        application/json:
+                            example: |
+                                {
+                                    "id": "b675d604257e42",
+                                    "origin": "bridges",
+                                    "name": "q-pid",
+                                    "visibility": "public",
+                                    "owner_id": "53O71239",
+                                    "created_at": "2300-02-18-1891688"
+                                    "updated_at": "2300-02-18-1891688"
+                                }
+                  500:
+                      description: Internal server error
+          /put:
+              securedBy: [oauth_2_0]
+              description: Update a package settings entry
+              responses:
+                  200:
+                      description: Package setting updated successfully
+                      body:
+                        application/json:
+                            example: |
+                                {
+                                    "id": "b675d604257e42",
+                                    "origin": "bridges",
+                                    "name": "q-pid",
+                                    "visibility": "public",
+                                    "owner_id": "53O71239",
+                                    "created_at": "2300-02-18-1891688"
+                                    "updated_at": "2300-02-18-1891688"
+                                }
+                  400:
+                      description: Visibility setting in request does is not supported 
+                  422:
+                      description: Body of request did not include a visibility setting
+                  500:
+                    description: Internal server error
+
