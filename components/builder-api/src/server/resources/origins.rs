@@ -64,6 +64,7 @@ use crate::db::models::{account::*,
                         secrets::*};
 
 use crate::server::{authorize::{authorize_session,
+                                check_origin_member,
                                 check_origin_owner},
                     error::{Error,
                             Result},
@@ -108,6 +109,8 @@ impl Origins {
                   web::get().to(list_origin_members))
            .route("/depot/origins/{origin}/users/{user}",
                   web::delete().to(origin_member_delete))
+           .route("/depot/origins/{origin}/transfer/{user}",
+                  web::post().to(transfer_origin_ownership))
            .route("/depot/origins/{origin}/invitations",
                   web::get().to(list_origin_invitations))
            .route("/depot/origins/{origin}/users/{username}/invitations",
@@ -1040,6 +1043,57 @@ fn list_origin_invitations(req: HttpRequest,
             HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                               .json(json)
         }
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn transfer_origin_ownership(req: HttpRequest,
+                             path: Path<(String, String)>,
+                             state: Data<AppState>)
+                             -> HttpResponse {
+    let (origin, user) = path.into_inner();
+
+    let session = match authorize_session(&req, None) {
+        Ok(session) => session,
+        Err(err) => return err.into(),
+    };
+
+    if !check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
+
+    // Do not allow the owner to transfer ownership to themselves
+    if user == session.get_name() {
+        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    debug!(" Transferring origin {} to new owner {}", &origin, &user);
+
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let (recipient_id, _recipient_name) =
+        match Account::get(&user, &*conn).map_err(Error::DieselError) {
+            Ok(account) => (account.id, account.name),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
+
+    // Do not allow transfer to recipent that is not already an origin member
+    if !check_origin_member(&req, &origin, recipient_id as u64).unwrap_or(false) {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
+
+    match Origin::transfer(&origin, recipient_id, &*conn).map_err(Error::DieselError) {
+        Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
             err.into()

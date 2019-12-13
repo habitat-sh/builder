@@ -182,8 +182,79 @@ describe('Origin API', function () {
           done(err);
         });
     });
-
     // TODO - add a successful deletion test
+  });
+});
+
+describe('Related Origin API functions', function () {
+    describe('Invite prereq for ownership transfer', function() { 
+        it('returns the invitation', function (done) {
+          request.post('/depot/origins/umbrella/users/bobo/invitations')
+            .set('Authorization', global.weskerBearer)
+            .expect(201)
+            .end(function (err, res) {
+              expect(res.body.origin).to.equal(global.originUmbrella.name);
+              global.inviteBoboToUmbrella = res.body;
+              done(err);
+            });
+        });
+
+        it('accepts the invitation', function (done) {
+          request.put('/depot/origins/umbrella/invitations/' + global.inviteBoboToUmbrella.id)
+            .set('Authorization', global.boboBearer)
+            .expect(204)
+            .end(function (err, res) {
+              expect(res.text).to.be.empty;
+              done(err);
+            });
+        });
+    });
+
+  describe('Origin Transfer', function () {
+      it('requires authentication', function (done) {
+          request.post('/depot/origins/umbrella/transfer/bobo')
+              .expect(401)
+              .end(function (err, res) {
+                  expect(res.text).to.be.empty;
+                  done(err)
+              });
+      });
+      it('requires ownership of the origin', function(done) {
+        request.post('/depot/origins/umbrella/transfer/bobo')
+          .set('Authorization', global.boboBearer)
+          .expect(403)
+              .end(function (err, res) {
+                  expect(res.text).to.be.empty;
+                  done(err);
+              });
+      });
+      it('cannot be transferred from a user to themselves', function(done) {
+        request.post('/depot/origins/umbrella/transfer/wesker')
+          .set('Authorization', global.weskerBearer)
+          .expect(422)
+              .end(function (err, res) {
+                  expect(res.text).to.be.empty;
+                  done(err);
+              });
+      });
+      it('recipient must already be a member of the origin', function(done) {
+        request.post('/depot/origins/umbrella/transfer/mystique')
+          .set('Authorization', global.weskerBearer)
+          .expect(403)
+              .end(function (err, res) {
+                  expect(res.text).to.be.empty;
+                  done(err);
+              });
+      });
+      it('succeeds', function(done) {
+        request.post('/depot/origins/umbrella/transfer/bobo')
+          .set('Authorization', global.weskerBearer)
+          .expect(204)
+              .end(function (err, res) {
+                  expect(res.text).to.be.empty;
+                  done(err);
+              });
+      });
   });
 
   describe('Origin deletion', function () {
@@ -198,7 +269,7 @@ describe('Origin API', function () {
 
     it('requires membership in the origin', function (done) {
       request.delete('/depot/origins/umbrella')
-        .set('Authorization', global.boboBearer)
+        .set('Authorization', global.mystiqueBearer)
         .expect(403)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -208,7 +279,7 @@ describe('Origin API', function () {
 
     it('fails with a conflict when not deletable', function (done) {
       request.delete('/depot/origins/umbrella')
-        .set('Authorization', global.weskerBearer)
+        .set('Authorization', global.boboBearer)
         .expect(409)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -220,7 +291,7 @@ describe('Origin API', function () {
       request.delete('/projects/umbrella/testapp')
         .type('application/json')
         .accept('application/json')
-        .set('Authorization', global.weskerBearer)
+        .set('Authorization', global.boboBearer)
         .expect(204)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -230,7 +301,7 @@ describe('Origin API', function () {
 
     it('succeeds', function (done) {
       request.delete('/depot/origins/umbrella')
-        .set('Authorization', global.weskerBearer)
+        .set('Authorization', global.boboBearer)
         .expect(204)
         .end(function (err, res) {
           expect(res.text).to.be.empty;

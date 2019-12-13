@@ -147,6 +147,12 @@ impl Origin {
         })
     }
 
+    pub fn transfer(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<(usize)> {
+        Counter::DBCall.increment();
+        diesel::update(origins::table.find(origin)).set(origins::owner_id.eq(account_id))
+                                                   .execute(conn)
+    }
+
     pub fn check_membership(origin: &str,
                             account_id: i64,
                             conn: &PgConnection)
