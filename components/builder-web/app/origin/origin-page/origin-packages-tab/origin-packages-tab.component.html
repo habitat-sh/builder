@@ -8,10 +8,11 @@
         (saved)="saved($event)">
       </hab-project-settings>
     </section>
+
     <section *ngIf="!selectingPlan">
       <ul class="nav-list" *ngIf="projectsExist">
         <li class="heading">
-          <h4>Connected Plans</h4>
+          <h4 class="testing">Package Name</h4>
         </li>
         <li class="item" *ngFor="let proj of projects">
           <a [routerLink]="['/pkgs', origin, proj, 'latest']">
@@ -41,5 +42,6 @@
         </a>
       </div>
     </section>
+
   </div>
 </div>
