@@ -34,6 +34,8 @@ use habitat_core as hab_core;
 pub mod config;
 pub mod data_store;
 pub mod error;
+pub mod package_graph;
+pub mod rdeps;
 
 use std::{collections::HashMap,
           fs::File,
@@ -45,10 +47,10 @@ use clap::{App,
            Arg};
 use copperline::Copperline;
 
-use crate::{bldr_core::package_graph::PackageGraph,
-            config::Config,
+use crate::{config::Config,
             data_store::DataStore,
-            hab_core::config::ConfigFile};
+            hab_core::config::ConfigFile,
+            package_graph::PackageGraph};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
