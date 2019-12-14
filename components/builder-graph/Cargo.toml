@@ -29,6 +29,7 @@ r2d2 = "*"
 serde = "*"
 serde_derive = "*"
 copperline = "*"
+diesel = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

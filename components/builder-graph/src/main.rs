@@ -24,6 +24,8 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
+extern crate diesel;
+
 use builder_core as bldr_core;
 use habitat_builder_db as db;
 use habitat_builder_protocol as protocol;
@@ -78,10 +80,15 @@ fn main() {
     println!("Building graph... please wait.");
 
     let mut graph = PackageGraph::new();
+    let start_time = Instant::now();
     let packages = datastore.get_job_graph_packages().unwrap();
+    let fetch_time = start_time.elapsed().as_secs();
+    println!("OK: fetched {} packages ({} sec)",
+             packages.len(),
+             fetch_time);
+
     let start_time = Instant::now();
     let (ncount, ecount) = graph.build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
-
     println!("OK: {} nodes, {} edges ({} sec)",
              ncount,
              ecount,
@@ -303,10 +310,11 @@ fn resolve_name(graph: &PackageGraph, name: &str) -> String {
 fn do_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str) {
     let start_time = Instant::now();
     let ident = resolve_name(graph, name);
+    let target = "x86_64-linux";
 
     println!("Dependencies for: {}", ident);
 
-    match datastore.get_job_graph_package(&ident) {
+    match datastore.get_job_graph_package(&ident, &target) {
         Ok(package) => {
             println!("OK: {} items ({} sec)\n",
                      package.get_deps().len(),
@@ -339,8 +347,9 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
     let mut deps_map = HashMap::new();
     let mut new_deps = Vec::new();
     let ident = resolve_name(graph, name);
+    let target = "x86_64-linux";
 
-    match datastore.get_job_graph_package(&ident) {
+    match datastore.get_job_graph_package(&ident, &target) {
         Ok(package) => {
             if !filter.is_empty() {
                 println!("Checks filtered by: {}\n", filter);
@@ -373,7 +382,8 @@ fn check_package(datastore: &DataStore,
                  deps_map: &mut HashMap<String, String>,
                  ident: &str,
                  filter: &str) {
-    match datastore.get_job_graph_package(ident) {
+    let target = "x86_64-linux";
+    match datastore.get_job_graph_package(ident, target) {
         Ok(package) => {
             for dep in package.get_deps() {
                 if dep.to_string().starts_with(filter) {

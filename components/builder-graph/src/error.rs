@@ -28,6 +28,7 @@ use r2d2;
 pub enum Error {
     Db(db::error::Error),
     DbPoolTimeout(r2d2::Error),
+    DieselError(diesel::result::Error),
     DbTransaction(postgres::error::Error),
     HabitatCore(hab_core::Error),
     IO(io::Error),
@@ -46,6 +47,7 @@ impl fmt::Display for Error {
                 format!("Timeout getting connection from the database pool, {}", e)
             }
             Error::DbTransaction(ref e) => format!("Database transaction error, {}", e),
+            Error::DieselError(ref e) => format!("Diesel error, {}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
             Error::IO(ref e) => format!("{}", e),
             Error::JobGraphPackagesGet(ref e) => {
@@ -64,6 +66,7 @@ impl error::Error for Error {
             Error::Db(ref err) => err.description(),
             Error::DbPoolTimeout(ref err) => err.description(),
             Error::DbTransaction(ref err) => err.description(),
+            Error::DieselError(ref err) => err.description(),
             Error::HabitatCore(ref err) => err.description(),
             Error::IO(ref err) => err.description(),
             Error::JobGraphPackagesGet(ref err) => err.description(),
