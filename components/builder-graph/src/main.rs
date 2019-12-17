@@ -26,7 +26,7 @@ extern crate serde_derive;
 
 extern crate diesel;
 
-use builder_core as bldr_core;
+//use builder_core as bldr_core;
 use habitat_builder_db as db;
 use habitat_builder_protocol as protocol;
 use habitat_core as hab_core;
@@ -34,36 +34,44 @@ use habitat_core as hab_core;
 pub mod config;
 pub mod data_store;
 pub mod error;
+pub mod ident_graph;
 pub mod package_graph;
 pub mod rdeps;
+pub mod util;
 
 use std::{collections::HashMap,
           fs::File,
           io::Write,
           iter::FromIterator,
-          time::Instant};
+          time::Instant,
+          str::FromStr};
 
-use clap::{App,
-           Arg};
+use clap::{App, Arg};
 use copperline::Copperline;
 
-use crate::{config::Config,
-            data_store::DataStore,
-            hab_core::config::ConfigFile,
-            package_graph::PackageGraph};
+use crate::{
+    config::Config,
+    data_store::DataStore,
+    hab_core::config::ConfigFile,
+    hab_core::package::{PackageIdent, PackageTarget},
+    package_graph::PackageGraph,
+};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 fn main() {
     env_logger::init();
 
-    let matches =
-        App::new("bldr-graph").version(VERSION)
-                              .about("Habitat Graph Dev Tool")
-                              .arg(Arg::with_name("config").help("Filepath to configuration file")
-                                                           .required(false)
-                                                           .index(1))
-                              .get_matches();
+    let matches = App::new("bldr-graph")
+        .version(VERSION)
+        .about("Habitat Graph Dev Tool")
+        .arg(
+            Arg::with_name("config")
+                .help("Filepath to configuration file")
+                .required(false)
+                .index(1),
+        )
+        .get_matches();
 
     let config = match matches.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
@@ -96,14 +104,23 @@ fn main() {
              ecount,
              start_time.elapsed().as_secs());
 
-    println!("\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
-              exit\n",);
+    let targets = graph.targets();
+    let target_as_string: Vec<String> = targets.iter().map(|t| t.to_string()).collect();
+
+    println!("Found following targets {}", target_as_string.join(", "));
+    println!("Default target is {}", graph.current_target());
+
+    println!(
+        "\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
+         exit\n",
+    );
 
     let mut filter = String::from("");
     let mut done = false;
 
     while !done {
-        let line = cl.read_line_utf8("command> ").ok();
+        let prompt = format!("{}: command> ", graph.current_target());
+        let line = cl.read_line_utf8(&prompt).ok();
         if line.is_none() {
             continue;
         }
@@ -115,6 +132,7 @@ fn main() {
         if !v.is_empty() {
             match v[0].to_lowercase().as_str() {
                 "help" => do_help(),
+                "all_stats" => do_all_stats(&graph),
                 "stats" => do_stats(&graph),
                 "top" => {
                     let count = if v.len() < 2 {
@@ -143,6 +161,22 @@ fn main() {
                             10
                         };
                         do_find(&graph, v[1].to_lowercase().as_str(), max)
+                    }
+                }
+                "dot" => {
+                    if v.len() < 2 {
+                        println!("Missing search term\n")
+                    } else {
+                        let origin = if v.len() > 2 { Some(v[2]) } else { None };
+                        do_dot(&graph, v[1], origin)
+                    }
+                }
+                "latest_dot" => {
+                    if v.len() < 3 {
+                        println!("Missing search term\n")
+                    } else {
+                        let origin = if v.len() > 2 { Some(v[2]) } else { None };
+                        do_latest_dot(&graph, v[1], origin)
                     }
                 }
                 "resolve" => {
@@ -185,7 +219,8 @@ fn main() {
                         do_export(&graph, v[1].to_lowercase().as_str(), &filter)
                     }
                 }
-                "exit" => done = true,
+                "target" => do_target(&mut graph, v[1]),
+                "quit" | "exit" => done = true,
                 _ => println!("Unknown command\n"),
             }
         }
@@ -205,6 +240,17 @@ fn do_help() {
     println!("  check   <name>|<ident>  Validate the latest dependencies for the package");
     println!("  export  <filename>      Export data from graph to specified file");
     println!("  exit                    Exit the application\n");
+}
+
+fn do_all_stats(graph: &PackageGraph) {
+    let stats = graph.all_stats();
+    for (target, stat) in stats {
+        println!("Target: {}", target);
+        println!("  Node count: {}", stat.node_count);
+        println!("  Edge count: {}", stat.edge_count);
+        println!("  Connected components: {}", stat.connected_comp);
+        println!("  Is cyclic: {}", stat.is_cyclic)
+    }
 }
 
 fn do_stats(graph: &PackageGraph) {
@@ -252,6 +298,30 @@ fn do_find(graph: &PackageGraph, phrase: &str, max: usize) {
     println!();
 }
 
+fn do_latest_dot(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
+    let start_time = PreciseTime::now();
+    graph.dump_latest_graph(filename, origin);
+    let end_time = PreciseTime::now();
+    println!(
+        "Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
+        filename,
+        origin,
+        start_time.to(end_time)
+    );
+}
+
+fn do_dot(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
+    let start_time = PreciseTime::now();
+    graph.emit_graph(filename, None, true, None);
+    let end_time = PreciseTime::now();
+    println!(
+        "Wrote graph to file {} filtered by {:?} TBI in {} sec",
+        filename,
+        origin,
+        start_time.to(end_time)
+    );
+}
+
 fn do_resolve(graph: &PackageGraph, name: &str) {
     let start_time = Instant::now();
     let result = graph.resolve(name);
@@ -269,7 +339,9 @@ fn do_resolve(graph: &PackageGraph, name: &str) {
 fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
     let start_time = Instant::now();
 
-    match graph.rdeps(name) {
+    let ident = PackageIdent::from_str(name).unwrap();
+
+    match graph.rdeps(&ident) {
         Some(rdeps) => {
             let duration_secs = start_time.elapsed().as_secs();
             let mut filtered: Vec<(String, String)> =
@@ -321,7 +393,6 @@ fn do_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str
             println!("OK: {} items ({} sec)\n",
                      package.get_deps().len(),
                      start_time.elapsed().as_secs());
-
             if !filter.is_empty() {
                 println!("Results filtered by: {}\n", filter);
             }
@@ -380,10 +451,12 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
     println!("\nTime: {} sec\n", start_time.elapsed().as_secs());
 }
 
-fn check_package(datastore: &DataStore,
-                 deps_map: &mut HashMap<String, String>,
-                 ident: &str,
-                 filter: &str) {
+fn check_package(
+    datastore: &DataStore,
+    deps_map: &mut HashMap<String, String>,
+    ident: &str,
+    filter: &str,
+) {
     let target = "x86_64-linux";
     match datastore.get_job_graph_package(ident, target) {
         Ok(package) => {
@@ -424,11 +497,19 @@ fn do_export(graph: &PackageGraph, filename: &str, filter: &str) {
     }
 }
 
+fn do_target(graph: &mut PackageGraph, target: &str) {
+    match PackageTarget::from_str(target) {
+        Ok(package_target) => graph.set_target(package_target),
+        Err(_) => println!("{} is not a valid target", target),
+    }
+}
+
 fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps)]);
-    let features_enabled = config.features_enabled
-                                 .split(',')
-                                 .map(|f| f.trim().to_uppercase());
+    let features_enabled = config
+        .features_enabled
+        .split(',')
+        .map(|f| f.trim().to_uppercase());
 
     for key in features_enabled {
         if features.contains_key(key.as_str()) {

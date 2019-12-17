@@ -58,3 +58,10 @@ Connected components: 114
 Is cyclic: false
 command>
 ```
+
+## Studio usage
+
+### Building
+build /src/components/builder-graph/habitat
+
+### 

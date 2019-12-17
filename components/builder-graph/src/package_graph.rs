@@ -14,16 +14,34 @@
 
 use petgraph::{
     algo::{connected_components, is_cyclic_directed},
+    dot::{Config, Dot},
+    graph::EdgeIndex,
     graph::NodeIndex,
-    Direction, Graph,
+    //    visit::Dfs,
+    //    visit::GraphRef,
+    //    visit::Visitable,
+    //    Direction,
+    Graph,
 };
+
+use std::io::prelude::*;
+
 use std::{
+    cell::RefCell,
     cmp::Ordering,
     collections::{BinaryHeap, HashMap},
     str::FromStr,
+    string::ToString,
 };
 
-use crate::{hab_core::package::PackageIdent, protocol::originsrv, rdeps::rdeps};
+use habitat_builder_db::models::package::PackageWithVersionArray;
+
+use crate::{
+    hab_core::package::{PackageIdent, PackageTarget},
+    ident_graph::*,
+    rdeps::rdeps,
+    util::*,
+};
 
 #[derive(Debug)]
 pub struct Stats {
@@ -57,221 +75,286 @@ impl PartialEq for HeapEntry {
     }
 }
 
-fn short_name(name: &str) -> String {
-    let parts: Vec<&str> = name.split('/').collect();
-    assert!(parts.len() >= 2);
-    format!("{}/{}", parts[0], parts[1])
+fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
+    let parts: Vec<&str> = ident.iter().collect();
+    if use_version {
+        PackageIdent::new(parts[0], parts[1], Some(parts[2]), None)
+    } else {
+        PackageIdent::new(parts[0], parts[1], None, None)
+    }
+}
+
+// Note: We need to filter by target when doing the walk.
+type PackageIndex = usize;
+#[derive(Debug)]
+struct PackageInfo {
+    ident: PackageIdent,
+    // We may need to create the info record before we see the package data...
+    package: Option<PackageWithVersionArray>,
+
+    plan_deps: Vec<PackageIdent>,
+    plan_bdeps: Vec<PackageIdent>,
+
+    full_graph_index: NodeIndex,
 }
 
 #[derive(Default)]
-pub struct PackageGraph {
-    package_max: usize,
-    package_map: HashMap<String, (usize, NodeIndex)>,
-    latest_map: HashMap<String, PackageIdent>,
-    package_names: Vec<String>,
-    graph: Graph<usize, usize>,
+pub struct PackageGraphForTarget {
+    target: Option<PackageTarget>,
+    // This is the master data store; all packages live here.
+    packages: Vec<RefCell<PackageInfo>>,
+    // Maps package ident to position in packages vector above.
+    package_map: HashMap<PackageIdent, PackageIndex>,
+
+    // Map from truncated ident to latest matching; it could be origin/packagename, or origin/packagename/version
+    latest_map: HashMap<PackageIdent, PackageIndex>,
+
+    // Possible refactor would be to put packageinfo in graph structure; complication is in multigraph situations
+    full_graph: Graph<PackageIndex, EdgeType>,
+    full_graph_node_index_map: HashMap<NodeIndex, PackageIndex>,
+
+    // We build this alongside the full graph
+    latest_graph: IdentGraph<PackageIndex>,
 }
 
-impl PackageGraph {
-    pub fn new() -> Self {
-        PackageGraph::default()
+//IntoEdgeReferences! {delegate_impl[]}
+
+// impl Visitable for Graph<usize, usize> {
+//     type Map = G::Map;
+//     fn visit_map(&self) -> G::Map {
+//         self.0.visit_map()
+//     }
+//     fn reset_map(&self, map: &mut Self::Map) {
+//         self.0.reset_map(map);
+//     }
+// }
+
+impl PackageGraphForTarget {
+    pub fn new(target: PackageTarget) -> Self {
+        let mut pg = PackageGraphForTarget::default();
+        pg.target = Some(target);
+        pg
     }
 
-    fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
-        let short_name = short_name(name);
+    fn update_latest<'a>(&'a mut self, id: &'a PackageIdent, index: PackageIndex) {
+        let just_package = short_ident(id, false);
+        self.update_if_newer(just_package, index);
 
-        if self.package_map.contains_key(&short_name) {
-            self.package_map[&short_name]
-        } else {
-            self.package_names.push(short_name.clone());
-            assert_eq!(self.package_names[self.package_max], short_name);
-
-            let node_index = self.graph.add_node(self.package_max);
-            self.package_map
-                .insert(short_name.clone(), (self.package_max, node_index));
-            self.package_max += 1;
-
-            (self.package_max - 1, node_index)
-        }
+        let package_version = short_ident(id, true);
+        self.update_if_newer(package_version, index);
     }
 
-    pub fn build<T>(&mut self, packages: T, use_build_deps: bool) -> (usize, usize)
-    where
-        T: Iterator<Item = originsrv::OriginPackage>,
-    {
-        assert!(self.package_max == 0);
-
-        for p in packages {
-            self.extend(&p, use_build_deps);
-        }
-
-        (self.graph.node_count(), self.graph.edge_count())
-    }
-
-    pub fn check_extend(
-        &mut self,
-        package: &originsrv::OriginPackage,
-        use_build_deps: bool,
-    ) -> bool {
-        let name = format!("{}", package.get_ident());
-        let pkg_short_name = short_name(&name);
-
-        // If package is brand new, we can't have a circular dependency
-        if !self.package_map.contains_key(&pkg_short_name) {
-            debug!("check_extend: no package found - OK");
-            return true;
-        }
-
-        let (_, pkg_node) = self.package_map[&pkg_short_name];
-
-        // Temporarily remove edges
-        let mut saved_nodes = Vec::new();
-        let neighbors: Vec<NodeIndex> = self
-            .graph
-            .neighbors_directed(pkg_node, Direction::Incoming)
-            .collect();
-        for n in neighbors {
-            let e = self.graph.find_edge(n, pkg_node).unwrap();
-            saved_nodes.push(n);
-            self.graph.remove_edge(e).unwrap();
-        }
-
-        // Check to see if extension would create a circular dependency
-        let mut circular_dep = false;
-        let mut dep_nodes = Vec::new();
-        let mut deps;
-        let build_deps;
-
-        if use_build_deps {
-            deps = package.get_deps().iter().collect::<Vec<_>>();
-            build_deps = package.get_build_deps();
-
-            deps.extend(build_deps);
-        } else {
-            deps = package.get_deps().iter().collect::<Vec<_>>();
-        }
-
-        for dep in deps {
-            let dep_name = format!("{}", dep);
-            let dep_short_name = short_name(&dep_name);
-
-            if self.package_map.contains_key(&dep_short_name) {
-                let (_, dep_node) = self.package_map[&dep_short_name];
-                dep_nodes.push(dep_node);
-
-                self.graph.extend_with_edges(&[(dep_node, pkg_node)]);
-
-                // Check for circular dependency
-                if is_cyclic_directed(&self.graph) {
-                    debug!(
-                        "graph is cyclic after adding {} -> {} - failing check_extend",
-                        dep_name, name
-                    );
-                    circular_dep = true;
-                    break;
+    fn update_if_newer(&mut self, id: PackageIdent, index: PackageIndex) {
+        match self.latest_map.get(&id) {
+            Some(&old_index) => {
+                if self.packages[index].borrow().ident > self.packages[old_index].borrow().ident {
+                    self.latest_map.insert(id, index);
                 }
             }
-        }
-
-        // Undo the edge changes
-        for dep_node in dep_nodes {
-            let e = self.graph.find_edge(dep_node, pkg_node).unwrap();
-            self.graph.remove_edge(e).unwrap();
-        }
-
-        for saved_node in saved_nodes {
-            self.graph.extend_with_edges(&[(saved_node, pkg_node)]);
-        }
-
-        !circular_dep
+            None => {
+                self.latest_map.insert(id, index);
+            }
+        };
     }
 
+    fn generate_id_for_package(
+        &mut self,
+        package: &PackageWithVersionArray,
+    ) -> (PackageIndex, NodeIndex) {
+        let (pi, ni) = self.generate_id(&package.ident.0);
+
+        let mut package_info = self.packages[pi].borrow_mut();
+
+        package_info.package = Some(package.clone());
+
+        // It would be more correct to parse the manifest and use that to fill plan_deps/bdeps
+        // That may belong inside PackageWithVersionArray
+        // For now, just approximate with trunuated ident
+        for dep in &package.deps {
+            package_info.plan_deps.push(short_ident(&dep.0, false));
+        }
+        for dep in &package.build_deps {
+            package_info.plan_bdeps.push(short_ident(&dep.0, false));
+        }
+
+        (pi, ni)
+    }
+
+    fn get_id(&self, ident: &PackageIdent) -> Option<(PackageIndex, NodeIndex)> {
+        if self.package_map.contains_key(&ident) {
+            let package_index = self.package_map[&ident];
+            let node_index: NodeIndex = self.packages[package_index].borrow().full_graph_index;
+            Some((package_index, node_index))
+        } else {
+            None
+        }
+    }
+
+    fn generate_id<'a>(&'a mut self, ident: &PackageIdent) -> (PackageIndex, NodeIndex) {
+        if self.package_map.contains_key(&ident) {
+            let package_index = self.package_map[&ident];
+            let node_index: NodeIndex = self.packages[package_index].borrow().full_graph_index;
+
+            (package_index, node_index)
+        } else {
+            let package_index = self.packages.len();
+
+            let node_index = self.full_graph.add_node(package_index);
+            self.full_graph_node_index_map
+                .insert(node_index, package_index);
+
+            let package_info = PackageInfo {
+                ident: ident.clone(),
+                package: None,
+                plan_deps: Vec::new(),
+                plan_bdeps: Vec::new(),
+                full_graph_index: node_index,
+            };
+
+            self.packages.push(RefCell::new(package_info));
+            self.package_map.insert(ident.clone(), package_index);
+            assert_eq!(self.packages[package_index].borrow().ident, *ident);
+
+            (package_index, node_index)
+        }
+    }
+
+    pub fn emit_graph(
+        &self,
+        file: &str,
+        origin_filter: Option<&str>,
+        latest: bool,
+        edge_type: Option<EdgeType>,
+    ) -> () {
+        let mut file = std::fs::File::create(file).unwrap();
+        let filtered_graph: Graph<usize, EdgeType> = self.full_graph.filter_map(
+            |node_index, node_data| {
+                self.emit_node_filter(node_index, *node_data, origin_filter, latest)
+            },
+            |edge_index, edge_data| self.emit_edge_filter(edge_index, *edge_data, edge_type),
+        );
+
+        file.write_all(
+            format!(
+                "{:?}",
+                Dot::with_config(&filtered_graph, &[Config::EdgeNoLabel])
+            )
+            .as_bytes(),
+        )
+        .unwrap();
+    }
+
+    pub fn emit_node_filter(
+        &self,
+        _node_index: NodeIndex,
+        node_data: usize,
+        _origin_filter: Option<&str>,
+        _latest_only: bool,
+    ) -> Option<usize> {
+        // TODO something smarter here.
+        Some(node_data)
+    }
+
+    pub fn emit_edge_filter(
+        &self,
+        _edge_index: EdgeIndex,
+        edge_data: EdgeType,
+        _wanted_edge: Option<EdgeType>,
+    ) -> Option<EdgeType> {
+        Some(edge_data)
+    }
+
+    // TODO: Need to implement a non-polynomial time check-extend method
     #[allow(clippy::map_entry)]
     pub fn extend(
         &mut self,
-        package: &originsrv::OriginPackage,
+        package: &PackageWithVersionArray,
         use_build_deps: bool,
-    ) -> (usize, usize) {
-        let name = format!("{}", package.get_ident());
-        let (pkg_id, pkg_node) = self.generate_id(&name);
+    ) -> ((usize, usize), (usize, usize)) {
+        let (pkg_id, pkg_node) = self.generate_id_for_package(package);
 
+        assert_eq!(self.target.unwrap(), package.target.0);
         assert_eq!(pkg_id, pkg_node.index());
 
-        let pkg_ident = PackageIdent::from_str(&name).unwrap();
-        let short_name = short_name(&name);
+        // First, add to full graph
+        // The full graph should never have
+        // cycles, because we forbid them being added abuild things
+        // after cutting cycles, but a user might get 'clever' so we
+        // still need to check.
+        {
+            let ident = &package.ident.0;
+            assert_eq!(self.packages[pkg_id].borrow().ident, *ident);
+            self.update_latest(ident, pkg_id);
+        }
 
-        let add_deps = if self.latest_map.contains_key(&short_name) {
-            let skip_update = {
-                let latest = &self.latest_map[&short_name];
-                pkg_ident < *latest
-            };
+        let short_name = short_ident(&self.packages[pkg_id].borrow().ident, false);
 
-            if skip_update {
-                false
-            } else {
-                let neighbors: Vec<NodeIndex> = self
-                    .graph
-                    .neighbors_directed(pkg_node, Direction::Incoming)
-                    .collect();
-                for n in neighbors {
-                    let e = self.graph.find_edge(n, pkg_node).unwrap();
-                    self.graph.remove_edge(e).unwrap();
-                }
-                self.latest_map.insert(short_name, pkg_ident.clone());
-                true
-            }
-        } else {
-            self.latest_map.insert(short_name, pkg_ident.clone());
-            true
-        };
+        for dep in &package.deps {
+            let (_, dep_node) = self.generate_id(&dep.0);
+            self.add_edge(pkg_node, dep_node, EdgeType::RuntimeDep);
+        }
 
-        if add_deps {
-            let mut deps;
-            let build_deps;
-
-            if use_build_deps {
-                deps = package.get_deps().iter().collect::<Vec<_>>();
-                build_deps = package.get_build_deps();
-                deps.extend(build_deps);
-            } else {
-                deps = package.get_deps().iter().collect::<Vec<_>>();
-            }
-
-            for dep in deps {
-                let depname = format!("{}", dep);
-
-                let (_, dep_node) = self.generate_id(&depname);
-                self.graph.extend_with_edges(&[(dep_node, pkg_node)]);
-
-                //                // sanity check
-                //                if is_cyclic_directed(&self.graph) {
-                //                    warn!(
-                //                        "graph is cyclic after adding {} -> {} - rolling back",
-                //                        depname, name
-                //                    );
-                //                    let e = self.graph.find_edge(dep_node, pkg_node).unwrap();
-                //                    self.graph.remove_edge(e).unwrap();
-                //                }
+        if use_build_deps {
+            for dep in &package.build_deps {
+                let (_, dep_node) = self.generate_id(&dep.0);
+                self.add_edge(pkg_node, dep_node, EdgeType::BuildDep);
             }
         }
 
-        (self.graph.node_count(), self.graph.edge_count())
+        // Next, add to latest graph. We overwrite any prior ident, so that any incoming dependencies are preserved.
+        //
+
+        // Are we the newest? Ignore older versions of the package
+        if self.latest_map[&short_name] == pkg_id {
+            // We start by adding a new node with dependencies pointing to the latest of each ident
+            let (_, src_node_index) = self.latest_graph.upsert_node(&short_name, pkg_id);
+
+            // Get rid of old edges.
+            self.latest_graph.drop_outgoing(src_node_index);
+
+            // we will need to be checking for cycles here...
+            let package_info = self.packages[pkg_id].borrow();
+            for dep in &package_info.plan_deps {
+                self.latest_graph
+                    .add_edge(src_node_index, dep, EdgeType::RuntimeDep);
+            }
+
+            if use_build_deps {
+                for dep in &package_info.plan_bdeps {
+                    self.latest_graph
+                        .add_edge(src_node_index, dep, EdgeType::BuildDep);
+                }
+            }
+        }
+        (
+            (self.full_graph.node_count(), self.full_graph.edge_count()),
+            self.latest_graph.counts(),
+        )
     }
 
-    pub fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>> {
+    pub fn add_edge(&mut self, nfrom: NodeIndex, nto: NodeIndex, etype: EdgeType) {
+        self.full_graph.add_edge(nfrom, nto, etype);
+        // At some point we'll want to check for cycles, but not for now.
+    }
+
+    pub fn rdeps(&self, name: &PackageIdent) -> Option<Vec<(String, String)>> {
         let mut v: Vec<(String, String)> = Vec::new();
 
         match self.package_map.get(name) {
-            Some(&(_, pkg_node)) => match rdeps(&self.graph, pkg_node) {
-                Ok(deps) => {
-                    for n in deps {
-                        let name = self.package_names[n].clone();
-                        let ident = format!("{}", self.latest_map[&name]);
-                        v.push((name, ident));
+            Some(&pkg_index) => {
+                let pkg_node = self.packages[pkg_index].borrow().full_graph_index;
+                match rdeps(&self.full_graph, pkg_node) {
+                    Ok(deps) => {
+                        for n in deps {
+                            let name = &self.packages[n].borrow().ident;
+                            let ident = format!("{}", self.latest_map[&name]);
+                            let namestr = format!("{}", name);
+                            v.push((namestr, ident));
+                        }
                     }
+                    Err(e) => panic!("Error: {:?}", e),
                 }
-                Err(e) => panic!("Error: {:?}", e),
-            },
+            }
             None => return None,
         }
 
@@ -282,14 +365,14 @@ impl PackageGraph {
     pub fn rdeps_dump(&self) {
         debug!("Reverse dependencies:");
 
-        for (pkg_name, pkg_id) in &self.package_map {
-            let (_, node) = *pkg_id;
-            debug!("{}", pkg_name);
+        for (pkg_ident, &pkg_index) in &self.package_map {
+            let pkg_node = self.packages[pkg_index].borrow().full_graph_index;
+            debug!("{}", pkg_ident);
 
-            match rdeps(&self.graph, node) {
+            match rdeps(&self.full_graph, pkg_node) {
                 Ok(v) => {
                     for n in v {
-                        debug!("|_ {}", self.package_names[n]);
+                        debug!("|_ {}", self.packages[n].borrow().ident);
                     }
                 }
                 Err(e) => panic!("Error: {:?}", e),
@@ -299,9 +382,9 @@ impl PackageGraph {
 
     pub fn search(&self, phrase: &str) -> Vec<String> {
         let v: Vec<String> = self
-            .package_names
-            .iter()
-            .cloned()
+            .package_map
+            .keys()
+            .map(|id| format!("{}", id))
             .filter(|s| s.contains(phrase))
             .collect();
 
@@ -315,32 +398,34 @@ impl PackageGraph {
     // Given an identifier in 'origin/name' format, returns the
     // most recent version (fully-qualified package ident string)
     pub fn resolve(&self, name: &str) -> Option<String> {
-        match self.latest_map.get(name) {
-            Some(ident) => Some(format!("{}", ident)),
+        let ident = PackageIdent::from_str(name).unwrap();
+        match self.latest_map.get(&ident) {
+            Some(latest) => Some(format!("{}", latest)),
             None => None,
         }
     }
 
     pub fn stats(&self) -> Stats {
         Stats {
-            node_count: self.graph.node_count(),
-            edge_count: self.graph.edge_count(),
-            connected_comp: connected_components(&self.graph),
-            is_cyclic: is_cyclic_directed(&self.graph),
+            node_count: self.full_graph.node_count(),
+            edge_count: self.full_graph.edge_count(),
+            connected_comp: connected_components(&self.full_graph),
+            is_cyclic: is_cyclic_directed(&self.full_graph),
         }
     }
 
+    // Who has the most things depending on them?
     pub fn top(&self, max: usize) -> Vec<(String, usize)> {
         let mut v = Vec::new();
         let mut heap = BinaryHeap::new();
 
-        for pkg_id in self.package_map.values() {
-            let (index, node) = *pkg_id;
+        for (_, &package_index) in &self.latest_map {
+            let node_id = self.packages[package_index].borrow().full_graph_index;
 
-            match rdeps(&self.graph, node) {
+            match rdeps(&self.full_graph, node_id) {
                 Ok(v) => {
                     let he = HeapEntry {
-                        pkg_index: index,
+                        pkg_index: package_index,
                         rdep_count: v.len(),
                     };
                     heap.push(he);
@@ -352,11 +437,128 @@ impl PackageGraph {
         let mut i = 0;
         while (i < max) && !heap.is_empty() {
             let he = heap.pop().unwrap();
-            v.push((self.package_names[he.pkg_index].clone(), he.rdep_count));
+            v.push((
+                self.packages[he.pkg_index].borrow().ident.to_string(),
+                he.rdep_count,
+            ));
             i += 1;
         }
 
         v
+    }
+
+    // The built in Dot utility wasn't flexible for what I wanted, so implemented our own.
+    pub fn dump_graph(&self, _file: &str) {}
+
+    pub fn dump_latest_graph(&self, file: &str, origin: Option<&str>) {
+        self.latest_graph.emit_graph(file, origin)
+    }
+}
+
+//
+// Multitarget support
+//
+pub struct PackageGraph {
+    current_target: PackageTarget,
+    graphs: HashMap<PackageTarget, RefCell<PackageGraphForTarget>>,
+}
+
+impl PackageGraph {
+    pub fn new() -> Self {
+        PackageGraph {
+            current_target: PackageTarget::active_target(),
+            graphs: HashMap::new(),
+        }
+    }
+
+    pub fn build<T>(&mut self, packages: T, use_build_deps: bool) -> (usize, usize)
+    where
+        T: Iterator<Item = PackageWithVersionArray>,
+    {
+        for p in packages {
+            let target = p.target.0;
+            if !self.graphs.contains_key(&target) {
+                self.graphs
+                    .insert(target, RefCell::new(PackageGraphForTarget::new(target)));
+            }
+            self.graphs[&target].borrow_mut().extend(&p, use_build_deps);
+        }
+
+        // TODO Extract this info better
+        (0, 0)
+    }
+
+    pub fn targets(&self) -> Vec<PackageTarget> {
+        self.graphs.keys().map(|x| x.clone()).collect()
+    }
+
+    pub fn current_target(&self) -> PackageTarget {
+        self.current_target
+    }
+
+    pub fn set_target(&mut self, target: PackageTarget) {
+        if self.graphs.contains_key(&target) {
+            self.current_target = target;
+        } else {
+            println!("No data for target {}", target)
+        }
+    }
+
+    // Delegate to subgraphs
+    pub fn rdeps(&self, name: &PackageIdent) -> Option<Vec<(String, String)>> {
+        self.graphs[&self.current_target].borrow().rdeps(name)
+    }
+
+    pub fn search(&self, phrase: &str) -> Vec<String> {
+        self.graphs[&self.current_target].borrow().search(phrase)
+    }
+
+    pub fn latest(&self) -> Vec<String> {
+        self.graphs[&self.current_target].borrow().latest()
+    }
+
+    pub fn resolve(&self, name: &str) -> Option<String> {
+        self.graphs[&self.current_target].borrow().resolve(name)
+    }
+
+    pub fn stats(&self) -> Stats {
+        self.graphs[&self.current_target].borrow().stats()
+    }
+
+    // TODO SORT THESE
+    pub fn all_stats(&self) -> Vec<(PackageTarget, Stats)> {
+        self.graphs
+            .keys()
+            .map(|key| (*key, self.graphs[&key].borrow().stats()))
+            .collect()
+    }
+
+    pub fn top(&self, max: usize) -> Vec<(String, usize)> {
+        self.graphs[&self.current_target].borrow().top(max)
+    }
+
+    pub fn emit_graph(
+        &self,
+        file: &str,
+        origin_filter: Option<&str>,
+        latest: bool,
+        edge_type: Option<EdgeType>,
+    ) {
+        self.graphs[&self.current_target].borrow().emit_graph(
+            file,
+            origin_filter,
+            latest,
+            edge_type,
+        )
+    }
+
+    pub fn dump_graph(&self, file: &str) {
+        self.graphs[&self.current_target].borrow().dump_graph(file)
+    }
+    pub fn dump_latest_graph(&self, file: &str, origin: Option<&str>) {
+        self.graphs[&self.current_target]
+            .borrow()
+            .dump_latest_graph(file, origin)
     }
 }
 

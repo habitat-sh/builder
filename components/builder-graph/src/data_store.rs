@@ -15,14 +15,12 @@
 use std::{str::FromStr,
           sync::Arc};
 
-use protobuf::{self,
-               RepeatedField};
-
 use crate::hab_core::package::{PackageIdent,
                                PackageTarget};
 
 use crate::db::models::package::{BuilderPackageIdent,
-                                 BuilderPackageTarget};
+                                 BuilderPackageTarget,
+                                 PackageWithVersionArray};
 
 use crate::{config::Config,
             db::{models::package::{GetLatestPackage,
@@ -60,8 +58,8 @@ impl DataStore {
     /// access.
     pub fn setup(&self) -> Result<()> { Ok(()) }
 
-    pub fn get_job_graph_packages(&self) -> Result<RepeatedField<originsrv::OriginPackage>> {
-        let mut packages = RepeatedField::new();
+    pub fn get_job_graph_packages(&self) -> Result<Vec<PackageWithVersionArray>> {
+        let mut packages = Vec::new();
 
         let conn = self.pool.get_conn()?;
 
@@ -91,6 +89,8 @@ impl DataStore {
                                target:
                                    BuilderPackageTarget(PackageTarget::from_str(target).unwrap()),
                                visibility: PackageVisibility::all(), };
+
+        println!("Package fetching: {:?}", package);
 
         let rows = Package::get_latest(package, &conn).map_err(Error::DieselError)?;
 
