@@ -604,8 +604,7 @@ impl WorkerMgr {
                             Err(err) => return Err(err),
                         };
 
-                    let box_key_pair =
-                        BoxKeyPair::new(name, rev.clone(), Some(pub_key), Some(priv_key));
+                    let box_key_pair = BoxKeyPair::new(name, rev, Some(pub_key), Some(priv_key));
                     for secret in secrets_list {
                         debug!("Adding secret to job: {:?}", secret);
                         let mut secret_decrypted = originsrv::OriginSecret::new();

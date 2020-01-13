@@ -284,7 +284,7 @@ mod tests {
             if !pp.is_empty() {
                 let cfg = config::GitHubCfg::default();
                 let client = GitHubClient::new(cfg).unwrap();
-                assert_eq!(client.meta().unwrap(), ());
+                assert!(client.meta().is_ok());
             }
         }
     }

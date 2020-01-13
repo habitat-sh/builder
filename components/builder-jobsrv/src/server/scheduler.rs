@@ -738,7 +738,7 @@ impl ScheduleMgr {
                 self.schedule_cli.notify()?;
             } else {
                 // TODO: Make this cleaner later
-                let mut updated_group = group.clone();
+                let mut updated_group = group;
                 updated_group.set_state(new_state);
                 self.logger.log_group(&updated_group);
             }

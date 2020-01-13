@@ -70,6 +70,7 @@ pub struct PackageGraph {
 impl PackageGraph {
     pub fn new() -> Self { PackageGraph::default() }
 
+    #[allow(clippy::map_entry)]
     fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
         let short_name = short_name(name);
 
@@ -81,7 +82,7 @@ impl PackageGraph {
 
             let node_index = self.graph.add_node(self.package_max);
             self.package_map
-                .insert(short_name.clone(), (self.package_max, node_index));
+                .insert(short_name, (self.package_max, node_index));
             self.package_max += 1;
 
             (self.package_max - 1, node_index)
@@ -204,11 +205,11 @@ impl PackageGraph {
                     let e = self.graph.find_edge(n, pkg_node).unwrap();
                     self.graph.remove_edge(e).unwrap();
                 }
-                self.latest_map.insert(short_name, pkg_ident.clone());
+                self.latest_map.insert(short_name, pkg_ident);
                 true
             }
         } else {
-            self.latest_map.insert(short_name, pkg_ident.clone());
+            self.latest_map.insert(short_name, pkg_ident);
             true
         };
 

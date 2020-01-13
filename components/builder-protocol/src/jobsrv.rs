@@ -484,7 +484,7 @@ mod tests {
 
         // https://github.com/rust-lang/rust-clippy/issues/3071U
         #[allow(clippy::redundant_closure)]
-        let input_lines = lines.iter().map(|l| l.to_string());
+        let input_lines = lines.iter().map(|l| (*l).to_string());
         let content = RepeatedField::from_iter(input_lines);
         log.set_content(content);
 

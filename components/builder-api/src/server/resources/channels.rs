@@ -390,10 +390,7 @@ fn promote_package(req: HttpRequest,
         Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    let ident = PackageIdent::new(origin.clone(),
-                                  pkg.clone(),
-                                  Some(version.clone()),
-                                  Some(release.clone()));
+    let ident = PackageIdent::new(origin.clone(), pkg, Some(version), Some(release));
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
@@ -473,10 +470,7 @@ fn demote_package(req: HttpRequest,
         Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    let ident = PackageIdent::new(origin.clone(),
-                                  pkg.clone(),
-                                  Some(version.clone()),
-                                  Some(release.clone()));
+    let ident = PackageIdent::new(origin.clone(), pkg, Some(version), Some(release));
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
@@ -544,7 +538,7 @@ fn get_packages_for_origin_channel_package_version(req: HttpRequest,
     let (origin, channel, pkg, version) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
-    let ident = PackageIdent::new(origin, pkg, Some(version.clone()), None);
+    let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
     match do_get_channel_packages(&req, &pagination, &ident, &channel) {
         Ok((packages, count)) => {
@@ -715,7 +709,7 @@ fn do_get_channel_packages(req: &HttpRequest,
 fn do_get_all_channel_packages(req: &HttpRequest,
                                origin: &str,
                                channel: &ChannelIdent)
-                               -> Result<(Vec<BuilderPackageIdent>)> {
+                               -> Result<Vec<BuilderPackageIdent>> {
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     Channel::list_all_packages(&ListAllChannelPackages { visibility: &helpers::all_visibilities(),

@@ -453,7 +453,7 @@ fn download_package(req: HttpRequest,
         Ok(package) => {
             let dir = tempdir_in(&state.config.api.data_path).expect("Unable to create a tempdir!");
             let file_path = dir.path().join(archive_name(&package.ident, target));
-            let temp_ident = ident.to_owned();
+            let temp_ident = ident;
 
             // TODO: Aggregate Artifactory/S3 into a provider model
             if feat::is_enabled(feat::Artifactory) {

@@ -366,7 +366,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
 
     // Add the root package if needed
     if !msg.get_deps_only() || msg.get_package_only() {
-        projects.push((project_name.clone(), project_ident.clone()));
+        projects.push((project_name.clone(), project_ident));
     }
 
     // Search the packages graph to find the reverse dependencies

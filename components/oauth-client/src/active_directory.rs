@@ -60,7 +60,7 @@ impl ActiveDirectory {
             };
 
             Ok(OAuth2User { id:       user.sub.to_string(),
-                            username: user.sub.to_string(),
+                            username: user.sub,
                             email:    None, })
         } else {
             Err(Error::HttpResponse(resp.status(), body))
