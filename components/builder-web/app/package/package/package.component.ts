@@ -185,8 +185,8 @@ export class PackageComponent implements OnInit, OnDestroy {
   }
 
   private fetchProject() {
-    if (this.token && this.origin && this.name && this.isOriginMember) {
-      this.store.dispatch(fetchProject(this.origin, this.name, this.token, false));
+    if (this.token && this.origin && this.name && this.target && this.isOriginMember) {
+      this.store.dispatch(fetchProject(this.origin, this.name, this.target, this.token, false));
       this.store.dispatch(fetchIntegrations(this.origin, this.token));
     }
   }

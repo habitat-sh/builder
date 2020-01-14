@@ -33,7 +33,7 @@ describe('Package Detail', () => {
 
     cy.route('GET', '/v1/user/origins', '@userOriginsEmpty');
     cy.route('GET', '/v1/depot/pkgs/core/cacerts/latest?target=x86_64-linux', '@pkgLatestLinux');
-    cy.route('GET', '/v1/projects/core/cacerts', '@pkgProject');
+    cy.route('GET', '/v1/projects/core/cacerts?target=x86_64-linux', '@pkgProject');
     cy.route('GET', '/v1/depot/pkgs/core/cacerts/versions', '@pkgVersionsAll');
     cy.route('GET', '/v1/depot/pkgs/core/cacerts/2018.06.20?range=0', '@pkgVersionReleases');
 

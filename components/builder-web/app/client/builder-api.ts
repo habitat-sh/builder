@@ -419,9 +419,9 @@ export class BuilderApiClient {
     });
   }
 
-  public getProject(origin: string, name: string) {
+  public getProject(origin: string, name: string, target: string) {
     return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/projects/${origin}/${name}`, {
+      fetch(`${this.urlPrefix}/projects/${origin}/${name}?target=${target}`, {
         method: 'GET',
         headers: this.headers
       })

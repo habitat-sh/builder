@@ -350,12 +350,14 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   saveConnection() {
     if (this.project) {
       this.store.dispatch(updateProject(this.project.name, this.planTemplate, this.token, (result) => {
-        this.handleSaved(result.success, this.project.origin, this.project.package_name);
+        const { origin, package_name, target } = this.project;
+        this.handleSaved(result.success, origin, package_name, target);
       }));
     }
     else {
       this.store.dispatch(addProject(this.planTemplate, this.token, (result) => {
-        this.handleSaved(result.success, result.response.origin, result.response.package_name);
+        const { origin, package_name, target } = result.response;
+        this.handleSaved(result.success, origin, package_name, target);
       }));
     }
   }
@@ -386,11 +388,11 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this._doAfterViewChecked.push(f);
   }
 
-  private handleSaved(successful, origin, name) {
+  private handleSaved(successful, origin, name, target) {
     if (successful) {
-      this.saveVisibility(origin, name);
+      this.saveVisibility(origin, name, target);
       this.saveIntegration(origin, name);
-      this.store.dispatch(fetchProject(origin, name, this.token, false));
+      this.store.dispatch(fetchProject(origin, name, target, this.token, false));
       this.saved.emit({ origin: origin, name: name });
       this.clearConnection();
     }
@@ -416,7 +418,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     }
   }
 
-  private saveVisibility(origin, name) {
-    this.store.dispatch(setProjectVisibility(origin, name, this.visibility, this.token));
+  private saveVisibility(origin, name, target) {
+    this.store.dispatch(setProjectVisibility(origin, name, target, this.visibility, this.token));
   }
 }

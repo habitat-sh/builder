@@ -68,11 +68,11 @@ export function setProjectIntegrationSettings(origin: string, name: string, inte
   };
 }
 
-export function setProjectVisibility(origin: string, name: string, setting: string, token: string) {
+export function setProjectVisibility(origin: string, name: string, target: string, setting: string, token: string) {
   return dispatch => {
     new BuilderApiClient(token).setProjectVisibility(origin, name, setting)
       .then(response => {
-        dispatch(fetchProject(origin, name, token, false));
+        dispatch(fetchProject(origin, name, target, token, false));
         dispatch(addNotification({
           title: 'Privacy settings saved',
           type: SUCCESS
@@ -88,11 +88,11 @@ export function setProjectVisibility(origin: string, name: string, setting: stri
   };
 }
 
-export function fetchProject(origin: string, name: string, token: string, alert: boolean) {
+export function fetchProject(origin: string, name: string, target: string, token: string, alert: boolean) {
   return dispatch => {
     dispatch(clearCurrentProject());
 
-    new BuilderApiClient(token).getProject(origin, name)
+    new BuilderApiClient(token).getProject(origin, name, target)
       .then(response => {
         dispatch(setCurrentProject(response, null));
       })
