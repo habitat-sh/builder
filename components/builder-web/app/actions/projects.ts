@@ -15,6 +15,7 @@
 import { BuilderApiClient } from '../client/builder-api';
 import { addNotification } from './notifications';
 import { DANGER, SUCCESS } from './notifications';
+import { targets } from '../util';
 
 export const CLEAR_PROJECTS = 'CLEAR_PROJECTS';
 export const CLEAR_CURRENT_PROJECT = 'CLEAR_CURRENT_PROJECT';
@@ -23,6 +24,7 @@ export const DELETE_PROJECT = 'DELETE_PROJECT';
 export const SET_CURRENT_PROJECT = 'SET_CURRENT_PROJECT';
 export const SET_CURRENT_PROJECT_INTEGRATION = 'SET_CURRENT_PROJECT_INTEGRATION';
 export const SET_PROJECTS = 'SET_PROJECTS';
+export const SET_CURRENT_PROJECTS = 'SET_CURRENT_PROJECTS';
 
 function clearProjects() {
   return {
@@ -72,7 +74,7 @@ export function setProjectVisibility(origin: string, name: string, setting: stri
   return dispatch => {
     new BuilderApiClient(token).setProjectVisibility(origin, name, setting)
       .then(response => {
-        dispatch(fetchProject(origin, name, token, false));
+        // dispatch(fetchProject(origin, name, token, false));
         dispatch(addNotification({
           title: 'Privacy settings saved',
           type: SUCCESS
@@ -92,7 +94,30 @@ export function fetchProject(origin: string, name: string, token: string, alert:
   return dispatch => {
     dispatch(clearCurrentProject());
 
-    new BuilderApiClient(token).getProject(origin, name)
+    const fetchAll = targets.map(target => {
+      return new BuilderApiClient(token).getProject(origin, name, target.id);
+        // .then(project => {
+        //   return [target, project];
+        // });
+    });
+
+    // Promise.all(fetchAll).then(projects => {
+    //   const targets = projects.reduce((acc, v) => {
+    //     acc[v[0]['id']] = v[1];
+    //     return acc;
+    //   }, {});
+    //   console.log('!', targets);
+    //   // dispatch(setCurrentTargets({...projects}));
+    // });
+
+    Promise.all(fetchAll).then(projects => {
+      console.log('!', projects);
+      const targets = projects.filter(v => v);
+      dispatch(setCurrentProjects(targets));
+    });
+
+
+    new BuilderApiClient(token).getProject(origin, name, targets[0].id)
       .then(response => {
         dispatch(setCurrentProject(response, null));
       })
@@ -128,10 +153,11 @@ export function fetchProjectIntegration(origin: string, name: string, integratio
   };
 }
 
-export function deleteProject(id: string, token: string) {
+export function deleteProject(origin: string, name: string, target: string, token: string) {
   return dispatch => {
-    new BuilderApiClient(token).deleteProject(id).then(response => {
+    new BuilderApiClient(token).deleteProject(origin, name, target).then(response => {
       dispatch(clearCurrentProject());
+      dispatch(fetchProject(origin, name, token, false));
       dispatch(addNotification({
         title: 'Plan connection deleted',
         type: SUCCESS
@@ -193,6 +219,14 @@ export function setCurrentProject(project, error = undefined) {
   return {
     type: SET_CURRENT_PROJECT,
     payload: project,
+    error: error
+  };
+}
+
+export function setCurrentProjects(projects, error = undefined) {
+  return {
+    type: SET_CURRENT_PROJECTS,
+    payload: projects,
     error: error
   };
 }

@@ -12,12 +12,6 @@
         Create Package
       </button>
 
-      <hab-project-settings
-        [origin]="origin"
-        [integrations]="integrations"
-        (toggled)="toggled($event)"
-        (saved)="saved($event)">
-      </hab-project-settings>
     </section>
     <section *ngIf="!selectingPlan">
       <ul class="nav-list" *ngIf="projectsExist">

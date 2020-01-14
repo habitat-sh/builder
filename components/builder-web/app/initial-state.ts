@@ -208,6 +208,7 @@ export default Record({
   })(),
   projects: Record({
     current: Project(),
+    currentTargets: [],
     visible: List(),
     ui: Record({
       current: Record({

@@ -47,6 +47,9 @@ export default function projects(state = initialState['projects'], action) {
           setIn(['ui', 'current', 'loading'], false);
       }
 
+    case actionTypes.SET_CURRENT_PROJECTS:
+      return state.setIn(['currentTargets'], action.payload.map(p => Project(p)));
+
     case actionTypes.SET_CURRENT_PROJECT_INTEGRATION:
       return state.setIn(['current', 'settings', action.payload.name], action.payload.settings);
 

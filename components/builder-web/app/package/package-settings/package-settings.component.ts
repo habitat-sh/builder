@@ -18,6 +18,7 @@ import { ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material';
 import { Subscription } from 'rxjs';
 import { AppStore } from '../../app.store';
+import { targets, targetFrom } from '../../util';
 
 @Component({
   selector: 'hab-package-settings',
@@ -26,6 +27,7 @@ import { AppStore } from '../../app.store';
 export class PackageSettingsComponent implements OnDestroy {
   name: string;
   origin: string;
+  target: string;
 
   private sub: Subscription;
 
@@ -39,6 +41,11 @@ export class PackageSettingsComponent implements OnDestroy {
       this.origin = params['origin'];
       this.name = params['name'];
       this.title.setTitle(`Packages › ${this.origin}/${this.name} › Settings | ${store.getState().app.name}`);
+    });
+
+    this.route.params.subscribe(params => {
+      const target = targetFrom('param', params['target']);
+      this.target = target ? target.id : null;
     });
   }
 
@@ -59,6 +66,10 @@ export class PackageSettingsComponent implements OnDestroy {
     if (isMember && exists) {
       return project;
     }
+  }
+
+  get projects() {
+    return this.store.getState().projects.currentTargets;
   }
 
   get integrations() {

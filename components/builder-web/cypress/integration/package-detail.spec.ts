@@ -21,7 +21,7 @@ describe('Package Detail', () => {
   const buildBtn = () => cy.get('button.build');
 
   beforeEach(() => {
-    cy.server();
+    cy.server({ force404: true });
 
     cy.fixture('package-detail/user-origins').as('userOrigins');
     cy.fixture('package-detail/user-origins-empty').as('userOriginsEmpty');
@@ -32,7 +32,7 @@ describe('Package Detail', () => {
 
     cy.route('GET', '/v1/user/origins', '@userOriginsEmpty');
     cy.route('GET', '/v1/depot/pkgs/core/cacerts/latest?target=x86_64-linux', '@pkgLatestLinux');
-    cy.route('GET', '/v1/projects/core/cacerts', '@pkgProject');
+    cy.route('GET', '/v1/projects/core/cacerts?target=x86_64-linux', '@pkgProject');
     cy.route('GET', '/v1/depot/pkgs/core/cacerts/versions', '@pkgVersionsAll');
 
     cy.setSession();

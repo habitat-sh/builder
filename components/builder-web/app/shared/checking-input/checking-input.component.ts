@@ -34,6 +34,7 @@ export class CheckingInputComponent implements OnInit, OnChanges {
   @Input() placeholder;
   @Input() value: string;
   @Input() disabled = true;
+  @Input() validators = [];
 
   control: FormControl;
 
@@ -43,8 +44,8 @@ export class CheckingInputComponent implements OnInit, OnChanges {
   public ngOnInit() {
     let validators = [
       Validators.required,
-      this.patternValidator.bind(this),
-    ];
+      this.patternValidator.bind(this)
+    ].concat(this.validators.map(v => v.validator));
 
     // If explicitly passed false, don't validate for max length. If one
     // wasn't passed, use the default.

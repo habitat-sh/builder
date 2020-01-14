@@ -18,7 +18,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import {
-  MatCheckbox, MatCheckboxModule, MatIconModule, MatIconRegistry, MatRadioModule,
+  MatCheckbox, MatCheckboxModule, MatIconModule, MatIconRegistry, MatMenuModule, MatRadioModule,
   MatRadioGroup, MatRadioButton, MatSlideToggleModule, MatSlideToggle, MatTooltipModule, MatTabsModule,
   MatButtonModule
 } from '@angular/material';
@@ -55,6 +55,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     FormsModule,
     MatCheckboxModule,
     MatIconModule,
+    MatMenuModule,
     MatTabsModule,
     MatRadioModule,
     MatSlideToggleModule,

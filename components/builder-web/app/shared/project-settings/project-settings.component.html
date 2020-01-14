@@ -1,8 +1,20 @@
 <div class="project-settings-component">
+  <h3>Default Visibility</h3>
+  <p>Set the default visibility of build artificats (.hart files) for the package. Applies to future build artifacts only. To change the visibility of the existing artifacts, see settings for each artifact in <a href="#">versions</a>.</p>
+  <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)"></hab-visibility-selector>
+
+  <h3>Connected Plans</h3>
+  <button mat-button mat-raised-button color="primary" class="button connect-btn" [matMenuTriggerFor]="menu" [disabled]="!hasPrivateKey">
+    <span class="connect-btn-text">Connect a plan file</span>
+    <hab-icon class="connect-btn-icon" symbol="drop-down"></hab-icon>
+  </button>
+  <mat-menu #menu="matMenu" [overlapTrigger]="false">
+    <button mat-menu-item (click)="openConnect('linux')">for Linux (kernel version 3.2 or later)</button>
+    <button mat-menu-item (click)="openConnect('linux2')">for Linux 2 (kernel version 2.6.32 or later)</button>
+    <button mat-menu-item (click)="openConnect('windows')">for Windows</button>
+  </mat-menu>
+
   <div class="connect" *ngIf="!project && !connecting">
-    <button mat-raised-button color="primary" class="button" (click)="connect()" [disabled]="!hasPrivateKey">
-      Connect a plan file
-    </button>
     <span class="no-keys" *ngIf="!hasPrivateKey">
       <hab-icon symbol="add-circle"></hab-icon>
       <a [routerLink]="['/origins', origin, 'keys']">Add required origin keys</a>
@@ -21,16 +33,16 @@
       </p>
     </div>
   </div>
-  <div class="connected-plans" *ngIf="project && !connecting">
+  <div class="connected-plans" *ngIf="projects.length > 0 && !connecting">
     <ul class="action-list">
       <li class="heading">
         <h4>Plan</h4>
         <h4>Status</h4>
         <h4>Actions</h4>
       </li>
-      <li class="item">
+      <li class="item" *ngFor="let project of projects">
         <span class="column name">
-          <hab-icon [symbol]="iconFor(project.plan_path)"></hab-icon>
+          <hab-platform-icon [platform]="project.target"></hab-platform-icon>
           <span>{{ project.plan_path }}</span>
         </span>
         <span class="column plan-status">
@@ -38,15 +50,18 @@
           <span>connected</span>
         </span>
         <span class="column actions">
-          <hab-icon symbol="settings" (click)="editConnection()" title="Edit this connection"></hab-icon>
-          <hab-icon symbol="cancel" (click)="disconnect()" title="Remove this connection"></hab-icon>
+          <hab-icon symbol="settings" (click)="openConnectEdit(project)" title="Edit this connection"></hab-icon>
+          <hab-icon symbol="cancel" (click)="disconnect(project)" title="Remove this connection"></hab-icon>
         </span>
       </li>
     </ul>
   </div>
   <div class="connecting connect-plan-overlay" *ngIf="connecting">
     <div class="overlay-header">
-      <h1 class="overlay-title">Connect a plan file</h1>
+      <h1 class="overlay-title">
+        Connect a {{ planTargetName }} plan file to {{ origin }}
+        <hab-platform-icon [platform]="target"></hab-platform-icon>
+      </h1>
       <a class="overlay-close" (click)="clearConnection()">&times;</a>
     </div>
     <div class="overlay-body">
@@ -96,16 +111,14 @@
           <h3>Path to Plan File</h3>
           <p>
             Enter the path to your plan file from the root of your repo. By default, we check for
-            <code>habitat/plan.sh</code>.
+            <code>{{ defaultPath }}</code>.
           </p>
           <div class="files">
             <hab-checking-input id="plan_path" name="plan_path" availableMessage="found." notAvailableMessage="does not exist in the repository."
-              unmatchedMessage="must be named either plan.sh or plan.ps1." displayName="Plan file" [form]="form" [pattern]="false"
-              [maxLength]="false" [isAvailable]="doesFileExist" [value]="selectedPath" [disabled]="!selectedInstallation">
+              displayName="Plan file" [form]="form" [pattern]="false"
+              [maxLength]="false" [isAvailable]="doesFileExist" [value]="selectedPath" [disabled]="!selectedInstallation" [validators]="planPathValidators">
             </hab-checking-input>
           </div>
-          <hr>
-          <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)"></hab-visibility-selector>
           <hr>
           <hab-docker-export-settings #docker *ngIf="selectedInstallation" [origin]="origin" [package]="name" [integrations]="integrations"
             [current]="dockerSettings" [enabled]="dockerEnabled">

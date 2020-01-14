@@ -49,6 +49,19 @@
     }
   }
 
+  .connect-btn {
+    .connect-btn-text {
+      padding-right: 10px;
+      border-right: 1px solid #fff;
+      margin-right: 5px;
+    }
+
+    .connect-btn-icon {
+      margin: 3px -10px 0 0;
+      padding: 0;
+    }
+  }
+
   .connected-plans {
 
     li {
@@ -181,6 +194,10 @@
       padding: 0 10%;
       overflow: hidden;
       background: $very-light-gray;
+
+      hab-platform-icon {
+        margin-left: $default-margin;
+      }
 
       .overlay-close {
         font-size: 30px;

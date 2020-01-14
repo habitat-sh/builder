@@ -176,7 +176,9 @@ export {
   SET_CURRENT_PROJECT_INTEGRATION,
   SET_CURRENT_PROJECT,
   SET_PROJECTS,
+  SET_CURRENT_PROJECTS,
   setCurrentProject,
+  setCurrentProjects,
   setProjectIntegrationSettings,
   setProjectVisibility,
   updateProject

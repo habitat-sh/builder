@@ -28,6 +28,12 @@
       <span *ngIf="control.errors.maxlength">
         Cannot be longer than {{maxLength}} characters
       </span>
+      <ng-container *ngFor="let validator of validators">
+        <span *ngIf="control.errors[validator.error]">
+          {{validator.message()}}
+        </span>
+      </ng-container>
+      
     </span>
     <span *ngIf="control.valid" class="valid">
       {{displayName}} {{availableMessage}}

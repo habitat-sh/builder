@@ -17,6 +17,7 @@ import {
   SimpleChanges, ViewChild
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material';
 import { Record } from 'immutable';
 import { DisconnectConfirmDialog } from './dialog/disconnect-confirm/disconnect-confirm.dialog';
@@ -29,6 +30,7 @@ import {
   deleteProjectIntegration
 } from '../../actions/index';
 import config from '../../config';
+import { targetFrom } from '../../util';
 
 @Component({
   selector: 'hab-project-settings',
@@ -43,11 +45,14 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   selectedInstallation: any;
   selectedRepo: string;
   selectedPath: string;
+  planPathValidators: any[];
 
   @Input() integrations;
   @Input() name: string;
   @Input() origin: string;
   @Input() project: any;
+  @Input() projects = [];
+  @Input() target: string;
 
   @Output() saved: EventEmitter<any> = new EventEmitter<any>();
   @Output() toggled: EventEmitter<any> = new EventEmitter<any>();
@@ -56,7 +61,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   docker: DockerExportSettingsComponent;
 
   private api: BuilderApiClient;
-  private defaultPath = 'habitat/plan.sh';
   private _visibility: string;
   private _autoBuild;
 
@@ -64,6 +68,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   constructor(
     private formBuilder: FormBuilder,
+    private router: Router,
     private store: AppStore,
     private disconnectDialog: MatDialog,
     private elementRef: ElementRef
@@ -83,6 +88,30 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
         this.planField.value
       );
     };
+
+    this.planPathValidators = [
+      {
+        error: 'invalidFilename',
+        message: this.invalidFilenameMessage.bind(this),
+        validator: this.filenameValidator.bind(this)
+      }
+    ];
+  }
+
+  invalidFilenameMessage() {
+    const ext = this.isWindowsTarget ? 'ps1' : 'sh';
+    const msg = `A ${this.planTargetName} plan file name must end with .${ext}`;
+    return msg;
+  }
+
+  filenameValidator(control) {
+    const value = control.value;
+
+    if (this.isWindowsTarget) {
+      return value.slice(-4) === '.ps1' ? null : { invalidFilename: true };
+    } else {
+      return value.slice(-3) === '.sh' ? null : { invalidFilename: true };
+    }
   }
 
   ngAfterViewChecked() {
@@ -95,11 +124,22 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   ngOnChanges(changes: SimpleChanges) {
     const p = changes['project'];
+    const target = changes['target'];
 
     if (p && p.currentValue) {
       this.selectedRepo = p.currentValue.vcs_data;
       this.selectedPath = p.currentValue.plan_path;
       this.visibility = p.currentValue.visibility || this.visibility;
+    }
+
+    if (target && target.currentValue) {
+      if (this.projects.filter(p => p.target === target.currentValue).length) {
+        console.log('changes target e', target.currentValue);
+        this.editConnection(target.currentValue);
+      } else {
+        console.log('changes target c', target.currentValue);
+        this.connect(target.currentValue);
+      }
     }
   }
 
@@ -120,8 +160,12 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     return config;
   }
 
+  get isUpdating() {
+    return this.target && this.projects.filter(p => p.target === this.target).length;
+  }
+
   get connectButtonLabel() {
-    return this.project ? 'Update' : 'Save';
+    return this.isUpdating ? 'Update' : 'Save';
   }
 
   get dockerEnabled() {
@@ -134,6 +178,11 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   get files() {
     return this.store.getState().gitHub.files;
+  }
+
+  get defaultPath() {
+    const ext = this.isWindowsTarget ? 'ps1' : 'sh';
+    return `habitat/plan.${ext}`;
   }
 
   get gitHubAppNote() {
@@ -196,8 +245,18 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       'plan_path': this.planField.value,
       'installation_id': this.selectedInstallation.get('installation_id'),
       'repo_id': this.activeRepo.get('id'),
-      'auto_build': this.autoBuild
+      'auto_build': this.autoBuild,
+      'target': this.target
     };
+  }
+
+  get planTargetName() {
+    const target = targetFrom('id', this.target);
+    return target ? target.name : null;
+  }
+
+  get isWindowsTarget() {
+    return this.target === 'x86_64-windows';
   }
 
   get repoField() {
@@ -244,27 +303,29 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this.autoBuild = v;
   }
 
-  connect() {
+  openConnect(target) {
+    this.router.navigate(['/pkgs', this.origin, this.name, 'settings', target]);
+  }
+
+  connect(target) {
     this.deselect();
     this.store.dispatch(fetchGitHubInstallations(this.username));
     this.connecting = true;
     this.toggled.emit(this.connecting);
   }
 
-  disconnect() {
+  disconnect(project) {
     const ref = this.disconnectDialog.open(DisconnectConfirmDialog, {
       width: '460px'
     });
 
     ref.afterClosed().subscribe((confirmed) => {
       if (confirmed) {
-        this.store.dispatch(deleteProject(this.project.name, this.token));
+        this.store.dispatch(
+          deleteProject(project.origin, project.package_name, project.target, this.token)
+        );
       }
     });
-  }
-
-  iconFor(path) {
-    return this.isWindows(path) ? 'windows' : 'linux';
   }
 
   isWindows(path) {
@@ -272,6 +333,11 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   }
 
   clearConnection() {
+    this.clearSelection();
+    this.router.navigate(['/pkgs', this.origin, this.name, 'settings']);
+  }
+
+  clearSelection() {
     this.connecting = false;
     this.deselect();
     this.toggled.emit(this.connecting);
@@ -287,12 +353,17 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this.selectedPath = this.defaultPath;
   }
 
-  editConnection() {
-    this.clearConnection();
-    this.connect();
+  openConnectEdit(project) {
+    const target = targetFrom('id', project.target);
+    this.openConnect(target.param);
+  }
 
-    this.selectedPath = this.project.plan_path;
-    this.selectedRepo = this.parseGitHubUrl(this.project.vcs_data);
+  editConnection(target) {
+    const project = this.projects.filter(p => p.target === target)[0];
+    this.connect(project.target);
+
+    this.selectedPath = project.plan_path;
+    this.selectedRepo = this.parseGitHubUrl(project.vcs_data);
     const [org, name] = this.selectedRepo.split('/');
 
     // This looks a bit weird, but it allows us to scroll the selected
@@ -353,7 +424,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   }
 
   saveConnection() {
-    if (this.project) {
+    if (this.isUpdating) {
       this.store.dispatch(updateProject(this.project.name, this.planTemplate, this.token, (result) => {
         this.handleSaved(result.success, this.project.origin, this.project.package_name);
       }));
@@ -383,6 +454,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   settingChanged(setting) {
     this.visibility = setting;
+    this.saveVisibility(this.origin, this.name);
   }
 
   private doAfterViewChecked(f) {
@@ -391,7 +463,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   private handleSaved(successful, origin, name) {
     if (successful) {
-      this.saveVisibility(origin, name);
       this.saveIntegration(origin, name);
       this.store.dispatch(fetchProject(origin, name, this.token, false));
       this.saved.emit({ origin: origin, name: name });
