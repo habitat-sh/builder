@@ -247,14 +247,14 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this.toggled.emit(this.connecting);
   }
 
-  disconnect() {
+  disconnect(project) {
     const ref = this.disconnectDialog.open(DisconnectConfirmDialog, {
       width: '460px'
     });
 
     ref.afterClosed().subscribe((confirmed) => {
       if (confirmed) {
-        this.store.dispatch(deleteProject(this.project.name, this.token));
+        this.store.dispatch(deleteProject(project.name, project.target, this.token));
       }
     });
   }

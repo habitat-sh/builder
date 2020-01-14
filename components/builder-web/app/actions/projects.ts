@@ -128,9 +128,9 @@ export function fetchProjectIntegration(origin: string, name: string, integratio
   };
 }
 
-export function deleteProject(id: string, token: string) {
+export function deleteProject(name: string, target: string, token: string) {
   return dispatch => {
-    new BuilderApiClient(token).deleteProject(id).then(response => {
+    new BuilderApiClient(token).deleteProject(name, target).then(response => {
       dispatch(clearCurrentProject());
       dispatch(addNotification({
         title: 'Plan connection deleted',

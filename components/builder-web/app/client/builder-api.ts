@@ -222,9 +222,9 @@ export class BuilderApiClient {
     });
   }
 
-  public deleteProject(projectId) {
+  public deleteProject(name: string, target: string) {
     return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/projects/${projectId}`, {
+      fetch(`${this.urlPrefix}/projects/${name}?target=${target}`, {
         method: 'DELETE',
         headers: this.headers
       })
