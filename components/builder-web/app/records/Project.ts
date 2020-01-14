@@ -19,6 +19,7 @@ export const Project = Record({
   auto_build: undefined,
   name: undefined,
   origin: undefined,
+  target: undefined,
   owner_id: undefined,
   package_name: undefined,
   plan_path: undefined,
