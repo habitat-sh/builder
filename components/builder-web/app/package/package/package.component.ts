@@ -32,6 +32,8 @@ export class PackageComponent implements OnInit, OnDestroy {
   origin: string;
   name: string;
   target: string;
+  version: string;
+  release: string;
   showSidebar: boolean = false;
   showActiveJob: boolean = false;
   useFullWidth: boolean = true;
@@ -42,16 +44,20 @@ export class PackageComponent implements OnInit, OnDestroy {
   constructor(private store: AppStore) {
     const origin$ = this.store.observe('router.route.params.origin').pipe(filter(v => v));
     const name$ = this.store.observe('router.route.params.name').pipe(filter(v => v));
+    const version$ = this.store.observe('router.route.params.version');
+    const release$ = this.store.observe('router.route.params.release');
     const target$ = this.store.observe('router.route.params.target');
     const token$ = this.store.observe('session.token');
     const origins$ = this.store.observe('origins.mine');
     const platforms$ = this.store.observe('packages.currentPlatforms');
 
-    combineLatest(origin$, name$)
+    combineLatest(origin$, name$, version$, release$)
       .pipe(takeUntil(this.isDestroyed$))
-      .subscribe(([origin, name]) => {
+      .subscribe(([origin, name, version, release]) => {
         this.origin = origin;
         this.name = name;
+        this.version = version;
+        this.release = release;
         this.fetchOrigin();
         this.fetchPackageVersions();
         this.fetchJobs();
@@ -100,7 +106,9 @@ export class PackageComponent implements OnInit, OnDestroy {
   get ident() {
     return {
       origin: this.origin,
-      name: this.name
+      name: this.name,
+      version: this.version,
+      release: this.release
     };
   }
 
