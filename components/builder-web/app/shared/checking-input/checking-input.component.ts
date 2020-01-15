@@ -33,7 +33,7 @@ export class CheckingInputComponent implements OnInit, OnChanges {
   @Input() pattern;
   @Input() placeholder;
   @Input() value: string;
-  @Input() disabled = true;
+  @Input() disabled = false;
   @Input() validators = [];
 
   control: FormControl;
