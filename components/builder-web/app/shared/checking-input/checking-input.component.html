@@ -15,7 +15,7 @@
       placeholder="{{placeholder}}">
   </div>
   <div class="validation-message" *ngIf="control.dirty && !control.pending ">
-    <span *ngIf="!control.valid" class="invalid">
+    <span *ngIf="control.invalid" class="invalid">
       <span *ngIf="control.errors.invalidFormat">
         {{displayName}} {{unmatchedMessage}}
       </span>

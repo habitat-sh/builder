@@ -13,14 +13,14 @@
 // limitations under the License.
 
 import { FormControl, FormGroup, Validators } from '@angular/forms';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, OnInit } from '@angular/core';
 import { AsyncValidator } from '../../async-validator';
 
 @Component({
   selector: 'hab-checking-input',
   template: require('./checking-input.component.html')
 })
-export class CheckingInputComponent implements OnInit {
+export class CheckingInputComponent implements OnInit, OnChanges {
   @Input() autofocus;
   @Input() availableMessage;
   @Input() displayName;
@@ -34,6 +34,7 @@ export class CheckingInputComponent implements OnInit {
   @Input() pattern;
   @Input() placeholder;
   @Input() value: string;
+  @Input() disabled = false;
 
   control: FormControl;
 
@@ -69,17 +70,31 @@ export class CheckingInputComponent implements OnInit {
       AsyncValidator.debounce(control => this.takenValidator(control))
     );
 
+    this.setDisabledState(this.control);
+
     this.form.addControl(this.name, this.control);
+  }
+
+  ngOnChanges() {
+    if (this.control) {
+      this.setDisabledState(this.control);
+    }
+  }
+
+  setDisabledState(control) {
+    this.disabled ? control.disable() : control.enable();
   }
 
   symbolForState(control) {
     if (control.pending) {
       return 'loading';
     }
-    else if (control.dirty && !control.pending && !control.valid) {
+
+    if (control.dirty && control.invalid) {
       return 'no';
     }
-    else if (!control.pending && control.valid) {
+
+    if (control.valid) {
       return 'check';
     }
   }
@@ -98,7 +113,8 @@ export class CheckingInputComponent implements OnInit {
     return new Promise(resolve => {
       // If we're empty or invalid, don't attempt to validate.
       if ((control.errors && control.errors.required) ||
-        (control.errors && control.errors.invalidFormat)) {
+          (control.errors && control.errors.invalidFormat) ||
+          control.disabled) {
         resolve(null);
       }
 
