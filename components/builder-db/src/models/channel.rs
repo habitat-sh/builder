@@ -180,7 +180,7 @@ impl Channel {
 
     pub fn list_all_packages(lacp: &ListAllChannelPackages,
                              conn: &PgConnection)
-                             -> QueryResult<(Vec<BuilderPackageIdent>)> {
+                             -> QueryResult<Vec<BuilderPackageIdent>> {
         Counter::DBCall.increment();
         let start_time = PreciseTime::now();
 

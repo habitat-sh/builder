@@ -95,7 +95,7 @@ pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
     };
 
     let user_agent = match user_agent_header.to_str() {
-        Ok(ref s) => s.to_string(),
+        Ok(ref s) => (*s).to_string(),
         Err(_) => return PackageTarget::from_str("x86_64-linux").unwrap(),
     };
 

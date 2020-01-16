@@ -200,7 +200,7 @@ pub fn session_create_oauth(oauth_token: &str,
             let encoded_token = encode_token(&session_token);
             session.set_id(account.id as u64);
             session.set_name(account.name);
-            session.set_token(encoded_token.clone());
+            session.set_token(encoded_token);
             session.set_flags(FeatureFlags::empty().bits());
             session.set_oauth_token(oauth_token.to_owned());
 

@@ -617,7 +617,7 @@ fn create_origin_secret(req: HttpRequest,
             }
         };
 
-    let box_key_pair = BoxKeyPair::new(name, rev.clone(), Some(pub_key), Some(priv_key));
+    let box_key_pair = BoxKeyPair::new(name, rev, Some(pub_key), Some(priv_key));
 
     debug!("Decrypting string: {:?}", &secret_metadata.ciphertext);
 
@@ -810,7 +810,7 @@ fn list_unique_packages(req: HttpRequest,
 
     let (page, per_page) = helpers::extract_pagination_in_pages(&pagination);
 
-    let lpr = ListPackages { ident:      BuilderPackageIdent(ident.clone()),
+    let lpr = ListPackages { ident:      BuilderPackageIdent(ident),
                              visibility: helpers::visibility_for_optional_session(&req,
                                                                                   opt_session_id,
                                                                                   &origin),
