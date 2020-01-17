@@ -47,6 +47,10 @@ export class CheckingInputComponent implements OnInit, OnChanges {
       this.patternValidator.bind(this),
     ];
 
+    const asyncValidators = [
+      AsyncValidator.debounce(this.takenValidator.bind(this))
+    ];
+
     // If explicitly passed false, don't validate for max length. If one
     // wasn't passed, use the default.
     if (this.maxLength !== false) {
@@ -67,7 +71,7 @@ export class CheckingInputComponent implements OnInit, OnChanges {
     this.control = new FormControl(
       this.value,
       Validators.compose(validators),
-      AsyncValidator.debounce(control => this.takenValidator(control))
+      Validators.composeAsync(asyncValidators)
     );
 
     this.setDisabledState(this.control);
