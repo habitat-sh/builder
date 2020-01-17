@@ -382,6 +382,7 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   settingChanged(setting) {
     this.visibility = setting;
+    this.store.dispatch(setProjectVisibility(this.origin, this.name, this.visibility, this.token));
   }
 
   private doAfterViewChecked(f) {
@@ -390,7 +391,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   private handleSaved(successful, origin, name, target) {
     if (successful) {
-      this.saveVisibility(origin, name, target);
       this.saveIntegration(origin, name);
       this.store.dispatch(fetchProject(origin, name, target, this.token, false));
       this.saved.emit({ origin: origin, name: name });
@@ -416,9 +416,5 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
         this.store.dispatch(deleteProjectIntegration(this.origin, this.name, k, this.token));
       });
     }
-  }
-
-  private saveVisibility(origin, name, target) {
-    this.store.dispatch(setProjectVisibility(origin, name, target, this.visibility, this.token));
   }
 }

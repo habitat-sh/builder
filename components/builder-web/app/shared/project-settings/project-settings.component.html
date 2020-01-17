@@ -1,4 +1,8 @@
 <div class="project-settings-component">
+  <h3>Default Visibility</h3>
+  <p>Set the default visibility of build artificats (.hart files) for the package. Applies to future build artifacts only. To change the visibility of the existing artifacts, see settings for each artifact in <a [routerLink]="['/pkgs', origin, name]">versions</a>.</p>
+  <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)"></hab-visibility-selector>
+
   <div class="connect" *ngIf="!project && !connecting">
     <button mat-raised-button color="primary" class="button" (click)="connect()" [disabled]="!hasPrivateKey">
       Connect a plan file
@@ -126,8 +130,6 @@
             [maxLength]="false" [isAvailable]="doesFileExist" [value]="selectedPath">
           </hab-checking-input>
         </div>
-        <hr>
-        <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)"></hab-visibility-selector>
         <hr>
         <hab-docker-export-settings #docker *ngIf="selectedInstallation" [origin]="origin" [package]="name" [integrations]="integrations"
           [current]="dockerSettings" [enabled]="dockerEnabled">
