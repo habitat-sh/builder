@@ -13,11 +13,13 @@
 // limitations under the License.
 
 import {
-  AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, Output,
+  AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output,
   SimpleChanges, ViewChild
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material';
+import { Subject } from 'rxjs';
+import { filter, takeUntil } from 'rxjs/operators';
 import { Record } from 'immutable';
 import { DisconnectConfirmDialog } from './dialog/disconnect-confirm/disconnect-confirm.dialog';
 import { DockerExportSettingsComponent } from '../../shared/docker-export-settings/docker-export-settings.component';
@@ -34,7 +36,7 @@ import config from '../../config';
   selector: 'hab-project-settings',
   template: require('./project-settings.component.html')
 })
-export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
+export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterViewChecked {
   connecting: boolean = false;
   doesFileExist: Function;
   form: FormGroup;
@@ -60,6 +62,8 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   private _visibility: string;
   private _autoBuild;
 
+  private isDestroyed$: Subject<boolean> = new Subject();
+
   private _doAfterViewChecked: Function[] = [];
 
   constructor(
@@ -79,6 +83,13 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
         this.planField.value
       );
     };
+
+    this.store.observe('users.current.profile.name').pipe(
+      filter(v => v),
+      takeUntil(this.isDestroyed$)
+    ).subscribe(username => {
+      this.store.dispatch(fetchGitHubInstallations(username));
+    });
   }
 
   ngAfterViewChecked() {
@@ -97,6 +108,11 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       this.selectedPath = p.currentValue.plan_path;
       this.visibility = p.currentValue.visibility || this.visibility;
     }
+  }
+
+  ngOnDestroy() {
+    this.isDestroyed$.next(true);
+    this.isDestroyed$.complete();
   }
 
   get autoBuild() {
@@ -132,33 +148,8 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     return this.store.getState().gitHub.files;
   }
 
-  get gitHubAppNote() {
-
-    let note = `In order to connect a plan file in your repo,
-      you must first install the Builder GitHub app
-      and allow access to that repository.`;
-
-    if (this.gitHubAppInstalled) {
-      note = `If you don't see one or more of your organizations
-        or repositories listed below, you may need to adjust the
-        settings of the Builder GitHub app.`;
-    }
-
-    return note;
-  }
-
-  get gitHubAppLabel() {
-    let label = 'Install';
-
-    if (this.gitHubAppInstalled) {
-      label = 'Open';
-    }
-
-    return label;
-  }
-
   get gitHubAppInstalled() {
-    return !this.loadingInstallations && this.installations.size > 0;
+    return this.installations.size > 0;
   }
 
   get hasPrivateKey() {
@@ -242,7 +233,6 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   connect() {
     this.deselect();
-    this.store.dispatch(fetchGitHubInstallations(this.username));
     this.connecting = true;
     this.toggled.emit(this.connecting);
   }
@@ -383,6 +373,10 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   settingChanged(setting) {
     this.visibility = setting;
     this.store.dispatch(setProjectVisibility(this.origin, this.name, this.visibility, this.token));
+  }
+
+  refresh() {
+    window.location.reload();
   }
 
   private doAfterViewChecked(f) {

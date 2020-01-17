@@ -28,46 +28,41 @@
     background-color: $very-light-gray;
     border-radius: $default-radius;
     color: $dark-blue;
+    display: flex;
+    flex-direction: column;
 
-    hab-icon {
-      width: 24px;
-      height: 24px;
-    }
+    .note-icon {
+      display: none;
 
-    .icon, .info {
-      margin-right: $default-margin;
-      margin-bottom: $default-margin;
-    }
-
-    .icon {
-      float: left;
-    }
-
-    .cta {
-      margin-right: $default-margin;
-
-      .button {
-        @include cta;
+      hab-icon {
+        width: 24px;
+        height: 24px;
       }
+    }
+
+    .note-text {
+      padding: 0 0 $default-padding 0;
+
+      p {
+        margin: 0;
+      }
+    }
+
+    .note-icon,
+    .note-text,
+    .note-cta {
+      min-width: auto;
     }
 
     @include tablet-up {
-      display: flex;
+      flex-direction: row;
 
-      .icon {
-        flex: 0 0 24px;
+      .note-icon {
+        display: block;
       }
 
-      .info {
-        flex: 1;
-      }
-
-      .cta {
-        flex: 0 0 140px;
-
-        .button {
-          @include cta;
-        }
+      .note-text {
+        padding: 0 $default-padding;
       }
     }
   }

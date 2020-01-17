@@ -3,6 +3,20 @@
   <p>Set the default visibility of build artificats (.hart files) for the package. Applies to future build artifacts only. To change the visibility of the existing artifacts, see settings for each artifact in <a [routerLink]="['/pkgs', origin, name]">versions</a>.</p>
   <hab-visibility-selector [setting]="visibility" (changed)="settingChanged($event)"></hab-visibility-selector>
 
+  <div class="note" *ngIf="!loadingInstallations && !gitHubAppInstalled">
+    <div class="note-icon">
+      <hab-icon symbol="github"></hab-icon>
+    </div>
+    <div class="note-text">
+      <p>Install the Builder Github app and allow access to the plan repository before connecting a new plan or building from the existing plans. After it's installed, <a (click)="refresh()">refresh</a> this page.</p>
+    </div>
+    <div class="note-cta">
+      <a href="{{ config['github_app_url'] }}" mat-raised-button color="primary" target="_blank">
+        Install GitHub App <hab-icon symbol="open-in-new"></hab-icon>
+      </a>
+    </div>
+  </div>
+
   <div class="connect" *ngIf="!project && !connecting">
     <button mat-raised-button color="primary" class="button" (click)="connect()" [disabled]="!hasPrivateKey">
       Connect a plan file
@@ -50,19 +64,6 @@
   </div>
   <div class="connecting" *ngIf="connecting">
     <form [formGroup]="form" #formValues="ngForm">
-      <div class="note" *ngIf="!loadingInstallations">
-        <div class="icon">
-          <hab-icon symbol="github"></hab-icon>
-        </div>
-        <div class="info">
-          {{ gitHubAppNote }}
-        </div>
-        <div class="cta">
-          <a href="{{ config['github_app_url'] }}" mat-raised-button color="accent" class="button" target="_blank">
-            {{ gitHubAppLabel }} GitHub App
-          </a>
-        </div>
-      </div>
       <ol>
         <li [class.active]="!selectedInstallation" (click)="clearConnection()">Select a GitHub repo</li>
         <li [class.active]="selectedInstallation">Set path to Habitat plan file</li>
@@ -72,12 +73,6 @@
           <hab-icon symbol="loading" class="spinning"></hab-icon>
         </div>
         <div *ngIf="!loadingInstallations">
-          <p *ngIf="installations.size === 0">
-            It looks like you haven't yet installed the Habitat Builder app.
-            <a href="{{ config['github_app_url'] }}" target="_blank">Install it on GitHub</a>, then come back here and
-            <a class="try-again" (click)="connect()">
-              <hab-icon symbol="loading"></hab-icon>try again</a>. (It may take a few minutes for the changes to be recognized.)
-          </p>
           <div *ngIf="installations.size > 0">
             <p>
               Choose the GitHub organization and repository that
