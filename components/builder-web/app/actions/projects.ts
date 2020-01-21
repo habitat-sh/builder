@@ -21,6 +21,7 @@ export const CLEAR_CURRENT_PROJECT = 'CLEAR_CURRENT_PROJECT';
 export const CLEAR_CURRENT_PROJECT_INTEGRATION = 'CLEAR_CURRENT_PROJECT_SETTINGS';
 export const DELETE_PROJECT = 'DELETE_PROJECT';
 export const SET_CURRENT_PROJECT = 'SET_CURRENT_PROJECT';
+export const SET_CURRENT_PROJECTS = 'SET_CURRENT_PROJECTS';
 export const SET_CURRENT_PROJECT_INTEGRATION = 'SET_CURRENT_PROJECT_INTEGRATION';
 export const SET_PROJECTS = 'SET_PROJECTS';
 
@@ -192,6 +193,14 @@ export function setCurrentProject(project, error = undefined) {
   return {
     type: SET_CURRENT_PROJECT,
     payload: project,
+    error: error
+  };
+}
+
+export function setCurrentProjects(projects, error = undefined) {
+  return {
+    type: SET_CURRENT_PROJECTS,
+    payload: projects,
     error: error
   };
 }

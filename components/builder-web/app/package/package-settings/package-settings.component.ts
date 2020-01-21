@@ -68,6 +68,10 @@ export class PackageSettingsComponent implements OnDestroy {
     }
   }
 
+  get projects() {
+    return this.store.getState().projects.currentProjects;
+  }
+
   get integrations() {
     return this.store.getState().origins.currentIntegrations.integrations || [];
   }

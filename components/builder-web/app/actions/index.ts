@@ -175,8 +175,10 @@ export {
   fetchProjects,
   SET_CURRENT_PROJECT_INTEGRATION,
   SET_CURRENT_PROJECT,
+  SET_CURRENT_PROJECTS,
   SET_PROJECTS,
   setCurrentProject,
+  setCurrentProjects,
   setProjectIntegrationSettings,
   setProjectVisibility,
   updateProject
