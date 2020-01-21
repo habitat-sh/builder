@@ -58,6 +58,11 @@ const routes: Routes = [
         canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
       },
       {
+        path: 'settings/:target',
+        component: PackageSettingsComponent,
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+      },
+      {
         path: ':version',
         component: PackageVersionsComponent
       },

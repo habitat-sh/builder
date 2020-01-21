@@ -16,8 +16,10 @@ import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material';
-import { Subscription } from 'rxjs';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { AppStore } from '../../app.store';
+import { targets, targetFrom } from '../../util';
 
 @Component({
   selector: 'hab-package-settings',
@@ -26,8 +28,9 @@ import { AppStore } from '../../app.store';
 export class PackageSettingsComponent implements OnDestroy {
   name: string;
   origin: string;
+  target: string;
 
-  private sub: Subscription;
+  private isDestroyed$: Subject<boolean> = new Subject();
 
   constructor(
     private route: ActivatedRoute,
@@ -35,17 +38,21 @@ export class PackageSettingsComponent implements OnDestroy {
     private disconnectDialog: MatDialog,
     private title: Title
   ) {
-    this.sub = this.route.parent.params.subscribe((params) => {
+    this.route.parent.params.pipe(takeUntil(this.isDestroyed$)).subscribe((params) => {
       this.origin = params['origin'];
       this.name = params['name'];
       this.title.setTitle(`Packages › ${this.origin}/${this.name} › Settings | ${store.getState().app.name}`);
     });
+
+    this.route.params.pipe(takeUntil(this.isDestroyed$)).subscribe(params => {
+      const target = targetFrom('param', params['target']);
+      this.target = target ? target.id : null;
+    });
   }
 
   ngOnDestroy() {
-    if (this.sub) {
-      this.sub.unsubscribe();
-    }
+    this.isDestroyed$.next(true);
+    this.isDestroyed$.complete();
   }
 
   get project() {
