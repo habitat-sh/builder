@@ -15,6 +15,8 @@
 use std::{collections::HashMap,
           str::FromStr};
 
+use protobuf::RepeatedField;
+
 use actix_web::{http::{self,
                        StatusCode},
                 web::{self,
@@ -37,6 +39,7 @@ use crate::hab_core::{package::{Identifiable,
 
 use crate::db::models::{channel::*,
                         jobs::*,
+                        origin::*,
                         package::*,
                         projects::*,
                         settings::*};
@@ -122,12 +125,52 @@ fn get_rdeps(req: HttpRequest,
     match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
                         jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get)
     {
-        Ok(rdeps) => HttpResponse::Ok().json(rdeps),
+        Ok(rdeps) => {
+            let filtered = match filtered_rdeps(&req, &rdeps) {
+                Ok(f) => f,
+                Err(err) => return err.into(),
+            };
+            HttpResponse::Ok().json(filtered)
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
         }
     }
+}
+
+fn filtered_rdeps(req: &HttpRequest,
+                  rdeps: &jobsrv::JobGraphPackageReverseDependencies)
+                  -> Result<jobsrv::JobGraphPackageReverseDependencies> {
+    let mut new_rdeps = jobsrv::JobGraphPackageReverseDependencies::new();
+    new_rdeps.set_origin(rdeps.get_origin().to_string());
+    new_rdeps.set_name(rdeps.get_name().to_string());
+
+    let mut origin_map = HashMap::new();
+    let mut short_deps = RepeatedField::new();
+
+    for rdep in rdeps.get_rdeps() {
+        let ident = OriginPackageIdent::from_str(rdep)?;
+        let origin_name = ident.get_origin();
+        let pv = if !origin_map.contains_key(origin_name) {
+            let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+            let origin = Origin::get(&origin_name, &*conn)?;
+            origin_map.insert(origin_name.to_owned(),
+                              origin.default_package_visibility.clone());
+            origin.default_package_visibility
+        } else {
+            origin_map[origin_name].clone()
+        };
+        if pv != PackageVisibility::Public && authorize_session(req, Some(&origin_name)).is_err() {
+            debug!("Skipping unauthorized non-public origin package: {}", rdep);
+            continue; // Skip any unauthorized origin packages
+        }
+
+        short_deps.push(rdep.to_string())
+    }
+
+    new_rdeps.set_rdeps(short_deps);
+    Ok(new_rdeps)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -157,12 +200,62 @@ fn get_rdeps_group(req: HttpRequest,
     match route_message::<jobsrv::JobGraphPackageReverseDependenciesGroupedGet,
                         jobsrv::JobGraphPackageReverseDependenciesGrouped>(&req, &rdeps_get)
     {
-        Ok(rdeps) => HttpResponse::Ok().json(rdeps),
+        Ok(rdeps) => {
+            let filtered = match filtered_group_rdeps(&req, &rdeps) {
+                Ok(f) => f,
+                Err(err) => return err.into(),
+            };
+            HttpResponse::Ok().json(filtered)
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
         }
     }
+}
+
+fn filtered_group_rdeps(req: &HttpRequest,
+                        rdeps: &jobsrv::JobGraphPackageReverseDependenciesGrouped)
+                        -> Result<jobsrv::JobGraphPackageReverseDependenciesGrouped> {
+    let mut new_rdeps = jobsrv::JobGraphPackageReverseDependenciesGrouped::new();
+    new_rdeps.set_origin(rdeps.get_origin().to_string());
+    new_rdeps.set_name(rdeps.get_name().to_string());
+
+    let mut origin_map = HashMap::new();
+    let mut new_groups = RepeatedField::new();
+
+    for group in rdeps.get_rdeps() {
+        let mut ident_list = Vec::new();
+        for ident_str in group.get_idents() {
+            let ident = OriginPackageIdent::from_str(ident_str)?;
+            let origin_name = ident.get_origin();
+            let pv = if !origin_map.contains_key(origin_name) {
+                let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+                let origin = Origin::get(&origin_name, &*conn)?;
+                origin_map.insert(origin_name.to_owned(),
+                                  origin.default_package_visibility.clone());
+                origin.default_package_visibility
+            } else {
+                origin_map[origin_name].clone()
+            };
+            if pv != PackageVisibility::Public
+               && authorize_session(req, Some(&origin_name)).is_err()
+            {
+                debug!("Skipping unauthorized non-public origin package: {}",
+                       ident_str);
+                continue; // Skip any unauthorized origin packages
+            }
+            ident_list.push(ident_str.to_owned())
+        }
+
+        let mut new_group = jobsrv::JobGraphPackageReverseDependencyGroup::new();
+        new_group.set_group_id(group.get_group_id());
+        new_group.set_idents(RepeatedField::from_vec(ident_list));
+        new_groups.push(new_group)
+    }
+
+    new_rdeps.set_rdeps(new_groups);
+    Ok(new_rdeps)
 }
 
 #[allow(clippy::needless_pass_by_value)]
