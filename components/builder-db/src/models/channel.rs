@@ -153,6 +153,8 @@ impl Channel {
         trace!("DBCall channel::get_latest_package time: {} ms",
                start_time.to(end_time).num_milliseconds());
         Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+        Histogram::GetLatestChannelPackageCallTime.set(start_time.to(end_time).num_milliseconds()
+                                                       as f64);
 
         result
     }
@@ -200,6 +202,8 @@ impl Channel {
         trace!("DBCall channel::list_all_packages time: {} ms",
                start_time.to(end_time).num_milliseconds());
         Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+        Histogram::ListAllChannelPackagesCallTime.set(start_time.to(end_time).num_milliseconds()
+                                                      as f64);
         result
     }
 
