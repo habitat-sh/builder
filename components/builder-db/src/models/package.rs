@@ -463,6 +463,7 @@ impl Package {
         trace!("DBCall package::get_latest time: {} ms",
                start_time.to(end_time).num_milliseconds());
         Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+        Histogram::GetLatestPackageCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
 
         result
     }
@@ -481,6 +482,7 @@ impl Package {
         trace!("DBCall package::get_all_latest time: {} ms",
                start_time.to(end_time).num_milliseconds());
         Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+        Histogram::GetAllLatestCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
         result
     }
 

@@ -34,6 +34,10 @@ impl metrics::Metric for Counter {
 
 pub enum Histogram {
     DbCallTime,
+    GetAllLatestCallTime,
+    GetLatestChannelPackageCallTime,
+    GetLatestPackageCallTime,
+    ListAllChannelPackagesCallTime,
 }
 
 impl metrics::HistogramMetric for Histogram {}
@@ -42,6 +46,14 @@ impl metrics::Metric for Histogram {
     fn id(&self) -> Cow<'static, str> {
         match *self {
             Histogram::DbCallTime => "db-call.call-time".into(),
+            Histogram::GetAllLatestCallTime => "db-call.all-latest-call-time".into(),
+            Histogram::GetLatestChannelPackageCallTime => {
+                "db-call.latest-channel-pkg-call-time".into()
+            }
+            Histogram::GetLatestPackageCallTime => "db-call.latest-pkg-call-time".into(),
+            Histogram::ListAllChannelPackagesCallTime => {
+                "db-call.list-all-channel-pkgs-call-time".into()
+            }
         }
     }
 }
