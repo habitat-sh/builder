@@ -15,6 +15,7 @@
 import { BuilderApiClient } from '../client/builder-api';
 import { addNotification } from './notifications';
 import { DANGER, SUCCESS } from './notifications';
+import { targets } from '../util';
 
 export const CLEAR_PROJECTS = 'CLEAR_PROJECTS';
 export const CLEAR_CURRENT_PROJECT = 'CLEAR_CURRENT_PROJECT';
@@ -91,6 +92,7 @@ export function setProjectVisibility(origin: string, name: string, setting: stri
 export function fetchProject(origin: string, name: string, target: string, token: string, alert: boolean) {
   return dispatch => {
     dispatch(clearCurrentProject());
+    dispatch(fetchCurrentProjects(origin, name, token));
 
     new BuilderApiClient(token).getProject(origin, name, target)
       .then(response => {
@@ -128,10 +130,18 @@ export function fetchProjectIntegration(origin: string, name: string, integratio
   };
 }
 
-export function deleteProject(name: string, target: string, token: string) {
+export function fetchCurrentProjects(origin: string, name: string, token: string) {
   return dispatch => {
-    new BuilderApiClient(token).deleteProject(name, target).then(response => {
+    const fetchAll = targets.map(target => new BuilderApiClient(token).getProject(origin, name, target.id));
+    Promise.all(fetchAll).then(projects => dispatch(setCurrentProjects(projects)));
+  };
+}
+
+export function deleteProject(origin: string, name: string, target: string, token: string) {
+  return dispatch => {
+    new BuilderApiClient(token).deleteProject(origin, name, target).then(response => {
       dispatch(clearCurrentProject());
+      dispatch(fetchProject(origin, name, target, token, false));
       dispatch(addNotification({
         title: 'Plan connection deleted',
         type: SUCCESS

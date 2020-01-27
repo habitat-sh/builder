@@ -90,6 +90,56 @@
     }
   }
 
+  .connect-btn {
+    .connect-btn-text {
+      padding-right: 10px;
+      border-right: 1px solid $white;
+      margin-right: 5px;
+    }
+
+    .connect-btn-icon {
+      margin: 3px -10px 0 0;
+      padding: 0;
+    }
+
+    &[disabled] .connect-btn-text {
+      border-right-color: $disabled;
+    }
+  }
+
+  .connect-plan-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: $white;
+    overflow: scroll;
+
+    .overlay-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10%;
+      overflow: hidden;
+      background: $very-light-gray;
+
+      hab-platform-icon {
+        margin-left: $default-margin;
+      }
+
+      .overlay-close {
+        font-size: 30px;
+        height: 30px;
+      }
+    }
+
+    .overlay-body {
+      padding: 1em 10%;
+    }
+  }
+
   .connected-plans {
 
     li {
@@ -204,4 +254,8 @@
       }
     }
   }
+}
+
+.mat-menu-panel.connect-menu {
+  max-width: none;
 }

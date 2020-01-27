@@ -77,6 +77,10 @@ export class PackageSidebarComponent {
     return this.store.getState().projects.current;
   }
 
+  get projectExists() {
+    return this.store.getState().projects.ui.current.exists;
+  }
+
   get runCommand() {
     return `hab start ${this.origin}/${this.name}`;
   }

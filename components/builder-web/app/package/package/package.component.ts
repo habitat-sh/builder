@@ -115,7 +115,7 @@ export class PackageComponent implements OnInit, OnDestroy {
   }
 
   get hasPlan() {
-    return this.store.getState().projects.ui.current.exists;
+    return this.store.getState().projects.currentProjects.length > 0;
   }
 
   get builderEnabled() {

@@ -9,7 +9,7 @@
     </button>
     <p *ngIf="!isBuildable" class="disabled-build-msg">{{ buildButtonDisabledMessage }}</p>
   </section>
-  <section *ngIf="isOriginMember && hasPlan">
+  <section *ngIf="isOriginMember && projectExists && hasPlan">
     <h3>Settings</h3>
     <ul>
       <li>

@@ -222,9 +222,9 @@ export class BuilderApiClient {
     });
   }
 
-  public deleteProject(name: string, target: string) {
+  public deleteProject(origin: string, name: string, target: string) {
     return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/projects/${name}?target=${target}`, {
+      fetch(`${this.urlPrefix}/projects/${origin}/${name}?target=${target}`, {
         method: 'DELETE',
         headers: this.headers
       })
@@ -394,7 +394,7 @@ export class BuilderApiClient {
           if (response.ok) {
             resolve(response.json());
           } else {
-            reject(new Error(response.statusText));
+            resolve(null);
           }
         })
         .catch(error => this.handleError(error, reject));

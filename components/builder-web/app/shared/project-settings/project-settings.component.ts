@@ -17,6 +17,7 @@ import {
   SimpleChanges, ViewChild
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material';
 import { Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
@@ -31,6 +32,7 @@ import {
   deleteProjectIntegration
 } from '../../actions/index';
 import config from '../../config';
+import { targetFrom } from '../../util';
 
 @Component({
   selector: 'hab-project-settings',
@@ -49,7 +51,9 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   @Input() integrations;
   @Input() name: string;
   @Input() origin: string;
+  @Input() projects = [];
   @Input() project: any;
+  @Input() target: string;
 
   @Output() saved: EventEmitter<any> = new EventEmitter<any>();
   @Output() toggled: EventEmitter<any> = new EventEmitter<any>();
@@ -58,7 +62,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   docker: DockerExportSettingsComponent;
 
   private api: BuilderApiClient;
-  private defaultPath = 'habitat/plan.sh';
   private _visibility: string;
   private _autoBuild;
 
@@ -68,6 +71,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   constructor(
     private formBuilder: FormBuilder,
+    private router: Router,
     private store: AppStore,
     private disconnectDialog: MatDialog,
     private elementRef: ElementRef
@@ -76,6 +80,10 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this.selectedPath = this.defaultPath;
 
     this.doesFileExist = (path) => {
+      if (!this.selectedInstallation) {
+        return new Promise(resolve => resolve(null));
+      }
+
       return this.api.findFileInRepo(
         this.selectedInstallation.get('installation_id'),
         this.selectedInstallation.get('org'),
@@ -102,11 +110,20 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   ngOnChanges(changes: SimpleChanges) {
     const p = changes['project'];
+    const target = changes['target'];
 
     if (p && p.currentValue) {
       this.selectedRepo = p.currentValue.vcs_data;
       this.selectedPath = p.currentValue.plan_path;
       this.visibility = p.currentValue.visibility || this.visibility;
+    }
+
+    if (target && target.currentValue) {
+      if (this.projects.filter(p => p.target === target.currentValue).length) {
+        this.editConnection(target.currentValue);
+      } else {
+        this.connect(target.currentValue);
+      }
     }
   }
 
@@ -128,12 +145,35 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this._autoBuild = v;
   }
 
+  get isUpdating() {
+      return this.target && this.projects.filter(p => p.target === this.target).length;
+    }
+
+  get isWindowsTarget() {
+    return this.target === 'x86_64-windows';
+  }
+
+  get unmatchedPattern() {
+    const ext = this.isWindowsTarget ? 'ps1' : 'sh';
+    return `\\.${ext}$`;
+  }
+
+  get unmatchedMessage() {
+    const ext = this.isWindowsTarget ? 'ps1' : 'sh';
+    return `name must end with .${ext}`;
+  }
+
+  get defaultPath() {
+    const ext = this.isWindowsTarget ? 'ps1' : 'sh';
+    return `habitat/plan.${ext}`;
+  }
+
   get config() {
     return config;
   }
 
   get connectButtonLabel() {
-    return this.project ? 'Update' : 'Save';
+    return this.isUpdating ? 'Update' : 'Save';
   }
 
   get dockerEnabled() {
@@ -183,8 +223,14 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
       'plan_path': this.planField.value,
       'installation_id': this.selectedInstallation.get('installation_id'),
       'repo_id': this.activeRepo.get('id'),
-      'auto_build': this.autoBuild
+      'auto_build': this.autoBuild,
+      'target': this.target
     };
+  }
+
+  get planTargetName() {
+    const target = targetFrom('id', this.target);
+    return target ? target.name : null;
   }
 
   get repoField() {
@@ -231,7 +277,11 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this.autoBuild = v;
   }
 
-  connect() {
+  openConnect(target: string) {
+    this.router.navigate(['/pkgs', this.origin, this.name, 'settings', target]);
+  }
+
+  connect(target: string) {
     this.deselect();
     this.connecting = true;
     this.toggled.emit(this.connecting);
@@ -244,7 +294,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
     ref.afterClosed().subscribe((confirmed) => {
       if (confirmed) {
-        this.store.dispatch(deleteProject(project.name, project.target, this.token));
+        this.store.dispatch(deleteProject(project.origin, project.package_name, project.target, this.token));
       }
     });
   }
@@ -258,6 +308,11 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   }
 
   clearConnection() {
+    this.clearSelection();
+    this.router.navigate(['/pkgs', this.origin, this.name, 'settings']);
+  }
+
+  clearSelection() {
     this.connecting = false;
     this.deselect();
     this.toggled.emit(this.connecting);
@@ -273,12 +328,17 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this.selectedPath = this.defaultPath;
   }
 
-  editConnection() {
-    this.clearConnection();
-    this.connect();
+  openConnectEdit(project) {
+    const target = targetFrom('id', project.target);
+    this.openConnect(target.param);
+  }
 
-    this.selectedPath = this.project.plan_path;
-    this.selectedRepo = this.parseGitHubUrl(this.project.vcs_data);
+  editConnection(target) {
+    const project = this.projects.filter(p => p.target === target)[0];
+    this.connect(project.target);
+
+    this.selectedPath = project.plan_path;
+    this.selectedRepo = this.parseGitHubUrl(project.vcs_data);
     const [org, name] = this.selectedRepo.split('/');
 
     // This looks a bit weird, but it allows us to scroll the selected
@@ -335,10 +395,11 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   pickRepo(repo) {
     this.activeRepo = repo;
+    this.selectRepository(this.activeRepo);
   }
 
   saveConnection() {
-    if (this.project) {
+    if (this.isUpdating) {
       this.store.dispatch(updateProject(this.project.name, this.planTemplate, this.token, (result) => {
         const { origin, package_name, target } = this.project;
         this.handleSaved(result.success, origin, package_name, target);
@@ -353,12 +414,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   }
 
   selectRepository(repo) {
-    setTimeout(() => {
-      if (this.planField) {
-        this.planField.markAsDirty();
-      }
-    }, 1000);
-
     this.selectedInstallation = Record({
       repo_id: repo.get('id'),
       app_id: this.config.github_app_id,
@@ -368,6 +423,10 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
       name: repo.get('name'),
       url: repo.get('url')
     })();
+
+    if (this.planField) {
+      this.planField.dirty ? this.planField.updateValueAndValidity() : this.planField.markAsDirty();
+    }
   }
 
   settingChanged(setting) {
