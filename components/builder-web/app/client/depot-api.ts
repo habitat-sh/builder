@@ -238,6 +238,27 @@ export function getPackageVersions(origin: string, pkg: string) {
   });
 }
 
+// This endpoint brings back data for platform
+export function getTestApi(origin: string) {
+  const url = `${urlPrefix}/depot/pkgs/${origin}`;
+
+  return new Promise((resolve, reject) => {
+    fetch(url, opts())
+      .then(response => handleUnauthorized(response, reject))
+      .then(response => {
+        if (response.status >= 400) {
+          reject(new Error(response.statusText));
+        }
+        else {
+          response.json().then(results => {
+            resolve(results);
+          });
+        }
+      })
+      .catch(error => handleError(error, reject));
+  });
+}
+
 export function promotePackage(origin: string, name: string, version: string, release: string, target: string, channel: string, token: string) {
   const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/promote?target=${target}`;
 

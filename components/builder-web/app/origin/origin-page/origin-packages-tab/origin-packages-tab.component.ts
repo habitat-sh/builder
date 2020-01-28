@@ -18,6 +18,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AppStore } from '../../../app.store';
 import { getUniquePackages } from '../../../actions/index';
+import { getTest } from '../../../actions/packages';
 import config from '../../../config';
 
 @Component({
@@ -103,6 +104,13 @@ export class OriginPackagesTabComponent implements OnInit, OnDestroy {
   fetchMorePackages() {
     this.store.dispatch(
       getUniquePackages(this.origin, this.store.getState().packages.nextRange, this.token)
+    );
+  }
+
+  getTest() {
+    console.log(this.origin);
+    this.store.dispatch(
+      getTest(this.origin)
     );
   }
 

@@ -12,6 +12,7 @@
     <section *ngIf="!selectingPlan">
 
       <!-- new table -->
+      <button (click)="getTest()">test</button>
 
       <table>
         <thead>
@@ -22,7 +23,7 @@
         </thead>
         <tbody>
 
-          <tr *ngFor="let proj of projects">
+          <!-- <tr *ngFor="let proj of projects">
             <td class="package-name">
               <a [routerLink]="['/pkgs', origin, proj, 'latest']">
                 <span class="column name">{{ proj }}</span>
@@ -35,7 +36,7 @@
                 <hab-icon symbol="chevron-right"></hab-icon>
               </a>
             </td>
-          </tr>
+          </tr> -->
 
 
           <tr *ngFor="let pkg of packages">
