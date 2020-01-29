@@ -47,9 +47,10 @@
             </td>
           
             <td class="platform">
-              <a [routerLink]="['/pkgs', origin, proj, 'latest']">
-                platform icons go here
-                <hab-icon symbol="chevron-right"></hab-icon>
+              <a [routerLink]="['/pkgs', pkg.origin, pkg.name, 'latest']">
+                <!-- this will be used for package icons -->
+                <hab-platform-icon *ngFor="let platform of pkg.platforms" [platform]="platform"></hab-platform-icon>
+                <hab-icon symbol="chevron-right" class="chevron-right"></hab-icon>
               </a>
             </td>
           </tr>
