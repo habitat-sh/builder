@@ -153,6 +153,14 @@ impl Origin {
                                                    .execute(conn)
     }
 
+    pub fn depart(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::delete(origin_members::table
+                .filter(origin_members::account_id.eq(account_id))
+                .filter(origin_members::origin.eq(origin)))
+                .execute(conn)
+    }
+
     pub fn check_membership(origin: &str,
                             account_id: i64,
                             conn: &PgConnection)

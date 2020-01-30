@@ -111,6 +111,8 @@ impl Origins {
                   web::delete().to(origin_member_delete))
            .route("/depot/origins/{origin}/transfer/{user}",
                   web::post().to(transfer_origin_ownership))
+           .route("/depot/origins/{origin}/depart",
+                  web::post().to(depart_from_origin))
            .route("/depot/origins/{origin}/invitations",
                   web::get().to(list_origin_invitations))
            .route("/depot/origins/{origin}/users/{username}/invitations",
@@ -1093,6 +1095,43 @@ fn transfer_origin_ownership(req: HttpRequest,
     }
 
     match Origin::transfer(&origin, recipient_id, &*conn).map_err(Error::DieselError) {
+        Ok(_) => HttpResponse::NoContent().finish(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn depart_from_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
+    let origin = path.into_inner();
+
+    let session = match authorize_session(&req, None) {
+        Ok(session) => session,
+        Err(err) => return err.into(),
+    };
+
+    // Do not allow an origin owner to depart which would orphan the origin
+    if check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
+
+    // Pass a meaningful error in the case that the user isn't a member of origin
+    if !check_origin_member(&req, &origin, session.get_id()).unwrap_or(false) {
+        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    debug!("Departing user {} from origin {}",
+           session.get_name(),
+           &origin);
+
+    match Origin::depart(&origin, session.get_id() as i64, &*conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
