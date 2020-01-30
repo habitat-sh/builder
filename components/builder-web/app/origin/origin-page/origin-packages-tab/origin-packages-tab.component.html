@@ -31,9 +31,10 @@
             </td>
 
             <td class="platform">
-              <a [routerLink]="['/pkgs', origin, proj, 'latest']">
-                platform icons go here
-                <hab-icon symbol="chevron-right"></hab-icon>
+              <a [routerLink]="['/pkgs', origin, proj, 'latest']"> -->
+                <!-- this will be used for package icons -->
+                <!-- <hab-platform-icon *ngFor="let platform of proj.platforms" [platform]="platform"></hab-platform-icon>
+                <hab-icon symbol="chevron-right" class="chevron-right"></hab-icon>
               </a>
             </td>
           </tr> -->
@@ -95,6 +96,19 @@
         </a>
       </div>
     </section>
-
   </div>
+
+      <aside>
+        <h3>Default Package Visibility</h3>
+        <p>
+          load default visibility here
+        </p>
+        <h3>Manual Upload</h3>
+        <p>
+          You can upload pre-built packages to the Origin following the instruction in the
+          <a href="{{ config['docs_url'] }}/using-builder/#upload-and-promote-packages" target="_blank">Docs<hab-icon symbol="icon-open-in-new"></hab-icon>
+        </a>.
+        </p>
+      </aside>
+
 </div>
