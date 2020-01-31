@@ -48,6 +48,7 @@ describe('Origin API', function () {
           expect(res.body.id).to.equal(global.originNeurosis.id);
           expect(res.body.owner_id).to.equal(global.originNeurosis.owner_id);
           expect(res.body.default_package_visibility).to.equal(global.originNeurosis.default_package_visibility);
+          expect(res.body.owner_account).to.equal(global.boboAccountName);
           done(err);
         });
     });

@@ -47,6 +47,7 @@ pub struct OriginWithSecretKey {
     pub name: String,
     pub private_key_name: Option<String>,
     pub default_package_visibility: PackageVisibility,
+    pub owner_account: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Queryable)]

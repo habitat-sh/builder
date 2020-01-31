@@ -18,6 +18,7 @@ table! {
         name -> Text,
         private_key_name -> Nullable<Text>,
         default_package_visibility -> PackageVisibilityMapping,
+        owner_account -> Text,
     }
 }
 
