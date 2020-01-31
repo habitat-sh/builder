@@ -98,17 +98,22 @@
     </section>
   </div>
 
-      <aside>
-        <h3>Default Package Visibility</h3>
-        <p>
-          load default visibility here
-        </p>
-        <h3>Manual Upload</h3>
-        <p>
-          You can upload pre-built packages to the Origin following the instruction in the
-          <a href="{{ config['docs_url'] }}/using-builder/#upload-and-promote-packages" target="_blank">Docs<hab-icon symbol="icon-open-in-new"></hab-icon>
-        </a>.
-        </p>
-      </aside>
+  <aside>
+    <h3>Default Package Visibility</h3>
+    <p>
+      <hab-visibility-icon [visibility]="defaultVisibility" prefix="Default Package Visibility:"></hab-visibility-icon>
+      {{ defaultVisibility | titlecase }} Packages
+    </p>
+    <h3>Manual Upload</h3>
+    <p>
+      You can upload pre-built packages to the Origin following the instruction in the
+      <!-- href="{{ config['docs_url'] }}/using-builder/#upload-and-promote-packages"  -->
+      <a 
+      href="https://www.habitat.sh/docs/using-builder/#upload-and-promote-packages" target="_blank">
+      Docs
+      <hab-icon symbol="open-in-new"></hab-icon>
+      </a>.
+    </p>
+  </aside>
 
 </div>

@@ -93,6 +93,10 @@ export class OriginPackagesTabComponent implements OnInit, OnDestroy {
     return this.store.getState().session.token;
   }
 
+  get defaultVisibility() {
+    return this.store.getState().origins.current.default_package_visibility;
+  }
+
   get totalCount() {
     return this.store.getState().packages.totalCount;
   }
