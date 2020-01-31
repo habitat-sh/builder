@@ -19,11 +19,23 @@ pub const APPLICATION_JSON: &str = "application/json";
 
 pub const XFILENAME: &str = "x-filename"; // must be lowercase
 
-pub fn cache(cache: bool) -> &'static str {
-    if cache {
-        CACHE
-    } else {
-        NO_CACHE
+pub enum Cache {
+    NoCache,
+    MaxAgeDefault,
+    MaxAge(usize),
+}
+
+impl Default for Cache {
+    fn default() -> Self { Cache::MaxAgeDefault }
+}
+
+impl ToString for Cache {
+    fn to_string(&self) -> String {
+        match self {
+            Cache::NoCache => NO_CACHE.to_string(),
+            Cache::MaxAgeDefault => CACHE.to_string(),
+            Cache::MaxAge(secs) => format!("public, max-age={}", secs),
+        }
     }
 }
 
