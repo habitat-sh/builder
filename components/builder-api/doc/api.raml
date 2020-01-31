@@ -878,6 +878,19 @@ securitySchemes:
                       description: Cannot transfer to self or non-members
                     500:
                       description: Internal server error
+        /depart:
+          post:
+            description: Leave an origin you no longer wish to be a member of
+            securedBy: [oauth_2_0]
+            response:
+              204:
+                description: Departure successful
+              403:
+                description: Forbidden from departing the origin
+              422:
+                description: Not currently a member of the origin
+              500:
+                description: Internal server error
         /invitations:
             /{invitationId}:
                 put:

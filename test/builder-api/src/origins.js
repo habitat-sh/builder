@@ -257,6 +257,64 @@ describe('Related Origin API functions', function () {
       });
   });
 
+    describe('Origin Departure', function () {
+        it('requires authentication', function(done) {
+            request.post('/depot/origins/umbrella/depart')
+            .expect(401)
+                .end(function (err, res) {
+                    expect(res.text).to.be.empty;
+                    done(err)
+                });
+        });
+        it('cannot be departed by its owner', function(done) {
+          request.post('/depot/origins/umbrella/depart')
+            .set('Authorization', global.boboBearer)
+            .expect(403)
+              .end(function (err, res) {
+                expect(res.text).to.be.empty;
+                done(err);
+              });
+        });
+        it('must already be member of origin', function(done) {
+          request.post('/depot/origins/umbrella/depart')
+            .set('Authorization', global.mystiqueBearer)
+            .expect(422)
+                .end(function (err, res) {
+                    expect(res.text).to.be.empty;
+                    done(err);
+                });
+        });
+        it('must be an origin that exists', function(done) {
+            request.post('/depot/origins/grifoobity/depart')
+            .set('Authorization', global.mystiqueBearer)
+            .expect(422)
+                .end(function (err, res) {
+                    done(err);
+                });
+        });
+        it('succeeds', function(done) {
+            request.post('/depot/origins/umbrella/depart')
+            .set('Authorization', global.weskerBearer)
+            .expect(204)
+                .end(function (err, res) {
+                    expect(res.text).to.be.empty;
+                    done(err)
+                });
+        });
+        it('no longer shows the departed user as a member', function (done) {
+          request.get('/depot/origins/umbrella/users')
+            .type('application/json')
+            .accept('application/json')
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(function (err, res) {
+              expect(res.body.origin).to.equal(global.originUmbrella.name);
+              expect(res.body.members).to.deep.equal(['bobo']);
+              done(err);
+            });
+        });
+    });
+
   describe('Origin deletion', function () {
     it('requires authentication', function (done) {
       request.delete('/depot/origins/umbrella')
