@@ -179,6 +179,14 @@ fn main() {
                         do_latest_dot(&graph, v[1], origin)
                     }
                 }
+                "scc" => {
+                    if v.len() < 3 {
+                        println!("Missing search term\n")
+                    } else {
+                        let origin = if v.len() > 2 { Some(v[2]) } else { None };
+                        do_scc(&graph, v[1], origin)
+                    }
+                }
                 "resolve" => {
                     if v.len() < 2 {
                         println!("Missing package name\n")
@@ -230,7 +238,15 @@ fn main() {
 fn do_help() {
     println!("Commands:");
     println!("  help                    Print this message");
+    println!("  target                  Set current target architecture");
+    println!("  all_stats               Stats for all targets");
+
+    println!("Conditionalized by current target architecture");
+
     println!("  stats                   Print graph statistics");
+    println!("  scc                     Write SCC to file");
+    println!("  latest_dot              Write latest graph to dot file");
+
     println!("  top     [<count>]       Print nodes with the most reverse dependencies");
     println!("  filter  [<origin>]      Filter outputs to the specified origin");
     println!("  resolve <name>          Find the most recent version of the package 'origin/name'");
@@ -316,6 +332,18 @@ fn do_dot(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
     let end_time = PreciseTime::now();
     println!(
         "Wrote graph to file {} filtered by {:?} TBI in {} sec",
+        filename,
+        origin,
+        start_time.to(end_time)
+    );
+}
+
+fn do_scc(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
+    let start_time = PreciseTime::now();
+    graph.dump_scc(filename, origin);
+    let end_time = PreciseTime::now();
+    println!(
+        "Wrote SCC information to file {} filtered by {:?} TBI in {} sec",
         filename,
         origin,
         start_time.to(end_time)

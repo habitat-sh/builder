@@ -180,16 +180,6 @@ impl PackageGraphForTarget {
         (pi, ni)
     }
 
-    fn get_id(&self, ident: &PackageIdent) -> Option<(PackageIndex, NodeIndex)> {
-        if self.package_map.contains_key(&ident) {
-            let package_index = self.package_map[&ident];
-            let node_index: NodeIndex = self.packages[package_index].borrow().full_graph_index;
-            Some((package_index, node_index))
-        } else {
-            None
-        }
-    }
-
     fn generate_id<'a>(&'a mut self, ident: &PackageIdent) -> (PackageIndex, NodeIndex) {
         if self.package_map.contains_key(&ident) {
             let package_index = self.package_map[&ident];
@@ -453,6 +443,10 @@ impl PackageGraphForTarget {
     pub fn dump_latest_graph(&self, file: &str, origin: Option<&str>) {
         self.latest_graph.emit_graph(file, origin)
     }
+
+    pub fn dump_scc(&self, file: &str, origin: Option<&str>) {
+        self.latest_graph.dump_scc(file, origin)
+    }
 }
 
 //
@@ -559,6 +553,11 @@ impl PackageGraph {
         self.graphs[&self.current_target]
             .borrow()
             .dump_latest_graph(file, origin)
+    }
+    pub fn dump_scc(&self, file: &str, origin: Option<&str>) {
+        self.graphs[&self.current_target]
+            .borrow()
+            .dump_scc(file, origin)
     }
 }
 

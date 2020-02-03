@@ -16,9 +16,12 @@
 //
 //
 
-use petgraph::{graph::NodeIndex, Graph};
+use petgraph::{algo::tarjan_scc, graph::NodeIndex, Direction, Graph};
 
 use std::collections::HashMap;
+use std::collections::VecDeque;
+
+use std::cmp;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
@@ -144,11 +147,10 @@ where
         let mut file = File::create(&path).unwrap();
 
         writeln!(&mut file, "// Filtered by {:?}", origin_filter).unwrap();
-
-        writeln!(&mut file, "digraph "\{}\" {{", filename).unwrap();
+        writeln!(&mut file, "digraph \"{}\" {{", filename).unwrap();
         writeln!(&mut file, "    rankdir=\"UD\";").unwrap();
-        // iterate through nodes
 
+        // iterate through nodes
         for node_index in self.graph.node_indices() {
             let node = self.ident_for_node(node_index);
             if filter_match(node, origin_filter) {
@@ -159,6 +161,8 @@ where
 
         // iterate through regular edges
         writeln!(&mut file, "//######## RUN TIME EDGES ######").unwrap();
+        writeln!(&mut file, "    edge [ weight = 10; constraint = true ];").unwrap();
+
         self.write_edges(&mut file, EdgeType::RuntimeDep, origin_filter);
 
         writeln!(&mut file, "//######## BUILD TIME EDGES ######").unwrap();
@@ -189,6 +193,83 @@ where
                     }
                 }
             }
+        }
+    }
+
+    // Compute weights as a level diagram; each package depends on weights only lower than it.  This is a variant
+    // of a toplogical ordering, and requires the graph to be free of cycles, so we're only doing it on runtime
+    // edges to start
+    pub fn compute_weights(&self) -> HashMap<NodeIndex, u32> {
+        let mut weights: HashMap<NodeIndex, u32> = HashMap::new();
+
+        // Right now the worklist is a simple FIFO queue with no deduplication. Could use a BTreeSet, but that does
+        // potentially screwy things with the ordering.
+        let mut worklist: VecDeque<NodeIndex> = VecDeque::new();
+
+        // Phase one; assign 'seed' weights of zero, and add to the worklist.
+
+        for node_index in self.graph.node_indices() {
+            weights.insert(node_index, 0);
+            // potential minor optimization: nodes w/o dependencies should not be added to worklist.
+            worklist.push_back(node_index)
+        }
+
+        // Phase two; iterate over worklist updating node heights
+        while !worklist.is_empty() {
+            let node_index = worklist.pop_front().unwrap();
+
+            let mut max_dep_weight = 0;
+
+            for succ_index in self
+                .graph
+                .neighbors_directed(node_index, Direction::Outgoing)
+            {
+                let edge = self.graph.find_edge(node_index, succ_index).unwrap();
+                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+                    max_dep_weight = cmp::max(max_dep_weight, weights[&succ_index]);
+                }
+            }
+
+            let new_weight = max_dep_weight + 1;
+
+            if new_weight > weights[&node_index] {
+                // weight updated
+                weights.insert(node_index, new_weight);
+                // Put everybody who depends on me back on the worklist (this is where dedup would be nice)
+                for pred_index in self
+                    .graph
+                    .neighbors_directed(node_index, Direction::Incoming)
+                {
+                    let edge = self.graph.find_edge(pred_index, node_index).unwrap();
+                    if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+                        worklist.push_back(pred_index)
+                    }
+                }
+            }
+        }
+        weights
+    }
+
+    // Produce strongly coupled cluster list.
+    pub fn dump_scc(&self, filename: &str, _origin_filter: Option<&str>) {
+        let path = Path::new(filename);
+        let mut file = File::create(&path).unwrap();
+
+        let scc = tarjan_scc(&self.graph);
+
+        let mut cluster_number = 0;
+
+        for cluster in scc {
+            for node in cluster {
+                writeln!(
+                    &mut file,
+                    "{}\t{}",
+                    cluster_number,
+                    self.ident_for_node(node)
+                )
+                .unwrap();
+            }
+            cluster_number += 1;
         }
     }
 }
