@@ -30,6 +30,8 @@ serde = "*"
 serde_derive = "*"
 copperline = "*"
 diesel = "*"
+regex = "*"
+lazy_static = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

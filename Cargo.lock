@@ -1390,6 +1390,7 @@ dependencies = [
  "habitat-builder-protocol 0.0.0",
  "habitat_builder_db 0.0.0",
  "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
+ "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libarchive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "petgraph 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",

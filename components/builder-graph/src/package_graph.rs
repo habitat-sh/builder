@@ -34,9 +34,12 @@ use std::{
     string::ToString,
 };
 
+use regex::Regex;
+
 use habitat_builder_db::models::package::PackageWithVersionArray;
 
 use crate::{
+    hab_core::error as herror,
     hab_core::package::{PackageIdent, PackageTarget},
     ident_graph::*,
     rdeps::rdeps,
@@ -84,6 +87,11 @@ fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
     }
 }
 
+fn identlist_to_string(identlist: &[PackageIdent]) -> String {
+    let strings: Vec<String> = identlist.iter().map(PackageIdent::to_string).collect();
+    strings.join(", ").to_string()
+}
+
 // Note: We need to filter by target when doing the walk.
 type PackageIndex = usize;
 #[derive(Debug)]
@@ -92,10 +100,113 @@ struct PackageInfo {
     // We may need to create the info record before we see the package data...
     package: Option<PackageWithVersionArray>,
 
+    bad_deps: bool,
     plan_deps: Vec<PackageIdent>,
     plan_bdeps: Vec<PackageIdent>,
 
     full_graph_index: NodeIndex,
+}
+
+impl PackageInfo {
+    pub fn extract_plan_deps(&mut self, verbose: bool) {
+        // Hoist to lazy static
+        lazy_static! {
+            // linux builds use backticks around dependency list, while windows doesn't,
+            static ref NO_DEPS_RE: Regex =
+                Regex::new(r"no (build|runtime) dependencies or undefined").unwrap();
+            static ref GEN_DEP_RE: Regex =
+                Regex::new(r"^\s*\* __(?P<dtype>Build)?\s*Dependencies__: `?(?P<deps>[^`]*)`?\s*$")
+                    .unwrap();
+        }
+
+        let package = self.package.as_ref().unwrap();
+        let mut found_deps = false;
+        let mut found_bdeps = false;
+
+        // investigate RegexSet usage here instead of looping over lines
+        for line in package.manifest.lines() {
+            if let Some(cap) = GEN_DEP_RE.captures(line) {
+                if verbose {
+                    println!("{} matched line {}", package.ident.0, line);
+                }
+                let deplist = cap.name("deps").unwrap().as_str();
+                if verbose {
+                    println!("{} extracted deps {}", package.ident.0, deplist);
+                }
+                // Maybe match against regex 'no (build|runtime) dependencies or undefined'
+                let mut deps_as_ident = if !deplist.contains("dependencies or undefined") {
+                    let deps_conv: herror::Result<Vec<PackageIdent>> = deplist
+                        .split_whitespace()
+                        .map(PackageIdent::from_str)
+                        .collect();
+
+                    deps_conv.unwrap_or_else(|e| {
+                        println!("{} ill formed deps {:?}", package.ident.0, e);
+                        Vec::new()
+                    })
+                } else {
+                    Vec::new()
+                };
+
+                let typeflag;
+                if let Some(_deptype) = cap.name("dtype") {
+                    typeflag = "B";
+                    found_bdeps = true;
+                    if verbose {
+                        println!(
+                            "{} {}: {:?}",
+                            package.ident.0,
+                            typeflag,
+                            identlist_to_string(&deps_as_ident)
+                        )
+                    };
+                    self.plan_bdeps.append(&mut deps_as_ident);
+                } else {
+                    typeflag = "R";
+                    found_deps = true;
+                    if verbose {
+                        println!(
+                            "{} {}: {:?}",
+                            package.ident.0,
+                            typeflag,
+                            identlist_to_string(&deps_as_ident)
+                        );
+                    };
+                    self.plan_deps.append(&mut deps_as_ident);
+                }
+            }
+
+            // early out; manifests can be large...
+            if found_deps && found_bdeps {
+                break;
+            }
+        }
+
+        if !(found_deps && found_bdeps) {
+            // Every package should have deps; if not we need to recheck our assumptions
+            println!(
+                "{}: Partial or no deps found for package B: {} R: {}",
+                package.ident.0, found_bdeps, found_deps
+            );
+            self.bad_deps = true;
+        } else {
+            self.bad_deps = false;
+        }
+    }
+
+    pub fn infer_plan_deps(&mut self) {
+        let package = self.package.as_ref().unwrap();
+
+        // It would be more correct to parse the manifest and use that to fill plan_deps/bdeps
+        // That may belong inside PackageWithVersionArray
+        // For now, just approximate with trunuated ident
+        for dep in &package.deps {
+            self.plan_deps.push(short_ident(&dep.0, false));
+        }
+        for dep in &package.build_deps {
+            self.plan_bdeps.push(short_ident(&dep.0, false));
+        }
+    }
 }
 
 #[derive(Default)]
@@ -167,15 +278,7 @@ impl PackageGraphForTarget {
 
         package_info.package = Some(package.clone());
 
-        // It would be more correct to parse the manifest and use that to fill plan_deps/bdeps
-        // That may belong inside PackageWithVersionArray
-        // For now, just approximate with trunuated ident
-        for dep in &package.deps {
-            package_info.plan_deps.push(short_ident(&dep.0, false));
-        }
-        for dep in &package.build_deps {
-            package_info.plan_bdeps.push(short_ident(&dep.0, false));
-        }
+        package_info.extract_plan_deps(false);
 
         (pi, ni)
     }
@@ -196,6 +299,7 @@ impl PackageGraphForTarget {
             let package_info = PackageInfo {
                 ident: ident.clone(),
                 package: None,
+                bad_deps: false,
                 plan_deps: Vec::new(),
                 plan_bdeps: Vec::new(),
                 full_graph_index: node_index,
