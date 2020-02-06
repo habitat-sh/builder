@@ -136,6 +136,7 @@ impl Origin {
         // with the origin to ensure no vestigial data remains.
         //
         // TODO: Add origin deletion request into an origin audit table.
+        // https://github.com/habitat-sh/builder/issues/1300
 
         Counter::DBCall.increment();
         conn.transaction::<_, Error, _>(|| {
