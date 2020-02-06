@@ -327,7 +327,7 @@ describe('Working with packages', function () {
         .set('Authorization', global.boboBearer)
         .expect(409)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.match(/^There are [0-9]+/);
           done(err)
         });
     });

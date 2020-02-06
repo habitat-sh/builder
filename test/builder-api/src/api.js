@@ -5,6 +5,7 @@
 
 require('./helpers.js');
 require('./origins.js');
+require('./origins_deletion.js');
 require('./sessions.js');
 require('./invitations.js');
 require('./settings.js');

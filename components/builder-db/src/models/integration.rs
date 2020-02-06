@@ -1,6 +1,7 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
 use diesel::{self,
+             dsl::count,
              pg::PgConnection,
              result::QueryResult,
              ExpressionMethods,
@@ -82,5 +83,12 @@ impl OriginIntegration {
         Counter::DBCall.increment();
         origin_integrations::table.filter(origin_integrations::origin.eq(origin))
                                   .get_results(conn)
+    }
+
+    pub fn count_origin_integrations(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origin_integrations::table.select(count(origin_integrations::id))
+                                  .filter(origin_integrations::origin.eq(&origin))
+                                  .first(conn)
     }
 }

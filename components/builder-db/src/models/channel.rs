@@ -3,7 +3,8 @@ use chrono::NaiveDateTime;
 use time::PreciseTime;
 
 use diesel::{self,
-             dsl::sql,
+             dsl::{count,
+                   sql},
              pg::{expression::dsl::any,
                   PgConnection},
              result::QueryResult,
@@ -205,6 +206,13 @@ impl Channel {
         Histogram::ListAllChannelPackagesCallTime.set(start_time.to(end_time).num_milliseconds()
                                                       as f64);
         result
+    }
+
+    pub fn count_origin_channels(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origin_channels::table.select(count(origin_channels::id))
+                              .filter(origin_channels::origin.eq(&origin))
+                              .first(conn)
     }
 
     pub fn promote_packages(channel_id: i64,

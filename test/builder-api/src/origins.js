@@ -341,7 +341,7 @@ describe('Related Origin API functions', function () {
         .set('Authorization', global.boboBearer)
         .expect(409)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.match(/^There are 1 projects remaining in origin/);
           done(err);
         });
     });

@@ -1,6 +1,7 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
 use diesel::{self,
+             dsl::count,
              pg::PgConnection,
              result::QueryResult,
              ExpressionMethods,
@@ -70,6 +71,13 @@ impl OriginSecret {
         Counter::DBCall.increment();
         origin_secrets::table.filter(origin_secrets::origin.eq(origin))
                              .get_results(conn)
+    }
+
+    pub fn count_origin_secrets(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origin_secrets::table.select(count(origin_secrets::id))
+                             .filter(origin_secrets::origin.eq(&origin))
+                             .first(conn)
     }
 }
 
