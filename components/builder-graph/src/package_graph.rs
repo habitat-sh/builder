@@ -199,7 +199,7 @@ impl PackageInfo {
 
         // It would be more correct to parse the manifest and use that to fill plan_deps/bdeps
         // That may belong inside PackageWithVersionArray
-        // For now, just approximate with trunuated ident
+        // For now, just approximate with truncated ident
         for dep in &package.deps {
             self.plan_deps.push(short_ident(&dep.0, false));
         }

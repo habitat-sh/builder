@@ -146,6 +146,10 @@ where
         let path = Path::new(filename);
         let mut file = File::create(&path).unwrap();
 
+        // This might be simpler to implement by creating a filtered graph, and then emiting it.
+        // Uncertain how filter graphs rewrite node_index; we have built stuff on that.
+        // Investigate whether graph map would work better.
+
         writeln!(&mut file, "// Filtered by {:?}", origin_filter).unwrap();
         writeln!(&mut file, "digraph \"{}\" {{", filename).unwrap();
         writeln!(&mut file, "    rankdir=\"UD\";").unwrap();
@@ -153,7 +157,13 @@ where
         // iterate through nodes
         for node_index in self.graph.node_indices() {
             let node = self.ident_for_node(node_index);
-            if filter_match(node, origin_filter) {
+            let (in_count, out_count) = self.count_edges(node_index);
+            let orphaned = (in_count == 0) && (out_count == 0);
+            if orphaned {
+                println!("{} is orphaned", node);
+            }
+
+            if filter_match(node, origin_filter) && !orphaned {
                 let node_name = node.to_string();
                 writeln!(&mut file, "    \"{}\"", node_name).unwrap();
             }
@@ -177,6 +187,25 @@ where
 
         // close
         writeln!(&mut file, "}}").unwrap();
+    }
+
+    // This probably could be completely generic to graph
+    fn count_edges(&self, node_index: NodeIndex) -> (u32, u32) {
+        let mut in_count = 0;
+        let mut out_count = 0;
+        for _pred_index in self
+            .graph
+            .neighbors_directed(node_index, Direction::Incoming)
+        {
+            in_count += 1;
+        }
+        for _succ_index in self
+            .graph
+            .neighbors_directed(node_index, Direction::Outgoing)
+        {
+            out_count += 1;
+        }
+        (in_count, out_count)
     }
 
     fn write_edges(&self, file: &mut File, edge_type: EdgeType, origin_filter: Option<&str>) {
