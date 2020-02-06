@@ -258,7 +258,6 @@ describe('Origin Deletion - Extended Tests', function() {
           done(err);
         });
     });
-
   });
 
   describe('4. Attempt to delete an origin when channel exists', function() {
@@ -267,7 +266,7 @@ describe('Origin Deletion - Extended Tests', function() {
         .set('Authorization', global.boboBearer)
         .expect(409)
         .end(function(err, res) {
-          expect(res.body).to.be.empty;
+          expect(res.text).to.match(/^There are 3 channels remaining in origin deletemeifyoucan. Only two are allowed \[unstable, stable\]/);
           done(err);
         });
     });
