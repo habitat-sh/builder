@@ -4,16 +4,18 @@
 
 set -euo pipefail
 
+echo "Executing ${BASH_SOURCE[0]}"
+
 # make mocha happy by running from the directory it expects
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 clean_test_artifacts() {
    local sql origins
-  origins=( neurosis xmen umbrella )
+  origins=( neurosis xmen umbrella deletemeifyoucan )
 
   # clean origins
   local origins origin_tables
-  origin_tables=( origin_integrations origin_project_integrations origin_secrets origin_private_encryption_keys origin_public_encryption_keys origin_members origin_channels origin_invitations origin_packages origin_projects origin_public_keys origin_secret_keys audit_package audit_package_group origin_package_settings)
+  origin_tables=( origin_integrations origin_project_integrations origin_secrets origin_private_encryption_keys origin_public_encryption_keys origin_members origin_channels origin_invitations origin_packages origin_projects origin_public_keys origin_secret_keys audit_package audit_package_group origin_package_settings )
   sql=
 
   for origin in "${origins[@]}"; do

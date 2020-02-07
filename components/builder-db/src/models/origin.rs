@@ -2,6 +2,7 @@ use super::db_id_format;
 use chrono::NaiveDateTime;
 
 use diesel::{self,
+             dsl::count,
              pg::PgConnection,
              prelude::*,
              result::{Error,
@@ -17,12 +18,19 @@ use crate::{models::{channel::{Channel,
 
 use crate::schema::{channel::origin_channels,
                     integration::origin_integrations,
-                    key::{origin_public_keys,
+                    invitation::origin_invitations,
+                    key::{origin_private_encryption_keys,
+                          origin_public_encryption_keys,
+                          origin_public_keys,
                           origin_secret_keys},
                     member::origin_members,
                     origin::{origins,
                              origins_with_secret_key,
                              origins_with_stats},
+                    package::origin_packages,
+                    project::origin_projects,
+                    project_integration::origin_project_integrations,
+                    secrets::origin_secrets,
                     settings::origin_package_settings};
 
 use crate::{bldr_core::metrics::CounterMetric,
@@ -121,12 +129,17 @@ impl Origin {
     }
 
     pub fn delete(origin: &str, conn: &PgConnection) -> QueryResult<()> {
+        // By this point, most of the associated origin data has already been manually deleted
+        // by the user. We ensure this by double checking the most critical tables are already empty
+        // via builder_api::server::resources::origins::origin_delete_preflight
+        // The transaction entries below explicitly enumerate deletion of all table data associated
+        // with the origin to ensure no vestigial data remains.
+        //
+        // TODO: Add origin deletion request into an origin audit table.
+        // https://github.com/habitat-sh/builder/issues/1300
+
         Counter::DBCall.increment();
         conn.transaction::<_, Error, _>(|| {
-            // This is ugly but should be relatively safer than some alternatives
-            // It turns out we don't have cascade on delete in the schema for the
-            // origin across the 12 tables it uses. We can add it but it is a bit
-            // scary. It would be a nuclear hammer.
             diesel::delete(origin_channels::table.filter(origin_channels::origin.eq(origin)))
                 .execute(conn)?;
             diesel::delete(origin_secret_keys::table.filter(origin_secret_keys::origin.eq(origin)))
@@ -137,12 +150,24 @@ impl Origin {
                 .execute(conn)?;
             diesel::delete(origin_package_settings::table.filter(origin_package_settings::origin.eq(origin)))
                 .execute(conn)?;
-            // TODO: Add migration to include origin as fkey constraint on
-            // origin_integrations, remove this delete
             diesel::delete(
                 origin_integrations::table.filter(origin_integrations::origin.eq(origin)),
             )
             .execute(conn)?;
+            diesel::delete(origin_invitations::table.filter(origin_invitations::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_project_integrations::table.filter(origin_project_integrations::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_projects::table.filter(origin_projects::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_secrets::table.filter(origin_secrets::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_private_encryption_keys::table.filter(origin_private_encryption_keys::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_public_encryption_keys::table.filter(origin_public_encryption_keys::origin.eq(origin)))
+                .execute(conn)?;
+            diesel::delete(origin_packages::table.filter(origin_packages::origin.eq(origin)))
+                .execute(conn)?;
             diesel::delete(origins::table.filter(origins::name.eq(origin))).execute(conn)?;
             Ok(())
         })
@@ -210,6 +235,13 @@ impl OriginMember {
                 origin_members::account_id.eq(account_id),
             ))
             .execute(conn)
+    }
+
+    pub fn count_origin_members(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origin_members::table.select(count(origin_members::account_id))
+                             .filter(origin_members::origin.eq(&origin))
+                             .first(conn)
     }
 }
 

@@ -2,6 +2,7 @@ use super::{db_id_format,
             db_optional_id_format};
 use chrono::NaiveDateTime;
 use diesel::{self,
+             dsl::count,
              pg::PgConnection,
              result::QueryResult,
              ExpressionMethods,
@@ -94,6 +95,13 @@ impl Project {
         Counter::DBCall.increment();
         origin_projects::table.filter(origin_projects::origin.eq(origin))
                               .get_results(conn)
+    }
+
+    pub fn count_origin_projects(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origin_projects::table.select(count(origin_projects::id))
+                              .filter(origin_projects::origin.eq(&origin))
+                              .first(conn)
     }
 }
 

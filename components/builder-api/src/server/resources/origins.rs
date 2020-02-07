@@ -35,6 +35,7 @@ use actix_web::{body::Body,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
+use builder_core::Error::OriginDeleteError;
 use bytes::Bytes;
 use diesel::{pg::PgConnection,
              result::Error::NotFound};
@@ -53,6 +54,7 @@ use crate::{bldr_core,
 use crate::protocol::originsrv::OriginKeyIdent;
 
 use crate::db::models::{account::*,
+                        channel::Channel,
                         integration::*,
                         invitations::*,
                         keys::*,
@@ -61,6 +63,7 @@ use crate::db::models::{account::*,
                                   ListPackages,
                                   Package,
                                   PackageVisibility},
+                        projects::Project,
                         secrets::*};
 
 use crate::server::{authorize::{authorize_session,
@@ -269,13 +272,105 @@ fn delete_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) ->
         Err(err) => return err.into(),
     };
 
-    match Origin::delete(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(_) => HttpResponse::NoContent().into(),
+    // Prior to passing the deletion request to the backend, we validate
+    // that the user has already cleaned up the most critical origin data.
+    match origin_delete_preflight(&origin, &*conn) {
+        Ok(_) => {
+            match Origin::delete(&origin, &*conn).map_err(Error::DieselError) {
+                Ok(_) => HttpResponse::NoContent().into(),
+                Err(err) => {
+                    debug!("Origin {} deletion failed! err = {}", origin, err);
+                    // We do not want to expose any database details from diesel
+                    // thus we simply return a 409 with an empty body.
+                    HttpResponse::new(StatusCode::CONFLICT)
+                }
+            }
+        }
         Err(err) => {
-            debug!("Origin {} is not deletable, err = {}", origin, err);
-            HttpResponse::new(StatusCode::CONFLICT)
+            debug!("Origin preflight determined that {} is not deletable, err = {}!",
+                   origin, err);
+            // Here we want to enrich the http response with a sanitized error
+            // by returning a 409 with a helpful message in the body.
+            HttpResponse::with_body(StatusCode::CONFLICT, Body::from_message(format!("{}", err)))
         }
     }
+}
+
+fn origin_delete_preflight(origin: &str, conn: &PgConnection) -> Result<()> {
+    match Project::count_origin_projects(&origin, &*conn) {
+        Ok(0) => {}
+        Ok(count) => {
+            let err = format!("There are {} projects remaining in origin {}. Must be zero.",
+                              count, origin);
+            return Err(Error::BuilderCore(OriginDeleteError(err)));
+        }
+        Err(e) => return Err(Error::DieselError(e)),
+    };
+
+    match OriginMember::count_origin_members(&origin, &*conn) {
+        // allow 1 - the origin owner
+        Ok(1) => {}
+        Ok(count) => {
+            let err = format!("There are {} members remaining in origin {}. Only one is allowed.",
+                              count, origin);
+            return Err(Error::BuilderCore(OriginDeleteError(err)));
+        }
+        Err(e) => {
+            return Err(Error::DieselError(e));
+        }
+    };
+
+    match OriginSecret::count_origin_secrets(&origin, &*conn) {
+        Ok(0) => {}
+        Ok(count) => {
+            let err = format!("There are {} secrets remaining in origin {}. Must be zero.",
+                              count, origin);
+            return Err(Error::BuilderCore(OriginDeleteError(err)));
+        }
+        Err(e) => {
+            return Err(Error::DieselError(e));
+        }
+    };
+
+    match OriginIntegration::count_origin_integrations(&origin, &*conn) {
+        Ok(0) => {}
+        Ok(count) => {
+            let err = format!("There are {} integrations remaining in origin {}. Must be zero.",
+                              count, origin);
+            return Err(Error::BuilderCore(OriginDeleteError(err)));
+        }
+        Err(e) => {
+            return Err(Error::DieselError(e));
+        }
+    };
+
+    match Channel::count_origin_channels(&origin, &*conn) {
+        // allow 2 - [unstable, stable] channels cannot be deleted
+        Ok(2) => {}
+        Ok(count) => {
+            let err = format!("There are {} channels remaining in origin {}. Only two are \
+                               allowed [unstable, stable].",
+                              count, origin);
+            return Err(Error::BuilderCore(OriginDeleteError(err)));
+        }
+        Err(e) => {
+            return Err(Error::DieselError(e));
+        }
+    };
+
+    match Package::count_origin_packages(&origin, &*conn) {
+        Ok(0) => {}
+        Ok(count) => {
+            let err = format!("There are {} packages remaining in origin {}. Must be zero.",
+                              count, origin);
+            return Err(Error::BuilderCore(OriginDeleteError(err)));
+        }
+        Err(e) => {
+            return Err(Error::DieselError(e));
+        }
+    };
+
+    Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]
