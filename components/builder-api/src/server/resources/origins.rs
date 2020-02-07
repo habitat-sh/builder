@@ -296,7 +296,6 @@ fn delete_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) ->
     }
 }
 
-#[allow(clippy::needless_pass_by_value)]
 fn origin_delete_preflight(origin: &str, conn: &PgConnection) -> Result<()> {
     match Project::count_origin_projects(&origin, &*conn) {
         Ok(0) => {}
