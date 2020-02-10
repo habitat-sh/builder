@@ -24,13 +24,14 @@ export class GitHubApiClient {
       Accept: [
         'application/vnd.github.v3+json',
         'application/vnd.github.machine-man-preview+json'
-      ]
+      ],
+      Authorization: 'token ' + token
     };
   }
 
   public getUserInstallations(username: string) {
     return new Promise((resolve, reject) => {
-      fetch(`${config['github_api_url']}/user/installations?access_token=${this.token}`, {
+      fetch(`${config['github_api_url']}/user/installations`, {
         method: 'GET',
         headers: this.headers
       })
@@ -110,7 +111,7 @@ export class GitHubApiClient {
 
     private getUserInstallationRepositories(installationId: string, page: number) {
       return new Promise((resolve, reject) => {
-        fetch(`${config['github_api_url']}/user/installations/${installationId}/repositories?access_token=${this.token}&page=${page}&per_page=100`, {
+        fetch(`${config['github_api_url']}/user/installations/${installationId}/repositories?page=${page}&per_page=100`, {
           method: 'GET',
           headers: this.headers
         })
