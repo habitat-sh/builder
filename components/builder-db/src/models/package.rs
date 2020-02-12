@@ -472,9 +472,9 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = PreciseTime::now();
         let result = origin_packages_with_version_array::table
-            .distinct_on((origin_packages_with_version_array::origin, origin_packages_with_version_array::name))
+            .distinct_on((origin_packages_with_version_array::origin, origin_packages_with_version_array::name, origin_packages_with_version_array::target))
             .order(sql::<PackageWithVersionArray>(
-                "origin, name, string_to_array(version_array[1],'.')::\
+                "origin, name, target, string_to_array(version_array[1],'.')::\
                 numeric[] desc, ident_array[4] desc",
             ))
             .get_results(conn);
