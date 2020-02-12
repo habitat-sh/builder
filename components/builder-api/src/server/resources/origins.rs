@@ -820,7 +820,9 @@ fn list_unique_packages(req: HttpRequest,
                              limit:      per_page as i64, };
 
     match Package::distinct_for_origin(lpr, &*conn) {
-        Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
+        Ok((packages, count)) => {
+            postprocess_package_list(&req, packages.as_slice(), count, &pagination)
+        }
         Err(err) => {
             debug!("{}", err);
             Error::DieselError(err).into()

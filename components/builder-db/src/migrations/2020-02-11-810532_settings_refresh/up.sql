@@ -1,0 +1,1 @@
+INSERT into origin_package_settings (origin, name, visibility, owner_id) SELECT DISTINCT ON (origin, name, visibility, owner_id) origin, name ,visibility, owner_id FROM origin_packages ON CONFLICT DO NOTHING;

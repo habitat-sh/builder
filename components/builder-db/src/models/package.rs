@@ -41,7 +41,8 @@ use crate::{hab_core::{self,
             models::{channel::{Channel,
                                OriginChannelPackage,
                                OriginChannelPromote},
-                     pagination::*}};
+                     pagination::*,
+                     settings::OriginPackageSettings}};
 
 use crate::schema::{channel::{origin_channel_packages,
                               origin_channels},
@@ -50,7 +51,8 @@ use crate::schema::{channel::{origin_channel_packages,
                     package::{origin_package_versions,
                               origin_packages,
                               origin_packages_with_version_array,
-                              packages_with_channel_platform}};
+                              packages_with_channel_platform},
+                    settings::origin_package_settings};
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
@@ -584,15 +586,13 @@ impl Package {
 
     pub fn distinct_for_origin(pl: ListPackages,
                                conn: &PgConnection)
-                               -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+                               -> QueryResult<(Vec<OriginPackageSettings>, i64)> {
         Counter::DBCall.increment();
-        origin_packages::table.inner_join(origins::table)
-                              .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
-                              .filter(origins::name.eq(&pl.ident.origin))
-                              .filter(origin_packages::visibility.eq(any(pl.visibility)))
-                              .filter(sql("TRUE GROUP BY origin_packages.name, origins.name"))
-                              .order(origins::name.asc())
-                              .order(origin_packages::name.asc())
+        origin_package_settings::table.select(origin_package_settings::all_columns)
+                              .filter(origin_package_settings::origin.eq(&pl.ident.origin))
+                              .filter(origin_package_settings::visibility.eq(any(pl.visibility)))
+                              .order(origin_package_settings::origin.asc())
+                              .order(origin_package_settings::name.asc())
                               .paginate(pl.page)
                               .per_page(pl.limit)
                               .load_and_count_records(conn)

@@ -149,6 +149,19 @@ describe('Working with packages', function () {
         });
     });
 
+    it('uploads does not allow duplicate upload', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file2.length)
+        .query({ checksum: 'd8943c86636eb0a24cb63a80b3d9375ce342f2fa192375f3a0b83eab44de21eb' })
+        .send(file2)
+        .expect(409)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty
+          done(err);
+        });
+    });
+
     it('uploads a third package', function (done) {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.4/${release3}`)
         .set('Authorization', global.boboBearer)
