@@ -20,6 +20,8 @@ use crate::{bldr_core::metrics::CounterMetric,
          QueryableByName,
          Queryable,
          Clone,
+         AsExpression,
+         PartialEq,
          Identifiable)]
 #[table_name = "origin_package_settings"]
 pub struct OriginPackageSettings {

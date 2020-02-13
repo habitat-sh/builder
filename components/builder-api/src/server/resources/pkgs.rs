@@ -28,6 +28,7 @@ use crate::{bldr_core::{error::Error::RpcError,
                                    PackageVisibility,
                                    SearchPackages},
                          settings::{GetOriginPackageSettings,
+                                    NewOriginPackageSettings,
                                     OriginPackageSettings}},
             hab_core::{package::{FromArchive,
                                  Identifiable,
@@ -74,6 +75,7 @@ use futures::{future::ok as fut_ok,
               Stream};
 use percent_encoding;
 use protobuf;
+use serde::ser::Serialize;
 use serde_json;
 use std::{fs::{self,
                remove_file,
@@ -855,11 +857,11 @@ fn package_privacy_toggle(req: HttpRequest,
 // Public helpers
 //
 
-pub fn postprocess_package_list(_req: &HttpRequest,
-                                packages: &[BuilderPackageIdent],
-                                count: i64,
-                                pagination: &Query<Pagination>)
-                                -> HttpResponse {
+pub fn postprocess_package_list<T: Serialize>(_req: &HttpRequest,
+                                              packages: &[T],
+                                              count: i64,
+                                              pagination: &Query<Pagination>)
+                                              -> HttpResponse {
     let (start, _) = helpers::extract_pagination(pagination);
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
@@ -1154,7 +1156,17 @@ fn do_upload_package_finish(req: &HttpRequest,
             Ok(pkg) => pkg.visibility,
             Err(_) => {
                 match Origin::get(&ident.origin, &*conn) {
-                    Ok(o) => o.default_package_visibility,
+                    Ok(o) => {
+                        match OriginPackageSettings::create(&NewOriginPackageSettings {
+                            origin: &ident.origin,
+                            name: &ident.name,
+                            visibility: &o.default_package_visibility,
+                            owner_id: package.owner_id,
+                        }, &*conn) {
+                            Ok(pkg_settings) => pkg_settings.visibility,
+                            Err(err) => return Error::DieselError(err).into(),
+                        }
+                    },
                     Err(err) => return Error::DieselError(err).into(),
                 }
             }
