@@ -1,6 +1,0 @@
-steps:
-  - label: "Build the worker"
-    command: "echo 'Building, building, building...'"
-    expeditor:
-      executor:
-        docker:
