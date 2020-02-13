@@ -16,7 +16,8 @@ use crate::{models::{channel::{Channel,
                      package::PackageVisibility},
             protocol::originsrv};
 
-use crate::schema::{channel::origin_channels,
+use crate::schema::{audit::audit_origin,
+                    channel::origin_channels,
                     integration::origin_integrations,
                     invitation::origin_invitations,
                     key::{origin_private_encryption_keys,
@@ -87,6 +88,49 @@ pub struct NewOrigin<'a> {
     pub default_package_visibility: &'a PackageVisibility,
 }
 
+#[derive(Clone, Copy, DbEnum, Debug, Serialize, Deserialize)]
+pub enum OriginOperation {
+    OriginCreate,
+    OriginDelete,
+    OwnerTransfer,
+}
+
+#[derive(Debug, Serialize, Deserialize, Insertable)]
+#[table_name = "audit_origin"]
+struct OriginAudit<'a> {
+    operation:      OriginOperation,
+    origin:         &'a str,
+    requester_id:   i64,
+    requester_name: &'a str,
+    target_object:  &'a str,
+}
+
+impl<'a> OriginAudit<'a> {
+    fn audit(origin_audit_record: &OriginAudit, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::insert_into(audit_origin::table).values(origin_audit_record)
+                                                .execute(conn)
+    }
+}
+
+pub fn origin_audit(origin: &str,
+                    op: OriginOperation,
+                    target: &str,
+                    id: i64,
+                    name: &str,
+                    conn: &PgConnection) {
+    if let Err(err) = OriginAudit::audit(&OriginAudit { operation: op,
+                                                        origin,
+                                                        target_object: target,
+                                                        requester_id: id,
+                                                        requester_name: name },
+                                         conn)
+    {
+        debug!("Failed to save origin [{}] {:?} operation to audit log: {}",
+               origin, op, err);
+    }
+}
+
 impl Origin {
     pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
         Counter::DBCall.increment();
@@ -134,9 +178,6 @@ impl Origin {
         // via builder_api::server::resources::origins::origin_delete_preflight
         // The transaction entries below explicitly enumerate deletion of all table data associated
         // with the origin to ensure no vestigial data remains.
-        //
-        // TODO: Add origin deletion request into an origin audit table.
-        // https://github.com/habitat-sh/builder/issues/1300
 
         Counter::DBCall.increment();
         conn.transaction::<_, Error, _>(|| {
