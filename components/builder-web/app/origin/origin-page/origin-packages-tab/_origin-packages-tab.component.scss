@@ -45,15 +45,6 @@ td {
       font-weight: 600;
       word-wrap: break-word;
     }
-  }
-  
-  &.platform {
-    width: 65%;
-
-    hab-platform-icon {
-      display: inline-block;
-      position: relative;
-    }
 
     .chevron-right {
       display: none;
@@ -62,14 +53,14 @@ td {
       right: 6px;
       top: calc(50% - 11px); // hab icon is 22px tall.  this centers the icon vertically
 
-    .mat-icon {
-      color: #5C6670;
-      height: 22px;
-      width: 22px;
+      .mat-icon {
+        color: #5C6670;
+        height: 22px;
+        width: 22px;
       }
     }
-
   }
+  
 
   &.opt-chevron-right {
     width: 5%

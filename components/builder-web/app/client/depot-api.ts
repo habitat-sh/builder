@@ -83,10 +83,7 @@ export function demotePackage(origin: string, name: string, version: string, rel
 }
 
 export function getUnique(origin: string, nextRange: number = 0, token: string = '') {
-  console.log('depot-api.ts');
-  // testing out different endpoint but...not correct?
-  // const url = `${urlPrefix}/depot/${origin}/pkgs?range=${nextRange}`;
-  const url = `${urlPrefix}/depot/pkgs/${origin}?range=${nextRange}`;
+  const url = `${urlPrefix}/depot/${origin}/pkgs?range=${nextRange}`;
 
   return new Promise((resolve, reject) => {
     fetch(url, opts())
@@ -243,7 +240,7 @@ export function getPackageVersions(origin: string, pkg: string) {
 
 // This endpoint brings back data for platform
 export function getTestApi(origin: string) {
-  const url = `${urlPrefix}/depot/pkgs/${origin}`;
+  const url = `${urlPrefix}/depot/${origin}/pkgs`;
 
   return new Promise((resolve, reject) => {
     fetch(url, opts())

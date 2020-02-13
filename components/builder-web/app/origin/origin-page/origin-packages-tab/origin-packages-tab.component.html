@@ -18,76 +18,19 @@
         <thead>
           <tr>
             <th>Package Name</th>
-            <th>Platforms</th>
           </tr>
         </thead>
         <tbody>
-
-          <!-- <tr *ngFor="let proj of projects">
-            <td class="package-name">
-              <a [routerLink]="['/pkgs', origin, proj, 'latest']">
-                <span class="column name">{{ proj }}</span>
-              </a>
-            </td>
-
-            <td class="platform">
-              <a [routerLink]="['/pkgs', origin, proj, 'latest']"> -->
-                <!-- this will be used for package icons -->
-                <!-- <hab-platform-icon *ngFor="let platform of proj.platforms" [platform]="platform"></hab-platform-icon>
-                <hab-icon symbol="chevron-right" class="chevron-right"></hab-icon>
-              </a>
-            </td>
-          </tr> -->
-
-
           <tr *ngFor="let pkg of packages">
             <td class="package-name">
               <a [routerLink]="['/pkgs', pkg.origin, pkg.name, 'latest']">
                 <span class="column name">{{ pkg.name }}</span>
-              </a>
-            </td>
-          
-            <td class="platform">
-              <a [routerLink]="['/pkgs', pkg.origin, pkg.name, 'latest']">
-                <!-- this will be used for package icons -->
-                <hab-platform-icon *ngFor="let platform of pkg.platforms" [platform]="platform"></hab-platform-icon>
                 <hab-icon symbol="chevron-right" class="chevron-right"></hab-icon>
               </a>
             </td>
           </tr>
-
         </tbody>
       </table>
-
-      <!-- end new table  -->
-
-
-      <!-- <ul class="nav-list" *ngIf="projectsExist">
-        <li class="heading">
-          <h4 class="testing">Connected Plans</h4>
-        </li>
-        <li class="item" *ngFor="let proj of projects">
-          <a [routerLink]="['/pkgs', origin, proj, 'latest']">
-            <span class="column name">{{ proj }}</span>
-          </a>
-          <hab-icon symbol="chevron-right"></hab-icon>
-        </li>
-      </ul>
-      <ul class="nav-list">
-        <li class="heading">
-          <h4>Packages</h4>
-        </li>
-        <li class="none" *ngIf="noPackages">
-          <span>No packages found.</span>
-        </li>
-        <li class="item" *ngFor="let pkg of packages">
-          <a [routerLink]="['/pkgs', pkg.origin, pkg.name, 'latest']">
-            <span class="column name">{{ pkg.name }}</span>
-          </a>
-          <hab-icon symbol="chevron-right"></hab-icon>
-        </li>
-      </ul> -->
-
       
       <div *ngIf="packages.size < totalCount">
         Showing {{packages.size}} of {{totalCount}} packages.
