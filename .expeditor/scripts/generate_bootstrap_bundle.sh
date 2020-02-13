@@ -85,8 +85,7 @@ mkdir "${sandbox_dir}"
 
 hab pkg download \
     --download-directory="${sandbox_dir}" \
-    --file=".expeditor/builder_seed.txt" \
-    --target=x86_64-linux
+    --file=".expeditor/builder_seed.toml" \
 
 ########################################################################
 

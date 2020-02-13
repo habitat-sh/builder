@@ -1,0 +1,44 @@
+format_version = 1
+file_descriptor = "Packages needed to run an instance of Builder"
+
+[[x86_64-linux]]
+channel = "stable"
+packages = [
+  # Supervisor and prerequisites
+  "core/hab-launcher",
+  "core/hab",
+  "core/hab-sup",
+
+  # Builder services
+  "habitat/builder-api",
+  "habitat/builder-api-proxy",
+  "habitat/builder-jobsrv",
+  "habitat/builder-worker",
+  "habitat/builder-memcached",
+
+  # Utilities
+  "core/sumologic",
+  "core/nmap"
+]
+
+[[x86_64-linux-kernel2]]
+channel = "stable"
+packages = [
+  # Supervisor and prerequisites
+  "core/hab-launcher",
+  "core/hab",
+  "core/hab-sup",
+
+  "habitat/builder-worker"
+]
+
+[[x86_64-windows]]
+channel = "stable"
+packages = [
+  # Supervisor and prerequisites
+  "core/windows-service",
+  "core/hab",
+  "core/hab-sup",
+
+  "habitat/builder-worker"
+]
