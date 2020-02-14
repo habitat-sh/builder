@@ -28,3 +28,17 @@ table! {
         origin -> Text,
     }
 }
+
+table! {
+    use crate::models::origin::OriginOperationMapping;
+    use diesel::sql_types::{BigInt, Text, Nullable, Timestamptz};
+    audit_origin (id) {
+        id -> BigInt,
+        operation -> OriginOperationMapping,
+        origin -> Text,
+        requester_id -> BigInt,
+        requester_name -> Text,
+        target_object -> Text,
+        created_at -> Nullable<Timestamptz>,
+    }
+}

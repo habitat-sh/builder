@@ -213,7 +213,15 @@ fn create_origin(req: HttpRequest,
                                  default_package_visibility: &dpv, };
 
     match Origin::create(&new_origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => HttpResponse::Created().json(origin),
+        Ok(origin) => {
+            origin_audit(&body.0.name,
+                         OriginOperation::OriginCreate,
+                         &body.0.name,
+                         session.get_id() as i64,
+                         session.get_name(),
+                         &*conn);
+            HttpResponse::Created().json(origin)
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
@@ -277,7 +285,15 @@ fn delete_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) ->
     match origin_delete_preflight(&origin, &*conn) {
         Ok(_) => {
             match Origin::delete(&origin, &*conn).map_err(Error::DieselError) {
-                Ok(_) => HttpResponse::NoContent().into(),
+                Ok(_) => {
+                    origin_audit(&origin,
+                                 OriginOperation::OriginDelete,
+                                 &origin,
+                                 session.get_id() as i64,
+                                 session.get_name(),
+                                 &*conn);
+                    HttpResponse::NoContent().into()
+                }
                 Err(err) => {
                     debug!("Origin {} deletion failed! err = {}", origin, err);
                     // We do not want to expose any database details from diesel
@@ -1192,7 +1208,15 @@ fn transfer_origin_ownership(req: HttpRequest,
     }
 
     match Origin::transfer(&origin, recipient_id, &*conn).map_err(Error::DieselError) {
-        Ok(_) => HttpResponse::NoContent().finish(),
+        Ok(_) => {
+            origin_audit(&origin,
+                         OriginOperation::OwnerTransfer,
+                         &recipient_id.to_string(),
+                         session.get_id() as i64,
+                         session.get_name(),
+                         &*conn);
+            HttpResponse::NoContent().finish()
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
