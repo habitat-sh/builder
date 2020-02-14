@@ -31,12 +31,12 @@ locals {
   windows_worker_user_data_content = templatefile(
     "${path.module}/templates/windows_worker_user_data.tpl",
     {
-      environment      = var.env
-      password         = var.admin_password
-      flags            = "--no-color --auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
-      bldr_url         = var.bldr_url
-      channel          = var.release_channel
-      enabled_features = var.enabled_features
+      environment            = var.env
+      password               = var.admin_password
+      flags                  = "--no-color --auto-update --peer ${join(" ", var.peers)} --channel ${var.sup_release_channel} --listen-gossip 0.0.0.0:${var.gossip_listen_port} --listen-http 0.0.0.0:${var.http_listen_port}"
+      bldr_url               = var.bldr_url
+      worker_release_channel = var.worker_release_channel
+      enabled_features       = var.enabled_features
     })
 }
 
@@ -407,7 +407,7 @@ resource "aws_instance" "worker" {
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
       "sleep 10",
-      "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.worker_release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
@@ -505,7 +505,7 @@ resource "aws_instance" "linux2-worker" {
       "sudo mv /tmp/sup_log.yml /hab/sup/default/config/log.yml",
       "sudo service hab-sup start",
       "sleep 10",
-      "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+      "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.worker_release_channel}",
     ]
   }
 

@@ -62,5 +62,5 @@
   # Load builder-worker
   mkdir c:\hab\svc\builder-worker
   Set-Content -Path "c:\hab\svc\builder-worker\user.toml" -Value 'target = "x86_64-windows"'
-  hab svc load habitat/builder-worker --group ${environment} --bind jobsrv:builder-jobsrv.${environment} --bind depot:builder-api-proxy.${environment} --strategy at-once --url ${bldr_url} --channel ${channel}
+  hab svc load habitat/builder-worker --group ${environment} --bind jobsrv:builder-jobsrv.${environment} --bind depot:builder-api-proxy.${environment} --strategy at-once --url ${bldr_url} --channel ${worker_release_channel}
 </powershell>

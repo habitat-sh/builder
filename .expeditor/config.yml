@@ -14,11 +14,8 @@ pipelines:
       public: true
   - post_habitat_release:
       description: "Tasks to be performed after a successful Habitat release"
-  - builder_worker:
-      description: "Build and promote habitat/builder-worker artifacts"
 
 subscriptions:
-
   # In English: do this when Habitat finishes its promotion-to-stable
   # steps (i.e., when new `hab` and Supervisor artifacts are available
   # in the stable channel)
