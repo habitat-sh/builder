@@ -10,23 +10,17 @@
     </section>
 
     <section *ngIf="!selectingPlan">
-      <table>
-        <thead>
-          <tr>
-            <th>Package Name</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let pkg of packages">
-            <td class="package-name">
-              <a [routerLink]="['/pkgs', pkg.origin, pkg.name, 'latest']">
-                <span class="column name">{{ pkg.name }}</span>
-                <hab-icon symbol="chevron-right" class="chevron-right"></hab-icon>
-              </a>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ol class="nav-list">
+        <li class="heading">
+          <h4>Package Name</h4>
+        </li>
+        <li class="item" *ngFor="let pkg of packages">
+          <a [routerLink]="['/pkgs', pkg.origin, pkg.name, 'latest']">
+            <span class="column name">{{ pkg.name }}</span>
+            <hab-icon symbol="chevron-right" class="chevron-right"></hab-icon>
+          </a>
+        </li>
+      </ol>
       
       <div *ngIf="packages.size < totalCount">
         Showing {{packages.size}} of {{totalCount}} packages.
