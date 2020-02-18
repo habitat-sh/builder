@@ -104,6 +104,10 @@ export class OriginPackagesTabComponent implements OnInit, OnDestroy {
     return (!this.packagesUi.exists || this.packages.size === 0) && !this.packagesUi.loading;
   }
 
+  get docsUrl() {
+    return config['docs_url'];
+  }
+
   fetchMorePackages() {
     this.store.dispatch(
       getUniquePackages(this.origin, this.store.getState().packages.nextRange, this.token)
