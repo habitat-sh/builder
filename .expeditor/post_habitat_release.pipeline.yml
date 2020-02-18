@@ -15,6 +15,20 @@ expeditor:
         PIPELINE_HAB_BLDR_URL: "https://bldr.habitat.sh"
 
 steps:
+  - label: ":rust: Cargo update"
+    command:
+      - .expeditor/scripts/post_habitat_release/cargo_update.sh
+    expeditor:
+      account:
+        - github
+      secrets:
+        GITHUB_TOKEN:
+          account: github
+          field: token
+      executor:
+        docker:
+          environment:
+    soft_fail: true
 
   # We build new releases of habitat/builder-worker now since they
   # pull in the new Habitat release we just created (specifically, the
@@ -27,6 +41,7 @@ steps:
   # allowing our production workers to then update.
 
   - label: "[:linux: build habitat/builder-worker]"
+    skip: true
     command:
       - .expeditor/scripts/post_habitat_release/build_worker.sh
     expeditor:
@@ -38,6 +53,7 @@ steps:
             - BUILD_PKG_TARGET=x86_64-linux
 
   - label: "[:linux: :two: build habitat/builder-worker]"
+    skip: true
     command:
       - .expeditor/scripts/post_habitat_release/build_worker.sh
     expeditor:
@@ -49,6 +65,7 @@ steps:
             - BUILD_PKG_TARGET=x86_64-linux-kernel2
 
   - label: "[:windows: build habitat/builder-worker]"
+    skip: true
     command:
       - powershell .expeditor/scripts/post_habitat_release/build_worker.ps1
     expeditor:
@@ -63,6 +80,7 @@ steps:
   - wait
 
   - label: "Promote to habitat/builder-worker to acceptance"
+    skip: true
     command:
       - .expeditor/scripts/post_habitat_release/promote_packages_to_channel.sh acceptance
     expeditor:
@@ -81,6 +99,7 @@ steps:
       by our Production builders.
 
   - label: "Promote habitat/builder-worker to stable"
+    skip: true
     command:
       - .expeditor/scripts/post_habitat_release/promote_packages_to_channel.sh stable
     expeditor:
@@ -93,6 +112,7 @@ steps:
   # We do this after building and promoting new workers to ensure the
   # bundle contains those workers.
   - label: ":s3: Create new Bootstrap Bundle"
+    skip: true
     command: ".expeditor/scripts/generate_bootstrap_bundle.sh"
     expeditor:
       executor:
