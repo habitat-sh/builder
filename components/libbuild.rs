@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-const VERSION_ENVVAR: &'static str = "PLAN_VERSION";
+const VERSION_ENVVAR: &str = "PLAN_VERSION";
 
 #[allow(dead_code)]
 mod builder {
