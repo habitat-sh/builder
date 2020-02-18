@@ -161,16 +161,6 @@ export function fetchPackageVersions(origin: string, name: string) {
   };
 }
 
-export function getTest(origin: string) {
-  return dispatch => {
-    depotApi.getTestApi(origin).then(response => {
-      console.log(response);
-    }).catch(error => {
-      console.log('error at getTest');
-    });
-  };
-}
-
 export function getUniquePackages(
   origin: string,
   nextRange: number = 0,
