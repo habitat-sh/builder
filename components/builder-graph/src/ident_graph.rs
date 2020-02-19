@@ -225,11 +225,21 @@ where
         }
     }
 
-    // Compute weights as a level diagram; each package depends on weights only lower than it.  This is a variant
-    // of a toplogical ordering, and requires the graph to be free of cycles, so we're only doing it on runtime
-    // edges to start
-    pub fn compute_weights(&self) -> HashMap<NodeIndex, u32> {
-        let mut weights: HashMap<NodeIndex, u32> = HashMap::new();
+    // Compute order as a level diagram; each package depends on weights only lower than it. This is a variant
+    // of a toplogical ordering, and uses the SCC to collapse cycles.
+    // We compute two types of ordering:
+    // * The first uses all edges but sets all members of an SCC as equal, and hence avoids issues with cycles
+    // * The second uses only runtime edges, which by definition
+    // avoids cycles.  A more nuanced (and stricter) choice would be
+    // to include build time edges that are not back edges, but in
+    // irreducible graphs (which these are) the choice of back vs
+    // cross edges depends on the exact DFS order, and so is somewhat
+    // arbitrary.
+    // Note, this is a candidate to be extracted and generalized, as it only needs the graph to work.
+    pub fn compute_levels(&self) -> HashMap<NodeIndex, (u32, u32)> {
+        let mut levels: HashMap<NodeIndex, (u32, u32)> = HashMap::new();
+        // Compute SCC map. We use this to determine what component we're in.
+        let scc_map = self.scc_map();
 
         // Right now the worklist is a simple FIFO queue with no deduplication. Could use a BTreeSet, but that does
         // potentially screwy things with the ordering.
@@ -238,33 +248,51 @@ where
         // Phase one; assign 'seed' weights of zero, and add to the worklist.
 
         for node_index in self.graph.node_indices() {
-            weights.insert(node_index, 0);
+            levels.insert(node_index, (0, 0));
             // potential minor optimization: nodes w/o dependencies should not be added to worklist.
             worklist.push_back(node_index)
         }
 
         // Phase two; iterate over worklist updating node heights
-        while !worklist.is_empty() {
-            let node_index = worklist.pop_front().unwrap();
+        let mut visits = 0;
+        let mut max_scc_level = 0;
+        let mut max_rt_level = 0;
 
-            let mut max_dep_weight = 0;
+        while !worklist.is_empty() {
+            visits += 1;
+
+            let node_index = worklist.pop_front().unwrap();
+            let mut new_scc_level = 0;
+            let mut new_rt_level = 0;
 
             for succ_index in self
                 .graph
                 .neighbors_directed(node_index, Direction::Outgoing)
             {
                 let edge = self.graph.find_edge(node_index, succ_index).unwrap();
+
+                // If we are in the same SCC, we don't increment the index
+                let scc_increment = if scc_map[&node_index] == scc_map[&succ_index] {
+                    0
+                } else {
+                    1
+                };
+                new_scc_level = cmp::max(new_scc_level, levels[&succ_index].0 + scc_increment);
+
                 if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
-                    max_dep_weight = cmp::max(max_dep_weight, weights[&succ_index]);
+                    new_rt_level = cmp::max(new_rt_level, levels[&succ_index].1 + 1);
                 }
             }
 
-            let new_weight = max_dep_weight + 1;
+            max_scc_level = cmp::max(new_scc_level, max_scc_level);
+            max_rt_level = cmp::max(new_rt_level, max_rt_level);
 
-            if new_weight > weights[&node_index] {
-                // weight updated
-                weights.insert(node_index, new_weight);
+            if (new_scc_level > levels[&node_index].0) || (new_rt_level > levels[&node_index].1) {
+                // update myself
+                levels.insert(node_index, (new_scc_level, new_rt_level));
+
                 // Put everybody who depends on me back on the worklist (this is where dedup would be nice)
+                // Also, we're a bit too aggressive; technically rt_level updates only propagate to runtime edges.
                 for pred_index in self
                     .graph
                     .neighbors_directed(node_index, Direction::Incoming)
@@ -276,7 +304,47 @@ where
                 }
             }
         }
-        weights
+        println!(
+            "Levels computed, {} nodes {} visits, max scc level {}, max rt level {}",
+            self.graph.node_count(),
+            visits,
+            max_scc_level,
+            max_rt_level
+        );
+
+        levels
+    }
+
+    pub fn dump_build_levels(&self, filename: &str, _origin_filter: Option<&str>) {
+        let path = Path::new(filename);
+        let mut file = File::create(&path).unwrap();
+
+        let levels = self.compute_levels();
+        for (node, (scc_level, rt_level)) in levels {
+            writeln!(
+                &mut file,
+                "{}\t{}\t{}",
+                scc_level,
+                rt_level,
+                self.ident_for_node(node)
+            )
+            .unwrap();
+        }
+    }
+
+    // this could be extracted
+    pub fn scc_map(&self) -> HashMap<NodeIndex, u32> {
+        let mut scc_index: HashMap<NodeIndex, u32> = HashMap::new();
+        let scc = tarjan_scc(&self.graph);
+        let mut cluster_number = 0;
+
+        for cluster in scc {
+            for node in cluster {
+                scc_index.insert(node, cluster_number);
+            }
+            cluster_number += 1;
+        }
+        scc_index
     }
 
     // Produce strongly coupled cluster list.

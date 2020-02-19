@@ -548,6 +548,10 @@ impl PackageGraphForTarget {
         self.latest_graph.emit_graph(file, origin)
     }
 
+    pub fn dump_build_levels(&self, file: &str, origin: Option<&str>) {
+        self.latest_graph.dump_build_levels(file, origin)
+    }
+
     pub fn dump_scc(&self, file: &str, origin: Option<&str>) {
         self.latest_graph.dump_scc(file, origin)
     }
@@ -662,6 +666,11 @@ impl PackageGraph {
         self.graphs[&self.current_target]
             .borrow()
             .dump_scc(file, origin)
+    }
+    pub fn dump_build_levels(&self, file: &str, origin: Option<&str>) {
+        self.graphs[&self.current_target]
+            .borrow()
+            .dump_build_levels(file, origin)
     }
 }
 

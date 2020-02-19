@@ -189,6 +189,14 @@ fn main() {
                         do_scc(&graph, v[1], origin)
                     }
                 }
+                "build_levels" => {
+                    if v.len() < 3 {
+                        println!("Missing search term\n")
+                    } else {
+                        let origin = if v.len() > 2 { Some(v[2]) } else { None };
+                        do_build_levels(&graph, v[1], origin)
+                    }
+                }
                 "resolve" => {
                     if v.len() < 2 {
                         println!("Missing package name\n")
@@ -247,6 +255,7 @@ fn do_help() {
 
     println!("  stats                   Print graph statistics");
     println!("  scc                     Write SCC to file");
+    println!("  build_levels            Write Build Levels to file");
     println!("  latest_dot              Write latest graph to dot file");
 
     println!("  top     [<count>]       Print nodes with the most reverse dependencies");
@@ -346,6 +355,18 @@ fn do_scc(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
     let end_time = PreciseTime::now();
     println!(
         "Wrote SCC information to file {} filtered by {:?} TBI in {} sec",
+        filename,
+        origin,
+        start_time.to(end_time)
+    );
+}
+
+fn do_build_levels(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
+    let start_time = PreciseTime::now();
+    graph.dump_build_levels(filename, origin);
+    let end_time = PreciseTime::now();
+    println!(
+        "Wrote Build levels information to file {} filtered by {:?} TBI in {} sec",
         filename,
         origin,
         start_time.to(end_time)
