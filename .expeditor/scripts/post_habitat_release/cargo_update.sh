@@ -51,7 +51,6 @@ cargo +"$toolchain" update
 echo "--- :rust: Cargo Check"
 cargo +"$toolchain" check --all --tests && update_status=$? || update_status=$?
 
-exit 1 
 echo "--- :git: Publishing updated Cargo.lock"
 git add Cargo.lock
 
