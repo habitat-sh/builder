@@ -2,11 +2,10 @@
 
 set -euo pipefail 
 
-echo "${GITHUB_TOKEN:-NO_TOKEN}"
 # shellcheck source=.expeditor/scripts/shared.sh 
 source .expeditor/scripts/post_habitat_release/shared.sh 
 
-branch="ci/cargo-update-$(date +"%Y%m%d%H%M%S")"
+branch="expeditor/cargo-update-$(date +"%Y%m%d%H%M%S")"
 git checkout -b "$branch"
 
 toolchain="$(get_toolchain)"

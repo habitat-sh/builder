@@ -24,13 +24,12 @@ steps:
         - github/habitat-sh
       secrets:
         GITHUB_TOKEN:
-          account: github
+          account: github/habitat-sh
           field: token
       executor:
         docker:
           environment:
             - GITHUB_USER
-            - GITHUB_TOKEN
     soft_fail: true
 
   # We build new releases of habitat/builder-worker now since they
