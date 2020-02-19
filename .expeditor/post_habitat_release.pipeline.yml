@@ -13,6 +13,7 @@ expeditor:
       env:
         HAB_ORIGIN: "habitat"
         PIPELINE_HAB_BLDR_URL: "https://bldr.habitat.sh"
+        GITHUB_USER: "habitat-sh" # per https://github.com/github/hub/issues/2264#issuecomment-567241335
 
 steps:
   - label: ":rust: Cargo update"
@@ -28,6 +29,7 @@ steps:
       executor:
         docker:
           environment:
+            - GITHUB_USER
     soft_fail: true
 
   # We build new releases of habitat/builder-worker now since they
