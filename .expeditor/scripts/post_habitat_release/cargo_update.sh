@@ -1,7 +1,8 @@
 #!/bin/bash
 
 set -euo pipefail 
- 
+
+echo "${GITHUB_TOKEN:-NO_TOKEN}"
 # shellcheck source=.expeditor/scripts/shared.sh 
 source .expeditor/scripts/post_habitat_release/shared.sh 
 
