@@ -30,6 +30,7 @@ steps:
         docker:
           environment:
             - GITHUB_USER
+            - GITHUB_TOKEN
     soft_fail: true
 
   # We build new releases of habitat/builder-worker now since they
