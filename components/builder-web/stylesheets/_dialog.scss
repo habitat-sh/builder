@@ -20,15 +20,22 @@
     &.body {
       margin: $default-margin 0;
 
-      p:last-child, textarea {
+      textarea {
         margin: 0;
+      }
+
+      p {
+        &:last-child {
+          margin: 0;
+        }
       }
     }
 
     &.controls {
-      margin: $default-margin 0 0 0;
+      margin: $default-margin 0 0;
 
-      button, a {
+      button,
+      a {
         display: inline-block;
         margin-right: $default-margin;
         cursor: pointer;
