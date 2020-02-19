@@ -21,7 +21,7 @@ steps:
       - .expeditor/scripts/post_habitat_release/cargo_update.sh
     expeditor:
       account:
-        - github
+        - github/habitat-sh
       secrets:
         GITHUB_TOKEN:
           account: github
