@@ -14,8 +14,9 @@
 
 import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
-import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { AppStore } from '../../app.store';
 import { packageString, parseDate, targetsFromPkgVersions } from '../../util';
 import { demotePackage, filterPackagesBy } from '../../actions/index';
@@ -26,27 +27,28 @@ import { demotePackage, filterPackagesBy } from '../../actions/index';
 export class PackageVersionsComponent implements OnDestroy {
   origin: string;
   name: string;
-  selected: object = null;
+  selected: string;
 
-  private sub: Subscription;
+  private isDestroyed$: Subject<boolean> = new Subject();
 
   constructor(
-    private route: ActivatedRoute,
     private store: AppStore,
     private router: Router,
     private title: Title
   ) {
-    this.sub = this.route.parent.params.subscribe((params) => {
-      this.origin = params['origin'];
-      this.name = params['name'];
-      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Versions | ${store.getState().app.name}`);
-    });
+    this.store.observe('router.route.params')
+      .pipe(takeUntil(this.isDestroyed$))
+      .subscribe(params => {
+        this.origin = params.origin;
+        this.name = params.name;
+        this.title.setTitle(`Packages › ${this.origin}/${this.name} › Versions | ${store.getState().app.name}`);
+        this.toggle(params.version);
+      });
   }
 
   ngOnDestroy() {
-    if (this.sub) {
-      this.sub.unsubscribe();
-    }
+    this.isDestroyed$.next(true);
+    this.isDestroyed$.complete();
   }
 
   get ident() {
@@ -56,19 +58,26 @@ export class PackageVersionsComponent implements OnDestroy {
     };
   }
 
-  toggle(item) {
-    if (this.selected === item) {
+  toggle(version: string) {
+    if (this.selected === version) {
       this.selected = null;
-    }
-    else {
-      this.selected = item;
+    } else {
+      this.selected = version;
 
       this.fetchPackages({
-        origin: item.origin,
-        name: item.name,
-        version: item.version
+        origin: this.origin,
+        name: this.name,
+        version: version
       });
     }
+  }
+
+  itemLinkFor(version: string): string[] {
+    const linkPath = ['/pkgs', this.origin, this.name];
+    if (this.selected !== version) {
+      linkPath.push(version);
+    }
+    return linkPath;
   }
 
   platformsFor(version) {
@@ -104,7 +113,7 @@ export class PackageVersionsComponent implements OnDestroy {
     return pkg.target || 'linux';
   }
 
-  toggleFor(version) {
+  toggleFor(version: string): string {
     return this.selected === version ? 'chevron-up' : 'chevron-down';
   }
 

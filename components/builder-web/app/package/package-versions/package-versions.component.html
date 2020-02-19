@@ -9,17 +9,17 @@
     <li class="none" *ngIf="versions.length === 0">
       <span>There are no available versions for this package.</span>
     </li>
-    <div *ngFor="let version of versions" (click)="toggle(version)">
-      <li class="item">
+    <div *ngFor="let version of versions">
+      <li class="item" [routerLink]="itemLinkFor(version.version)">
         <span class="column name">{{ version.version }}</span>
         <span class="column">{{ version.release_count }}</span>
         <span class="column">{{ releaseToDate(version.latest) }}</span>
         <span class="column">
           <hab-platform-icon [platform]="platform" *ngFor="let platform of platformsFor(version)"></hab-platform-icon>
         </span>
-        <hab-icon class="toggle" [symbol]="toggleFor(version)"></hab-icon>
+        <hab-icon class="toggle" [symbol]="toggleFor(version.version)"></hab-icon>
       </li>
-      <div *ngIf="selected === version">
+      <div *ngIf="selected === version.version">
         <ul class="nav-list">
           <li class="item" *ngFor="let pkg of packagesFor(version)" (click)="navigateTo(pkg)">
             <a>

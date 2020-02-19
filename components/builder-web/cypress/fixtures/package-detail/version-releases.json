@@ -1,0 +1,19 @@
+{
+  "range_start": 0,
+  "range_end": 0,
+  "total_count": 1,
+  "data": [
+    {
+      "origin": "core",
+      "name": "cacerts",
+      "version": "2018.06.20",
+      "release": "20180927173225",
+      "channels": [
+        "unstable"
+      ],
+      "platforms": [
+        "x86_64-linux-kernel2"
+      ]
+    }
+  ]
+}

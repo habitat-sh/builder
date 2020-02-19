@@ -29,11 +29,13 @@ describe('Package Detail', () => {
     cy.fixture('package-detail/project').as('pkgProject');
     cy.fixture('package-detail/versions-all').as('pkgVersionsAll');
     cy.fixture('package-detail/versions-empty').as('pkgVersionsEmpty');
+    cy.fixture('package-detail/version-releases').as('pkgVersionReleases');
 
     cy.route('GET', '/v1/user/origins', '@userOriginsEmpty');
     cy.route('GET', '/v1/depot/pkgs/core/cacerts/latest?target=x86_64-linux', '@pkgLatestLinux');
     cy.route('GET', '/v1/projects/core/cacerts', '@pkgProject');
     cy.route('GET', '/v1/depot/pkgs/core/cacerts/versions', '@pkgVersionsAll');
+    cy.route('GET', '/v1/depot/pkgs/core/cacerts/2018.06.20?range=0', '@pkgVersionReleases');
 
     cy.setSession();
   });
@@ -170,6 +172,16 @@ describe('Package Detail', () => {
       pkgVersions().should('contain', 'Releases');
       pkgVersions().should('contain', 'Updated');
       pkgVersions().should('contain', 'Platforms');
+    });
+
+    describe('when URL contains a specific version', () => {
+
+      it('displays versions list with that specific version toggled open', () => {
+        cy.visit('/#/pkgs/core/cacerts/2018.06.20');
+
+        const versionRow = pkgVersions().get('.toggle-list > div:nth-child(3)');
+        versionRow.get('.nav-list').should('be.visible');
+      });
     });
   });
 });
