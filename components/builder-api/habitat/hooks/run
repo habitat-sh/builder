@@ -9,6 +9,15 @@ text="builder-api starting"
 # shellcheck disable=2039
 echo "_e{${#title},${#text}}:$title|$text|#api"  >/dev/udp/localhost/8125
 
+# Wait for the .pem file before starting the service, otherwise the service
+# continually panics in a tight loop, blocking the supervisor from writing
+# out the file.
+while ! [ -f "{{pkg.svc_files_path}}/builder-github-app.pem" ];
+do
+    echo "Waiting for builder-github-app.pem"
+    sleep 10
+done
+
 if [ "$(whoami)" = "root" ]; then
   exec chpst \
     -U "{{pkg.svc_user}}:{{pkg.svc_group}}" \

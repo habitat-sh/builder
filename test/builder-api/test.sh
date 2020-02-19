@@ -4,13 +4,21 @@
 
 set -euo pipefail
 
-echo "Executing ${BASH_SOURCE[0]}"
+export preserve_data
+if [[ "${1:-}" == "-p" ]]; then
+  preserve_data=true
+else
+  preserve_data=false
+fi
+
+echo "Executing ${BASH_SOURCE[0]} ${*}"
 
 # make mocha happy by running from the directory it expects
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 clean_test_artifacts() {
-   local sql origins
+  echo "Performing DB cleanup"
+  local sql origins
   origins=( neurosis xmen umbrella deletemeifyoucan )
 
   # clean origins
@@ -53,7 +61,9 @@ clean_test_artifacts() {
 
   psql builder -q -c "$sql"
 }
-clean_test_artifacts # start with a clean slate
+
+# start with a clean slate
+clean_test_artifacts
 
 if ! command -v npm >/dev/null 2>&1; then
   hab pkg install core/node -b
@@ -68,8 +78,8 @@ if ! [ -d node_modules/mocha ]; then
 fi
 
 if npm run mocha; then
-  echo "All tests passed, performing DB cleanup"
-  clean_test_artifacts
+  echo "All tests passed"
+  [[ "${preserve_data}" == false ]] && clean_test_artifacts
 else
   mocha_exit_code=$?
   echo "Tests failed; skipping cleanup to facilitate investigation"

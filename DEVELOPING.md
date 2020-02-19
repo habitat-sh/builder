@@ -94,7 +94,7 @@ However, if you are going to be doing Web UI development, and running the Web UI
 
 1. [Create a new GitHub application](https://github.com/settings/apps/new) in your GitHub account
 1. Give it a meaningful `GitHub App name`, e.g., "Builder Local Dev"
-1. Set the value of `Homepage URL` to `http://${APP_HOSTNAME}`
+1. Set the value of `Homepage URL` to `http://${APP_HOSTNAME}`. A host alias that you define on your workstation pointed to a local IP such as the loopback (127.0.0.1) will suffice for APP_HOSTNAME when testing locally.
 1. Set the value of `User authorization callback URL` to `http://${APP_HOSTNAME}/` (The trailing `/` is *important*)
 1. Set the value of `Webhook URL` to `http://${APP_HOSTNAME}/`
 1. Set Repository metadata, Repository administration, Repository content and Organization members to read only (this is only used for your org so it's safe)
@@ -115,6 +115,7 @@ Once the Builder Repo is configured, Builder services can be started inside the 
 
 * `cd ${BUILDER_SRC_ROOT}`
 * `direnv allow`
+* `export HAB_AUTH_TOKEN=your_live_builder_token`
 * `hab studio enter`
 
 Once inside the Habitat Studio, you should see a welcome message along with a list of useful commands (Use the `dev_docs` command if you need to print out the commands list again).
@@ -123,7 +124,7 @@ You may now start the builder services by issuing the following command: `start-
 
 This will download and run the latest `stable` Builder packages (you will re-build everything locally in a later step).
 
-Run `hab svc status` to ensure all the services are up.
+Run `status` to ensure all the services are up.
 
 You can also run `sl` to output the running Supervisor log as needed.
 
@@ -243,11 +244,25 @@ If you are developing the Builder services and changing the back end code, you w
 
 `build-builder`
 
-This will build and restart all the services.
+This will build and restart all the services with the changes from your local branch.
 
 Once this is done, you can incrementally change code and re-build only the services that are impacted by specifying the service name, e.g.:
 
 `build-builder api`
+
+## Testing
+
+In order to verify the API functionality, run the automated tests:
+
+`test-builder`
+
+If you'd like to preserve the resultant test data in Postgres, run as follows:
+
+`test-builder preserve`
+
+To view the DEBUG level logs from the API tests:
+
+`test-builder suplogs`
 
 ## Advanced Usage
 
@@ -266,6 +281,4 @@ Once statsd-logger is running, it should receive and display any metrics sent by
 
 ### Synchronizing Packages
 
-You may want to take advantage of the package synchronization capability that is now available via the `on-prem-archive.sh` script that is located in the [on-prem builder repo](https://github.com/habitat-sh/on-prem-builder/blob/master/scripts/on-prem-archive.sh)
-
-Prior to using the script, you will need to ensure that a few tools are in your path - including curl, git, and b2sum. For details, please see the instructions in the [README](https://github.com/habitat-sh/on-prem-builder/blob/master/README.md).
+Follow the instructions for [bootstrapping](https://github.com/habitat-sh/on-prem-builder/blob/master/on-prem-docs/bootstrap-core.md) an on-prem Builder instance.
