@@ -14,8 +14,10 @@
 
 import { groupBy } from 'lodash';
 import * as depotApi from '../client/depot-api';
+import { BuilderApiClient } from '../client/builder-api';
 import { addNotification, SUCCESS, DANGER } from './notifications';
 
+export const SET_PACKAGE_CREATING_FLAG = 'SET_PACKAGE_CREATING_FLAG';
 export const CLEAR_CURRENT_PACKAGE_CHANNELS = 'CLEAR_CURRENT_PACKAGE_CHANNELS';
 export const CLEAR_PACKAGES = 'CLEAR_PACKAGES';
 export const CLEAR_LATEST_IN_CHANNEL = 'CLEAR_LATEST_IN_CHANNEL';
@@ -71,6 +73,39 @@ export function fetchDashboardRecent(origin: string) {
 export function clearPackageVersions() {
   return {
     type: CLEAR_PACKAGE_VERSIONS
+  };
+}
+
+function setPackageCreatingFlag(payload) {
+  return {
+    type: SET_PACKAGE_CREATING_FLAG,
+    payload,
+  };
+}
+
+export function createEmptyPackage(body: object, token: string, callback: Function = (newPackage) => { }) {
+  return dispatch => {
+    dispatch(setPackageCreatingFlag(true));
+
+    new BuilderApiClient(token).createEmptyPackage(body).then((newPackage: any) => {
+      dispatch(setPackageCreatingFlag(false));
+
+      dispatch(addNotification({
+        title: 'Package created',
+        body: `${newPackage.name} successfully created`,
+        type: SUCCESS,
+      }));
+
+      callback(newPackage);
+
+    }).catch(error => {
+      dispatch(setPackageCreatingFlag(false));
+      dispatch(addNotification({
+        title: 'Failed to create package',
+        body: error.message,
+        type: DANGER,
+      }));
+    });
   };
 }
 

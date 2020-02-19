@@ -165,6 +165,26 @@ export class BuilderApiClient {
     });
   }
 
+  public createEmptyPackage(packageInfo) {
+    const { origin, packageName } = packageInfo;
+
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/settings/${origin}/${packageName}`, {
+        headers: this.jsonHeaders,
+        method: 'POST',
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public findFileInRepo(installationId: string, owner: string, repoId: string, path: string, page: number = 1, per_page: number = 100) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/ext/installations/${installationId}/repos/${repoId}/contents/${encodeURIComponent(path)}`, {
@@ -619,6 +639,26 @@ export class BuilderApiClient {
   public isOriginAvailable(name: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${name}`, {
+        headers: this.headers,
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          // Getting a 200 means it exists and is already taken.
+          if (response.ok) {
+            reject(false);
+            // Getting a 404 means it does not exist and is available.
+          } else if (response.status === 404) {
+            resolve(true);
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public isPackageNameAvailable(origin: string, packageName: string) {
+    return new Promise((resolve, reject) => {
+
+      fetch(`${this.urlPrefix}/settings/${origin}/${packageName}`, {
         headers: this.headers,
       })
         .then(response => this.handleUnauthorized(response, reject))

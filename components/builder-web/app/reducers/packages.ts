@@ -43,6 +43,9 @@ export default function packages(state = initialState['packages'], action) {
         setIn(['ui', 'latestInChannel', action.payload.channel, 'exists'], false).
         setIn(['ui', 'latestInChannel', action.payload.channel, 'loading'], true);
 
+    case actionTypes.SET_PACKAGE_CREATING_FLAG:
+      return state.setIn(['ui', 'current', 'creating'], action.payload);
+
     case actionTypes.POPULATE_DASHBOARD_RECENT:
       return state.setIn(['dashboard', 'recent'], List(action.payload));
 

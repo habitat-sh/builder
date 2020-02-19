@@ -1,0 +1,29 @@
+<div class="dialog">
+  <form [formGroup]="createPackageForm" (ngSubmit)="onSubmit(createPackageForm.value)" #formValues="ngForm">
+    <section class="heading">
+      <h1>Create Package</h1>
+    </section>
+    <section class="body">
+      <h3>Package Name</h3>
+      <p>
+        Must be unique and contain no spaces, and begin with a lowercase letter or number. Allowed characters include a-z, 0-9, _, and -. No more than 255 characters.
+      </p>
+
+      <hab-checking-input 
+        displayName="Package Name" 
+        [form]="createPackageForm" 
+        id="origin-name" 
+        [isAvailable]="isPackageNameAvailable" 
+        name="name"
+        >
+      </hab-checking-input>
+
+    </section>
+    <section class="controls">
+      <button mat-raised-button id="package-submit-button" color="primary" type="submit" class="button">
+        Save & Continue
+      </button>
+      <a (click)="cancel()">Cancel</a>
+    </section>
+  </form>
+</div>

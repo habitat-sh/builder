@@ -1,6 +1,17 @@
 <div class="body">
   <div class="content">
     <section *ngIf="builderEnabled && memberOfOrigin">
+
+      <!-- TODO: Remove inline style when second button is removed -->
+      <button 
+        [ngStyle]="{marginBottom: '10px'}"
+        mat-raised-button color="primary" 
+        class="button" 
+        (click)="showCreatePackageDialog()" 
+        [disabled]="!hasPrivateKey">
+        Create Package
+      </button>
+
       <hab-project-settings
         [origin]="origin"
         [integrations]="integrations"
