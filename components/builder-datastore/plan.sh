@@ -1,14 +1,13 @@
 pkg_origin=habitat
 pkg_name=builder-datastore
-pkg_internal_version=9.6.9
-pkg_internal_name=postgresql
+pkg_internal_version=11.2
+pkg_internal_name=postgresql11
 pkg_description="Datastore service for a Habitat Builder service"
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=("PostgreSQL")
-pkg_source="https://ftp.postgresql.org/pub/source/v${pkg_internal_version}/${pkg_internal_name}-${pkg_internal_version}.tar.bz2"
-pkg_shasum="b97952e3af02dc1e446f9c4188ff53021cc0eed7ed96f254ae6daf968c443e2e"
-pkg_dirname="${pkg_internal_name}-${pkg_internal_version}"
-pkg_filename="${pkg_internal_name}-${pkg_internal_version}.tar.bz2"
+pkg_source="https://ftp.postgresql.org/pub/source/v${pkg_internal_version}/postgresql-${pkg_internal_version}.tar.bz2"
+pkg_shasum="2676b9ce09c21978032070b6794696e0aa5a476e3d21d60afc036dc0a9c09405"
+pkg_dirname="postgresql-${pkg_internal_version}"
 
 pkg_deps=(
   core/bash
