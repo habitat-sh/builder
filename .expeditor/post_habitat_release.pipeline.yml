@@ -5,6 +5,9 @@ expeditor:
     PIPELINE_HAB_AUTH_TOKEN:
       path: account/static/habitat/chef-ci
       field: auth_token # Production Builder
+    GITHUB_TOKEN:
+      account: github/habitat-sh
+      field: token
   accounts:
     - aws/habitat # for uploading the bootstrap bundle
   defaults:
@@ -13,8 +16,20 @@ expeditor:
       env:
         HAB_ORIGIN: "habitat"
         PIPELINE_HAB_BLDR_URL: "https://bldr.habitat.sh"
+        GITHUB_USER: "habitat-sh" # per https://github.com/github/hub/issues/2264#issuecomment-567241335
 
 steps:
+  - label: ":rust: Cargo update"
+    command:
+      - .expeditor/scripts/post_habitat_release/cargo_update.sh
+    expeditor:
+      account:
+        - github
+      executor:
+        docker:
+          environment:
+            - GITHUB_USER
+    soft_fail: true
 
   # We build new releases of habitat/builder-worker now since they
   # pull in the new Habitat release we just created (specifically, the
