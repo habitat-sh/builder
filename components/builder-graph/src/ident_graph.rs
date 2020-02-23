@@ -142,12 +142,49 @@ where
         (self.graph.node_count(), self.graph.edge_count())
     }
 
-    pub fn emit_graph(&self, filename: &str, origin_filter: Option<&str>) {
+    // Output a human readable, machine parsable form of the graph; useful for debugging
+    pub fn dump_graph_raw(&self, filename: &str, origin_filter: Option<&str>) {
+        let path = Path::new(filename);
+        let mut file = File::create(&path).unwrap();
+
+        // iterate through nodes
+        for node_index in self.graph.node_indices() {
+            let (in_count, out_count) = self.count_edges(node_index);
+            let orphaned = (in_count == 0) && (out_count == 0);
+
+            let node = self.ident_for_node(node_index);
+            if filter_match(node, origin_filter) && !orphaned {
+                let node_name = node.to_string();
+                let mut bdeps = Vec::new();
+                let mut rdeps = Vec::new();
+                for succ_index in self
+                    .graph
+                    .neighbors_directed(node_index, Direction::Outgoing)
+                {
+                    let edge_index = self.graph.find_edge(node_index, succ_index).unwrap();
+                    match self.graph.edge_weight(edge_index).unwrap() {
+                        EdgeType::BuildDep => bdeps.push(succ_index),
+                        EdgeType::RuntimeDep => rdeps.push(succ_index),
+                    }
+                }
+                let bdeps_join = self.join_nodes(&bdeps, ",");
+                let rdeps_join = self.join_nodes(&rdeps, ",");
+                writeln!(
+                    &mut file,
+                    "{};\t{};{};\t{};\t{}",
+                    node_name, in_count, out_count, rdeps_join, bdeps_join
+                )
+                .unwrap();
+            }
+        }
+    }
+
+    pub fn emit_graph_as_dot(&self, filename: &str, origin_filter: Option<&str>) {
         let path = Path::new(filename);
         let mut file = File::create(&path).unwrap();
 
         // This might be simpler to implement by creating a filtered graph, and then emiting it.
-        // Uncertain how filter graphs rewrite node_index; we have built stuff on that.
+        // Uncertain how filter graphs rewrite node_index; we depend on that remaining constant.
         // Investigate whether graph map would work better.
 
         writeln!(&mut file, "// Filtered by {:?}", origin_filter).unwrap();
@@ -369,6 +406,14 @@ where
             cluster_number += 1;
         }
     }
+
+    pub fn join_nodes(&self, nodes: &[NodeIndex], sep: &str) -> String {
+        let strings: Vec<String> = nodes
+            .iter()
+            .map(|x| self.ident_for_node(*x).to_string())
+            .collect();
+        strings.join(sep).to_string()
+    }
 }
 
 fn write_edge(file: &mut File, src: &str, dst: &str, edge_type: Option<EdgeType>) {
@@ -393,10 +438,8 @@ fn edgetype_to_abbv(edge: EdgeType) -> &'static str {
 }
 
 fn filter_match(ident: &PackageIdent, filter: Option<&str>) -> bool {
-    if let Some(origin) = filter {
-        if ident.origin == origin {
-            return true;
-        }
+    match filter {
+        Some(origin) => ident.origin == origin,
+        None => true,
     }
-    false
 }

@@ -167,18 +167,26 @@ fn main() {
                 }
                 "dot" => {
                     if v.len() < 2 {
-                        println!("Missing search term\n")
+                        println!("Missing file name\n")
                     } else {
                         let origin = if v.len() > 2 { Some(v[2]) } else { None };
                         do_dot(&graph, v[1], origin)
                     }
                 }
                 "latest_dot" => {
-                    if v.len() < 3 {
-                        println!("Missing search term\n")
+                    if v.len() < 2 {
+                        println!("Missing file name\n")
                     } else {
                         let origin = if v.len() > 2 { Some(v[2]) } else { None };
                         do_latest_dot(&graph, v[1], origin)
+                    }
+                }
+                "latest_raw" => {
+                    if v.len() < 2 {
+                        println!("Missing search term\n")
+                    } else {
+                        let origin = if v.len() > 2 { Some(v[2]) } else { None };
+                        do_latest_raw(&graph, v[1], origin)
                     }
                 }
                 "scc" => {
@@ -327,7 +335,19 @@ fn do_find(graph: &PackageGraph, phrase: &str, max: usize) {
 
 fn do_latest_dot(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
     let start_time = PreciseTime::now();
-    graph.dump_latest_graph(filename, origin);
+    graph.dump_latest_graph_as_dot(filename, origin);
+    let end_time = PreciseTime::now();
+    println!(
+        "Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
+        filename,
+        origin,
+        start_time.to(end_time)
+    );
+}
+
+fn do_latest_raw(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
+    let start_time = PreciseTime::now();
+    graph.dump_latest_graph_raw(filename, origin);
     let end_time = PreciseTime::now();
     println!(
         "Wrote latest graph to file {} filtered by {:?} TBI in {} sec",

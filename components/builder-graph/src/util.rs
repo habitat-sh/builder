@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::hab_core::package::PackageIdent;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EdgeType {
     RuntimeDep,
@@ -21,4 +23,9 @@ impl Default for EdgeType {
     fn default() -> Self {
         EdgeType::RuntimeDep
     }
+}
+
+pub fn identlist_to_string(identlist: &[PackageIdent]) -> String {
+    let strings: Vec<String> = identlist.iter().map(PackageIdent::to_string).collect();
+    strings.join(", ").to_string()
 }

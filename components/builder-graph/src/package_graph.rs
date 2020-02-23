@@ -87,11 +87,6 @@ fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
     }
 }
 
-fn identlist_to_string(identlist: &[PackageIdent]) -> String {
-    let strings: Vec<String> = identlist.iter().map(PackageIdent::to_string).collect();
-    strings.join(", ").to_string()
-}
-
 // Note: We need to filter by target when doing the walk.
 type PackageIndex = usize;
 #[derive(Debug)]
@@ -541,11 +536,18 @@ impl PackageGraphForTarget {
         v
     }
 
-    // The built in Dot utility wasn't flexible for what I wanted, so implemented our own.
-    pub fn dump_graph(&self, _file: &str) {}
+    pub fn dump_graph(&self, _file: &str) {
+        println!("dump_graph unimplemented");
+    }
 
-    pub fn dump_latest_graph(&self, file: &str, origin: Option<&str>) {
-        self.latest_graph.emit_graph(file, origin)
+    // Output a human readable, machine parsable form of the graph; useful for debugging
+    pub fn dump_latest_graph_raw(&self, file: &str, origin: Option<&str>) {
+        self.latest_graph.dump_graph_raw(file, origin)
+    }
+
+    // The built in Dot utility wasn't flexible for what I wanted, so implemented our own.
+    pub fn dump_latest_graph_as_dot(&self, file: &str, origin: Option<&str>) {
+        self.latest_graph.emit_graph_as_dot(file, origin)
     }
 
     pub fn dump_build_levels(&self, file: &str, origin: Option<&str>) {
@@ -657,10 +659,15 @@ impl PackageGraph {
     pub fn dump_graph(&self, file: &str) {
         self.graphs[&self.current_target].borrow().dump_graph(file)
     }
-    pub fn dump_latest_graph(&self, file: &str, origin: Option<&str>) {
+    pub fn dump_latest_graph_raw(&self, file: &str, origin: Option<&str>) {
         self.graphs[&self.current_target]
             .borrow()
-            .dump_latest_graph(file, origin)
+            .dump_latest_graph_raw(file, origin)
+    }
+    pub fn dump_latest_graph_as_dot(&self, file: &str, origin: Option<&str>) {
+        self.graphs[&self.current_target]
+            .borrow()
+            .dump_latest_graph_as_dot(file, origin)
     }
     pub fn dump_scc(&self, file: &str, origin: Option<&str>) {
         self.graphs[&self.current_target]
