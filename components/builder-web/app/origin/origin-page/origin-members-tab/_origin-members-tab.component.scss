@@ -5,10 +5,12 @@
   }
 
   #dfo-section {
+    text-align: right;
 
     button {
-      display: block;
-      margin-left: auto;
+      color: $hab-red;
+      border: 1px solid $hab-red;
+      box-shadow: none;
     }
   }
 }
