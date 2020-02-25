@@ -24,7 +24,7 @@ import { DepartOriginDialog } from './dialog/depart-origin.dialog';
 import { AppStore } from '../../../app.store';
 import { deleteOriginInvitation, inviteUserToOrigin } from '../../../actions/index';
 import { Origin } from '../../../records/Origin';
-import { deleteOriginMember, fetchOriginMembers, fetchOriginInvitations } from '../../../actions/index';
+import { deleteOriginMember, departOrigin, fetchOriginMembers, fetchOriginInvitations } from '../../../actions/index';
 import config from '../../../config';
 
 @Component({
@@ -95,6 +95,10 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     return this.store.getState().session.token;
   }
 
+  private get self() {
+    return this.store.getState().users.current.profile.name;
+  }
+
   canDelete(member) {
     return this.store.getState().users.current.profile.name !== member;
   }
@@ -135,7 +139,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((confirmed) => {
         if (confirmed) {
-          console.log('you are being removed from the origin');
+          this.store.dispatch(departOrigin(this.origin.name, this.self, this.token));
         }
       });
   }

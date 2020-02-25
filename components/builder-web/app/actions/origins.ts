@@ -121,6 +121,26 @@ export function deleteOriginMember(origin: string, member: string, token: string
   };
 }
 
+export function departOrigin(origin: string, member: string, token: string) {
+  console.log(member);
+  return dispatch => {
+    new BuilderApiClient(token).deleteOriginMember(origin, member).   // swap out internals for
+      then(response => {                                              // a departing memeber
+        dispatch(addNotification({                                    // in current state this will fail
+          title: `Departed from ${origin}.`,
+          type: SUCCESS,
+        }));
+        dispatch(fetchOriginMembers(origin, token));
+      }).catch(error => {
+        dispatch(addNotification({
+          title: 'Failed to depart from Origin',
+          body: error.message,
+          type: DANGER,
+        }));
+      });
+  };
+}
+
 export function createOrigin(body: object, token: string, isFirstOrigin = false, callback: Function = (origin) => { }) {
   return dispatch => {
     dispatch(setCurrentOriginCreatingFlag(true));
