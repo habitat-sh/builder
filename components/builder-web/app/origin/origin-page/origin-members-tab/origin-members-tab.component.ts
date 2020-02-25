@@ -123,6 +123,18 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     });
   }
 
+  departFromOrigin() {
+    const data = {
+      heading: 'Depart from origin?',
+      body: `Departing from ${this.origin.name} will revoke your access to create packages and utilize private artifacts in this origin.`,
+      action: 'Depart from Origin'
+    };
+
+    this.confirm(data, () => {
+      console.log('depart from origin confirm clicked');
+    });
+  }
+
   submit(username: string) {
     this.store.dispatch(inviteUserToOrigin(username, this.origin.name, this.token));
     const field = this.form.get('username');
