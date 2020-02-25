@@ -1,6 +1,15 @@
 .origin-members-tab-component {
+  background: red;
   
   .action-list {
     font-size: $base-font-size; 
+  }
+
+  #dfo-section {
+
+    button {
+      display: inline-block;
+      margin-left: auto;
+    }
   }
 }
