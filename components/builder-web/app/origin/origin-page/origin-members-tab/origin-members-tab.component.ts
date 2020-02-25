@@ -73,6 +73,10 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     return this.store.getState().origins.currentPendingInvitations;
   }
 
+  get isOriginOwner() {
+    return this.store.getState().users.current.profile.id === this.store.getState().origins.current.owner_id;
+  }
+
   get members(): List<Object> {
     return this.store.getState().origins.currentMembers;
   }

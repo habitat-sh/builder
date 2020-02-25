@@ -53,8 +53,8 @@
     </section>
 
     <section id="dfo-section">
-      <button mat-stroked-button color="warn">
-        <span>Depart from Origin</span>
+      <button mat-stroked-button color="warn" *ngIf="!isOriginOwner">
+        Depart from Origin
       </button>
     </section>
 
