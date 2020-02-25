@@ -1,0 +1,16 @@
+<div class="dialog depart-origin">
+  <section class="heading">
+    <h1>Depart from Origin?</h1>
+  </section>
+  <section class="body">
+    <p>
+      Departing from <strong>{{ originName }}</strong> will revoke your access to create packages and utilize private artifacts in this origin.
+    </p>
+  </section>
+  <section class="controls">
+    <button mat-raised-button color="primary" class="button" (click)="ok()">
+      Depart from Origin
+    </button>
+    <a (click)="cancel()">Cancel</a>
+  </section>
+</div>

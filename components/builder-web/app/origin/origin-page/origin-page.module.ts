@@ -20,6 +20,7 @@ import { RouterModule } from '@angular/router';
 import { MatTabsModule, MatRadioModule, MatButtonModule, MatDialogModule } from '@angular/material';
 import { IntegrationDeleteConfirmDialog } from './origin-integrations-tab/dialog/integration-delete-confirm/integration-delete-confirm.dialog';
 import { GenerateKeysConfirmDialog } from './origin-keys-tab/dialog/generate-keys-confirm/generate-keys-confirm.dialog';
+import { DepartOriginDialog } from './origin-members-tab/dialog/depart-origin.dialog';
 import { KeyAddFormDialog } from './origin-keys-tab/key-add-form/key-add-form.dialog';
 import { OriginPageRoutingModule } from './origin-page-routing.module';
 import { OriginPageComponent } from './origin-page.component';
@@ -51,6 +52,7 @@ export const imports = [
 export const declarations = [
   IntegrationCredentialsFormDialog,
   GenerateKeysConfirmDialog,
+  DepartOriginDialog,
   IntegrationDeleteConfirmDialog,
   KeyAddFormDialog,
   OriginKeysTabComponent,
@@ -67,6 +69,7 @@ export const declarations = [
 const entryComponents = [
   IntegrationCredentialsFormDialog,
   GenerateKeysConfirmDialog,
+  DepartOriginDialog,
   IntegrationDeleteConfirmDialog,
   KeyAddFormDialog
 ];

@@ -20,6 +20,7 @@ import { Subscription } from 'rxjs';
 import { List } from 'immutable';
 import { MatDialog } from '@angular/material';
 import { SimpleConfirmDialog } from '../../../shared/dialog/simple-confirm/simple-confirm.dialog';
+import { DepartOriginDialog } from './dialog/depart-origin.dialog';
 import { AppStore } from '../../../app.store';
 import { deleteOriginInvitation, inviteUserToOrigin } from '../../../actions/index';
 import { Origin } from '../../../records/Origin';
@@ -40,6 +41,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private store: AppStore,
     private confirmDialog: MatDialog,
+    private departOriginDialog: MatDialog,
     private title: Title
   ) {
     this.form = formBuilder.group({});
@@ -125,14 +127,17 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
 
   departFromOrigin() {
     const data = {
-      heading: 'Depart from origin?',
-      body: `Departing from ${this.origin.name} will revoke your access to create packages and utilize private artifacts in this origin.`,
-      action: 'Depart from Origin'
+      originName: this.origin.name
     };
 
-    this.confirm(data, () => {
-      console.log('depart from origin confirm clicked');
-    });
+    this.departOriginDialog
+      .open(DepartOriginDialog, { width: '480px', data: data })
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (confirmed) {
+          console.log('you are being removed from the origin');
+        }
+      });
   }
 
   submit(username: string) {
