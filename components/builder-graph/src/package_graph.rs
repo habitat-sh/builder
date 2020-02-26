@@ -40,7 +40,7 @@ use habitat_builder_db::models::package::PackageWithVersionArray;
 
 use crate::{
     hab_core::error as herror,
-    hab_core::package::{PackageIdent, PackageTarget},
+    hab_core::package::{ident::Identifiable, PackageIdent, PackageTarget},
     ident_graph::*,
     rdeps::rdeps,
     util::*,
@@ -75,15 +75,6 @@ impl PartialOrd for HeapEntry {
 impl PartialEq for HeapEntry {
     fn eq(&self, other: &HeapEntry) -> bool {
         self.pkg_index == other.pkg_index
-    }
-}
-
-fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
-    let parts: Vec<&str> = ident.iter().collect();
-    if use_version {
-        PackageIdent::new(parts[0], parts[1], Some(parts[2]), None)
-    } else {
-        PackageIdent::new(parts[0], parts[1], None, None)
     }
 }
 
@@ -403,15 +394,29 @@ impl PackageGraphForTarget {
 
             // we will need to be checking for cycles here...
             let package_info = self.packages[pkg_id].borrow();
+
+            // I'd like to write this as below, but borrow in closure is problematic.
+            // package_info
+            //     .plan_deps
+            //     .iter()
+            //     .for_each(|dep| self.add_edge_to_latest(src_node_index, dep, EdgeType::RuntimeDep));
             for dep in &package_info.plan_deps {
-                self.latest_graph
-                    .add_edge(src_node_index, dep, EdgeType::RuntimeDep);
+                // skip fully qualified idents in the graph; they never will be t, so they only add noise to the
+                // dependency graph
+                if !dep.fully_qualified() {
+                    self.latest_graph
+                        .add_edge(src_node_index, dep, EdgeType::RuntimeDep);
+                }
             }
 
             if use_build_deps {
                 for dep in &package_info.plan_bdeps {
-                    self.latest_graph
-                        .add_edge(src_node_index, dep, EdgeType::BuildDep);
+                    // skip fully qualified idents in the graph; they never will be t, so they only add noise to the
+                    // dependency graph
+                    if !dep.fully_qualified() {
+                        self.latest_graph
+                            .add_edge(src_node_index, dep, EdgeType::BuildDep);
+                    }
                 }
             }
         }

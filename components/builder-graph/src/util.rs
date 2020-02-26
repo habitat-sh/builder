@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::hab_core;
 use crate::hab_core::package::PackageIdent;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,9 +20,19 @@ pub enum EdgeType {
     RuntimeDep,
     BuildDep,
 }
+
 impl Default for EdgeType {
     fn default() -> Self {
         EdgeType::RuntimeDep
+    }
+}
+
+pub fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
+    let parts: Vec<&str> = ident.iter().collect();
+    if use_version {
+        PackageIdent::new(parts[0], parts[1], Some(parts[2]), None)
+    } else {
+        PackageIdent::new(parts[0], parts[1], None, None)
     }
 }
 
