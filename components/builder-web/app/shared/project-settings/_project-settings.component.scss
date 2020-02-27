@@ -258,4 +258,22 @@
 
 .mat-menu-panel.connect-menu {
   max-width: none;
+
+  .mat-menu-content:not(:empty) {
+    padding: 0;
+    border: $hab-borders;
+  }
+
+  .mat-menu-item {
+    color: $hab-links;
+    border-bottom: $hab-borders;
+  }
+
+  .mat-menu-item[disabled] {
+    color: $disabled;
+  }
+
+  .mat-menu-item:last-child {
+    border-bottom: none;
+  }
 }
