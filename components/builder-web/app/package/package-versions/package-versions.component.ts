@@ -42,7 +42,12 @@ export class PackageVersionsComponent implements OnDestroy {
         this.origin = params.origin;
         this.name = params.name;
         this.title.setTitle(`Packages › ${this.origin}/${this.name} › Versions | ${store.getState().app.name}`);
-        this.toggle(params.version);
+      });
+
+    this.store.observe('router.route.params.version')
+      .pipe(takeUntil(this.isDestroyed$))
+      .subscribe(version => {
+        this.toggle(version);
       });
   }
 
