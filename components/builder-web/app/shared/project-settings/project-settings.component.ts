@@ -307,6 +307,11 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     return !!path.match(/\.ps1$/);
   }
 
+  hasInvalidPlanPath(project): boolean {
+    this.target = project.target;
+    return !(new RegExp(this.unmatchedPattern).test(project.plan_path));
+  }
+
   hasPlanFor(target: string): boolean {
     return this.projects.filter(project => {
       return project.target === targetFrom('param', target).id;

@@ -56,7 +56,13 @@
       <li class="item" *ngFor="let project of projects">
         <span class="column name">
           <hab-platform-icon [platform]="project.target"></hab-platform-icon>
-          <span>{{ project.plan_path }}</span>
+          <span class="plan-path">{{ project.plan_path }}</span>
+          <hab-icon 
+            *ngIf="hasInvalidPlanPath(project)"
+            class="invalid-path-icon"
+            symbol="alert"
+            title="Invalid plan file path">
+          </hab-icon>
         </span>
         <span class="column actions">
           <hab-icon symbol="settings" (click)="openConnectEdit(project)" title="Edit this connection"></hab-icon>

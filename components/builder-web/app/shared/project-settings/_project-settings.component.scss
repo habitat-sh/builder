@@ -149,44 +149,11 @@
       }
 
       .plan-path {
-
-        hab-icon {
-          margin-right: $default-margin;
-        }
+        margin-right: $small-margin;
       }
 
-      .plan-actions {
-
-        hab-icon {
-          width: 16px;
-          color: $hab-blue;
-          margin-right: 22px;
-          cursor: pointer;
-          @include transition(color);
-
-          &:hover {
-            color: darken($hab-blue, 10%);
-          }
-
-          &:active {
-            color: $hab-links;
-          }
-        }
-      }
-
-      .plan-status {
-
-        hab-icon {
-          width: 18px;
-
-          &.success {
-            color: $success;
-          }
-        }
-
-        span {
-          color: $medium-gray;
-        }
+      .invalid-path-icon {
+        color: map-get($icon-colors, alert);
       }
     }
   }
