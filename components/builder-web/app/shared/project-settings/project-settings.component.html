@@ -135,7 +135,7 @@
             </hab-checking-input>
           </div>
           <hr>
-          <hab-docker-export-settings #docker *ngIf="selectedInstallation" [origin]="origin" [package]="name" [integrations]="integrations"
+          <hab-docker-export-settings #docker [origin]="origin" [package]="name" [integrations]="integrations"
             [current]="dockerSettings" [enabled]="dockerEnabled">
           </hab-docker-export-settings>
           <hr>
