@@ -23,9 +23,9 @@
     <hab-icon class="connect-btn-icon" symbol="drop-down"></hab-icon>
   </button>
   <mat-menu #menu="matMenu" [overlapTrigger]="false" class="connect-menu">
-    <button mat-menu-item (click)="openConnect('linux')">for Linux (kernel version 3.2 or later)</button>
-    <button mat-menu-item (click)="openConnect('linux2')">for Linux 2 (kernel version 2.6.32 or later)</button>
-    <button mat-menu-item (click)="openConnect('windows')">for Windows</button>
+    <button mat-menu-item [disabled]="hasPlanFor('linux')" (click)="openConnect('linux')">for Linux (kernel version 3.2 or later)</button>
+    <button mat-menu-item [disabled]="hasPlanFor('linux2')" (click)="openConnect('linux2')">for Linux 2 (kernel version 2.6.32 or later)</button>
+    <button mat-menu-item [disabled]="hasPlanFor('windows')" (click)="openConnect('windows')">for Windows</button>
   </mat-menu>
   <span class="no-keys" *ngIf="!hasPrivateKey">
     <hab-icon symbol="add-circle"></hab-icon>

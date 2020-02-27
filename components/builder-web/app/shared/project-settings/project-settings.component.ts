@@ -307,6 +307,12 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     return !!path.match(/\.ps1$/);
   }
 
+  hasPlanFor(target: string): boolean {
+    return this.projects.filter(project => {
+      return project.target === targetFrom('param', target).id;
+    }).length === 1;
+  }
+
   clearConnection() {
     this.clearSelection();
     this.router.navigate(['/pkgs', this.origin, this.name, 'settings']);
