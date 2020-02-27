@@ -15,6 +15,8 @@
 use crate::hab_core;
 use crate::hab_core::package::PackageIdent;
 
+use habitat_builder_db::models::package::PackageWithVersionArray;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EdgeType {
     RuntimeDep,
@@ -36,7 +38,7 @@ pub fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
     }
 }
 
-pub fn identlist_to_string(identlist: &[PackageIdent]) -> String {
+pub fn join_idents(sep: &str, identlist: &[PackageIdent]) -> String {
     let strings: Vec<String> = identlist.iter().map(PackageIdent::to_string).collect();
-    strings.join(", ").to_string()
+    strings.join(sep).to_string()
 }

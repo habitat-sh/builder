@@ -32,6 +32,7 @@ copperline = "*"
 diesel = "*"
 regex = "*"
 lazy_static = "*"
+itertools = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

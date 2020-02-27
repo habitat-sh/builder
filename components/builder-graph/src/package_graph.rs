@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::prelude::*;
+
+use std::{
+    cell::RefCell,
+    cmp::Ordering,
+    collections::{BinaryHeap, HashMap},
+    str::FromStr,
+    string::ToString,
+};
+
 use petgraph::{
     algo::{connected_components, is_cyclic_directed},
     dot::{Config, Dot},
@@ -24,15 +34,7 @@ use petgraph::{
     Graph,
 };
 
-use std::io::prelude::*;
-
-use std::{
-    cell::RefCell,
-    cmp::Ordering,
-    collections::{BinaryHeap, HashMap},
-    str::FromStr,
-    string::ToString,
-};
+use itertools::Itertools;
 
 use regex::Regex;
 
@@ -94,6 +96,27 @@ struct PackageInfo {
 }
 
 impl PackageInfo {
+    pub fn write(&self) {
+        println!("PackageIdent: {}, bad_deps: {}", self.ident, self.bad_deps);
+        if let Some(package_data) = &self.package {
+            println!("Target:\t{}", package_data.target.0);
+            println!(
+                "Deps:\t{}",
+                package_data.deps.iter().format_with(", ", |x, f| f(&x.0))
+            );
+            println!(
+                "BDeps:\t{}",
+                package_data
+                    .build_deps
+                    .iter()
+                    .format_with(", ", |x, f| f(&x.0))
+            );
+
+            println!("Plan Deps:\t{}", join_idents(", ", &self.plan_deps));
+            println!("Plan BDeps:\t{}", join_idents(", ", &self.plan_bdeps));
+        }
+    }
+
     pub fn extract_plan_deps(&mut self, verbose: bool) {
         // Hoist to lazy static
         lazy_static! {
@@ -143,7 +166,7 @@ impl PackageInfo {
                             "{} {}: {:?}",
                             package.ident.0,
                             typeflag,
-                            identlist_to_string(&deps_as_ident)
+                            join_idents(", ", &deps_as_ident)
                         )
                     };
                     self.plan_bdeps.append(&mut deps_as_ident);
@@ -155,7 +178,7 @@ impl PackageInfo {
                             "{} {}: {:?}",
                             package.ident.0,
                             typeflag,
-                            identlist_to_string(&deps_as_ident)
+                            join_idents(", ", &deps_as_ident)
                         );
                     };
                     self.plan_deps.append(&mut deps_as_ident);
@@ -541,6 +564,14 @@ impl PackageGraphForTarget {
         v
     }
 
+    pub fn write_deps(&self, name: &str) {
+        let ident = PackageIdent::from_str(name).unwrap();
+        match self.package_map.get(&ident) {
+            Some(&pi) => self.packages[pi].borrow().write(),
+            None => println!("Couldn't find match for {}", name),
+        }
+    }
+
     pub fn dump_graph(&self, _file: &str) {
         println!("dump_graph unimplemented");
     }
@@ -659,6 +690,10 @@ impl PackageGraph {
             latest,
             edge_type,
         )
+    }
+
+    pub fn write_deps(&self, name: &str) {
+        self.graphs[&self.current_target].borrow().write_deps(name)
     }
 
     pub fn dump_graph(&self, file: &str) {
