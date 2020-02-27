@@ -24,7 +24,7 @@ import { PackageVersionsComponent } from '../package-versions/package-versions.c
 import { AppStore } from '../../app.store';
 import {
   fetchJobs, fetchIntegrations, fetchLatestPackage, fetchLatestInChannel, fetchOrigin, fetchProject,
-  fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions, fetchPackage, fetchPackageChannels
+  fetchPackageSettings, fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions, fetchPackage, fetchPackageChannels
 } from '../../actions/index';
 import { targetFrom, targets as allPlatforms } from '../../util';
 
@@ -72,7 +72,10 @@ export class PackageComponent implements OnInit, OnDestroy {
 
     combineLatest(origin$, name$)
       .pipe(takeUntil(this.isDestroyed$))
-      .subscribe(() => this.fetchPackageVersions());
+      .subscribe(() => {
+        this.fetchPackageSettings();
+        this.fetchPackageVersions();
+      });
 
     combineLatest(origin$, name$, version$, release$)
       .pipe(takeUntil(this.isDestroyed$))
@@ -157,6 +160,10 @@ export class PackageComponent implements OnInit, OnDestroy {
     return this.store.getState().packages.current;
   }
 
+  get activeSettings() {
+    return this.store.getState().packages.currentSettings;
+  }
+
   get activeRelease() {
     return this.version && this.release ? this.activePackage : null;
   }
@@ -186,6 +193,10 @@ export class PackageComponent implements OnInit, OnDestroy {
     return this.store.getState().projects.current.visibility;
   }
 
+  get defaultVisibility() {
+    return this.store.getState().origins.current.default_package_visibility;
+  }
+
   onRouteActivate(routedComponent) {
     this.showSidebar = false;
     this.showReleaseSidebar = false;
@@ -194,7 +205,6 @@ export class PackageComponent implements OnInit, OnDestroy {
     [
       PackageJobsComponent,
       PackageLatestComponent,
-      PackageReleaseComponent,
       PackageVersionsComponent
     ].forEach((c) => {
       if (routedComponent instanceof c) {
@@ -222,6 +232,10 @@ export class PackageComponent implements OnInit, OnDestroy {
 
   private fetchLatestStable() {
     this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.target));
+  }
+
+  private fetchPackageSettings() {
+    this.store.dispatch(fetchPackageSettings(this.origin, this.name, this.token));
   }
 
   private fetchPackageVersions() {

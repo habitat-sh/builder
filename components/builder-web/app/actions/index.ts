@@ -142,12 +142,14 @@ export {
   fetchLatestPackage,
   fetchPackage,
   fetchPackageChannels,
+  fetchPackageSettings,
   fetchPackageVersions,
   filterPackagesBy,
   getUniquePackages,
   POPULATE_DASHBOARD_RECENT,
   promotePackage,
   SET_CURRENT_PACKAGE_CHANNELS,
+  SET_CURRENT_PACKAGE_SETTINGS,
   SET_CURRENT_PACKAGE_VERSIONS,
   SET_CURRENT_PACKAGE,
   SET_CURRENT_PACKAGE_TARGET,
@@ -163,7 +165,8 @@ export {
   setCurrentPackageTarget,
   setCurrentPackageTargets,
   setPackagesSearchQuery,
-  setVisiblePackages
+  setVisiblePackages,
+  setCurrentPackageVisibility
 } from './packages';
 
 export {

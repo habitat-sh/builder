@@ -92,6 +92,13 @@ export default function packages(state = initialState['packages'], action) {
           setIn(['ui', 'versions', 'loading'], false);
       }
 
+    case actionTypes.SET_CURRENT_PACKAGE_SETTINGS:
+      if (action.error) {
+        return state.set('currentSettings', undefined);
+      } else {
+        return state.set('currentSettings', action.payload);
+      }
+
     case actionTypes.SET_LATEST_IN_CHANNEL:
       if (action.error) {
         return state.setIn(['latestInChannel', action.payload.channel], undefined).

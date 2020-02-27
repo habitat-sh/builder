@@ -153,6 +153,7 @@ export default Record({
   packages: Record({
     current: Package(),
     currentChannels: [],
+    currentSettings: undefined,
     dashboard: Record({
       origin: undefined,
       recent: List()

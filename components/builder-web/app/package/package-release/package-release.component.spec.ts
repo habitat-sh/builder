@@ -14,10 +14,10 @@
 
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
-import { Component, DebugElement } from '@angular/core';
-import { By } from '@angular/platform-browser';
+import { DebugElement } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
+import { get } from 'lodash';
 import { MockComponent } from 'ng2-mock-component';
 import { AppStore } from '../../app.store';
 import { Package } from '../../records/Package';
@@ -33,11 +33,23 @@ class MockAppStore {
       },
       app: {
         name: 'Habitat'
+      },
+      router: {
+        route: {
+          params: {
+            origin: 'core',
+            name: 'nginx'
+          }
+        }
       }
     };
   }
 
   dispatch() { }
+
+  observe(path) {
+    return of(get(this.getState(), path));
+  }
 }
 
 class MockRoute {
@@ -83,20 +95,5 @@ describe('PackageReleaseComponent', () => {
     fixture = TestBed.createComponent(PackageReleaseComponent);
     component = fixture.componentInstance;
     element = fixture.debugElement;
-  });
-
-  describe('given origin, name, version and release', () => {
-
-    it('fetches the specified package', () => {
-      expect(store.dispatch).toHaveBeenCalled();
-      expect(actions.fetchPackage).toHaveBeenCalledWith({
-        ident: {
-          origin: 'core',
-          name: 'nginx',
-          version: '1.11.10',
-          release: '20170829004822'
-        }
-      });
-    });
   });
 });

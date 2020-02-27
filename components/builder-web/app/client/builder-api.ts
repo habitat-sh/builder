@@ -675,6 +675,42 @@ export class BuilderApiClient {
     });
   }
 
+  public getPackageSettings(origin: string, name: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/settings/${origin}/${name}`, {
+        headers: this.headers,
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public setPackageVisibility(origin: string, name: string, setting: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/settings/${origin}/${name}`, {
+        headers: this.jsonHeaders,
+        method: 'PUT',
+        body: JSON.stringify({ visibility: setting })
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public getIntegration(origin: string, type: string, name: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin}/integrations/${type}/${name}`, {

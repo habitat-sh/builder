@@ -62,7 +62,10 @@ describe('PackageComponent', () => {
         builder: false
       },
       origins: {
-        mine: []
+        mine: [],
+        current: {
+          default_package_visibility: 'public'
+        }
       },
       packages: {
         currentPlatforms: [

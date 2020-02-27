@@ -28,8 +28,8 @@ import { BuilderApiClient } from '../../client/builder-api';
 import { AppStore } from '../../app.store';
 import {
   addProject, clearGitHubInstallations, clearGitHubRepositories, updateProject, setProjectIntegrationSettings, deleteProject,
-  fetchGitHubInstallations, fetchGitHubRepositories, fetchProject, setProjectVisibility,
-  deleteProjectIntegration
+  fetchGitHubInstallations, fetchGitHubRepositories, fetchProject, setCurrentPackageVisibility,
+  deleteProjectIntegration, createEmptyPackage
 } from '../../actions/index';
 import config from '../../config';
 import { targetFrom, targets } from '../../util';
@@ -270,7 +270,10 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   }
 
   get visibility() {
-    return this._visibility || this.store.getState().origins.current.default_package_visibility || 'public';
+    const { currentSettings } = this.store.getState().packages;
+    const { default_package_visibility } = this.store.getState().origins.current;
+    const visibility = currentSettings ? currentSettings.visibility : default_package_visibility;
+    return this._visibility || visibility || 'public';
   }
 
   set visibility(v: string) {
@@ -452,7 +455,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   settingChanged(setting) {
     this.visibility = setting;
-    this.store.dispatch(setProjectVisibility(this.origin, this.name, this.visibility, this.token));
+    this.store.dispatch(setCurrentPackageVisibility(this.origin, this.name, this.visibility, this.token));
   }
 
   refresh() {
