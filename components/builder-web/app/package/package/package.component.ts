@@ -129,6 +129,10 @@ export class PackageComponent implements OnInit, OnDestroy {
     this.isDestroyed$.complete();
   }
 
+  get subheading() {
+    return this.activeRelease ? 'artifact' : 'package';
+  }
+
   get ident() {
     return {
       origin: this.origin,
