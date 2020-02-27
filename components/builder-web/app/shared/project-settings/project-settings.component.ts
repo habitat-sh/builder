@@ -27,12 +27,12 @@ import { DockerExportSettingsComponent } from '../../shared/docker-export-settin
 import { BuilderApiClient } from '../../client/builder-api';
 import { AppStore } from '../../app.store';
 import {
-  addProject, updateProject, setProjectIntegrationSettings, deleteProject,
+  addProject, clearGitHubInstallations, clearGitHubRepositories, updateProject, setProjectIntegrationSettings, deleteProject,
   fetchGitHubInstallations, fetchGitHubRepositories, fetchProject, setProjectVisibility,
   deleteProjectIntegration
 } from '../../actions/index';
 import config from '../../config';
-import { targetFrom } from '../../util';
+import { targetFrom, targets } from '../../util';
 
 @Component({
   selector: 'hab-project-settings',
@@ -145,9 +145,13 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this._autoBuild = v;
   }
 
+  get activeProject() {
+    return this.projects.filter(p => p.target === this.target)[0];
+  }
+
   get isUpdating() {
-      return this.target && this.projects.filter(p => p.target === this.target).length;
-    }
+    return this.target && this.activeProject;
+  }
 
   get isWindowsTarget() {
     return this.target === 'x86_64-windows';
@@ -337,6 +341,8 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this.activeRepo = null;
     this.selectedInstallation = null;
     this.selectedPath = this.defaultPath;
+    this.store.dispatch(clearGitHubInstallations());
+    this.store.dispatch(clearGitHubRepositories());
   }
 
   openConnectEdit(project) {
@@ -346,6 +352,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   editConnection(target) {
     const project = this.projects.filter(p => p.target === target)[0];
+    this.autoBuild = project.auto_build;
     this.connect(project.target);
 
     this.selectedPath = project.plan_path;
@@ -368,7 +375,11 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
             this.pickInstallation(i);
 
             this.doAfterViewChecked(() => {
-              this.elementRef.nativeElement.querySelector('.installations .active').scrollIntoView();
+              const container = this.elementRef.nativeElement.querySelector('.installations');
+              const activeEl = container.querySelector('.active');
+              if (activeEl) {
+                container.scrollTop = activeEl.offsetTop - container.offsetTop;
+              }
             });
           }
         });
@@ -386,16 +397,16 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
             this.pickRepo(repo);
 
             this.doAfterViewChecked(() => {
-              this.elementRef.nativeElement.querySelector('.repositories .active').scrollIntoView();
+              const container = this.elementRef.nativeElement.querySelector('.repositories');
+              const activeEl = container.querySelector('.active');
+              if (activeEl) {
+                container.scrollTop = activeEl.offsetTop - container.offsetTop;
+              }
             });
           }
         });
       }
     });
-  }
-
-  next() {
-    this.selectRepository(this.activeRepo);
   }
 
   pickInstallation(install) {
@@ -411,12 +422,11 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   saveConnection() {
     if (this.isUpdating) {
-      this.store.dispatch(updateProject(this.project.name, this.planTemplate, this.token, (result) => {
-        const { origin, package_name, target } = this.project;
+      this.store.dispatch(updateProject(this.activeProject.name, this.planTemplate, this.token, (result) => {
+        const { origin, package_name, target } = this.activeProject;
         this.handleSaved(result.success, origin, package_name, target);
       }));
-    }
-    else {
+    } else {
       this.store.dispatch(addProject(this.planTemplate, this.token, (result) => {
         const { origin, package_name, target } = result.response;
         this.handleSaved(result.success, origin, package_name, target);

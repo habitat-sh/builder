@@ -101,10 +101,10 @@
                 </div>
                 <div>
                   <h3>Repository</h3>
-                  <div *ngIf="!activeInstallation && !loadingRepositories">
+                  <div *ngIf="!activeInstallation">
                     Choose an organization.
                   </div>
-                  <div *ngIf="loadingRepositories">
+                  <div *ngIf="activeInstallation && loadingRepositories">
                     <hab-icon symbol="loading" class="spinning"></hab-icon>
                   </div>
                   <ul class="select-list repositories" *ngIf="activeInstallation && !loadingRepositories">
