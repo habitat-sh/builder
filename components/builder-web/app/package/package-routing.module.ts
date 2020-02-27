@@ -73,7 +73,8 @@ const routes: Routes = [
       },
       {
         path: ':version/:release/settings',
-        component: PackageReleaseSettingsComponent
+        component: PackageReleaseSettingsComponent,
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
       }
     ]
   }
