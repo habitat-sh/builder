@@ -13,3 +13,9 @@
     {{ident.version}}
   </a>
 </ng-container>
+<ng-container *ngIf="ident.release">
+  <span>/</span>
+  <a [routerLink]="['/pkgs', ident.origin, ident.name, ident.version, ident.release]">
+    {{ident.release}}
+  </a>
+</ng-container>

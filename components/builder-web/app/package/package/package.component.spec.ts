@@ -84,7 +84,8 @@ describe('PackageComponent', () => {
           visibility: 'private',
           vcs_data: 'https://github.com/cnunciato/testapp.git',
           auto_rebuild: false
-        }
+        },
+        currentProjects: []
       },
       session: {
         token: 'some-token'

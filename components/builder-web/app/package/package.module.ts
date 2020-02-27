@@ -27,6 +27,7 @@ import { PackageLatestComponent } from './package-latest/package-latest.componen
 import { PackagePromoteComponent } from './package-promote/package-promote.component';
 import { PackageSettingsComponent } from './package-settings/package-settings.component';
 import { PackageReleaseComponent } from './package-release/package-release.component';
+import { PackageReleaseSettingsComponent } from './package-release-settings/package-release-settings.component';
 import { PackageReleaseVisibilityDialog } from './package-release-visibility-dialog/package-release-visibility.dialog';
 import { PackageSidebarComponent } from './package-sidebar/package-sidebar.component';
 import { PackageVersionsComponent } from './package-versions/package-versions.component';
@@ -59,6 +60,7 @@ import { PackageRoutingModule } from './package-routing.module';
     PackageDetailComponent,
     PackagePromoteComponent,
     PackageReleaseComponent,
+    PackageReleaseSettingsComponent,
     PackageReleaseVisibilityDialog,
     PackageSidebarComponent,
     PackageSettingsComponent,

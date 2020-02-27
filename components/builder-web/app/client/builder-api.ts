@@ -804,6 +804,25 @@ export class BuilderApiClient {
     });
   }
 
+  public setPackageReleaseVisibility(origin: string, name: string, version: string, release: string, setting: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/depot/pkgs/${origin}/${name}/${version}/${release}/${setting}`, {
+        headers: this.headers,
+        method: 'PATCH'
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve();
+          }
+          else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public deleteIntegration(origin: string, name: string, type: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin}/integrations/${type}/${name}`, {

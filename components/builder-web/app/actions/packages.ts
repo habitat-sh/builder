@@ -365,3 +365,24 @@ export function setVisiblePackages(params, error = undefined) {
     error: error,
   };
 }
+
+export function setPackageReleaseVisibility(origin: string, name: string, version: string, release: string, setting: string, token: string) {
+  return dispatch => {
+    new BuilderApiClient(token).setPackageReleaseVisibility(origin, name, version, release, setting)
+      .then(response => {
+        const ident = { origin, name, version, release };
+        dispatch(fetchPackage({ ident }));
+        dispatch(addNotification({
+          title: 'Privacy settings saved',
+          type: SUCCESS
+        }));
+      })
+      .catch(error => {
+        dispatch(addNotification({
+          title: 'Failed to save privacy settings',
+          body: error.message,
+          type: DANGER
+        }));
+      });
+  };
+}

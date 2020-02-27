@@ -91,6 +91,11 @@ describe('PackageSidebarComponent', () => {
         }
       },
       projects: {
+        ui: {
+          current: {
+            exists: true
+          }
+        },
         current: {
           visibility: 'private',
           vcs_data: 'https://github.com/cnunciato/testapp.git',

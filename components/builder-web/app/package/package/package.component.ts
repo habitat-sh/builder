@@ -22,7 +22,10 @@ import { PackageLatestComponent } from '../package-latest/package-latest.compone
 import { PackageReleaseComponent } from '../package-release/package-release.component';
 import { PackageVersionsComponent } from '../package-versions/package-versions.component';
 import { AppStore } from '../../app.store';
-import { fetchJobs, fetchIntegrations, fetchLatestPackage, fetchLatestInChannel, fetchOrigin, fetchProject, fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions } from '../../actions/index';
+import {
+  fetchJobs, fetchIntegrations, fetchLatestPackage, fetchLatestInChannel, fetchOrigin, fetchProject,
+  fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions, fetchPackage, fetchPackageChannels
+} from '../../actions/index';
 import { targetFrom, targets as allPlatforms } from '../../util';
 
 @Component({
@@ -32,7 +35,10 @@ export class PackageComponent implements OnInit, OnDestroy {
   origin: string;
   name: string;
   target: string;
+  version: string;
+  release: string;
   showSidebar: boolean = false;
+  showReleaseSidebar: boolean = false;
   showActiveJob: boolean = false;
   useFullWidth: boolean = true;
 
@@ -43,23 +49,45 @@ export class PackageComponent implements OnInit, OnDestroy {
     const origin$ = this.store.observe('router.route.params.origin').pipe(filter(v => v));
     const name$ = this.store.observe('router.route.params.name').pipe(filter(v => v));
     const target$ = this.store.observe('router.route.params.target');
+    const version$ = this.store.observe('router.route.params.version').pipe(filter(v => v));
+    const release$ = this.store.observe('router.route.params.release').pipe(filter(v => v));
     const token$ = this.store.observe('session.token');
     const origins$ = this.store.observe('origins.mine');
     const platforms$ = this.store.observe('packages.currentPlatforms');
+    const versionsLoading$ = this.store.observe('packages.ui.versions.loading');
+
+    this.store.observe('router.route.params')
+      .pipe(takeUntil(this.isDestroyed$))
+      .subscribe(({origin, name, target, version, release}) => {
+        this.origin = origin;
+        this.name = name;
+        this.target = target;
+        this.version = version;
+        this.release = release;
+      });
+
+    origin$
+      .pipe(takeUntil(this.isDestroyed$))
+      .subscribe(() => this.fetchOrigin());
 
     combineLatest(origin$, name$)
       .pipe(takeUntil(this.isDestroyed$))
-      .subscribe(([origin, name]) => {
-        this.origin = origin;
-        this.name = name;
-        this.fetchOrigin();
-        this.fetchPackageVersions();
-        this.fetchJobs();
-      });
+      .subscribe(() => this.fetchPackageVersions());
 
-    combineLatest(origin$, name$, target$, platforms$)
+    combineLatest(origin$, name$, version$, release$)
       .pipe(takeUntil(this.isDestroyed$))
-      .subscribe(([origin, name, target, platforms]) => {
+      .subscribe(() => this.fetchRelease());
+
+    combineLatest(origin$, name$, token$)
+      .pipe(takeUntil(this.isDestroyed$))
+      .subscribe(() => this.fetchJobs());
+
+    combineLatest(versionsLoading$, origin$, name$, target$, platforms$)
+      .pipe(
+        takeUntil(this.isDestroyed$),
+        filter(([versionsLoading]) => !versionsLoading)
+      )
+      .subscribe(([versionsLoading, origin, name, target, platforms]) => {
         const defaultTarget = platforms.length ? platforms[0] : allPlatforms[0];
         const currentTarget = target ?
           targetFrom('param', target || defaultTarget.param) :
@@ -70,11 +98,12 @@ export class PackageComponent implements OnInit, OnDestroy {
         this.fetchLatestStable();
       });
 
-    combineLatest(origin$, name$, token$, origins$, platforms$)
-      .pipe(takeUntil(this.isDestroyed$))
-      .subscribe(() => {
-        this.fetchProject();
-      });
+    combineLatest(versionsLoading$, origin$, name$, target$, token$, origins$, platforms$)
+      .pipe(
+        takeUntil(this.isDestroyed$),
+        filter(([versionsLoading]) => !versionsLoading)
+      )
+      .subscribe(() => this.fetchProject());
   }
 
   ngOnInit() {
@@ -100,7 +129,9 @@ export class PackageComponent implements OnInit, OnDestroy {
   get ident() {
     return {
       origin: this.origin,
-      name: this.name
+      name: this.name,
+      version: this.version,
+      release: this.release
     };
   }
 
@@ -120,6 +151,14 @@ export class PackageComponent implements OnInit, OnDestroy {
 
   get builderEnabled() {
     return this.store.getState().features.builder;
+  }
+
+  get activePackage() {
+    return this.store.getState().packages.current;
+  }
+
+  get activeRelease() {
+    return this.version && this.release ? this.activePackage : null;
   }
 
   get activeJobs(): List<any> {
@@ -149,6 +188,7 @@ export class PackageComponent implements OnInit, OnDestroy {
 
   onRouteActivate(routedComponent) {
     this.showSidebar = false;
+    this.showReleaseSidebar = false;
     this.showActiveJob = false;
 
     [
@@ -165,6 +205,10 @@ export class PackageComponent implements OnInit, OnDestroy {
 
     if (routedComponent instanceof PackageJobComponent) {
       this.useFullWidth = true;
+    }
+
+    if (routedComponent instanceof PackageReleaseComponent) {
+      this.showReleaseSidebar = true;
     }
   }
 
@@ -195,5 +239,12 @@ export class PackageComponent implements OnInit, OnDestroy {
     if (this.token) {
       this.store.dispatch(fetchJobs(this.origin, this.name, this.token));
     }
+  }
+
+  private fetchRelease() {
+    this.store.dispatch(fetchPackage({ ident: this.ident }));
+    this.store.dispatch(fetchPackageChannels(
+      this.ident.origin, this.ident.name, this.ident.version, this.ident.release
+    ));
   }
 }

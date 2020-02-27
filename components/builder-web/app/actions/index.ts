@@ -51,6 +51,8 @@ export {
   CLEAR_GITHUB_REPOSITORIES,
   fetchGitHubInstallations,
   fetchGitHubRepositories,
+  clearGitHubInstallations,
+  clearGitHubRepositories,
   POPULATE_GITHUB_INSTALLATIONS,
   POPULATE_GITHUB_REPOSITORIES
 } from './gitHub';

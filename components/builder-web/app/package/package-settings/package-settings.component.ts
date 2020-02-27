@@ -14,12 +14,10 @@
 
 import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
-import { ActivatedRoute } from '@angular/router';
-import { MatDialog } from '@angular/material';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AppStore } from '../../app.store';
-import { targets, targetFrom } from '../../util';
+import { targetFrom } from '../../util';
 
 @Component({
   selector: 'hab-package-settings',
@@ -33,21 +31,18 @@ export class PackageSettingsComponent implements OnDestroy {
   private isDestroyed$: Subject<boolean> = new Subject();
 
   constructor(
-    private route: ActivatedRoute,
     private store: AppStore,
-    private disconnectDialog: MatDialog,
     private title: Title
   ) {
-    this.route.parent.params.pipe(takeUntil(this.isDestroyed$)).subscribe((params) => {
-      this.origin = params['origin'];
-      this.name = params['name'];
-      this.title.setTitle(`Packages › ${this.origin}/${this.name} › Settings | ${store.getState().app.name}`);
-    });
-
-    this.route.params.pipe(takeUntil(this.isDestroyed$)).subscribe(params => {
-      const target = targetFrom('param', params['target']);
-      this.target = target ? target.id : null;
-    });
+    this.store.observe('router.route.params')
+      .pipe(takeUntil(this.isDestroyed$))
+      .subscribe(params => {
+        this.origin = params.origin;
+        this.name = params.name;
+        const target = targetFrom('param', params.target);
+        this.target = target ? target.id : null;
+        this.title.setTitle(`Packages › ${this.origin}/${this.name} › Settings | ${store.getState().app.name}`);
+      });
   }
 
   ngOnDestroy() {
@@ -55,21 +50,12 @@ export class PackageSettingsComponent implements OnDestroy {
     this.isDestroyed$.complete();
   }
 
-  get project() {
-    const project = this.store.getState().projects.current;
-    const exists = this.store.getState().projects.ui.current.exists;
-
-    const isMember = !!this.store.getState().origins.mine.find((o) => {
-      return o.name === this.origin;
-    });
-
-    if (isMember && exists) {
-      return project;
-    }
-  }
-
   get projects() {
     return this.store.getState().projects.currentProjects;
+  }
+
+  get project() {
+    return this.projects.filter(p => p.target === this.target)[0];
   }
 
   get integrations() {
