@@ -1,7 +1,7 @@
 <header>
   <h1>
     <hab-package-breadcrumbs [ident]="ident"></hab-package-breadcrumbs>
-    <hab-visibility-icon *ngIf="isOriginMember && !activeRelease" [visibility]="activeSettings?.visibility || defaultVisibility" prefix="Default Package Visibility:"></hab-visibility-icon>
+    <hab-visibility-icon *ngIf="isOriginMember && !version && !activeRelease" [visibility]="activeSettings?.visibility || defaultVisibility" prefix="Default Package Visibility:"></hab-visibility-icon>
     <hab-visibility-icon *ngIf="isOriginMember && activeRelease" [visibility]="activePackage?.visibility"  prefix="Artifact Visibility:"></hab-visibility-icon>
   </h1>
   <h2>package</h2>
