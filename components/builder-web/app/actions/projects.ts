@@ -132,8 +132,15 @@ export function fetchProjectIntegration(origin: string, name: string, integratio
 
 export function fetchCurrentProjects(origin: string, name: string, token: string) {
   return dispatch => {
-    const fetchAll = targets.map(target => new BuilderApiClient(token).getProject(origin, name, target.id));
-    Promise.all(fetchAll).then(projects => dispatch(setCurrentProjects(projects)));
+    const fetchAll = targets.map(target => {
+      return new BuilderApiClient(token)
+        .getProject(origin, name, target.id)
+        .catch(error => null);
+    });
+
+    Promise.all(fetchAll)
+      .then(projects => dispatch(setCurrentProjects(projects)))
+      .catch(error => dispatch(setCurrentProjects([])));
   };
 }
 
