@@ -14,6 +14,7 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormControl, FormGroup, FormBuilder, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -39,6 +40,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
   constructor(
     formBuilder: FormBuilder,
     private route: ActivatedRoute,
+    private router: Router,
     private store: AppStore,
     private confirmDialog: MatDialog,
     private departOriginDialog: MatDialog,
@@ -139,7 +141,9 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((confirmed) => {
         if (confirmed) {
-          this.store.dispatch(departOrigin(this.origin.name, this.token));
+          this.store.dispatch(departOrigin(this.origin.name, this.token, (origin) => {
+            this.router.navigate(['/origins', origin]);
+          }));
         }
       });
   }

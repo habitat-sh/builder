@@ -121,7 +121,7 @@ export function deleteOriginMember(origin: string, member: string, token: string
   };
 }
 
-export function departOrigin(origin: string, token: string) {
+export function departOrigin(origin: string, token: string, callback: Function = (origin) => { }) {
   return dispatch => {
     new BuilderApiClient(token).departFromOrigin(origin)
       .then(response => {
@@ -129,7 +129,10 @@ export function departOrigin(origin: string, token: string) {
           title: `Departed from ${origin}.`,
           type: SUCCESS,
         }));
+
         dispatch(fetchOriginMembers(origin, token));
+        callback(origin);
+
       }).catch(error => {
         dispatch(addNotification({
           title: 'Failed to depart from Origin',
