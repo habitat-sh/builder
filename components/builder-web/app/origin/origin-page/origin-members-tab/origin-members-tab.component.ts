@@ -142,13 +142,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
       .subscribe((confirmed) => {
         if (confirmed) {
           this.store.dispatch(departOrigin(this.origin.name, this.token, (originName) => {
-            this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
-              if (this.isPrivate) {
-                this.router.navigate(['/origins']);
-              } else {
-                this.router.navigate(['/origins', originName]);
-              }
-            });
+            this.departureRouting(this.isPrivate, originName);
           }));
         }
       });
@@ -159,6 +153,17 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     const field = this.form.get('username');
     field.setValue('');
     field.markAsPristine();
+  }
+
+  private departureRouting(isPrivate, originName) {
+    // Check to see if the origin has default package visibility of private and route accordingly
+    if (isPrivate) {
+      this.router.navigateByUrl('/origins');
+    } else {
+      this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+        this.router.navigate(['/origins', originName]);
+      });
+    }
   }
 
   private confirm(data, then) {
