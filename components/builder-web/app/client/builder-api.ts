@@ -89,7 +89,6 @@ export class BuilderApiClient {
     });
   }
 
-  ////
   public departFromOrigin(origin: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin}/depart`, {
@@ -107,7 +106,6 @@ export class BuilderApiClient {
         .catch(error => this.handleError(error, reject));
     });
   }
-  ///
 
   public ignoreOriginInvitation(invitationId: string, originName: string) {
     return new Promise((resolve, reject) => {
