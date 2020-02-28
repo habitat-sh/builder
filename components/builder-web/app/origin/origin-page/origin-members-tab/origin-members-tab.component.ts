@@ -131,7 +131,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     });
   }
 
-  departFromOrigin() {
+  departFromOrigin(): void {
     const data = {
       originName: this.origin.name
     };
@@ -155,7 +155,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     field.markAsPristine();
   }
 
-  private departureRouting(isPrivate, originName) {
+  private departureRouting(isPrivate: boolean, originName: string): void {
     // Check to see if the origin has default package visibility of private and route accordingly
     if (isPrivate) {
       this.router.navigateByUrl('/origins');
