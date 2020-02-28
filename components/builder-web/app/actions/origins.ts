@@ -121,17 +121,16 @@ export function deleteOriginMember(origin: string, member: string, token: string
   };
 }
 
-export function departOrigin(origin: string, token: string, callback: Function = (origin) => { }) {
+export function departOrigin(originName: string, token: string, callback: Function = (originName) => { }) {
   return dispatch => {
-    new BuilderApiClient(token).departFromOrigin(origin)
+    new BuilderApiClient(token).departFromOrigin(originName)
       .then(response => {
         dispatch(addNotification({
-          title: `Departed from ${origin}.`,
+          title: `Departed from ${originName}.`,
           type: SUCCESS,
         }));
 
-        dispatch(fetchOriginMembers(origin, token));
-        callback(origin);
+        callback(originName);
 
       }).catch(error => {
         dispatch(addNotification({

@@ -141,8 +141,10 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((confirmed) => {
         if (confirmed) {
-          this.store.dispatch(departOrigin(this.origin.name, this.token, (origin) => {
-            this.router.navigate(['/origins', origin]);
+          this.store.dispatch(departOrigin(this.origin.name, this.token, (originName) => {
+            this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+              this.router.navigate(['/origins', originName]);
+            });
           }));
         }
       });
