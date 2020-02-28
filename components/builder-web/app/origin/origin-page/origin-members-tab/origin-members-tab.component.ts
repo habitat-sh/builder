@@ -139,7 +139,7 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((confirmed) => {
         if (confirmed) {
-          this.store.dispatch(departOrigin(this.origin.name, this.self, this.token));
+          this.store.dispatch(departOrigin(this.origin.name, this.token));
         }
       });
   }

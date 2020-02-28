@@ -121,12 +121,11 @@ export function deleteOriginMember(origin: string, member: string, token: string
   };
 }
 
-export function departOrigin(origin: string, member: string, token: string) {
-  console.log(member);
+export function departOrigin(origin: string, token: string) {
   return dispatch => {
-    new BuilderApiClient(token).deleteOriginMember(origin, member).   // swap out internals for
-      then(response => {                                              // a departing memeber
-        dispatch(addNotification({                                    // in current state this will fail
+    new BuilderApiClient(token).departFromOrigin(origin)
+      .then(response => {
+        dispatch(addNotification({
           title: `Departed from ${origin}.`,
           type: SUCCESS,
         }));
