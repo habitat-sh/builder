@@ -97,8 +97,8 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     return this.store.getState().session.token;
   }
 
-  private get self() {
-    return this.store.getState().users.current.profile.name;
+  private get isPrivate() {
+    return this.store.getState().origins.current.default_package_visibility === 'private' ? true : false;
   }
 
   canDelete(member) {
@@ -143,7 +143,11 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
         if (confirmed) {
           this.store.dispatch(departOrigin(this.origin.name, this.token, (originName) => {
             this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
-              this.router.navigate(['/origins', originName]);
+              if (this.isPrivate) {
+                this.router.navigate(['/origins']);
+              } else {
+                this.router.navigate(['/origins', originName]);
+              }
             });
           }));
         }
