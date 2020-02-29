@@ -224,11 +224,18 @@ fn main() {
                         do_rdeps(&graph, v[1].to_lowercase().as_str(), &filter, max)
                     }
                 }
+                "db_deps" => {
+                    if v.len() < 2 {
+                        println!("Missing package name\n")
+                    } else {
+                        do_db_deps(&datastore, &graph, v[1].to_lowercase().as_str(), &filter)
+                    }
+                }
                 "deps" => {
                     if v.len() < 2 {
                         println!("Missing package name\n")
                     } else {
-                        do_deps(&datastore, &graph, v[1].to_lowercase().as_str(), &filter)
+                        do_deps(&graph, v[1].to_lowercase().as_str())
                     }
                 }
                 "check" => {
@@ -452,14 +459,17 @@ fn resolve_name(graph: &PackageGraph, name: &str) -> String {
     }
 }
 
-fn do_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str) {
+fn do_deps(graph: &PackageGraph, name: &str) {
+    println!("Dependencies for: {}", name);
+    graph.write_deps(name);
+}
+
+fn do_db_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str) {
     let start_time = Instant::now();
     let ident = resolve_name(graph, name);
     let target = "x86_64-linux";
 
     println!("Dependencies for: {}", ident);
-
-    graph.write_deps(name);
 
     match datastore.get_job_graph_package(&ident, &target) {
         Ok(package) => {

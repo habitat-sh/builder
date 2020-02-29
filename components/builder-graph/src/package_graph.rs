@@ -412,10 +412,13 @@ impl PackageGraphForTarget {
             // We start by adding a new node with dependencies pointing to the latest of each ident
             let (_, src_node_index) = self.latest_graph.upsert_node(&short_name, pkg_id);
 
-            // Get rid of old edges.
-            self.latest_graph.drop_outgoing(src_node_index);
+            // Get rid of old edges; the new package version may changed its dependencies.
 
             // we will need to be checking for cycles here...
+            // This drop/re-add process is likely too naive for a future on-line fast cycle detection algorithm;
+            // it will introduce too much churn. We'll probably have to move to a difference based system.
+            self.latest_graph.drop_outgoing(src_node_index);
+
             let package_info = self.packages[pkg_id].borrow();
 
             // I'd like to write this as below, but borrow in closure is problematic.
@@ -566,7 +569,13 @@ impl PackageGraphForTarget {
 
     pub fn write_deps(&self, name: &str) {
         let ident = PackageIdent::from_str(name).unwrap();
-        match self.package_map.get(&ident) {
+
+        let maybe_package_index = if ident.fully_qualified() {
+            self.package_map.get(&ident)
+        } else {
+            self.latest_map.get(&ident)
+        };
+        match maybe_package_index {
             Some(&pi) => self.packages[pi].borrow().write(),
             None => println!("Couldn't find match for {}", name),
         }
