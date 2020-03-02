@@ -222,9 +222,9 @@ export class BuilderApiClient {
     });
   }
 
-  public deleteProject(projectId) {
+  public deleteProject(origin: string, name: string, target: string) {
     return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/projects/${projectId}`, {
+      fetch(`${this.urlPrefix}/projects/${origin}/${name}?target=${target}`, {
         method: 'DELETE',
         headers: this.headers
       })
@@ -394,7 +394,7 @@ export class BuilderApiClient {
           if (response.ok) {
             resolve(response.json());
           } else {
-            reject(new Error(response.statusText));
+            resolve(null);
           }
         })
         .catch(error => this.handleError(error, reject));
@@ -419,9 +419,9 @@ export class BuilderApiClient {
     });
   }
 
-  public getProject(origin: string, name: string) {
+  public getProject(origin: string, name: string, target: string) {
     return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/projects/${origin}/${name}`, {
+      fetch(`${this.urlPrefix}/projects/${origin}/${name}?target=${target}`, {
         method: 'GET',
         headers: this.headers
       })
@@ -675,6 +675,42 @@ export class BuilderApiClient {
     });
   }
 
+  public getPackageSettings(origin: string, name: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/settings/${origin}/${name}`, {
+        headers: this.headers,
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public setPackageVisibility(origin: string, name: string, setting: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/settings/${origin}/${name}`, {
+        headers: this.jsonHeaders,
+        method: 'PUT',
+        body: JSON.stringify({ visibility: setting })
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public getIntegration(origin: string, type: string, name: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin}/integrations/${type}/${name}`, {
@@ -788,6 +824,25 @@ export class BuilderApiClient {
   public setProjectVisibility(origin: string, name: string, setting: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${origin}/${name}/${setting}`, {
+        headers: this.headers,
+        method: 'PATCH'
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve();
+          }
+          else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public setPackageReleaseVisibility(origin: string, name: string, version: string, release: string, setting: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/depot/pkgs/${origin}/${name}/${version}/${release}/${setting}`, {
         headers: this.headers,
         method: 'PATCH'
       })

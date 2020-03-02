@@ -12,19 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Map, Record } from 'immutable';
+import { Component, Inject } from '@angular/core';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 
-export const Project = Record({
-  id: undefined,
-  auto_build: undefined,
-  name: undefined,
-  origin: undefined,
-  target: undefined,
-  owner_id: undefined,
-  package_name: undefined,
-  plan_path: undefined,
-  vcs_data: undefined,
-  vcs_type: undefined,
-  settings: Map(),
-  visibility: undefined
-});
+@Component({
+  template: require('./package-release-visibility.dialog.html')
+})
+export class PackageReleaseVisibilityDialog {
+  constructor(
+    private ref: MatDialogRef<PackageReleaseVisibilityDialog>,
+    @Inject(MAT_DIALOG_DATA) private data: any
+  ) {}
+
+  get artifactName() {
+    const { origin, name, version, release } = this.data.package.ident;
+    return [origin, name, version, release].join('/');
+  }
+
+  cancel() {
+    this.ref.close(false);
+  }
+
+  confirm() {
+    this.ref.close(true);
+  }
+}

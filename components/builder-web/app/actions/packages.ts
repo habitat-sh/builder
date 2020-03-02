@@ -30,6 +30,7 @@ export const SET_CURRENT_PACKAGE_TARGETS = 'SET_CURRENT_PACKAGE_TARGETS';
 export const SET_LATEST_IN_CHANNEL = 'SET_LATEST_IN_CHANNEL';
 export const SET_LATEST_PACKAGE = 'SET_LATEST_PACKAGE';
 export const SET_CURRENT_PACKAGE_CHANNELS = 'SET_CURRENT_PACKAGE_CHANNELS';
+export const SET_CURRENT_PACKAGE_SETTINGS = 'SET_CURRENT_PACKAGE_SETTINGS';
 export const SET_CURRENT_PACKAGE_VERSIONS = 'SET_CURRENT_PACKAGE_VERSIONS';
 export const SET_PACKAGES_NEXT_RANGE = 'SET_PACKAGES_NEXT_RANGE';
 export const SET_PACKAGES_SEARCH_QUERY = 'SET_PACKAGES_SEARCH_QUERY';
@@ -184,6 +185,14 @@ export function fetchLatestInChannel(origin: string, name: string, channel: stri
   };
 }
 
+export function fetchPackageSettings(origin: string, name: string, token: string) {
+  return dispatch => {
+    new BuilderApiClient(token).getPackageSettings(origin, name)
+      .then(settings => dispatch(setCurrentPackageSettings(settings)))
+      .catch(error => dispatch(setCurrentPackageSettings({}, error)));
+  };
+}
+
 export function fetchPackageVersions(origin: string, name: string) {
   return dispatch => {
     dispatch(clearPackages());
@@ -329,6 +338,34 @@ export function setCurrentPackageChannels(channels) {
   };
 }
 
+export function setCurrentPackageSettings(settings, error = undefined) {
+  return {
+    type: SET_CURRENT_PACKAGE_SETTINGS,
+    payload: settings,
+    error: error,
+  };
+}
+
+export function setCurrentPackageVisibility(origin: string, name: string, setting: string, token: string) {
+  return dispatch => {
+    new BuilderApiClient(token).setPackageVisibility(origin, name, setting)
+      .then(settings => {
+        dispatch(setCurrentPackageSettings(settings));
+        dispatch(addNotification({
+          title: 'Privacy settings saved',
+          type: SUCCESS
+        }));
+      })
+      .catch(error => {
+        dispatch(addNotification({
+          title: 'Failed to save privacy settings',
+          body: error.message,
+          type: DANGER
+        }));
+      });
+  };
+}
+
 export function setCurrentPackageVersions(versions, error = undefined) {
   return {
     type: SET_CURRENT_PACKAGE_VERSIONS,
@@ -363,5 +400,26 @@ export function setVisiblePackages(params, error = undefined) {
     type: SET_VISIBLE_PACKAGES,
     payload: params,
     error: error,
+  };
+}
+
+export function setPackageReleaseVisibility(origin: string, name: string, version: string, release: string, setting: string, token: string) {
+  return dispatch => {
+    new BuilderApiClient(token).setPackageReleaseVisibility(origin, name, version, release, setting)
+      .then(response => {
+        const ident = { origin, name, version, release };
+        dispatch(fetchPackage({ ident }));
+        dispatch(addNotification({
+          title: 'Privacy settings saved',
+          type: SUCCESS
+        }));
+      })
+      .catch(error => {
+        dispatch(addNotification({
+          title: 'Failed to save privacy settings',
+          body: error.message,
+          type: DANGER
+        }));
+      });
   };
 }

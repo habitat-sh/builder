@@ -19,9 +19,23 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
   template: require('./visibility-selector.component.html')
 })
 export class VisibilitySelectorComponent {
-
   @Input() setting: string = 'public';
+
+  @Input() plural: boolean = true;
+
   @Output() changed: EventEmitter<string> = new EventEmitter<string>();
+
+  get settingLabel() {
+    return `artifact${this.plural ? 's' : ''}`;
+  }
+
+  get publicDescription() {
+    return `The ${this.settingLabel} appear${this.plural ? '' : 's'} in public search results and can be utilized by any user.`;
+  }
+
+  get privateDescription() {
+    return `The ${this.settingLabel} do${this.plural ? '' : 'es'} NOT appear in public search results and can ONLY be utilized by members of this origin.`;
+  }
 
   change() {
     this.changed.emit(this.setting);

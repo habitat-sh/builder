@@ -2,20 +2,20 @@
   <mat-radio-group class="wrapper" [(ngModel)]="setting" (change)="change($event)">
     <mat-radio-button class="selector" [class.active]="setting === 'public'" value="public">
       <h5>
-        Public packages
+        Public {{ settingLabel }}
         <hab-icon symbol="public"></hab-icon>
       </h5>
       <span>
-        Package builds will appear in public search results and can be utilized by any user.
+        {{ publicDescription }}
       </span>
     </mat-radio-button>
     <mat-radio-button class="selector" [class.active]="setting === 'private'" value="private">
       <h5>
-        Private packages
+        Private {{ settingLabel }}
         <hab-icon symbol="lock"></hab-icon>
       </h5>
       <span>
-        Package builds will NOT appear in public search results and can ONLY be utilized by members of this origin.
+        {{ privateDescription }}
       </span>
     </mat-radio-button>
   </mat-radio-group>

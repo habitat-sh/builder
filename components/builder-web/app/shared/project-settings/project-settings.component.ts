@@ -13,28 +13,32 @@
 // limitations under the License.
 
 import {
-  AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, Output,
+  AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output,
   SimpleChanges, ViewChild
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material';
+import { Subject } from 'rxjs';
+import { filter, takeUntil } from 'rxjs/operators';
 import { Record } from 'immutable';
 import { DisconnectConfirmDialog } from './dialog/disconnect-confirm/disconnect-confirm.dialog';
 import { DockerExportSettingsComponent } from '../../shared/docker-export-settings/docker-export-settings.component';
 import { BuilderApiClient } from '../../client/builder-api';
 import { AppStore } from '../../app.store';
 import {
-  addProject, updateProject, setProjectIntegrationSettings, deleteProject,
-  fetchGitHubInstallations, fetchGitHubRepositories, fetchProject, setProjectVisibility,
-  deleteProjectIntegration
+  addProject, clearGitHubInstallations, clearGitHubRepositories, updateProject, setProjectIntegrationSettings, deleteProject,
+  fetchGitHubInstallations, fetchGitHubRepositories, fetchProject, setCurrentPackageVisibility,
+  deleteProjectIntegration, createEmptyPackage
 } from '../../actions/index';
 import config from '../../config';
+import { targetFrom, targets } from '../../util';
 
 @Component({
   selector: 'hab-project-settings',
   template: require('./project-settings.component.html')
 })
-export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
+export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterViewChecked {
   connecting: boolean = false;
   doesFileExist: Function;
   form: FormGroup;
@@ -47,7 +51,9 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   @Input() integrations;
   @Input() name: string;
   @Input() origin: string;
+  @Input() projects = [];
   @Input() project: any;
+  @Input() target: string;
 
   @Output() saved: EventEmitter<any> = new EventEmitter<any>();
   @Output() toggled: EventEmitter<any> = new EventEmitter<any>();
@@ -56,14 +62,16 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   docker: DockerExportSettingsComponent;
 
   private api: BuilderApiClient;
-  private defaultPath = 'habitat/plan.sh';
   private _visibility: string;
   private _autoBuild;
+
+  private isDestroyed$: Subject<boolean> = new Subject();
 
   private _doAfterViewChecked: Function[] = [];
 
   constructor(
     private formBuilder: FormBuilder,
+    private router: Router,
     private store: AppStore,
     private disconnectDialog: MatDialog,
     private elementRef: ElementRef
@@ -72,6 +80,10 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this.selectedPath = this.defaultPath;
 
     this.doesFileExist = (path) => {
+      if (!this.selectedInstallation) {
+        return new Promise(resolve => resolve(null));
+      }
+
       return this.api.findFileInRepo(
         this.selectedInstallation.get('installation_id'),
         this.selectedInstallation.get('org'),
@@ -79,6 +91,13 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
         this.planField.value
       );
     };
+
+    this.store.observe('users.current.profile.name').pipe(
+      filter(v => v),
+      takeUntil(this.isDestroyed$)
+    ).subscribe(username => {
+      this.store.dispatch(fetchGitHubInstallations(username));
+    });
   }
 
   ngAfterViewChecked() {
@@ -91,12 +110,26 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   ngOnChanges(changes: SimpleChanges) {
     const p = changes['project'];
+    const target = changes['target'];
 
     if (p && p.currentValue) {
       this.selectedRepo = p.currentValue.vcs_data;
       this.selectedPath = p.currentValue.plan_path;
       this.visibility = p.currentValue.visibility || this.visibility;
     }
+
+    if (target && target.currentValue) {
+      if (this.projects.filter(p => p.target === target.currentValue).length) {
+        this.editConnection(target.currentValue);
+      } else {
+        this.connect(target.currentValue);
+      }
+    }
+  }
+
+  ngOnDestroy() {
+    this.isDestroyed$.next(true);
+    this.isDestroyed$.complete();
   }
 
   get autoBuild() {
@@ -112,12 +145,39 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this._autoBuild = v;
   }
 
+  get activeProject() {
+    return this.projects.filter(p => p.target === this.target)[0];
+  }
+
+  get isUpdating() {
+    return this.target && this.activeProject;
+  }
+
+  get isWindowsTarget() {
+    return this.target === 'x86_64-windows';
+  }
+
+  get unmatchedPattern() {
+    const ext = this.isWindowsTarget ? 'ps1' : 'sh';
+    return `\\.${ext}$`;
+  }
+
+  get unmatchedMessage() {
+    const ext = this.isWindowsTarget ? 'ps1' : 'sh';
+    return `name must end with .${ext}`;
+  }
+
+  get defaultPath() {
+    const ext = this.isWindowsTarget ? 'ps1' : 'sh';
+    return `habitat/plan.${ext}`;
+  }
+
   get config() {
     return config;
   }
 
   get connectButtonLabel() {
-    return this.project ? 'Update' : 'Save';
+    return this.isUpdating ? 'Update' : 'Save';
   }
 
   get dockerEnabled() {
@@ -132,33 +192,8 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     return this.store.getState().gitHub.files;
   }
 
-  get gitHubAppNote() {
-
-    let note = `In order to connect a plan file in your repo,
-      you must first install the Builder GitHub app
-      and allow access to that repository.`;
-
-    if (this.gitHubAppInstalled) {
-      note = `If you don't see one or more of your organizations
-        or repositories listed below, you may need to adjust the
-        settings of the Builder GitHub app.`;
-    }
-
-    return note;
-  }
-
-  get gitHubAppLabel() {
-    let label = 'Install';
-
-    if (this.gitHubAppInstalled) {
-      label = 'Open';
-    }
-
-    return label;
-  }
-
   get gitHubAppInstalled() {
-    return !this.loadingInstallations && this.installations.size > 0;
+    return this.installations.size > 0;
   }
 
   get hasPrivateKey() {
@@ -192,8 +227,14 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       'plan_path': this.planField.value,
       'installation_id': this.selectedInstallation.get('installation_id'),
       'repo_id': this.activeRepo.get('id'),
-      'auto_build': this.autoBuild
+      'auto_build': this.autoBuild,
+      'target': this.target
     };
+  }
+
+  get planTargetName() {
+    const target = targetFrom('id', this.target);
+    return target ? target.name : null;
   }
 
   get repoField() {
@@ -229,7 +270,10 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
   }
 
   get visibility() {
-    return this._visibility || this.store.getState().origins.current.default_package_visibility || 'public';
+    const { currentSettings } = this.store.getState().packages;
+    const { default_package_visibility } = this.store.getState().origins.current;
+    const visibility = currentSettings ? currentSettings.visibility : default_package_visibility;
+    return this._visibility || visibility || 'public';
   }
 
   set visibility(v: string) {
@@ -240,21 +284,24 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this.autoBuild = v;
   }
 
-  connect() {
+  openConnect(target: string) {
+    this.router.navigate(['/pkgs', this.origin, this.name, 'settings', target]);
+  }
+
+  connect(target: string) {
     this.deselect();
-    this.store.dispatch(fetchGitHubInstallations(this.username));
     this.connecting = true;
     this.toggled.emit(this.connecting);
   }
 
-  disconnect() {
+  disconnect(project) {
     const ref = this.disconnectDialog.open(DisconnectConfirmDialog, {
       width: '460px'
     });
 
     ref.afterClosed().subscribe((confirmed) => {
       if (confirmed) {
-        this.store.dispatch(deleteProject(this.project.name, this.token));
+        this.store.dispatch(deleteProject(project.origin, project.package_name, project.target, this.token));
       }
     });
   }
@@ -267,7 +314,23 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     return !!path.match(/\.ps1$/);
   }
 
+  hasInvalidPlanPath(project): boolean {
+    this.target = project.target;
+    return !(new RegExp(this.unmatchedPattern).test(project.plan_path));
+  }
+
+  hasPlanFor(target: string): boolean {
+    return this.projects.filter(project => {
+      return project.target === targetFrom('param', target).id;
+    }).length === 1;
+  }
+
   clearConnection() {
+    this.clearSelection();
+    this.router.navigate(['/pkgs', this.origin, this.name, 'settings']);
+  }
+
+  clearSelection() {
     this.connecting = false;
     this.deselect();
     this.toggled.emit(this.connecting);
@@ -281,14 +344,22 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
     this.activeRepo = null;
     this.selectedInstallation = null;
     this.selectedPath = this.defaultPath;
+    this.store.dispatch(clearGitHubInstallations());
+    this.store.dispatch(clearGitHubRepositories());
   }
 
-  editConnection() {
-    this.clearConnection();
-    this.connect();
+  openConnectEdit(project) {
+    const target = targetFrom('id', project.target);
+    this.openConnect(target.param);
+  }
 
-    this.selectedPath = this.project.plan_path;
-    this.selectedRepo = this.parseGitHubUrl(this.project.vcs_data);
+  editConnection(target) {
+    const project = this.projects.filter(p => p.target === target)[0];
+    this.autoBuild = project.auto_build;
+    this.connect(project.target);
+
+    this.selectedPath = project.plan_path;
+    this.selectedRepo = this.parseGitHubUrl(project.vcs_data);
     const [org, name] = this.selectedRepo.split('/');
 
     // This looks a bit weird, but it allows us to scroll the selected
@@ -307,7 +378,11 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
             this.pickInstallation(i);
 
             this.doAfterViewChecked(() => {
-              this.elementRef.nativeElement.querySelector('.installations .active').scrollIntoView();
+              const container = this.elementRef.nativeElement.querySelector('.installations');
+              const activeEl = container.querySelector('.active');
+              if (activeEl) {
+                container.scrollTop = activeEl.offsetTop - container.offsetTop;
+              }
             });
           }
         });
@@ -325,16 +400,16 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
             this.pickRepo(repo);
 
             this.doAfterViewChecked(() => {
-              this.elementRef.nativeElement.querySelector('.repositories .active').scrollIntoView();
+              const container = this.elementRef.nativeElement.querySelector('.repositories');
+              const activeEl = container.querySelector('.active');
+              if (activeEl) {
+                container.scrollTop = activeEl.offsetTop - container.offsetTop;
+              }
             });
           }
         });
       }
     });
-  }
-
-  next() {
-    this.selectRepository(this.activeRepo);
   }
 
   pickInstallation(install) {
@@ -345,28 +420,24 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
 
   pickRepo(repo) {
     this.activeRepo = repo;
+    this.selectRepository(this.activeRepo);
   }
 
   saveConnection() {
-    if (this.project) {
-      this.store.dispatch(updateProject(this.project.name, this.planTemplate, this.token, (result) => {
-        this.handleSaved(result.success, this.project.origin, this.project.package_name);
+    if (this.isUpdating) {
+      this.store.dispatch(updateProject(this.activeProject.name, this.planTemplate, this.token, (result) => {
+        const { origin, package_name, target } = this.activeProject;
+        this.handleSaved(result.success, origin, package_name, target);
       }));
-    }
-    else {
+    } else {
       this.store.dispatch(addProject(this.planTemplate, this.token, (result) => {
-        this.handleSaved(result.success, result.response.origin, result.response.package_name);
+        const { origin, package_name, target } = result.response;
+        this.handleSaved(result.success, origin, package_name, target);
       }));
     }
   }
 
   selectRepository(repo) {
-    setTimeout(() => {
-      if (this.planField) {
-        this.planField.markAsDirty();
-      }
-    }, 1000);
-
     this.selectedInstallation = Record({
       repo_id: repo.get('id'),
       app_id: this.config.github_app_id,
@@ -376,21 +447,29 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
       name: repo.get('name'),
       url: repo.get('url')
     })();
+
+    if (this.planField) {
+      this.planField.dirty ? this.planField.updateValueAndValidity() : this.planField.markAsDirty();
+    }
   }
 
   settingChanged(setting) {
     this.visibility = setting;
+    this.store.dispatch(setCurrentPackageVisibility(this.origin, this.name, this.visibility, this.token));
+  }
+
+  refresh() {
+    window.location.reload();
   }
 
   private doAfterViewChecked(f) {
     this._doAfterViewChecked.push(f);
   }
 
-  private handleSaved(successful, origin, name) {
+  private handleSaved(successful, origin, name, target) {
     if (successful) {
-      this.saveVisibility(origin, name);
       this.saveIntegration(origin, name);
-      this.store.dispatch(fetchProject(origin, name, this.token, false));
+      this.store.dispatch(fetchProject(origin, name, target, this.token, false));
       this.saved.emit({ origin: origin, name: name });
       this.clearConnection();
     }
@@ -414,9 +493,5 @@ export class ProjectSettingsComponent implements OnChanges, AfterViewChecked {
         this.store.dispatch(deleteProjectIntegration(this.origin, this.name, k, this.token));
       });
     }
-  }
-
-  private saveVisibility(origin, name) {
-    this.store.dispatch(setProjectVisibility(origin, name, this.visibility, this.token));
   }
 }

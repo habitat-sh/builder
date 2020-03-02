@@ -14,8 +14,8 @@
       autofocus="{{autofocus}}"
       placeholder="{{placeholder}}">
   </div>
-  <div class="validation-message" *ngIf="control.dirty && !control.pending ">
-    <span *ngIf="!control.valid" class="invalid">
+  <div class="validation-message" *ngIf="!control.pending">
+    <span *ngIf="control.invalid" class="invalid">
       <span *ngIf="control.errors.invalidFormat">
         {{displayName}} {{unmatchedMessage}}
       </span>

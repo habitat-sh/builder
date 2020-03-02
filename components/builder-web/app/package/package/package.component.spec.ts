@@ -62,7 +62,10 @@ describe('PackageComponent', () => {
         builder: false
       },
       origins: {
-        mine: []
+        mine: [],
+        current: {
+          default_package_visibility: 'public'
+        }
       },
       packages: {
         currentPlatforms: [
@@ -84,7 +87,8 @@ describe('PackageComponent', () => {
           visibility: 'private',
           vcs_data: 'https://github.com/cnunciato/testapp.git',
           auto_rebuild: false
-        }
+        },
+        currentProjects: []
       },
       session: {
         token: 'some-token'

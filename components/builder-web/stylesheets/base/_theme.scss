@@ -4,6 +4,8 @@
 @import "@angular/material/theming";
 @import "theme_palette";
 
+$mat-elevation-color: $medium-gray;
+
 $custom-typography: mat-typography-config(
   $button: mat-typography-level($base-font-size, $base-line-height, normal),
   $font-family: "#{$base-font-family}"

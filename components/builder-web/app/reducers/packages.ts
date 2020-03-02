@@ -51,7 +51,10 @@ export default function packages(state = initialState['packages'], action) {
 
     case actionTypes.CLEAR_PACKAGE_VERSIONS:
       return state.set('versions', undefined)
-        .set('currentPlatforms', []);
+        .set('currentPlatforms', [])
+        .setIn(['ui', 'versions', 'errorMessage'], undefined)
+        .setIn(['ui', 'versions', 'loading'], true)
+        .setIn(['ui', 'versions', 'exists'], false);
 
     case actionTypes.SET_CURRENT_PACKAGE:
       if (action.error) {
@@ -87,6 +90,13 @@ export default function packages(state = initialState['packages'], action) {
           setIn(['ui', 'versions', 'errorMessage'], undefined).
           setIn(['ui', 'versions', 'exists'], true).
           setIn(['ui', 'versions', 'loading'], false);
+      }
+
+    case actionTypes.SET_CURRENT_PACKAGE_SETTINGS:
+      if (action.error) {
+        return state.set('currentSettings', undefined);
+      } else {
+        return state.set('currentSettings', action.payload);
       }
 
     case actionTypes.SET_LATEST_IN_CHANNEL:

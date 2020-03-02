@@ -28,46 +28,41 @@
     background-color: $very-light-gray;
     border-radius: $default-radius;
     color: $dark-blue;
+    display: flex;
+    flex-direction: column;
 
-    hab-icon {
-      width: 24px;
-      height: 24px;
-    }
+    .note-icon {
+      display: none;
 
-    .icon, .info {
-      margin-right: $default-margin;
-      margin-bottom: $default-margin;
-    }
-
-    .icon {
-      float: left;
-    }
-
-    .cta {
-      margin-right: $default-margin;
-
-      .button {
-        @include cta;
+      hab-icon {
+        width: 24px;
+        height: 24px;
       }
+    }
+
+    .note-text {
+      padding: 0 0 $default-padding 0;
+
+      p {
+        margin: 0;
+      }
+    }
+
+    .note-icon,
+    .note-text,
+    .note-cta {
+      min-width: auto;
     }
 
     @include tablet-up {
-      display: flex;
+      flex-direction: row;
 
-      .icon {
-        flex: 0 0 24px;
+      .note-icon {
+        display: block;
       }
 
-      .info {
-        flex: 1;
-      }
-
-      .cta {
-        flex: 0 0 140px;
-
-        .button {
-          @include cta;
-        }
+      .note-text {
+        padding: 0 $default-padding;
       }
     }
   }
@@ -95,6 +90,56 @@
     }
   }
 
+  .connect-btn {
+    .connect-btn-text {
+      padding-right: 10px;
+      border-right: 1px solid $white;
+      margin-right: 5px;
+    }
+
+    .connect-btn-icon {
+      margin: 3px -10px 0 0;
+      padding: 0;
+    }
+
+    &[disabled] .connect-btn-text {
+      border-right-color: $disabled;
+    }
+  }
+
+  .connect-plan-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: $white;
+    overflow: scroll;
+
+    .overlay-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10%;
+      overflow: hidden;
+      background: $very-light-gray;
+
+      hab-platform-icon {
+        margin-left: $default-margin;
+      }
+
+      .overlay-close {
+        font-size: 30px;
+        height: 30px;
+      }
+    }
+
+    .overlay-body {
+      padding: 1em 10%;
+    }
+  }
+
   .connected-plans {
 
     li {
@@ -104,44 +149,11 @@
       }
 
       .plan-path {
-
-        hab-icon {
-          margin-right: $default-margin;
-        }
+        margin-right: $small-margin;
       }
 
-      .plan-actions {
-
-        hab-icon {
-          width: 16px;
-          color: $hab-blue;
-          margin-right: 22px;
-          cursor: pointer;
-          @include transition(color);
-
-          &:hover {
-            color: darken($hab-blue, 10%);
-          }
-
-          &:active {
-            color: $hab-links;
-          }
-        }
-      }
-
-      .plan-status {
-
-        hab-icon {
-          width: 18px;
-
-          &.success {
-            color: $success;
-          }
-        }
-
-        span {
-          color: $medium-gray;
-        }
+      .invalid-path-icon {
+        color: map-get($icon-colors, alert);
       }
     }
   }
@@ -208,5 +220,27 @@
         margin-right: 16px;
       }
     }
+  }
+}
+
+.mat-menu-panel.connect-menu {
+  max-width: none;
+
+  .mat-menu-content:not(:empty) {
+    padding: 0;
+    border: $hab-borders;
+  }
+
+  .mat-menu-item {
+    color: $hab-links;
+    border-bottom: $hab-borders;
+  }
+
+  .mat-menu-item[disabled] {
+    color: $disabled;
+  }
+
+  .mat-menu-item:last-child {
+    border-bottom: none;
   }
 }

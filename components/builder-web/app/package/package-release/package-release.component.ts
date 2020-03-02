@@ -14,62 +14,34 @@
 
 import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
-import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { AppStore } from '../../app.store';
-import { fetchPackage } from '../../actions/index';
-import { fetchPackageChannels } from '../../actions/packages';
 
 @Component({
   template: require('./package-release.component.html')
 })
 export class PackageReleaseComponent implements OnDestroy {
-  origin: string;
-  name: string;
-  version: string;
-  release: string;
 
-  private sub: Subscription;
+  private isDestroyed$: Subject<boolean> = new Subject();
 
   constructor(
-    private route: ActivatedRoute,
     private store: AppStore,
     private title: Title
   ) {
-    this.sub = this.route.params.subscribe((params) => {
-      let parentParams = this.route.parent.params['value'];
-      this.origin = parentParams['origin'];
-      this.name = parentParams['name'];
-      this.version = params['version'];
-      this.release = params['release'];
-      this.title.setTitle(`Packages › ${this.origin}/${this.name}/${this.version}/${this.release} | ${store.getState().app.name}`);
-      this.fetchRelease();
-    });
+    this.store.observe('router.route.params')
+      .pipe(takeUntil(this.isDestroyed$))
+      .subscribe(({ origin, name, version, release }) => {
+        this.title.setTitle(`Packages › ${origin}/${name}/${version}/${release} | ${store.getState().app.name}`);
+      });
   }
 
   ngOnDestroy() {
-    if (this.sub) {
-      this.sub.unsubscribe();
-    }
-  }
-
-  get ident() {
-    return {
-      origin: this.origin,
-      name: this.name,
-      version: this.version,
-      release: this.release
-    };
+    this.isDestroyed$.next(true);
+    this.isDestroyed$.complete();
   }
 
   get package() {
     return this.store.getState().packages.current;
-  }
-
-  private fetchRelease() {
-    this.store.dispatch(fetchPackage({ ident: this.ident }));
-    this.store.dispatch(fetchPackageChannels(
-      this.ident.origin, this.ident.name, this.ident.version, this.ident.release
-    ));
   }
 }

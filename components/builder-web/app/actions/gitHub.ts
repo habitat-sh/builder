@@ -56,7 +56,7 @@ export function fetchGitHubRepositories(installationID: number) {
   };
 }
 
-function clearGitHubInstallations() {
+export function clearGitHubInstallations() {
   return {
     type: CLEAR_GITHUB_INSTALLATIONS
   };
@@ -69,7 +69,7 @@ function populateGitHubInstallations(payload) {
   };
 }
 
-function clearGitHubRepositories() {
+export function clearGitHubRepositories() {
   return {
     type: CLEAR_GITHUB_REPOSITORIES
   };

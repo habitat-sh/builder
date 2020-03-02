@@ -15,12 +15,14 @@
 import { BuilderApiClient } from '../client/builder-api';
 import { addNotification } from './notifications';
 import { DANGER, SUCCESS } from './notifications';
+import { targets } from '../util';
 
 export const CLEAR_PROJECTS = 'CLEAR_PROJECTS';
 export const CLEAR_CURRENT_PROJECT = 'CLEAR_CURRENT_PROJECT';
 export const CLEAR_CURRENT_PROJECT_INTEGRATION = 'CLEAR_CURRENT_PROJECT_SETTINGS';
 export const DELETE_PROJECT = 'DELETE_PROJECT';
 export const SET_CURRENT_PROJECT = 'SET_CURRENT_PROJECT';
+export const SET_CURRENT_PROJECTS = 'SET_CURRENT_PROJECTS';
 export const SET_CURRENT_PROJECT_INTEGRATION = 'SET_CURRENT_PROJECT_INTEGRATION';
 export const SET_PROJECTS = 'SET_PROJECTS';
 
@@ -72,7 +74,6 @@ export function setProjectVisibility(origin: string, name: string, setting: stri
   return dispatch => {
     new BuilderApiClient(token).setProjectVisibility(origin, name, setting)
       .then(response => {
-        dispatch(fetchProject(origin, name, token, false));
         dispatch(addNotification({
           title: 'Privacy settings saved',
           type: SUCCESS
@@ -88,11 +89,12 @@ export function setProjectVisibility(origin: string, name: string, setting: stri
   };
 }
 
-export function fetchProject(origin: string, name: string, token: string, alert: boolean) {
+export function fetchProject(origin: string, name: string, target: string, token: string, alert: boolean) {
   return dispatch => {
     dispatch(clearCurrentProject());
+    dispatch(fetchCurrentProjects(origin, name, token));
 
-    new BuilderApiClient(token).getProject(origin, name)
+    new BuilderApiClient(token).getProject(origin, name, target)
       .then(response => {
         dispatch(setCurrentProject(response, null));
       })
@@ -128,10 +130,25 @@ export function fetchProjectIntegration(origin: string, name: string, integratio
   };
 }
 
-export function deleteProject(id: string, token: string) {
+export function fetchCurrentProjects(origin: string, name: string, token: string) {
   return dispatch => {
-    new BuilderApiClient(token).deleteProject(id).then(response => {
+    const fetchAll = targets.map(target => {
+      return new BuilderApiClient(token)
+        .getProject(origin, name, target.id)
+        .catch(error => null);
+    });
+
+    Promise.all(fetchAll)
+      .then(projects => dispatch(setCurrentProjects(projects)))
+      .catch(error => dispatch(setCurrentProjects([])));
+  };
+}
+
+export function deleteProject(origin: string, name: string, target: string, token: string) {
+  return dispatch => {
+    new BuilderApiClient(token).deleteProject(origin, name, target).then(response => {
       dispatch(clearCurrentProject());
+      dispatch(fetchProject(origin, name, target, token, false));
       dispatch(addNotification({
         title: 'Plan connection deleted',
         type: SUCCESS
@@ -193,6 +210,14 @@ export function setCurrentProject(project, error = undefined) {
   return {
     type: SET_CURRENT_PROJECT,
     payload: project,
+    error: error
+  };
+}
+
+export function setCurrentProjects(projects, error = undefined) {
+  return {
+    type: SET_CURRENT_PROJECTS,
+    payload: projects,
     error: error
   };
 }

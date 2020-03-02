@@ -1,0 +1,14 @@
+<div class="dialog">
+  <section class="heading">
+    <h1>Change artifact to {{ data.visibility }}?</h1>
+  </section>
+  <section class="body">
+    <p>Changing <strong>{{ artifactName }}</strong> to {{ data.visibility }} may break all the existing dependent or transitive dependent packages in their future rebuilds.</p>
+  </section>
+  <section class="controls">
+    <button mat-raised-button color="primary" class="button" (click)="confirm()">
+      Change to {{ data.visibility }}
+    </button>
+    <a (click)="cancel()">Cancel</a>
+  </section>
+</div>
