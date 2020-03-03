@@ -330,17 +330,16 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         levels
     }
 
-    pub fn dump_build_levels(&self, filename: &str, _origin_filter: Option<&str>) {
+    pub fn dump_build_levels(&self, filename: &str, origin_filter: Option<&str>) {
         let path = Path::new(filename);
         let mut file = File::create(&path).unwrap();
 
         let levels = self.compute_levels();
         for (node, (scc_level, rt_level)) in levels {
-            writeln!(&mut file,
-                     "{}\t{}\t{}",
-                     scc_level,
-                     rt_level,
-                     self.ident_for_node(node)).unwrap();
+            let ident = self.ident_for_node(node);
+            if filter_match(ident, origin_filter) {
+                writeln!(&mut file, "{}\t{}\t{}", scc_level, rt_level, ident).unwrap();
+            }
         }
     }
 
@@ -399,12 +398,5 @@ fn edgetype_to_abbv(edge: EdgeType) -> &'static str {
     match edge {
         EdgeType::RuntimeDep => "R",
         EdgeType::BuildDep => "B",
-    }
-}
-
-fn filter_match(ident: &PackageIdent, filter: Option<&str>) -> bool {
-    match filter {
-        Some(origin) => ident.origin == origin,
-        None => true,
     }
 }
