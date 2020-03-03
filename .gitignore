@@ -26,3 +26,6 @@ upstream.toml
 #### Generated Files
 components/builder-protocol/src/message
 !components/builder-protocol/src/message/mod.rs
+
+#### Vendored test helpers
+test/test_helper

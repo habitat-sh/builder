@@ -34,6 +34,7 @@ pub enum Error {
     IO(io::Error),
     JobGraphPackagesGet(postgres::error::Error),
     Protobuf(protobuf::ProtobufError),
+    Serde(serde_json::Error),
     UnknownJobGraphPackage,
 }
 
@@ -54,6 +55,7 @@ impl fmt::Display for Error {
                 format!("Database error retrieving packages, {}", e)
             }
             Error::Protobuf(ref e) => format!("{}", e),
+            Error::Serde(ref e) => format!("{}", e),
             Error::UnknownJobGraphPackage => "Unknown Package".to_string(),
         };
         write!(f, "{}", msg)
@@ -71,6 +73,7 @@ impl error::Error for Error {
             Error::IO(ref err) => err.description(),
             Error::JobGraphPackagesGet(ref err) => err.description(),
             Error::Protobuf(ref err) => err.description(),
+            Error::Serde(ref err) => err.description(),
             Error::UnknownJobGraphPackage => "Unknown Package",
         }
     }
@@ -90,4 +93,8 @@ impl From<io::Error> for Error {
 
 impl From<protobuf::ProtobufError> for Error {
     fn from(err: protobuf::ProtobufError) -> Error { Error::Protobuf(err) }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Error { Error::Serde(err) }
 }
