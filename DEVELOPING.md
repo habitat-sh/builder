@@ -116,6 +116,8 @@ Once the Builder Repo is configured, Builder services can be started inside the 
 * `cd ${BUILDER_SRC_ROOT}`
 * `direnv allow`
 * `export HAB_AUTH_TOKEN=your_live_builder_token`
+* `ls ~/.hab/cache/keys/habitat-* || hab origin key generate habitat`
+* `export HAB_ORIGIN=habitat`
 * `hab studio enter`
 
 Once inside the Habitat Studio, you should see a welcome message along with a list of useful commands (Use the `dev_docs` command if you need to print out the commands list again).
@@ -132,7 +134,14 @@ You can also run `sl` to output the running Supervisor log as needed.
 
 If you are *NOT* doing UI development and standing up the Web UI on your Host OS, then you don't need to do anything extra. You can just navigate to `${APP_HOSTNAME}/#/sign-in`
 
-However, if you *ARE* developing the UI then you will need to follow the instructions in the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) to get the Web UI running on your Host OS.
+If there are recent UI changes not yet promoted to stable that you wish to try out, then follow these additional steps to build and deploy the node/angular assets locally off of your branch:
+
+1. `cd components/builder-api-proxy && build`
+1. `hab svc stop habitat/builder-api-proxy`
+1. `hab svc start habitat/builder-api-proxy`
+
+In the event that you *ARE* developing the UI then you will need to follow the instructions in the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) to get the Web UI running on your Host OS.
+
 
 ### Personal Access Token generation
 
