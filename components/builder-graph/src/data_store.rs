@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{str::FromStr,
-          sync::Arc};
+use std::sync::Arc;
 
 use crate::hab_core::package::{PackageIdent,
                                PackageTarget};
@@ -28,8 +27,7 @@ use crate::{config::Config,
                                    PackageVisibility},
                  DbPool},
             error::{Error,
-                    Result},
-            protocol::originsrv};
+                    Result}};
 
 // DataStore inherits Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Clone)]
@@ -78,23 +76,18 @@ impl DataStore {
     }
 
     pub fn get_job_graph_package(&self,
-                                 ident: &str,
-                                 target: &str)
-                                 -> Result<originsrv::OriginPackage> {
+                                 ident: &PackageIdent,
+                                 target: PackageTarget)
+                                 -> Result<PackageWithVersionArray> {
         let conn = self.pool.get_conn()?;
 
-        let package =
-            GetLatestPackage { ident:
-                                   BuilderPackageIdent(PackageIdent::from_str(ident).unwrap()),
-                               target:
-                                   BuilderPackageTarget(PackageTarget::from_str(target).unwrap()),
-                               visibility: PackageVisibility::all(), };
+        let package = GetLatestPackage { ident:      BuilderPackageIdent(ident.clone()),
+                                         target:     BuilderPackageTarget(target),
+                                         visibility: PackageVisibility::all(), };
 
         println!("Package fetching: {:?}", package);
 
-        let rows = Package::get_latest(package, &conn).map_err(Error::DieselError)?;
-
-        let package = rows.into();
+        let package = Package::get_latest(package, &conn).map_err(Error::DieselError)?;
         Ok(package)
     }
 }

@@ -504,12 +504,9 @@ impl PackageGraphForTarget {
 
     // Given an identifier in 'origin/name' format, returns the
     // most recent version (fully-qualified package ident string)
-    pub fn resolve(&self, name: &str) -> Option<String> {
-        let ident = PackageIdent::from_str(name).unwrap();
-        match self.latest_map.get(&ident) {
-            Some(latest) => Some(format!("{}", latest)),
-            None => None,
-        }
+    pub fn resolve(&self, ident: &PackageIdent) -> Option<PackageIdent> {
+        let index = self.latest_map.get(ident);
+        index.map(|x| self.packages[*x].borrow().ident.clone())
     }
 
     pub fn stats(&self) -> Stats {
@@ -547,9 +544,7 @@ impl PackageGraphForTarget {
         v
     }
 
-    pub fn write_deps(&self, name: &str) {
-        let ident = PackageIdent::from_str(name).unwrap();
-
+    pub fn write_deps(&self, ident: &PackageIdent) {
         let maybe_package_index = if ident.fully_qualified() {
             self.package_map.get(&ident)
         } else {
@@ -557,7 +552,7 @@ impl PackageGraphForTarget {
         };
         match maybe_package_index {
             Some(&pi) => self.packages[pi].borrow().write(),
-            None => println!("Couldn't find match for {}", name),
+            None => println!("Couldn't find match for {}", ident),
         }
     }
 
@@ -640,8 +635,8 @@ impl PackageGraph {
 
     pub fn latest(&self) -> Vec<String> { self.graphs[&self.current_target].borrow().latest() }
 
-    pub fn resolve(&self, name: &str) -> Option<String> {
-        self.graphs[&self.current_target].borrow().resolve(name)
+    pub fn resolve(&self, ident: &PackageIdent) -> Option<PackageIdent> {
+        self.graphs[&self.current_target].borrow().resolve(ident)
     }
 
     pub fn stats(&self) -> Stats { self.graphs[&self.current_target].borrow().stats() }
@@ -667,8 +662,8 @@ impl PackageGraph {
                                          .emit_graph(file, origin_filter, latest, edge_type)
     }
 
-    pub fn write_deps(&self, name: &str) {
-        self.graphs[&self.current_target].borrow().write_deps(name)
+    pub fn write_deps(&self, ident: &PackageIdent) {
+        self.graphs[&self.current_target].borrow().write_deps(ident)
     }
 
     pub fn dump_graph(&self, file: &str) {
