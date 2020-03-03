@@ -137,6 +137,7 @@ If you are *NOT* doing UI development and standing up the Web UI on your Host OS
 If there are recent UI changes not yet promoted to stable that you wish to try out, then follow these additional steps to build and deploy the node/angular assets locally off of your branch:
 
 1. `cd components/builder-api-proxy && build`
+1. `source results/last_build.env && hab pkg install results/"${pkg_artifact}"`
 1. `stop-builder api-proxy`
 1. `start-builder api-proxy`
 
