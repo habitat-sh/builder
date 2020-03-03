@@ -79,6 +79,14 @@ readonly this_bootstrap_bundle="hab_builder_bootstrap_$(date +%Y%m%d%H%M%S)"
 
 ########################################################################
 
+echo "--- :habicat:  Updating Habitat"
+# The .toml file support for hab pkg download is not in hab provided by
+# the chefes/buildkite image. Update to the just-released version 
+hab pkg install core/hab --binlink --force 
+echo "Using $(hab --version)"
+
+echo "--- Generating bootstrap bundle"
+
 sandbox_dir="${this_bootstrap_bundle}"
 log "Downloading packages into ${sandbox_dir}"
 mkdir "${sandbox_dir}"
