@@ -27,6 +27,7 @@ import { Origin } from '../../../records/Origin';
 import { OriginMembersTabComponent } from './origin-members-tab.component';
 import * as actions from '../../../actions';
 
+
 class MockAppStore {
   getState() {
     return {
@@ -61,7 +62,7 @@ class MockAppStore {
 
 class MockDialog { }
 
-describe('OriginMembersTabComponent', () => {
+fdescribe('OriginMembersTabComponent', () => {
   let fixture: ComponentFixture<OriginMembersTabComponent>;
   let component: OriginMembersTabComponent;
   let element: DebugElement;
@@ -87,7 +88,7 @@ describe('OriginMembersTabComponent', () => {
         { provide: AppStore, useValue: store },
         { provide: MatDialog, useClass: MockDialog }
       ]
-    });
+    }).compileComponents();
 
     fixture = TestBed.createComponent(OriginMembersTabComponent);
     component = fixture.componentInstance;
@@ -103,11 +104,29 @@ describe('OriginMembersTabComponent', () => {
 
   describe('departing an origin', () => {
 
-    it('removes the user from the origin', () => {
-      // component.departFromOrigin();
-      // fixture.detectChanges();
+    it('shows a depart origin button when user is not the owner', () => {
+      // console.log('*************');
+      // console.log(component.isOriginOwner);
+      fixture.detectChanges();
+      let departButton = fixture.debugElement.query(By.css('#dfo-section button'));
+      expect(departButton).toBeTruthy();
+    });
 
-      // expect(store.dispatch).toHaveBeenCalled();
+    it('opens up a modal when depart button is clicked', () => {
+      element.query(By.css('#dfo-section button')).nativeElement.click();
+      fixture.detectChanges();
+      const modalWindow = element.query(By.css('.dialog.depart-origin'));
+
+      expect(modalWindow).toBeTruthy();
+    });
+
+    it('removes the user from the origin when the button is clicked', () => {
+
+      // expect() // user to be gone
+    });
+
+    it('reloads the page after departure', () => {
+      // expect page reload
     });
   });
 
