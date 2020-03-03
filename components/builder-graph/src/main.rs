@@ -19,6 +19,8 @@
 extern crate bitflags;
 use clap::clap_app;
 #[macro_use]
+extern crate clap;
+#[macro_use]
 extern crate features;
 #[macro_use]
 extern crate log;
@@ -29,6 +31,9 @@ extern crate lazy_static;
 
 extern crate diesel;
 
+extern crate serde;
+extern crate serde_json;
+
 use habitat_builder_db as db;
 use habitat_core as hab_core;
 
@@ -37,6 +42,7 @@ pub mod data_store;
 pub mod error;
 pub mod ident_graph;
 pub mod package_graph;
+pub mod package_graph_target;
 pub mod rdeps;
 pub mod util;
 
@@ -142,21 +148,23 @@ fn main() {
         state.done = true
     } else {
         // Interactive mode
+        println!("\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, \
+                  check, exit\n",);
         state.cli.print_help().unwrap();
 
         while !state.done {
             let prompt = format!("{}: command> ", state.graph.current_target());
-            let line = cl.read_line_utf8(&prompt);
-            if let Ok(cmd) = line {
-                cl.add_history(cmd.clone());
+            let line = cl.read_line_utf8(&prompt).ok();
+            if line.is_none() {
+                continue;
+            }
+            let cmd = line.expect("Could not get line");
+            cl.add_history(cmd.clone());
 
-                let v: Vec<&str> = cmd.trim_end().split_whitespace().collect();
+            let v: Vec<&str> = cmd.trim_end().split_whitespace().collect();
 
-                if !v.is_empty() {
-                    state.process_command(v);
-                }
-            } else {
-                line.expect("Could not get line");
+            if !v.is_empty() {
+                state.process_command(v);
             }
         }
     }
@@ -169,9 +177,8 @@ impl State {
         match match_result {
             Ok(matches) => {
                 match matches.subcommand() {
-                    ("help", _) => do_help(&matches, &mut self.cli), /* This doesn't work; goes
-                                                                       * strait Something */
-                    // is eating the help output
+                    ("help", _) => do_help(&matches, &mut self.cli), // This
+                    // doesn't work something is eating the help output
                     ("build_levels", Some(m)) => do_build_levels(&self.graph, &m),
                     ("check", Some(m)) => do_check(&self.datastore, &self.graph, &m),
                     ("db_deps", Some(m)) => do_db_deps(&self.datastore, &self.graph, &m),
@@ -180,12 +187,15 @@ impl State {
                     ("export", Some(m)) => do_export(&self.graph, &m),
                     ("filter", Some(m)) => self.filter = do_filter(&m),
                     ("find", Some(m)) => do_find(&self.graph, &m),
+                    ("load_file", Some(m)) => do_load_file(&mut self, &m),
+                    ("load_db", Some(m)) => do_load_db(&mut self, &m),
                     ("quit", _) => self.done = true,
-                    ("raw", Some(m)) => do_raw(& self.graph, &m),
-                    ("rdeps", Some(m)) => do_rdeps(& self.graph, &self.filter, &m),
-                    ("resolve", Some(m)) => do_resolve(& self.graph, &m),
+                    ("raw", Some(m)) => do_raw(&self.graph, &m),
+                    ("rdeps", Some(m)) => do_rdeps(&self.graph, &self.filter, &m),
+                    ("resolve", Some(m)) => do_resolve(&self.graph, &m),
+                    ("save_file", Some(m)) => do_save_file(&self.graph, &m),
                     ("scc", Some(m)) => do_scc(&self.graph, &m),
-                    ("stats", Some(m)) => do_stats(& self.graph, &m),
+                    ("stats", Some(m)) => do_stats(&self.graph, &m),
                     ("target", Some(m)) => do_target(&mut self.graph, &m),
                     ("top", Some(m)) => do_top(&self.graph, &m),
                     name => println!("ClapM {:?} {:?}", matches, name),
@@ -585,6 +595,9 @@ fn make_clap_cli() -> App<'static, 'static> {
         .subcommand(export_subcommand())
         .subcommand(filter_subcommand())
         .subcommand(find_subcommand())
+        .subcommand(load_from_db_subcommand())
+        .subcommand(load_from_file_subcommand())
+        .subcommand(save_to_file_subcommand())
         .subcommand(help_subcommand())
         .subcommand(quit_subcommand())
         .subcommand(raw_subcommand())
@@ -681,6 +694,31 @@ fn find_subcommand() -> App<'static, 'static> {
               (@arg SEARCH: +takes_value "Search term to use")
               (@arg COUNT: {valid_numeric::<usize>} default_value("10") "Number of packages to show")
     )
+}
+
+fn load_from_file_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand load_file =>
+                        (about: "Load packages from file into graph")
+                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        (@arg FILTER: +takes_value default_value("") "Filter value")
+    );
+    sub
+}
+
+fn save_to_file_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand save_file =>
+                        (about: "Write packages into graph for current target to file")
+                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        (@arg FILTER: +takes_value default_value("") "Filter value")
+    );
+    sub
+}
+
+fn load_from_db_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand load_db =>
+                        (about: "Read packages from DB into graph")
+    );
+    sub
 }
 
 fn rdeps_subcommand() -> App<'static, 'static> {
