@@ -137,8 +137,8 @@ If you are *NOT* doing UI development and standing up the Web UI on your Host OS
 If there are recent UI changes not yet promoted to stable that you wish to try out, then follow these additional steps to build and deploy the node/angular assets locally off of your branch:
 
 1. `cd components/builder-api-proxy && build`
-1. `hab svc stop habitat/builder-api-proxy`
-1. `hab svc start habitat/builder-api-proxy`
+1. `stop-builder api-proxy`
+1. `start-builder api-proxy`
 
 In the event that you *ARE* developing the UI then you will need to follow the instructions in the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) to get the Web UI running on your Host OS.
 
