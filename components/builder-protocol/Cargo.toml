@@ -13,7 +13,6 @@ fnv = "*"
 protobuf = "*"
 serde = "*"
 serde_derive = "*"
-time = "*"
 regex = "*"
 lazy_static = "*"
 

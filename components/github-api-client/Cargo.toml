@@ -15,7 +15,6 @@ regex = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-time = "*"
 url = "*"
 
 [dependencies.builder_core]

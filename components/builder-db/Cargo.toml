@@ -15,7 +15,6 @@ diesel-derive-enum = { version = "*", features = ["postgres"] }
 diesel_full_text_search = "*"
 diesel_migrations = "*"
 r2d2 = "*"
-time = "*"
 rand = "*"
 serde = "*"
 chrono = { version = "*", features = ["serde"] }

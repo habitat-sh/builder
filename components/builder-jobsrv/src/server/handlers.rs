@@ -19,12 +19,12 @@ use std::{collections::HashSet,
           io::{BufRead,
                BufReader},
           path::PathBuf,
-          str::FromStr};
+          str::FromStr,
+          time::Instant};
 
 use diesel::{self,
              result::Error::NotFound};
 use protobuf::RepeatedField;
-use time::PreciseTime;
 
 use crate::{bldr_core::rpc::RpcMessage,
             db::models::{jobs::*,
@@ -248,7 +248,6 @@ fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
                            projects: &mut Vec<(String, String)>) {
     let mut excluded = HashSet::new();
     let mut start_time;
-    let mut end_time;
 
     for s in rdeps {
         // Skip immediately if black-listed
@@ -267,9 +266,8 @@ fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
             let rdeps_opt = {
                 let target_graph = state.graph.read().unwrap();
                 let graph = target_graph.graph(msg.get_target()).unwrap(); // Unwrap OK
-                start_time = PreciseTime::now();
+                start_time = Instant::now();
                 let ret = graph.rdeps(&s.0);
-                end_time = PreciseTime::now();
                 ret
             };
 
@@ -277,8 +275,7 @@ fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
                 Some(rdeps) => {
                     debug!("Graph rdeps: {} items ({} sec)\n",
                            rdeps.len(),
-                           start_time.to(end_time));
-
+                           start_time.elapsed().as_secs());
                     for dep in rdeps {
                         excluded.insert(dep.0.clone());
                     }
@@ -326,7 +323,6 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
 
     // Get the ident for the root package
     let mut start_time;
-    let mut end_time;
 
     let project_ident = {
         let mut target_graph = state.graph.write().unwrap();
@@ -339,7 +335,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
             }
         };
 
-        start_time = PreciseTime::now();
+        start_time = Instant::now();
         let ret = match graph.resolve(&project_name) {
             Some(s) => s,
             None => {
@@ -349,10 +345,10 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
                 String::from("")
             }
         };
-        end_time = PreciseTime::now();
+        debug!("Resolved project name: {} sec\n",
+               start_time.elapsed().as_secs());
         ret
     };
-    debug!("Resolved project name: {} sec\n", start_time.to(end_time));
 
     // Bail if auto-build is false, and the project has not been manually kicked off
     if !is_project_buildable(state, &project_name, &target) {
@@ -368,15 +364,13 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     if !msg.get_deps_only() || msg.get_package_only() {
         projects.push((project_name.clone(), project_ident));
     }
-
     // Search the packages graph to find the reverse dependencies
     if !msg.get_package_only() {
         let rdeps_opt = {
             let target_graph = state.graph.read().unwrap();
             let graph = target_graph.graph(msg.get_target()).unwrap(); // Unwrap OK
-            start_time = PreciseTime::now();
+            start_time = Instant::now();
             let ret = graph.rdeps(&project_name);
-            end_time = PreciseTime::now();
             ret
         };
 
@@ -384,8 +378,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
             Some(rdeps) => {
                 debug!("Graph rdeps: {} items ({} sec)\n",
                        rdeps.len(),
-                       start_time.to(end_time));
-
+                       start_time.elapsed().as_secs());
                 populate_build_projects(&msg, state, &rdeps, &mut projects);
             }
             None => {
@@ -641,13 +634,12 @@ pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<Rp
             return Err(Error::NotFound);
         }
     };
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let (ncount, ecount) = graph.extend(&package, feat::is_enabled(feat::BuildDeps));
-    let end_time = PreciseTime::now();
     debug!("Extended graph, nodes: {}, edges: {} ({} sec)\n",
            ncount,
            ecount,
-           start_time.to(end_time));
+           start_time.elapsed().as_secs());
 
     RpcMessage::make(package).map_err(Error::BuilderCore)
 }
@@ -669,15 +661,13 @@ pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result
             }
         };
 
-        let start_time = PreciseTime::now();
+        let start_time = Instant::now();
 
         let ret = graph.check_extend(&package, feat::is_enabled(feat::BuildDeps));
 
-        let end_time = PreciseTime::now();
-
         debug!("Graph pre-check: {} ({} sec)\n",
                ret,
-               start_time.to(end_time));
+               start_time.elapsed().as_secs());
 
         ret
     };
