@@ -13,28 +13,29 @@
 // limitations under the License.
 
 //
-//
-//
 
-use petgraph::{algo::tarjan_scc, graph::NodeIndex, Direction, Graph};
+use petgraph::{algo::tarjan_scc,
+               graph::NodeIndex,
+               Direction,
+               Graph};
 
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use std::collections::{HashMap,
+                       VecDeque};
 
-use std::cmp;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
+use std::{cmp,
+          fs::File,
+          io::prelude::*,
+          path::Path};
 
-use crate::hab_core::package::PackageIdent;
-use crate::util::*;
+use crate::{hab_core::package::PackageIdent,
+            util::*};
 
 type IdentIndex = usize;
 
 #[derive(Default)]
 struct IdentMemo {
     // It would be nice not to have two copies of Ident
-    idents: Vec<PackageIdent>,
+    idents:    Vec<PackageIdent>,
     ident_map: HashMap<PackageIdent, IdentIndex>,
 }
 
@@ -51,35 +52,29 @@ impl IdentMemo {
         }
     }
 
-    pub fn get_ident<'a>(&'a self, index: IdentIndex) -> &'a PackageIdent {
-        &self.idents[index]
-    }
+    pub fn get_ident(&self, index: IdentIndex) -> &PackageIdent { &self.idents[index] }
 
     // TODO: maybe helper fn to compare/sort by index.
 }
 
 struct IdentGraphElement<Value> {
     ident_index: IdentIndex,
-    node_index: NodeIndex,
-    value: Value,
+    node_index:  NodeIndex,
+    value:       Value,
 }
 
 // IdentGraph allows us to map an Ident to a graph node, and update a value for that node
 // petgraph doesn't allow value updating...
 #[derive(Default)]
 pub struct IdentGraph<Value> {
-    data: Vec<IdentGraphElement<Value>>,
-    graph: Graph<IdentIndex, EdgeType>,
+    data:       Vec<IdentGraphElement<Value>>,
+    graph:      Graph<IdentIndex, EdgeType>,
     ident_memo: IdentMemo,
 }
 
-impl<Value> IdentGraph<Value>
-where
-    Value: Default + Copy,
+impl<Value> IdentGraph<Value> where Value: Default + Copy
 {
-    pub fn new() -> Self {
-        IdentGraph::default()
-    }
+    pub fn new() -> Self { IdentGraph::default() }
 
     fn get_node_by_id(&mut self, ident: &PackageIdent) -> (IdentIndex, NodeIndex, Value) {
         let ident_index = self.ident_memo.index_for_ident(ident);
@@ -89,18 +84,14 @@ where
             assert_eq!(node_index.index(), ident_index);
 
             let value = Default::default();
-            self.data.push(IdentGraphElement {
-                ident_index,
-                node_index,
-                value,
-            });
+            self.data.push(IdentGraphElement { ident_index,
+                                               node_index,
+                                               value });
             (ident_index, node_index, value)
         } else {
-            let IdentGraphElement {
-                ident_index: expected_index,
-                node_index,
-                value,
-            } = self.data[ident_index];
+            let IdentGraphElement { ident_index: expected_index,
+                                    node_index,
+                                    value, } = self.data[ident_index];
             assert_eq!(expected_index, ident_index);
             (ident_index, node_index, value)
         }
@@ -120,8 +111,7 @@ where
         (ident_index, node_index)
     }
 
-    pub fn ident_for_node<'a>(&'a self, node: NodeIndex) -> &'a PackageIdent {
-        //             let ident_index = self.graph.node_weight(node_index).unwrap();
+    pub fn ident_for_node(&self, node: NodeIndex) -> &PackageIdent {
         self.ident_memo.get_ident(node.index())
     }
 
@@ -138,9 +128,7 @@ where
         }
     }
 
-    pub fn counts(&self) -> (usize, usize) {
-        (self.graph.node_count(), self.graph.edge_count())
-    }
+    pub fn counts(&self) -> (usize, usize) { (self.graph.node_count(), self.graph.edge_count()) }
 
     // Output a human readable, machine parsable form of the graph; useful for debugging
     pub fn dump_graph_raw(&self, filename: &str, origin_filter: Option<&str>) {
@@ -157,9 +145,8 @@ where
                 let node_name = node.to_string();
                 let mut bdeps = Vec::new();
                 let mut rdeps = Vec::new();
-                for succ_index in self
-                    .graph
-                    .neighbors_directed(node_index, Direction::Outgoing)
+                for succ_index in self.graph
+                                      .neighbors_directed(node_index, Direction::Outgoing)
                 {
                     let edge_index = self.graph.find_edge(node_index, succ_index).unwrap();
                     match self.graph.edge_weight(edge_index).unwrap() {
@@ -169,12 +156,9 @@ where
                 }
                 let bdeps_join = self.join_nodes(&bdeps, ",");
                 let rdeps_join = self.join_nodes(&rdeps, ",");
-                writeln!(
-                    &mut file,
-                    "{};\t{};{};\t{};\t{}",
-                    node_name, in_count, out_count, rdeps_join, bdeps_join
-                )
-                .unwrap();
+                writeln!(&mut file,
+                         "{};\t{};{};\t{};\t{}",
+                         node_name, in_count, out_count, rdeps_join, bdeps_join).unwrap();
             }
         }
     }
@@ -213,11 +197,8 @@ where
         self.write_edges(&mut file, EdgeType::RuntimeDep, origin_filter);
 
         writeln!(&mut file, "//######## BUILD TIME EDGES ######").unwrap();
-        writeln!(
-            &mut file,
-            "    edge [ color = \"blue\" style = \"dashed\" constraint = false ];"
-        )
-        .unwrap();
+        writeln!(&mut file,
+                 "    edge [ color = \"blue\" style = \"dashed\" constraint = false ];").unwrap();
 
         // iterate through build edges
         self.write_edges(&mut file, EdgeType::BuildDep, origin_filter);
@@ -230,15 +211,13 @@ where
     fn count_edges(&self, node_index: NodeIndex) -> (u32, u32) {
         let mut in_count = 0;
         let mut out_count = 0;
-        for _pred_index in self
-            .graph
-            .neighbors_directed(node_index, Direction::Incoming)
+        for _pred_index in self.graph
+                               .neighbors_directed(node_index, Direction::Incoming)
         {
             in_count += 1;
         }
-        for _succ_index in self
-            .graph
-            .neighbors_directed(node_index, Direction::Outgoing)
+        for _succ_index in self.graph
+                               .neighbors_directed(node_index, Direction::Outgoing)
         {
             out_count += 1;
         }
@@ -262,24 +241,26 @@ where
         }
     }
 
-    // Compute order as a level diagram; each package depends on weights only lower than it. This is a variant
-    // of a toplogical ordering, and uses the SCC to collapse cycles.
+    // Compute order as a level diagram; each package depends on weights only lower than it. This is
+    // a variant of a toplogical ordering, and uses the SCC to collapse cycles.
     // We compute two types of ordering:
-    // * The first uses all edges but sets all members of an SCC as equal, and hence avoids issues with cycles
+    // * The first uses all edges but sets all members of an SCC as equal, and hence avoids issues
+    //   with cycles
     // * The second uses only runtime edges, which by definition
     // avoids cycles.  A more nuanced (and stricter) choice would be
     // to include build time edges that are not back edges, but in
     // irreducible graphs (which these are) the choice of back vs
     // cross edges depends on the exact DFS order, and so is somewhat
     // arbitrary.
-    // Note, this is a candidate to be extracted and generalized, as it only needs the graph to work.
+    // Note, this is a candidate to be extracted and generalized, as it only needs the graph to
+    // work.
     pub fn compute_levels(&self) -> HashMap<NodeIndex, (u32, u32)> {
         let mut levels: HashMap<NodeIndex, (u32, u32)> = HashMap::new();
         // Compute SCC map. We use this to determine what component we're in.
         let scc_map = self.scc_map();
 
-        // Right now the worklist is a simple FIFO queue with no deduplication. Could use a BTreeSet, but that does
-        // potentially screwy things with the ordering.
+        // Right now the worklist is a simple FIFO queue with no deduplication. Could use a
+        // BTreeSet, but that does potentially screwy things with the ordering.
         let mut worklist: VecDeque<NodeIndex> = VecDeque::new();
 
         // Phase one; assign 'seed' weights of zero, and add to the worklist.
@@ -302,9 +283,8 @@ where
             let mut new_scc_level = 0;
             let mut new_rt_level = 0;
 
-            for succ_index in self
-                .graph
-                .neighbors_directed(node_index, Direction::Outgoing)
+            for succ_index in self.graph
+                                  .neighbors_directed(node_index, Direction::Outgoing)
             {
                 let edge = self.graph.find_edge(node_index, succ_index).unwrap();
 
@@ -328,11 +308,11 @@ where
                 // update myself
                 levels.insert(node_index, (new_scc_level, new_rt_level));
 
-                // Put everybody who depends on me back on the worklist (this is where dedup would be nice)
-                // Also, we're a bit too aggressive; technically rt_level updates only propagate to runtime edges.
-                for pred_index in self
-                    .graph
-                    .neighbors_directed(node_index, Direction::Incoming)
+                // Put everybody who depends on me back on the worklist (this is where dedup would
+                // be nice) Also, we're a bit too aggressive; technically rt_level
+                // updates only propagate to runtime edges.
+                for pred_index in self.graph
+                                      .neighbors_directed(node_index, Direction::Incoming)
                 {
                     let edge = self.graph.find_edge(pred_index, node_index).unwrap();
                     if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
@@ -341,13 +321,11 @@ where
                 }
             }
         }
-        println!(
-            "Levels computed, {} nodes {} visits, max scc level {}, max rt level {}",
-            self.graph.node_count(),
-            visits,
-            max_scc_level,
-            max_rt_level
-        );
+        println!("Levels computed, {} nodes {} visits, max scc level {}, max rt level {}",
+                 self.graph.node_count(),
+                 visits,
+                 max_scc_level,
+                 max_rt_level);
 
         levels
     }
@@ -358,14 +336,11 @@ where
 
         let levels = self.compute_levels();
         for (node, (scc_level, rt_level)) in levels {
-            writeln!(
-                &mut file,
-                "{}\t{}\t{}",
-                scc_level,
-                rt_level,
-                self.ident_for_node(node)
-            )
-            .unwrap();
+            writeln!(&mut file,
+                     "{}\t{}\t{}",
+                     scc_level,
+                     rt_level,
+                     self.ident_for_node(node)).unwrap();
         }
     }
 
@@ -373,13 +348,11 @@ where
     pub fn scc_map(&self) -> HashMap<NodeIndex, u32> {
         let mut scc_index: HashMap<NodeIndex, u32> = HashMap::new();
         let scc = tarjan_scc(&self.graph);
-        let mut cluster_number = 0;
 
-        for cluster in scc {
+        for (cluster_number, cluster) in scc.into_iter().enumerate() {
             for node in cluster {
-                scc_index.insert(node, cluster_number);
+                scc_index.insert(node, cluster_number as u32);
             }
-            cluster_number += 1;
         }
         scc_index
     }
@@ -391,41 +364,33 @@ where
 
         let scc = tarjan_scc(&self.graph);
 
-        let mut cluster_number = 0;
-
-        for cluster in scc {
+        for (cluster_number, cluster) in scc.into_iter().enumerate() {
             for node in cluster {
-                writeln!(
-                    &mut file,
-                    "{}\t{}",
-                    cluster_number,
-                    self.ident_for_node(node)
-                )
-                .unwrap();
+                writeln!(&mut file,
+                         "{}\t{}",
+                         cluster_number,
+                         self.ident_for_node(node)).unwrap();
             }
-            cluster_number += 1;
         }
     }
 
     pub fn join_nodes(&self, nodes: &[NodeIndex], sep: &str) -> String {
-        let strings: Vec<String> = nodes
-            .iter()
-            .map(|x| self.ident_for_node(*x).to_string())
-            .collect();
-        strings.join(sep).to_string()
+        let strings: Vec<String> = nodes.iter()
+                                        .map(|x| self.ident_for_node(*x).to_string())
+                                        .collect();
+        strings.join(sep)
     }
 }
 
 fn write_edge(file: &mut File, src: &str, dst: &str, edge_type: Option<EdgeType>) {
     match edge_type {
-        Some(etype) => writeln!(
-            file,
-            "    \"{}\" -> \"{}\" [type=\"{}\"];",
-            src,
-            dst,
-            edgetype_to_abbv(etype)
-        )
-        .unwrap(),
+        Some(etype) => {
+            writeln!(file,
+                     "    \"{}\" -> \"{}\" [type=\"{}\"];",
+                     src,
+                     dst,
+                     edgetype_to_abbv(etype)).unwrap()
+        }
         None => writeln!(file, "    \"{}\" -> \"{}\"", src, dst).unwrap(),
     }
 }

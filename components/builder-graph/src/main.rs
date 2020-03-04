@@ -28,7 +28,7 @@ extern crate lazy_static;
 
 extern crate diesel;
 
-//use builder_core as bldr_core;
+// use builder_core as bldr_core;
 use habitat_builder_db as db;
 use habitat_builder_protocol as protocol;
 use habitat_core as hab_core;
@@ -48,32 +48,30 @@ use std::{collections::HashMap,
           time::Instant,
           str::FromStr};
 
-use clap::{App, Arg};
+use clap::{App,
+           Arg};
 use copperline::Copperline;
 
-use crate::{
-    config::Config,
-    data_store::DataStore,
-    hab_core::config::ConfigFile,
-    hab_core::package::{PackageIdent, PackageTarget},
-    package_graph::PackageGraph,
-};
+use crate::{config::Config,
+            data_store::DataStore,
+            hab_core::{config::ConfigFile,
+                       package::{PackageIdent,
+                                 PackageTarget}},
+            package_graph::PackageGraph};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
+#[allow(clippy::cognitive_complexity)]
 fn main() {
     env_logger::init();
 
-    let matches = App::new("bldr-graph")
-        .version(VERSION)
-        .about("Habitat Graph Dev Tool")
-        .arg(
-            Arg::with_name("config")
-                .help("Filepath to configuration file")
-                .required(false)
-                .index(1),
-        )
-        .get_matches();
+    let matches =
+        App::new("bldr-graph").version(VERSION)
+                              .about("Habitat Graph Dev Tool")
+                              .arg(Arg::with_name("config").help("Filepath to configuration file")
+                                                           .required(false)
+                                                           .index(1))
+                              .get_matches();
 
     let config = match matches.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
@@ -112,10 +110,8 @@ fn main() {
     println!("Found following targets {}", target_as_string.join(", "));
     println!("Default target is {}", graph.current_target());
 
-    println!(
-        "\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
-         exit\n",
-    );
+    println!("\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
+              exit\n",);
 
     let mut filter = String::from("");
     let mut done = false;
@@ -344,60 +340,50 @@ fn do_latest_dot(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
     let start_time = PreciseTime::now();
     graph.dump_latest_graph_as_dot(filename, origin);
     let end_time = PreciseTime::now();
-    println!(
-        "Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
-        filename,
-        origin,
-        start_time.to(end_time)
-    );
+    println!("Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
+             filename,
+             origin,
+             start_time.to(end_time));
 }
 
 fn do_latest_raw(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
     let start_time = PreciseTime::now();
     graph.dump_latest_graph_raw(filename, origin);
     let end_time = PreciseTime::now();
-    println!(
-        "Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
-        filename,
-        origin,
-        start_time.to(end_time)
-    );
+    println!("Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
+             filename,
+             origin,
+             start_time.to(end_time));
 }
 
 fn do_dot(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
     let start_time = PreciseTime::now();
     graph.emit_graph(filename, None, true, None);
     let end_time = PreciseTime::now();
-    println!(
-        "Wrote graph to file {} filtered by {:?} TBI in {} sec",
-        filename,
-        origin,
-        start_time.to(end_time)
-    );
+    println!("Wrote graph to file {} filtered by {:?} TBI in {} sec",
+             filename,
+             origin,
+             start_time.to(end_time));
 }
 
 fn do_scc(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
     let start_time = PreciseTime::now();
     graph.dump_scc(filename, origin);
     let end_time = PreciseTime::now();
-    println!(
-        "Wrote SCC information to file {} filtered by {:?} TBI in {} sec",
-        filename,
-        origin,
-        start_time.to(end_time)
-    );
+    println!("Wrote SCC information to file {} filtered by {:?} TBI in {} sec",
+             filename,
+             origin,
+             start_time.to(end_time));
 }
 
 fn do_build_levels(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
     let start_time = PreciseTime::now();
     graph.dump_build_levels(filename, origin);
     let end_time = PreciseTime::now();
-    println!(
-        "Wrote Build levels information to file {} filtered by {:?} TBI in {} sec",
-        filename,
-        origin,
-        start_time.to(end_time)
-    );
+    println!("Wrote Build levels information to file {} filtered by {:?} TBI in {} sec",
+             filename,
+             origin,
+             start_time.to(end_time));
 }
 
 fn do_resolve(graph: &PackageGraph, name: &str) {
@@ -417,33 +403,36 @@ fn do_resolve(graph: &PackageGraph, name: &str) {
 fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
     let start_time = Instant::now();
 
-    let ident = PackageIdent::from_str(name).unwrap();
+    let ident_option = PackageIdent::from_str(name);
+    if let Ok(ident) = ident_option {
+        match graph.rdeps(&ident) {
+            Some(rdeps) => {
+	        let duration_secs = start_time.elapsed().as_secs();
+                let mut filtered: Vec<(String, String)> =
+                    rdeps.into_iter()
+                         .filter(|&(ref x, _)| x.starts_with(filter))
+                         .collect();
 
-    match graph.rdeps(&ident) {
-        Some(rdeps) => {
-            let duration_secs = start_time.elapsed().as_secs();
-            let mut filtered: Vec<(String, String)> =
-                rdeps.into_iter()
-                     .filter(|&(ref x, _)| x.starts_with(filter))
-                     .collect();
+                println!("OK: {} items ({} sec)\n", filtered.len(), duration_secs);
 
-            println!("OK: {} items ({} sec)\n", filtered.len(), duration_secs);
+                if filtered.len() > max {
+                    filtered.drain(max..);
+                }
 
-            if filtered.len() > max {
-                filtered.drain(max..);
+
+                if !filter.is_empty() {
+                    println!("Results filtered by: {}", filter);
+                }
+
+                for (s1, s2) in filtered {
+                    println!("{} ({})", s1, s2);
+                }
             }
-
-            if !filter.is_empty() {
-                println!("Results filtered by: {}", filter);
-            }
-
-            for (s1, s2) in filtered {
-                println!("{} ({})", s1, s2);
-            }
+            None => println!("No entries found"),
         }
-        None => println!("No entries found"),
+    } else {
+        println!("Bad ident {}", name)
     }
-
     println!();
 }
 
@@ -467,7 +456,7 @@ fn do_deps(graph: &PackageGraph, name: &str) {
 fn do_db_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str) {
     let start_time = Instant::now();
     let ident = resolve_name(graph, name);
-    let target = "x86_64-linux";
+    let target = graph.current_target();
 
     println!("Dependencies for: {}", ident);
 
@@ -503,9 +492,9 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
     let mut deps_map = HashMap::new();
     let mut new_deps = Vec::new();
     let ident = resolve_name(graph, name);
-    let target = "x86_64-linux";
+    let target = graph.current_target();
 
-    match datastore.get_job_graph_package(&ident, &target) {
+    match datastore.get_job_graph_package(&ident, &target.to_string()) {
         Ok(package) => {
             if !filter.is_empty() {
                 println!("Checks filtered by: {}\n", filter);
@@ -525,7 +514,7 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
             println!();
 
             for new_dep in new_deps {
-                check_package(datastore, &mut deps_map, &new_dep, filter);
+                check_package(datastore, target, &mut deps_map, &new_dep, filter);
             }
         }
         Err(_) => println!("No matching package found"),
@@ -534,14 +523,12 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
     println!("\nTime: {} sec\n", start_time.elapsed().as_secs());
 }
 
-fn check_package(
-    datastore: &DataStore,
-    deps_map: &mut HashMap<String, String>,
-    ident: &str,
-    filter: &str,
-) {
-    let target = "x86_64-linux";
-    match datastore.get_job_graph_package(ident, target) {
+fn check_package(datastore: &DataStore,
+                 target: PackageTarget,
+                 deps_map: &mut HashMap<String, String>,
+                 ident: &str,
+                 filter: &str) {
+    match datastore.get_job_graph_package(ident, &target.to_string()) {
         Ok(package) => {
             for dep in package.get_deps() {
                 if dep.to_string().starts_with(filter) {
@@ -554,7 +541,7 @@ fn check_package(
                             println!("  {}", dep);
                         }
                     }
-                    check_package(datastore, deps_map, &dep.to_string(), filter);
+                    check_package(datastore, target, deps_map, &dep.to_string(), filter);
                 }
             }
         }
@@ -589,10 +576,9 @@ fn do_target(graph: &mut PackageGraph, target: &str) {
 
 fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps)]);
-    let features_enabled = config
-        .features_enabled
-        .split(',')
-        .map(|f| f.trim().to_uppercase());
+    let features_enabled = config.features_enabled
+                                 .split(',')
+                                 .map(|f| f.trim().to_uppercase());
 
     for key in features_enabled {
         if features.contains_key(key.as_str()) {

@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::hab_core;
 use crate::hab_core::package::PackageIdent;
-
-use habitat_builder_db::models::package::PackageWithVersionArray;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EdgeType {
@@ -24,9 +21,7 @@ pub enum EdgeType {
 }
 
 impl Default for EdgeType {
-    fn default() -> Self {
-        EdgeType::RuntimeDep
-    }
+    fn default() -> Self { EdgeType::RuntimeDep }
 }
 
 pub fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
@@ -40,5 +35,5 @@ pub fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
 
 pub fn join_idents(sep: &str, identlist: &[PackageIdent]) -> String {
     let strings: Vec<String> = identlist.iter().map(PackageIdent::to_string).collect();
-    strings.join(sep).to_string()
+    strings.join(sep)
 }

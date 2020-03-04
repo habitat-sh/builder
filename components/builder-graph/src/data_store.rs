@@ -71,7 +71,7 @@ impl DataStore {
         }
 
         for package in rows {
-            packages.push(package.into());
+            packages.push(package);
         }
 
         Ok(packages)
