@@ -91,6 +91,12 @@ _build-builder-component() {
   echo "builder-$component build succeeded"
 
   start-builder "$component"
+  case "${component}" in
+    api | worker)
+      generate_bldr_keys && upload_github_keys;;
+    *)
+      ;;
+  esac
 }
 build-builder-component() { stop-on-failure _build-builder-component "$@"; }
 
