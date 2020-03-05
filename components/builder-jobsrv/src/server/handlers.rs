@@ -267,8 +267,7 @@ fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
                 let target_graph = state.graph.read().unwrap();
                 let graph = target_graph.graph(msg.get_target()).unwrap(); // Unwrap OK
                 start_time = Instant::now();
-                let ret = graph.rdeps(&s.0);
-                ret
+                graph.rdeps(&s.0)
             };
 
             match rdeps_opt {
@@ -370,8 +369,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
             let target_graph = state.graph.read().unwrap();
             let graph = target_graph.graph(msg.get_target()).unwrap(); // Unwrap OK
             start_time = Instant::now();
-            let ret = graph.rdeps(&project_name);
-            ret
+            graph.rdeps(&project_name)
         };
 
         match rdeps_opt {

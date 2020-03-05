@@ -118,9 +118,9 @@ impl MemcacheClient {
                                        account_str))
         {
             Some(json_body) => {
-                let duration_milli = start_time.elapsed().as_millis();
-                trace!("Memcache get_package time: {} ms", duration_milli);
-                Histogram::MemcacheCallTime.set(duration_milli as f64);
+                let duration_millis = start_time.elapsed().as_millis();
+                trace!("Memcache get_package time: {} ms", duration_millis);
+                Histogram::MemcacheCallTime.set(duration_millis as f64);
 
                 if json_body == "404" {
                     (true, None)
@@ -146,9 +146,9 @@ impl MemcacheClient {
         let start_time = Instant::now();
         match self.get_bytes(&hash_key(token)) {
             Some(session) => {
-                let duration_milli = start_time.elapsed().as_millis();
-                trace!("Memcache get_session time: {} ms", duration_milli);
-                Histogram::MemcacheCallTime.set(duration_milli as f64);
+                let duration_millis = start_time.elapsed().as_millis();
+                trace!("Memcache get_session time: {} ms", duration_millis);
+                Histogram::MemcacheCallTime.set(duration_millis as f64);
                 Some(protobuf::parse_from_bytes(&session).unwrap())
             }
             None => None,
@@ -199,9 +199,9 @@ impl MemcacheClient {
 
         let start_time = Instant::now();
         let ret = self.get_bool(&key);
-        let duration_milli = start_time.elapsed().as_millis();
-        trace!("Memcache get_origin_member time: {} ms", duration_milli);
-        Histogram::MemcacheCallTime.set(duration_milli as f64);
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("Memcache get_origin_member time: {} ms", duration_millis);
+        Histogram::MemcacheCallTime.set(duration_millis as f64);
 
         ret
     }
