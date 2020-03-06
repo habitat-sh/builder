@@ -13,7 +13,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-bytes = "*"
+bytes = "0.4.12"
 base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
