@@ -398,14 +398,7 @@ fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> H
         Err(err) => return err.into(),
     };
 
-    let pair = match SigKeyPair::generate_pair_for_origin(&origin).map_err(Error::HabitatCore) {
-        Ok(pair) => pair,
-        Err(err) => {
-            error!("Failed to generate origin key pair for {}, err={}",
-                   origin, err);
-            return err.into();
-        }
-    };
+    let pair = SigKeyPair::generate_pair_for_origin(&origin);
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
