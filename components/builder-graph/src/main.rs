@@ -36,12 +36,12 @@ pub mod error;
 use std::{collections::HashMap,
           fs::File,
           io::Write,
-          iter::FromIterator};
+          iter::FromIterator,
+          time::Instant};
 
 use clap::{App,
            Arg};
 use copperline::Copperline;
-use time::PreciseTime;
 
 use crate::{bldr_core::package_graph::PackageGraph,
             config::Config,
@@ -79,14 +79,13 @@ fn main() {
 
     let mut graph = PackageGraph::new();
     let packages = datastore.get_job_graph_packages().unwrap();
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let (ncount, ecount) = graph.build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
-    let end_time = PreciseTime::now();
 
     println!("OK: {} nodes, {} edges ({} sec)",
              ncount,
              ecount,
-             start_time.to(end_time));
+             start_time.elapsed().as_secs());
 
     println!("\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, check, \
               exit\n",);
@@ -209,13 +208,12 @@ fn do_stats(graph: &PackageGraph) {
 }
 
 fn do_top(graph: &PackageGraph, count: usize) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let top = graph.top(count);
-    let end_time = PreciseTime::now();
 
     println!("OK: {} items ({} sec)\n",
              top.len(),
-             start_time.to(end_time));
+             start_time.elapsed().as_secs());
 
     for (name, count) in top {
         println!("{}: {}", name, count);
@@ -224,11 +222,12 @@ fn do_top(graph: &PackageGraph, count: usize) {
 }
 
 fn do_find(graph: &PackageGraph, phrase: &str, max: usize) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let mut v = graph.search(phrase);
-    let end_time = PreciseTime::now();
 
-    println!("OK: {} items ({} sec)\n", v.len(), start_time.to(end_time));
+    println!("OK: {} items ({} sec)\n",
+             v.len(),
+             start_time.elapsed().as_secs());
 
     if v.is_empty() {
         println!("No matching packages found")
@@ -245,11 +244,10 @@ fn do_find(graph: &PackageGraph, phrase: &str, max: usize) {
 }
 
 fn do_resolve(graph: &PackageGraph, name: &str) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let result = graph.resolve(name);
-    let end_time = PreciseTime::now();
 
-    println!("OK: ({} sec)\n", start_time.to(end_time));
+    println!("OK: ({} sec)\n", start_time.elapsed().as_secs());
 
     match result {
         Some(s) => println!("{}", s),
@@ -260,19 +258,17 @@ fn do_resolve(graph: &PackageGraph, name: &str) {
 }
 
 fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
 
     match graph.rdeps(name) {
         Some(rdeps) => {
-            let end_time = PreciseTime::now();
+            let duration_secs = start_time.elapsed().as_secs();
             let mut filtered: Vec<(String, String)> =
                 rdeps.into_iter()
                      .filter(|&(ref x, _)| x.starts_with(filter))
                      .collect();
 
-            println!("OK: {} items ({} sec)\n",
-                     filtered.len(),
-                     start_time.to(end_time));
+            println!("OK: {} items ({} sec)\n", filtered.len(), duration_secs);
 
             if filtered.len() > max {
                 filtered.drain(max..);
@@ -305,17 +301,16 @@ fn resolve_name(graph: &PackageGraph, name: &str) -> String {
 }
 
 fn do_deps(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let ident = resolve_name(graph, name);
 
     println!("Dependencies for: {}", ident);
 
     match datastore.get_job_graph_package(&ident) {
         Ok(package) => {
-            let end_time = PreciseTime::now();
             println!("OK: {} items ({} sec)\n",
                      package.get_deps().len(),
-                     start_time.to(end_time));
+                     start_time.elapsed().as_secs());
 
             if !filter.is_empty() {
                 println!("Results filtered by: {}\n", filter);
@@ -340,7 +335,7 @@ fn short_name(ident: &str) -> String {
 }
 
 fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &str) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let mut deps_map = HashMap::new();
     let mut new_deps = Vec::new();
     let ident = resolve_name(graph, name);
@@ -371,8 +366,7 @@ fn do_check(datastore: &DataStore, graph: &PackageGraph, name: &str, filter: &st
         Err(_) => println!("No matching package found"),
     }
 
-    let end_time = PreciseTime::now();
-    println!("\nTime: {} sec\n", start_time.to(end_time));
+    println!("\nTime: {} sec\n", start_time.elapsed().as_secs());
 }
 
 fn check_package(datastore: &DataStore,
@@ -401,10 +395,9 @@ fn check_package(datastore: &DataStore,
 }
 
 fn do_export(graph: &PackageGraph, filename: &str, filter: &str) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let latest = graph.latest();
-    let end_time = PreciseTime::now();
-    println!("\nTime: {} sec\n", start_time.to(end_time));
+    println!("\nTime: {} sec\n", start_time.elapsed().as_secs());
 
     let mut file = File::create(filename).expect("Failed to initialize file");
 

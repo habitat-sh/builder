@@ -51,8 +51,8 @@ use std::{collections::{HashMap,
                  Iterator},
           panic,
           sync::{Arc,
-                 RwLock}};
-use time::PreciseTime;
+                 RwLock},
+          time::Instant};
 
 features! {
     pub mod feat {
@@ -167,13 +167,13 @@ pub fn run(config: Config) -> Result<()> {
     let pkg_conn = &db_pool.get_conn()?;
     let packages = Package::get_all_latest(&pkg_conn)?;
     let origin_packages: Vec<OriginPackage> = packages.iter().map(|p| p.clone().into()).collect();
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
 
     let res = graph.build(origin_packages.into_iter(),
                           feat::is_enabled(feat::BuildDeps));
 
-    let end_time = PreciseTime::now();
-    info!("Graph build stats ({} sec):", start_time.to(end_time));
+    info!("Graph build stats ({} sec):",
+          start_time.elapsed().as_secs());
 
     for stat in res {
         info!("Target {}: {} nodes, {} edges",

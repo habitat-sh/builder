@@ -24,7 +24,6 @@ rand = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-time = "*"
 toml = { version = "*", default-features = false }
 walkdir = "*"
 reqwest = "*"

@@ -19,7 +19,7 @@ use rand::{self,
            Rng};
 use sha2::{Digest,
            Sha512};
-use time::PreciseTime;
+use std::time::Instant;
 
 use super::metrics::Histogram;
 
@@ -108,7 +108,7 @@ impl MemcacheClient {
             None => "".to_string(),
         };
 
-        let start_time = PreciseTime::now();
+        let start_time = Instant::now();
         match self.get_string(&format!("{}/{}/{}:{}:{}{}",
                                        target,
                                        channel,
@@ -118,10 +118,9 @@ impl MemcacheClient {
                                        account_str))
         {
             Some(json_body) => {
-                let end_time = PreciseTime::now();
-                trace!("Memcache get_package time: {} ms",
-                       start_time.to(end_time).num_milliseconds());
-                Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+                let duration_millis = start_time.elapsed().as_millis();
+                trace!("Memcache get_package time: {} ms", duration_millis);
+                Histogram::MemcacheCallTime.set(duration_millis as f64);
 
                 if json_body == "404" {
                     (true, None)
@@ -144,13 +143,12 @@ impl MemcacheClient {
     pub fn get_session(&mut self, token: &str) -> Option<Session> {
         trace!("Getting session for token {} from memcached", token);
 
-        let start_time = PreciseTime::now();
+        let start_time = Instant::now();
         match self.get_bytes(&hash_key(token)) {
             Some(session) => {
-                let end_time = PreciseTime::now();
-                trace!("Memcache get_session time: {} ms",
-                       start_time.to(end_time).num_milliseconds());
-                Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+                let duration_millis = start_time.elapsed().as_millis();
+                trace!("Memcache get_session time: {} ms", duration_millis);
+                Histogram::MemcacheCallTime.set(duration_millis as f64);
                 Some(protobuf::parse_from_bytes(&session).unwrap())
             }
             None => None,
@@ -199,12 +197,11 @@ impl MemcacheClient {
 
         let key = format!("member:{}/{}", origin, account_id);
 
-        let start_time = PreciseTime::now();
+        let start_time = Instant::now();
         let ret = self.get_bool(&key);
-        let end_time = PreciseTime::now();
-        trace!("Memcache get_origin_member time: {} ms",
-               start_time.to(end_time).num_milliseconds());
-        Histogram::MemcacheCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("Memcache get_origin_member time: {} ms", duration_millis);
+        Histogram::MemcacheCallTime.set(duration_millis as f64);
 
         ret
     }

@@ -31,11 +31,11 @@ use std::{fmt::Display,
                Read,
                Write},
           path::PathBuf,
-          str::FromStr};
+          str::FromStr,
+          time::Instant};
 
 use futures::{Future,
               Stream};
-use time::PreciseTime;
 
 use rusoto_s3::{CompleteMultipartUploadRequest,
                 CompletedMultipartUpload,
@@ -216,7 +216,7 @@ impl S3Handler {
         where P: Display
     {
         Counter::SingleUploadRequests.increment();
-        let start_time = PreciseTime::now();
+        let start_time = Instant::now();
         let mut reader = BufReader::new(hart);
         let mut object: Vec<u8> = Vec::new();
         let bucket = self.bucket.clone();
@@ -229,10 +229,9 @@ impl S3Handler {
 
         match self.client.put_object(request).sync() {
             Ok(_) => {
-                let end_time = PreciseTime::now();
                 info!("Upload completed for {} (in {} sec):",
                       path_attr,
-                      start_time.to(end_time));
+                      start_time.elapsed().as_secs());
                 Ok(())
             }
             Err(e) => {
@@ -247,7 +246,7 @@ impl S3Handler {
         where P: Display
     {
         Counter::MultipartUploadRequests.increment();
-        let start_time = PreciseTime::now();
+        let start_time = Instant::now();
         let mut p: Vec<CompletedPart> = Vec::new();
         let mut mprequest = CreateMultipartUploadRequest::default();
         mprequest.key = key.to_string();
@@ -303,10 +302,9 @@ impl S3Handler {
 
                 match self.client.complete_multipart_upload(completion).sync() {
                     Ok(_) => {
-                        let end_time = PreciseTime::now();
                         info!("Upload completed for {} (in {} sec):",
                               path_attr,
-                              start_time.to(end_time));
+                              start_time.elapsed().as_secs());
                         Ok(())
                     }
                     Err(e) => {

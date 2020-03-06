@@ -1,6 +1,6 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
-use time::PreciseTime;
+use std::time::Instant;
 
 use diesel::{self,
              dsl::{count,
@@ -132,7 +132,7 @@ impl Channel {
                               -> QueryResult<PackageWithVersionArray> {
         Counter::DBCall.increment();
         let ident = req.ident;
-        let start_time = PreciseTime::now();
+        let start_time = Instant::now();
 
         let result = PackageWithVersionArray::all()
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
@@ -150,12 +150,11 @@ impl Channel {
             .limit(1)
             .get_result(conn);
 
-        let end_time = PreciseTime::now();
+        let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall channel::get_latest_package time: {} ms",
-               start_time.to(end_time).num_milliseconds());
-        Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
-        Histogram::GetLatestChannelPackageCallTime.set(start_time.to(end_time).num_milliseconds()
-                                                       as f64);
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::GetLatestChannelPackageCallTime.set(duration_millis as f64);
 
         result
     }
@@ -185,7 +184,7 @@ impl Channel {
                              conn: &PgConnection)
                              -> QueryResult<Vec<BuilderPackageIdent>> {
         Counter::DBCall.increment();
-        let start_time = PreciseTime::now();
+        let start_time = Instant::now();
 
         let result = origin_packages::table
             .inner_join(
@@ -199,12 +198,11 @@ impl Channel {
             .order(origin_packages::ident.asc())
             .get_results(conn);
 
-        let end_time = PreciseTime::now();
+        let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall channel::list_all_packages time: {} ms",
-               start_time.to(end_time).num_milliseconds());
-        Histogram::DbCallTime.set(start_time.to(end_time).num_milliseconds() as f64);
-        Histogram::ListAllChannelPackagesCallTime.set(start_time.to(end_time).num_milliseconds()
-                                                      as f64);
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::ListAllChannelPackagesCallTime.set(duration_millis as f64);
         result
     }
 

@@ -20,9 +20,9 @@ use std::{collections::{HashMap,
                    JoinHandle}};
 
 use chrono::{DateTime,
+             Duration,
              Utc};
 use diesel;
-use time::Duration;
 use zmq;
 
 use crate::{config::Config,

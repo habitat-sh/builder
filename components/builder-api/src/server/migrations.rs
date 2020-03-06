@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
+use std::{path::PathBuf,
+          time::Instant};
 
 use crate::{db::models::keys::OriginPrivateSigningKey,
             server::error::{Error,
                             Result}};
 
 use diesel::pg::PgConnection;
-use time::PreciseTime;
 
 // This value was arbitrarily chosen and might need some tuning
 const KEY_MIGRATION_CHUNK_SIZE: i64 = 100;
 
 pub fn migrate_to_encrypted(conn: &PgConnection, key_path: &PathBuf) -> Result<()> {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     let mut updated_keys = 0;
     let mut skipped_keys = 0;
     let key_pair = builder_core::integrations::get_keypair_helper(key_path)?;
@@ -60,9 +60,8 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_path: &PathBuf) -> Result<(
         }
     }
 
-    let end_time = PreciseTime::now();
     warn!("migrate_to_encrypted complete in {} sec, updated {}, skipped {} as already updated",
-          start_time.to(end_time),
+          start_time.elapsed().as_secs(),
           updated_keys,
           skipped_keys);
     Ok(())

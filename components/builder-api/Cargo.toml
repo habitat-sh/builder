@@ -44,7 +44,6 @@ regex = "*"
 rusoto_core = "*"
 rusoto_s3 = "*"
 tempfile = "*"
-time = "*"
 url = "*"
 uuid = { version = "*", features = ["v4"] }
 
