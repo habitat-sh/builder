@@ -14,16 +14,18 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormControl, FormGroup, FormBuilder, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { List } from 'immutable';
 import { MatDialog } from '@angular/material';
 import { SimpleConfirmDialog } from '../../../shared/dialog/simple-confirm/simple-confirm.dialog';
+import { DepartOriginDialog } from './dialog/depart-origin.dialog';
 import { AppStore } from '../../../app.store';
 import { deleteOriginInvitation, inviteUserToOrigin } from '../../../actions/index';
 import { Origin } from '../../../records/Origin';
-import { deleteOriginMember, fetchOriginMembers, fetchOriginInvitations } from '../../../actions/index';
+import { deleteOriginMember, departOrigin, fetchOriginMembers, fetchOriginInvitations } from '../../../actions/index';
 import config from '../../../config';
 
 @Component({
@@ -38,8 +40,10 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
   constructor(
     formBuilder: FormBuilder,
     private route: ActivatedRoute,
+    private router: Router,
     private store: AppStore,
     private confirmDialog: MatDialog,
+    private departOriginDialog: MatDialog,
     private title: Title
   ) {
     this.form = formBuilder.group({});
@@ -73,6 +77,10 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     return this.store.getState().origins.currentPendingInvitations;
   }
 
+  get isOriginOwner() {
+    return this.store.getState().users.current.profile.id === this.store.getState().origins.current.owner_id;
+  }
+
   get members(): List<Object> {
     return this.store.getState().origins.currentMembers;
   }
@@ -87,6 +95,10 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
 
   get token() {
     return this.store.getState().session.token;
+  }
+
+  private get isPrivate() {
+    return this.store.getState().origins.current.default_package_visibility === 'private' ? true : false;
   }
 
   canDelete(member) {
@@ -119,11 +131,39 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     });
   }
 
+  departFromOrigin(): void {
+    const data = {
+      originName: this.origin.name
+    };
+
+    this.departOriginDialog
+      .open(DepartOriginDialog, { width: '480px', data: data })
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (confirmed) {
+          this.store.dispatch(departOrigin(this.origin.name, this.token, (originName) => {
+            this.departureRouting(this.isPrivate, originName);
+          }));
+        }
+      });
+  }
+
   submit(username: string) {
     this.store.dispatch(inviteUserToOrigin(username, this.origin.name, this.token));
     const field = this.form.get('username');
     field.setValue('');
     field.markAsPristine();
+  }
+
+  private departureRouting(isPrivate: boolean, originName: string): void {
+    // Check to see if the origin has default package visibility of private and route accordingly
+    if (isPrivate) {
+      this.router.navigateByUrl('/origins');
+    } else {
+      this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+        this.router.navigate(['/origins', originName]);
+      });
+    }
   }
 
   private confirm(data, then) {

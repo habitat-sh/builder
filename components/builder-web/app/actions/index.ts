@@ -89,6 +89,7 @@ export {
   deleteOriginInvitation,
   deleteOriginMember,
   deleteOriginSecret,
+  departOrigin,
   fetchIntegration,
   fetchIntegrations,
   fetchMyOriginInvitations,

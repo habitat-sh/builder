@@ -121,6 +121,27 @@ export function deleteOriginMember(origin: string, member: string, token: string
   };
 }
 
+export function departOrigin(originName: string, token: string, callback: Function = (originName) => { }) {
+  return dispatch => {
+    new BuilderApiClient(token).departFromOrigin(originName)
+      .then(response => {
+        dispatch(addNotification({
+          title: `Departed from ${originName}.`,
+          type: SUCCESS,
+        }));
+
+        callback(originName);
+
+      }).catch(error => {
+        dispatch(addNotification({
+          title: 'Failed to depart from Origin',
+          body: error.message,
+          type: DANGER,
+        }));
+      });
+  };
+}
+
 export function createOrigin(body: object, token: string, isFirstOrigin = false, callback: Function = (origin) => { }) {
   return dispatch => {
     dispatch(setCurrentOriginCreatingFlag(true));

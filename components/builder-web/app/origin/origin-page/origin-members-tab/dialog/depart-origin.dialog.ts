@@ -12,11 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-@import "origin-page/origin-integrations-tab/origin-integrations-tab.component";
-@import "origin-page/origin-page.component";
-@import "origin-page/origin-members-tab/origin-members-tab.component";
-@import "origin-page/origin-members-tab/dialog/depart-origin.dialog";
-@import "origin-page/origin-keys-tab/origin-keys-tab.component";
-@import "origin-page/origin-jobs-tab/jobs-list/jobs-list.component";
-@import "origin-page/origin-job-detail/origin-job-detail.component";
-@import "origins-page/origins-page.component";
+import { Component, Inject } from '@angular/core';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+
+@Component({
+  template: require('./depart-origin.dialog.html')
+})
+export class DepartOriginDialog {
+
+  constructor(
+    private ref: MatDialogRef<DepartOriginDialog>,
+    @Inject(MAT_DIALOG_DATA) private data: any
+  ) { }
+
+  get originName() {
+    return this.data.originName || 'this origin';
+  }
+
+  ok() {
+    this.ref.close(true);
+  }
+
+  cancel() {
+    this.ref.close(false);
+  }
+}

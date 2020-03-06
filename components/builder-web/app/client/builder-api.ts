@@ -89,6 +89,24 @@ export class BuilderApiClient {
     });
   }
 
+  public departFromOrigin(origin: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/depot/origins/${origin}/depart`, {
+        headers: this.headers,
+        method: 'POST',
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(true);
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public ignoreOriginInvitation(invitationId: string, originName: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${originName}/invitations/${invitationId}/ignore`, {
