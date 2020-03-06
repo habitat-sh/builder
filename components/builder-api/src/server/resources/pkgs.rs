@@ -151,12 +151,16 @@ impl Packages {
                   web::get().to(list_package_versions))
            .route("/depot/pkgs/{origin}/{pkg}/{version}",
                   web::get().to(get_packages_for_origin_package_version))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}",
+                  web::head().to(get_packages_for_origin_package_version))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/latest",
                   web::get().to(get_latest_package_for_origin_package_version))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                   web::post().to(upload_package))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                   web::get().to(get_package))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
+                  web::head().to(get_package_head))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
                   web::delete().to(delete_package))
            .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
@@ -231,6 +235,30 @@ fn get_packages_for_origin_package_version(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
+fn get_packages_for_origin_package_version_head(req: HttpRequest,
+                                                path: Path<(String, String, String)>,
+                                                pagination: Query<Pagination>)
+                                                -> HttpResponse {
+    let (origin, pkg, version) = path.into_inner();
+
+    let ident = PackageIdent::new(origin, pkg, Some(version), None);
+
+    match do_get_packages(&req, &ident, &pagination) {
+        Ok((_packages, 0)) => HttpResponse::new(StatusCode::NOT_FOUND),
+        Ok((_packages, _count)) => {
+            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                              .header(http::header::CACHE_CONTROL,
+                                      headers::Cache::NoCache.to_string())
+                              .finish()
+        }
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
 fn get_latest_package_for_origin_package(req: HttpRequest,
                                          path: Path<(String, String)>,
                                          qtarget: Query<Target>)
@@ -291,6 +319,29 @@ fn get_package(req: HttpRequest,
                               .header(http::header::CACHE_CONTROL,
                                       headers::Cache::default().to_string())
                               .body(json_body)
+        }
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn get_package_head(req: HttpRequest,
+                    path: Path<(String, String, String, String)>,
+                    qtarget: Query<Target>)
+                    -> HttpResponse {
+    let (origin, pkg, version, release) = path.into_inner();
+
+    let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
+
+    match do_get_package(&req, &qtarget, &ident) {
+        Ok(_) => {
+            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                              .header(http::header::CACHE_CONTROL,
+                                      headers::Cache::default().to_string())
+                              .finish()
         }
         Err(err) => {
             debug!("{}", err);
@@ -1285,7 +1336,7 @@ fn do_upload_package_async(req: HttpRequest,
 fn do_get_package(req: &HttpRequest,
                   qtarget: &Query<Target>,
                   ident: &PackageIdent)
-                  -> Result<String> {
+                  -> Result<serde_json::Value> {
     let opt_session_id = match authorize_session(req, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
@@ -1321,7 +1372,8 @@ fn do_get_package(req: &HttpRequest,
                         return Err(Error::SerdeJson(e));
                     }
                 };
-                return Ok(pkg_json);
+                // Unwrap safe.
+                return Ok(serde_json::from_str(&pkg_json).unwrap());
             }
             (true, None) => {
                 trace!("Channel package {} {} {:?} - cache hit with 404",
@@ -1411,7 +1463,7 @@ fn do_get_package(req: &HttpRequest,
                              opt_session_id);
     }
 
-    Ok(json_body)
+    Ok(pkg_json)
 }
 
 // Internal helpers

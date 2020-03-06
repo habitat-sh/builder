@@ -135,6 +135,17 @@ describe('Channels API', function () {
         });
     });
 
+    it('returns success on HEAD if package with given name exists', function (done) {
+      request.head('/depot/channels/neurosis/foo/pkgs/testapp')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+            expect(res.body).to.be.empty;
+            done(err);
+        });
+    });
+
     it('returns all packages with the given name and version in a channel', function (done) {
       request.get('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3')
         .type('application/json')
@@ -176,6 +187,30 @@ describe('Channels API', function () {
         });
     });
 
+    it('returns success on HEAD with the specified name and version', function (done) {
+      request.head('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3')
+        .type('application/json')
+        .accept('application/json')
+        .query({target: 'x86_64-linux'})
+        .expect(200)
+        .end(function (err, res) {
+            expect(res.body).to.be.empty;
+            done(err);
+        });
+    });
+
+    it('returns 404 on HEAD with the specified name and version for windows', function (done) {
+      request.head('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3')
+        .type('application/json')
+        .accept('application/json')
+        .query({target: 'x86_64-windows'})
+        .expect(200)
+        .end(function (err, res) {
+            expect(res.body).to.be.empty;
+            done(err);
+        });
+    });
+
     it('returns the package with the given name, version and release in a channel', function (done) {
       request.get('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213')
         .type('application/json')
@@ -187,6 +222,17 @@ describe('Channels API', function () {
           expect(res.body.ident.version).to.equal('0.1.3');
           expect(res.body.ident.release).to.equal('20171205003213');
           done(err);
+        });
+    });
+
+    it('returns success on HEAD with the specified name, version, and release', function (done) {
+      request.head('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) { 
+            expect(res.body).to.be.empty;
+            done(err);
         });
     });
 

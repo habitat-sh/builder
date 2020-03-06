@@ -594,6 +594,17 @@ describe('Working with packages', function () {
         });
     });
 
+    it('returns success on HEAD with the specified name and version', function (done) {
+      request.head('/depot/pkgs/neurosis/testapp/0.1.3')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+            expect(res.body).to.be.empty;
+            done(err);
+        });
+    });
+
     it('returns the latest release of a package with the spcified name and version', function (done) {
       request.get('/depot/pkgs/neurosis/testapp/0.1.3/latest')
         .type('application/json')
@@ -619,6 +630,17 @@ describe('Working with packages', function () {
           expect(res.body.ident.version).to.equal('0.1.3');
           expect(res.body.ident.release).to.equal(release2);
           done(err);
+        });
+    });
+
+    it('returns success on HEAD with the specified name, version, and release', function (done) {
+      request.head(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+            expect(res.body).to.be.empty;
+            done(err);
         });
     });
   });
