@@ -108,4 +108,16 @@ export class PackageSidebarComponent {
   get isBuildable() {
     return this.isOriginMember && this.hasPlan && !this.targetIsMac && !this.building;
   }
+
+  get packageSettings() {
+    return this.store.getState().packages.currentSettings;
+  }
+
+  get defaultVisibility() {
+    return this.store.getState().origins.current.default_package_visibility;
+  }
+
+  get visibility() {
+    return this.packageSettings ? this.packageSettings.visibility : this.defaultVisibility;
+  }
 }
