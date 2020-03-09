@@ -219,7 +219,7 @@ pub async fn run(config: Config) -> error::Result<()> {
                 }
             }
 
-            srv.bind_ssl(cfg.http.clone(), builder)?
+            srv.bind_openssl(cfg.http.clone(), builder)?
         }
         None => srv.bind(cfg.http.clone())?,
     };
