@@ -145,7 +145,7 @@ fn enable_features(config: &Config) {
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
 pub fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
 
-pub fn run(config: Config) -> error::Result<()> {
+pub async fn run(config: Config) -> error::Result<()> {
     enable_features(&config);
 
     let cfg = Arc::new(config.clone());
@@ -223,5 +223,5 @@ pub fn run(config: Config) -> error::Result<()> {
         }
         None => srv.bind(cfg.http.clone())?,
     };
-    srv.run().map_err(error::Error::from)
+    srv.run().await.map_err(error::Error::from)
 }

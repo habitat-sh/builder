@@ -13,6 +13,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
+actix-rt = "*"
 bytes = "0.4.12"
 base64 = "*"
 bitflags = "1"

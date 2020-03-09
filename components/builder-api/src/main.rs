@@ -35,11 +35,12 @@ use crate::{bldr_api::{config::Config,
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-api/config/config.toml";
 
+#[actix_rt::main]
 fn main() {
     env_logger::init();
     let matches = app().get_matches();
     debug!("CLI matches: {:?}", matches);
-    match server::run(config_from_args(&matches)) {
+    match server::run(config_from_args(&matches)).await {
         Ok(_) => std::process::exit(0),
         Err(e) => exit_with(e, 1),
     }

@@ -149,7 +149,7 @@ fn enable_features_from_config(cfg: &Config) {
     }
 }
 
-pub fn run(config: Config) -> Result<()> {
+pub async fn run(config: Config) -> Result<()> {
     // Set custom panic hook - a panic on the scheduler thread will
     // cause the builder-jobsrv process to exit (and be re-started
     // by the supervisor when running under hab)
@@ -210,6 +210,7 @@ pub fn run(config: Config) -> Result<()> {
       .bind(cfg.http.clone())
       .unwrap()
       .run()
+      .await
       .map_err(Error::from)
 }
 
