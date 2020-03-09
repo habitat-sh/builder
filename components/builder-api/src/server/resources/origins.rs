@@ -155,7 +155,7 @@ impl Origins {
            .route("/depot/origins/{origin}/secret_keys/latest",
                   web::get().to(download_latest_origin_secret_key))
            .route("/depot/origins/{origin}/secret_keys/{revision}",
-                  web::post().to_async(upload_origin_secret_key))
+                  web::post().to(upload_origin_secret_key))
            .route("/depot/origins/{origin}/integrations/{integration}/names",
                   web::get().to(fetch_origin_integration_names))
            .route("/depot/origins/{origin}/integrations/{integration}/{name}",
@@ -163,7 +163,7 @@ impl Origins {
            .route("/depot/origins/{origin}/integrations/{integration}/{name}",
                   web::delete().to(delete_origin_integration))
            .route("/depot/origins/{origin}/integrations/{integration}/{name}",
-                  web::put().to_async(create_origin_integration));
+                  web::put().to(create_origin_integration));
     }
 }
 
