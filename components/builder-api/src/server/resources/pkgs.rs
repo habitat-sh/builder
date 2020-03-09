@@ -496,7 +496,7 @@ fn upload_package(req: HttpRequest,
                   qupload: Query<Upload>,
                   stream: web::Payload,
                   state: Data<AppState>)
-                  -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
+                  -> Box<dyn Future<Output = Result<HttpResponse>>> {
     let (origin, name, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
@@ -1262,7 +1262,7 @@ fn do_upload_package_async(req: HttpRequest,
                            ident: PackageIdent,
                            temp_path: PathBuf,
                            writer: BufWriter<File>)
-                           -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
+                           -> Box<dyn Future<Output = Result<HttpResponse>>> {
     Box::new(
              stream
         // `Future::from_err` acts like `?` in that it coerces the error type from
