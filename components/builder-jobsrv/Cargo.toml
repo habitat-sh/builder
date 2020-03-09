@@ -42,7 +42,7 @@ sha2 = "*"
 toml = { version = "*", default-features = false }
 
 [dependencies.actix-web]
-version = "1.0.9"
+version = "*"
 default-features = false
 
 [dependencies.clap]
