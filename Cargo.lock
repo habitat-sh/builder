@@ -1412,7 +1412,7 @@ dependencies = [
  "diesel_full_text_search 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "features 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "github-api-client 0.0.0",
  "habitat-builder-protocol 0.0.0",
  "habitat_builder_db 0.0.0",
@@ -1572,7 +1572,7 @@ dependencies = [
 [[package]]
 name = "habitat_core"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#7815c8393c78270fc48d30c9d37129fc7931df1c"
+source = "git+https://github.com/habitat-sh/habitat.git#aa4af1ed3cc0e271c73eecf24fe9dcc4f5448e04"
 dependencies = [
  "base64 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "caps 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1611,7 +1611,7 @@ dependencies = [
 [[package]]
 name = "habitat_win_users"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#7815c8393c78270fc48d30c9d37129fc7931df1c"
+source = "git+https://github.com/habitat-sh/habitat.git#aa4af1ed3cc0e271c73eecf24fe9dcc4f5448e04"
 dependencies = [
  "cc 1.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",

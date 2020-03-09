@@ -38,7 +38,7 @@ serde_derive = "*"
 serde_json = "*"
 sha2 = "*"
 toml = { version = "*", default-features = false }
-futures = "0.1"
+futures = "*"
 rand = "*"
 r2d2 = "*"
 regex = "*"
