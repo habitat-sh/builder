@@ -69,8 +69,8 @@ use actix_web::{body::Body,
                 HttpResponse};
 use bytes::Bytes;
 use diesel::result::Error::NotFound;
-use futures::{future::ok as fut_ok,
-              sync::mpsc,
+use futures::{channel::mpsc,
+              future::ok as fut_ok,
               Future,
               Stream};
 use percent_encoding;
