@@ -55,7 +55,7 @@ branch = "ssd/avoid-short-writes"
 [dependencies.actix-web]
 version = "*"
 default-features = false
-features = [ "ssl" ]
+features = [ "openssl" ]
 
 [dependencies.clap]
 version = "*"
