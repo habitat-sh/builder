@@ -64,29 +64,31 @@ pub fn route_message<R, T>(req: &HttpRequest, msg: &R) -> error::Result<T>
 // but will insert a Session if a valid Bearer token is received
 pub fn authentication_middleware<S>(mut req: ServiceRequest,
                                     srv: &mut S)
-                                    -> impl Future<Item = ServiceResponse<Body>, Error = Error>
+                                    -> impl Future<Output = Result<ServiceResponse<Body>, Error>>
     where S: Service<Request = ServiceRequest, Response = ServiceResponse<Body>, Error = Error>
 {
     let hdr = match req.headers().get(http::header::AUTHORIZATION) {
         Some(hdr) => hdr.to_str().unwrap(), // unwrap Ok
-        None => return Either::A(srv.call(req)),
+        None => return Either::Left(srv.call(req)),
     };
 
     let hdr_components: Vec<&str> = hdr.split_whitespace().collect();
     if (hdr_components.len() != 2) || (hdr_components[0] != "Bearer") {
-        return Either::B(ok(req.into_response(HttpResponse::Unauthorized().finish())));
+        return Either::Right(ok(req.into_response(HttpResponse::Unauthorized().finish())));
     }
     let token = hdr_components[1];
 
     let session = match authenticate(&token, &req.app_data().expect("request state")) {
         Ok(session) => session,
-        Err(_) => return Either::B(ok(req.into_response(HttpResponse::Unauthorized().finish()))),
+        Err(_) => {
+            return Either::Right(ok(req.into_response(HttpResponse::Unauthorized().finish())))
+        }
     };
 
     req.head_mut()
        .extensions_mut()
        .insert::<originsrv::Session>(session);
-    Either::A(srv.call(req))
+    Either::Left(srv.call(req))
 }
 
 fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Session> {
