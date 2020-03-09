@@ -13,7 +13,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-bytes = "*"
+bytes = "0.4.12"
 base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
@@ -25,7 +25,7 @@ env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
-reqwest = "*"
+reqwest = "0.9.22"
 lazy_static = "*"
 log = "*"
 num_cpus = "*"
