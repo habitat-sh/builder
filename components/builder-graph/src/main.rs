@@ -45,8 +45,8 @@ use std::{collections::HashMap,
           fs::File,
           io::Write,
           iter::FromIterator,
-          time::Instant,
-          str::FromStr};
+          str::FromStr,
+          time::Instant};
 
 use clap::{App,
            Arg};
@@ -337,53 +337,43 @@ fn do_find(graph: &PackageGraph, phrase: &str, max: usize) {
 }
 
 fn do_latest_dot(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     graph.dump_latest_graph_as_dot(filename, origin);
-    let end_time = PreciseTime::now();
+    let duration_secs = start_time.elapsed().as_secs();
     println!("Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
-             filename,
-             origin,
-             start_time.to(end_time));
+             filename, origin, duration_secs);
 }
 
 fn do_latest_raw(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     graph.dump_latest_graph_raw(filename, origin);
-    let end_time = PreciseTime::now();
+    let duration_secs = start_time.elapsed().as_secs();
     println!("Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
-             filename,
-             origin,
-             start_time.to(end_time));
+             filename, origin, duration_secs);
 }
 
 fn do_dot(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     graph.emit_graph(filename, None, true, None);
-    let end_time = PreciseTime::now();
+    let duration_secs = start_time.elapsed().as_secs();
     println!("Wrote graph to file {} filtered by {:?} TBI in {} sec",
-             filename,
-             origin,
-             start_time.to(end_time));
+             filename, origin, duration_secs);
 }
 
 fn do_scc(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     graph.dump_scc(filename, origin);
-    let end_time = PreciseTime::now();
+    let duration_secs = start_time.elapsed().as_secs();
     println!("Wrote SCC information to file {} filtered by {:?} TBI in {} sec",
-             filename,
-             origin,
-             start_time.to(end_time));
+             filename, origin, duration_secs);
 }
 
 fn do_build_levels(graph: &PackageGraph, filename: &str, origin: Option<&str>) {
-    let start_time = PreciseTime::now();
+    let start_time = Instant::now();
     graph.dump_build_levels(filename, origin);
-    let end_time = PreciseTime::now();
+    let duration_secs = start_time.elapsed().as_secs();
     println!("Wrote Build levels information to file {} filtered by {:?} TBI in {} sec",
-             filename,
-             origin,
-             start_time.to(end_time));
+             filename, origin, duration_secs);
 }
 
 fn do_resolve(graph: &PackageGraph, name: &str) {
@@ -407,7 +397,7 @@ fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
     if let Ok(ident) = ident_option {
         match graph.rdeps(&ident) {
             Some(rdeps) => {
-	        let duration_secs = start_time.elapsed().as_secs();
+                let duration_secs = start_time.elapsed().as_secs();
                 let mut filtered: Vec<(String, String)> =
                     rdeps.into_iter()
                          .filter(|&(ref x, _)| x.starts_with(filter))
@@ -418,7 +408,6 @@ fn do_rdeps(graph: &PackageGraph, name: &str, filter: &str, max: usize) {
                 if filtered.len() > max {
                     filtered.drain(max..);
                 }
-
 
                 if !filter.is_empty() {
                     println!("Results filtered by: {}", filter);
