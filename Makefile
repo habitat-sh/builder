@@ -1,5 +1,5 @@
 UNAME_S := $(shell uname -s)
-BIN =
+BIN = builder-graph
 LIB = builder-db builder-core github-api-client
 SRV = builder-api builder-jobsrv builder-worker
 ALL = $(BIN) $(LIB) $(SRV)
