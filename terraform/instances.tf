@@ -519,8 +519,8 @@ resource "aws_instance" "linux2-worker" {
 }
 
 resource "aws_instance" "windows-worker" {
-  // Windows_Server-2019-English-Full-ContainersLatest-2019.10.09
-  ami           = "ami-0a6b38f2d62c0cc94"
+  // Windows_Server-2019-English-Full-ContainersLatest-2020.02.12
+  ami           = "ami-001589977a146ef31"
   instance_type = var.instance_size_windows_worker
   key_name      = var.aws_key_pair
 
