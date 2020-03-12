@@ -8,6 +8,7 @@
 
 set -euo pipefail
 
+# default, can be overridden with -t argument
 pkg_target="x86_64-linux"
 declare -a services_to_install='()'
 
