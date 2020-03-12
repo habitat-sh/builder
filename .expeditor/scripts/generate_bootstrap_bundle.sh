@@ -43,19 +43,35 @@ log() {
 # This bit of magic strips off the Habitat header (first 6 lines) from
 # the compressed tar file that is a core/hab .hart, and extracts the
 # contents of the `bin` directory only, into the ${dir}
-# directory.
+# directory, leaving a 'hab-${pkg_target}' file.
+# 'bin/hab' will end up being a symlink to 'hab-x86_64-linux'
+# For example:
+# root@ip-10-0-0-76:/home/ubuntu# ls -l hab_bootstrap_1584031400/bin/
+# total 36284
+# lrwxrwxrwx 1 root root       16 Mar 12 18:55 hab -> hab-x86_64-linux
+# -rwxr-xr-x 1 root root 18540176 Mar  3 16:39 hab-x86_64-linux
+# -rwxr-xr-x 1 root root 18611160 Mar  3 16:39 hab-x86_64-linux-kernel2
+# root@ip-10-0-0-76:/home/ubuntu#
 #
 # Note that `dir` should exist before calling this function.
 extract_hab_binaries_from_hart() {
     local hart="${1}"
     local dir="${2}"
+    local pkg_target="${3:-x86_64-linux}"
+    local tmp_dir="${dir}/tmp"
 
+    mkdir -p "${tmp_dir}"
     tail --lines=+6 "${hart}" | \
         tar --extract \
-            --directory="${dir}" \
+            --directory="${tmp_dir}" \
             --xz \
             --strip-components=7 \
             --wildcards "hab/pkgs/core/hab/*/*/bin/"
+    mv -f "${tmp_dir}/hab" "${dir}/hab-${pkg_target}"
+    rm -rf "${tmp_dir}"
+    pushd "${dir}" >/dev/null || true
+    ln -s hab-x86_64-linux hab >/dev/null 2>&1 || true
+    popd >/dev/null
 }
 
 # Helper function for running s3 cp with appropriate settings.
@@ -99,18 +115,20 @@ hab pkg download \
 
 # Since the whole point of this archive is to have something
 # self-contained from which to bootstrap an entirely new Builder
-# environment, we'll also need access to a `hab` binary.
+# environment, we'll also need access to a `hab` binary for the correct
+# platform target.
 #
 # Conveniently, we have just downloaded a hart file for that. To make
 # things easy on us, we can extract the stand-alone `hab` binary from
 # that hart file (this assumes Linux packages, naturally) and store it
-# at `bin/hab` in the tar archive.
+# at 'bin/hab-${pkg_target}' in the extracted tar archive.
 
 # The regex is to add the most general placeholders for "version" and
 # "release" in the hart name, while also avoiding similarly-named
 # packages like
 # `core-hab-launcher-${VERSION}-${RELEASE}-x86_64-linux.hart`, etc.
-hab_hart=$(
+hab_hart () {
+    local pkg_target=${1:-x86_64-linux}
     # Until habitat/builder-worker is part of our release pipeline,
     # it's likely that we will end up with more than one `core/hab`
     # artifact: one from the release, and the previous one, brought in
@@ -129,14 +147,19 @@ hab_hart=$(
     # Field 1 (using "-" as a separator)                 ...2   ...3           ...4
     # ---------------------------------------------------V---V------V--------------V
     # hab_builder_bootstrap_20191122182751/artifacts/core-hab-0.90.6-20191112141314-x86_64-linux.hart
-    find "${sandbox_dir}/artifacts" -type f -regex '.*/core-hab-[^-]*-[^-]*-x86_64-linux.hart' \
+    find "${sandbox_dir}/artifacts" -type f -regex ".*/core-hab-[^-]*-[^-]*-${pkg_target}.hart" \
         | sort --field-separator="-" --key=4 --numeric-sort \
         | tail -n1
-)
-log "Extracting hab binary from ${hab_hart}"
+}
+
 bin_dir="${sandbox_dir}/bin"
 mkdir -p "${bin_dir}"
-extract_hab_binaries_from_hart "${hab_hart}" "${bin_dir}"
+for target in x86_64-linux x86_64-linux-kernel2
+do
+  hart_path=$(hab_hart "${target}")
+  log "Extracting hab binary from ${hart_path}"
+  extract_hab_binaries_from_hart "${hart_path}" "${bin_dir}" "${target}"
+done
 
 ########################################################################
 
