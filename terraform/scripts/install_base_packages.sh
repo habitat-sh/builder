@@ -4,32 +4,14 @@
 # the desired packages into /hab/cache/artifacts. All
 # Supervisor-related packages are always installed; additional
 # packages from the archive can be installed by specifying them as
-# arguments.
+# arguments. See usage_message below.
 
 set -euo pipefail
 
-########################################################################
-# Command Line Arguments
-#
-# Any argument given to this script will be interpreted as a builder
-# package to install on the machine. All Supervisor-related packages
-# are always installed, and depending on the role the machine will
-# play, additional packages should also be installed.
-#
-# To set up a machine as a worker, for example, you would call the
-# script with the argument "habitat/builder-worker" (You could even just
-# pass "builder-worker"; both are recognized.)
-#
-# Multiple packages can be specified.
-#
-# Do *not* provide version or release information.
+pkg_target="x86_64-linux"
 declare -a services_to_install='()'
-# shellcheck disable=2071,2073
-if [ "$#" > 0 ]
-then
-    # Bash 4 adds the command to this array; let's slice it off
-    services_to_install=( "${@:1}" )
-fi
+
+export pkg_target services_to_install
 
 ########################################################################
 # Preliminaries, Helpers, Constants
@@ -42,6 +24,51 @@ log() {
 find_if_exists() {
     command -v "${1}" || { log "Required utility '${1}' cannot be found!  Aborting."; exit 1; }
 }
+
+
+usage_message="This script installs base Habitat package artifacts from a bootstrap bundle.
+USAGE:
+    $0 [FLAGS]
+
+FLAGS:
+    -h          Prints help information
+    -s          Service name to install in addition to base artifacts. If multiple, use -s for each.
+                (example: $0 -t x86_64-linux -s habitat/builder-api -s habitat/builder-api-proxy)
+    -t          Platform target type. (values: x86_64-linux, x86_64-linux-kernel2 or x86_64-windows) [default: x86_64-linux ]
+                (example: $0 -t x86_64-linux)
+"
+
+usage() {
+  echo "${usage_message}" >&2
+}
+
+exit_abnormal() {
+  usage
+  exit 1
+}
+
+while getopts ":ht:s:" option; do
+  case "${option}" in
+    h)
+      usage
+      exit
+      ;;
+    s)
+      services_to_install+=("${OPTARG}")
+      ;;
+    t)
+      pkg_target=${OPTARG}
+      ;;
+    :)
+      echo "Error: -${OPTARG} requires an argument." >&2
+      exit_abnormal
+      ;;
+   \?)
+      echo "Invalid Option: -${OPTARG}" >&2
+      exit_abnormal
+      ;;
+  esac
+done
 
 # These are the key utilities this script uses. If any are not present
 # on the machine, the script will exit.
@@ -125,21 +152,25 @@ cp "${tmpdir}"/artifacts/* /hab/cache/artifacts
 
 for pkg in "${sup_packages[@]}" "${helper_packages[@]}"
 do
-    pkg_name=${pkg##core/} # strip "core/" if it's there
-    # Using a fake depot URL keeps us honest; this will fail loudly if
-    # we need to go off the box to get *anything*
-    HAB_LICENSE="accept" \
-    HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
-                 ${hab_bootstrap_bin} pkg install "${tmpdir}"/artifacts/core-"${pkg_name}"-*.hart
+    if [[ -n "${pkg}" ]]; then
+      pkg_name=${pkg##core/} # strip "core/" if it's there
+      # Using a fake depot URL keeps us honest; this will fail loudly if
+      # we need to go off the box to get *anything*
+      HAB_LICENSE="accept" \
+      HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
+                 ${hab_bootstrap_bin} pkg install "${tmpdir}"/artifacts/core-"${pkg_name}"-*-"${pkg_target}".hart
+    fi
 done
 
 for pkg in "${services_to_install[@]:-}"
 do
-    pkg_name=${pkg##habitat/} # strip "core/" if it's there
-    # Using a fake depot URL keeps us honest; this will fail loudly if
-    # we need to go off the box to get *anything*
-    HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
-                 ${hab_bootstrap_bin} pkg install "${tmpdir}"/artifacts/habitat-"${pkg_name}"-*.hart
+    if [[ -n "${pkg}" ]]; then
+      pkg_name=${pkg##habitat/} # strip "core/" if it's there
+      # Using a fake depot URL keeps us honest; this will fail loudly if
+      # we need to go off the box to get *anything*
+      HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
+                 ${hab_bootstrap_bin} pkg install "${tmpdir}"/artifacts/habitat-"${pkg_name}"-*-"${pkg_target}".hart
+    fi
 done
 
 # Now we ensure that the hab binary being used on the system is the

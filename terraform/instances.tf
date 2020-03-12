@@ -146,7 +146,7 @@ resource "aws_instance" "api" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh habitat/builder-api",
+      "sudo /tmp/install_base_packages.sh -s habitat/builder-api",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo mkdir -p /hab/sup/default/config",
       "sudo mv /tmp/sup_log.yml /hab/sup/default/config/log.yml",
@@ -272,7 +272,7 @@ resource "aws_instance" "jobsrv" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh habitat/builder-jobsrv",
+      "sudo /tmp/install_base_packages.sh -s habitat/builder-jobsrv",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo mkdir -p /hab/sup/default/config",
       "sudo mv /tmp/sup_log.yml /hab/sup/default/config/log.yml",
@@ -397,7 +397,7 @@ resource "aws_instance" "worker" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/install_base_packages.sh",
-      "sudo /tmp/install_base_packages.sh habitat/builder-worker",
+      "sudo /tmp/install_base_packages.sh -s habitat/builder-worker",
       "sudo iptables -I DOCKER-USER -p tcp -s 10.0.0.0/24 -j DROP",
       "sudo iptables -I DOCKER-USER -p udp -s 10.0.0.0/24 -m multiport --sports 0:52,54:65535 -j DROP",
       "sudo mv /home/ubuntu/hab-sup.service /etc/systemd/system/hab-sup.service",
@@ -460,8 +460,8 @@ resource "aws_instance" "linux2-worker" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/scripts/install_linux2_packages.sh"
-    destination = "/tmp/install_linux2_packages.sh"
+    source      = "${path.module}/scripts/install_base_packages.sh"
+    destination = "/tmp/install_base_packages.sh"
   }
 
   provisioner "remote-exec" {
@@ -496,8 +496,8 @@ resource "aws_instance" "linux2-worker" {
 
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /tmp/install_linux2_packages.sh",
-      "sudo /tmp/install_linux2_packages.sh",
+      "chmod +x /tmp/install_base_packages.sh",
+      "sudo /tmp/install_base_packages.sh -t x86_64-linux-kernel2",
       "sudo iptables -I DOCKER -p tcp -s 10.0.0.0/24 -j DROP",
       "sudo iptables -I DOCKER -p udp -s 10.0.0.0/24 -m multiport --sports 0:52,54:65535 -j DROP",
       "sudo mv /tmp/hab-sup.init /etc/init/hab-sup.conf",
