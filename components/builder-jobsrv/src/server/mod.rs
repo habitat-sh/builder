@@ -173,7 +173,7 @@ pub fn run(config: Config) -> Result<()> {
                           feat::is_enabled(feat::BuildDeps));
 
     info!("Graph build stats ({} sec):",
-          start_time.elapsed().as_secs());
+          start_time.elapsed().as_secs_f64());
 
     for stat in res {
         info!("Target {}: {} nodes, {} edges",

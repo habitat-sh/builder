@@ -231,7 +231,7 @@ impl S3Handler {
             Ok(_) => {
                 info!("Upload completed for {} (in {} sec):",
                       path_attr,
-                      start_time.elapsed().as_secs());
+                      start_time.elapsed().as_secs_f64());
                 Ok(())
             }
             Err(e) => {
@@ -304,7 +304,7 @@ impl S3Handler {
                     Ok(_) => {
                         info!("Upload completed for {} (in {} sec):",
                               path_attr,
-                              start_time.elapsed().as_secs());
+                              start_time.elapsed().as_secs_f64());
                         Ok(())
                     }
                     Err(e) => {

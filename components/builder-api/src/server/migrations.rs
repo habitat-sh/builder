@@ -61,7 +61,7 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_path: &PathBuf) -> Result<(
     }
 
     warn!("migrate_to_encrypted complete in {} sec, updated {}, skipped {} as already updated",
-          start_time.elapsed().as_secs(),
+          start_time.elapsed().as_secs_f64(),
           updated_keys,
           skipped_keys);
     Ok(())

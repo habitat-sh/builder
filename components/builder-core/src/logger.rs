@@ -91,11 +91,11 @@ impl Logger {
             let offset = start.signed_duration_since(group_start)
                               .to_std()
                               .unwrap_or(Duration::from_secs(0))
-                              .as_secs();
+                              .as_secs_f64();
             let duration = stop.signed_duration_since(start)
                                .to_std()
                                .unwrap_or(Duration::from_secs(0))
-                               .as_secs();
+                               .as_secs_f64();
 
             format!("{},{},{},{}",
                     offset,

@@ -274,7 +274,7 @@ fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
                 Some(rdeps) => {
                     debug!("Graph rdeps: {} items ({} sec)\n",
                            rdeps.len(),
-                           start_time.elapsed().as_secs());
+                           start_time.elapsed().as_secs_f64());
                     for dep in rdeps {
                         excluded.insert(dep.0.clone());
                     }
@@ -345,7 +345,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
             }
         };
         debug!("Resolved project name: {} sec\n",
-               start_time.elapsed().as_secs());
+               start_time.elapsed().as_secs_f64());
         ret
     };
 
@@ -376,7 +376,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
             Some(rdeps) => {
                 debug!("Graph rdeps: {} items ({} sec)\n",
                        rdeps.len(),
-                       start_time.elapsed().as_secs());
+                       start_time.elapsed().as_secs_f64());
                 populate_build_projects(&msg, state, &rdeps, &mut projects);
             }
             None => {
@@ -637,7 +637,7 @@ pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<Rp
     debug!("Extended graph, nodes: {}, edges: {} ({} sec)\n",
            ncount,
            ecount,
-           start_time.elapsed().as_secs());
+           start_time.elapsed().as_secs_f64());
 
     RpcMessage::make(package).map_err(Error::BuilderCore)
 }
@@ -665,7 +665,7 @@ pub fn job_graph_package_precreate(req: &RpcMessage, state: &AppState) -> Result
 
         debug!("Graph pre-check: {} ({} sec)\n",
                ret,
-               start_time.elapsed().as_secs());
+               start_time.elapsed().as_secs_f64());
 
         ret
     };
