@@ -125,7 +125,7 @@ ${tar} --extract \
 
 # This is the hab binary from the bootstrap bundle. We'll use this to
 # install everything.
-hab_bootstrap_bin=${tmpdir}/bin/hab
+hab_bootstrap_bin="${tmpdir}/bin/hab-${pkg_target}"
 
 ########################################################################
 # Install the desired packages
