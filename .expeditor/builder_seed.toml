@@ -29,7 +29,8 @@ packages = [
   "core/hab",
   "core/hab-sup",
 
-  "habitat/builder-worker"
+  "habitat/builder-worker",
+  "core/nmap"
 ]
 
 [[x86_64-windows]]
