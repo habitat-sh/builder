@@ -155,11 +155,21 @@ for pkg in "${sup_packages[@]}" "${helper_packages[@]}"
 do
     if [[ -n "${pkg}" ]]; then
       pkg_name=${pkg##core/} # strip "core/" if it's there
-      # Using a fake depot URL keeps us honest; this will fail loudly if
-      # we need to go off the box to get *anything*
-      HAB_LICENSE="accept" \
-      HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
-                 ${hab_bootstrap_bin} pkg install "${tmpdir}"/artifacts/core-"${pkg_name}"-*-"${pkg_target}".hart
+      shopt -s nullglob
+      # we want globbing here
+      # shellcheck disable=SC2206
+      hart_paths=(${tmpdir}/artifacts/core-${pkg_name}-*-${pkg_target}.hart)
+      if [[ "${#hart_paths[@]}" -gt 0 ]]; then
+        for hart_file in "${hart_paths[@]}"
+        do
+          # Using a fake depot URL keeps us honest; this will fail loudly if
+          # we need to go off the box to get *anything*
+          HAB_LICENSE="accept" \
+          HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
+                 ${hab_bootstrap_bin} pkg install "${hart_file}"
+        done
+      fi
+      shopt -u nullglob
     fi
 done
 
@@ -167,10 +177,21 @@ for pkg in "${services_to_install[@]:-}"
 do
     if [[ -n "${pkg}" ]]; then
       pkg_name=${pkg##habitat/} # strip "core/" if it's there
-      # Using a fake depot URL keeps us honest; this will fail loudly if
-      # we need to go off the box to get *anything*
-      HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
-                 ${hab_bootstrap_bin} pkg install "${tmpdir}"/artifacts/habitat-"${pkg_name}"-*-"${pkg_target}".hart
+      shopt -s nullglob
+      # we want globbing here
+      # shellcheck disable=SC2206
+      hart_paths=(${tmpdir}/artifacts/core-${pkg_name}-*-${pkg_target}.hart)
+      if [[ "${#hart_paths[@]}" -gt 0 ]]; then
+        for hart_file in "${hart_paths[@]}"
+        do
+          # Using a fake depot URL keeps us honest; this will fail loudly if
+          # we need to go off the box to get *anything*
+          HAB_LICENSE="accept" \
+          HAB_BLDR_URL=http://not-a-real-depot.habitat.sh \
+                 ${hab_bootstrap_bin} pkg install "${hart_file}"
+        done
+      fi
+      shopt -u nullglob
     fi
 done
 
@@ -184,5 +205,7 @@ done
 # lnger are worrying about Habitat versions 0.33.2 and older. (2017-09-29)
 ${hab_bootstrap_bin} pkg binlink core/hab hab --force \
   || ${hab_bootstrap_bin} pkg binlink core/hab hab
-${hab_bootstrap_bin} pkg binlink core/nmap ncat --force \
-  || ${hab_bootstrap_bin} pkg binlink core/nmap ncat
+if ${hab_bootstrap_bin} pkg path core/nmap 2>/dev/null; then
+  ${hab_bootstrap_bin} pkg binlink core/nmap ncat --force \
+    || ${hab_bootstrap_bin} pkg binlink core/nmap ncat
+fi
