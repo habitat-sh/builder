@@ -274,6 +274,38 @@ To view the DEBUG level logs from the API tests:
 
 `test-builder suplogs`
 
+### Testing against pre-release core packages
+
+In some scenarios, it's valuable to test against `core` packages that haven't been promoted to stable yet. Testing these requires some extra effort in the set up, as you will also need to build components from [habitat](https://github.com/habitat-sh/habitat)
+
+#### Build Habitat components
+
+First, you will need to clone https://github.com/habitat-sh/habitat and build a subset of the components. It is important they are built in the correct order so that dependencies are correct at install time. You can use the blow snippet to build them, replacing the channel as necessary.
+```
+git clone https://github.com/habitat-sh/habitat
+cd habitat
+env HAB_BLDR_CHANNEL=stable HAB_ORIGIN=core hab studio run "for component in hab plan-build backline studio pkg-export-docker; do build components/\$component; done"
+```
+
+Next, copy the hart files produced to the `results` directory in your copy of the Builder repository. Assuming your `habitat` and `builder` checkout share the same parent directory:
+```
+cp habitat/results/core-hab*.hart builder/results/
+```
+
+Next, you will need to enter the studio inside the builder directory, install the Habitat harts, and rebuild Builder against them. Once this is complete, you can follow the testing instructions detailed in [the testing readme](test/builder-api/README.md). It is safe to skip the `build-builder` step in that document.
+```
+hab studio enter
+hab pkg install results/core-hab*.hart
+for component in builder-api builder-api-proxy builder-datastore builder-graph builder-jobsrv builder-minio builder-worker; do
+  build components/$component
+done
+hab sup term
+HAB_FUNC_TEST=1 sup-run
+start-builder
+# wait for services to come up
+test/builder-api/test.sh
+```
+
 ## Advanced Usage
 
 ### Receiving metrics
