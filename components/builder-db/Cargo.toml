@@ -29,7 +29,7 @@ postgres-shared = "*"
 r2d2_postgres = "0.14.0"
 threadpool = "*"
 # Unlock with builder_core
-url = "=1.7.2"
+url = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
