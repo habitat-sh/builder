@@ -292,18 +292,15 @@ Next, copy the hart files produced to the `results` directory in your copy of th
 cp habitat/results/core-hab*.hart builder/results/
 ```
 
-Next, you will need to enter the studio inside the builder directory, install the Habitat harts, and rebuild Builder against them. Once this is complete, you can follow the testing instructions detailed in [the testing readme](test/builder-api/README.md). It is safe to skip the `build-builder` step in that document.
+Next, you will need to enter the studio inside the builder directory, install the Habitat harts, and rebuild Builder against them. Once this is complete, you can follow the testing instructions detailed in [the testing readme](test/builder-api/README.md). It is safe to skip the `build-builder` step in that document.  You can also use the `test-builder` helper function, shown below.
 ```
 hab studio enter
 hab pkg install results/core-hab*.hart
 for component in builder-api builder-api-proxy builder-datastore builder-graph builder-jobsrv builder-minio builder-worker; do
   build components/$component
 done
-hab sup term
-HAB_FUNC_TEST=1 sup-run
-start-builder
-# wait for services to come up
-test/builder-api/test.sh
+
+test-builder preserve
 ```
 
 ## Advanced Usage
