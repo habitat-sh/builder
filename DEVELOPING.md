@@ -280,7 +280,7 @@ In some scenarios, it's valuable to test against `core` packages that haven't be
 
 #### Build Habitat components
 
-First, you will need to clone https://github.com/habitat-sh/habitat and build a subset of the components. It is important they are built in the correct order so that dependencies are correct at install time. You can use the blow snippet to build them, replacing the channel as necessary.
+First, you will need to clone https://github.com/habitat-sh/habitat and build a subset of the components. It is important they are built in the correct order so that dependencies are correct at install time. You can use the below snippet to build them, replacing the channel as necessary.
 ```
 git clone https://github.com/habitat-sh/habitat
 cd habitat
