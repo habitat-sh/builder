@@ -13,13 +13,29 @@
 // limitations under the License.
 
 use num_cpus;
+use percent_encoding::{utf8_percent_encode,
+                       AsciiSet,
+                       CONTROLS};
 use postgres_shared::params::{ConnectParams,
                               Host,
                               IntoConnectParams};
 use std::{error::Error,
           fmt};
-use url::percent_encoding::{utf8_percent_encode,
-                            PATH_SEGMENT_ENCODE_SET};
+use url::Url;
+
+// The characters in this set are copied from
+// https://docs.rs/percent-encoding/1.0.1/percent_encoding/struct.PATH_SEGMENT_ENCODE_SET.html
+const PATH_SEGMENT_ENCODE_SET: &AsciiSet = &CONTROLS.add(b' ')
+                                                    .add(b'"')
+                                                    .add(b'#')
+                                                    .add(b'<')
+                                                    .add(b'>')
+                                                    .add(b'`')
+                                                    .add(b'?')
+                                                    .add(b'{')
+                                                    .add(b'}')
+                                                    .add(b'%')
+                                                    .add(b'/');
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]

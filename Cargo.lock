@@ -1325,6 +1325,7 @@ dependencies = [
  "habitat_core 0.0.0 (git+https://github.com/habitat-sh/habitat.git)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "percent-encoding 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "postgres 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "postgres-derive 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "postgres-shared 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
