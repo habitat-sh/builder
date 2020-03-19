@@ -13,6 +13,15 @@ const projectCreatePayload = {
   auto_build: true
 };
 
+const projectCreatePayloadWindows = {
+  origin: 'neurosis',
+  plan_path: 'windows/plan.ps1',
+  target: 'x86_64-windows',
+  installation_id: installationId,
+  repo_id: repoId,
+  auto_build: true
+};
+
 let projectExpectations = function (res) {
   expect(res.body.id).to.not.be.empty;
   expect(res.body.origin).to.equal(global.originNeurosis.name);
@@ -20,6 +29,20 @@ let projectExpectations = function (res) {
   expect(res.body.name).to.equal('neurosis/testapp');
   expect(res.body.plan_path).to.equal('plan.sh');
   expect(res.body.target).to.equal('x86_64-linux');
+  expect(res.body.owner_id).to.equal(global.sessionBobo.id);
+  expect(res.body.vcs_type).to.equal('git');
+  expect(res.body.vcs_data).to.equal('https://github.com/habitat-sh/testapp.git');
+  expect(res.body.vcs_installation_id).to.equal(installationId.toString());
+  expect(res.body.auto_build).to.equal(true);
+};
+
+let winProjectExpectations = function (res) {
+  expect(res.body.id).to.not.be.empty;
+  expect(res.body.origin).to.equal(global.originNeurosis.name);
+  expect(res.body.package_name).to.equal('testapp');
+  expect(res.body.name).to.equal('neurosis/testapp');
+  expect(res.body.plan_path).to.equal('windows/plan.ps1');
+  expect(res.body.target).to.equal('x86_64-windows');
   expect(res.body.owner_id).to.equal(global.sessionBobo.id);
   expect(res.body.vcs_type).to.equal('git');
   expect(res.body.vcs_data).to.equal('https://github.com/habitat-sh/testapp.git');
@@ -82,6 +105,20 @@ describe('Projects API', function () {
           done(err);
         });
     });
+
+    it('succeeds for non-linux targets', function (done) {
+      this.timeout(5000);
+      request.post('/projects')
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .send(projectCreatePayloadWindows)
+        .expect(201)
+        .end(function (err, res) {
+          winProjectExpectations(res);
+          done(err);
+        });
+    });
   });
 
   describe('Retrieving a project', function () {
@@ -113,9 +150,27 @@ describe('Projects API', function () {
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
+        .query({
+            target: 'x86_64-linux'
+        })
         .expect(200)
         .end(function (err, res) {
           projectExpectations(res);
+          done(err);
+        });
+    });
+
+    it('succeeds for non-linux targets', function(done) {
+        request.get('/projects/neurosis/testapp')
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .query({
+            target: 'x86_64-windows'
+        })
+        .expect(200)
+        .end(function (err, res) {
+          winProjectExpectations(res);
           done(err);
         });
     });
@@ -151,7 +206,7 @@ describe('Projects API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.length).to.equal(1);
+          expect(res.body.length).to.equal(2);
           expect(res.body[0]).to.equal('testapp');
           done(err);
         });
@@ -217,11 +272,33 @@ describe('Projects API', function () {
         });
     });
 
-    it('reflects the new changes when viewing it again', function (done) {
+    it('succeeds for non-linux pkgs', function (done) {
+      this.timeout(5000);
+      request.put('/projects/neurosis/testapp')
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .send({
+          plan_path: 'awesome/plan.sh',
+          installation_id: installationId,
+          target: 'x86_64-windows',
+          repo_id: repoId
+        })
+        .expect(204)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('reflects the new changes on review', function (done) {
       request.get('/projects/neurosis/testapp')
         .type('application/json')
         .accept('application/json')
         .set('Authorization', global.boboBearer)
+        .query({
+            target: 'x86_64-linux'
+        })
         .expect(200)
         .end(function (err, res) {
           expect(res.body.id).to.not.be.empty;
@@ -230,6 +307,30 @@ describe('Projects API', function () {
           expect(res.body.name).to.equal('neurosis/testapp');
           expect(res.body.plan_path).to.equal('awesome/plan.sh');
           expect(res.body.target).to.equal('x86_64-linux');
+          expect(res.body.owner_id).to.equal(global.sessionBobo.id);
+          expect(res.body.vcs_type).to.equal('git');
+          expect(res.body.vcs_data).to.equal('https://github.com/habitat-sh/testapp.git')
+          expect(res.body.vcs_installation_id).to.equal(installationId.toString());
+          done(err);
+        });
+    });
+
+    it('reflects the new changes for non-linux on review', function (done) {
+      request.get('/projects/neurosis/testapp')
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .query({
+            target: 'x86_64-windows'
+        })
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.id).to.not.be.empty;
+          expect(res.body.origin).to.equal(global.originNeurosis.name);
+          expect(res.body.package_name).to.equal('testapp');
+          expect(res.body.name).to.equal('neurosis/testapp');
+          expect(res.body.plan_path).to.equal('awesome/plan.sh');
+          expect(res.body.target).to.equal('x86_64-windows');
           expect(res.body.owner_id).to.equal(global.sessionBobo.id);
           expect(res.body.vcs_type).to.equal('git');
           expect(res.body.vcs_data).to.equal('https://github.com/habitat-sh/testapp.git')
