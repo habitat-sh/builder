@@ -14,7 +14,7 @@ doc = false
 
 [dependencies]
 actix-rt = "*"
-bytes = "0.4.12"
+bytes = "*"
 base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
@@ -26,7 +26,7 @@ env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
-reqwest = "0.9.22"
+reqwest = "*"
 lazy_static = "*"
 log = "*"
 num_cpus = "*"

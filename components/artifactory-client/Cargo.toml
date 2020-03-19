@@ -6,7 +6,7 @@ workspace = "../../"
 edition = "2018"
 
 [dependencies]
-reqwest = "0.9.22"
+reqwest = "*"
 log = "*"
 serde = "*"
 serde_derive = "*"
