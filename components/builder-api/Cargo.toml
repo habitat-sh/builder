@@ -26,7 +26,6 @@ env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
-reqwest = "*"
 lazy_static = "*"
 log = "*"
 num_cpus = "*"
@@ -83,3 +82,7 @@ path = "../builder-core"
 
 [dependencies.habitat_builder_db]
 path = "../builder-db"
+
+[dependencies.reqwest]
+version = "*"
+features = ["blocking"]

@@ -6,7 +6,6 @@ workspace = "../../"
 edition = "2018"
 
 [dependencies]
-reqwest = "*"
 log = "*"
 serde = "*"
 serde_derive = "*"
@@ -16,3 +15,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
+
+[dependencies.reqwest]
+version = "*"
+features = ["blocking"]

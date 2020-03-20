@@ -9,7 +9,6 @@ edition = "2018"
 base64 = "*"
 env_proxy = "*"
 frank_jwt = "*"
-reqwest = "*"
 log = "*"
 regex = "*"
 serde = "*"
@@ -19,3 +18,7 @@ url = "*"
 
 [dependencies.builder_core]
 path = "../builder-core"
+
+[dependencies.reqwest]
+version = "*"
+features = ["blocking"]
