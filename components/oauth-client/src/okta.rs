@@ -16,8 +16,8 @@ use std::iter::FromIterator;
 
 use serde_json;
 
-use reqwest::{header::HeaderMap,
-              Body};
+use reqwest::{blocking::Body,
+              header::HeaderMap};
 
 use builder_core::http_client::{HttpClient,
                                 ACCEPT_APPLICATION_JSON,
@@ -53,10 +53,11 @@ impl Okta {
                              .send()
                              .map_err(Error::HttpClient)?;
 
+        let status = resp.status();
         let body = resp.text().map_err(Error::HttpClient)?;
         debug!("Okta response body: {}", body);
 
-        if resp.status().is_success() {
+        if status.is_success() {
             let user = match serde_json::from_str::<User>(&body) {
                 Ok(msg) => msg,
                 Err(e) => return Err(Error::Serialization(e)),
@@ -66,7 +67,7 @@ impl Okta {
                             username: user.preferred_username,
                             email:    user.email, })
         } else {
-            Err(Error::HttpResponse(resp.status(), body))
+            Err(Error::HttpResponse(status, body))
         }
     }
 }
@@ -94,16 +95,17 @@ impl OAuth2Provider for Okta {
                              .send()
                              .map_err(Error::HttpClient)?;
 
+        let status = resp.status();
         let body = resp.text().map_err(Error::HttpClient)?;
         debug!("Okta response body: {}", body);
 
-        let token = if resp.status().is_success() {
+        let token = if status.is_success() {
             match serde_json::from_str::<AuthOk>(&body) {
                 Ok(msg) => msg.access_token,
                 Err(e) => return Err(Error::Serialization(e)),
             }
         } else {
-            return Err(Error::HttpResponse(resp.status(), body));
+            return Err(Error::HttpResponse(status, body));
         };
 
         let user = self.user(config, client, &token)?;
