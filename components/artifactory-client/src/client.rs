@@ -16,11 +16,11 @@ use std::{collections::HashMap,
           fs::File,
           path::PathBuf};
 
-use reqwest::{header::{HeaderMap,
+use reqwest::{blocking::{Body,
+                         Response},
+              header::{HeaderMap,
                        HeaderName,
-                       HeaderValue},
-              Body,
-              Response};
+                       HeaderValue}};
 
 use crate::{config::ArtifactoryCfg,
             error::{ArtifactoryError,
