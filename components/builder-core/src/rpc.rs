@@ -15,8 +15,8 @@
 use std::{io::Read,
           iter::FromIterator};
 
-use reqwest::{header::HeaderMap,
-              Client,
+use reqwest::{blocking::Client,
+              header::HeaderMap,
               StatusCode};
 
 use protobuf;

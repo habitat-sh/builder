@@ -25,9 +25,9 @@ use rand::{distributions::Alphanumeric,
            thread_rng,
            Rng};
 
-use reqwest::{header::HeaderMap,
-              Body,
-              Response,
+use reqwest::{blocking::{Body,
+                         Response},
+              header::HeaderMap,
               StatusCode};
 
 use serde_json;
