@@ -36,7 +36,7 @@ const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-api/config/config.toml";
 
 #[actix_rt::main]
-fn main() {
+async fn main() {
     env_logger::init();
     let matches = app().get_matches();
     debug!("CLI matches: {:?}", matches);

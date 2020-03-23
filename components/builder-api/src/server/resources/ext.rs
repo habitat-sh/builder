@@ -106,7 +106,7 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Re
     let client = HttpClient::new(actual_url, headers)?;
     let sbody = serde_json::to_string(&body.into_inner()).unwrap();
 
-    let body: reqwest::Body = sbody.into();
+    let body: reqwest::blocking::Body = sbody.into();
 
     let post_url = format!("{}/users/login", actual_url);
 

@@ -72,7 +72,9 @@ use diesel::result::Error::NotFound;
 use futures::{channel::mpsc,
               future::ok as fut_ok,
               Future,
-              Stream};
+              Stream,
+              StreamExt,
+              TryFutureExt};
 use percent_encoding;
 use protobuf;
 use serde::ser::Serialize;
@@ -409,11 +411,11 @@ fn delete_package(req: HttpRequest,
 
 // TODO : Convert to async
 #[allow(clippy::needless_pass_by_value)]
-fn download_package(req: HttpRequest,
-                    path: Path<(String, String, String, String)>,
-                    qtarget: Query<Target>,
-                    state: Data<AppState>)
-                    -> HttpResponse {
+async fn download_package(req: HttpRequest,
+                          path: Path<(String, String, String, String)>,
+                          qtarget: Query<Target>,
+                          state: Data<AppState>)
+                          -> HttpResponse {
     let (origin, name, version, release) = path.into_inner();
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -474,7 +476,10 @@ fn download_package(req: HttpRequest,
                     }
                 }
             } else {
-                match state.packages.download(&file_path, &temp_ident, target) {
+                match state.packages
+                           .download(&file_path, &temp_ident, target)
+                           .await
+                {
                     Ok(archive) => {
                         download_response_for_archive(&archive, &file_path, is_private, &state)
                     }
@@ -491,12 +496,12 @@ fn download_package(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn upload_package(req: HttpRequest,
-                  path: Path<(String, String, String, String)>,
-                  qupload: Query<Upload>,
-                  stream: web::Payload,
-                  state: Data<AppState>)
-                  -> Box<dyn Future<Output = Result<HttpResponse>>> {
+async fn upload_package(req: HttpRequest,
+                        path: Path<(String, String, String, String)>,
+                        qupload: Query<Upload>,
+                        stream: web::Payload,
+                        state: Data<AppState>)
+                        -> Result<HttpResponse> {
     let (origin, name, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
@@ -504,22 +509,22 @@ fn upload_package(req: HttpRequest,
     if !ident.valid() || !ident.fully_qualified() {
         info!("Invalid or not fully qualified package identifier: {}",
               ident);
-        return Box::new(fut_ok(HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)));
+        return Ok(HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY));
     }
 
     match do_upload_package_start(&req, &qupload, &ident) {
         Ok((temp_path, writer)) => {
             state.memcache.borrow_mut().clear_cache_for_package(&ident);
-            do_upload_package_async(req, stream, qupload, ident, temp_path, writer)
+            do_upload_package_async(req, stream, qupload, ident, temp_path, writer).await
         }
         Err(Error::Conflict) => {
             debug!("Failed to upload package {}, metadata already exists",
                    &ident);
-            Box::new(fut_ok(HttpResponse::new(StatusCode::CONFLICT)))
+            Ok(HttpResponse::new(StatusCode::CONFLICT))
         }
         Err(err) => {
             warn!("Failed to upload package {}, err={:?}", &ident, err);
-            Box::new(fut_ok(err.into()))
+            Ok(err.into())
         }
     }
 }
@@ -1012,11 +1017,11 @@ fn do_upload_package_start(req: &HttpRequest,
 
 // TODO: Break this up further, convert S3 upload to async
 #[allow(clippy::cognitive_complexity)]
-fn do_upload_package_finish(req: &HttpRequest,
-                            qupload: &Query<Upload>,
-                            ident: &PackageIdent,
-                            temp_path: &PathBuf)
-                            -> HttpResponse {
+async fn do_upload_package_finish(req: &HttpRequest,
+                                  qupload: &Query<Upload>,
+                                  ident: &PackageIdent,
+                                  temp_path: &PathBuf)
+                                  -> HttpResponse {
     let mut archive = PackageArchive::new(&temp_path);
 
     debug!("Package Archive: {:#?}", archive);
@@ -1119,6 +1124,7 @@ fn do_upload_package_finish(req: &HttpRequest,
         }
     } else if let Err(err) = req_state(req).packages
                                            .upload(&filename, &temp_ident, target_from_artifact)
+                                           .await
     {
         warn!("Unable to upload archive to s3!");
         return err.into();
@@ -1256,31 +1262,54 @@ fn do_upload_package_finish(req: &HttpRequest,
                            .body(format!("/pkgs/{}/download", *package.ident))
 }
 
-fn do_upload_package_async(req: HttpRequest,
-                           stream: web::Payload,
-                           qupload: Query<Upload>,
-                           ident: PackageIdent,
-                           temp_path: PathBuf,
-                           writer: BufWriter<File>)
-                           -> Box<dyn Future<Output = Result<HttpResponse>>> {
-    Box::new(
-             stream
-        // `Future::from_err` acts like `?` in that it coerces the error type from
-        // the future into the final error type
-        .from_err()
-        // `fold` will asynchronously read each chunk of the request body and
-        // call supplied closure, then it resolves to result of closure
-        .fold(writer, write_archive_async)
-        // `Future::and_then` can be used to merge an asynchronous workflow with a
-        // synchronous workflow
-        .and_then(move |writer| match writer.into_inner() {
-            Ok(f) => {
-                f.sync_all()?;
-                Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path))
-            }
-            Err(err) => Err(Error::InnerError(err)),
-        }),
-    )
+async fn do_upload_package_async(req: HttpRequest,
+                                 mut stream: web::Payload,
+                                 qupload: Query<Upload>,
+                                 ident: PackageIdent,
+                                 temp_path: PathBuf,
+                                 mut writer: BufWriter<File>)
+                                 -> Result<HttpResponse> {
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.unwrap(); // TODO: Is this safe?
+        debug!("Writing file upload chunk, size: {}", chunk.len());
+        writer = web::block(move || writer.write(&chunk).map(|_| writer)).await?;
+    }
+
+    match writer.into_inner() {
+        Ok(f) => {
+            f.sync_all()?;
+            Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path).await)
+        }
+        Err(err) => Err(Error::InnerError(err)),
+    }
+
+    // let writer = stream.map(|b| b.unwrap())
+    // .fold(writer, write_archive_async)
+    // .await?;
+    //
+    // match writer.into_inner() {
+    // Ok(f) => {
+    // f.sync_all()?;
+    // Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path))
+    // }
+    // Err(err) => Err(Error::InnerError(err)),
+    // }
+    // stream
+    // // `Future::from_err` acts like `?` in that it coerces the error type from
+    // // the future into the final error type
+    // .from_err()
+    // // `fold` will asynchronously read each chunk of the request body and
+    // // call supplied closure, then it resolves to result of closure
+    // .fold(writer, write_archive_async)
+    // // `Future::and_then` can be used to merge an asynchronous workflow with a
+    // // synchronous workflow
+    // .and_then(move |writer| match writer.into_inner() {
+    //     Ok(f) => {
+    //         f.sync_all()?;
+    //         Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path))
+    //     }
+    //     Err(err) => Err(Error::InnerError(err)),
+    // })
 }
 
 fn do_get_package(req: &HttpRequest,
@@ -1462,21 +1491,24 @@ fn download_response_for_archive(archive: &PackageArchive,
             archive.file_name())
     .set(ContentType::octet_stream())
     .header(http::header::CACHE_CONTROL, cache_hdr)
-    .streaming(rx_body.map_err(|_| error::ErrorBadRequest("bad request")))
+    .streaming(rx_body.map(|s| Ok::<_, ()>(s)))
+    //.streaming(rx_body.map_err(|_| error::ErrorBadRequest("bad request")))
 }
 
-#[allow(clippy::needless_pass_by_value)]
-fn write_archive_async(mut writer: BufWriter<File>, chunk: Bytes) -> Result<BufWriter<File>> {
-    debug!("Writing file upload chunk, size: {}", chunk.len());
-    match writer.write(&chunk) {
-        Ok(_) => (),
-        Err(err) => {
-            warn!("Error writing file upload chunk to temp file: {:?}", err);
-            return Err(Error::IO(err));
-        }
-    }
-    Ok(writer)
-}
+// #[allow(clippy::needless_pass_by_value)]
+// async fn write_archive_async(mut writer: BufWriter<File>,
+// chunk: Bytes)
+// -> std::result::Result<BufWriter<File>, ()> {
+// debug!("Writing file upload chunk, size: {}", chunk.len());
+// match web::block(|| writer.write(&chunk)).await {
+// Ok(_) => (),
+// Err(err) => {
+// warn!("Error writing file upload chunk to temp file: {:?}", err);
+// return err.into();
+// }
+// };
+// Ok(writer)
+// }
 
 fn has_circular_deps(req: &HttpRequest,
                      ident: &PackageIdent,

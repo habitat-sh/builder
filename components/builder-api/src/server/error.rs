@@ -12,14 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{error,
-          fmt,
-          fs,
-          io,
-          result,
-          string};
-
 use actix_web::{self,
+                error::BlockingError,
                 http::StatusCode,
                 HttpResponse,
                 ResponseError};
@@ -32,6 +26,12 @@ use reqwest;
 use rusoto_core::RusotoError;
 use rusoto_s3;
 use serde_json;
+use std::{error,
+          fmt,
+          fs,
+          io,
+          result,
+          string};
 
 use crate::{bldr_core,
             db,
@@ -272,4 +272,8 @@ impl From<openssl::error::ErrorStack> for Error {
 
 impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error { Error::Utf8(err) }
+}
+
+impl From<actix_web::error::BlockingError<std::io::Error>> for Error {
+    fn from(err: actix_web::error::BlockingError<std::io::Error>) -> Error { err.into() }
 }
