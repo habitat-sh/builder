@@ -21,7 +21,6 @@ use postgres_shared::params::{ConnectParams,
                               IntoConnectParams};
 use std::{error::Error,
           fmt};
-use url::Url;
 
 // The characters in this set are copied from
 // https://docs.rs/percent-encoding/1.0.1/percent_encoding/struct.PATH_SEGMENT_ENCODE_SET.html

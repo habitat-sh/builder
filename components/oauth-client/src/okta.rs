@@ -47,11 +47,11 @@ impl Okta {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
-        let mut resp = client.get(&config.userinfo_url)
-                             .headers(headers)
-                             .bearer_auth(token)
-                             .send()
-                             .map_err(Error::HttpClient)?;
+        let resp = client.get(&config.userinfo_url)
+                         .headers(headers)
+                         .bearer_auth(token)
+                         .send()
+                         .map_err(Error::HttpClient)?;
 
         let status = resp.status();
         let body = resp.text().map_err(Error::HttpClient)?;
@@ -89,11 +89,11 @@ impl OAuth2Provider for Okta {
 
         let body: Body = body.into();
 
-        let mut resp = client.post(&url)
-                             .headers(headers)
-                             .body(body)
-                             .send()
-                             .map_err(Error::HttpClient)?;
+        let resp = client.post(&url)
+                         .headers(headers)
+                         .body(body)
+                         .send()
+                         .map_err(Error::HttpClient)?;
 
         let status = resp.status();
         let body = resp.text().map_err(Error::HttpClient)?;

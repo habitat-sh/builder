@@ -53,7 +53,6 @@ use crate::{bldr_core::{error::Error::RpcError,
                      services::metrics::Counter,
                      AppState}};
 use actix_web::{body::Body,
-                error,
                 http::{self,
                        header::{ContentDisposition,
                                 ContentType,
@@ -70,11 +69,7 @@ use actix_web::{body::Body,
 use bytes::Bytes;
 use diesel::result::Error::NotFound;
 use futures::{channel::mpsc,
-              future::ok as fut_ok,
-              Future,
-              Stream,
-              StreamExt,
-              TryFutureExt};
+              StreamExt};
 use percent_encoding;
 use protobuf;
 use serde::ser::Serialize;

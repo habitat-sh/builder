@@ -3,9 +3,7 @@ use std::ops::Deref;
 use std::{fs,
           path::Path};
 
-use reqwest::{blocking::{Body,
-                         Client,
-                         Response},
+use reqwest::{blocking::Client,
               header::{HeaderMap,
                        HeaderName,
                        HeaderValue,

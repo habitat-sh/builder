@@ -34,11 +34,7 @@ use std::{fmt::Display,
           str::FromStr,
           time::Instant};
 
-use futures::{Future,
-              Stream,
-              StreamExt,
-              TryFutureExt,
-              TryStreamExt};
+use futures::TryStreamExt;
 
 use rusoto_s3::{CompleteMultipartUploadRequest,
                 CompletedMultipartUpload,
