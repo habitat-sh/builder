@@ -41,7 +41,8 @@ use actix_web::{dev::Body,
                 middleware::Logger,
                 web::{self,
                       Data,
-                      Json},
+                      Json,
+                      JsonConfig},
                 App,
                 HttpResponse,
                 HttpServer};
@@ -53,6 +54,9 @@ use std::{collections::{HashMap,
           sync::{Arc,
                  RwLock},
           time::Instant};
+
+// Change max size of JsonConfig payload. By default max size is 32Kb
+const MAX_JSON_PAYLOAD: usize = 262144;
 
 features! {
     pub mod feat {
@@ -195,7 +199,8 @@ pub fn run(config: Config) -> Result<()> {
     HttpServer::new(move || {
         let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
 
-        App::new().data(app_state)
+        App::new().data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
+                  .data(app_state)
                   .wrap(Logger::default().exclude("/status"))
                   .service(web::resource("/status").route(web::get().to(status))
                                                    .route(web::head().to(status)))
