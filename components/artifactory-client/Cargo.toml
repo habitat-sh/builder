@@ -7,6 +7,7 @@ edition = "2018"
 
 [dependencies]
 log = "*"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 
@@ -16,6 +17,6 @@ git = "https://github.com/habitat-sh/habitat.git"
 [dependencies.builder_core]
 path = "../builder-core"
 
-[dependencies.reqwest]
+[dependencies.tokio]
 version = "*"
-features = ["blocking"]
+features = ["fs"]

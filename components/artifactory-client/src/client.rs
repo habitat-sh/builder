@@ -16,11 +16,11 @@ use std::{collections::HashMap,
           fs::File,
           path::PathBuf};
 
-use reqwest::{blocking::{Body,
-                         Response},
-              header::{HeaderMap,
+use reqwest::{header::{HeaderMap,
                        HeaderName,
-                       HeaderValue}};
+                       HeaderValue},
+              Body,
+              Response};
 
 use crate::{config::ArtifactoryCfg,
             error::{ArtifactoryError,
@@ -32,7 +32,7 @@ use crate::hab_core::package::{PackageArchive,
 
 use builder_core::http_client::{HttpClient,
                                 USER_AGENT_BLDR};
-
+use tokio::io::AsyncWriteExt;
 const X_JFROG_ART_API: &str = "x-jfrog-art-api";
 
 #[derive(Clone)]
@@ -56,25 +56,26 @@ impl ArtifactoryClient {
                                repo:    config.repo, })
     }
 
-    pub fn upload(&self,
-                  source_path: &PathBuf,
-                  ident: &PackageIdent,
-                  target: PackageTarget)
-                  -> ArtifactoryResult<Response> {
+    pub async fn upload(&self,
+                        source_path: &PathBuf,
+                        ident: &PackageIdent,
+                        target: PackageTarget)
+                        -> ArtifactoryResult<Response> {
         debug!("ArtifactoryClient upload request for file path: {:?}",
                source_path);
 
         let url = self.url_path_for(ident, target);
         debug!("ArtifactoryClient upload url = {}", url);
 
-        let file = File::open(source_path).map_err(ArtifactoryError::IO)?;
-
-        let body: Body = file.into();
+        let body: Body = tokio::fs::read(source_path).await
+                                                     .map_err(ArtifactoryError::IO)?
+                                                     .into();
 
         let resp = match self.inner
                              .put(&url)
                              .body(body)
                              .send()
+                             .await
                              .map_err(ArtifactoryError::HttpClient)
         {
             Ok(resp) => resp,
@@ -94,11 +95,11 @@ impl ArtifactoryClient {
         }
     }
 
-    pub fn download(&self,
-                    destination_path: &PathBuf,
-                    ident: &PackageIdent,
-                    target: PackageTarget)
-                    -> ArtifactoryResult<PackageArchive> {
+    pub async fn download(&self,
+                          destination_path: &PathBuf,
+                          ident: &PackageIdent,
+                          target: PackageTarget)
+                          -> ArtifactoryResult<PackageArchive> {
         debug!("ArtifactoryClient download request for {} ({}) to destination path: {:?}",
                ident, target, destination_path);
 
@@ -108,6 +109,7 @@ impl ArtifactoryClient {
         let mut resp = match self.inner
                                  .get(&url)
                                  .send()
+                                 .await
                                  .map_err(ArtifactoryError::HttpClient)
         {
             Ok(resp) => resp,
@@ -120,8 +122,9 @@ impl ArtifactoryClient {
         debug!("Artifactory response status: {:?}", resp.status());
 
         if resp.status().is_success() {
-            let mut file = File::create(destination_path).map_err(ArtifactoryError::IO)?;
-            std::io::copy(&mut resp, &mut file)?;
+            let mut file = tokio::fs::File::create(destination_path).await
+                                                                    .map_err(ArtifactoryError::IO)?;
+            file.write_all(&resp.bytes().await?);
             Ok(PackageArchive::new(destination_path))
         } else {
             error!("Artifactory download non-success status: {:?}",

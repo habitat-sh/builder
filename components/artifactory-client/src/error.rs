@@ -63,3 +63,6 @@ impl From<io::Error> for ArtifactoryError {
 impl From<builder_core::Error> for ArtifactoryError {
     fn from(err: builder_core::Error) -> Self { ArtifactoryError::BuilderCore(err) }
 }
+impl From<reqwest::Error> for ArtifactoryError {
+    fn from(err: reqwest::Error) -> Self { ArtifactoryError::HttpClient(err) }
+}
