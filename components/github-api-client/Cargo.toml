@@ -11,6 +11,7 @@ env_proxy = "*"
 frank_jwt = "*"
 log = "*"
 regex = "*"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -19,6 +20,6 @@ url = "*"
 [dependencies.builder_core]
 path = "../builder-core"
 
-[dependencies.reqwest]
+[dependencies.tokio]
 version = "*"
-features = ["blocking"]
+features = ["macros"]

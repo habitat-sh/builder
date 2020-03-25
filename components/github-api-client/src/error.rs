@@ -84,3 +84,7 @@ impl From<serde_json::Error> for HubError {
 impl From<builder_core::Error> for HubError {
     fn from(err: builder_core::Error) -> Self { HubError::BuilderCore(err) }
 }
+
+impl From<reqwest::Error> for HubError {
+    fn from(err: reqwest::Error) -> Self { HubError::HttpClient(err) }
+}

@@ -76,7 +76,7 @@ impl GitHubClient {
                           webhook_secret:  config.webhook_secret, })
     }
 
-    pub fn app(&self) -> HubResult<App> {
+    pub async fn app(&self) -> HubResult<App> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
         let url_path = format!("{}/app", self.api_url);
 
@@ -84,22 +84,23 @@ impl GitHubClient {
                           .get(&url_path)
                           .bearer_auth(&app_token)
                           .send()
+                          .await
                           .map_err(HubError::HttpClient)?;
 
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
+        let status = rep.status();
+        let body = rep.text().await?;
         debug!("GitHub response body, {}", body);
 
-        if rep.status() != StatusCode::OK {
+        if status != StatusCode::OK {
             let err: HashMap<String, String> = serde_json::from_str(&body)?;
-            return Err(HubError::ApiError(rep.status(), err));
+            return Err(HubError::ApiError(status, err));
         }
 
         let contents = serde_json::from_str::<App>(&body)?;
         Ok(contents)
     }
 
-    pub fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
+    pub async fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
 
         let url_path = format!("{}/installations/{}/access_tokens",
@@ -111,10 +112,10 @@ impl GitHubClient {
                           .post(&url_path)
                           .bearer_auth(&app_token)
                           .send()
+                          .await
                           .map_err(HubError::HttpClient)?;
 
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
+        let body = rep.text().await?;
         debug!("GitHub response body, {}", body);
         match serde_json::from_str::<AppInstallationToken>(&body) {
             Ok(msg) => Ok(AppToken::new(msg.token, install_id)),
@@ -126,7 +127,11 @@ impl GitHubClient {
     }
 
     /// Returns the contents of a file or directory in a repository.
-    pub fn contents(&self, token: &AppToken, repo: u32, path: &str) -> HubResult<Option<Contents>> {
+    pub async fn contents(&self,
+                          token: &AppToken,
+                          repo: u32,
+                          path: &str)
+                          -> HubResult<Option<Contents>> {
         let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
 
         Counter::Contents.increment();
@@ -135,12 +140,13 @@ impl GitHubClient {
                           .get(&url_path)
                           .bearer_auth(&token.inner_token)
                           .send()
+                          .await
                           .map_err(HubError::HttpClient)?;
 
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
+        let status = rep.status();
+        let body = rep.text().await?;
         debug!("GitHub response body, {}", body);
-        match rep.status() {
+        match status {
             StatusCode::NOT_FOUND => return Ok(None),
             StatusCode::OK => (),
             status => {
@@ -158,11 +164,11 @@ impl GitHubClient {
     }
 
     /// Returns the directory listing of a path in a repository.
-    pub fn directory(&self,
-                     token: &AppToken,
-                     repo: u32,
-                     path: &str)
-                     -> HubResult<Option<Vec<DirectoryEntry>>> {
+    pub async fn directory(&self,
+                           token: &AppToken,
+                           repo: u32,
+                           path: &str)
+                           -> HubResult<Option<Vec<DirectoryEntry>>> {
         let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
 
         Counter::Contents.increment();
@@ -170,12 +176,13 @@ impl GitHubClient {
                           .get(&url_path)
                           .bearer_auth(&token.inner_token)
                           .send()
+                          .await
                           .map_err(HubError::HttpClient)?;
 
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
+        let status = rep.status();
+        let body = rep.text().await?;
         debug!("GitHub response body, {}", body);
-        match rep.status() {
+        match status {
             StatusCode::NOT_FOUND => return Ok(None),
             StatusCode::OK => (),
             status => {
@@ -187,7 +194,7 @@ impl GitHubClient {
         Ok(Some(directory))
     }
 
-    pub fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
+    pub async fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
         let url_path = format!("{}/repositories/{}", self.api_url, repo);
         Counter::Repo.increment();
 
@@ -195,12 +202,13 @@ impl GitHubClient {
                           .get(&url_path)
                           .bearer_auth(&token.inner_token)
                           .send()
+                          .await
                           .map_err(HubError::HttpClient)?;
 
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
+        let status = rep.status();
+        let body = rep.text().await?;
         debug!("GitHub response body, {}", body);
-        match rep.status() {
+        match status {
             StatusCode::NOT_FOUND => return Ok(None),
             StatusCode::OK => (),
             status => {
@@ -216,21 +224,22 @@ impl GitHubClient {
     // There's nothing special about this endpoint, only that it doesn't require
     // auth and the response body seemed small. We don't even care what the
     // response is. For our purposes, just receiving a response is enough.
-    pub fn meta(&self) -> HubResult<()> {
+    pub async fn meta(&self) -> HubResult<()> {
         let url_path = format!("{}/meta", self.api_url);
 
         let mut rep = self.inner
                           .get(&url_path)
                           .send()
+                          .await
                           .map_err(HubError::HttpClient)?;
 
-        let mut body = String::new();
-        rep.read_to_string(&mut body)?;
+        let status = rep.status();
+        let body = rep.text().await?;
         debug!("GitHub response body, {}", body);
 
-        if rep.status() != StatusCode::OK {
+        if status != StatusCode::OK {
             let err: HashMap<String, String> = serde_json::from_str(&body)?;
-            return Err(HubError::ApiError(rep.status(), err));
+            return Err(HubError::ApiError(status, err));
         }
 
         Ok(())
@@ -274,8 +283,8 @@ mod tests {
     use crate::config;
     use std::env;
 
-    #[test]
-    fn use_a_proxy_from_the_env() {
+    #[tokio::test]
+    async fn use_a_proxy_from_the_env() {
         let proxy = env::var_os("HTTPS_PROXY");
 
         if let Some(p) = proxy {
@@ -284,7 +293,7 @@ mod tests {
             if !pp.is_empty() {
                 let cfg = config::GitHubCfg::default();
                 let client = GitHubClient::new(cfg).unwrap();
-                assert!(client.meta().is_ok());
+                assert!(client.meta().await.is_ok());
             }
         }
     }
