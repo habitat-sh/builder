@@ -7,7 +7,9 @@ workspace = "../../"
 edition = "2018"
 
 [dependencies]
+async-trait = "*"
 log = "*"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -16,6 +18,3 @@ url = "*"
 [dependencies.builder_core]
 path = "../builder-core"
 
-[dependencies.reqwest]
-version = "*"
-features = ["blocking"]

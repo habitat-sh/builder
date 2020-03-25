@@ -58,9 +58,11 @@ impl OAuth2Client {
                           provider })
     }
 
-    pub fn authenticate(&self, code: &str) -> Result<(String, OAuth2User)> {
+    pub async fn authenticate(&self, code: &str) -> Result<(String, OAuth2User)> {
         Counter::Authenticate(self.config.provider.clone()).increment();
         debug!("Authenticate called, config: {:?}", self.config);
-        self.provider.authenticate(&self.config, &self.inner, code)
+        self.provider
+            .authenticate(&self.config, &self.inner, code)
+            .await
     }
 }

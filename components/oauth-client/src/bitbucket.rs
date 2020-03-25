@@ -1,5 +1,4 @@
 // Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,8 +15,8 @@ use std::iter::FromIterator;
 
 use serde_json;
 
-use reqwest::{blocking::Body,
-              header::HeaderMap};
+use reqwest::{header::HeaderMap,
+              Body};
 
 use builder_core::http_client::{HttpClient,
                                 ACCEPT_APPLICATION_JSON,
@@ -27,6 +26,7 @@ use crate::{config::OAuth2Cfg,
             error::{Error,
                     Result},
             types::*};
+use async_trait::async_trait;
 
 pub struct Bitbucket;
 
@@ -49,7 +49,11 @@ enum Utyped {
 }
 
 impl Bitbucket {
-    fn user(&self, config: &OAuth2Cfg, client: &HttpClient, token: &str) -> Result<OAuth2User> {
+    async fn user(&self,
+                  config: &OAuth2Cfg,
+                  client: &HttpClient,
+                  token: &str)
+                  -> Result<OAuth2User> {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
@@ -57,10 +61,11 @@ impl Bitbucket {
                          .headers(headers)
                          .bearer_auth(token)
                          .send()
+                         .await
                          .map_err(Error::HttpClient)?;
 
         let status = resp.status();
-        let body = resp.text().map_err(Error::HttpClient)?;
+        let body = resp.text().await.map_err(Error::HttpClient)?;
         debug!("Bitbucket response body: {}", body);
 
         if status.is_success() {
@@ -83,12 +88,13 @@ impl Bitbucket {
     }
 }
 
+#[async_trait]
 impl OAuth2Provider for Bitbucket {
-    fn authenticate(&self,
-                    config: &OAuth2Cfg,
-                    client: &HttpClient,
-                    code: &str)
-                    -> Result<(String, OAuth2User)> {
+    async fn authenticate(&self,
+                          config: &OAuth2Cfg,
+                          client: &HttpClient,
+                          code: &str)
+                          -> Result<(String, OAuth2User)> {
         let url = config.token_url.to_string();
         let body = format!("grant_type=authorization_code&code={}", code);
 
@@ -103,10 +109,11 @@ impl OAuth2Provider for Bitbucket {
                          .body(body)
                          .basic_auth(&config.client_id[..], Some(&config.client_secret[..]))
                          .send()
+                         .await
                          .map_err(Error::HttpClient)?;
 
         let status = resp.status();
-        let body = resp.text().map_err(Error::HttpClient)?;
+        let body = resp.text().await.map_err(Error::HttpClient)?;
         debug!("Bitbucket response body: {}", body);
 
         let token = if status.is_success() {
@@ -118,7 +125,7 @@ impl OAuth2Provider for Bitbucket {
             return Err(Error::HttpResponse(status, body));
         };
 
-        let user = self.user(config, client, &token)?;
+        let user = self.user(config, client, &token).await?;
         Ok((token, user))
     }
 }

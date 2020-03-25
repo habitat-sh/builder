@@ -25,6 +25,7 @@ use crate::{config::OAuth2Cfg,
             error::{Error,
                     Result},
             types::*};
+use async_trait::async_trait;
 
 pub struct GitLab;
 
@@ -41,7 +42,11 @@ struct User {
 }
 
 impl GitLab {
-    fn user(&self, config: &OAuth2Cfg, client: &HttpClient, token: &str) -> Result<OAuth2User> {
+    async fn user(&self,
+                  config: &OAuth2Cfg,
+                  client: &HttpClient,
+                  token: &str)
+                  -> Result<OAuth2User> {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
@@ -49,10 +54,11 @@ impl GitLab {
                          .headers(headers)
                          .bearer_auth(token)
                          .send()
+                         .await
                          .map_err(Error::HttpClient)?;
 
         let status = resp.status();
-        let body = resp.text().map_err(Error::HttpClient)?;
+        let body = resp.text().await.map_err(Error::HttpClient)?;
         debug!("GitLab response body: {}", body);
 
         if status.is_success() {
@@ -70,12 +76,13 @@ impl GitLab {
     }
 }
 
+#[async_trait]
 impl OAuth2Provider for GitLab {
-    fn authenticate(&self,
-                    config: &OAuth2Cfg,
-                    client: &HttpClient,
-                    code: &str)
-                    -> Result<(String, OAuth2User)> {
+    async fn authenticate(&self,
+                          config: &OAuth2Cfg,
+                          client: &HttpClient,
+                          code: &str)
+                          -> Result<(String, OAuth2User)> {
         let url = format!("{}?client_id={}&client_secret={}&grant_type=authorization_code&\
                            code={}&redirect_uri={}",
                           config.token_url,
@@ -90,10 +97,11 @@ impl OAuth2Provider for GitLab {
         let resp = client.post(&url)
                          .headers(headers)
                          .send()
+                         .await
                          .map_err(Error::HttpClient)?;
 
         let status = resp.status();
-        let body = resp.text().map_err(Error::HttpClient)?;
+        let body = resp.text().await.map_err(Error::HttpClient)?;
         debug!("GitLab response body: {}", body);
 
         let token = if status.is_success() {
@@ -105,7 +113,7 @@ impl OAuth2Provider for GitLab {
             return Err(Error::HttpResponse(status, body));
         };
 
-        let user = self.user(config, client, &token)?;
+        let user = self.user(config, client, &token).await?;
         Ok((token, user))
     }
 }

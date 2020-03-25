@@ -16,17 +16,17 @@ use std::iter::FromIterator;
 
 use serde_json;
 
-use reqwest::{blocking::Body,
-              header::HeaderMap};
-
-use builder_core::http_client::{HttpClient,
-                                ACCEPT_APPLICATION_JSON,
-                                CONTENT_TYPE_FORM_URL_ENCODED};
+use reqwest::{header::HeaderMap,
+              Body};
 
 use crate::{config::OAuth2Cfg,
             error::{Error,
                     Result},
             types::*};
+use async_trait::async_trait;
+use builder_core::http_client::{HttpClient,
+                                ACCEPT_APPLICATION_JSON,
+                                CONTENT_TYPE_FORM_URL_ENCODED};
 
 pub struct A2;
 
@@ -43,7 +43,11 @@ struct User {
 }
 
 impl A2 {
-    fn user(&self, config: &OAuth2Cfg, client: &HttpClient, token: &str) -> Result<OAuth2User> {
+    async fn user(&self,
+                  config: &OAuth2Cfg,
+                  client: &HttpClient,
+                  token: &str)
+                  -> Result<OAuth2User> {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
@@ -51,10 +55,11 @@ impl A2 {
                          .headers(headers)
                          .bearer_auth(token)
                          .send()
+                         .await
                          .map_err(Error::HttpClient)?;
 
         let status = resp.status();
-        let body = resp.text().map_err(Error::HttpClient)?;
+        let body = resp.text().await.map_err(Error::HttpClient)?;
         debug!("A2 response body: {}", body);
 
         if status.is_success() {
@@ -72,12 +77,13 @@ impl A2 {
     }
 }
 
+#[async_trait]
 impl OAuth2Provider for A2 {
-    fn authenticate(&self,
-                    config: &OAuth2Cfg,
-                    client: &HttpClient,
-                    code: &str)
-                    -> Result<(String, OAuth2User)> {
+    async fn authenticate(&self,
+                          config: &OAuth2Cfg,
+                          client: &HttpClient,
+                          code: &str)
+                          -> Result<(String, OAuth2User)> {
         let url = config.token_url.to_string();
         let body = format!("client_id={}&client_secret={}&grant_type=authorization_code&code={}&\
                             redirect_uri={}",
@@ -93,10 +99,11 @@ impl OAuth2Provider for A2 {
                          .headers(headers)
                          .body(body)
                          .send()
+                         .await
                          .map_err(Error::HttpClient)?;
 
         let status = resp.status();
-        let body = resp.text().map_err(Error::HttpClient)?;
+        let body = resp.text().await.map_err(Error::HttpClient)?;
         debug!("A2 response body: {}", body);
 
         let token = if status.is_success() {
@@ -108,7 +115,7 @@ impl OAuth2Provider for A2 {
             return Err(Error::HttpResponse(status, body));
         };
 
-        let user = self.user(config, client, &token)?;
+        let user = self.user(config, client, &token).await?;
         Ok((token, user))
     }
 }
