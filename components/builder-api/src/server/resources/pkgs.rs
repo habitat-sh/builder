@@ -1193,7 +1193,7 @@ fn do_upload_package_finish(req: &HttpRequest,
                         );
                     }
                     Err(err) => {
-                        debug!("Failed to create job graph package, err={:?}", err);
+                        warn!("Failed to create job graph package, err={:?}", err);
                         return err.into();
                     }
                 }
