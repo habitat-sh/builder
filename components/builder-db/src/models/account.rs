@@ -15,9 +15,9 @@ use crate::{bldr_core::metrics::CounterMetric,
 #[derive(Debug, Identifiable, Serialize, Queryable)]
 pub struct Account {
     #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub email: String,
-    pub name: String,
+    pub id:         i64,
+    pub email:      String,
+    pub name:       String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
@@ -26,10 +26,10 @@ pub struct Account {
 #[table_name = "account_tokens"]
 pub struct AccountToken {
     #[serde(with = "db_id_format")]
-    pub id: i64,
+    pub id:         i64,
     #[serde(with = "db_id_format")]
     pub account_id: i64,
-    pub token: String,
+    pub token:      String,
     pub created_at: Option<NaiveDateTime>,
 }
 

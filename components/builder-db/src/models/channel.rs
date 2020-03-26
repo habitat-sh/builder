@@ -39,13 +39,13 @@ use crate::{bldr_core::metrics::{CounterMetric,
 #[derive(AsExpression, Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
     #[serde(with = "db_id_format")]
-    pub id: i64,
+    pub id:         i64,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub name: String,
+    pub owner_id:   i64,
+    pub name:       String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
-    pub origin: String,
+    pub origin:     String,
 }
 
 #[derive(Insertable)]
@@ -269,7 +269,7 @@ pub enum PackageChannelOperation {
 #[derive(Debug, Serialize, Deserialize, Insertable)]
 #[table_name = "audit_package"]
 pub struct PackageChannelAudit<'a> {
-    pub package_ident: BuilderPackageIdent,
+    pub package_ident:  BuilderPackageIdent,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub channel:        &'a str,
     pub operation:      PackageChannelOperation,
@@ -290,7 +290,7 @@ impl<'a> PackageChannelAudit<'a> {
 #[derive(Debug, Serialize, Deserialize, Insertable)]
 #[table_name = "audit_package_group"]
 pub struct PackageGroupChannelAudit<'a> {
-    pub origin: &'a str,
+    pub origin:         &'a str,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub channel:        &'a str,
     pub package_ids:    Vec<i64>,

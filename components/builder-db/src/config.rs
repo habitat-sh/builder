@@ -24,23 +24,23 @@ use url::percent_encoding::{utf8_percent_encode,
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct DataStoreCfg {
-    pub host: String,
-    pub port: u16,
-    pub user: String,
-    pub password: Option<String>,
-    pub database: String,
+    pub host:                   String,
+    pub port:                   u16,
+    pub user:                   String,
+    pub password:               Option<String>,
+    pub database:               String,
     /// Timing to retry the connection to the data store if it cannot be established
-    pub connection_retry_ms: u64,
+    pub connection_retry_ms:    u64,
     /// How often to cycle a connection from the pool
     pub connection_timeout_sec: u64,
     /// If the datastore connection is under test
-    pub connection_test: bool,
+    pub connection_test:        bool,
     /// Number of database connections to start in pool.
-    pub pool_size: u32,
-    pub ssl_mode: Option<String>,
-    pub ssl_cert: Option<String>,
-    pub ssl_key: Option<String>,
-    pub ssl_root_cert: Option<String>,
+    pub pool_size:              u32,
+    pub ssl_mode:               Option<String>,
+    pub ssl_cert:               Option<String>,
+    pub ssl_key:                Option<String>,
+    pub ssl_root_cert:          Option<String>,
 }
 
 impl Default for DataStoreCfg {

@@ -75,7 +75,7 @@ pub struct OriginWithStats {
 pub struct OriginMember {
     #[serde(with = "db_id_format")]
     pub account_id: i64,
-    pub origin: String,
+    pub origin:     String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }

@@ -15,13 +15,13 @@ use crate::{bldr_core::metrics::CounterMetric,
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginIntegration {
     #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub origin: String,
+    pub id:          i64,
+    pub origin:      String,
     pub integration: String,
-    pub name: String,
-    pub body: String,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub name:        String,
+    pub body:        String,
+    pub created_at:  Option<NaiveDateTime>,
+    pub updated_at:  Option<NaiveDateTime>,
 }
 
 #[derive(Insertable)]

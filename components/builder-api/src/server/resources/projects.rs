@@ -49,31 +49,31 @@ use crate::server::{authorize::authorize_session,
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProjectCreateReq {
     #[serde(default)]
-    pub origin: String,
+    pub origin:          String,
     #[serde(default)]
-    pub plan_path: String,
+    pub plan_path:       String,
     #[serde(default = "default_target")]
-    pub target: String,
+    pub target:          String,
     #[serde(default)]
     pub installation_id: u32,
     #[serde(default)]
-    pub repo_id: u32,
+    pub repo_id:         u32,
     #[serde(default)]
-    pub auto_build: bool,
+    pub auto_build:      bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProjectUpdateReq {
     #[serde(default)]
-    pub plan_path: String,
+    pub plan_path:       String,
     #[serde(default = "default_target")]
-    pub target: String,
+    pub target:          String,
     #[serde(default)]
     pub installation_id: u32,
     #[serde(default)]
-    pub repo_id: u32,
+    pub repo_id:         u32,
     #[serde(default)]
-    pub auto_build: bool,
+    pub auto_build:      bool,
 }
 
 fn default_target() -> String { "x86_64-linux".to_string() }

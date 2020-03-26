@@ -48,14 +48,14 @@ impl Default for State {
 }
 
 pub struct Server {
-    config: Arc<Config>,
+    config:     Arc<Config>,
     /// Dealer Socket connected to JobSrv
-    fe_sock: zmq::Socket,
-    hb_cli: HeartbeatCli,
+    fe_sock:    zmq::Socket,
+    hb_cli:     HeartbeatCli,
     runner_cli: RunnerCli,
-    state: State,
-    msg: zmq::Message,
-    net_ident: Arc<String>,
+    state:      State,
+    msg:        zmq::Message,
+    net_ident:  Arc<String>,
 }
 
 impl Server {

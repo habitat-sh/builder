@@ -16,16 +16,16 @@ use crate::{bldr_core::metrics::CounterMetric,
 #[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
 pub struct OriginInvitation {
     #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub origin: String,
+    pub id:           i64,
+    pub origin:       String,
     #[serde(with = "db_id_format")]
-    pub account_id: i64,
+    pub account_id:   i64,
     pub account_name: String,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub ignored: bool,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub owner_id:     i64,
+    pub ignored:      bool,
+    pub created_at:   Option<NaiveDateTime>,
+    pub updated_at:   Option<NaiveDateTime>,
 }
 
 #[derive(Insertable)]

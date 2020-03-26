@@ -23,13 +23,13 @@ pub const DEV_GITHUB_WEBHOOK_SECRET: &str = "58d4afaf5e5617ab0f8c39e505605e78a05
 #[serde(default)]
 pub struct GitHubCfg {
     /// URL to GitHub API
-    pub api_url: String,
+    pub api_url:         String,
     /// Path to GitHub App private key
     pub app_private_key: String,
     /// App Id used for builder integration
-    pub app_id: u32,
+    pub app_id:          u32,
     /// Secret key for validating payloads sent by a GitHub WebHook
-    pub webhook_secret: String,
+    pub webhook_secret:  String,
 }
 
 impl Default for GitHubCfg {

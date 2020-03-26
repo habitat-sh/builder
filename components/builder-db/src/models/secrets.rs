@@ -16,13 +16,13 @@ use crate::{bldr_core::metrics::CounterMetric,
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginSecret {
     #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub owner_id: Option<i64>,
-    pub name: String,
-    pub value: String,
+    pub id:         i64,
+    pub owner_id:   Option<i64>,
+    pub name:       String,
+    pub value:      String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
-    pub origin: String,
+    pub origin:     String,
 }
 
 // This is the struct the hab client expects

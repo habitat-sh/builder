@@ -51,10 +51,10 @@ use crate::error::{Error,
 /// of that job.
 pub struct JobStreamer {
     /// The job identifer associated with this build log
-    id: u64,
+    id:       u64,
     /// The underlying target for this log when streaming lines. This target may be written to by
     /// multiple concurrent threads, therefore it is managed with a `Mutex`.
-    target: Arc<Mutex<StreamTarget>>,
+    target:   Arc<Mutex<StreamTarget>>,
     /// Whether or not the stream has been marked as finished
     finished: bool,
 }
@@ -192,9 +192,9 @@ impl Drop for JobStreamer {
 /// line aware.
 struct StreamTarget {
     /// A zeromq socket which represents the log stream target
-    pub sock: zmq::Socket,
+    pub sock:         zmq::Socket,
     /// The current line count of submitted log lines
-    pub line_count: u64,
+    pub line_count:   u64,
     /// A local file logger that writes a copy of each line written to the remote socket
     pub local_logger: Logger,
 }
@@ -309,13 +309,13 @@ impl fmt::Display for Section {
 /// package in the Studio, etc.
 pub struct LogSection {
     /// The job identifer associated with this build log
-    id: u64,
+    id:     u64,
     /// The section name
-    name: Section,
+    name:   Section,
     /// The underlying target for this log when streaming lines
     target: Arc<Mutex<StreamTarget>>,
     /// Whether or not the section has been marked as ended
-    ended: bool,
+    ended:  bool,
 }
 
 impl LogSection {
