@@ -49,7 +49,7 @@ lazy_static! {
     static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;
 }
 
-pub fn route_message<R, T>(req: &HttpRequest, msg: &R) -> error::Result<T>
+pub async fn route_message<R, T>(req: &HttpRequest, msg: &R) -> error::Result<T>
     where R: protobuf::Message,
           T: protobuf::Message
 {
@@ -57,6 +57,7 @@ pub fn route_message<R, T>(req: &HttpRequest, msg: &R) -> error::Result<T>
     // Route via Protobuf over HTTP
     req_state(req).jobsrv
                   .rpc::<R, T>(msg)
+                  .await
                   .map_err(error::Error::BuilderCore)
 }
 

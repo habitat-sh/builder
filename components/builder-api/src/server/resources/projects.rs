@@ -107,10 +107,10 @@ impl Projects {
 
 // TODO: the project creation API needs to be simplified
 #[allow(clippy::needless_pass_by_value)]
-fn create_project(req: HttpRequest,
-                  body: Json<ProjectCreateReq>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn create_project(req: HttpRequest,
+                        body: Json<ProjectCreateReq>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     if body.origin.is_empty() || body.plan_path.is_empty() {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -166,7 +166,10 @@ fn create_project(req: HttpRequest,
         }
     };
 
-    let token = match state.github.app_installation_token(body.installation_id) {
+    let token = match state.github
+                           .app_installation_token(body.installation_id)
+                           .await
+    {
         Ok(token) => token,
         Err(err) => {
             warn!("Error authenticating github app installation, {}", err);
@@ -174,7 +177,7 @@ fn create_project(req: HttpRequest,
         }
     };
 
-    let vcs_data = match state.github.repo(&token, body.repo_id) {
+    let vcs_data = match state.github.repo(&token, body.repo_id).await {
         Ok(Some(repo)) => repo.clone_url,
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
@@ -183,7 +186,10 @@ fn create_project(req: HttpRequest,
         }
     };
 
-    let plan = match state.github.contents(&token, body.repo_id, &body.plan_path) {
+    let plan = match state.github
+                          .contents(&token, body.repo_id, &body.plan_path)
+                          .await
+    {
         Ok(Some(contents)) => {
             match contents.decode() {
                 Ok(bytes) => {
@@ -288,11 +294,11 @@ fn delete_project(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn update_project(req: HttpRequest,
-                  path: Path<(String, String)>,
-                  body: Json<ProjectUpdateReq>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn update_project(req: HttpRequest,
+                        path: Path<(String, String)>,
+                        body: Json<ProjectUpdateReq>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let (origin, name) = path.into_inner();
 
     let account_id =
@@ -354,7 +360,10 @@ fn update_project(req: HttpRequest,
         }
     };
 
-    let token = match state.github.app_installation_token(body.installation_id) {
+    let token = match state.github
+                           .app_installation_token(body.installation_id)
+                           .await
+    {
         Ok(token) => token,
         Err(err) => {
             debug!("Error authenticating github app installation, {}", err);
@@ -362,7 +371,7 @@ fn update_project(req: HttpRequest,
         }
     };
 
-    let vcs_data = match state.github.repo(&token, body.repo_id) {
+    let vcs_data = match state.github.repo(&token, body.repo_id).await {
         Ok(Some(repo)) => repo.clone_url,
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
@@ -371,7 +380,10 @@ fn update_project(req: HttpRequest,
         }
     };
 
-    let plan = match state.github.contents(&token, body.repo_id, &body.plan_path) {
+    let plan = match state.github
+                          .contents(&token, body.repo_id, &body.plan_path)
+                          .await
+    {
         Ok(Some(contents)) => {
             match contents.decode() {
                 Ok(bytes) => {

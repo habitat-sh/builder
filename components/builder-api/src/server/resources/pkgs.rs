@@ -297,11 +297,11 @@ fn get_package(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_package(req: HttpRequest,
-                  path: Path<(String, String, String, String)>,
-                  qtarget: Query<Target>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn delete_package(req: HttpRequest,
+                        path: Path<(String, String, String, String)>,
+                        qtarget: Query<Target>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let (origin, pkg, version, release) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
@@ -358,7 +358,7 @@ fn delete_package(req: HttpRequest,
         rdeps_get.set_target(target.to_string());
 
         match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
-                            jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get)
+                            jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get).await
         {
             Ok(rdeps) => {
                 if !rdeps.get_rdeps().is_empty() {
@@ -460,7 +460,10 @@ async fn download_package(req: HttpRequest,
 
             // TODO: Aggregate Artifactory/S3 into a provider model
             if feat::is_enabled(feat::Artifactory) {
-                match state.artifactory.download(&file_path, &temp_ident, target) {
+                match state.artifactory
+                           .download(&file_path, &temp_ident, target)
+                           .await
+                {
                     Ok(archive) => {
                         download_response_for_archive(&archive, &file_path, is_private, &state)
                     }
@@ -526,11 +529,11 @@ async fn upload_package(req: HttpRequest,
 
 // TODO REVIEW: should this path be under jobs instead?
 #[allow(clippy::needless_pass_by_value)]
-fn schedule_job_group(req: HttpRequest,
-                      path: Path<(String, String)>,
-                      qschedule: Query<Schedule>,
-                      state: Data<AppState>)
-                      -> HttpResponse {
+async fn schedule_job_group(req: HttpRequest,
+                            path: Path<(String, String)>,
+                            qschedule: Query<Schedule>,
+                            state: Data<AppState>)
+                            -> HttpResponse {
     let (origin_name, package) = path.into_inner();
 
     let session =
@@ -575,7 +578,7 @@ fn schedule_job_group(req: HttpRequest,
     request.set_requester_id(session.get_id());
     request.set_requester_name(session.get_name().to_string());
 
-    match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
+    match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request).await {
         Ok(group) => {
             HttpResponse::Created().header(http::header::CACHE_CONTROL,
                                            headers::Cache::NoCache.to_string())
@@ -589,10 +592,10 @@ fn schedule_job_group(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_schedule(req: HttpRequest,
-                path: Path<String>,
-                qgetschedule: Query<GetSchedule>)
-                -> HttpResponse {
+async fn get_schedule(req: HttpRequest,
+                      path: Path<String>,
+                      qgetschedule: Query<GetSchedule>)
+                      -> HttpResponse {
     let group_id_str = path.into_inner();
     let group_id = match group_id_str.parse::<u64>() {
         Ok(id) => id,
@@ -603,7 +606,7 @@ fn get_schedule(req: HttpRequest,
     request.set_group_id(group_id);
     request.set_include_projects(qgetschedule.include_projects);
 
-    match route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(&req, &request) {
+    match route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(&req, &request).await {
         Ok(group) => {
             HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
                               .json(group)
@@ -616,10 +619,10 @@ fn get_schedule(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_origin_schedule_status(req: HttpRequest,
-                              path: Path<String>,
-                              qoss: Query<OriginScheduleStatus>)
-                              -> HttpResponse {
+async fn get_origin_schedule_status(req: HttpRequest,
+                                    path: Path<String>,
+                                    qoss: Query<OriginScheduleStatus>)
+                                    -> HttpResponse {
     let origin = path.into_inner();
     let limit = qoss.limit.parse::<u32>().unwrap_or(10);
 
@@ -627,7 +630,7 @@ fn get_origin_schedule_status(req: HttpRequest,
     request.set_origin(origin);
     request.set_limit(limit);
 
-    match route_message::<jobsrv::JobGroupOriginGet, jobsrv::JobGroupOriginResponse>(&req, &request)
+    match route_message::<jobsrv::JobGroupOriginGet, jobsrv::JobGroupOriginResponse>(&req, &request).await
     {
         Ok(jgor) => {
             HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
@@ -1087,7 +1090,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
 
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
-        match has_circular_deps(&req, ident, target_from_artifact, &mut archive) {
+        match has_circular_deps(&req, ident, target_from_artifact, &mut archive).await {
             Ok(val) if val => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Err(err) => return err.into(),
             _ => (),
@@ -1112,6 +1115,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
     if feat::is_enabled(feat::Artifactory) {
         if let Err(err) = req_state(req).artifactory
                                         .upload(&filename, &temp_ident, target_from_artifact)
+                                        .await
                                         .map_err(Error::Artifactory)
         {
             warn!("Unable to upload archive to artifactory!");
@@ -1184,7 +1188,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
                 match route_message::<jobsrv::JobGraphPackageCreate, originsrv::OriginPackage>(
                     &req,
                     &job_graph_package,
-                ) {
+                ).await {
                     Ok(_) => (),
                     Err(Error::BuilderCore(RpcError(code, _)))
                         if StatusCode::from_u16(code).unwrap() == StatusCode::NOT_FOUND =>
@@ -1227,7 +1231,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
         request.set_requester_id(session.get_id());
         request.set_requester_name(session.get_name().to_string());
 
-        match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request) {
+        match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request).await {
             Ok(group) => {
                 debug!("Scheduled reverse dependecy build for {}, group id: {}",
                        ident,
@@ -1505,11 +1509,11 @@ fn download_response_for_archive(archive: &PackageArchive,
 // Ok(writer)
 // }
 
-fn has_circular_deps(req: &HttpRequest,
-                     ident: &PackageIdent,
-                     target: PackageTarget,
-                     archive: &mut PackageArchive)
-                     -> Result<bool> {
+async fn has_circular_deps(req: &HttpRequest,
+                           ident: &PackageIdent,
+                           target: PackageTarget,
+                           archive: &mut PackageArchive)
+                           -> Result<bool> {
     let mut pcr_req = jobsrv::JobGraphPackagePreCreate::new();
     pcr_req.set_ident(format!("{}", ident));
     pcr_req.set_target(target.to_string());
@@ -1544,7 +1548,7 @@ fn has_circular_deps(req: &HttpRequest,
     }
     pcr_req.set_deps(pcr_deps);
 
-    match route_message::<jobsrv::JobGraphPackagePreCreate, NetOk>(req, &pcr_req) {
+    match route_message::<jobsrv::JobGraphPackagePreCreate, NetOk>(req, &pcr_req).await {
         Ok(_) => Ok(false),
         Err(Error::BuilderCore(RpcError(code, _)))
             if StatusCode::from_u16(code).unwrap() == StatusCode::CONFLICT =>

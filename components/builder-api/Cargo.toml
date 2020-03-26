@@ -32,6 +32,7 @@ num_cpus = "*"
 openssl = "=0.10.22"
 percent-encoding = "*"
 protobuf = "*"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -83,6 +84,3 @@ path = "../builder-core"
 [dependencies.habitat_builder_db]
 path = "../builder-db"
 
-[dependencies.reqwest]
-version = "*"
-features = ["blocking"]

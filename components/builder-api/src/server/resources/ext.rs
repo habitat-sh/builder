@@ -14,33 +14,31 @@
 
 use std::iter::FromIterator;
 
-use actix_web::{http::StatusCode,
-                web::{self,
-                      Json,
-                      Path,
-                      ServiceConfig},
-                HttpRequest,
-                HttpResponse};
+use actix_web::{
+    http::StatusCode,
+    web::{self, Json, Path, ServiceConfig},
+    HttpRequest, HttpResponse,
+};
 
 use serde_json;
 
 use reqwest::header::HeaderMap;
 
-use builder_core::http_client::{HttpClient,
-                                ACCEPT_APPLICATION_JSON,
-                                CONTENT_TYPE_APPLICATION_JSON,
-                                USER_AGENT_BLDR};
+use builder_core::http_client::{
+    HttpClient, ACCEPT_APPLICATION_JSON, CONTENT_TYPE_APPLICATION_JSON, USER_AGENT_BLDR,
+};
 
-use crate::server::{authorize::authorize_session,
-                    error::{Error,
-                            Result},
-                    services::github};
+use crate::server::{
+    authorize::authorize_session,
+    error::{Error, Result},
+    services::github,
+};
 
 #[derive(Deserialize, Serialize)]
 pub struct Body {
     username: Option<String>,
     password: Option<String>,
-    url:      Option<String>,
+    url: Option<String>,
 }
 
 pub struct Ext;
@@ -49,27 +47,32 @@ impl Ext {
     // Route registration
     //
     pub fn register(cfg: &mut ServiceConfig) {
-        cfg.route("/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
-                  web::get().to(github::repo_file_content))
-           .route("/ext/integrations/{registry_type}/credentials/validate",
-                  web::post().to(validate_registry_credentials));
+        cfg.route(
+            "/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
+            web::get().to(github::repo_file_content),
+        )
+        .route(
+            "/ext/integrations/{registry_type}/credentials/validate",
+            web::post().to(validate_registry_credentials),
+        );
     }
 }
 
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-pub fn validate_registry_credentials(req: HttpRequest,
-                                     path: Path<String>,
-                                     body: Json<Body>)
-                                     -> HttpResponse {
+pub async fn validate_registry_credentials(
+    req: HttpRequest,
+    path: Path<String>,
+    body: Json<Body>,
+) -> HttpResponse {
     if let Err(err) = authorize_session(&req, None, None) {
         return err.into();
     }
 
     let registry_type = path.into_inner();
 
-    match do_validate_registry_credentials(body, &registry_type) {
+    match do_validate_registry_credentials(body, &registry_type).await {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => {
             debug!("{}", err);
@@ -80,7 +83,7 @@ pub fn validate_registry_credentials(req: HttpRequest,
 
 // Internal Functions - These functions are business logic for any handlers
 //
-fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Result<()> {
+async fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Result<()> {
     if body.username.is_none() || body.password.is_none() {
         debug!("Error: Missing username or password");
         return Err(Error::BadRequest);
@@ -88,42 +91,42 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Re
 
     let url = match body.url {
         Some(ref url) => url.to_string(),
-        None => {
-            match registry_type {
-                "docker" => "https://hub.docker.com/v2".to_string(),
-                _ => return Err(Error::BadRequest),
-            }
-        }
+        None => match registry_type {
+            "docker" => "https://hub.docker.com/v2".to_string(),
+            _ => return Err(Error::BadRequest),
+        },
     };
 
     let actual_url: &str = url.as_ref();
 
-    let header_values = vec![USER_AGENT_BLDR.clone(),
-                             ACCEPT_APPLICATION_JSON.clone(),
-                             CONTENT_TYPE_APPLICATION_JSON.clone()];
+    let header_values = vec![
+        USER_AGENT_BLDR.clone(),
+        ACCEPT_APPLICATION_JSON.clone(),
+        CONTENT_TYPE_APPLICATION_JSON.clone(),
+    ];
     let headers = HeaderMap::from_iter(header_values.into_iter());
 
     let client = HttpClient::new(actual_url, headers)?;
     let sbody = serde_json::to_string(&body.into_inner()).unwrap();
 
-    let body: reqwest::blocking::Body = sbody.into();
+    let body: reqwest::Body = sbody.into();
 
     let post_url = format!("{}/users/login", actual_url);
 
-    match client.post(&post_url)
-                .body(body)
-                .send()
-                .map_err(Error::HttpClient)
+    match client
+        .post(&post_url)
+        .body(body)
+        .send()
+        .await
+        .map_err(Error::HttpClient)
     {
-        Ok(response) => {
-            match response.status() {
-                StatusCode::OK => Ok(()),
-                _ => {
-                    debug!("Non-OK Response: {}", &response.status());
-                    Err(Error::BadRequest)
-                }
+        Ok(response) => match response.status() {
+            StatusCode::OK => Ok(()),
+            _ => {
+                debug!("Non-OK Response: {}", &response.status());
+                Err(Error::BadRequest)
             }
-        }
+        },
         Err(e) => {
             debug!("Error sending request: {:?}", e);
             Err(Error::Authorization)

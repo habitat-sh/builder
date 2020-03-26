@@ -28,4 +28,6 @@ impl Notify {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn notify(req: HttpRequest, body: String) -> HttpResponse { github::handle_event(req, body) }
+pub async fn notify(req: HttpRequest, body: String) -> HttpResponse {
+    github::handle_event(req, body).await
+}
