@@ -55,7 +55,7 @@ use std::{collections::{HashMap,
                  RwLock},
           time::Instant};
 
-// Change max size of JsonConfig payload. By default max size is 32Kb
+// Set a max size for JsonConfig payload. Default is 32Kb
 const MAX_JSON_PAYLOAD: usize = 262_144;
 
 features! {
