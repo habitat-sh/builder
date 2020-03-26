@@ -15,48 +15,48 @@ use crate::{bldr_core::metrics::CounterMetric,
 #[table_name = "origin_public_encryption_keys"]
 pub struct OriginPublicEncryptionKey {
     #[serde(with = "db_id_format")]
-    pub id: i64,
+    pub id:         i64,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub name: String,
-    pub revision: String,
-    pub full_name: String,
-    pub body: Vec<u8>,
+    pub owner_id:   i64,
+    pub name:       String,
+    pub revision:   String,
+    pub full_name:  String,
+    pub body:       Vec<u8>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
-    pub origin: String,
+    pub origin:     String,
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_private_encryption_keys"]
 pub struct OriginPrivateEncryptionKey {
     #[serde(with = "db_id_format")]
-    pub id: i64,
+    pub id:         i64,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub name: String,
-    pub revision: String,
-    pub full_name: String,
-    pub body: Vec<u8>,
+    pub owner_id:   i64,
+    pub name:       String,
+    pub revision:   String,
+    pub full_name:  String,
+    pub body:       Vec<u8>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
-    pub origin: String,
+    pub origin:     String,
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_secret_keys"]
 pub struct OriginPrivateSigningKey {
     #[serde(with = "db_id_format")]
-    pub id: i64,
+    pub id:                 i64,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub name: String,
-    pub revision: String,
-    pub full_name: String,
-    pub body: Vec<u8>,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
-    pub origin: String,
+    pub owner_id:           i64,
+    pub name:               String,
+    pub revision:           String,
+    pub full_name:          String,
+    pub body:               Vec<u8>,
+    pub created_at:         Option<NaiveDateTime>,
+    pub updated_at:         Option<NaiveDateTime>,
+    pub origin:             String,
     pub encryption_key_rev: Option<String>,
 }
 
@@ -64,16 +64,16 @@ pub struct OriginPrivateSigningKey {
 #[table_name = "origin_public_keys"]
 pub struct OriginPublicSigningKey {
     #[serde(with = "db_id_format")]
-    pub id: i64,
+    pub id:         i64,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub name: String,
-    pub revision: String,
-    pub full_name: String,
-    pub body: Vec<u8>,
+    pub owner_id:   i64,
+    pub name:       String,
+    pub revision:   String,
+    pub full_name:  String,
+    pub body:       Vec<u8>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
-    pub origin: String,
+    pub origin:     String,
 }
 
 #[derive(Insertable)]

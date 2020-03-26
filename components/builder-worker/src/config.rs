@@ -33,25 +33,25 @@ pub type JobSrvCfg = Vec<JobSrvAddr>;
 #[serde(default)]
 pub struct Config {
     /// Enable automatic publishing for all builds by default
-    pub auto_publish: bool,
+    pub auto_publish:     bool,
     /// Filepath where persistent application data is stored
-    pub data_path: PathBuf,
+    pub data_path:        PathBuf,
     /// Filepath to where the builder encryption keys can be found
-    pub key_dir: PathBuf,
+    pub key_dir:          PathBuf,
     /// Path to worker event logs
-    pub log_path: PathBuf,
+    pub log_path:         PathBuf,
     /// Default channel name for Publish post-processor to use to determine which channel to
     /// publish artifacts to
-    pub bldr_channel: ChannelIdent,
+    pub bldr_channel:     ChannelIdent,
     /// Default URL for Publish post-processor to use to determine which Builder to use
     /// for retrieving signing keys and publishing artifacts
-    pub bldr_url: String,
+    pub bldr_url:         String,
     /// List of Job Servers to connect to
-    pub jobsrv: JobSrvCfg,
+    pub jobsrv:           JobSrvCfg,
     pub features_enabled: String,
     /// Github application id to use for private repo access
-    pub github: GitHubCfg,
-    pub target: PackageTarget,
+    pub github:           GitHubCfg,
+    pub target:           PackageTarget,
 }
 
 impl Config {

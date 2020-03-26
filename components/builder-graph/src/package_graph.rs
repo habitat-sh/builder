@@ -75,7 +75,7 @@ impl PartialEq for HeapEntry {
 type PackageIndex = usize;
 #[derive(Debug)]
 struct PackageInfo {
-    ident: PackageIdent,
+    ident:   PackageIdent,
     // We may need to create the info record before we see the package data...
     package: Option<PackageWithVersionArray>,
 
@@ -210,9 +210,9 @@ impl PackageInfo {
 
 #[derive(Default)]
 pub struct PackageGraphForTarget {
-    target: Option<PackageTarget>,
+    target:      Option<PackageTarget>,
     // This is the master data store; all packages live here.
-    packages: Vec<RefCell<PackageInfo>>,
+    packages:    Vec<RefCell<PackageInfo>>,
     // Maps package ident to position in packages vector above.
     package_map: HashMap<PackageIdent, PackageIndex>,
 

@@ -25,7 +25,7 @@ pub struct Target {
 #[derive(Deserialize)]
 pub struct Pagination {
     #[serde(default)]
-    pub range: isize,
+    pub range:    isize,
     #[serde(default)]
     pub distinct: bool,
 }

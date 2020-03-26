@@ -19,21 +19,21 @@ use crate::{bldr_core::metrics::CounterMetric,
 #[table_name = "origin_projects"]
 pub struct Project {
     #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub origin: String,
+    pub id:                  i64,
+    pub origin:              String,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub package_name: String,
-    pub name: String,
-    pub plan_path: String,
-    pub target: String,
-    pub vcs_type: String,
-    pub vcs_data: String,
+    pub owner_id:            i64,
+    pub package_name:        String,
+    pub name:                String,
+    pub plan_path:           String,
+    pub target:              String,
+    pub vcs_type:            String,
+    pub vcs_data:            String,
     #[serde(with = "db_optional_id_format")]
     pub vcs_installation_id: Option<i64>,
-    pub auto_build: bool,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub auto_build:          bool,
+    pub created_at:          Option<NaiveDateTime>,
+    pub updated_at:          Option<NaiveDateTime>,
 }
 
 #[derive(Insertable)]

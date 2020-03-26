@@ -26,12 +26,12 @@ use crate::{bldr_core::metrics::CounterMetric,
 #[table_name = "origin_package_settings"]
 pub struct OriginPackageSettings {
     #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub origin: String,
-    pub name: String,
+    pub id:         i64,
+    pub origin:     String,
+    pub name:       String,
     pub visibility: PackageVisibility,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
+    pub owner_id:   i64,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }

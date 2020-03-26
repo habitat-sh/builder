@@ -53,24 +53,24 @@ impl fmt::Display for AppAuthErr {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AppOwner {
-    pub login: String,
-    pub id: u32,
-    pub avatar_url: String,
-    pub gravatar_id: String,
-    pub url: String,
-    pub html_url: String,
-    pub followers_url: String,
-    pub following_url: String,
-    pub gists_url: String,
-    pub starred_url: String,
-    pub subscriptions_url: String,
-    pub organizations_url: String,
-    pub repos_url: String,
-    pub events_url: String,
+    pub login:               String,
+    pub id:                  u32,
+    pub avatar_url:          String,
+    pub gravatar_id:         String,
+    pub url:                 String,
+    pub html_url:            String,
+    pub followers_url:       String,
+    pub following_url:       String,
+    pub gists_url:           String,
+    pub starred_url:         String,
+    pub subscriptions_url:   String,
+    pub organizations_url:   String,
+    pub repos_url:           String,
+    pub events_url:          String,
     pub received_events_url: String,
     #[serde(rename = "type")]
-    pub _type: String,
-    pub site_admin: bool,
+    pub _type:               String,
+    pub site_admin:          bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -111,24 +111,24 @@ pub struct DirectoryEntry {
 pub struct GitHubWebhookPush {
     /// The full Git ref that was pushed. Example: "refs/heads/master"
     #[serde(rename = "ref")]
-    pub git_ref: String,
+    pub git_ref:      String,
     /// The SHA of the most recent commit on ref before the push
-    pub before: String,
+    pub before:       String,
     /// The SHA of the most recent commit on ref after the push
-    pub after: String,
-    pub created: bool,
-    pub deleted: bool,
-    pub forced: bool,
-    pub base_ref: Option<String>,
-    pub compare: String,
+    pub after:        String,
+    pub created:      bool,
+    pub deleted:      bool,
+    pub forced:       bool,
+    pub base_ref:     Option<String>,
+    pub compare:      String,
     /// An array of commit objects describing the pushed commits (The array includes a maximum
     /// of 20 commits. If necessary, you can use the Commits API to fetch additional commits.
     /// This limit is applied to timeline events only and isn't applied to webhook deliveries)
-    pub commits: Vec<GitHubWebhookCommit>,
-    pub head_commit: Option<GitHubWebhookCommit>,
-    pub repository: PushRepository,
-    pub pusher: GitHubOwner,
-    pub sender: GitHubWebhookSender,
+    pub commits:      Vec<GitHubWebhookCommit>,
+    pub head_commit:  Option<GitHubWebhookCommit>,
+    pub repository:   PushRepository,
+    pub pusher:       GitHubOwner,
+    pub sender:       GitHubWebhookSender,
     pub installation: GitHubAppInstallation,
 }
 
@@ -157,30 +157,30 @@ impl GitHubWebhookPush {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GitHubWebhookCommit {
-    pub id: String,
-    pub tree_id: String,
+    pub id:        String,
+    pub tree_id:   String,
     /// Whether this commit is distinct from any that have been pushed before
-    pub distinct: bool,
+    pub distinct:  bool,
     /// The commit message
-    pub message: String,
+    pub message:   String,
     pub timestamp: String,
     /// Points to the commit API resource
-    pub url: String,
+    pub url:       String,
     /// The git author of the commit
-    pub author: GitHubAuthor,
+    pub author:    GitHubAuthor,
     pub committer: GitHubAuthor,
-    pub added: Vec<String>,
-    pub removed: Vec<String>,
-    pub modified: Vec<String>,
+    pub added:     Vec<String>,
+    pub removed:   Vec<String>,
+    pub modified:  Vec<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GitHubAuthor {
     /// Public name of commit author
-    pub name: String,
+    pub name:     String,
     /// Public email of commit author
-    pub email: String,
+    pub email:    String,
     /// Display name of commit author
     pub username: String,
 }
@@ -215,7 +215,7 @@ pub struct GitHubWebhookSender {
 #[serde(default)]
 pub struct GitHubOwner {
     /// Public name of commit author
-    pub name: String,
+    pub name:  String,
     /// Public email of commit author
     pub email: String,
 }

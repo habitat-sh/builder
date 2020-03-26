@@ -38,23 +38,23 @@ use crate::error::Error;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub net: NetCfg,
-    pub http: HttpCfg,
-    pub datastore: DataStoreCfg,
+    pub net:              NetCfg,
+    pub http:             HttpCfg,
+    pub datastore:        DataStoreCfg,
     /// Directory to which log output of running build processes will
     /// be written. Defaults to the system temp directory. Must exist
     /// and be writable by the server process.
-    pub log_dir: PathBuf,
+    pub log_dir:          PathBuf,
     /// Configuration for the job log archiver
-    pub archive: ArchiveCfg,
+    pub archive:          ArchiveCfg,
     /// Filepath to where the builder encryption keys can be found
-    pub key_dir: PathBuf,
+    pub key_dir:          PathBuf,
     /// Path to scheduler event logs
-    pub log_path: PathBuf,
+    pub log_path:         PathBuf,
     /// Max time (in minutes) allowed for a build job
-    pub job_timeout: u64,
+    pub job_timeout:      u64,
     /// Supported build targets
-    pub build_targets: HashSet<PackageTarget>,
+    pub build_targets:    HashSet<PackageTarget>,
     /// Feature flag toggles
     pub features_enabled: String,
 }
@@ -85,17 +85,17 @@ impl ConfigFile for Config {
 #[serde(default)]
 pub struct NetCfg {
     /// Worker Command socket's listening address
-    pub worker_command_listen: IpAddr,
+    pub worker_command_listen:   IpAddr,
     /// Worker Command socket's port
-    pub worker_command_port: u16,
+    pub worker_command_port:     u16,
     /// Worker Heartbeat socket's listening address
     pub worker_heartbeat_listen: IpAddr,
     /// Worker Heartbeat socket's port
-    pub worker_heartbeat_port: u16,
+    pub worker_heartbeat_port:   u16,
     /// Worker Log Ingestion socket's listening address
-    pub log_ingestion_listen: IpAddr,
+    pub log_ingestion_listen:    IpAddr,
     /// Worker Log Ingestion socket's port
-    pub log_ingestion_port: u16,
+    pub log_ingestion_port:      u16,
 }
 
 impl NetCfg {

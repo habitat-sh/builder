@@ -136,11 +136,11 @@ impl Serialize for Pattern {
 pub struct ProjectCfg {
     /// Relative filepath to the project's Habitat Plan (default: "habitat").
     #[serde(default = "ProjectCfg::default_plan_path")]
-    pub plan_path: PathBuf,
+    pub plan_path:     PathBuf,
     /// Unix style file globs which are matched against changed files from a GitHub push
     /// notification to determine if an automatic rebuild should occur.
     #[serde(default)]
-    pub paths: Vec<Pattern>,
+    pub paths:         Vec<Pattern>,
     /// Package targets to build when changes detected
     #[serde(default = "ProjectCfg::default_build_targets")]
     pub build_targets: HashSet<PackageTarget>,

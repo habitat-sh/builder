@@ -26,31 +26,31 @@ use crate::{bldr_core::metrics::CounterMetric,
 #[table_name = "jobs"]
 pub struct Job {
     #[serde(with = "db_id_format")]
-    pub id: i64,
+    pub id:                i64,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub job_state: String,
+    pub owner_id:          i64,
+    pub job_state:         String,
     #[serde(with = "db_id_format")]
-    pub project_id: i64,
-    pub project_name: String,
+    pub project_id:        i64,
+    pub project_name:      String,
     #[serde(with = "db_id_format")]
-    pub project_owner_id: i64,
+    pub project_owner_id:  i64,
     pub project_plan_path: String,
-    pub vcs: String,
-    pub vcs_arguments: Vec<Option<String>>,
-    pub net_error_code: Option<i32>,
-    pub net_error_msg: Option<String>,
-    pub scheduler_sync: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
-    pub build_started_at: Option<DateTime<Utc>>,
+    pub vcs:               String,
+    pub vcs_arguments:     Vec<Option<String>>,
+    pub net_error_code:    Option<i32>,
+    pub net_error_msg:     Option<String>,
+    pub scheduler_sync:    bool,
+    pub created_at:        Option<DateTime<Utc>>,
+    pub updated_at:        Option<DateTime<Utc>>,
+    pub build_started_at:  Option<DateTime<Utc>>,
     pub build_finished_at: Option<DateTime<Utc>>,
-    pub package_ident: Option<String>,
-    pub archived: bool,
-    pub channel: Option<String>,
-    pub sync_count: i32,
-    pub worker: Option<String>,
-    pub target: String,
+    pub package_ident:     Option<String>,
+    pub archived:          bool,
+    pub channel:           Option<String>,
+    pub sync_count:        i32,
+    pub worker:            Option<String>,
+    pub target:            String,
 }
 
 #[derive(Insertable)]
@@ -64,8 +64,8 @@ pub struct NewJob<'a> {
     pub vcs:               &'a str,
     pub vcs_arguments:     Vec<&'a str>,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
-    pub channel: &'a str,
-    pub target:  &'a str,
+    pub channel:           &'a str,
+    pub target:            &'a str,
 }
 
 pub struct ListProjectJobs {
@@ -186,12 +186,12 @@ impl Into<jobsrv::Job> for Job {
 #[table_name = "groups"]
 pub struct Group {
     #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub group_state: String,
+    pub id:           i64,
+    pub group_state:  String,
     pub project_name: String,
-    pub target: String,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub target:       String,
+    pub created_at:   Option<DateTime<Utc>>,
+    pub updated_at:   Option<DateTime<Utc>>,
 }
 
 impl Group {

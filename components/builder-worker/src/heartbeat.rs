@@ -123,9 +123,9 @@ pub struct HeartbeatMgr {
     pub cli_sock: zmq::Socket,
     /// Public socket for publishing worker state to consumers
     pub pub_sock: zmq::Socket,
-    heartbeat: proto::Heartbeat,
-    msg: zmq::Message,
-    state: PulseState,
+    heartbeat:    proto::Heartbeat,
+    msg:          zmq::Message,
+    state:        PulseState,
 }
 
 impl HeartbeatMgr {

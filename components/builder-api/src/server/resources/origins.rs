@@ -81,7 +81,7 @@ use crate::server::{authorize::{authorize_session,
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginSecretPayload {
     #[serde(default)]
-    name: String,
+    name:  String,
     #[serde(default)]
     value: String,
 }

@@ -35,7 +35,7 @@ pub struct LogForwarder {
     /// job server.
     pub output_sock: zmq::Socket,
     /// Log file for debugging this process.
-    logger: Logger,
+    logger:          Logger,
 }
 
 impl LogForwarder {

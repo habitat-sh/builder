@@ -26,7 +26,7 @@ pub struct ArtifactoryCfg {
     /// Artifactory API key
     pub api_key: String,
     // Repo name
-    pub repo: String,
+    pub repo:    String,
 }
 
 impl Default for ArtifactoryCfg {
