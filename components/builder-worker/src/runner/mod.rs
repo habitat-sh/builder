@@ -33,6 +33,8 @@ use crate::{bldr_core::{self,
                        originsrv::OriginPackageIdent},
             vcs::VCS};
 use chrono::Utc;
+use futures::{channel::mpsc as async_mpsc,
+              sink::SinkExt};
 use retry::{delay,
             retry};
 use std::{fs,
@@ -115,20 +117,23 @@ impl Runner {
 
     fn is_canceled(&self) -> bool { self.cancel.load(Ordering::SeqCst) }
 
-    fn check_cancel(&mut self, tx: &mpsc::Sender<Job>) -> Result<()> {
+    async fn check_cancel(&mut self, tx: &mut async_mpsc::Sender<Job>) -> Result<()> {
         if self.is_canceled() {
             debug!("Runner canceling job id: {}", self.job().get_id());
             self.cancel();
             self.cleanup();
-            tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+            tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
             return Err(Error::JobCanceled);
         }
 
         Ok(())
     }
 
-    fn do_validate(&mut self, tx: &mpsc::Sender<Job>, streamer: &mut JobStreamer) -> Result<()> {
-        self.check_cancel(tx)?;
+    async fn do_validate(&mut self,
+                         tx: &mut async_mpsc::Sender<Job>,
+                         streamer: &mut JobStreamer)
+                         -> Result<()> {
+        self.check_cancel(tx).await?;
 
         let mut section = streamer.start_section(Section::ValidateIntegrations)?;
 
@@ -141,7 +146,7 @@ impl Runner {
 
             streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::INVALID_INTEGRATIONS, "wk:run:validate"));
-            tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+            tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
             return Err(err);
         };
 
@@ -149,8 +154,8 @@ impl Runner {
         Ok(())
     }
 
-    fn do_setup(&mut self, tx: &mpsc::Sender<Job>) -> Result<JobStreamer> {
-        self.check_cancel(tx)?;
+    async fn do_setup(&mut self, tx: &mut async_mpsc::Sender<Job>) -> Result<JobStreamer> {
+        self.check_cancel(tx).await?;
 
         let streamer = match self.setup() {
             Ok(streamer) => streamer,
@@ -162,7 +167,7 @@ impl Runner {
                 self.logger.log(&msg);
 
                 self.fail(net::err(ErrCode::WORKSPACE_SETUP, "wk:run:workspace"));
-                tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+                tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
                 return Err(err);
             }
         };
@@ -170,12 +175,15 @@ impl Runner {
         Ok(streamer)
     }
 
-    fn do_install_key(&mut self, tx: &mpsc::Sender<Job>, streamer: &mut JobStreamer) -> Result<()> {
-        self.check_cancel(tx)?;
+    async fn do_install_key(&mut self,
+                            tx: &mut async_mpsc::Sender<Job>,
+                            streamer: &mut JobStreamer)
+                            -> Result<()> {
+        self.check_cancel(tx).await?;
 
         let mut section = streamer.start_section(Section::FetchOriginKey)?;
 
-        if let Some(err) = self.install_origin_secret_key().err() {
+        if let Some(err) = self.install_origin_secret_key().await.err() {
             let msg = format!("Failed to install origin secret key {}, err={:?}",
                               self.workspace.job.get_project().get_origin_name(),
                               err);
@@ -184,7 +192,7 @@ impl Runner {
 
             streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::SECRET_KEY_FETCH, "wk:run:key"));
-            tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+            tx.send(self.job().clone()).await.unwrap(); //;map_err(Error::Mpsc)?;
             return Err(err);
         }
 
@@ -192,12 +200,15 @@ impl Runner {
         Ok(())
     }
 
-    fn do_clone(&mut self, tx: &mpsc::Sender<Job>, streamer: &mut JobStreamer) -> Result<()> {
-        self.check_cancel(tx)?;
+    async fn do_clone(&mut self,
+                      tx: &mut async_mpsc::Sender<Job>,
+                      streamer: &mut JobStreamer)
+                      -> Result<()> {
+        self.check_cancel(tx).await?;
         let mut section = streamer.start_section(Section::CloneRepository)?;
 
         let vcs = VCS::from_job(&self.job(), self.config.github.clone())?;
-        if let Some(err) = vcs.clone(&self.workspace.src()).err() {
+        if let Some(err) = vcs.clone(&self.workspace.src()).await.err() {
             let msg = format!("Failed to clone remote source repository for {}, err={:?}",
                               self.workspace.job.get_project().get_name(),
                               err);
@@ -206,7 +217,7 @@ impl Runner {
 
             streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:1"));
-            tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+            tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
             return Err(err);
         }
 
@@ -214,11 +225,11 @@ impl Runner {
         Ok(())
     }
 
-    fn do_build(&mut self,
-                tx: &mpsc::Sender<Job>,
-                streamer: &mut JobStreamer)
-                -> Result<PackageArchive> {
-        self.check_cancel(tx)?;
+    async fn do_build(&mut self,
+                      tx: &mut async_mpsc::Sender<Job>,
+                      streamer: &mut JobStreamer)
+                      -> Result<PackageArchive> {
+        self.check_cancel(tx).await?;
 
         self.workspace
             .job
@@ -232,7 +243,7 @@ impl Runner {
         // to "Complete" (or "Failed", etc.). As a result, we won't
         // get the `build_started_at` time set until the job is actually
         // finished.
-        let mut archive = match self.build(self.config.target, streamer, tx) {
+        let mut archive = match self.build(self.config.target, streamer, tx).await {
             Ok(archive) => {
                 self.workspace
                     .job
@@ -251,7 +262,7 @@ impl Runner {
                 streamer.println_stderr(msg)?;
 
                 self.fail(net::err(ErrCode::BUILD, "wk:run:build"));
-                tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+                tx.send(self.job().clone()).await.unwrap(); //.map_err(Error::Mpsc)?;
                 return Err(err);
             }
         };
@@ -264,14 +275,17 @@ impl Runner {
         Ok(archive)
     }
 
-    fn do_export(&mut self, tx: &mpsc::Sender<Job>, mut streamer: &mut JobStreamer) -> Result<()> {
-        self.check_cancel(tx)?;
+    async fn do_export(&mut self,
+                       tx: &mut async_mpsc::Sender<Job>,
+                       mut streamer: &mut JobStreamer)
+                       -> Result<()> {
+        self.check_cancel(tx).await?;
 
         match self.export(&mut streamer) {
             Ok(_) => (),
             Err(err) => {
                 self.fail(net::err(ErrCode::EXPORT, "wk:run:export"));
-                tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+                tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
                 return Err(err);
             }
         }
@@ -279,19 +293,19 @@ impl Runner {
         Ok(())
     }
 
-    fn do_postprocess(&mut self,
-                      tx: &mpsc::Sender<Job>,
-                      mut archive: PackageArchive,
-                      streamer: &mut JobStreamer)
-                      -> Result<()> {
-        self.check_cancel(tx)?;
+    async fn do_postprocess(&mut self,
+                            tx: &mut async_mpsc::Sender<Job>,
+                            mut archive: PackageArchive,
+                            streamer: &mut JobStreamer)
+                            -> Result<()> {
+        self.check_cancel(tx).await?;
         let mut section = streamer.start_section(Section::PublishPackage)?;
 
         match post_process(&mut archive,
                            &self.workspace,
                            &self.config,
                            &self.bldr_token,
-                           &mut self.logger)
+                           &mut self.logger).await
         {
             Ok(_) => (),
             Err(err) => {
@@ -300,7 +314,7 @@ impl Runner {
                                   err);
                 streamer.println_stderr(msg)?;
                 self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:postprocess"));
-                tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+                tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
                 return Err(err);
             }
         }
@@ -318,43 +332,36 @@ impl Runner {
         self.teardown();
     }
 
-    pub fn run(mut self, tx: &mpsc::Sender<Job>) -> Result<()> {
+    pub async fn run(mut self, mut tx: async_mpsc::Sender<Job>) -> Result<()> {
         // TBD (SA) - Spin up a LogStreamer first thing indpendendly of setup.
         // Currently we need to do it as part of setup because the log file to be
         // streamed lives inside of the workspace, which is created by setup.
-        let mut streamer = self.do_setup(&tx)?;
+        let mut streamer = self.do_setup(&mut tx).await?;
 
-        self.do_validate(&tx, &mut streamer)?;
-        self.do_install_key(&tx, &mut streamer)?;
-        self.do_clone(&tx, &mut streamer)?;
+        self.do_validate(&mut tx, &mut streamer).await?;
+        self.do_install_key(&mut tx, &mut streamer).await?;
+        self.do_clone(&mut tx, &mut streamer).await?;
 
-        let archive = self.do_build(&tx, &mut streamer)?;
-        self.do_export(&tx, &mut streamer)?;
-        self.do_postprocess(&tx, archive, &mut streamer)?;
+        let archive = self.do_build(&mut tx, &mut streamer).await?;
+        self.do_export(&mut tx, &mut streamer).await?;
+        self.do_postprocess(&mut tx, archive, &mut streamer).await?;
 
         self.cleanup();
         self.complete();
-        tx.send(self.workspace.job).map_err(Error::Mpsc)?;
+        tx.send(self.workspace.job).await.unwrap(); // map_err(Error::Mpsc)?;
 
         streamer.finish()?;
 
         Ok(())
     }
 
-    fn install_origin_secret_key(&mut self) -> Result<()> {
+    async fn install_origin_secret_key(&mut self) -> Result<()> {
         debug!("Installing origin secret key for {} to {:?}",
                self.job().origin(),
                self.workspace.key_path());
-        match retry(delay::Fixed::from(RETRY_WAIT).take(RETRIES), || {
-                  let res = self.depot_cli.fetch_origin_secret_key(self.job().origin(),
-                                                                   &self.bldr_token,
-                                                                   self.workspace.key_path());
-                  if res.is_err() {
-                      debug!("Failed to fetch origin secret key, err={:?}", res);
-                  };
-
-                  res
-              }) {
+        match retry::retry_future!(delay::Fixed::from(RETRY_WAIT).take(RETRIES),
+                                   self.fetch_origin_secret_key()).await
+        {
             Ok(dst) => {
                 debug!("Imported origin secret key, dst={:?}.", dst);
                 Ok(())
@@ -370,11 +377,26 @@ impl Runner {
         }
     }
 
-    fn build(&mut self,
-             target: PackageTarget,
-             streamer: &mut JobStreamer,
-             tx: &mpsc::Sender<Job>)
-             -> Result<PackageArchive> {
+    async fn fetch_origin_secret_key(
+        &self)
+        -> std::result::Result<std::path::PathBuf, builder_core::Error> {
+        let res = self.depot_cli
+                      .fetch_origin_secret_key(self.job().origin(),
+                                               &self.bldr_token,
+                                               self.workspace.key_path())
+                      .await;
+        if res.is_err() {
+            debug!("Failed to fetch origin secret key, err={:?}", res);
+        };
+
+        res
+    }
+
+    async fn build(&mut self,
+                   target: PackageTarget,
+                   streamer: &mut JobStreamer,
+                   tx: &mut async_mpsc::Sender<Job>)
+                   -> Result<PackageArchive> {
         let studio = Studio::new(&self.workspace,
                                  &self.config.bldr_url,
                                  &self.bldr_token,
@@ -418,7 +440,7 @@ impl Runner {
                         }
                         self.cancel();
                         self.cleanup();
-                        tx.send(self.job().clone()).map_err(Error::Mpsc)?;
+                        tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
                         return Err(Error::JobCanceled);
                     }
                     thread::sleep(Duration::new(STUDIO_CHILD_WAIT_SECS, 0));
@@ -671,7 +693,7 @@ impl RunnerMgr {
         rz.send(()).unwrap();
 
         let mut srv_msg = false;
-        let (tx, rx): (_, mpsc::Receiver<Job>) = mpsc::channel();
+        let (tx, mut rx): (_, async_mpsc::Receiver<Job>) = async_mpsc::channel(1);
 
         loop {
             {
@@ -703,24 +725,24 @@ impl RunnerMgr {
                 }
             }
 
-            let res = rx.try_recv();
+            let res = rx.try_next();
 
             if let Ok(r) = res {
-                let job: Job = r;
+                let job: Job = r.unwrap();
                 debug!("Got result from spawned runner: {:?}", job);
                 self.send_complete(&job)?;
             }
         }
     }
 
-    fn spawn_job(&mut self, job: Job, tx: mpsc::Sender<Job>) -> Result<()> {
+    fn spawn_job(&mut self, job: Job, tx: async_mpsc::Sender<Job>) -> Result<()> {
         let runner = Runner::new(job,
                                  self.config.clone(),
                                  &self.net_ident,
                                  self.cancel.clone())?;
 
         let _ = thread::Builder::new().name("job_runner".to_string())
-                                      .spawn(move || runner.run(&tx))
+                                      .spawn(move || runner.run(tx))
                                       .unwrap();
 
         Ok(())

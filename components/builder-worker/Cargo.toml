@@ -19,12 +19,13 @@ clippy = {version = "*", optional = true}
 chrono = { version = "*", features = ["serde"] }
 env_logger = "*"
 features = "*"
+futures = "*"
 git2 = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 log = "*"
 protobuf = "*"
-retry = "*"
+retry = { git = "https://github.com/habitat-sh/retry", features = ["asynchronous"] }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -47,3 +48,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
+
+[dependencies.tokio]
+version = "*"
+features = ["time"]

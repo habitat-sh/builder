@@ -64,7 +64,7 @@ impl VCS {
                  installation_id })
     }
 
-    pub fn clone(&self, path: &Path) -> Result<()> {
+    pub async fn clone(&self, path: &Path) -> Result<()> {
         debug!("VCS clone called, installation id = {:?}, path = {:?}",
                self.installation_id, path);
         match self.vcs_type.as_ref() {
@@ -82,6 +82,7 @@ impl VCS {
                         debug!("VCS clone creating token");
                         let t = self.github_client
                                     .app_installation_token(id)
+                                    .await
                                     .map_err(Error::GithubAppAuthErr)?;
                         Counter::GitAuthenticatedClone.increment();
                         debug!("VCS clone token created successfully");

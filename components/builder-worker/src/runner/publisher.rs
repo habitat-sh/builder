@@ -18,10 +18,12 @@ use crate::{bldr_core::{api_client::ApiClient,
                         logger::Logger},
             error::{Error,
                     Result},
-            hab_core::{package::archive::PackageArchive,
+            hab_core::{package::{archive::PackageArchive,
+                                 PackageIdent,
+                                 PackageTarget},
                        ChannelIdent}};
 use retry::{delay,
-            retry};
+            retry_future};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct Publisher {
@@ -31,11 +33,11 @@ pub struct Publisher {
 }
 
 impl Publisher {
-    pub fn run(&mut self,
-               archive: &mut PackageArchive,
-               auth_token: &str,
-               logger: &mut Logger)
-               -> Result<()> {
+    pub async fn run(&mut self,
+                     archive: &mut PackageArchive,
+                     auth_token: &str,
+                     logger: &mut Logger)
+                     -> Result<()> {
         if !self.enabled {
             debug!("Publishing skipped (not enabled)");
             return Ok(());
@@ -47,16 +49,9 @@ impl Publisher {
         let ident = archive.ident().unwrap();
         let target = archive.target().unwrap();
 
-        match retry(delay::Fixed::from(RETRY_WAIT).take(RETRIES), || {
-                  let res = client.x_put_package(archive, auth_token);
-                  if let Err(ref err) = res {
-                      let msg = format!("Upload {}: {:?}", ident, err);
-                      debug!("{}", msg);
-                      logger.log(&msg);
-                  }
-
-                  res
-              }) {
+        match retry::retry_future!(delay::Fixed::from(RETRY_WAIT).take(RETRIES),
+                                   self.x_put_package(&client, archive, auth_token, logger)).await
+        {
             Ok(_) => (),
             Err(err) => {
                 let msg = format!("Failed to upload {} after {} retries", ident, RETRIES);
@@ -68,16 +63,10 @@ impl Publisher {
 
         if let Some(channel) = &self.channel_opt {
             if channel != &ChannelIdent::stable() && channel != &ChannelIdent::unstable() {
-                match retry(delay::Fixed::from(RETRY_WAIT).take(RETRIES), || {
-                          let res = client.create_channel(&ident.origin, &channel, auth_token);
-                          if let Err(ref err) = res {
-                              let msg = format!("Create channel {}: {:?}", channel, err);
-                              debug!("{}", msg);
-                              logger.log(&msg);
-                          }
-
-                          res
-                      }) {
+                match retry::retry_future!(delay::Fixed::from(RETRY_WAIT).take(RETRIES),
+                                           self.create_channel(&client, &ident, channel,
+                                                               auth_token, logger)).await
+                {
                     Ok(_) => (),
                     Err(err) => {
                         let msg = format!("Failed to create channel {} after {} retries",
@@ -89,15 +78,13 @@ impl Publisher {
                 }
             }
 
-            match retry(delay::Fixed::from(RETRY_WAIT).take(RETRIES), || {
-                      let res = client.promote_package((&ident, target), channel, auth_token);
-                      if res.is_err() {
-                          let msg = format!("Promote {} to {}: {:?}", ident, channel, res);
-                          debug!("{}", msg);
-                          logger.log(&msg);
-                      };
-                      res
-                  }) {
+            match retry::retry_future!(delay::Fixed::from(RETRY_WAIT).take(RETRIES),
+                                       self.promote_package(&client,
+                                                            (&ident, target),
+                                                            channel,
+                                                            auth_token,
+                                                            logger)).await
+            {
                 Ok(_) => (),
                 Err(err) => {
                     let msg = format!("Failed to promote {} to {} after {} retries",
@@ -111,5 +98,56 @@ impl Publisher {
             debug!("Promotion skipped (no channel specified)");
         }
         Ok(())
+    }
+
+    async fn x_put_package(&self,
+                           client: &ApiClient,
+                           archive: &mut PackageArchive,
+                           auth_token: &str,
+                           logger: &mut Logger)
+                           -> std::result::Result<(), builder_core::Error> {
+        let res = client.x_put_package(archive, auth_token).await;
+        if let Err(ref err) = res {
+            let msg = format!("Upload {}: {:?}", archive.ident().unwrap(), err);
+            debug!("{}", msg);
+            logger.log(&msg);
+        }
+
+        res
+    }
+
+    async fn create_channel(&self,
+                            client: &ApiClient,
+                            ident: &PackageIdent,
+                            channel: &ChannelIdent,
+                            auth_token: &str,
+                            logger: &mut Logger)
+                            -> std::result::Result<(), builder_core::Error> {
+        let res = client.create_channel(&ident.origin, &channel, auth_token)
+                        .await;
+        if let Err(ref err) = res {
+            let msg = format!("Create channel {}: {:?}", channel, err);
+            debug!("{}", msg);
+            logger.log(&msg);
+        }
+
+        res
+    }
+
+    async fn promote_package(&self,
+                             client: &ApiClient,
+                             (ident, target): (&PackageIdent, PackageTarget),
+                             channel: &ChannelIdent,
+                             auth_token: &str,
+                             logger: &mut Logger)
+                             -> std::result::Result<(), builder_core::Error> {
+        let res = client.promote_package((ident, target), channel, auth_token)
+                        .await;
+        if res.is_err() {
+            let msg = format!("Promote {} to {}: {:?}", ident, channel, res);
+            debug!("{}", msg);
+            logger.log(&msg);
+        };
+        res
     }
 }
