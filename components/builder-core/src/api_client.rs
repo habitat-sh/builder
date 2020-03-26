@@ -16,7 +16,8 @@ use std::{collections::HashMap,
           fs::{self,
                File},
           io::{self,
-               Read},
+               Read,
+               Write},
           iter::FromIterator,
           path::{Path,
                  PathBuf}};
@@ -25,9 +26,9 @@ use rand::{distributions::Alphanumeric,
            thread_rng,
            Rng};
 
-use reqwest::{blocking::{Body,
-                         Response},
-              header::HeaderMap,
+use reqwest::{header::HeaderMap,
+              Body,
+              Response,
               StatusCode};
 
 use serde_json;
@@ -39,6 +40,7 @@ use crate::{error::{Error,
                                  PackageArchive,
                                  PackageTarget},
                        ChannelIdent}};
+use futures::TryFutureExt;
 
 use crate::http_client::{HttpClient,
                          ACCEPT_APPLICATION_JSON,
@@ -91,12 +93,12 @@ impl ApiClient {
                        url:   url.to_owned(), })
     }
 
-    pub fn show_package<I>(&self,
-                           package: &I,
-                           channel: &ChannelIdent,
-                           target: &str,
-                           token: Option<&str>)
-                           -> Result<Package>
+    pub async fn show_package<I>(&self,
+                                 package: &I,
+                                 channel: &ChannelIdent,
+                                 target: &str,
+                                 token: Option<&str>)
+                                 -> Result<Package>
         where I: Identifiable
     {
         let mut url = channel_package_path(channel, package);
@@ -115,27 +117,26 @@ impl ApiClient {
             request = request.bearer_auth(token);
         }
 
-        let mut resp = request.send().map_err(Error::HttpClient)?;
-
-        let mut body = String::new();
-        resp.read_to_string(&mut body).map_err(Error::IO)?;
-        debug!("Body: {:?}", body);
+        let mut resp = request.send().await.map_err(Error::HttpClient)?;
 
         if resp.status() != StatusCode::OK {
-            return Err(err_from_response(resp));
+            return Err(err_from_response(resp).await);
         }
+
+        let body = resp.text().await?;
+        debug!("Body: {:?}", body);
 
         let package: Package =
             serde_json::from_str::<Package>(&body).map_err(Error::Serialization)?;
         Ok(package)
     }
 
-    pub fn fetch_package<I, P>(&self,
-                               ident: &I,
-                               target: &str,
-                               dst_path: &P,
-                               token: Option<&str>)
-                               -> Result<PackageArchive>
+    pub async fn fetch_package<I, P>(&self,
+                                     ident: &I,
+                                     target: &str,
+                                     dst_path: &P,
+                                     token: Option<&str>)
+                                     -> Result<PackageArchive>
         where P: AsRef<Path> + ?Sized,
               I: Identifiable
     {
@@ -144,18 +145,18 @@ impl ApiClient {
         let mut qparams = HashMap::new();
         qparams.insert("target", target);
 
-        match self.download(url, &qparams, dst_path.as_ref(), token) {
+        match self.download(url, &qparams, dst_path.as_ref(), token).await {
             Ok(file) => Ok(PackageArchive::new(file)),
             Err(e) => Err(e),
         }
     }
 
-    fn download(&self,
-                url: &str,
-                qparams: &HashMap<&str, &str>,
-                dst_path: &Path,
-                token: Option<&str>)
-                -> Result<PathBuf> {
+    async fn download(&self,
+                      url: &str,
+                      qparams: &HashMap<&str, &str>,
+                      dst_path: &Path,
+                      token: Option<&str>)
+                      -> Result<PathBuf> {
         let url_path = format!("{}/v1/{}", self.url, url);
 
         let mut request = self.inner.get(&url_path).query(&qparams);
@@ -164,12 +165,12 @@ impl ApiClient {
             request = request.bearer_auth(token);
         }
 
-        let mut resp = request.send()?;
+        let mut resp = request.send().await?;
 
         debug!("Response: {:?}", resp);
 
         if resp.status() != StatusCode::OK {
-            return Err(err_from_response(resp));
+            return Err(err_from_response(resp).await);
         }
 
         fs::create_dir_all(&dst_path).map_err(Error::IO)?;
@@ -189,7 +190,7 @@ impl ApiClient {
 
         debug!("Writing to {}", &tmp_file_path.display());
         let mut f = File::create(&tmp_file_path).map_err(Error::IO)?;
-        io::copy(&mut resp, &mut f).map_err(Error::IO)?;
+        f.write_all(&resp.bytes().await?).map_err(Error::IO)?;
 
         debug!("Moving {} to {}",
                &tmp_file_path.display(),
@@ -198,12 +199,10 @@ impl ApiClient {
         Ok(dst_file_path)
     }
 
-    pub fn x_put_package(&self, pa: &mut PackageArchive, token: &str) -> Result<()> {
+    pub async fn x_put_package(&self, pa: &mut PackageArchive, token: &str) -> Result<()> {
         let checksum = pa.checksum()?;
         let ident = pa.ident()?;
         let target = pa.target()?;
-
-        let file = File::open(&pa.path).map_err(Error::IO)?;
 
         let url_path = format!("{}/v1/{}", self.url, package_path(&ident));
 
@@ -214,7 +213,7 @@ impl ApiClient {
 
         debug!("Reading from {}", &pa.path.display());
 
-        let body: Body = file.into();
+        let body: Body = tokio::fs::read(&pa.path).await.map_err(Error::IO)?.into();
 
         let resp = self.inner
                        .post(&url_path)
@@ -222,31 +221,37 @@ impl ApiClient {
                        .body(body)
                        .bearer_auth(token)
                        .send()
+                       .await
                        .map_err(Error::HttpClient)?;
 
         match resp.status() {
             StatusCode::CREATED | StatusCode::CONFLICT => (), // Conflict means package already
             // uploaded - return Ok
-            _ => return Err(err_from_response(resp)),
+            _ => return Err(err_from_response(resp).await),
         }
 
         Ok(())
     }
 
-    pub fn fetch_origin_secret_key<P>(&self,
-                                      origin: &str,
-                                      token: &str,
-                                      dst_path: P)
-                                      -> Result<PathBuf>
+    pub async fn fetch_origin_secret_key<P>(&self,
+                                            origin: &str,
+                                            token: &str,
+                                            dst_path: P)
+                                            -> Result<PathBuf>
         where P: AsRef<Path>
     {
         self.download(&origin_secret_keys_latest(origin),
                       &HashMap::new(),
                       dst_path.as_ref(),
                       Some(token))
+            .await
     }
 
-    pub fn create_channel(&self, origin: &str, channel: &ChannelIdent, token: &str) -> Result<()> {
+    pub async fn create_channel(&self,
+                                origin: &str,
+                                channel: &ChannelIdent,
+                                token: &str)
+                                -> Result<()> {
         let url_path = format!("{}/v1/depot/channels/{}/{}", self.url, origin, channel);
         debug!("Creating channel, path: {:?}", url_path);
 
@@ -254,23 +259,24 @@ impl ApiClient {
                        .post(&url_path)
                        .bearer_auth(token)
                        .send()
+                       .await
                        .map_err(Error::HttpClient)?;
 
         match resp.status() {
             StatusCode::CREATED | StatusCode::CONFLICT => (), // Conflict means channel already
             // created - return Ok
-            _ => return Err(err_from_response(resp)),
+            _ => return Err(err_from_response(resp).await),
         }
 
         Ok(())
     }
 
     // TODO: make channel type hab_core::ChannelIdent
-    pub fn promote_package<I>(&self,
-                              (ident, target): (&I, PackageTarget),
-                              channel: &ChannelIdent,
-                              token: &str)
-                              -> Result<()>
+    pub async fn promote_package<I>(&self,
+                                    (ident, target): (&I, PackageTarget),
+                                    channel: &ChannelIdent,
+                                    token: &str)
+                                    -> Result<()>
         where I: Identifiable
     {
         let url_path = format!("{}/v1/{}",
@@ -286,10 +292,11 @@ impl ApiClient {
                        .query(&qparams)
                        .bearer_auth(token)
                        .send()
+                       .await
                        .map_err(Error::HttpClient)?;
 
         if resp.status() != StatusCode::OK {
-            return Err(err_from_response(resp));
+            return Err(err_from_response(resp).await);
         };
 
         Ok(())
@@ -341,8 +348,8 @@ fn channel_package_promote<I>(channel: &ChannelIdent, package: &I) -> String
             package.release().unwrap())
 }
 
-fn err_from_response(mut response: Response) -> Error {
-    let mut s = String::new();
-    response.read_to_string(&mut s).map_err(Error::IO).unwrap();
-    Error::ApiError(response.status(), s)
+async fn err_from_response(mut response: Response) -> Error {
+    let status = response.status();
+    let body = response.text().await.expect("Unable to read response body");
+    Error::ApiError(status, body)
 }

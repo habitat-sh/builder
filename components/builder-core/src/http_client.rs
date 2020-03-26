@@ -3,14 +3,14 @@ use std::ops::Deref;
 use std::{fs,
           path::Path};
 
-use reqwest::{blocking::Client,
-              header::{HeaderMap,
+use reqwest::{header::{HeaderMap,
                        HeaderName,
                        HeaderValue,
                        ACCEPT,
                        CONTENT_TYPE,
                        USER_AGENT},
               Certificate,
+              Client,
               IntoUrl,
               Proxy};
 
