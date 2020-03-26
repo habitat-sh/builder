@@ -209,4 +209,7 @@ pub fn trigger_from_request_model(req: &HttpRequest) -> PCT {
     PCT::Unknown
 }
 
-pub fn req_state(req: &HttpRequest) -> &AppState { req.app_data().expect("request state") }
+pub fn req_state(req: &HttpRequest) -> &AppState {
+    req.app_data::<actix_web::web::Data<AppState>>()
+       .expect("request state")
+}
