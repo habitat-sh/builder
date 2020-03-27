@@ -19,8 +19,6 @@
 extern crate bitflags;
 use clap::clap_app;
 #[macro_use]
-extern crate clap;
-#[macro_use]
 extern crate features;
 #[macro_use]
 extern crate log;
@@ -35,8 +33,11 @@ extern crate serde;
 extern crate serde_json;
 
 use habitat_builder_db as db;
+use habitat_builder_db::models::package::PackageWithVersionArray;
+
 use habitat_core as hab_core;
 
+pub mod build_ordering;
 pub mod config;
 pub mod data_store;
 pub mod error;
@@ -147,9 +148,6 @@ fn main() {
         state.process_command(external_args);
         state.done = true
     } else {
-        // Interactive mode
-        println!("\nAvailable commands: help, stats, top, find, resolve, filter, rdeps, deps, \
-                  check, exit\n",);
         state.cli.print_help().unwrap();
 
         while !state.done {
@@ -181,14 +179,16 @@ impl State {
                     // doesn't work something is eating the help output
                     ("build_levels", Some(m)) => do_build_levels(&self.graph, &m),
                     ("check", Some(m)) => do_check(&self.datastore, &self.graph, &m),
+                    ("clear", _) => do_clear(&mut self.graph),
                     ("db_deps", Some(m)) => do_db_deps(&self.datastore, &self.graph, &m),
                     ("deps", Some(m)) => do_deps(&self.graph, &m),
+                    ("diagnostics", Some(m)) => do_dump_diagnostics(&mut self.graph, &m),
                     ("dot", Some(m)) => do_dot(&self.graph, &m),
                     ("export", Some(m)) => do_export(&self.graph, &m),
                     ("filter", Some(m)) => self.filter = do_filter(&m),
                     ("find", Some(m)) => do_find(&self.graph, &m),
-                    ("load_file", Some(m)) => do_load_file(&mut self, &m),
-                    ("load_db", Some(m)) => do_load_db(&mut self, &m),
+                    ("load_file", Some(m)) => do_load_file(&mut self.graph, &m),
+                    ("load_db", Some(m)) => do_load_db(&self.datastore, &mut self.graph, &m),
                     ("quit", _) => self.done = true,
                     ("raw", Some(m)) => do_raw(&self.graph, &m),
                     ("rdeps", Some(m)) => do_rdeps(&self.graph, &self.filter, &m),
@@ -291,6 +291,72 @@ fn do_find(graph: &PackageGraph, matches: &ArgMatches) {
         }
     }
     println!();
+}
+
+fn do_load_file(graph: &mut PackageGraph, matches: &ArgMatches) {
+    let start_time = Instant::now();
+    let filter = matches.value_of("FILTER");
+    let filename = required_filename_from_matches(matches);
+
+    let packages: Vec<PackageWithVersionArray> = util::read_packages_json(filename);
+    let package_count = packages.len();
+    let file_duration = start_time.elapsed().as_secs_f64();
+    let start_time = Instant::now();
+
+    graph.build(packages.into_iter()
+                        .filter(|p| util::filter_package(p, filter)),
+                true);
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    println!("Read {} packages from file {} filtered by {:?} in {}/{} file/graph sec",
+             package_count, filename, filter, file_duration, duration_secs);
+}
+
+fn do_load_db(datastore: &DataStore, graph: &mut PackageGraph, _matches: &ArgMatches) {
+    let start_time = Instant::now();
+
+    let packages: Vec<PackageWithVersionArray> = datastore.get_job_graph_packages().unwrap();
+    let package_count = packages.len();
+    let db_duration = start_time.elapsed().as_secs_f64();
+    let start_time = Instant::now();
+
+    graph.build(packages.into_iter(), //.filter(|p| util::filter_package(p, origin)),
+                true);
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    println!("Read {} packages from db in {}/{} db/graph sec",
+             package_count, db_duration, duration_secs);
+}
+
+fn do_save_file(graph: &PackageGraph, matches: &ArgMatches) {
+    let start_time = Instant::now();
+    let filter = matches.value_of("FILTER");
+    let filename = required_filename_from_matches(matches);
+
+    graph.write_packages_json(filename, filter);
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    println!("Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
+             filename, filter, duration_secs);
+}
+
+fn do_clear(graph: &mut PackageGraph) {
+    let start_time = Instant::now();
+    graph.clear();
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    println!("Cleared graph in {} secs", duration_secs);
+}
+
+fn do_dump_diagnostics(graph: &PackageGraph, matches: &ArgMatches) {
+    let start_time = Instant::now();
+    let filter = matches.value_of("FILTER");
+    let filename = required_filename_from_matches(matches);
+
+    graph.dump_diagnostics(filename, filter);
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    println!("Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
+             filename, filter, duration_secs);
 }
 
 fn do_dot(graph: &PackageGraph, matches: &ArgMatches) {
@@ -589,7 +655,9 @@ fn make_clap_cli() -> App<'static, 'static> {
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(build_levels_subcommand())
         .subcommand(check_subcommand())
+        .subcommand(clear_subcommand())
         .subcommand(db_deps_subcommand())
+        .subcommand(diagnostics_subcommand())
         .subcommand(deps_subcommand())
         .subcommand(dot_subcommand())
         .subcommand(export_subcommand())
@@ -700,7 +768,7 @@ fn load_from_file_subcommand() -> App<'static, 'static> {
     let sub = clap_app!(@subcommand load_file =>
                         (about: "Load packages from file into graph")
                         (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
-                        (@arg FILTER: +takes_value default_value("") "Filter value")
+                        (@arg FILTER: +takes_value "Filter value")
     );
     sub
 }
@@ -709,7 +777,7 @@ fn save_to_file_subcommand() -> App<'static, 'static> {
     let sub = clap_app!(@subcommand save_file =>
                         (about: "Write packages into graph for current target to file")
                         (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
-                        (@arg FILTER: +takes_value default_value("") "Filter value")
+                        (@arg FILTER: +takes_value "Filter value")
     );
     sub
 }
@@ -717,6 +785,22 @@ fn save_to_file_subcommand() -> App<'static, 'static> {
 fn load_from_db_subcommand() -> App<'static, 'static> {
     let sub = clap_app!(@subcommand load_db =>
                         (about: "Read packages from DB into graph")
+    );
+    sub
+}
+
+fn clear_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand clear =>
+                        (about: "Clear graph")
+    );
+    sub
+}
+
+fn diagnostics_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand diagnostics =>
+                        (about: "Write diagnostics about current graph to file")
+                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        (@arg FILTER: +takes_value "Filter value")
     );
     sub
 }

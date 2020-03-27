@@ -18,13 +18,6 @@ use std::{fs::File,
           path::Path,
           str::FromStr};
 
-use itertools::Itertools;
-
-use serde::{Deserialize,
-            Serialize};
-use serde_json::{Result,
-                 Value};
-
 use crate::hab_core::package::{PackageIdent,
                                PackageTarget};
 
@@ -64,6 +57,10 @@ pub fn filter_match(ident: &PackageIdent, filter: Option<&str>) -> bool {
     }
 }
 
+pub fn filter_package(package: &PackageWithVersionArray, filter: Option<&str>) -> bool {
+    filter_match(&package.ident.0, filter)
+}
+
 pub fn write_packages_json<T>(packages: T, filename: &str)
     where T: Iterator<Item = PackageWithVersionArray>
 {
@@ -77,7 +74,7 @@ pub fn write_packages_json<T>(packages: T, filename: &str)
     let serialized = serde_json::to_string(&output).unwrap();
     let path = Path::new(filename);
     let mut file = File::create(&path).unwrap();
-    file.write_all(serialized.as_bytes());
+    file.write_all(serialized.as_bytes()).unwrap();
 }
 
 pub fn read_packages_json(filename: &str) -> Vec<PackageWithVersionArray> {

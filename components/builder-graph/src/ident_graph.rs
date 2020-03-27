@@ -15,7 +15,10 @@
 //
 
 use petgraph::{algo::tarjan_scc,
-               graph::NodeIndex,
+               graph::{EdgeIndex,
+                       Neighbors,
+                       NodeIndex,
+                       NodeIndices},
                Direction,
                Graph};
 
@@ -76,7 +79,24 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 {
     pub fn new() -> Self { IdentGraph::default() }
 
-    fn get_node_by_id(&mut self, ident: &PackageIdent) -> (IdentIndex, NodeIndex, Value) {
+    // Maybe should pull this out as part of impl graph?
+    pub fn node_indices(&self) -> NodeIndices<IdentIndex> { self.graph.node_indices() }
+
+    pub fn find_edge(&self,
+                     from_index: IdentIndex,
+                     to_index: IdentIndex)
+                     -> Option<EdgeIndex<IdentIndex>> {
+        self.graph.find_edge(from_index, to_index)
+    }
+
+    pub fn neighbors_directed(&self,
+                              a: NodeIndex<IdentIndex>,
+                              dir: Direction)
+                              -> Neighbors<EdgeType, IdentIndex> {
+        self.neighbors_directed(a, dir)
+    }
+
+    pub fn get_node_by_id(&mut self, ident: &PackageIdent) -> (Ix, NodeIndex, Value) {
         let ident_index = self.ident_memo.index_for_ident(ident);
 
         if ident_index == self.data.len() {
