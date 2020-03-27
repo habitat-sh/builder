@@ -19,14 +19,10 @@ use habitat_builder_db::models::package::PackageWithVersionArray;
 
 // use habitat_builder_protocol as protocol;
 
-use crate::{hab_core::{error as herror,
-                       package::{ident::Identifiable,
-                                 PackageIdent,
-                                 PackageTarget}},
-            ident_graph::*,
+use crate::{hab_core::package::{PackageIdent,
+                                PackageTarget},
             package_graph_target::{PackageGraphForTarget,
                                    Stats},
-            rdeps::rdeps,
             util::*};
 
 // Multitarget support
@@ -61,6 +57,8 @@ impl PackageGraph {
         // TODO Extract this info better
         (0, 0)
     }
+
+    pub fn clear(&mut self) { self.graphs.clear() }
 
     pub fn targets(&self) -> Vec<PackageTarget> { self.graphs.keys().copied().collect() }
 
@@ -143,6 +141,11 @@ impl PackageGraph {
     pub fn write_packages_json(&self, filename: &str, filter: Option<&str>) {
         self.graphs[&self.current_target].borrow()
                                          .write_packages_json(filename, filter)
+    }
+
+    pub fn dump_diagnostics(&self, filename: &str, filter: Option<&str>) {
+        self.graphs[&self.current_target].borrow()
+                                         .dump_diagnostics(filename, filter)
     }
 }
 

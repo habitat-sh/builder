@@ -18,9 +18,6 @@ use std::{cell::RefCell,
           cmp::Ordering,
           collections::{BinaryHeap,
                         HashMap},
-          fs::File,
-          io::BufReader,
-          path::Path,
           str::FromStr,
           string::ToString};
 
@@ -31,11 +28,6 @@ use petgraph::{algo::{connected_components,
                graph::{EdgeIndex,
                        NodeIndex},
                Graph};
-
-// use serde::{Deserialize,
-//            Serialize};
-// use serde_json::{Result,
-//                 Value};
 
 use itertools::Itertools;
 
@@ -252,8 +244,7 @@ impl PackageGraphForTarget {
             self.extend(&p, use_build_deps);
         }
 
-        // TODO Extract this info better
-        (0, 0)
+        (self.full_graph.node_count(), self.full_graph.edge_count())
     }
 
     fn update_latest<'a>(&'a mut self, id: &'a PackageIdent, index: PackageIndex) {
@@ -370,6 +361,12 @@ impl PackageGraphForTarget {
                   package: &PackageWithVersionArray,
                   use_build_deps: bool)
                   -> ((usize, usize), (usize, usize)) {
+        // debug only
+        {
+            if package.ident.0.name == "gcc" {
+                println!("E: {}", package.ident.0);
+            }
+        }
         let (pkg_id, pkg_node) = self.generate_id_for_package(package);
 
         assert_eq!(self.target.unwrap(), package.target.0);
@@ -479,19 +476,26 @@ impl PackageGraphForTarget {
 
     pub fn write_packages_json(&self, filename: &str, filter: Option<&str>) {
         let mut output: Vec<PackageWithVersionArray> = Vec::new();
+        let mut keep = 0;
+        let mut m = 0;
         for package_ref in &self.packages {
             if filter_match(&package_ref.borrow().ident, filter) {
+                m += 1;
+                if package_ref.borrow().ident.name == "gcc" {
+                    println!("M: {}", &package_ref.borrow().ident)
+                }
                 if let Some(_p) = &package_ref.borrow().package {
+                    keep += 1;
                     output.push(package_ref.borrow().package.as_ref().unwrap().clone())
                 }
             }
         }
-
-        // TODO: figure out how to stream this
-        let serialized = serde_json::to_string(&output).unwrap();
-        let path = Path::new(filename);
-        let mut file = File::create(&path).unwrap();
-        file.write_all(serialized.as_bytes());
+        debug!("Wrote {}/{}/{} K/M/T packages with filter {:?}",
+               keep,
+               m,
+               self.packages.len(),
+               filter);
+        write_packages_json(output.into_iter(), filename)
     }
 
     pub fn read_packages_json(&mut self, filename: &str, use_build_edges: bool) {
@@ -606,6 +610,22 @@ impl PackageGraphForTarget {
 
     pub fn dump_scc(&self, file: &str, origin: Option<&str>) {
         self.latest_graph.dump_scc(file, origin)
+    }
+
+    // COALFACE
+    pub fn dump_diagnostics(&self, file: &str, _origin: Option<&str>) {
+        let mut file = std::fs::File::create(file).unwrap();
+
+        let mut package_count = HashMap::<PackageIdent, usize>::new();
+        file.write("============package list ======n".as_bytes())
+            .unwrap();
+        for package in &self.packages {
+            file.write(format!("{}\n", package.borrow().ident).as_bytes())
+                .unwrap();
+            let count = package_count.entry(short_ident(&package.borrow().ident, false))
+                                     .or_insert(0);
+            *count += 1;
+        }
     }
 }
 
