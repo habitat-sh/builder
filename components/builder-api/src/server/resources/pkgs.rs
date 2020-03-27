@@ -1455,6 +1455,7 @@ fn download_response_for_archive(archive: &PackageArchive,
         headers::Cache::default().to_string()
     };
 
+    #[allow(clippy::redundant_closure)] //  Ok::<_, ()>
     HttpResponse::Ok().header(http::header::CONTENT_DISPOSITION,
             ContentDisposition { disposition: DispositionType::Attachment,
                                  parameters:  vec![DispositionParam::Filename(filename)], })
@@ -1463,23 +1464,7 @@ fn download_response_for_archive(archive: &PackageArchive,
     .set(ContentType::octet_stream())
     .header(http::header::CACHE_CONTROL, cache_hdr)
     .streaming(rx_body.map(|s| Ok::<_, ()>(s)))
-    //.streaming(rx_body.map_err(|_| error::ErrorBadRequest("bad request")))
 }
-
-// #[allow(clippy::needless_pass_by_value)]
-// async fn write_archive_async(mut writer: BufWriter<File>,
-// chunk: Bytes)
-// -> std::result::Result<BufWriter<File>, ()> {
-// debug!("Writing file upload chunk, size: {}", chunk.len());
-// match web::block(|| writer.write(&chunk)).await {
-// Ok(_) => (),
-// Err(err) => {
-// warn!("Error writing file upload chunk to temp file: {:?}", err);
-// return err.into();
-// }
-// };
-// Ok(writer)
-// }
 
 async fn has_circular_deps(req: &HttpRequest,
                            ident: &PackageIdent,

@@ -200,7 +200,7 @@ impl S3Handler {
             }
         };
 
-        let file = body.expect("foo")
+        let file = body.expect("Downloaded object is empty")
                        .map_ok(|b| bytes::BytesMut::from(&b[..]))
                        .try_concat()
                        .await?;
