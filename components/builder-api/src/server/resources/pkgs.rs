@@ -90,23 +90,23 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize)]
 pub struct Upload {
     #[serde(default)]
-    target:   Option<String>,
+    target: Option<String>,
     #[serde(default)]
     checksum: String,
     #[serde(default)]
-    builder:  Option<String>,
+    builder: Option<String>,
     #[serde(default)]
-    forced:   bool,
+    forced: bool,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Schedule {
     #[serde(default = "default_target")]
-    target:       String,
+    target: String,
     #[serde(default)]
-    deps_only:    Option<String>,
+    deps_only: Option<String>,
     #[serde(default)]
-    origin_only:  Option<String>,
+    origin_only: Option<String>,
     #[serde(default)]
     package_only: Option<String>,
 }
@@ -1269,7 +1269,7 @@ async fn do_upload_package_async(req: HttpRequest,
                                  mut writer: BufWriter<File>)
                                  -> Result<HttpResponse> {
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.unwrap(); // TODO: Is this safe?
+        let chunk = chunk?;
         debug!("Writing file upload chunk, size: {}", chunk.len());
         writer = web::block(move || writer.write(&chunk).map(|_| writer)).await?;
     }
@@ -1281,34 +1281,6 @@ async fn do_upload_package_async(req: HttpRequest,
         }
         Err(err) => Err(Error::InnerError(err)),
     }
-
-    // let writer = stream.map(|b| b.unwrap())
-    // .fold(writer, write_archive_async)
-    // .await?;
-    //
-    // match writer.into_inner() {
-    // Ok(f) => {
-    // f.sync_all()?;
-    // Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path))
-    // }
-    // Err(err) => Err(Error::InnerError(err)),
-    // }
-    // stream
-    // // `Future::from_err` acts like `?` in that it coerces the error type from
-    // // the future into the final error type
-    // .from_err()
-    // // `fold` will asynchronously read each chunk of the request body and
-    // // call supplied closure, then it resolves to result of closure
-    // .fold(writer, write_archive_async)
-    // // `Future::and_then` can be used to merge an asynchronous workflow with a
-    // // synchronous workflow
-    // .and_then(move |writer| match writer.into_inner() {
-    //     Ok(f) => {
-    //         f.sync_all()?;
-    //         Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path))
-    //     }
-    //     Err(err) => Err(Error::InnerError(err)),
-    // })
 }
 
 fn do_get_package(req: &HttpRequest,

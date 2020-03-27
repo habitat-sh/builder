@@ -20,6 +20,7 @@ chrono = { version = "*", features = ["serde"] }
 env_logger = "*"
 features = "*"
 futures = "*"
+futures-channel = "*"
 git2 = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"

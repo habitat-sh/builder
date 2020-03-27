@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use futures_channel;
+use git2;
+use github_api_client;
+use protobuf;
+use retry;
 use std::{error,
           fmt,
           io,
           path::PathBuf,
           result,
           sync::mpsc};
-
-use git2;
-use github_api_client;
-use protobuf;
-use retry;
 use url;
 use zmq;
 
@@ -61,6 +61,7 @@ pub enum Error {
     WorkspaceTeardown(String, io::Error),
     Zmq(zmq::Error),
     Mpsc(mpsc::SendError<bldr_core::job::Job>),
+    MpscAsync(futures_channel::mpsc::SendError),
     JobCanceled,
 }
 
@@ -132,6 +133,7 @@ impl fmt::Display for Error {
             }
             Error::Zmq(ref e) => format!("{}", e),
             Error::Mpsc(ref e) => format!("{}", e),
+            Error::MpscAsync(ref e) => format!("{}", e),
             Error::JobCanceled => "Job was canceled".to_string(),
         };
         write!(f, "{}", msg)
@@ -167,6 +169,7 @@ impl error::Error for Error {
             Error::Zmq(ref err) => err.description(),
             Error::UrlParseError(ref err) => err.description(),
             Error::Mpsc(ref err) => err.description(),
+            Error::MpscAsync(ref err) => err.description(),
             Error::JobCanceled => "Job was canceled",
         }
     }

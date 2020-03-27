@@ -273,8 +273,6 @@ impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error { Error::Utf8(err) }
 }
 
-// TODO: This is probably not correct,  we previously returned an Error::IO(err)
-// from the inner std::io::Error
 impl From<actix_web::error::BlockingError<std::io::Error>> for Error {
     fn from(err: actix_web::error::BlockingError<std::io::Error>) -> Error { err.into() }
 }

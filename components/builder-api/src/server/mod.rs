@@ -223,5 +223,5 @@ pub async fn run(config: Config) -> error::Result<()> {
         }
         None => srv.bind(cfg.http.clone())?,
     };
-    srv.run().await.map_err(error::Error::from)
+    Ok(srv.run().await?)
 }

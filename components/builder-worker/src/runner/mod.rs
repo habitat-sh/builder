@@ -121,7 +121,9 @@ impl Runner {
             debug!("Runner canceling job id: {}", self.job().get_id());
             self.cancel();
             self.cleanup();
-            tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
+            tx.send(self.job().clone())
+              .await
+              .map_err(Error::MpscAsync)?;
             return Err(Error::JobCanceled);
         }
 
@@ -145,7 +147,9 @@ impl Runner {
 
             streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::INVALID_INTEGRATIONS, "wk:run:validate"));
-            tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
+            tx.send(self.job().clone())
+              .await
+              .map_err(Error::MpscAsync)?;
             return Err(err);
         };
 
@@ -166,7 +170,9 @@ impl Runner {
                 self.logger.log(&msg);
 
                 self.fail(net::err(ErrCode::WORKSPACE_SETUP, "wk:run:workspace"));
-                tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
+                tx.send(self.job().clone())
+                  .await
+                  .map_err(Error::MpscAsync)?;
                 return Err(err);
             }
         };
@@ -191,7 +197,9 @@ impl Runner {
 
             streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::SECRET_KEY_FETCH, "wk:run:key"));
-            tx.send(self.job().clone()).await.unwrap(); //;map_err(Error::Mpsc)?;
+            tx.send(self.job().clone())
+              .await
+              .map_err(Error::MpscAsync)?;
             return Err(err);
         }
 
@@ -216,7 +224,9 @@ impl Runner {
 
             streamer.println_stderr(msg)?;
             self.fail(net::err(ErrCode::VCS_CLONE, "wk:run:clone:1"));
-            tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
+            tx.send(self.job().clone())
+              .await
+              .map_err(Error::MpscAsync)?;
             return Err(err);
         }
 
@@ -261,7 +271,9 @@ impl Runner {
                 streamer.println_stderr(msg)?;
 
                 self.fail(net::err(ErrCode::BUILD, "wk:run:build"));
-                tx.send(self.job().clone()).await.unwrap(); //.map_err(Error::Mpsc)?;
+                tx.send(self.job().clone())
+                  .await
+                  .map_err(Error::MpscAsync)?;
                 return Err(err);
             }
         };
@@ -284,7 +296,9 @@ impl Runner {
             Ok(_) => (),
             Err(err) => {
                 self.fail(net::err(ErrCode::EXPORT, "wk:run:export"));
-                tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
+                tx.send(self.job().clone())
+                  .await
+                  .map_err(Error::MpscAsync)?;
                 return Err(err);
             }
         }
