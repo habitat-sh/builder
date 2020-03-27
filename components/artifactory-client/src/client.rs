@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::{collections::HashMap,
-          fs::File,
           path::PathBuf};
 
 use reqwest::{header::{HeaderMap,
@@ -106,11 +105,11 @@ impl ArtifactoryClient {
         let url = self.url_path_for(ident, target);
         debug!("ArtifactoryClient download url = {}", url);
 
-        let mut resp = match self.inner
-                                 .get(&url)
-                                 .send()
-                                 .await
-                                 .map_err(ArtifactoryError::HttpClient)
+        let resp = match self.inner
+                             .get(&url)
+                             .send()
+                             .await
+                             .map_err(ArtifactoryError::HttpClient)
         {
             Ok(resp) => resp,
             Err(err) => {
@@ -124,7 +123,7 @@ impl ArtifactoryClient {
         if resp.status().is_success() {
             let mut file = tokio::fs::File::create(destination_path).await
                                                                     .map_err(ArtifactoryError::IO)?;
-            file.write_all(&resp.bytes().await?);
+            file.write_all(&resp.bytes().await?).await?;
             Ok(PackageArchive::new(destination_path))
         } else {
             error!("Artifactory download non-success status: {:?}",

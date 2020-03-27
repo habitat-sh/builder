@@ -35,8 +35,7 @@ use crate::{bldr_core::{self,
 use chrono::Utc;
 use futures::{channel::mpsc as async_mpsc,
               sink::SinkExt};
-use retry::{delay,
-            retry};
+use retry::delay;
 use std::{fs,
           process::Command,
           str::FromStr,

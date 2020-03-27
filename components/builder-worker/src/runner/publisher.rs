@@ -22,8 +22,7 @@ use crate::{bldr_core::{api_client::ApiClient,
                                  PackageIdent,
                                  PackageTarget},
                        ChannelIdent}};
-use retry::{delay,
-            retry_future};
+use retry::delay;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct Publisher {

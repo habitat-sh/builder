@@ -14,7 +14,6 @@ use reqwest::{header::HeaderMap,
               StatusCode};
 use serde_json;
 use std::{collections::HashMap,
-          io::Read,
           iter::FromIterator,
           path::Path,
           time::{Duration,
@@ -80,12 +79,12 @@ impl GitHubClient {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
         let url_path = format!("{}/app", self.api_url);
 
-        let mut rep = self.inner
-                          .get(&url_path)
-                          .bearer_auth(&app_token)
-                          .send()
-                          .await
-                          .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .bearer_auth(&app_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         let status = rep.status();
         let body = rep.text().await?;
@@ -108,12 +107,12 @@ impl GitHubClient {
         debug!("app_installation_token posting to url path {:?}", url_path);
         Counter::InstallationToken.increment();
 
-        let mut rep = self.inner
-                          .post(&url_path)
-                          .bearer_auth(&app_token)
-                          .send()
-                          .await
-                          .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .post(&url_path)
+                      .bearer_auth(&app_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         let body = rep.text().await?;
         debug!("GitHub response body, {}", body);
@@ -136,12 +135,12 @@ impl GitHubClient {
 
         Counter::Contents.increment();
 
-        let mut rep = self.inner
-                          .get(&url_path)
-                          .bearer_auth(&token.inner_token)
-                          .send()
-                          .await
-                          .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .bearer_auth(&token.inner_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         let status = rep.status();
         let body = rep.text().await?;
@@ -172,12 +171,12 @@ impl GitHubClient {
         let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
 
         Counter::Contents.increment();
-        let mut rep = self.inner
-                          .get(&url_path)
-                          .bearer_auth(&token.inner_token)
-                          .send()
-                          .await
-                          .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .bearer_auth(&token.inner_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         let status = rep.status();
         let body = rep.text().await?;
@@ -198,12 +197,12 @@ impl GitHubClient {
         let url_path = format!("{}/repositories/{}", self.api_url, repo);
         Counter::Repo.increment();
 
-        let mut rep = self.inner
-                          .get(&url_path)
-                          .bearer_auth(&token.inner_token)
-                          .send()
-                          .await
-                          .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .bearer_auth(&token.inner_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         let status = rep.status();
         let body = rep.text().await?;
@@ -227,11 +226,11 @@ impl GitHubClient {
     pub async fn meta(&self) -> HubResult<()> {
         let url_path = format!("{}/meta", self.api_url);
 
-        let mut rep = self.inner
-                          .get(&url_path)
-                          .send()
-                          .await
-                          .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         let status = rep.status();
         let body = rep.text().await?;

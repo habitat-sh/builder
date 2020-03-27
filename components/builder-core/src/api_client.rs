@@ -15,9 +15,7 @@
 use std::{collections::HashMap,
           fs::{self,
                File},
-          io::{self,
-               Read,
-               Write},
+          io::Write,
           iter::FromIterator,
           path::{Path,
                  PathBuf}};
@@ -40,7 +38,6 @@ use crate::{error::{Error,
                                  PackageArchive,
                                  PackageTarget},
                        ChannelIdent}};
-use futures::TryFutureExt;
 
 use crate::http_client::{HttpClient,
                          ACCEPT_APPLICATION_JSON,
@@ -117,7 +114,7 @@ impl ApiClient {
             request = request.bearer_auth(token);
         }
 
-        let mut resp = request.send().await.map_err(Error::HttpClient)?;
+        let resp = request.send().await.map_err(Error::HttpClient)?;
 
         if resp.status() != StatusCode::OK {
             return Err(err_from_response(resp).await);
@@ -165,7 +162,7 @@ impl ApiClient {
             request = request.bearer_auth(token);
         }
 
-        let mut resp = request.send().await?;
+        let resp = request.send().await?;
 
         debug!("Response: {:?}", resp);
 
@@ -348,7 +345,7 @@ fn channel_package_promote<I>(channel: &ChannelIdent, package: &I) -> String
             package.release().unwrap())
 }
 
-async fn err_from_response(mut response: Response) -> Error {
+async fn err_from_response(response: Response) -> Error {
     let status = response.status();
     let body = response.text().await.expect("Unable to read response body");
     Error::ApiError(status, body)

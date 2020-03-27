@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{io::Read,
-          iter::FromIterator};
+use std::iter::FromIterator;
 
 use reqwest::{header::HeaderMap,
               Client,
@@ -32,7 +31,7 @@ use crate::{error::{Error,
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct RpcMessage {
     #[serde(default)]
-    pub id:   String,
+    pub id: String,
     #[serde(default)]
     pub body: Vec<u8>,
 }
@@ -90,7 +89,7 @@ impl RpcClient {
         debug!("Sending RPC Message: {}", msg.id);
 
         let json = serde_json::to_string(&msg)?;
-        let mut res = match self.cli.post(&self.endpoint).body(json).send().await {
+        let res = match self.cli.post(&self.endpoint).body(json).send().await {
             Ok(res) => res,
             Err(err) => {
                 debug!("Got http error: {}", err);
