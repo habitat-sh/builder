@@ -740,11 +740,16 @@ impl RunnerMgr {
                                  self.config.clone(),
                                  &self.net_ident,
                                  self.cancel.clone())?;
-
+        // TODO: SM This will spawn a new tokio runtime for each job. At this point, the workers
+        // only operate on a single task at once, and the setup of the runtime is minimal compared
+        // to the average run duration of this thread (minutes).
         let _ = thread::Builder::new().name("job_runner".to_string())
-                                      .spawn(move || runner.run(tx))
+                                      .spawn(move || {
+                                          tokio::runtime::Runtime::new().expect("Unable to create \
+                                                                                 tokio runtime")
+                                                                        .block_on(runner.run(tx))
+                                      })
                                       .unwrap();
-
         Ok(())
     }
 
