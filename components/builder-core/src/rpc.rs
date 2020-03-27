@@ -31,7 +31,7 @@ use crate::{error::{Error,
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct RpcMessage {
     #[serde(default)]
-    pub id: String,
+    pub id:   String,
     #[serde(default)]
     pub body: Vec<u8>,
 }

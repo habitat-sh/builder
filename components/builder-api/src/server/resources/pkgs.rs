@@ -90,23 +90,23 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize)]
 pub struct Upload {
     #[serde(default)]
-    target: Option<String>,
+    target:   Option<String>,
     #[serde(default)]
     checksum: String,
     #[serde(default)]
-    builder: Option<String>,
+    builder:  Option<String>,
     #[serde(default)]
-    forced: bool,
+    forced:   bool,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Schedule {
     #[serde(default = "default_target")]
-    target: String,
+    target:       String,
     #[serde(default)]
-    deps_only: Option<String>,
+    deps_only:    Option<String>,
     #[serde(default)]
-    origin_only: Option<String>,
+    origin_only:  Option<String>,
     #[serde(default)]
     package_only: Option<String>,
 }
