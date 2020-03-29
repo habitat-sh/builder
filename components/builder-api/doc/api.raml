@@ -823,7 +823,35 @@ securitySchemes:
                                 description: You are not authorized to send invitations on behalf of this origin
                             500:
                                 description: Internal server error
-
+                /role:
+                    put:
+                        description: Update an origin member's role
+                        securedBy: [oauth_2_0]
+                        queryParameters:
+                            role:
+                                type: string
+                                values: ["member", "maintainer", "administrator", "owner"]
+                                required: true
+                        responses:
+                            204:
+                                description: Member role updated
+                            404:
+                                description: Invalid origin or username given
+                            403:
+                                description: Unauthorized to perform this action
+                            500:
+                                description: Internal server error
+                    get:
+                        description: Retrieve an origin member's role
+                        securedBy: [oauth_2_0]
+                        responses:
+                            200:
+                               body:
+                                 application/json:
+                                   example: |
+                                     {
+                                       "role": ["administrator"]
+                                     }
         /integrations:
             get:
                 description: Get an object of all integrations

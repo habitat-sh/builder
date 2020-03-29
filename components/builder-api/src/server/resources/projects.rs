@@ -115,10 +115,11 @@ fn create_project(req: HttpRequest,
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
-    let account_id = match authorize_session(&req, Some(&body.origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&body.origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -236,7 +237,7 @@ fn get_project(req: HttpRequest,
                -> HttpResponse {
     let (origin, name) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 
@@ -265,7 +266,7 @@ fn delete_project(req: HttpRequest,
                   -> HttpResponse {
     let (origin, name) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -294,10 +295,11 @@ fn update_project(req: HttpRequest,
                   -> HttpResponse {
     let (origin, name) = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
 
     if body.plan_path.is_empty() {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
@@ -424,7 +426,7 @@ fn update_project(req: HttpRequest,
 fn get_projects(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 
@@ -455,7 +457,7 @@ fn get_jobs(req: HttpRequest,
             -> HttpResponse {
     let (origin, name) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 
@@ -516,7 +518,7 @@ fn create_integration(req: HttpRequest,
                       -> HttpResponse {
     let (origin, name, integration) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -558,7 +560,7 @@ fn delete_integration(req: HttpRequest,
                       -> HttpResponse {
     let (origin, name, integration) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -585,7 +587,7 @@ fn get_integration(req: HttpRequest,
                    -> HttpResponse {
     let (origin, name, integration) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 

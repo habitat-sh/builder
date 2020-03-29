@@ -34,9 +34,13 @@ use crate::schema::{audit::audit_origin,
                     secrets::origin_secrets,
                     settings::origin_package_settings};
 
-use crate::{bldr_core::metrics::CounterMetric,
+use crate::{bldr_core::{metrics::CounterMetric,
+                        Error as BuilderError},
             hab_core::ChannelIdent,
             metrics::Counter};
+
+use std::{fmt,
+          str::FromStr};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origins"]
@@ -70,14 +74,78 @@ pub struct OriginWithStats {
     pub package_count: i64,
 }
 
+#[derive(Clone,
+         Copy,
+         DbEnum,
+         Debug,
+         Serialize,
+         Deserialize,
+         ToSql,
+         FromSql,
+         PartialEq,
+         PartialOrd)]
+#[PgType = "origin_member_role"]
+#[postgres(name = "origin_member_role")]
+pub enum OriginMemberRole {
+    // It is important to preserve the declaration order
+    // here so that order comparisons work as expected.
+    // The values are from least to greatest.
+    #[postgres(name = "member")]
+    #[serde(rename = "member")]
+    Member,
+    #[postgres(name = "maintainer")]
+    #[serde(rename = "maintainer")]
+    Maintainer,
+    #[postgres(name = "administrator")]
+    #[serde(rename = "administrator")]
+    Administrator,
+    #[postgres(name = "owner")]
+    #[serde(rename = "owner")]
+    Owner,
+}
+
+impl fmt::Display for OriginMemberRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match *self {
+            OriginMemberRole::Administrator => "administrator",
+            OriginMemberRole::Maintainer => "maintainer",
+            OriginMemberRole::Member => "member",
+            OriginMemberRole::Owner => "owner",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl FromStr for OriginMemberRole {
+    type Err = BuilderError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            "administrator" => Ok(OriginMemberRole::Administrator),
+            "maintainer" => Ok(OriginMemberRole::Maintainer),
+            "member" => Ok(OriginMemberRole::Member),
+            "owner" => Ok(OriginMemberRole::Owner),
+            _ => {
+                Err(BuilderError::OriginMemberRoleError(format!("Invalid OriginMemberRole \
+                                                                 \"{}\", must be one of: \
+                                                                 [\"administrator\", \
+                                                                 \"maintainer\",\"member\",\"\
+                                                                 owner\"].",
+                                                                value)))
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Queryable, QueryableByName, Insertable)]
 #[table_name = "origin_members"]
 pub struct OriginMember {
     #[serde(with = "db_id_format")]
-    pub account_id: i64,
-    pub origin:     String,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub account_id:  i64,
+    pub origin:      String,
+    pub member_role: OriginMemberRole,
+    pub created_at:  Option<NaiveDateTime>,
+    pub updated_at:  Option<NaiveDateTime>,
 }
 
 #[derive(Insertable)]
@@ -153,7 +221,7 @@ impl Origin {
         let new_origin = diesel::insert_into(origins::table).values(req)
                                                             .get_result(conn)?;
 
-        OriginMember::add(req.name, req.owner_id, conn)?;
+        OriginMember::add(req.name, req.owner_id, conn, OriginMemberRole::Owner)?;
         Channel::create(&CreateChannel { name:     ChannelIdent::unstable().as_str(),
                                          owner_id: req.owner_id,
                                          origin:   req.name, },
@@ -269,11 +337,16 @@ impl OriginMember {
         .execute(conn)
     }
 
-    pub fn add(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn add(origin: &str,
+               account_id: i64,
+               conn: &PgConnection,
+               member_role: OriginMemberRole)
+               -> QueryResult<usize> {
         diesel::insert_into(origin_members::table)
             .values((
                 origin_members::origin.eq(origin),
                 origin_members::account_id.eq(account_id),
+                origin_members::member_role.eq(member_role),
             ))
             .execute(conn)
     }
@@ -283,6 +356,29 @@ impl OriginMember {
         origin_members::table.select(count(origin_members::account_id))
                              .filter(origin_members::origin.eq(&origin))
                              .first(conn)
+    }
+
+    pub fn member_role(origin: &str,
+                       account_id: i64,
+                       conn: &PgConnection)
+                       -> QueryResult<OriginMemberRole> {
+        Counter::DBCall.increment();
+        origin_members::table.select(origin_members::member_role)
+                             .filter(origin_members::origin.eq(&origin))
+                             .filter(origin_members::account_id.eq(account_id))
+                             .get_result(conn)
+    }
+
+    pub fn update_member_role(origin: &str,
+                              account_id: i64,
+                              conn: &PgConnection,
+                              member_role: OriginMemberRole)
+                              -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(origin_members::table.filter(origin_members::origin.eq(&origin)))
+                             .filter(origin_members::account_id.eq(account_id))
+                             .set(origin_members::member_role.eq(member_role))
+                             .execute(conn)
     }
 }
 
@@ -304,5 +400,21 @@ impl From<originsrv::Origin> for Origin {
                      PackageVisibility::from(origin.get_default_package_visibility()),
                  created_at: None,
                  updated_at: None, }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn origin_member_role_hierarchy() {
+        let member = OriginMemberRole::Member;
+        let maintainer = OriginMemberRole::Maintainer;
+        let administrator = OriginMemberRole::Administrator;
+        let owner = OriginMemberRole::Owner;
+        assert_eq!(owner > administrator, true);
+        assert_eq!(administrator > maintainer, true);
+        assert_eq!(maintainer > member, true);
     }
 }

@@ -1,8 +1,10 @@
 table! {
+    use crate::models::origin::OriginMemberRoleMapping;
     use diesel::sql_types::{BigInt, Text, Nullable, Timestamptz};
     origin_members (origin, account_id) {
         account_id -> BigInt,
         origin -> Text,
+        member_role -> OriginMemberRoleMapping,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
     }

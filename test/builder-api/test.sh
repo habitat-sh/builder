@@ -19,7 +19,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 clean_test_artifacts() {
   echo "Performing DB cleanup"
   local sql origins
-  origins=( neurosis xmen umbrella deletemeifyoucan )
+  origins=( neurosis xmen umbrella deletemeifyoucan rcpd )
 
   # clean origins
   local origins origin_tables
@@ -40,7 +40,7 @@ clean_test_artifacts() {
 
   # clean users
   local users account_tables
-  users=( bobo mystique )
+  users=( bobo mystique lkennedy )
   sql=
 
   for user in "${users[@]}"; do

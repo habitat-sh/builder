@@ -16,7 +16,8 @@
 // sub-resources?
 
 use std::{collections::HashMap,
-          str::from_utf8};
+          str::{from_utf8,
+                FromStr}};
 
 use actix_web::{body::Body,
                 http::{self,
@@ -74,7 +75,9 @@ use crate::server::{authorize::{authorize_session,
                     framework::headers,
                     helpers::{self,
                               req_state,
-                              Pagination},
+                              role_results_json,
+                              Pagination,
+                              Role},
                     resources::pkgs::postprocess_package_list,
                     AppState};
 
@@ -120,6 +123,10 @@ impl Origins {
                   web::get().to(list_origin_invitations))
            .route("/depot/origins/{origin}/users/{username}/invitations",
                   web::post().to(invite_to_origin))
+           .route("/depot/origins/{origin}/users/{username}/role",
+                  web::get().to(get_origin_member_role))
+           .route("/depot/origins/{origin}/users/{username}/role",
+                  web::put().to(update_origin_member_role))
            .route("/depot/origins/{origin}/invitations/{invitation_id}",
                   web::put().to(accept_invitation))
            .route("/depot/origins/{origin}/invitations/{invitation_id}",
@@ -189,7 +196,7 @@ fn create_origin(req: HttpRequest,
                  body: Json<CreateOriginHandlerReq>,
                  state: Data<AppState>)
                  -> HttpResponse {
-    let session = match authorize_session(&req, None) {
+    let session = match authorize_session(&req, None, None) {
         Ok(session) => session,
         Err(err) => return err.into(),
     };
@@ -237,7 +244,7 @@ fn update_origin(req: HttpRequest,
                  -> HttpResponse {
     let origin = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -264,7 +271,7 @@ fn update_origin(req: HttpRequest,
 fn delete_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
-    let session = match authorize_session(&req, None) {
+    let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         Ok(session) => session,
         Err(err) => return err.into(),
     };
@@ -393,10 +400,11 @@ fn origin_delete_preflight(origin: &str, conn: &PgConnection) -> Result<()> {
 fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
 
     let pair = SigKeyPair::generate_pair_for_origin(&origin);
 
@@ -508,10 +516,11 @@ fn upload_origin_key(req: HttpRequest,
                      -> HttpResponse {
     let (origin, revision) = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -601,7 +610,7 @@ fn list_origin_secrets(req: HttpRequest,
                        -> HttpResponse {
     let origin = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -633,10 +642,11 @@ fn create_origin_secret(req: HttpRequest,
                         -> HttpResponse {
     let origin = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id() as i64,
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id() as i64,
+            Err(err) => return err.into(),
+        };
 
     if body.name.is_empty() {
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
@@ -758,7 +768,7 @@ fn delete_origin_secret(req: HttpRequest,
                         -> HttpResponse {
     let (origin, secret) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -784,10 +794,11 @@ fn upload_origin_secret_key(req: HttpRequest,
                             -> HttpResponse {
     let (origin, revision) = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -849,7 +860,7 @@ fn download_latest_origin_secret_key(req: HttpRequest,
                                      -> HttpResponse {
     let origin = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -897,7 +908,7 @@ fn list_unique_packages(req: HttpRequest,
                         -> HttpResponse {
     let origin = path.into_inner();
 
-    let opt_session_id = match authorize_session(&req, None) {
+    let opt_session_id = match authorize_session(&req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
@@ -941,7 +952,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
                                          -> HttpResponse {
     let origin = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
+    let account_id = match authorize_session(&req, Some(&origin), None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
@@ -980,10 +991,11 @@ fn invite_to_origin(req: HttpRequest,
                     -> HttpResponse {
     let (origin, user) = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
 
     debug!("Creating invitation for user {} origin {}", &user, &origin);
 
@@ -1024,7 +1036,7 @@ fn accept_invitation(req: HttpRequest,
                      -> HttpResponse {
     let (origin, invitation) = path.into_inner();
 
-    let account_id = match authorize_session(&req, None) {
+    let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
@@ -1058,7 +1070,7 @@ fn ignore_invitation(req: HttpRequest,
                      -> HttpResponse {
     let (origin, invitation) = path.into_inner();
 
-    let _ = match authorize_session(&req, None) {
+    let _ = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
@@ -1095,7 +1107,7 @@ fn rescind_invitation(req: HttpRequest,
                       -> HttpResponse {
     let (origin, invitation) = path.into_inner();
 
-    let _ = match authorize_session(&req, None) {
+    let _ = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
@@ -1132,7 +1144,7 @@ fn list_origin_invitations(req: HttpRequest,
                            -> HttpResponse {
     let origin = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 
@@ -1159,13 +1171,117 @@ fn list_origin_invitations(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
+fn get_origin_member_role(req: HttpRequest,
+                          path: Path<(String, String)>,
+                          state: Data<AppState>)
+                          -> HttpResponse {
+    let (origin, username) = path.into_inner();
+
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
+        return err.into();
+    }
+
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    // The account id of the user being requested
+    let (target_user_id, _) = match Account::get(&username, &*conn).map_err(Error::DieselError) {
+        Ok(account) => (account.id, account.name),
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
+    };
+
+    match OriginMember::member_role(&origin, target_user_id, &*conn) {
+        Ok(role) => {
+            let body = role_results_json(role);
+
+            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                              .header(http::header::CACHE_CONTROL,
+                                      headers::Cache::NoCache.to_string())
+                              .body(body)
+        }
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn update_origin_member_role(req: HttpRequest,
+                             path: Path<(String, String)>,
+                             req_role: Query<Role>,
+                             state: Data<AppState>)
+                             -> HttpResponse {
+    let (origin, username) = path.into_inner();
+    let target_role = match OriginMemberRole::from_str(&req_role.role) {
+        Ok(r) => {
+            debug!("role {}", r);
+            r
+        }
+        Err(err) => {
+            debug!("{}", err);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+    };
+
+    // Account id of the user making the request
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
+
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    // We cannot allow a user to escalate to Owner. That must be done via Origin owner transfer.
+    if target_role == OriginMemberRole::Owner {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
+
+    // The account id of the user being requested
+    let (target_user_id, _) = match Account::get(&username, &*conn) {
+        Ok(account) => (account.id, account.name),
+        Err(err) => {
+            debug!("{}", err);
+            return Error::DieselError(err).into();
+        }
+    };
+
+    // We cannot allow a user to change their own role
+    if account_id as i64 == target_user_id {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
+
+    // We cannot allow a user to change the role of the origin owner
+    if check_origin_owner(&req, target_user_id as u64, &origin).unwrap_or(false) {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
+
+    match OriginMember::update_member_role(&origin, target_user_id as i64, &*conn, target_role) {
+        Ok(_) => HttpResponse::new(StatusCode::NO_CONTENT),
+        Err(err) => {
+            debug!("{}", err);
+            Error::DieselError(err).into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
 fn transfer_origin_ownership(req: HttpRequest,
                              path: Path<(String, String)>,
                              state: Data<AppState>)
                              -> HttpResponse {
     let (origin, user) = path.into_inner();
 
-    let session = match authorize_session(&req, None) {
+    let session = match authorize_session(&req, None, None) {
         Ok(session) => session,
         Err(err) => return err.into(),
     };
@@ -1221,7 +1337,7 @@ fn transfer_origin_ownership(req: HttpRequest,
 fn depart_from_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
-    let session = match authorize_session(&req, None) {
+    let session = match authorize_session(&req, None, None) {
         Ok(session) => session,
         Err(err) => return err.into(),
     };
@@ -1261,7 +1377,7 @@ fn list_origin_members(req: HttpRequest,
                        -> HttpResponse {
     let origin = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 
@@ -1294,7 +1410,7 @@ fn origin_member_delete(req: HttpRequest,
                         -> HttpResponse {
     let (origin, user) = path.into_inner();
 
-    let session = match authorize_session(&req, Some(&origin)) {
+    let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         Ok(session) => session,
         Err(err) => return err.into(),
     };
@@ -1331,7 +1447,7 @@ fn fetch_origin_integrations(req: HttpRequest,
                              -> HttpResponse {
     let origin = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 
@@ -1366,7 +1482,7 @@ fn fetch_origin_integration_names(req: HttpRequest,
                                   -> HttpResponse {
     let (origin, integration) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 
@@ -1401,7 +1517,7 @@ fn create_origin_integration(req: HttpRequest,
                              -> HttpResponse {
     let (origin, integration, name) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -1439,7 +1555,7 @@ fn delete_origin_integration(req: HttpRequest,
                              -> HttpResponse {
     let (origin, integration, name) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -1466,7 +1582,7 @@ fn get_origin_integration(req: HttpRequest,
                           -> HttpResponse {
     let (origin, integration, name) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 

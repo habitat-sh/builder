@@ -17,3 +17,4 @@ require('./projects.js');
 require('./jobs.js');
 require('./ext.js');
 require('./misc.js');
+require('./roles.js');

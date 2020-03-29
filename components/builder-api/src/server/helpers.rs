@@ -1,4 +1,5 @@
 use crate::{db::models::{channel::PackageChannelTrigger as PCT,
+                         origin::OriginMemberRole,
                          package::PackageVisibility},
             hab_core::package::PackageTarget,
             protocol::jobsrv,
@@ -42,6 +43,17 @@ pub struct PaginatedResults<'a, T: 'a> {
 pub struct ToChannel {
     #[serde(default)]
     pub channel: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Role {
+    #[serde(default)]
+    pub role: String,
+}
+
+pub fn role_results_json(role: OriginMemberRole) -> String {
+    let resp = Role { role: role.to_string(), };
+    serde_json::to_string(&resp).unwrap()
 }
 
 pub fn package_results_json<T: Serialize>(packages: &[T],
@@ -134,7 +146,9 @@ pub fn visibility_for_optional_session(req: &HttpRequest,
     let mut v = Vec::new();
     v.push(PackageVisibility::Public);
 
-    if optional_session_id.is_some() && authorize_session(req, Some(&origin)).is_ok() {
+    if optional_session_id.is_some()
+       && authorize_session(req, Some(&origin), Some(OriginMemberRole::Member)).is_ok()
+    {
         v.push(PackageVisibility::Hidden);
         v.push(PackageVisibility::Private);
     }

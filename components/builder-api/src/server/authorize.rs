@@ -24,7 +24,8 @@ use crate::server::{error::{Error,
                     helpers::req_state};
 
 pub fn authorize_session(req: &HttpRequest,
-                         origin_opt: Option<&str>)
+                         origin_opt: Option<&str>,
+                         min_role: Option<OriginMemberRole>)
                          -> Result<originsrv::Session> {
     let session = {
         let extensions = req.extensions();
@@ -32,47 +33,55 @@ pub fn authorize_session(req: &HttpRequest,
             Some(session) => {
                 let flags = FeatureFlags::from_bits(session.get_flags()).unwrap(); // unwrap Ok
                 if flags.contains(FeatureFlags::BUILD_WORKER) {
+                    debug!("authorize_session: detected allowed BUILD_WORKER");
                     return Ok(session.clone());
                 }
+                debug!("authorize_session: found session {}", session.get_id());
                 session.clone()
             }
-            None => return Err(Error::Authentication),
+            None => {
+                debug!("authorize_session: unable to get session!");
+                return Err(Error::Authentication);
+            }
         }
     };
 
     if let Some(origin) = origin_opt {
-        let mut memcache = req_state(req).memcache.borrow_mut();
-
-        match memcache.get_origin_member(origin, session.get_id()) {
-            Some(val) => {
-                trace!("Origin membership {} {} Cache Hit!",
-                       origin,
-                       session.get_id());
-                if val {
+        let minimum_req_role = match min_role {
+            Some(r) => r,
+            None => {
+                let r = OriginMemberRole::Maintainer;
+                warn!("authorize_session: minimum role parameter not set! Assuming {}",
+                      r);
+                r
+            }
+        };
+        match check_origin_member_role(req, origin, session.get_id()) {
+            Some(member_role) => {
+                if member_role >= minimum_req_role {
+                    debug!("authorize_session: account {} has {} permissions in origin {}",
+                           session.get_id(),
+                           minimum_req_role,
+                           origin);
                     return Ok(session);
                 } else {
+                    debug!("authorize_session: account {} does not have {} permissions in origin \
+                            {}. Current role: {}",
+                           session.get_id(),
+                           minimum_req_role,
+                           origin,
+                           member_role);
                     return Err(Error::Authorization);
                 }
             }
             None => {
-                trace!("Origin membership {} {} Cache Miss!",
-                       origin,
-                       session.get_id())
+                debug!("authorize_session: account {} is not a member of the origin {}",
+                       session.get_id(),
+                       origin);
+                return Err(Error::Authorization);
             }
-        }
-
-        match check_origin_member(req, origin, session.get_id()) {
-            Ok(is_member) => {
-                memcache.set_origin_member(origin, session.get_id(), is_member);
-
-                if !is_member {
-                    return Err(Error::Authorization);
-                }
-            }
-            _ => return Err(Error::Authorization),
         }
     }
-
     Ok(session)
 }
 
@@ -89,7 +98,53 @@ pub fn check_origin_member(req: &HttpRequest, origin: &str, account_id: u64) -> 
     if account_id == BUILDER_ACCOUNT_ID {
         Ok(true)
     } else {
+        let mut memcache = req_state(req).memcache.borrow_mut();
+        match memcache.get_origin_member(origin, account_id) {
+            Some(val) => {
+                debug!("Origin membership {} {} Cache Hit!", origin, account_id);
+                return Ok(val);
+            }
+            None => debug!("Origin membership {} {} Cache Miss!", origin, account_id),
+        }
         let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-        Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError)
+        match Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError) {
+            Ok(is_member) => {
+                memcache.set_origin_member(origin, account_id, is_member);
+                debug!("Found member {} in origin {}", account_id, origin);
+                Ok(is_member)
+            }
+            Err(err) => {
+                warn!("Check membership error {}", err);
+                Err(err)
+            }
+        }
+    }
+}
+
+// TODO: make this more efficient by leveraging memcached
+// https://github.com/habitat-sh/builder/issues/1384
+fn check_origin_member_role(req: &HttpRequest,
+                            origin: &str,
+                            account_id: u64)
+                            -> Option<OriginMemberRole> {
+    match req_state(req).db.get_conn() {
+        Ok(conn) => {
+            match OriginMember::member_role(origin, account_id as i64, &*conn) {
+                Ok(member_role) => {
+                    debug!("Found account {} has member type {}",
+                           account_id, member_role);
+                    Some(member_role)
+                }
+                Err(err) => {
+                    warn!("Unable to determine member type for account {} in origin {}: {}",
+                          account_id, origin, err);
+                    None
+                }
+            }
+        }
+        Err(err) => {
+            warn!("Unable to retrieve request state: {}", err);
+            None
+        }
     }
 }

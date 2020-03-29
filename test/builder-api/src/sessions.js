@@ -32,5 +32,14 @@ describe('Authenticate API', function() {
             done(err);
         });
     });
+    it('returns lkennedy', function(done) {
+      request.get('/authenticate/lkennedy')
+        .expect(200)
+        .end(function(err, res) {
+            expect(res.body.name).to.equal('lkennedy');
+            global.sessionLkennedy = res.body;
+            done(err);
+        });
+    });
   });
 });
