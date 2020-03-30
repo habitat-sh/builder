@@ -9,7 +9,10 @@ WHERE
     WHERE
       T1.account_id = T2.account_id
       AND T1.origin = T2.origin
-      AND T1.ctid > T2.ctid
+      AND (
+        T1.created_at > T2.created_at
+        OR T1.ctid > T2.ctid
+      )
   );
 
 ALTER TABLE
