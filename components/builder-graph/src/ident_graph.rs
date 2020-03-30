@@ -15,14 +15,12 @@
 //
 
 use petgraph::{algo::tarjan_scc,
-               graph::{EdgeIndex,
-                       Neighbors,
-                       NodeIndex,
-                       NodeIndices},
+               graph::NodeIndex,
                Direction,
                Graph};
 
 use std::collections::{HashMap,
+                       HashSet,
                        VecDeque};
 
 use std::{cmp,
@@ -416,7 +414,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             }
         }
         seen.iter()
-            .map(|node_index| self.ident_for_node(node_index).clone())
+            .map(|node_index| self.ident_for_node(*node_index).clone())
             .collect()
     }
 }
