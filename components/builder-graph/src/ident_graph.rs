@@ -79,24 +79,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 {
     pub fn new() -> Self { IdentGraph::default() }
 
-    // Maybe should pull this out as part of impl graph?
-    pub fn node_indices(&self) -> NodeIndices<IdentIndex> { self.graph.node_indices() }
-
-    pub fn find_edge(&self,
-                     from_index: IdentIndex,
-                     to_index: IdentIndex)
-                     -> Option<EdgeIndex<IdentIndex>> {
-        self.graph.find_edge(from_index, to_index)
-    }
-
-    pub fn neighbors_directed(&self,
-                              a: NodeIndex<IdentIndex>,
-                              dir: Direction)
-                              -> Neighbors<EdgeType, IdentIndex> {
-        self.neighbors_directed(a, dir)
-    }
-
-    pub fn get_node_by_id(&mut self, ident: &PackageIdent) -> (Ix, NodeIndex, Value) {
+    pub fn get_node_by_id(&mut self, ident: &PackageIdent) -> (IdentIndex, NodeIndex, Value) {
         let ident_index = self.ident_memo.index_for_ident(ident);
 
         if ident_index == self.data.len() {
@@ -398,6 +381,43 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                         .map(|x| self.ident_for_node(*x).to_string())
                                         .collect();
         strings.join(sep)
+    }
+
+    pub fn compute_rebuild_set(&self,
+                               touched: &Vec<PackageIdent>,
+                               origin: &str)
+                               -> Vec<PackageIdent>
+        where Value: Default + Copy
+    {
+        // Flood reverse dependency graph, filtering by origin
+        let mut seen: HashSet<NodeIndex> = HashSet::new();
+        let mut worklist: VecDeque<NodeIndex> = VecDeque::new();
+
+        // Insert 'touched' nodes into worklist
+        for ident in touched {
+            let (node_index, _) = self.get_node(ident);
+            worklist.push_back(node_index);
+        }
+
+        while !worklist.is_empty() {
+            let node_index = worklist.pop_front().unwrap();
+            seen.insert(node_index);
+
+            // loop through everyone who has a build or runtime dep on this package
+            for pred_index in self.graph
+                                  .neighbors_directed(node_index, Direction::Incoming)
+            {
+                if !seen.contains(&pred_index) {
+                    let ident = self.ident_for_node(node_index);
+                    if filter_match(ident, Some(origin)) {
+                        worklist.push_back(pred_index);
+                    }
+                }
+            }
+        }
+        seen.iter()
+            .map(|node_index| self.ident_for_node(node_index).clone())
+            .collect()
     }
 }
 
