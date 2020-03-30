@@ -12,19 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use petgraph::{algo::tarjan_scc,
-               graph::NodeIndex,
-               Direction,
-               Graph};
-
 use std::collections::{HashMap,
-                       HashSet,
                        VecDeque};
-
-use std::{cmp,
-          fs::File,
-          io::prelude::*,
-          path::Path};
 
 use crate::hab_core::package::PackageIdent;
 
@@ -82,34 +71,41 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         let mut built = HashMap::<PackageIdent, PackageBuild>::new();
 
-        for component in build_order {
+        for component in &build_order {
             // TODO: if there is only one element in component, don't need to converge, can just run
             // once
-            for i in 1..converge_count {
+            for _i in 1..converge_count {
                 for node in component {
-                    let build = self.build_package(node, latest);
+                    let build = self.build_package(&node, &latest);
                     latest.insert(short_ident(&build.ident, false), build.ident.clone());
                     built.insert(build.ident.clone(), build);
                 }
             }
         }
 
-        let build_actual = self.prune_tsort(built, latest);
+        let build_actual = self.prune_tsort(&built, &latest);
 
         build_actual
     }
 
-    pub fn compute_build_order(&self, rebuild_set: Vec<PackageIdent>) -> Vec<Vec<PackageIdent>> {}
+    pub fn compute_build_order(&self, rebuild_set: Vec<PackageIdent>) -> Vec<Vec<PackageIdent>> {
+        let result: Vec<Vec<PackageIdent>> = Vec::new();
+        result
+    }
 
     pub fn build_package(&self,
                          node: PackageIdent,
-                         latest: HashMap<PackageIdent, PackageIdent>)
+                         latest: &HashMap<PackageIdent, PackageIdent>)
                          -> PackageBuild {
+        PackageBuild { ident: node,
+                       bdeps: Vec::new(),
+                       rdeps: Vec::new(), }
     }
 
     pub fn prune_tsort(&self,
-                       built: HashMap<PackageIdent, PackageBuild>,
-                       latest: HashMap<PackageIdent, PackageIdent>)
+                       built: &HashMap<PackageIdent, PackageBuild>,
+                       latest: &HashMap<PackageIdent, PackageIdent>)
                        -> Vec<PackageBuild> {
+        Vec::new()
     }
 }
