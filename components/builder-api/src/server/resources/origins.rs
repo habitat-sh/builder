@@ -1664,8 +1664,7 @@ fn download_content_as_file(content: &[u8], filename: String) -> HttpResponse {
             filename,
         )
         .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-        .body(Bytes::from(content.to_vec())) // TODO: 0.5.4 no longer implements From<&'a [u8], only
-                                             // 'static
+        .body(Bytes::copy_from_slice(content))
 }
 
 fn generate_origin_encryption_keys(origin: &str,

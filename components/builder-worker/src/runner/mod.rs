@@ -116,7 +116,7 @@ impl Runner {
 
     fn is_canceled(&self) -> bool { self.cancel.load(Ordering::SeqCst) }
 
-    async fn check_cancel(&mut self, tx: &mut async_mpsc::Sender<Job>) -> Result<()> {
+    async fn check_cancel(&mut self, tx: &mut async_mpsc::UnboundedSender<Job>) -> Result<()> {
         if self.is_canceled() {
             debug!("Runner canceling job id: {}", self.job().get_id());
             self.cancel();
@@ -131,7 +131,7 @@ impl Runner {
     }
 
     async fn do_validate(&mut self,
-                         tx: &mut async_mpsc::Sender<Job>,
+                         tx: &mut async_mpsc::UnboundedSender<Job>,
                          streamer: &mut JobStreamer)
                          -> Result<()> {
         self.check_cancel(tx).await?;
@@ -157,7 +157,7 @@ impl Runner {
         Ok(())
     }
 
-    async fn do_setup(&mut self, tx: &mut async_mpsc::Sender<Job>) -> Result<JobStreamer> {
+    async fn do_setup(&mut self, tx: &mut async_mpsc::UnboundedSender<Job>) -> Result<JobStreamer> {
         self.check_cancel(tx).await?;
 
         let streamer = match self.setup() {
@@ -181,7 +181,7 @@ impl Runner {
     }
 
     async fn do_install_key(&mut self,
-                            tx: &mut async_mpsc::Sender<Job>,
+                            tx: &mut async_mpsc::UnboundedSender<Job>,
                             streamer: &mut JobStreamer)
                             -> Result<()> {
         self.check_cancel(tx).await?;
@@ -208,7 +208,7 @@ impl Runner {
     }
 
     async fn do_clone(&mut self,
-                      tx: &mut async_mpsc::Sender<Job>,
+                      tx: &mut async_mpsc::UnboundedSender<Job>,
                       streamer: &mut JobStreamer)
                       -> Result<()> {
         self.check_cancel(tx).await?;
@@ -235,7 +235,7 @@ impl Runner {
     }
 
     async fn do_build(&mut self,
-                      tx: &mut async_mpsc::Sender<Job>,
+                      tx: &mut async_mpsc::UnboundedSender<Job>,
                       streamer: &mut JobStreamer)
                       -> Result<PackageArchive> {
         self.check_cancel(tx).await?;
@@ -287,7 +287,7 @@ impl Runner {
     }
 
     async fn do_export(&mut self,
-                       tx: &mut async_mpsc::Sender<Job>,
+                       tx: &mut async_mpsc::UnboundedSender<Job>,
                        mut streamer: &mut JobStreamer)
                        -> Result<()> {
         self.check_cancel(tx).await?;
@@ -307,7 +307,7 @@ impl Runner {
     }
 
     async fn do_postprocess(&mut self,
-                            tx: &mut async_mpsc::Sender<Job>,
+                            tx: &mut async_mpsc::UnboundedSender<Job>,
                             mut archive: PackageArchive,
                             streamer: &mut JobStreamer)
                             -> Result<()> {
@@ -327,7 +327,9 @@ impl Runner {
                                   err);
                 streamer.println_stderr(msg)?;
                 self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:postprocess"));
-                tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
+                tx.send(self.job().clone())
+                  .await
+                  .map_err(Error::MpscAsync)?;
                 return Err(err);
             }
         }
@@ -345,7 +347,7 @@ impl Runner {
         self.teardown();
     }
 
-    pub async fn run(mut self, mut tx: async_mpsc::Sender<Job>) -> Result<()> {
+    pub async fn run(mut self, mut tx: async_mpsc::UnboundedSender<Job>) -> Result<()> {
         // TBD (SA) - Spin up a LogStreamer first thing indpendendly of setup.
         // Currently we need to do it as part of setup because the log file to be
         // streamed lives inside of the workspace, which is created by setup.
@@ -361,7 +363,9 @@ impl Runner {
 
         self.cleanup();
         self.complete();
-        tx.send(self.workspace.job).await.unwrap(); // map_err(Error::Mpsc)?;
+        tx.send(self.workspace.job)
+          .await
+          .map_err(Error::MpscAsync)?;
 
         streamer.finish()?;
 
@@ -408,7 +412,7 @@ impl Runner {
     async fn build(&mut self,
                    target: PackageTarget,
                    streamer: &mut JobStreamer,
-                   tx: &mut async_mpsc::Sender<Job>)
+                   tx: &mut async_mpsc::UnboundedSender<Job>)
                    -> Result<PackageArchive> {
         let studio = Studio::new(&self.workspace,
                                  &self.config.bldr_url,
@@ -453,7 +457,9 @@ impl Runner {
                         }
                         self.cancel();
                         self.cleanup();
-                        tx.send(self.job().clone()).await.unwrap(); // map_err(Error::Mpsc)?;
+                        tx.send(self.job().clone())
+                          .await
+                          .map_err(Error::MpscAsync)?;
                         return Err(Error::JobCanceled);
                     }
                     thread::sleep(Duration::new(STUDIO_CHILD_WAIT_SECS, 0));
@@ -706,7 +712,7 @@ impl RunnerMgr {
         rz.send(()).unwrap();
 
         let mut srv_msg = false;
-        let (tx, mut rx): (_, async_mpsc::Receiver<Job>) = async_mpsc::channel(1);
+        let (tx, mut rx): (_, async_mpsc::UnboundedReceiver<Job>) = async_mpsc::unbounded();
 
         loop {
             {
@@ -740,15 +746,14 @@ impl RunnerMgr {
 
             let res = rx.try_next();
 
-            if let Ok(r) = res {
-                let job: Job = r.unwrap();
+            if let Ok(Some(job)) = res {
                 debug!("Got result from spawned runner: {:?}", job);
                 self.send_complete(&job)?;
             }
         }
     }
 
-    fn spawn_job(&mut self, job: Job, tx: async_mpsc::Sender<Job>) -> Result<()> {
+    fn spawn_job(&mut self, job: Job, tx: async_mpsc::UnboundedSender<Job>) -> Result<()> {
         let runner = Runner::new(job,
                                  self.config.clone(),
                                  &self.net_ident,

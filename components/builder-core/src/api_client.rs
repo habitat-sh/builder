@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use std::{collections::HashMap,
-          fs::{self,
-               File},
-          io::Write,
+          fs,
           iter::FromIterator,
           path::{Path,
                  PathBuf}};
@@ -30,6 +28,8 @@ use reqwest::{header::HeaderMap,
               StatusCode};
 
 use serde_json;
+
+use tokio::io::AsyncWriteExt;
 
 use crate::{error::{Error,
                     Result},
@@ -186,8 +186,9 @@ impl ApiClient {
         let dst_file_path = dst_path.join(file_name);
 
         debug!("Writing to {}", &tmp_file_path.display());
-        let mut f = File::create(&tmp_file_path).map_err(Error::IO)?;
-        f.write_all(&resp.bytes().await?).map_err(Error::IO)?;
+        let mut f = tokio::fs::File::create(&tmp_file_path).await
+                                                           .map_err(Error::IO)?;
+        f.write_all(&resp.bytes().await?).await.map_err(Error::IO)?;
 
         debug!("Moving {} to {}",
                &tmp_file_path.display(),

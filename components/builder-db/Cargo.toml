@@ -29,7 +29,6 @@ postgres-derive = "0.3.3"
 postgres-shared = "*"
 r2d2_postgres = "0.14.0"
 threadpool = "*"
-# Unlock with builder_core
 url = "*"
 
 [dependencies.habitat_core]
