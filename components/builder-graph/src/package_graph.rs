@@ -65,29 +65,58 @@ impl PackageGraph {
     pub fn current_target(&self) -> PackageTarget { self.current_target }
 
     pub fn set_target(&mut self, target: PackageTarget) {
-        if self.graphs.contains_key(&target) {
-            self.current_target = target;
-        } else {
-            println!("No data for target {}", target)
+        self.current_target = target;
+        if !self.graphs.contains_key(&target) {
+            println!("No data for target {}", target);
+            println!("Data for target can be loaded with 'load_file' or 'load_db'");
         }
     }
 
     // Delegate to subgraphs
     pub fn rdeps(&self, name: &PackageIdent) -> Option<Vec<(String, String)>> {
-        self.graphs[&self.current_target].borrow().rdeps(name)
+        if let Some(target_graph) = self.graphs.get(&self.current_target) {
+            target_graph.borrow().rdeps(name)
+        } else {
+            println!("No graph loaded for target: {}", &self.current_target);
+            None
+        }
     }
 
     pub fn search(&self, phrase: &str) -> Vec<String> {
-        self.graphs[&self.current_target].borrow().search(phrase)
+        if let Some(target_graph) = self.graphs.get(&self.current_target) {
+            target_graph.borrow().search(phrase)
+        } else {
+            println!("No graph loaded for target: {}", &self.current_target);
+            Vec::new()
+        }
     }
 
-    pub fn latest(&self) -> Vec<String> { self.graphs[&self.current_target].borrow().latest() }
+    pub fn latest(&self) -> Vec<String> {
+        if let Some(target_graph) = self.graphs.get(&self.current_target) {
+            target_graph.borrow().latest()
+        } else {
+            println!("No graph loaded for target: {}", &self.current_target);
+            Vec::new()
+        }
+    }
 
     pub fn resolve(&self, ident: &PackageIdent) -> Option<PackageIdent> {
-        self.graphs[&self.current_target].borrow().resolve(ident)
+        if let Some(target_graph) = self.graphs.get(&self.current_target) {
+            target_graph.borrow().resolve(ident)
+        } else {
+            println!("No graph loaded for target: {}", &self.current_target);
+            None
+        }
     }
 
-    pub fn stats(&self) -> Stats { self.graphs[&self.current_target].borrow().stats() }
+    pub fn stats(&self) -> Option<Stats> {
+        if let Some(target_graph) = self.graphs.get(&self.current_target) {
+            Some(target_graph.borrow().stats())
+        } else {
+            println!("No graph loaded for target: {}", &self.current_target);
+            None
+        }
+    }
 
     // TODO SORT THESE
     pub fn all_stats(&self) -> Vec<(PackageTarget, Stats)> {
@@ -111,7 +140,11 @@ impl PackageGraph {
     }
 
     pub fn write_deps(&self, ident: &PackageIdent) {
-        self.graphs[&self.current_target].borrow().write_deps(ident)
+        if let Some(target_graph) = self.graphs.get(&self.current_target) {
+            target_graph.borrow().write_deps(ident);
+        } else {
+            println!("No graph loaded for target: {}", &self.current_target);
+        }
     }
 
     pub fn dump_graph(&self, file: &str) {
