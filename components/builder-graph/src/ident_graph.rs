@@ -28,7 +28,8 @@ use std::{cmp,
           io::prelude::*,
           path::Path};
 
-use crate::{hab_core::package::PackageIdent,
+use crate::{error,
+            hab_core::package::PackageIdent,
             util::*};
 
 type IdentIndex = usize;
@@ -54,6 +55,14 @@ impl IdentMemo {
     }
 
     pub fn get_ident(&self, index: IdentIndex) -> &PackageIdent { &self.idents[index] }
+
+    pub fn get_index(&self, ident: &PackageIdent) -> Option<IdentIndex> {
+        if self.ident_map.contains_key(ident) {
+            Some(self.ident_map[ident])
+        } else {
+            None
+        }
+    }
 
     // TODO: maybe helper fn to compare/sort by index.
 }
@@ -101,6 +110,18 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
     pub fn get_node(&mut self, ident: &PackageIdent) -> (NodeIndex, Value) {
         let (_ident_index, node_index, value) = self.get_node_by_id(&ident);
         (node_index, value)
+    }
+
+    // We should rename/refactor this and the above one so that readonly is the default
+    pub fn get_node_if_exists(&self, ident: &PackageIdent) -> (NodeIndex, Value) {
+        if let Some(ident_index) = self.ident_memo.get_index(ident) {
+            let IdentGraphElement { ident_index: _expected_index,
+                                    node_index,
+                                    value, } = self.data[ident_index];
+            (node_index, value)
+        } else {
+            panic!("Couldn't find node, and this should never happen")
+        }
     }
 
     pub fn upsert_node(&mut self, ident: &PackageIdent, value: Value) -> (IdentIndex, NodeIndex) {
@@ -393,7 +414,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         // Insert 'touched' nodes into worklist
         for ident in touched {
-            let (node_index, _) = self.get_node(ident);
+            let (node_index, _) = self.get_node_if_exists(ident);
             worklist.push_back(node_index);
         }
 

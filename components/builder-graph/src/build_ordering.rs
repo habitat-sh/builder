@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap,
-                       VecDeque};
+use std::collections::HashMap;
 
 use crate::hab_core::package::PackageIdent;
 
@@ -88,23 +87,23 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         build_actual
     }
 
-    pub fn compute_build_order(&self, rebuild_set: Vec<PackageIdent>) -> Vec<Vec<PackageIdent>> {
+    pub fn compute_build_order(&self, _rebuild_set: Vec<PackageIdent>) -> Vec<Vec<PackageIdent>> {
         let result: Vec<Vec<PackageIdent>> = Vec::new();
         result
     }
 
     pub fn build_package(&self,
-                         node: PackageIdent,
-                         latest: &HashMap<PackageIdent, PackageIdent>)
+                         node: &PackageIdent,
+                         _latest: &HashMap<PackageIdent, PackageIdent>)
                          -> PackageBuild {
-        PackageBuild { ident: node,
+        PackageBuild { ident: node.clone(),
                        bdeps: Vec::new(),
                        rdeps: Vec::new(), }
     }
 
     pub fn prune_tsort(&self,
-                       built: &HashMap<PackageIdent, PackageBuild>,
-                       latest: &HashMap<PackageIdent, PackageIdent>)
+                       _built: &HashMap<PackageIdent, PackageBuild>,
+                       _latest: &HashMap<PackageIdent, PackageIdent>)
                        -> Vec<PackageBuild> {
         Vec::new()
     }

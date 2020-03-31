@@ -660,11 +660,6 @@ mod test {
         assert_eq!(stats.node_count, 2);
     }
 
-    use habitat_builder_db::models::package::{BuilderPackageIdent,
-                                              BuilderPackageTarget,
-                                              PackageVisibility,
-                                              PackageWithVersionArray};
-
     // TODO RE-ENABLE once circular deps detection is fixed.
     // However that's going to require some serious rework of the code.
     // #[test]
