@@ -14,12 +14,10 @@
 
 use std::io::prelude::*;
 
-use std::{cell::RefCell,
+use std::{borrow::Borrow,
           cmp::Ordering,
           collections::{BinaryHeap,
-                        HashMap},
-          str::FromStr,
-          string::ToString};
+                        HashMap}};
 
 use petgraph::{algo::{connected_components,
                       is_cyclic_directed},
@@ -28,10 +26,6 @@ use petgraph::{algo::{connected_components,
                graph::{EdgeIndex,
                        NodeIndex},
                Graph};
-
-use itertools::Itertools;
-
-use regex::Regex;
 
 use habitat_builder_db::models::package::PackageWithVersionArray;
 
@@ -42,6 +36,9 @@ use crate::{hab_core::{error as herror,
                                  PackageIdent,
                                  PackageTarget}},
             ident_graph::*,
+            package_table::{PackageIndex,
+                            PackageInfo,
+                            PackageTable},
             rdeps::rdeps,
             util::*};
 
@@ -71,150 +68,11 @@ impl PartialEq for HeapEntry {
     fn eq(&self, other: &HeapEntry) -> bool { self.pkg_index == other.pkg_index }
 }
 
-// Note: We need to filter by target when doing the walk.
-type PackageIndex = usize;
-#[derive(Debug)]
-struct PackageInfo {
-    ident:   PackageIdent,
-    // We may need to create the info record before we see the package data...
-    package: Option<PackageWithVersionArray>,
-
-    no_deps:    bool,
-    plan_deps:  Vec<PackageIdent>,
-    plan_bdeps: Vec<PackageIdent>,
-
-    full_graph_index: NodeIndex,
-}
-
-impl PackageInfo {
-    pub fn write(&self) {
-        println!("PackageIdent: {}, no_deps: {}", self.ident, self.no_deps);
-        if let Some(package_data) = &self.package {
-            println!("Target:\t{}", package_data.target.0);
-            println!("Deps:\t{}",
-                     package_data.deps.iter().format_with(", ", |x, f| f(&x.0)));
-            println!("BDeps:\t{}",
-                     package_data.build_deps
-                                 .iter()
-                                 .format_with(", ", |x, f| f(&x.0)));
-
-            println!("Plan Deps:\t{}", join_idents(", ", &self.plan_deps));
-            println!("Plan BDeps:\t{}", join_idents(", ", &self.plan_bdeps));
-        }
-    }
-
-    pub fn extract_plan_deps(&mut self, verbose: bool) {
-        // Hoist to lazy static
-        lazy_static! {
-            // linux builds use backticks around dependency list, while windows doesn't,
-            static ref NO_DEPS_RE: Regex =
-                Regex::new(r"no (build|runtime) dependencies or undefined").unwrap();
-            static ref GEN_DEP_RE: Regex =
-                Regex::new(r"^\s*\* __(?P<dtype>Build)?\s*Dependencies__: `?(?P<deps>[^`]*)`?\s*$")
-                    .unwrap();
-        }
-
-        let package = self.package.as_ref().unwrap();
-        let mut found_deps = false;
-        let mut found_bdeps = false;
-
-        // investigate RegexSet usage here instead of looping over lines
-        for line in package.manifest.lines() {
-            if let Some(cap) = GEN_DEP_RE.captures(line) {
-                if verbose {
-                    println!("{} matched line {}", package.ident.0, line);
-                }
-                let deplist = cap.name("deps").unwrap().as_str();
-                if verbose {
-                    println!("{} extracted deps {}", package.ident.0, deplist);
-                }
-                // Maybe match against regex 'no (build|runtime) dependencies or undefined'
-                let mut deps_as_ident = if !deplist.contains("dependencies or undefined") {
-                    let deps_conv: herror::Result<Vec<PackageIdent>> =
-                        deplist.split_whitespace()
-                               .map(PackageIdent::from_str)
-                               .collect();
-
-                    deps_conv.unwrap_or_else(|e| {
-                                 println!("{} ill formed deps {:?}", package.ident.0, e);
-                                 Vec::new()
-                             })
-                } else {
-                    Vec::new()
-                };
-
-                let typeflag;
-                if let Some(_deptype) = cap.name("dtype") {
-                    typeflag = "B";
-                    found_bdeps = true;
-                    if verbose {
-                        println!("{} {}: {:?}",
-                                 package.ident.0,
-                                 typeflag,
-                                 join_idents(", ", &deps_as_ident))
-                    };
-                    self.plan_bdeps.append(&mut deps_as_ident);
-                } else {
-                    typeflag = "R";
-                    found_deps = true;
-                    if verbose {
-                        println!("{} {}: {:?}",
-                                 package.ident.0,
-                                 typeflag,
-                                 join_idents(", ", &deps_as_ident));
-                    };
-                    self.plan_deps.append(&mut deps_as_ident);
-                }
-            }
-
-            // early out; manifests can be large...
-            if found_deps && found_bdeps {
-                break;
-            }
-        }
-
-        if !(found_deps && found_bdeps) {
-            // Not every package has deps. There are a few classes this falls into:
-            // 1) True 'no deps' packages. core/cacerts is a good example
-            // 2) User packages statically built using system dependencies. While not 'pure' habitat
-            // packages, this is a supported use case and common in windows.
-            // 3) Bad packages... There are a lot of packages that don't list deps in their
-            // manifest, but have them in their plan file. Or don't list them in their plan file,
-            // but use them some how.
-            println!("{}: Partial or no deps found for package B: {} R: {}",
-                     package.ident.0, found_bdeps, found_deps);
-            self.no_deps = true;
-        } else {
-            self.no_deps = false;
-        }
-    }
-
-    #[allow(dead_code)]
-    // It might be useful comparing this with the deps extracted from
-    // the manifest and alerting when there are differences, as it is
-    // either a broken package or something wrong in the code.
-    pub fn infer_plan_deps(&mut self) {
-        let package = self.package.as_ref().unwrap();
-
-        // It would be more correct to parse the manifest and use that to fill plan_deps/bdeps
-        // That may belong inside PackageWithVersionArray
-        // For now, just approximate with truncated ident
-        for dep in &package.deps {
-            self.plan_deps.push(short_ident(&dep.0, false));
-        }
-        for dep in &package.build_deps {
-            self.plan_bdeps.push(short_ident(&dep.0, false));
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct PackageGraphForTarget {
-    target:      Option<PackageTarget>,
-    // This is the master data store; all packages live here.
-    packages:    Vec<RefCell<PackageInfo>>,
-    // Maps package ident to position in packages vector above.
-    package_map: HashMap<PackageIdent, PackageIndex>,
+    target: Option<PackageTarget>,
+
+    packages: PackageTable,
 
     // Map from truncated ident to latest matching; it could be origin/packagename, or
     // origin/packagename/version
@@ -223,7 +81,7 @@ pub struct PackageGraphForTarget {
     // Possible refactor would be to put packageinfo in graph structure; complication is in
     // multigraph situations
     full_graph:                Graph<PackageIndex, EdgeType>,
-    full_graph_node_index_map: HashMap<NodeIndex, PackageIndex>,
+    full_graph_node_index_map: HashMap<PackageIndex, NodeIndex>,
 
     // We build this alongside the full graph
     latest_graph: IdentGraph<PackageIndex>,
@@ -258,7 +116,9 @@ impl PackageGraphForTarget {
     fn update_if_newer(&mut self, id: PackageIdent, index: PackageIndex) {
         match self.latest_map.get(&id) {
             Some(&old_index) => {
-                if self.packages[index].borrow().ident > self.packages[old_index].borrow().ident {
+                if self.packages.get(index).unwrap().borrow().ident
+                   > self.packages.get(old_index).unwrap().borrow().ident
+                {
                     self.latest_map.insert(id, index);
                 }
             }
@@ -272,41 +132,24 @@ impl PackageGraphForTarget {
                                package: &PackageWithVersionArray)
                                -> (PackageIndex, NodeIndex) {
         let (pi, ni) = self.generate_id(&package.ident.0);
-
-        let mut package_info = self.packages[pi].borrow_mut();
-
-        package_info.package = Some(package.clone());
-
-        package_info.extract_plan_deps(false);
-
+        self.packages.insert_package(package);
         (pi, ni)
     }
 
     fn generate_id<'a>(&'a mut self, ident: &PackageIdent) -> (PackageIndex, NodeIndex) {
-        if self.package_map.contains_key(&ident) {
-            let package_index = self.package_map[&ident];
-            let node_index: NodeIndex = self.packages[package_index].borrow().full_graph_index;
-
-            (package_index, node_index)
-        } else {
-            let package_index = self.packages.len();
-
-            let node_index = self.full_graph.add_node(package_index);
-            self.full_graph_node_index_map
-                .insert(node_index, package_index);
-
-            let package_info = PackageInfo { ident:            ident.clone(),
-                                             package:          None,
-                                             no_deps:          false,
-                                             plan_deps:        Vec::new(),
-                                             plan_bdeps:       Vec::new(),
-                                             full_graph_index: node_index, };
-
-            self.packages.push(RefCell::new(package_info));
-            self.package_map.insert(ident.clone(), package_index);
-            assert_eq!(self.packages[package_index].borrow().ident, *ident);
-
-            (package_index, node_index)
+        match self.packages.find(ident) {
+            Some(package_info) => {
+                let package_index = self.packages.generate_id(ident);
+                let node_index = self.full_graph_node_index_map[&package_index];
+                (package_index, node_index)
+            }
+            None => {
+                let package_index = self.packages.generate_id(ident);
+                let node_index = self.full_graph.add_node(package_index);
+                self.full_graph_node_index_map
+                    .insert(package_index, node_index);
+                (package_index, node_index)
+            }
         }
     }
 
@@ -379,11 +222,11 @@ impl PackageGraphForTarget {
         // still need to check.
         {
             let ident = &package.ident.0;
-            assert_eq!(self.packages[pkg_id].borrow().ident, *ident);
+            assert_eq!(self.packages.get(pkg_id).unwrap().borrow().ident, *ident);
             self.update_latest(ident, pkg_id);
         }
 
-        let short_name = short_ident(&self.packages[pkg_id].borrow().ident, false);
+        let short_name = short_ident(&self.packages.get(pkg_id).unwrap().borrow().ident, false);
 
         for dep in &package.deps {
             let (_, dep_node) = self.generate_id(&dep.0);
@@ -414,7 +257,7 @@ impl PackageGraphForTarget {
             // have to move to a difference based system.
             self.latest_graph.drop_outgoing(src_node_index);
 
-            let package_info = self.packages[pkg_id].borrow();
+            let package_info = self.packages.get(pkg_id).unwrap().borrow();
 
             // I'd like to write this as below, but borrow in closure is problematic.
             // package_info
@@ -450,16 +293,28 @@ impl PackageGraphForTarget {
         // At some point we'll want to check for cycles, but not for now.
     }
 
+    pub fn write_packages_json(&self, filename: &str, filter: Option<&str>) {
+        self.packages.write_json(filename, filter)
+    }
+
+    pub fn read_packages_json(&mut self, filename: &str, use_build_edges: bool) {
+        self.packages.read_json(filename);
+        for mut package in self.packages.values() {
+            let package_inner: &PackageWithVersionArray = &package.get_mut().package.unwrap();
+            self.extend(package_inner, use_build_edges);
+        }
+    }
+
     pub fn rdeps(&self, name: &PackageIdent) -> Option<Vec<(String, String)>> {
         let mut v: Vec<(String, String)> = Vec::new();
 
-        match self.package_map.get(name) {
-            Some(&pkg_index) => {
-                let pkg_node = self.packages[pkg_index].borrow().full_graph_index;
+        match self.packages.find_index(name) {
+            Some(pkg_index) => {
+                let pkg_node = self.full_graph_node_index_map[&pkg_index];
                 match rdeps(&self.full_graph, pkg_node) {
                     Ok(deps) => {
                         for n in deps {
-                            let name = &self.packages[n].borrow().ident;
+                            let name = &self.packages.get(n).unwrap().borrow().ident;
                             let ident = format!("{}", self.latest_map[&name]);
                             let namestr = format!("{}", name);
                             v.push((namestr, ident));
@@ -474,47 +329,19 @@ impl PackageGraphForTarget {
         Some(v)
     }
 
-    pub fn write_packages_json(&self, filename: &str, filter: Option<&str>) {
-        let mut output: Vec<PackageWithVersionArray> = Vec::new();
-        let mut keep = 0;
-        let mut m = 0;
-        for package_ref in &self.packages {
-            if filter_match(&package_ref.borrow().ident, filter) {
-                m += 1;
-                if package_ref.borrow().ident.name == "gcc" {
-                    println!("M: {}", &package_ref.borrow().ident)
-                }
-                if let Some(_p) = &package_ref.borrow().package {
-                    keep += 1;
-                    output.push(package_ref.borrow().package.as_ref().unwrap().clone())
-                }
-            }
-        }
-        debug!("Wrote {}/{}/{} K/M/T packages with filter {:?}",
-               keep,
-               m,
-               self.packages.len(),
-               filter);
-        write_packages_json(output.into_iter(), filename)
-    }
-
-    pub fn read_packages_json(&mut self, filename: &str, use_build_edges: bool) {
-        let u = read_packages_json(filename);
-        self.build(u.into_iter(), use_build_edges);
-    }
-
     // Mostly for debugging
     pub fn rdeps_dump(&self) {
         debug!("Reverse dependencies:");
 
-        for (pkg_ident, &pkg_index) in &self.package_map {
-            let pkg_node = self.packages[pkg_index].borrow().full_graph_index;
+        for pkg_index in 0..self.packages.count() {
+            let pkg_ident = self.packages.get(pkg_index).unwrap().ident;
+            let pkg_node = self.full_graph_node_index_map[&pkg_index];
             debug!("{}", pkg_ident);
 
             match rdeps(&self.full_graph, pkg_node) {
                 Ok(v) => {
                     for n in v {
-                        debug!("|_ {}", self.packages[n].borrow().ident);
+                        debug!("|_ {}", self.packages.get(n).unwrap().borrow().ident);
                     }
                 }
                 Err(e) => panic!("Error: {:?}", e),
@@ -523,9 +350,9 @@ impl PackageGraphForTarget {
     }
 
     pub fn search(&self, phrase: &str) -> Vec<String> {
-        let v: Vec<String> = self.package_map
-                                 .keys()
-                                 .map(|id| format!("{}", id))
+        let v: Vec<String> = self.packages
+                                 .values()
+                                 .map(|package| format!("{}", package.borrow().ident))
                                  .filter(|s| s.contains(phrase))
                                  .collect();
 
@@ -540,7 +367,7 @@ impl PackageGraphForTarget {
     // most recent version (fully-qualified package ident string)
     pub fn resolve(&self, ident: &PackageIdent) -> Option<PackageIdent> {
         let index = self.latest_map.get(ident);
-        index.map(|x| self.packages[*x].borrow().ident.clone())
+        index.map(|x| self.packages.get(*x).unwrap().borrow().ident.clone())
     }
 
     pub fn stats(&self) -> Stats {
@@ -556,7 +383,7 @@ impl PackageGraphForTarget {
         let mut heap = BinaryHeap::new();
 
         for &package_index in self.latest_map.values() {
-            let node_id = self.packages[package_index].borrow().full_graph_index;
+            let node_id = self.full_graph_node_index_map[&package_index];
 
             match rdeps(&self.full_graph, node_id) {
                 Ok(v) => {
@@ -571,7 +398,7 @@ impl PackageGraphForTarget {
         let mut i = 0;
         while (i < max) && !heap.is_empty() {
             let he = heap.pop().unwrap();
-            v.push((self.packages[he.pkg_index].borrow().ident.to_string(), he.rdep_count));
+            v.push((self.packages.get_ident(he.pkg_index).unwrap().to_string(), he.rdep_count));
             i += 1;
         }
 
@@ -579,13 +406,13 @@ impl PackageGraphForTarget {
     }
 
     pub fn write_deps(&self, ident: &PackageIdent) {
-        let maybe_package_index = if ident.fully_qualified() {
-            self.package_map.get(&ident)
+        let maybe_package_index: Option<PackageIndex> = if ident.fully_qualified() {
+            self.packages.find_index(&ident)
         } else {
-            self.latest_map.get(&ident)
+            self.latest_map.get(&ident).map(|x| *x)
         };
         match maybe_package_index {
-            Some(&pi) => self.packages[pi].borrow().write(),
+            Some(pi) => self.packages.get(pi).unwrap().borrow().write(),
             None => println!("Couldn't find match for {}", ident),
         }
     }
@@ -619,7 +446,7 @@ impl PackageGraphForTarget {
         let mut package_count = HashMap::<PackageIdent, usize>::new();
         file.write("============package list ======n".as_bytes())
             .unwrap();
-        for package in &self.packages {
+        for package in self.packages.values() {
             file.write(format!("{}\n", package.borrow().ident).as_bytes())
                 .unwrap();
             let count = package_count.entry(short_ident(&package.borrow().ident, false))
