@@ -14,8 +14,7 @@
 
 use std::io::prelude::*;
 
-use std::{borrow::Borrow,
-          cmp::Ordering,
+use std::{cmp::Ordering,
           collections::{BinaryHeap,
                         HashMap}};
 
@@ -136,9 +135,10 @@ impl PackageGraphForTarget {
         (pi, ni)
     }
 
-    fn generate_id<'a>(&'a mut self, ident: &PackageIdent) -> (PackageIndex, NodeIndex) {
-        match self.packages.find(ident) {
-            Some(package_info) => {
+    fn generate_id(&mut self, ident: &PackageIdent) -> (PackageIndex, NodeIndex) {
+        let maybe_package_info = self.packages.find(ident);
+        match maybe_package_info {
+            Some(_package_info) => {
                 let package_index = self.packages.generate_id(ident);
                 let node_index = self.full_graph_node_index_map[&package_index];
                 (package_index, node_index)
@@ -257,7 +257,8 @@ impl PackageGraphForTarget {
             // have to move to a difference based system.
             self.latest_graph.drop_outgoing(src_node_index);
 
-            let package_info = self.packages.get(pkg_id).unwrap().borrow();
+            let package_info = self.packages.get(pkg_id).unwrap();
+            let package_info = package_info.borrow();
 
             // I'd like to write this as below, but borrow in closure is problematic.
             // package_info
@@ -299,8 +300,9 @@ impl PackageGraphForTarget {
 
     pub fn read_packages_json(&mut self, filename: &str, use_build_edges: bool) {
         self.packages.read_json(filename);
-        for mut package in self.packages.values() {
-            let package_inner: &PackageWithVersionArray = &package.get_mut().package.unwrap();
+        for package in self.packages.values() {
+            let package = package.borrow();
+            let package_inner: &PackageWithVersionArray = package.package.as_ref().unwrap();
             self.extend(package_inner, use_build_edges);
         }
     }
@@ -314,7 +316,9 @@ impl PackageGraphForTarget {
                 match rdeps(&self.full_graph, pkg_node) {
                     Ok(deps) => {
                         for n in deps {
-                            let name = &self.packages.get(n).unwrap().borrow().ident;
+                            let package = self.packages.get(n).unwrap();
+                            let package = package.borrow();
+                            let name = &package.ident;
                             let ident = format!("{}", self.latest_map[&name]);
                             let namestr = format!("{}", name);
                             v.push((namestr, ident));
@@ -334,7 +338,8 @@ impl PackageGraphForTarget {
         debug!("Reverse dependencies:");
 
         for pkg_index in 0..self.packages.count() {
-            let pkg_ident = self.packages.get(pkg_index).unwrap().ident;
+            let package_info = self.packages.get(pkg_index).unwrap();
+            let pkg_ident = &package_info.borrow().ident;
             let pkg_node = self.full_graph_node_index_map[&pkg_index];
             debug!("{}", pkg_ident);
 
