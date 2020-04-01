@@ -15,6 +15,7 @@
 use std::{cell::{Ref,
                  RefCell},
           collections::HashMap,
+          rc::Rc,
           str::FromStr};
 
 use itertools::Itertools;
@@ -168,7 +169,7 @@ impl PackageInfo {
 #[derive(Default)]
 pub struct PackageTable {
     // This is the master data store; all packages live here.
-    packages:    Vec<RefCell<PackageInfo>>,
+    packages:    Vec<Rc<RefCell<PackageInfo>>>,
     // Maps package ident to position in packages vector above.
     package_map: HashMap<PackageIdent, PackageIndex>,
 }
@@ -206,7 +207,7 @@ impl PackageTable {
                                              plan_deps:  Vec::new(),
                                              plan_bdeps: Vec::new(), };
 
-            self.packages.push(RefCell::new(package_info));
+            self.packages.push(Rc::new(RefCell::new(package_info)));
             self.package_map.insert(ident.clone(), package_index);
             package_index
         }
@@ -222,33 +223,35 @@ impl PackageTable {
     }
 
     // Consider implementing Index as sugar here
-    pub fn find(&self, ident: &PackageIdent) -> Option<Ref<PackageInfo>> {
+    pub fn find(&self, ident: &PackageIdent) -> Option<Rc<RefCell<PackageInfo>>> {
         self.package_map
             .get(ident)
-            .map(|index| self.packages[*index].borrow())
+            .map(|index| self.packages[*index].clone())
     }
 
     pub fn find_index(&self, ident: &PackageIdent) -> Option<PackageIndex> {
         self.package_map.get(ident).map(|x| *x)
     }
 
-    pub fn get(&self, index: PackageIndex) -> Option<Ref<PackageInfo>> {
+    pub fn get(&self, index: PackageIndex) -> Option<Rc<RefCell<PackageInfo>>> {
         if index < self.packages.len() {
-            Some(self.packages[index].borrow())
+            Some(self.packages[index].clone())
         } else {
             None
         }
     }
 
-    pub fn get_ident(&self, index: PackageIndex) -> Option<&PackageIdent> {
+    pub fn get_ident<'a>(&'a self, index: PackageIndex) -> Option<PackageIdent> {
         if index < self.packages.len() {
-            Some(&self.packages[index].borrow().ident)
+            Some(self.packages[index].borrow().ident.clone())
         } else {
             None
         }
     }
 
-    pub fn values(&self) -> impl Iterator<Item = RefCell<PackageInfo>> { self.packages.into_iter() }
+    pub fn values(&self) -> impl Iterator<Item = Rc<RefCell<PackageInfo>>> {
+        self.packages.into_iter()
+    }
 
     // Note we only write the inner PackageWithVersionArray info, and
     // plan on regenerating the rest
