@@ -29,17 +29,17 @@ use crate::{hab_core::{error as herror,
                        package::PackageIdent},
             util::*};
 
-type PackageIndex = usize;
+pub type PackageIndex = usize;
 
 #[derive(Debug)]
 pub struct PackageInfo {
-    ident:   PackageIdent,
+    pub ident:   PackageIdent,
     // We may need to create the info record before we see the package data...
-    package: Option<PackageWithVersionArray>,
+    pub package: Option<PackageWithVersionArray>,
 
-    no_deps:    bool,
-    plan_deps:  Vec<PackageIdent>,
-    plan_bdeps: Vec<PackageIdent>,
+    pub no_deps:    bool,
+    pub plan_deps:  Vec<PackageIdent>,
+    pub plan_bdeps: Vec<PackageIdent>,
 }
 
 impl PackageInfo {
@@ -173,6 +173,15 @@ pub struct PackageTable {
     package_map: HashMap<PackageIdent, PackageIndex>,
 }
 
+// impl<'a> IntoIter for PackageTable<'a>{
+//     type Item = Ref<PackageInfo>;
+//     type IntoIter = IntoIter<Ref<PackageInfo>>;
+
+//     fn into_iter(mut self) -> IntoIter<'a Ref<PackageInfo>> {
+//         self.packages.into_iter()
+//     }
+// }
+
 impl PackageTable {
     pub fn new() -> Self { PackageTable::default() }
 
@@ -212,15 +221,38 @@ impl PackageTable {
         self.packages.len()
     }
 
+    // Consider implementing Index as sugar here
     pub fn find(&self, ident: &PackageIdent) -> Option<Ref<PackageInfo>> {
         self.package_map
             .get(ident)
             .map(|index| self.packages[*index].borrow())
     }
 
+    pub fn find_index(&self, ident: &PackageIdent) -> Option<PackageIndex> {
+        self.package_map.get(ident).map(|x| *x)
+    }
+
+    pub fn get(&self, index: PackageIndex) -> Option<Ref<PackageInfo>> {
+        if index < self.packages.len() {
+            Some(self.packages[index].borrow())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_ident(&self, index: PackageIndex) -> Option<&PackageIdent> {
+        if index < self.packages.len() {
+            Some(&self.packages[index].borrow().ident)
+        } else {
+            None
+        }
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = RefCell<PackageInfo>> { self.packages.into_iter() }
+
     // Note we only write the inner PackageWithVersionArray info, and
     // plan on regenerating the rest
-    pub fn write_packages_json(&self, filename: &str, filter: Option<&str>) {
+    pub fn write_json(&self, filename: &str, filter: Option<&str>) {
         let mut output: Vec<PackageWithVersionArray> = Vec::new();
         let mut keep = 0;
         let mut m = 0;
@@ -241,7 +273,7 @@ impl PackageTable {
         write_packages_json(output.into_iter(), filename)
     }
 
-    pub fn read_packages_json(&mut self, filename: &str) {
+    pub fn read_json(&mut self, filename: &str) {
         let u = read_packages_json(filename);
         self.build(u.into_iter());
     }
