@@ -459,6 +459,15 @@ impl PackageGraphForTarget {
             *count += 1;
         }
     }
+
+    pub fn dump_build_ordering(&self,
+                               _filename: &str,
+                               origin: &str,
+                               base_set: &Vec<PackageIdent>,
+                               touched: &Vec<PackageIdent>) {
+        let build = self.latest_graph
+                        .compute_build(origin, base_set, touched, 3);
+    }
 }
 
 #[cfg(test)]

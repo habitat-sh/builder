@@ -113,8 +113,7 @@ impl DataStore {
 
         // for now, hardcoding latest of gang of 42 should be enough to get us started
         //
-        let gang_of_42 = "
-core/acl/2.2.53/20190115012136
+        let gang_of_42 = "core/acl/2.2.53/20190115012136
 core/attr/2.4.48/20190115012129
 core/bash/4.4.19/20190115012619
 core/bash-completion/2.8/20190131162722
@@ -172,9 +171,10 @@ core/xz-musl/5.2.4/20190115014612
 core/zlib/1.2.8/20170513201911
 core/zlib-musl/1.2.8/20180310002650
 ";
-        let idents: Vec<PackageIdent> = gang_of_42.lines()
-                                                  .map(|x| PackageIdent::from_str(x).unwrap())
-                                                  .collect();
+        let idents: Vec<PackageIdent> =
+            gang_of_42.lines()
+                      .map(|x| PackageIdent::from_str(x.trim()).unwrap())
+                      .collect();
         Ok(idents)
     }
 }

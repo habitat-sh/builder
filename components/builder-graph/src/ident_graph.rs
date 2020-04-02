@@ -408,6 +408,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                -> Vec<PackageIdent>
         where Value: Default + Copy
     {
+        println!("CRS: starting with origin {}", origin);
+        println!("CRS: touched set {}", join_idents(", ", &touched));
+
         // Flood reverse dependency graph, filtering by origin
         let mut seen: HashSet<NodeIndex> = HashSet::new();
         let mut worklist: VecDeque<NodeIndex> = VecDeque::new();
@@ -420,6 +423,10 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         while !worklist.is_empty() {
             let node_index = worklist.pop_front().unwrap();
+            println!("CBS: processing {} {:?}",
+                     self.ident_for_node(node_index),
+                     node_index);
+
             seen.insert(node_index);
 
             // loop through everyone who has a build or runtime dep on this package
@@ -427,8 +434,12 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                   .neighbors_directed(node_index, Direction::Incoming)
             {
                 if !seen.contains(&pred_index) {
-                    let ident = self.ident_for_node(node_index);
+                    let ident = self.ident_for_node(pred_index);
                     if filter_match(ident, Some(origin)) {
+                        println!("CBS: adding from {:?} the node {} {:?}",
+                                 node_index,
+                                 self.ident_for_node(pred_index),
+                                 pred_index);
                         worklist.push_back(pred_index);
                     }
                 }
@@ -507,7 +518,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             for pred_index in self.graph
                                   .neighbors_directed(node_index, Direction::Incoming)
             {
-                let edge = self.graph.find_edge(node_index, pred_index).unwrap();
+                let edge = self.graph.find_edge(pred_index, node_index).unwrap();
                 if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
                     unsatisfied.entry(pred_index).and_modify(|count| {
                                                      *count -= 1;
