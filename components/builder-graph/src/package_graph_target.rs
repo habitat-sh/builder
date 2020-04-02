@@ -353,6 +353,7 @@ impl PackageGraphForTarget {
     }
 
     pub fn search(&self, phrase: &str) -> Vec<String> {
+        // TODO: Rework this for new PackageTable construct
         //      let v: Vec<String> = self
         //     .packages
         //     .values()
@@ -445,19 +446,18 @@ impl PackageGraphForTarget {
 
     // COALFACE
     pub fn dump_diagnostics(&self, file: &str, _origin: Option<&str>) {
-        // let mut file = std::fs::File::create(file).unwrap();
+        let mut file = std::fs::File::create(file).unwrap();
 
-        // let mut package_count = HashMap::<PackageIdent, usize>::new();
-        // file.write("============package list ======n".as_bytes())
-        //     .unwrap();
-        // for package in self.packages.values() {
-        //     file.write(format!("{}\n", package.borrow().ident).as_bytes())
-        //         .unwrap();
-        //     let count = package_count
-        //         .entry(short_ident(&package.borrow().ident, false))
-        //         .or_insert(0);
-        //     *count += 1;
-        // }
+        let mut package_count = HashMap::<PackageIdent, usize>::new();
+        file.write("============package list ======n".as_bytes())
+            .unwrap();
+        for package in self.packages.values_ref() {
+            file.write(format!("{}\n", package.borrow().ident).as_bytes())
+                .unwrap();
+            let count = package_count.entry(short_ident(&package.borrow().ident, false))
+                                     .or_insert(0);
+            *count += 1;
+        }
     }
 }
 
