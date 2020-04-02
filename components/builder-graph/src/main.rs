@@ -158,7 +158,7 @@ impl State {
                     // doesn't work something is eating the help output
                     ("build_levels", Some(m)) => do_build_levels(&self.graph, &m),
                     ("check", Some(m)) => {
-                        if let Some(datastore) = self.datastore {
+                        if let Some(datastore) = &self.datastore {
                             do_check(&datastore, &self.graph, &m)
                         } else {
                             println!("'check' requires a database connection; See 'db_connect'")
@@ -167,7 +167,7 @@ impl State {
                     ("clear", _) => do_clear(&mut self.graph),
                     ("db_connect", Some(m)) => self.do_db_connect(&m),
                     ("db_deps", Some(m)) => {
-                        if let Some(datastore) = self.datastore {
+                        if let Some(datastore) = &self.datastore {
                             do_db_deps(&datastore, &self.graph, &m);
                         } else {
                             println!("'db_deps' requires a database connection; See 'db_connect'");
@@ -181,8 +181,8 @@ impl State {
                     ("find", Some(m)) => do_find(&self.graph, &m),
                     ("load_file", Some(m)) => do_load_file(&mut self.graph, &m),
                     ("load_db", Some(m)) => {
-                        if let Some(datastore) = self.datastore {
-                            do_load_db(&datastore, &self.graph, &m);
+                        if let Some(datastore) = &self.datastore {
+                            do_load_db(&datastore, &mut self.graph, &m);
                         } else {
                             println!("'load_db' requires a database connection; See 'db_connect'");
                         }
