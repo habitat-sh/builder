@@ -465,7 +465,7 @@ impl PackageGraphForTarget {
 mod test {
     use super::*;
     use crate::util;
-
+    use std::str::FromStr;
     #[test]
     fn write_restore_packages() {
         let empty: [&str; 0] = [];
