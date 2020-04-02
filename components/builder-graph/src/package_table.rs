@@ -249,9 +249,11 @@ impl PackageTable {
         }
     }
 
-    pub fn values(&self) -> impl Iterator<Item = Rc<RefCell<PackageInfo>>> {
-        self.packages.into_iter()
-    }
+    pub fn values_ref(&self) -> &Vec<Rc<RefCell<PackageInfo>>> { &self.packages }
+
+    //    pub fn values(&self) -> impl Iterator<Item = Rc<RefCell<PackageInfo>>> {
+    //        self.packages.into_iter()
+    //    }
 
     // Note we only write the inner PackageWithVersionArray info, and
     // plan on regenerating the rest
