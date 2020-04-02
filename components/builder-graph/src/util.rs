@@ -79,10 +79,14 @@ pub fn write_packages_json<T>(packages: T, filename: &str)
 
 pub fn read_packages_json(filename: &str) -> Vec<PackageWithVersionArray> {
     let path = Path::new(filename);
-    let file = File::open(&path).unwrap();
-    let reader = BufReader::new(file);
-    let u: Vec<PackageWithVersionArray> = serde_json::from_reader(reader).unwrap();
-    u
+    if let Ok(file) = File::open(&path) {
+        let reader = BufReader::new(file);
+        let u: Vec<PackageWithVersionArray> = serde_json::from_reader(reader).unwrap();
+        u
+    } else {
+        println!("Unable to open file: {:?}", path);
+        Vec::new()
+    }
 }
 
 // Helpers for test
