@@ -65,7 +65,17 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                          -> Vec<PackageBuild> {
         let rebuild_set = self.compute_rebuild_set(touched, origin);
 
+        println!("Rebuild: {} {}",
+                 rebuild_set.len(),
+                 join_idents(", ", &rebuild_set));
+
         let build_order = self.compute_build_order(&rebuild_set);
+
+        // Rework this later
+        println!("CB: {} components", build_order.len());
+        for component in &build_order {
+            println!("CB: C:{} {}", component.len(), join_idents(", ", component));
+        }
 
         let mut latest = HashMap::<PackageIdent, PackageIdent>::new();
         for ident in base_set {
@@ -130,6 +140,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             rebuild_nodeindex.insert(node_index);
         }
 
+        // Most common case is core, which is a substantial fraction of the total packages we would
+        // automatically rebuild, so we choose a size on the larger end to avoid
+        // reallocation.
         let mut filtered_set = Vec::with_capacity(scc.len());
         for component in scc {
             // Maybe there's a more idomatic way of writing the filter body?
@@ -144,7 +157,11 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             match result {
                 0 => (),
                 len if len == component.len() => filtered_set.push(component.clone()),
-                _ => panic!("Unexpected filter result {:?}", result),
+                _ => {
+                    panic!("Unexpected filter result {}, expected 0 or {}",
+                           result,
+                           component.len())
+                }
             }
         }
         filtered_set

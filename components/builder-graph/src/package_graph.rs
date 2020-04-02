@@ -180,6 +180,15 @@ impl PackageGraph {
         self.graphs[&self.current_target].borrow()
                                          .dump_diagnostics(filename, filter)
     }
+
+    pub fn dump_build_ordering(&self,
+                               filename: &str,
+                               filter: &str,
+                               base_set: &Vec<PackageIdent>,
+                               touched: &Vec<PackageIdent>) {
+        self.graphs[&self.current_target].borrow()
+                                         .dump_build_ordering(filename, filter, base_set, touched)
+    }
 }
 
 #[cfg(test)]

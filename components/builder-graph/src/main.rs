@@ -150,6 +150,14 @@ impl State {
                     ("help", _) => do_help(&matches, &mut self.cli), // This
                     // doesn't work something is eating the help output
                     ("build_levels", Some(m)) => do_build_levels(&self.graph, &m),
+                    ("build_order", Some(m)) => {
+                        if let Some(datastore) = &self.datastore {
+                            do_dump_build_order(&datastore, &self.graph, &m);
+                        } else {
+                            println!("'build_order' requires a database connection; See \
+                                      'db_connect'");
+                        }
+                    }
                     ("check", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
                             do_check(&datastore, &self.graph, &m)
@@ -235,6 +243,8 @@ impl State {
 
         let targets = self.graph.targets();
         let target_as_string: Vec<String> = targets.iter().map(|t| t.to_string()).collect();
+
+        self.datastore = Some(datastore);
 
         println!("Found following targets {}", target_as_string.join(", "));
         println!("Default target is {}", self.graph.current_target());
@@ -386,6 +396,23 @@ fn do_dump_diagnostics(graph: &PackageGraph, matches: &ArgMatches) {
 
     let duration_secs = start_time.elapsed().as_secs_f64();
     println!("Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
+             filename, filter, duration_secs);
+}
+
+fn do_dump_build_order(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches) {
+    let start_time = Instant::now();
+    let filter = str_from_matches(matches, "FILTER", "core");
+    let filename = required_filename_from_matches(matches);
+
+    let base_set = datastore.get_origin_channel_latest("core", "stable")
+                            .expect("No base set returned from db");
+
+    let touched = vec![PackageIdent::from_str("core/gcc").unwrap()]; // TODO use a real set, huh?
+
+    graph.dump_build_ordering(filename, filter, &base_set, &touched);
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    println!("generated build order and wrote to file file {} filtered by {:?} in {} sec",
              filename, filter, duration_secs);
 }
 
@@ -687,6 +714,7 @@ fn make_clap_cli() -> App<'static, 'static> {
         .setting(AppSettings::NoBinaryName)
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(build_levels_subcommand())
+        .subcommand(build_order_subcommand())
         .subcommand(check_subcommand())
         .subcommand(clear_subcommand())
         .subcommand(db_connect_subcommand())
@@ -829,6 +857,15 @@ fn save_to_file_subcommand() -> App<'static, 'static> {
 fn load_from_db_subcommand() -> App<'static, 'static> {
     let sub = clap_app!(@subcommand load_db =>
                         (about: "Read packages from DB into graph")
+    );
+    sub
+}
+
+fn build_order_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand build_order =>
+                        (about: "Write build order to file")
+                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        (@arg FILTER: +required +takes_value "Filter value")
     );
     sub
 }
