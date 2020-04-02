@@ -289,8 +289,6 @@ mod test {
     use super::*;
     use crate::util;
 
-    use tempfile::NamedTempFile;
-
     #[test]
     fn write_restore_packages() {
         let empty: [&str; 0] = [];
@@ -312,10 +310,10 @@ mod test {
         let mut table = PackageTable::new();
         table.build(vec.into_iter());
 
-        table.write_packages_json(tmpfile, None);
+        table.write_json(tmpfile, None);
 
         let mut table2 = PackageTable::new();
-        table2.read_packages_json(tmpfile);
+        table2.read_json(tmpfile);
         assert_eq!(table2.count(), 2);
     }
 }
