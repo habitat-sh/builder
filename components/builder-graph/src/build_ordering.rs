@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
+use std::collections::{HashMap,
+                       HashSet};
 
 use petgraph::{algo::tarjan_scc,
                graph::NodeIndex};
@@ -64,7 +65,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                          -> Vec<PackageBuild> {
         let rebuild_set = self.compute_rebuild_set(touched, origin);
 
-        let build_order = self.compute_build_order(rebuild_set);
+        let build_order = self.compute_build_order(&rebuild_set);
 
         let mut latest = HashMap::<PackageIdent, PackageIdent>::new();
         for ident in base_set {
@@ -90,18 +91,15 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         build_actual
     }
 
-    pub fn compute_build_order(&self, _rebuild_set: Vec<PackageIdent>) -> Vec<Vec<PackageIdent>> {
+    // This could be implmented by creating a subgraph in PetGraph, but my initial experiments had
+    // issues with NodeIndex changing in the new graph, which scrambled our system for tracking
+    // things via NodeIndex. It might be worth converting to GraphMap, which would remove the
+    // need to track, and thus enable the use of subgraphs.
+    pub fn compute_build_order(&self, rebuild_set: &Vec<PackageIdent>) -> Vec<Vec<PackageIdent>> {
         // compute SCC
         //
 
-        // This a returns a vector of components, each of which
-        // contains a vector of nodes in the component. A component
-        // may only contain a single node, when that node has no back
-        // edges/ cyclic dependencies. These nodes are returned in
-        // topological sort order. All we need to do to compute a
-        // valid build ordering is to take the components and sort
-        // them in runtime edge topological order
-        let scc: Vec<Vec<NodeIndex>> = tarjan_scc(&self.graph);
+        let scc = self.filtered_scc(rebuild_set);
 
         let mut node_order: Vec<Vec<NodeIndex>> = Vec::new();
         for component in scc {
@@ -114,6 +112,42 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                       .collect();
 
         ident_result
+    }
+
+    pub fn filtered_scc(&self, rebuild_set: &Vec<PackageIdent>) -> Vec<Vec<NodeIndex>> {
+        // This a returns a vector of components, each of which
+        // contains a vector of nodes in the component. A component
+        // may only contain a single node, when that node has no back
+        // edges/ cyclic dependencies. These nodes are returned in
+        // topological sort order. All we need to do to compute a
+        // valid build ordering is to take the components and sort
+        // them in runtime edge topological order
+        let scc: Vec<Vec<NodeIndex>> = tarjan_scc(&self.graph);
+
+        let mut rebuild_nodeindex = HashSet::new();
+        for ident in rebuild_set {
+            let (node_index, _) = self.get_node_if_exists(&ident);
+            rebuild_nodeindex.insert(node_index);
+        }
+
+        let mut filtered_set = Vec::with_capacity(scc.len());
+        for component in scc {
+            // Maybe there's a more idomatic way of writing the filter body?
+            let result = component.iter().fold(0, |count, node_index| {
+                                             if rebuild_nodeindex.contains(node_index) {
+                                                 count + 1
+                                             } else {
+                                                 count
+                                             }
+                                         });
+
+            match result {
+                0 => (),
+                len if len == component.len() => filtered_set.push(component.clone()),
+                _ => panic!("Unexpected filter result {:?}", result),
+            }
+        }
+        filtered_set
     }
 
     pub fn build_package(&self,
