@@ -48,56 +48,51 @@ pub mod package_table;
 pub mod rdeps;
 pub mod util;
 
-use std::{
-    collections::HashMap, fs::File, io::Write, iter::FromIterator, str::FromStr, time::Instant,
-};
+use std::{collections::HashMap,
+          fs::File,
+          io::Write,
+          iter::FromIterator,
+          str::FromStr,
+          time::Instant};
 
-use clap::{App, AppSettings, Arg, ArgMatches};
+use clap::{App,
+           AppSettings,
+           Arg,
+           ArgMatches};
 use copperline::Copperline;
 
-use crate::{
-    config::Config,
-    data_store::DataStore,
-    hab_core::{
-        config::ConfigFile,
-        package::{PackageIdent, PackageTarget},
-    },
-    package_graph::PackageGraph,
-};
+use crate::{config::Config,
+            data_store::DataStore,
+            hab_core::{config::ConfigFile,
+                       package::{PackageIdent,
+                                 PackageTarget}},
+            package_graph::PackageGraph};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 struct State {
     datastore: Option<DataStore>,
-    graph: PackageGraph,
-    filter: String,
-    done: bool,
-    cli: clap::App<'static, 'static>,
+    graph:     PackageGraph,
+    filter:    String,
+    done:      bool,
+    cli:       clap::App<'static, 'static>,
 }
 
 #[allow(clippy::cognitive_complexity)]
 fn main() {
     env_logger::init();
 
-    let matches = App::new("bldr-graph")
-        .version(VERSION)
-        .about("Habitat Graph Dev Tool")
-        .arg(
-            Arg::with_name("config")
-                .help("Filepath to configuration file")
-                .required(false)
-                .index(1),
-        )
-        .arg(
-            Arg::with_name("internal_command")
-                .multiple(true)
-                .last(true)
-                .help(
-                    "Internal CLI command \
-                                                                            to run",
-                ),
-        )
-        .get_matches();
+    let matches =
+        App::new("bldr-graph").version(VERSION)
+                              .about("Habitat Graph Dev Tool")
+                              .arg(Arg::with_name("config").help("Filepath to configuration file")
+                                                           .required(false)
+                                                           .index(1))
+                              .arg(Arg::with_name("internal_command").multiple(true)
+                                                                     .last(true)
+                                                                     .help("Internal CLI command \
+                                                                            to run"))
+                              .get_matches();
 
     let config = match matches.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
@@ -114,13 +109,11 @@ fn main() {
     let mut cl = Copperline::new();
     let mut graph = PackageGraph::new();
 
-    let mut state = State {
-        datastore: None,
-        graph,
-        filter: String::from(""),
-        done: false,
-        cli: make_clap_cli(),
-    };
+    let mut state = State { datastore: None,
+                            graph,
+                            filter: String::from(""),
+                            done: false,
+                            cli: make_clap_cli() };
 
     // This is meant to ease testing of this command and provide a quick one-off access to the CLI
     //
@@ -228,22 +221,17 @@ impl State {
         let packages = datastore.get_job_graph_packages().unwrap();
 
         let fetch_time = start_time.elapsed().as_secs_f64();
-        println!(
-            "OK: fetched {} packages ({} sec)",
-            packages.len(),
-            fetch_time
-        );
+        println!("OK: fetched {} packages ({} sec)",
+                 packages.len(),
+                 fetch_time);
 
         let start_time = Instant::now();
-        let (ncount, ecount) = self
-            .graph
-            .build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
-        println!(
-            "OK: {} nodes, {} edges ({} sec)",
-            ncount,
-            ecount,
-            start_time.elapsed().as_secs_f64()
-        );
+        let (ncount, ecount) = self.graph
+                                   .build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
+        println!("OK: {} nodes, {} edges ({} sec)",
+                 ncount,
+                 ecount,
+                 start_time.elapsed().as_secs_f64());
 
         let targets = self.graph.targets();
         let target_as_string: Vec<String> = targets.iter().map(|t| t.to_string()).collect();
@@ -292,11 +280,9 @@ fn do_top(graph: &PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
     let top = graph.top(count);
 
-    println!(
-        "OK: {} items ({} sec)\n",
-        top.len(),
-        start_time.elapsed().as_secs_f64()
-    );
+    println!("OK: {} items ({} sec)\n",
+             top.len(),
+             start_time.elapsed().as_secs_f64());
 
     for (name, count) in top {
         println!("{}: {}", name, count);
@@ -320,11 +306,9 @@ fn do_find(graph: &PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
     let mut v = graph.search(&phrase);
 
-    println!(
-        "OK: {} items ({} sec)\n",
-        v.len(),
-        start_time.elapsed().as_secs_f64()
-    );
+    println!("OK: {} items ({} sec)\n",
+             v.len(),
+             start_time.elapsed().as_secs_f64());
 
     if v.is_empty() {
         println!("No matching packages found")
@@ -349,18 +333,13 @@ fn do_load_file(graph: &mut PackageGraph, matches: &ArgMatches) {
     let file_duration = start_time.elapsed().as_secs_f64();
     let start_time = Instant::now();
 
-    graph.build(
-        packages
-            .into_iter()
-            .filter(|p| util::filter_package(p, filter)),
-        true,
-    );
+    graph.build(packages.into_iter()
+                        .filter(|p| util::filter_package(p, filter)),
+                true);
 
     let duration_secs = start_time.elapsed().as_secs_f64();
-    println!(
-        "Read {} packages from file {} filtered by {:?} in {}/{} file/graph sec",
-        package_count, filename, filter, file_duration, duration_secs
-    );
+    println!("Read {} packages from file {} filtered by {:?} in {}/{} file/graph sec",
+             package_count, filename, filter, file_duration, duration_secs);
 }
 
 fn do_load_db(datastore: &DataStore, graph: &mut PackageGraph, _matches: &ArgMatches) {
@@ -371,16 +350,12 @@ fn do_load_db(datastore: &DataStore, graph: &mut PackageGraph, _matches: &ArgMat
     let db_duration = start_time.elapsed().as_secs_f64();
     let start_time = Instant::now();
 
-    graph.build(
-        packages.into_iter(), //.filter(|p| util::filter_package(p, origin)),
-        true,
-    );
+    graph.build(packages.into_iter(), //.filter(|p| util::filter_package(p, origin)),
+                true);
 
     let duration_secs = start_time.elapsed().as_secs_f64();
-    println!(
-        "Read {} packages from db in {}/{} db/graph sec",
-        package_count, db_duration, duration_secs
-    );
+    println!("Read {} packages from db in {}/{} db/graph sec",
+             package_count, db_duration, duration_secs);
 }
 
 fn do_save_file(graph: &PackageGraph, matches: &ArgMatches) {
@@ -391,10 +366,8 @@ fn do_save_file(graph: &PackageGraph, matches: &ArgMatches) {
     graph.write_packages_json(filename, filter);
 
     let duration_secs = start_time.elapsed().as_secs_f64();
-    println!(
-        "Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
-        filename, filter, duration_secs
-    );
+    println!("Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
+             filename, filter, duration_secs);
 }
 
 fn do_clear(graph: &mut PackageGraph) {
@@ -412,10 +385,8 @@ fn do_dump_diagnostics(graph: &PackageGraph, matches: &ArgMatches) {
     graph.dump_diagnostics(filename, filter);
 
     let duration_secs = start_time.elapsed().as_secs_f64();
-    println!(
-        "Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
-        filename, filter, duration_secs
-    );
+    println!("Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
+             filename, filter, duration_secs);
 }
 
 fn do_dot(graph: &PackageGraph, matches: &ArgMatches) {
@@ -435,10 +406,8 @@ fn do_dot(graph: &PackageGraph, matches: &ArgMatches) {
     }
     let duration_secs = start_time.elapsed().as_secs_f64();
 
-    println!(
-        "Wrote {} graph to file {} filtered by {:?} TBI in {} sec",
-        graph_type, filename, origin, duration_secs
-    );
+    println!("Wrote {} graph to file {} filtered by {:?} TBI in {} sec",
+             graph_type, filename, origin, duration_secs);
 }
 
 fn do_raw(graph: &PackageGraph, matches: &ArgMatches) {
@@ -459,10 +428,8 @@ fn do_raw(graph: &PackageGraph, matches: &ArgMatches) {
     }
     let duration_secs = start_time.elapsed().as_secs_f64();
 
-    println!(
-        "Wrote {} raw graph to file {} filtered by {:?} TBI in {} sec",
-        graph_type, filename, origin, duration_secs
-    );
+    println!("Wrote {} raw graph to file {} filtered by {:?} TBI in {} sec",
+             graph_type, filename, origin, duration_secs);
 }
 
 fn do_scc(graph: &PackageGraph, matches: &ArgMatches) {
@@ -472,10 +439,8 @@ fn do_scc(graph: &PackageGraph, matches: &ArgMatches) {
 
     graph.dump_scc(filename, origin);
     let duration_secs = start_time.elapsed().as_secs_f64();
-    println!(
-        "Wrote SCC of latest information to file {} filtered by {:?} TBI in {} sec",
-        filename, origin, duration_secs
-    );
+    println!("Wrote SCC of latest information to file {} filtered by {:?} TBI in {} sec",
+             filename, origin, duration_secs);
 }
 
 fn do_build_levels(graph: &PackageGraph, matches: &ArgMatches) {
@@ -484,10 +449,8 @@ fn do_build_levels(graph: &PackageGraph, matches: &ArgMatches) {
     let filename = required_filename_from_matches(matches);
     graph.dump_build_levels(filename, origin);
     let duration_secs = start_time.elapsed().as_secs_f64();
-    println!(
-        "Wrote Build levels information to file {} filtered by {:?} TBI in {} sec",
-        filename, origin, duration_secs
-    );
+    println!("Wrote Build levels information to file {} filtered by {:?} TBI in {} sec",
+             filename, origin, duration_secs);
 }
 
 fn do_resolve(graph: &PackageGraph, matches: &ArgMatches) {
@@ -514,10 +477,10 @@ fn do_rdeps(graph: &PackageGraph, filter: &str, matches: &ArgMatches) {
     match graph.rdeps(&ident) {
         Some(rdeps) => {
             let duration_secs = start_time.elapsed().as_secs_f64();
-            let mut filtered: Vec<(String, String)> = rdeps
-                .into_iter()
-                .filter(|&(ref x, _)| x.starts_with(filter))
-                .collect();
+            let mut filtered: Vec<(String, String)> =
+                rdeps.into_iter()
+                     .filter(|&(ref x, _)| x.starts_with(filter))
+                     .collect();
 
             println!("OK: {} items ({} sec)\n", filtered.len(), duration_secs);
 
@@ -606,11 +569,9 @@ fn do_db_deps(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches)
     match datastore.get_job_graph_package(&ident, target) {
         // Thinking about whether we want to check the build deps as well.
         Ok(package) => {
-            println!(
-                "OK: {} items ({} sec)\n",
-                package.deps.len(),
-                start_time.elapsed().as_secs_f64()
-            );
+            println!("OK: {} items ({} sec)\n",
+                     package.deps.len(),
+                     start_time.elapsed().as_secs_f64());
             if !filter.is_empty() {
                 println!("Results filtered by: {}\n", filter);
             }
@@ -627,13 +588,11 @@ fn do_db_deps(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches)
     println!();
 }
 
-fn check_package(
-    datastore: Option<&DataStore>,
-    target: PackageTarget,
-    deps_map: &mut HashMap<PackageIdent, PackageIdent>,
-    ident: &PackageIdent,
-    filter: &str,
-) {
+fn check_package(datastore: Option<&DataStore>,
+                 target: PackageTarget,
+                 deps_map: &mut HashMap<PackageIdent, PackageIdent>,
+                 ident: &PackageIdent,
+                 filter: &str) {
     if let Some(datastore) = datastore {
         match datastore.get_job_graph_package(ident, target) {
             Ok(package) => {
@@ -689,10 +648,9 @@ fn do_target(graph: &mut PackageGraph, matches: &ArgMatches) {
 
 fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps)]);
-    let features_enabled = config
-        .features_enabled
-        .split(',')
-        .map(|f| f.trim().to_uppercase());
+    let features_enabled = config.features_enabled
+                                 .split(',')
+                                 .map(|f| f.trim().to_uppercase());
 
     for key in features_enabled {
         if features.contains_key(key.as_str()) {
@@ -909,8 +867,7 @@ fn resolve_subcommand() -> App<'static, 'static> {
 fn quit_subcommand() -> App<'static, 'static> {
     clap_app!(@subcommand quit =>
               (about: "quit this shell")
-    )
-    .aliases(&["q", "exit"])
+    ).aliases(&["q", "exit"])
 }
 
 fn stats_subcommand() -> App<'static, 'static> {
@@ -943,11 +900,11 @@ fn top_subcommand() -> App<'static, 'static> {
 fn valid_ident(val: String) -> Result<(), String> {
     match PackageIdent::from_str(&val) {
         Ok(_) => Ok(()),
-        Err(_) => Err(format!(
-            "'{}' is not valid. Package identifiers have the \
+        Err(_) => {
+            Err(format!("'{}' is not valid. Package identifiers have the \
                          form origin/name[/version[/release]]",
-            &val
-        )),
+                        &val))
+        }
     }
 }
 
@@ -958,16 +915,13 @@ fn valid_target(val: String) -> Result<(), String> {
     match PackageTarget::from_str(&val) {
         Ok(_) => Ok(()),
         Err(_) => {
-            let targets: Vec<_> = PackageTarget::targets()
-                .map(std::convert::AsRef::as_ref)
-                .collect();
-            Err(format!(
-                "'{}' is not valid. Valid targets are in the form \
+            let targets: Vec<_> = PackageTarget::targets().map(std::convert::AsRef::as_ref)
+                                                          .collect();
+            Err(format!("'{}' is not valid. Valid targets are in the form \
                          architecture-platform (currently Habitat allows \
                          the following: {})",
-                &val,
-                targets.join(", ")
-            ))
+                        &val,
+                        targets.join(", ")))
         }
     }
 }
@@ -984,9 +938,8 @@ fn valid_numeric<T: FromStr>(val: String) -> Result<(), String> {
 
 fn count_from_matches(matches: &ArgMatches) -> Result<usize, String> {
     let count = matches.value_of("COUNT").unwrap();
-    count
-        .parse()
-        .map_err(|_| format!("{} not valid integer for count", count))
+    count.parse()
+         .map_err(|_| format!("{} not valid integer for count", count))
 }
 
 fn required_filename_from_matches<'a>(matches: &'a ArgMatches) -> &'a str {
@@ -995,9 +948,8 @@ fn required_filename_from_matches<'a>(matches: &'a ArgMatches) -> &'a str {
 }
 
 fn filter_from_matches(matches: &ArgMatches) -> String {
-    matches
-        .value_of("FILTER")
-        .map_or_else(|| String::from(""), |x| x.to_string())
+    matches.value_of("FILTER")
+           .map_or_else(|| String::from(""), |x| x.to_string())
 }
 
 fn origin_from_matches<'a>(matches: &'a ArgMatches) -> Option<&'a str> {
@@ -1018,8 +970,7 @@ fn str_from_matches<'a>(matches: &'a ArgMatches, name: &str, default: &'a str) -
 }
 
 fn ident_from_matches(matches: &ArgMatches) -> Result<PackageIdent, String> {
-    let ident_str: &str = matches
-        .value_of("IDENT")
-        .ok_or_else(|| String::from("Ident required"))?;
+    let ident_str: &str = matches.value_of("IDENT")
+                                 .ok_or_else(|| String::from("Ident required"))?;
     PackageIdent::from_str(ident_str).map_err(|e| format!("Expected ident gave error {:?}", e))
 }
