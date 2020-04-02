@@ -78,7 +78,7 @@ struct IdentGraphElement<Value> {
 #[derive(Default)]
 pub struct IdentGraph<Value> {
     data:       Vec<IdentGraphElement<Value>>,
-    graph:      Graph<IdentIndex, EdgeType>,
+    pub graph:  Graph<IdentIndex, EdgeType>, // TODO Fix the 'pub' hack
     ident_memo: IdentMemo,
 }
 
@@ -437,6 +437,89 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         seen.iter()
             .map(|node_index| self.ident_for_node(*node_index).clone())
             .collect()
+    }
+
+    // for each component in SCC we sort it in topological order by runtime dep edges
+    //
+    // We could extract a subgraph containing only the
+    // component nodes and the runtime edges, and run the
+    // petgraph tsort over the subgraph. However constructing
+    // subgraphs is a little bit messy due to our current
+    // graph implementation choices. It may be worth
+    // simplifying the graph implementation (in particular
+    // looking at the GraphMap struct) to let us use the built
+    // in tsort.
+    //
+    // However for now, we're going to implement our own tsort.
+    pub fn tsort_subgraph(&self, component: &Vec<NodeIndex>) -> Vec<NodeIndex> {
+        let mut result: Vec<NodeIndex> = Vec::new();
+
+        // Basic worklist algorithm for tsort
+        let mut worklist: VecDeque<NodeIndex> = VecDeque::new();
+        let mut unsatisfied: HashMap<NodeIndex, usize> = HashMap::new();
+
+        // We pre-fill this to allow us to efficiently test for membership below
+        for node_index in component {
+            unsatisfied.insert(*node_index, usize::max_value());
+        }
+        // First, walk through all the nodes, and count how many things they depend on
+        // If they have no runtime deps in the
+        for node_index in component {
+            let mut dep_count = 0;
+            for succ_index in self.graph
+                                  .neighbors_directed(*node_index, Direction::Outgoing)
+            {
+                let edge = self.graph.find_edge(*node_index, succ_index).unwrap();
+                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+                    // We assume runtime deps that aren't part of the component are already built
+                    // and safe to ignore.
+                    if unsatisfied.contains_key(&succ_index) {
+                        dep_count += 1;
+                    }
+                }
+            }
+            unsatisfied.insert(*node_index, dep_count);
+        }
+
+        // Add things with no unsatisfied deps to worklist
+        for (node_index, dep_count) in &unsatisfied {
+            assert!(*dep_count != usize::max_value());
+            if *dep_count == 0 {
+                worklist.push_back(*node_index)
+            }
+        }
+
+        // Termination properties and complexity
+        // As long as the runtime dep graph is a DAG (no cycles), a node should be put on and
+        // removed from the worklist exactly once each. A cycle will create a situation
+        // where the unsatisified count will never drop to zero, and we would not visit
+        // every node. So this outer loop should execute exactly component.len() times.
+        // The inner loop only executes once for each edge, so our total complexity is
+        // O(N*mean_edge_count) -> O(E)
+        let mut iter_count = 0;
+        while !worklist.is_empty() {
+            iter_count += 1;
+            let node_index = worklist.pop_front().unwrap(); // always safe because not empty
+            result.push(node_index);
+
+            // go through the things that depend on me and mark one less dependency needed.
+            // If I was the last dependency, we are ready to go, and can be added to the worklist.
+            for pred_index in self.graph
+                                  .neighbors_directed(node_index, Direction::Incoming)
+            {
+                let edge = self.graph.find_edge(node_index, pred_index).unwrap();
+                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+                    unsatisfied.entry(pred_index).and_modify(|count| {
+                                                     *count -= 1;
+                                                     if *count == 0 {
+                                                         worklist.push_back(pred_index);
+                                                     }
+                                                 });
+                }
+            }
+        }
+        assert!(iter_count == component.len());
+        result
     }
 }
 

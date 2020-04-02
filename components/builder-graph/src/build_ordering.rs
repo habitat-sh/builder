@@ -14,6 +14,9 @@
 
 use std::collections::HashMap;
 
+use petgraph::{algo::tarjan_scc,
+               graph::NodeIndex};
+
 use crate::hab_core::package::PackageIdent;
 
 use crate::{ident_graph::IdentGraph,
@@ -88,8 +91,29 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
     }
 
     pub fn compute_build_order(&self, _rebuild_set: Vec<PackageIdent>) -> Vec<Vec<PackageIdent>> {
-        let result: Vec<Vec<PackageIdent>> = Vec::new();
-        result
+        // compute SCC
+        //
+
+        // This a returns a vector of components, each of which
+        // contains a vector of nodes in the component. A component
+        // may only contain a single node, when that node has no back
+        // edges/ cyclic dependencies. These nodes are returned in
+        // topological sort order. All we need to do to compute a
+        // valid build ordering is to take the components and sort
+        // them in runtime edge topological order
+        let scc: Vec<Vec<NodeIndex>> = tarjan_scc(&self.graph);
+
+        let mut node_order: Vec<Vec<NodeIndex>> = Vec::new();
+        for component in scc {
+            node_order.push(self.tsort_subgraph(&component))
+        }
+
+        let ident_result =
+            node_order.iter()
+                      .map(|c| c.iter().map(|n| self.ident_for_node(*n).clone()).collect())
+                      .collect();
+
+        ident_result
     }
 
     pub fn build_package(&self,
