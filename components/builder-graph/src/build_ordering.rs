@@ -113,7 +113,13 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         let mut node_order: Vec<Vec<NodeIndex>> = Vec::new();
         for component in scc {
-            node_order.push(self.tsort_subgraph(&component))
+            let ordered_component = if true {
+                // TODO make this a real option
+                self.tsort_subgraph(&component)
+            } else {
+                self.tsort_subgraph_with_build_edges(&component)
+            };
+            node_order.push(ordered_component)
         }
 
         let ident_result =

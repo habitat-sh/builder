@@ -14,8 +14,12 @@
 
 //
 
-use petgraph::{algo::tarjan_scc,
+use petgraph::{algo::{tarjan_scc,
+                      toposort},
                graph::NodeIndex,
+               visit::{depth_first_search,
+                       Control,
+                       DfsEvent},
                Direction,
                Graph};
 
@@ -26,7 +30,9 @@ use std::collections::{HashMap,
 use std::{cmp,
           fs::File,
           io::prelude::*,
-          path::Path};
+          iter::FromIterator,
+          path::Path,
+          str::FromStr};
 
 use crate::{error,
             hab_core::package::PackageIdent,
@@ -452,6 +458,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                 }
             }
         }
+
         seen.iter()
             .map(|node_index| self.ident_for_node(*node_index).clone())
             .collect()
@@ -538,6 +545,59 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         }
         assert!(iter_count == component.len());
         result
+    }
+
+    // Build edge aware tsort; this attempts to choose an order respecting build edges whenever
+    // possible
+    pub fn tsort_subgraph_with_build_edges(&self, component: &Vec<NodeIndex>) -> Vec<NodeIndex> {
+        // steps
+        // 1) Compute subgraph
+        let component_set = HashSet::<NodeIndex>::from_iter(component.iter().cloned());
+        let mut subgraph = self.graph.filter_map(|ni, n| {
+                                                     if component_set.contains(&ni) {
+                                                         Some(n)
+                                                     } else {
+                                                         None
+                                                     }
+                                                 },
+                                                 |ei, e| Some(e));
+        // 2) DFS walk, finding back edges
+
+        // Start with a package with no dependencies inside the component; we may have a choice
+        let mut starting_points = Vec::new();
+        for node_index in subgraph.node_indices() {
+            let (_in_count, out_count) = self.count_edges(node_index);
+            if out_count == 0 {
+                starting_points.push(node_index)
+            }
+        }
+        let start_node = starting_points[0];
+        // Doesn't work because all of this is referencing the original graph, not our subgraph
+        // println!("TSWBE: choices {}", self.join_nodes(&starting_points, ","));
+        //
+        // println!("TSWBE: start {}",
+        //         self.ident_for_node(start_node).to_string());
+
+        let mut back_edges = Vec::new();
+        depth_first_search(&subgraph, Some(start_node), |event| {
+            if let DfsEvent::BackEdge(u, v) = event {
+                back_edges.push((u, v));
+            }
+        });
+
+        // 3) Remove back edges
+        for be in back_edges {
+            let (u, v) = be;
+            let e = subgraph.find_edge(u, v).unwrap();
+            subgraph.remove_edge(e);
+        }
+
+        // 4) tsort what's left
+        if let Ok(vec) = toposort(&subgraph, None) {
+            vec
+        } else {
+            unimplemented!("We should have removed all those cycles")
+        }
     }
 }
 
