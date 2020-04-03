@@ -1,0 +1,51 @@
+Work needed for the graph utility
+
+* TODO Code cleanups
+** TODO finish PackageTable refactor/cleanup
+** TODO clean up PackageIdent mess (do we memoize them? Clone them everywhere? WTF)
+** 
+
+* TODO Graph representation
+** TODO Investigate GraphMap and StableGraph as possible replacement
+*** Question: Do the graph algorithms (tarjan_scc, toposort) work over them?
+*** Question: How do they behave with subgraphs; ideally we'd like to be able to generate subgraphs with stable indicies
+** TODO Investigate other graph representations
+
+** TODO prototype efficient incremental cycle detection
+
+** TODO enforce origin 'DAG' structure. (No cyclic dependencies of any sort between origins)
+
+* TODO Database support
+** TODO support for fetching latest of channel, both for individual packages and whole origins
+Example use case: Fetch latest stable for origin core
+
+** TODO support for fetching 'linked' plans exclusively; we shouldn't be trying to build others
+Need to generate the list of packages that have linked plans and have
+build enabled. Don't want to build the garbage packages
+
+* TODO Complete basic end to end build ordering code
+** TODO complete build ordering (repeated builds of components to converge)
+** TODO complete package build manifest generation
+To build /core/zip/16.04/gen-0
+Fetch
+/core/gcc/8.2.3/gen-0
+/core/foo/
+
+
+
+* TODO Misc
+** TODO Code to detect and report unbuildable plans
+Causes include pinned dependencies, missing deps, inter-origin cycles, other strangeness.
+
+* TODO Prep for re-integration into builder
+** TODO unify graph representations between the builder-graph CLI 
+** TODO Validate builds against existing code, plan on maybe being able to run them side-by-side
+
+* TODO Long term
+** TODO retriable builds 
+Identify congruent packages from previous build attempts; allow re-use
+of previous partially successful build work.
+
+** TODO conceptualize how cross origin build propagation works  
+e.g. inside an origin we rebuild if anything changes, but we probably
+only want to build other origins promote to stable...
