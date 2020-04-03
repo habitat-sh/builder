@@ -408,8 +408,12 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                -> Vec<PackageIdent>
         where Value: Default + Copy
     {
-        println!("CRS: starting with origin {}", origin);
-        println!("CRS: touched set {}", join_idents(", ", &touched));
+        let debug = false;
+
+        if debug {
+            debug!("CRS: starting with origin {}", origin);
+            debug!("CRS: touched set {}", join_idents(", ", &touched));
+        }
 
         // Flood reverse dependency graph, filtering by origin
         let mut seen: HashSet<NodeIndex> = HashSet::new();
@@ -423,10 +427,11 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         while !worklist.is_empty() {
             let node_index = worklist.pop_front().unwrap();
-            println!("CBS: processing {} {:?}",
-                     self.ident_for_node(node_index),
-                     node_index);
-
+            if debug {
+                debug!("CBS: processing {} {:?}",
+                       self.ident_for_node(node_index),
+                       node_index);
+            }
             seen.insert(node_index);
 
             // loop through everyone who has a build or runtime dep on this package
@@ -436,10 +441,12 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                 if !seen.contains(&pred_index) {
                     let ident = self.ident_for_node(pred_index);
                     if filter_match(ident, Some(origin)) {
-                        println!("CBS: adding from {:?} the node {} {:?}",
-                                 node_index,
-                                 self.ident_for_node(pred_index),
-                                 pred_index);
+                        if debug {
+                            debug!("CBS: adding from {:?} the node {} {:?}",
+                                   node_index,
+                                   self.ident_for_node(pred_index),
+                                   pred_index)
+                        }
                         worklist.push_back(pred_index);
                     }
                 }

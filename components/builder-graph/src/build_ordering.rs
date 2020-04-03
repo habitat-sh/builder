@@ -72,9 +72,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let build_order = self.compute_build_order(&rebuild_set);
 
         // Rework this later
-        println!("CB: {} components", build_order.len());
+        debug!("CB: {} components", build_order.len());
         for component in &build_order {
-            println!("CB: C:{} {}", component.len(), join_idents(", ", component));
+            debug!("CB: #{} {}", component.len(), join_idents(", ", component));
         }
 
         let mut latest = HashMap::<PackageIdent, PackageIdent>::new();

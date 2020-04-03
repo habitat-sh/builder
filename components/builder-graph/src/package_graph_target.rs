@@ -205,11 +205,11 @@ impl PackageGraphForTarget {
                   use_build_deps: bool)
                   -> ((usize, usize), (usize, usize)) {
         // debug only
-        {
-            if package.ident.0.name == "gcc" {
-                println!("E: {}", package.ident.0);
-            }
-        }
+        // {
+        //     if package.ident.0.name == "gcc" {
+        //         println!("E: {}", package.ident.0);
+        //     }
+        // }
         let (pkg_id, pkg_node) = self.generate_id_for_package(package);
 
         assert_eq!(self.target.unwrap(), package.target.0);
