@@ -404,7 +404,7 @@ fn do_dump_build_order(datastore: &DataStore, graph: &PackageGraph, matches: &Ar
     let filter = str_from_matches(matches, "FILTER", "core");
     let filename = required_filename_from_matches(matches);
 
-    let base_set = datastore.get_origin_channel_latest("core", "stable")
+    let base_set = datastore.get_origin_channel_latest("core", "stable", graph.current_target())
                             .expect("No base set returned from db");
 
     let touched = vec![PackageIdent::from_str("core/gcc").unwrap()]; // TODO use a real set, huh?
