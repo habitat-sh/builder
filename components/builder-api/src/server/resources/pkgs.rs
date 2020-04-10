@@ -15,7 +15,7 @@
 use crate::{bldr_core::{error::Error::RpcError,
                         metrics::CounterMetric},
             db::models::{channel::Channel,
-                         origin::Origin,
+                         origin::*,
                          package::{BuilderPackageIdent,
                                    BuilderPackageTarget,
                                    DeletePackage,
@@ -307,7 +307,7 @@ fn delete_package(req: HttpRequest,
                   -> HttpResponse {
     let (origin, pkg, version, release) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -421,7 +421,7 @@ fn download_package(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let opt_session_id = match authorize_session(&req, None) {
+    let opt_session_id = match authorize_session(&req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
@@ -533,10 +533,11 @@ fn schedule_job_group(req: HttpRequest,
                       -> HttpResponse {
     let (origin_name, package) = path.into_inner();
 
-    let session = match authorize_session(&req, Some(&origin_name)) {
-        Ok(session) => session,
-        Err(err) => return err.into(),
-    };
+    let session =
+        match authorize_session(&req, Some(&origin_name), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session,
+            Err(err) => return err.into(),
+        };
 
     let target = match PackageTarget::from_str(&qschedule.target) {
         Ok(t) => t,
@@ -647,7 +648,7 @@ fn get_package_channels(req: HttpRequest,
                         -> HttpResponse {
     let (origin, name, version, release) = path.into_inner();
 
-    let opt_session_id = match authorize_session(&req, None) {
+    let opt_session_id = match authorize_session(&req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
@@ -706,7 +707,7 @@ fn list_package_versions(req: HttpRequest,
                          -> HttpResponse {
     let (origin, name) = path.into_inner();
 
-    let opt_session_id = match authorize_session(&req, None) {
+    let opt_session_id = match authorize_session(&req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
@@ -749,7 +750,7 @@ fn search_packages(req: HttpRequest,
 
     let query = path.into_inner();
 
-    let opt_session_id = match authorize_session(&req, None) {
+    let opt_session_id = match authorize_session(&req, None, None) {
         Ok(session) => Some(session.get_id() as i64),
         Err(_) => None,
     };
@@ -827,7 +828,7 @@ fn package_privacy_toggle(req: HttpRequest,
         }
     };
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 
@@ -921,7 +922,7 @@ fn do_get_packages(req: &HttpRequest,
                    ident: &PackageIdent,
                    pagination: &Query<Pagination>)
                    -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
-    let opt_session_id = match authorize_session(req, None) {
+    let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
@@ -967,7 +968,7 @@ fn do_upload_package_start(req: &HttpRequest,
                            qupload: &Query<Upload>,
                            ident: &PackageIdent)
                            -> Result<(PathBuf, BufWriter<File>)> {
-    authorize_session(req, Some(&ident.origin))?;
+    authorize_session(req, Some(&ident.origin), Some(OriginMemberRole::Maintainer))?;
 
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
@@ -1142,7 +1143,7 @@ fn do_upload_package_finish(req: &HttpRequest,
                                        Body::from_message("ds:up:6"));
     }
 
-    let session = authorize_session(&req, None).unwrap(); // Unwrap Ok
+    let session = authorize_session(&req, None, None).unwrap(); // Unwrap Ok
 
     package.owner_id = session.get_id() as i64;
     package.origin = ident.clone().origin;
@@ -1286,7 +1287,7 @@ fn do_get_package(req: &HttpRequest,
                   qtarget: &Query<Target>,
                   ident: &PackageIdent)
                   -> Result<String> {
-    let opt_session_id = match authorize_session(req, None) {
+    let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
@@ -1534,7 +1535,7 @@ fn has_circular_deps(req: &HttpRequest,
 pub fn platforms_for_package_ident(req: &HttpRequest,
                                    package: &BuilderPackageIdent)
                                    -> Result<Option<Vec<String>>> {
-    let opt_session_id = match authorize_session(req, None) {
+    let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };

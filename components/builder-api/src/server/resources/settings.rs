@@ -56,7 +56,7 @@ impl Settings {
 fn get_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), None) {
         return err.into();
     }
 
@@ -85,10 +85,11 @@ fn create_origin_package_settings(req: HttpRequest,
                                   -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -129,10 +130,11 @@ fn update_origin_package_settings(req: HttpRequest,
                                   -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
-    let account_id = match authorize_session(&req, Some(&origin)) {
-        Ok(session) => session.get_id(),
-        Err(err) => return err.into(),
-    };
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
 
     if body.0.visibility.is_empty() {
         return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
@@ -174,7 +176,7 @@ pub fn do_toggle_privacy(req: HttpRequest,
                          -> HttpResponse {
     let (origin, name, visibility) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
         return err.into();
     }
 

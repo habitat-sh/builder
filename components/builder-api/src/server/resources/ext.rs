@@ -63,7 +63,7 @@ pub fn validate_registry_credentials(req: HttpRequest,
                                      path: Path<String>,
                                      body: Json<Body>)
                                      -> HttpResponse {
-    if let Err(err) = authorize_session(&req, None) {
+    if let Err(err) = authorize_session(&req, None, None) {
         return err.into();
     }
 

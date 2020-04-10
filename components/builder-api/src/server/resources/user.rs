@@ -40,7 +40,7 @@ impl User {
 //
 #[allow(clippy::needless_pass_by_value)]
 fn get_invitations(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
-    let account_id = match authorize_session(&req, None) {
+    let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
     };
@@ -61,7 +61,7 @@ fn get_invitations(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
 
 #[allow(clippy::needless_pass_by_value)]
 fn get_origins(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
-    let account_id = match authorize_session(&req, None) {
+    let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id() as i64,
         Err(err) => return err.into(),
     };

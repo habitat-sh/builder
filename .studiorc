@@ -316,12 +316,12 @@ test-builder() {
   fi
 
   echo "Starting supervisor in test mode. Logs saved to ${logs}"
-  HAB_FUNC_TEST=1 RUST_LOG=debug hab sup run > ${logs} 2>&1 &
+  HAB_FUNC_TEST=1 RUST_LOG=debug HAB_NONINTERACTIVE=true HAB_NOCOLORING=true hab sup run --no-color > ${logs} 2>&1 &
   sleep 8
 
   start-builder
 
-  /src/test/builder-api/test.sh "${preserve:-}"
+  /src/test/builder-api/test.sh "${preserve_flag:-}"
 
   if [[ "${preserve_flag:-}" == "-p" ]]; then
     echo "Data has been preserved and supervisor remains running"

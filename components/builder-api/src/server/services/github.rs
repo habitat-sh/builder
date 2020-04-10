@@ -123,7 +123,7 @@ pub fn repo_file_content(req: HttpRequest,
                          path: Path<(u32, u32, String)>,
                          state: Data<AppState>)
                          -> HttpResponse {
-    if let Err(err) = authorize_session(&req, None) {
+    if let Err(err) = authorize_session(&req, None, None) {
         return err.into();
     }
 

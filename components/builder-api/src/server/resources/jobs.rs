@@ -161,7 +161,9 @@ fn filtered_rdeps(req: &HttpRequest,
         } else {
             origin_map[origin_name].clone()
         };
-        if pv != PackageVisibility::Public && authorize_session(req, Some(&origin_name)).is_err() {
+        if pv != PackageVisibility::Public
+           && authorize_session(req, Some(&origin_name), Some(OriginMemberRole::Member)).is_err()
+        {
             debug!("Skipping unauthorized non-public origin package: {}", rdep);
             continue; // Skip any unauthorized origin packages
         }
@@ -239,7 +241,7 @@ fn filtered_group_rdeps(req: &HttpRequest,
                 origin_map[origin_name].clone()
             };
             if pv != PackageVisibility::Public
-               && authorize_session(req, Some(&origin_name)).is_err()
+               && authorize_session(req, Some(&origin_name), None).is_err()
             {
                 debug!("Skipping unauthorized non-public origin package: {}",
                        ident_str);
@@ -375,7 +377,7 @@ fn do_group_promotion_or_demotion(req: &HttpRequest,
                                   target: PackageTarget,
                                   promote: bool)
                                   -> Result<Vec<i64>> {
-    let session = authorize_session(req, Some(&origin))?;
+    let session = authorize_session(req, Some(&origin), Some(OriginMemberRole::Maintainer))?;
 
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
@@ -433,7 +435,7 @@ fn promote_or_demote_job_group(req: &HttpRequest,
                                channel: &ChannelIdent,
                                promote: bool)
                                -> Result<()> {
-    authorize_session(&req, None)?;
+    authorize_session(&req, None, Some(OriginMemberRole::Maintainer))?;
 
     let group_id = match group_id_str.parse::<u64>() {
         Ok(g) => g,
@@ -501,7 +503,12 @@ fn promote_or_demote_job_group(req: &HttpRequest,
                     PackageChannelOperation::Demote
                 };
 
-                let session = authorize_session(req, None).unwrap(); // Unwrap ok
+                // TODO: This feels like with the added weight of calls to authorize
+                // session, this might not be the best way to handle passing the session
+                // info in. We probably should consider a refactor here.
+
+                let session =
+                    authorize_session(req, None, Some(OriginMemberRole::Maintainer)).unwrap(); // Unwrap ok
 
                 PackageGroupChannelAudit::audit(PackageGroupChannelAudit { origin: &origin,
                                                                            channel:
@@ -537,7 +544,9 @@ fn do_get_job(req: &HttpRequest, job_id: u64) -> Result<String> {
     match Job::get(job_id as i64, &*conn) {
         Ok(job) => {
             let job: jobsrv::Job = job.into();
-            authorize_session(req, Some(&job.get_project().get_origin_name()))?;
+            authorize_session(req,
+                              Some(&job.get_project().get_origin_name()),
+                              Some(OriginMemberRole::Member))?;
 
             if job.get_package_ident().fully_qualified() {
                 let builder_package_ident = BuilderPackageIdent(job.get_package_ident().into());
@@ -602,7 +611,7 @@ fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jobsrv::
             if vec![PackageVisibility::Private, PackageVisibility::Hidden]
                 .contains(&settings.visibility)
             {
-                authorize_session(req, Some(&project.origin))?;
+                authorize_session(req, Some(&project.origin), Some(OriginMemberRole::Member))?;
             }
 
             route_message::<jobsrv::JobLogGet, jobsrv::JobLog>(req, &request)
@@ -621,7 +630,9 @@ fn do_cancel_job_group(req: &HttpRequest, group_id: u64) -> Result<NetOk> {
     let name_split: Vec<&str> = group.get_project_name().split('/').collect();
     assert!(name_split.len() == 2);
 
-    let session = authorize_session(req, Some(&name_split[0]))?;
+    let session = authorize_session(req,
+                                    Some(&name_split[0]),
+                                    Some(OriginMemberRole::Maintainer))?;
 
     let mut jgc = jobsrv::JobGroupCancel::new();
     jgc.set_group_id(group_id);
