@@ -24,7 +24,7 @@ use petgraph::{algo::{connected_components,
                      Dot},
                graph::{EdgeIndex,
                        NodeIndex},
-               Graph};
+               stable_graph::StableGraph};
 
 use habitat_builder_db::models::package::PackageWithVersionArray;
 
@@ -79,7 +79,7 @@ pub struct PackageGraphForTarget {
 
     // Possible refactor would be to put packageinfo in graph structure; complication is in
     // multigraph situations
-    full_graph:                Graph<PackageIndex, EdgeType>,
+    full_graph:                StableGraph<PackageIndex, EdgeType>,
     full_graph_node_index_map: HashMap<PackageIndex, NodeIndex>,
 
     // We build this alongside the full graph
@@ -159,7 +159,7 @@ impl PackageGraphForTarget {
                       latest: bool,
                       edge_type: Option<EdgeType>) {
         let mut file = std::fs::File::create(file).unwrap();
-        let filtered_graph: Graph<usize, EdgeType> =
+        let filtered_graph: StableGraph<usize, EdgeType> =
             self.full_graph.filter_map(|node_index, node_data| {
                                            self.emit_node_filter(node_index,
                                                                  *node_data,
@@ -378,7 +378,7 @@ impl PackageGraphForTarget {
     pub fn stats(&self) -> Stats {
         Stats { node_count:     self.full_graph.node_count(),
                 edge_count:     self.full_graph.edge_count(),
-                connected_comp: connected_components(&self.full_graph),
+                connected_comp: 0, // connected_components(&self.full_graph),
                 is_cyclic:      is_cyclic_directed(&self.full_graph), }
     }
 

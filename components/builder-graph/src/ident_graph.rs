@@ -17,11 +17,11 @@
 use petgraph::{algo::{tarjan_scc,
                       toposort},
                graph::NodeIndex,
+               stable_graph::StableGraph,
                visit::{depth_first_search,
                        Control,
                        DfsEvent},
-               Direction,
-               Graph};
+               Direction};
 
 use std::collections::{HashMap,
                        HashSet,
@@ -84,7 +84,7 @@ struct IdentGraphElement<Value> {
 #[derive(Default)]
 pub struct IdentGraph<Value> {
     data:       Vec<IdentGraphElement<Value>>,
-    pub graph:  Graph<IdentIndex, EdgeType>, // TODO Fix the 'pub' hack
+    pub graph:  StableGraph<IdentIndex, EdgeType>, // TODO Fix the 'pub' hack
     ident_memo: IdentMemo,
 }
 
@@ -553,6 +553,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         // steps
         // 1) Compute subgraph
         let component_set = HashSet::<NodeIndex>::from_iter(component.iter().cloned());
+        // for component in &component_set {
+        // println!("{}", self.ident_for_node(*component));
+        // }
         let mut subgraph = self.graph.filter_map(|ni, n| {
                                                      if component_set.contains(&ni) {
                                                          Some(n)
@@ -566,12 +569,39 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         // Start with a package with no dependencies inside the component; we may have a choice
         let mut starting_points = Vec::new();
         for node_index in subgraph.node_indices() {
-            let (_in_count, out_count) = self.count_edges(node_index);
+            // let (_in_count, out_count) = self.count_edges(node_index);
+            let out_count = self.graph
+                                .edges_directed(node_index, Direction::Outgoing)
+                                .fold(0, |mut acc, ei| {
+                                    if *ei.weight() == EdgeType::RuntimeDep {
+                                        acc += 1;
+                                    }
+                                    acc
+                                });
+
+            let mut neighbors = subgraph.neighbors_directed(node_index, petgraph::Outgoing)
+                                        .detach();
+            while let Some(neighbor) = neighbors.next_node(&subgraph) {
+                println!("{}: {}",
+                         self.ident_for_node(node_index),
+                         self.ident_for_node(neighbor));
+            }
+            println!("EC({}): {}", self.ident_for_node(node_index), out_count);
             if out_count == 0 {
                 starting_points.push(node_index)
             }
         }
-        let start_node = starting_points[0];
+        if starting_points.len() == 0 {
+            starting_points.push(subgraph.node_indices().next().unwrap());
+            starting_points.push(subgraph.node_indices().next().unwrap());
+            starting_points.push(subgraph.node_indices().next().unwrap());
+            println!("OH NO: {}", self.ident_for_node(starting_points[0]));
+        }
+        // subgraph.node_indices.sort_by(|a,b| {
+        // a.count_edges().partial_cmp(b.count_edges()).unwrap()
+        // }).
+        let start_node = starting_points[1];
+        println!("Starting with: {}", self.ident_for_node(start_node));
         // Doesn't work because all of this is referencing the original graph, not our subgraph
         // println!("TSWBE: choices {}", self.join_nodes(&starting_points, ","));
         //
@@ -581,7 +611,14 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let mut back_edges = Vec::new();
         depth_first_search(&subgraph, Some(start_node), |event| {
             if let DfsEvent::BackEdge(u, v) = event {
-                back_edges.push((u, v));
+                if let Some(edge) = subgraph.find_edge(u, v) {
+                    // let edge = self.graph.find_edge(pred_index, node_index).unwrap();
+                    // if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+
+                    if subgraph.edge_weight(edge) == Some(&&EdgeType::BuildDep) {
+                        back_edges.push((u, v))
+                    }
+                }
             }
         });
 
@@ -589,6 +626,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         for be in back_edges {
             let (u, v) = be;
             let e = subgraph.find_edge(u, v).unwrap();
+            println!("Removing edge from {} to {}",
+                     self.ident_for_node(u),
+                     self.ident_for_node(v));
             subgraph.remove_edge(e);
         }
 

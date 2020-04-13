@@ -15,6 +15,7 @@
 use petgraph::{algo::{is_cyclic_directed,
                       toposort},
                graph::NodeIndex,
+               stable_graph::StableGraph,
                visit::{Bfs,
                        Walker},
                Graph};
@@ -28,7 +29,7 @@ pub enum GraphErr {
 
 pub type GType = usize;
 
-pub fn rdeps(g: &Graph<GType, crate::util::EdgeType>,
+pub fn rdeps(g: &StableGraph<GType, crate::util::EdgeType>,
              n: NodeIndex)
              -> Result<Vec<GType>, GraphErr> {
     if is_cyclic_directed(&g) {

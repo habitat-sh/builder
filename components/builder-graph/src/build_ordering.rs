@@ -74,7 +74,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         // Rework this later
         debug!("CB: {} components", build_order.len());
         for component in &build_order {
-            debug!("CB: #{} {}", component.len(), join_idents(", ", component));
+            if component.len() > 1 {
+                debug!("CB: #{} {}", component.len(), join_idents(", ", component));
+            }
         }
 
         let mut latest = HashMap::<PackageIdent, PackageIdent>::new();
@@ -113,13 +115,17 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         let mut node_order: Vec<Vec<NodeIndex>> = Vec::new();
         for component in scc {
-            let ordered_component = if true {
-                // TODO make this a real option
-                self.tsort_subgraph(&component)
+            if component.len() > 1 {
+                let ordered_component = if false {
+                    // TODO make this a real option
+                    self.tsort_subgraph(&component)
+                } else {
+                    self.tsort_subgraph_with_build_edges(&component)
+                };
+                node_order.push(ordered_component)
             } else {
-                self.tsort_subgraph_with_build_edges(&component)
-            };
-            node_order.push(ordered_component)
+                node_order.push(component)
+            }
         }
 
         let ident_result =

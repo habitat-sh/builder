@@ -234,7 +234,7 @@ pub struct PackageGraphForTarget {
 
     // Possible refactor would be to put packageinfo in graph structure; complication is in
     // multigraph situations
-    full_graph: Graph<PackageIndex, EdgeType>,
+    full_graph: StableGraph<PackageIndex, EdgeType>,
     full_graph_node_index_map: HashMap<NodeIndex, PackageIndex>,
 
     // We build this alongside the full graph
