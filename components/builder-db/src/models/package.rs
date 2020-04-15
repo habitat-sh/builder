@@ -414,7 +414,7 @@ impl Package {
         trace!("DBCall package::get_without_target time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::GetWithoutTargetPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageGetWithoutTargetCallTime.set(duration_millis as f64);
         result
     }
 
@@ -430,7 +430,7 @@ impl Package {
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::get time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::GetPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageGetCallTime.set(duration_millis as f64);
         result
     }
 
@@ -455,7 +455,7 @@ impl Package {
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::get_group time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::GetGroupPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageGetGroupCallTime.set(duration_millis as f64);
         result
     }
 
@@ -471,7 +471,7 @@ impl Package {
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::get_all time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::GetAllPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageGetAllCallTime.set(duration_millis as f64);
         result
     }
 
@@ -498,7 +498,7 @@ impl Package {
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::get_latest time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::GetLatestPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageGetLatestCallTime.set(duration_millis as f64);
 
         result
     }
@@ -521,7 +521,7 @@ impl Package {
         trace!("DBCall package::get_all_latest time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::GetAllLatestCallTime.set(duration_millis as f64);
+        Histogram::PackageGetAllLatestCallTime.set(duration_millis as f64);
         result
     }
 
@@ -596,7 +596,7 @@ impl Package {
 
         let duration_millis = start_time.elapsed().as_millis();
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListPackagesCallTime.set(duration_millis as f64);
+        Histogram::PackageListCallTime.set(duration_millis as f64);
 
         trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?}, returned {} items", pl.ident, pkgs.len());
 
@@ -634,7 +634,7 @@ impl Package {
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListDistinctPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageListDistinctCallTime.set(duration_millis as f64);
         result
     }
 
@@ -658,7 +658,7 @@ impl Package {
         trace!("DBCall package::list_distinct_for_origin time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListDistinctForOriginPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageListDistinctForOriginCallTime.set(duration_millis as f64);
         result
     }
 
@@ -683,7 +683,7 @@ impl Package {
         trace!("DBCall package::list_package_channels time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListPackageChannelsPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageListPackageChannelsCallTime.set(duration_millis as f64);
         result
     }
 
@@ -707,7 +707,7 @@ impl Package {
         trace!("DBCall package::list_package_versions time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListPackageVersionsPackageCallTime.set(duration_millis as f64);
+        Histogram::PackageListPackageVersionsCallTime.set(duration_millis as f64);
         result
     }
 
@@ -723,7 +723,7 @@ impl Package {
         trace!("DBCall package::count_origin_packages time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::CountOriginPackagesCallTime.set(duration_millis as f64);
+        Histogram::PackageCountOriginPackages.set(duration_millis as f64);
         result
     }
 
@@ -759,7 +759,7 @@ impl Package {
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::search time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::SearchPackagesCallTime.set(duration_millis as f64);
+        Histogram::PackageSearchCallTime.set(duration_millis as f64);
         result
     }
 
@@ -798,7 +798,7 @@ impl Package {
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::search time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::SearchDistinctPackagesCallTime.set(duration_millis as f64);
+        Histogram::PackageSearchDistinctCallTime.set(duration_millis as f64);
         result
     }
 
@@ -821,7 +821,7 @@ impl Package {
         trace!("DBCall package::list_package_platforms time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListPackagePlatformsCallTime.set(duration_millis as f64);
+        Histogram::PackageListPackagePlatformsCallTime.set(duration_millis as f64);
         result
     }
 

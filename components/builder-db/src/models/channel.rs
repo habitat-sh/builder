@@ -154,7 +154,7 @@ impl Channel {
         trace!("DBCall channel::get_latest_package time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::GetLatestChannelPackageCallTime.set(duration_millis as f64);
+        Histogram::ChannelGetLatestPackageCallTime.set(duration_millis as f64);
 
         result
     }
@@ -183,7 +183,7 @@ impl Channel {
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall channel::list_package time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListChannelPackagesCallTime.set(duration_millis as f64);
+        Histogram::ChannelListPackagesCallTime.set(duration_millis as f64);
         result
     }
 
@@ -209,7 +209,7 @@ impl Channel {
         trace!("DBCall channel::list_all_packages time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListAllChannelPackagesCallTime.set(duration_millis as f64);
+        Histogram::ChannelListAllPackagesCallTime.set(duration_millis as f64);
         result
     }
 
@@ -225,13 +225,12 @@ impl Channel {
                             conn: &PgConnection)
                             -> QueryResult<usize> {
         Counter::DBCall.increment();
-        let insert: Vec<(_, _)> =
-            package_ids.iter()
-                       .map(|id| {
-                           (origin_channel_packages::package_id.eq(id),
+        let insert: Vec<(_, _)> = package_ids.iter()
+                                             .map(|id| {
+                                                 (origin_channel_packages::package_id.eq(id),
                             origin_channel_packages::channel_id.eq(channel_id))
-                       })
-                       .collect();
+                                             })
+                                             .collect();
         diesel::insert_into(origin_channel_packages::table).values(insert)
                                                            .on_conflict_do_nothing()
                                                            .execute(conn)
