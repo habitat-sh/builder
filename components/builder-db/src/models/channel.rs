@@ -163,8 +163,9 @@ impl Channel {
                          conn: &PgConnection)
                          -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
+        let start_time = Instant::now();
 
-        origin_packages::table
+        let result = origin_packages::table
             .inner_join(
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
@@ -177,7 +178,13 @@ impl Channel {
             .order(origin_packages::ident.asc())
             .paginate(lcp.page)
             .per_page(lcp.limit)
-            .load_and_count_records(conn)
+            .load_and_count_records(conn);
+
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall channel::list_package time: {} ms", duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::ListChannelPackagesCallTime.set(duration_millis as f64);
+        result
     }
 
     pub fn list_all_packages(lacp: &ListAllChannelPackages,
@@ -218,12 +225,13 @@ impl Channel {
                             conn: &PgConnection)
                             -> QueryResult<usize> {
         Counter::DBCall.increment();
-        let insert: Vec<(_, _)> = package_ids.iter()
-                                             .map(|id| {
-                                                 (origin_channel_packages::package_id.eq(id),
+        let insert: Vec<(_, _)> =
+            package_ids.iter()
+                       .map(|id| {
+                           (origin_channel_packages::package_id.eq(id),
                             origin_channel_packages::channel_id.eq(channel_id))
-                                             })
-                                             .collect();
+                       })
+                       .collect();
         diesel::insert_into(origin_channel_packages::table).values(insert)
                                                            .on_conflict_do_nothing()
                                                            .execute(conn)
