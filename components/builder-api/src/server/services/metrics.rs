@@ -30,6 +30,11 @@ pub enum Counter {
     DownloadRequests,
     UploadFailures,
     AtomicChannelRequests,
+    MemcacheSessionHit,
+    MemcacheSessionMiss,
+    MemcachePackageHit,
+    MemcachePackageMiss,
+    MemcachePackage404,
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -48,6 +53,11 @@ impl metrics::Metric for Counter {
             Counter::DownloadRequests => "download-packages".into(),
             Counter::UploadFailures => "upload-failures".into(),
             Counter::AtomicChannelRequests => "channel-to-channel".into(),
+            Counter::MemcacheSessionHit => "memcache-session.hit".into(),
+            Counter::MemcacheSessionMiss => "memcache-session.miss".into(),
+            Counter::MemcachePackageHit => "memcache-package.hit".into(),
+            Counter::MemcachePackageMiss => "memcache-package.miss".into(),
+            Counter::MemcachePackage404 => "memcache-package.404".into(),
         }
     }
 }
