@@ -766,7 +766,7 @@ fn do_get_channel_package(req: &HttpRequest,
                         return Err(Error::SerdeJson(e));
                     }
                 };
-                Counter::MemcachePackageHit.increment();
+                Counter::MemcacheChannelPackageHit.increment();
                 return Ok(pkg_json);
             }
             (true, None) => {
@@ -775,7 +775,7 @@ fn do_get_channel_package(req: &HttpRequest,
                        ident,
                        target,
                        opt_session_id);
-                Counter::MemcachePackage404.increment();
+                Counter::MemcacheChannelPackage404.increment();
                 return Err(Error::NotFound);
             }
             (false, _) => {
@@ -784,7 +784,7 @@ fn do_get_channel_package(req: &HttpRequest,
                        ident,
                        target,
                        opt_session_id);
-                Counter::MemcachePackageMiss.increment();
+                Counter::MemcacheChannelPackageMiss.increment();
             }
         };
     }
