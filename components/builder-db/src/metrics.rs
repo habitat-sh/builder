@@ -34,10 +34,24 @@ impl metrics::Metric for Counter {
 
 pub enum Histogram {
     DbCallTime,
-    GetAllLatestCallTime,
-    GetLatestChannelPackageCallTime,
-    GetLatestPackageCallTime,
-    ListAllChannelPackagesCallTime,
+    ChannelGetLatestPackageCallTime,
+    ChannelListAllPackagesCallTime,
+    ChannelListPackagesCallTime,
+    PackageCountOriginPackages,
+    PackageGetAllCallTime,
+    PackageGetAllLatestCallTime,
+    PackageGetCallTime,
+    PackageGetGroupCallTime,
+    PackageGetLatestCallTime,
+    PackageGetWithoutTargetCallTime,
+    PackageListCallTime,
+    PackageListDistinctCallTime,
+    PackageListDistinctForOriginCallTime,
+    PackageListPackageChannelsCallTime,
+    PackageListPackagePlatformsCallTime,
+    PackageListPackageVersionsCallTime,
+    PackageSearchCallTime,
+    PackageSearchDistinctCallTime,
 }
 
 impl metrics::HistogramMetric for Histogram {}
@@ -46,13 +60,49 @@ impl metrics::Metric for Histogram {
     fn id(&self) -> Cow<'static, str> {
         match *self {
             Histogram::DbCallTime => "db-call.call-time".into(),
-            Histogram::GetAllLatestCallTime => "db-call.all-latest-call-time".into(),
-            Histogram::GetLatestChannelPackageCallTime => {
-                "db-call.latest-channel-pkg-call-time".into()
+
+            Histogram::ChannelGetLatestPackageCallTime => {
+                "db-call.channel-get-latest-package-call-time".into()
             }
-            Histogram::GetLatestPackageCallTime => "db-call.latest-pkg-call-time".into(),
-            Histogram::ListAllChannelPackagesCallTime => {
-                "db-call.list-all-channel-pkgs-call-time".into()
+            Histogram::ChannelListAllPackagesCallTime => {
+                "db-call.channel-list-all-packages-call-time".into()
+            }
+            Histogram::ChannelListPackagesCallTime => {
+                "db-call.channel-list-packages-call-time".into()
+            }
+
+            Histogram::PackageCountOriginPackages => {
+                "db-call.package-count-origin-packages-call-time".into()
+            }
+            Histogram::PackageGetAllCallTime => "db-call.package-get-all-call-time".into(),
+            Histogram::PackageGetAllLatestCallTime => {
+                "db-call.package-get-all-latest-call-time".into()
+            }
+            Histogram::PackageGetCallTime => "db-call.package-get-call-time".into(),
+            Histogram::PackageGetGroupCallTime => "db-call.package-get-group-call-time".into(),
+            Histogram::PackageGetLatestCallTime => "db-call.package-get-latest-call-time".into(),
+            Histogram::PackageGetWithoutTargetCallTime => {
+                "db-call.package-get-without-target-call-time".into()
+            }
+            Histogram::PackageListCallTime => "db-call.package-list-call-time".into(),
+            Histogram::PackageListDistinctCallTime => {
+                "db-call.package-list-distinct-call-time".into()
+            }
+            Histogram::PackageListDistinctForOriginCallTime => {
+                "db-call.package-list-distinct-for-origin-call-time".into()
+            }
+            Histogram::PackageListPackageChannelsCallTime => {
+                "db-call.list-package-list-package-channels-call-time".into()
+            }
+            Histogram::PackageListPackagePlatformsCallTime => {
+                "db-call.package-list-package-platforms-call-time".into()
+            }
+            Histogram::PackageListPackageVersionsCallTime => {
+                "db-call.package-list-package-versions-call-time".into()
+            }
+            Histogram::PackageSearchCallTime => "db-call.package-search-call-time".into(),
+            Histogram::PackageSearchDistinctCallTime => {
+                "db-call.package-search-distinct-call-time".into()
             }
         }
     }

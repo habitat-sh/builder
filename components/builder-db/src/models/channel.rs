@@ -154,7 +154,7 @@ impl Channel {
         trace!("DBCall channel::get_latest_package time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::GetLatestChannelPackageCallTime.set(duration_millis as f64);
+        Histogram::ChannelGetLatestPackageCallTime.set(duration_millis as f64);
 
         result
     }
@@ -163,8 +163,9 @@ impl Channel {
                          conn: &PgConnection)
                          -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
+        let start_time = Instant::now();
 
-        origin_packages::table
+        let result = origin_packages::table
             .inner_join(
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
@@ -177,7 +178,13 @@ impl Channel {
             .order(origin_packages::ident.asc())
             .paginate(lcp.page)
             .per_page(lcp.limit)
-            .load_and_count_records(conn)
+            .load_and_count_records(conn);
+
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall channel::list_package time: {} ms", duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::ChannelListPackagesCallTime.set(duration_millis as f64);
+        result
     }
 
     pub fn list_all_packages(lacp: &ListAllChannelPackages,
@@ -202,7 +209,7 @@ impl Channel {
         trace!("DBCall channel::list_all_packages time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ListAllChannelPackagesCallTime.set(duration_millis as f64);
+        Histogram::ChannelListAllPackagesCallTime.set(duration_millis as f64);
         result
     }
 
