@@ -1265,8 +1265,13 @@ fn update_origin_member_role(req: HttpRequest,
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
+    state.memcache
+         .borrow_mut()
+         .clear_cache_for_member_role(&origin, target_user_id as u64);
+
     match OriginMember::update_member_role(&origin, target_user_id as i64, &*conn, target_role) {
-        Ok(_) => HttpResponse::new(StatusCode::NO_CONTENT),
+        Ok(0) => HttpResponse::NotFound().into(),
+        Ok(_) => HttpResponse::NoContent().into(),
         Err(err) => {
             debug!("{}", err);
             Error::DieselError(err).into()
@@ -1431,8 +1436,22 @@ fn origin_member_delete(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
+    let (target_account_id, _target_account_name) =
+        match Account::get(&user, &*conn).map_err(Error::DieselError) {
+            Ok(account) => (account.id, account.name),
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
+
     match OriginMember::delete(&origin, &user, &*conn).map_err(Error::DieselError) {
-        Ok(_) => HttpResponse::NoContent().finish(),
+        Ok(_) => {
+            state.memcache
+                 .borrow_mut()
+                 .clear_cache_for_member_role(&origin, target_account_id as u64);
+            HttpResponse::NoContent().finish()
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()

@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::str::FromStr;
+
 use actix_web::HttpRequest;
 
 use crate::{bldr_core::{access_token::BUILDER_ACCOUNT_ID,
+                        metrics::CounterMetric,
                         privilege::*},
             db::models::origin::*,
             protocol::originsrv};
 
 use crate::server::{error::{Error,
                             Result},
-                    helpers::req_state};
+                    helpers::req_state,
+                    services::metrics::Counter};
 
 pub fn authorize_session(req: &HttpRequest,
                          origin_opt: Option<&str>,
@@ -121,30 +125,52 @@ pub fn check_origin_member(req: &HttpRequest, origin: &str, account_id: u64) -> 
     }
 }
 
-// TODO: make this more efficient by leveraging memcached
-// https://github.com/habitat-sh/builder/issues/1384
 fn check_origin_member_role(req: &HttpRequest,
                             origin: &str,
                             account_id: u64)
                             -> Option<OriginMemberRole> {
-    match req_state(req).db.get_conn() {
-        Ok(conn) => {
-            match OriginMember::member_role(origin, account_id as i64, &*conn) {
-                Ok(member_role) => {
-                    debug!("Found account {} has member type {}",
-                           account_id, member_role);
-                    Some(member_role)
-                }
-                Err(err) => {
-                    warn!("Unable to determine member type for account {} in origin {}: {}",
-                          account_id, origin, err);
-                    None
+    if account_id == BUILDER_ACCOUNT_ID {
+        Some(OriginMemberRole::Owner)
+    } else {
+        let mut memcache = req_state(req).memcache.borrow_mut();
+        match memcache.get_origin_member_role(origin, account_id) {
+            Some(val) => {
+                Counter::MemcacheMemberRoleHit.increment();
+                debug!("Origin role membership {} {} Cache Hit!",
+                       origin, account_id);
+                match OriginMemberRole::from_str(&val) {
+                    Ok(role) => return Some(role),
+                    Err(_) => debug!("Unable to unwrap role from memcache!"),
                 }
             }
+            None => {
+                Counter::MemcacheMemberRoleMiss.increment();
+                debug!("Origin role membership {} {} Cache Miss!",
+                       origin, account_id);
+            }
         }
-        Err(err) => {
-            warn!("Unable to retrieve request state: {}", err);
-            None
+        match req_state(req).db.get_conn() {
+            Ok(conn) => {
+                match OriginMember::member_role(origin, account_id as i64, &*conn) {
+                    Ok(member_role) => {
+                        memcache.set_origin_member_role(origin,
+                                                        account_id,
+                                                        &member_role.to_string());
+                        debug!("Found account {} has member type {}",
+                               account_id, member_role);
+                        Some(member_role)
+                    }
+                    Err(err) => {
+                        warn!("Unable to determine member type for account {} in origin {}: {}",
+                              account_id, origin, err);
+                        None
+                    }
+                }
+            }
+            Err(err) => {
+                warn!("Unable to retrieve request state: {}", err);
+                None
+            }
         }
     }
 }
