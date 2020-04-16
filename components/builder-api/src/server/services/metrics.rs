@@ -35,6 +35,9 @@ pub enum Counter {
     MemcachePackageHit,
     MemcachePackageMiss,
     MemcachePackage404,
+    MemcacheChannelPackageHit,
+    MemcacheChannelPackageMiss,
+    MemcacheChannelPackage404,
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -58,6 +61,9 @@ impl metrics::Metric for Counter {
             Counter::MemcachePackageHit => "memcache-package.hit".into(),
             Counter::MemcachePackageMiss => "memcache-package.miss".into(),
             Counter::MemcachePackage404 => "memcache-package.404".into(),
+            Counter::MemcacheChannelPackageHit => "memcache-channel-package.hit".into(),
+            Counter::MemcacheChannelPackageMiss => "memcache-channel-package.miss".into(),
+            Counter::MemcacheChannelPackage404 => "memcache-channel-package.404".into(),
         }
     }
 }
