@@ -136,6 +136,10 @@ impl MemcacheClient {
         self.reset_namespace(&package_ns_key(&ident.origin, &ident.name));
     }
 
+    pub fn clear_cache_for_member_role(&mut self, origin: &str, account_id: u64) {
+        self.delete_session_key(&member_role_ns_key(origin, account_id));
+    }
+
     pub fn clear_cache_for_channel(&mut self, origin: &str, channel: &ChannelIdent) {
         self.reset_namespace(&channel_ns_key(origin, channel));
     }
@@ -206,6 +210,35 @@ impl MemcacheClient {
         ret
     }
 
+    pub fn get_origin_member_role(&mut self, origin: &str, account_id: u64) -> Option<String> {
+        trace!("Getting origin role membership for {} {} from memcached",
+               origin,
+               account_id);
+
+        let key = member_role_ns_key(origin, account_id);
+        let start_time = Instant::now();
+        let ret = self.get_string(&key);
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("Memcache get_origin_member_role time: {} ms",
+               duration_millis);
+        Histogram::MemcacheCallTime.set(duration_millis as f64);
+
+        ret
+    }
+
+    pub fn set_origin_member_role(&mut self, origin: &str, account_id: u64, role: &str) {
+        let key = member_role_ns_key(origin, account_id);
+        match self.cli.set(&key, role, self.ttl * 60) {
+            Ok(_) => {
+                trace!("Saved origin role membership {}/{}/{} to memcached!",
+                       origin,
+                       account_id,
+                       role);
+            }
+            Err(e) => warn!("Failed to save origin role membership to memcached: {}", e),
+        }
+    }
+
     fn package_namespace(&mut self, origin: &str, name: &str) -> String {
         self.get_namespace(&package_ns_key(origin, name))
     }
@@ -270,6 +303,10 @@ fn package_ns_key(origin: &str, name: &str) -> String { format!("package:{}/{}",
 
 fn channel_ns_key(origin: &str, channel: &ChannelIdent) -> String {
     format!("channel:{}/{}", origin, channel)
+}
+
+fn member_role_ns_key(origin: &str, account_id: u64) -> String {
+    format!("member_role:{}/{}", origin, account_id)
 }
 
 fn hash_key(key: &str) -> String {

@@ -388,5 +388,15 @@ describe('Origin Roles API', function () {
           done(err);
         });
     });
+    it('Role change request for non origin member returns 404', function (done) {
+      request.put('/depot/origins/umbrella/users/lkennedy/role')
+        .query({role: 'member'})
+        .set('Authorization', global.boboBearer)
+        .expect(404)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
   });
 });
