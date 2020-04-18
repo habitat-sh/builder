@@ -459,14 +459,17 @@ impl Package {
         result
     }
 
-    pub fn get_all(req_ident: BuilderPackageIdent,
+    pub fn get_all(req_ident: &BuilderPackageIdent,
                    conn: &PgConnection)
                    -> QueryResult<Vec<Package>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = Self::all().filter(origin_packages::ident_array.contains(req_ident.parts()))
-                                .get_results(conn);
+        let result =
+            Self::all().filter(origin_packages::origin.eq(&req_ident.origin))
+                       .filter(origin_packages::name.eq(&req_ident.name))
+                       .filter(origin_packages::ident_array.contains(req_ident.clone().parts()))
+                       .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::get_all time: {} ms", duration_millis);
@@ -583,16 +586,27 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
+        let mut query = packages_with_channel_platform::table
+            .filter(packages_with_channel_platform::origin.eq(&pl.ident.origin))
+            .into_boxed();
+        // We need the into_boxed above to be able to conditionally filter and not break the
+        // typesystem.
+        if pl.ident.name != "" {
+            query = query.filter(packages_with_channel_platform::name.eq(&pl.ident.name))
+        };
+        let query = query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
+                                                                                        .clone()
+                                                                                        .parts()))
+                         .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                         .order(packages_with_channel_platform::ident.desc())
+                         .paginate(pl.page)
+                         .per_page(pl.limit);
+
+        // helpful trick when debugging queries, this has Debug trait:
+        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
+
         let (mut pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
-            packages_with_channel_platform::table
-                .filter(
-                    packages_with_channel_platform::ident_array.contains(pl.ident.clone().parts()),
-                )
-                .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
-                .order(packages_with_channel_platform::ident.desc())
-                .paginate(pl.page)
-                .per_page(pl.limit)
-                .load_and_count_records(conn)?;
+            query.load_and_count_records(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         Histogram::DbCallTime.set(duration_millis as f64);
@@ -616,20 +630,29 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result =
-            origin_packages::table
-            .select(sql(
-                "concat_ws('/', ident_array[1], ident_array[2]) as ident",
-            ))
-            .filter(origin_packages::ident_array.contains(pl.ident.parts()))
+        let mut query = origin_packages::table.select(sql("concat_ws('/', ident_array[1], \
+                                                           ident_array[2]) as ident"))
+                                              .filter(origin_packages::origin.eq(&pl.ident.origin))
+                                              .into_boxed();
+        // We need the into_boxed above to be able to conditionally filter and not break the
+        // typesystem.
+        if pl.ident.name != "" {
+            query = query.filter(origin_packages::name.eq(&pl.ident.name))
+        };
+        let query = query
+            .filter(origin_packages::ident_array.contains(pl.ident.clone().parts()))
             .filter(origin_packages::visibility.eq(any(pl.visibility)))
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210
             .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
             .order(sql::<BuilderPackageIdent>("ident ASC"))
             .paginate(pl.page)
-            .per_page(pl.limit)
-            .load_and_count_records(conn);
+            .per_page(pl.limit);
+
+        // helpful trick when debugging queries, this has Debug trait:
+        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
+
+        let result = query.load_and_count_records(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);
@@ -813,6 +836,8 @@ impl Package {
 
         let result = origin_packages::table
             .select(origin_packages::target)
+            .filter(origin_packages::origin.eq(&ident.origin))
+            .filter(origin_packages::name.eq(&ident.name))
             .filter(origin_packages::ident_array.contains(&searchable_ident(&ident)))
             .filter(origin_packages::visibility.eq(any(visibilities)))
             .get_results(conn);
