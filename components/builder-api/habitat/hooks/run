@@ -12,11 +12,14 @@ echo "_e{${#title},${#text}}:$title|$text|#api"  >/dev/udp/localhost/8125
 # Wait for the .pem file before starting the service, otherwise the service
 # continually panics in a tight loop, blocking the supervisor from writing
 # out the file.
-while ! [ -f "{{pkg.svc_files_path}}/builder-github-app.pem" ];
-do
-    echo "Waiting for builder-github-app.pem"
+# shellcheck disable=SC2050
+if [ "{{cfg.oauth.provider}}" == "github" ]; then
+  while ! [ -f "{{pkg.svc_files_path}}/builder-github-app.pem" ];
+  do
+    echo "Waiting for builder github app private key at: {{pkg.svc_files_path}}/builder-github-app.pem"
     sleep 10
-done
+  done
+fi
 
 if [ "$(whoami)" = "root" ]; then
   exec chpst \
