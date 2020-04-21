@@ -269,6 +269,30 @@ describe('Related Origin API functions', function () {
                   done(err);
               });
       });
+
+     it('no longer returns owner for role query', function(done) {
+       request.get('/depot/origins/umbrella/users/wesker/role')
+         .type('application/json')
+         .accept('application/json')
+         .set('Authorization', global.boboBearer)
+         .expect(200)
+         .end(function (err, res) {
+            expect(res.body.role).to.equal('maintainer');
+            done(err);
+         });
+     });
+
+     it('returns correct owner for role query', function(done) {
+       request.get('/depot/origins/umbrella/users/bobo/role')
+         .type('application/json')
+         .accept('application/json')
+         .set('Authorization', global.boboBearer)
+         .expect(200)
+         .end(function (err, res) {
+            expect(res.body.role).to.equal('owner');
+            done(err);
+         });
+     });
   });
 
     describe('Origin Departure', function () {
