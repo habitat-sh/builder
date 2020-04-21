@@ -13,7 +13,7 @@ echo "_e{${#title},${#text}}:$title|$text|#api"  >/dev/udp/localhost/8125
 # continually panics in a tight loop, blocking the supervisor from writing
 # out the file.
 # shellcheck disable=SC2050
-if [ "{{cfg.oauth.provider}}" == "github" ]; then
+if [[ "{{cfg.api.features_enabled}}" =~ "jobsrv" ]]; then
   while ! [ -f "{{pkg.svc_files_path}}/builder-github-app.pem" ];
   do
     echo "Waiting for builder github app private key at: {{pkg.svc_files_path}}/builder-github-app.pem"
