@@ -55,8 +55,11 @@ pub fn authorize_session(req: &HttpRequest,
             Some(r) => r,
             None => {
                 let r = OriginMemberRole::Maintainer;
-                warn!("authorize_session: minimum role parameter not set! Assuming {}",
-                      r);
+                // TODO: When we have finalized implementation of the various member roles,
+                // we should turn this into a warn level message.
+                // see: https://github.com/habitat-sh/builder/issues/1403
+                debug!("authorize_session: minimum role parameter not set! Assuming {}",
+                       r);
                 r
             }
         };
@@ -161,8 +164,8 @@ fn check_origin_member_role(req: &HttpRequest,
                         Some(member_role)
                     }
                     Err(err) => {
-                        warn!("Unable to determine member type for account {} in origin {}: {}",
-                              account_id, origin, err);
+                        debug!("Unable to determine member type for account {} in origin {}: {}",
+                               account_id, origin, err);
                         None
                     }
                 }
