@@ -1,4 +1,4 @@
---- ensure any new owner is set
+--- ensure owner is set correctly as the result of any origin transfers
 UPDATE
   origin_members om
 SET
@@ -15,20 +15,13 @@ WHERE
       AND om.member_role != 'owner'
   );
 
---- ensure that the old owners are now maintainers
+--- ensure that any incorrectly set owners are transitioned to maintainers
 UPDATE
-  origin_members om
+  origin_members
 SET
   member_role = 'maintainer'
+FROM origins
 WHERE
-  account_id IN (
-    SELECT
-      origin_members.account_id
-    FROM
-      origin_members
-      INNER JOIN origins ON (
-        origins.name = origin_members.origin
-        AND origin_members.member_role = 'owner'
-        AND origins.owner_id != origin_members.account_id
-      )
-);
+  origins.name = origin_members.origin
+  AND origin_members.member_role = 'owner'
+  AND origins.owner_id != origin_members.account_id;
