@@ -164,7 +164,8 @@ fn check_origin_member_role(req: &HttpRequest,
                         Some(member_role)
                     }
                     Err(err) => {
-                        debug!("Unable to determine member type for account {} in origin {}: {}",
+                        debug!("Unable to determine member type for account {} in origin {}. \
+                                More than likely they are simply not a member: {}",
                                account_id, origin, err);
                         None
                     }
