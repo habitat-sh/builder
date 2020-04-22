@@ -284,8 +284,23 @@ impl Origin {
 
     pub fn transfer(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(origins::table.find(origin)).set(origins::owner_id.eq(account_id))
-                                                   .execute(conn)
+        conn.transaction::<_, Error, _>(|| {
+                let owner = OriginMemberRole::Owner;
+                let maintainer = OriginMemberRole::Maintainer;
+
+                diesel::update(origin_members::table.filter(origin_members::origin.eq(&origin)))
+                                 .filter(origin_members::member_role.eq(owner))
+                                 .set(origin_members::member_role.eq(maintainer))
+                                 .execute(conn)?;
+
+                diesel::update(origin_members::table.filter(origin_members::origin.eq(&origin)))
+                                 .filter(origin_members::account_id.eq(account_id))
+                                 .set(origin_members::member_role.eq(owner))
+                                 .execute(conn)?;
+
+                diesel::update(origins::table.find(origin)).set(origins::owner_id.eq(account_id))
+                                                           .execute(conn)
+            })
     }
 
     pub fn depart(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
