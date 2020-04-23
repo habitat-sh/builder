@@ -20,7 +20,11 @@ use petgraph::{algo::{tarjan_scc,
                stable_graph::StableGraph,
                visit::{depth_first_search,
                        Control,
-                       DfsEvent},
+                       DfsEvent,
+                       GraphRef,
+                       IntoNeighbors,
+                       VisitMap,
+                       Visitable},
                Direction};
 
 use std::collections::{HashMap,
@@ -36,6 +40,7 @@ use std::{cmp,
 
 use crate::{error,
             hab_core::package::PackageIdent,
+            package_table::PackageIndex,
             util::*};
 
 type IdentIndex = usize;
@@ -483,6 +488,29 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let mut worklist: VecDeque<NodeIndex> = VecDeque::new();
         let mut unsatisfied: HashMap<NodeIndex, usize> = HashMap::new();
 
+        // steps
+        // 1) Compute subgraph
+        let component_set = HashSet::<NodeIndex>::from_iter(component.iter().cloned());
+        // for component in &component_set {
+        // println!("{}", self.ident_for_node(*component));
+        // }
+        let mut subgraph = self.graph.filter_map(|ni, n| {
+                                                     if component_set.contains(&ni) {
+                                                         Some(ni)
+                                                     } else {
+                                                         None
+                                                     }
+                                                 },
+                                                 |ei, e| Some(e));
+        let gcc_libs = self.get_node_if_exists(&PackageIdent::from_str("core/gcc-libs").unwrap())
+                           .0;
+        let gcc = self.get_node_if_exists(&PackageIdent::from_str("core/gcc").unwrap())
+                      .0;
+        if subgraph.contains_node(gcc_libs) && subgraph.contains_node(gcc) {
+            subgraph.add_edge(gcc_libs, gcc, &EdgeType::RuntimeDep);
+            println!("Added fake edge")
+        }
+
         // We pre-fill this to allow us to efficiently test for membership below
         for node_index in component {
             unsatisfied.insert(*node_index, usize::max_value());
@@ -491,11 +519,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         // If they have no runtime deps in the
         for node_index in component {
             let mut dep_count = 0;
-            for succ_index in self.graph
-                                  .neighbors_directed(*node_index, Direction::Outgoing)
-            {
-                let edge = self.graph.find_edge(*node_index, succ_index).unwrap();
-                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+            for succ_index in subgraph.neighbors_directed(*node_index, Direction::Outgoing) {
+                let edge = subgraph.find_edge(*node_index, succ_index).unwrap();
+                if subgraph.edge_weight(edge) == Some(&&EdgeType::RuntimeDep) {
                     // We assume runtime deps that aren't part of the component are already built
                     // and safe to ignore.
                     if unsatisfied.contains_key(&succ_index) {
@@ -529,11 +555,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
             // go through the things that depend on me and mark one less dependency needed.
             // If I was the last dependency, we are ready to go, and can be added to the worklist.
-            for pred_index in self.graph
-                                  .neighbors_directed(node_index, Direction::Incoming)
-            {
-                let edge = self.graph.find_edge(pred_index, node_index).unwrap();
-                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+            for pred_index in subgraph.neighbors_directed(node_index, Direction::Incoming) {
+                let edge = subgraph.find_edge(pred_index, node_index).unwrap();
+                if subgraph.edge_weight(edge) == Some(&&EdgeType::RuntimeDep) {
                     unsatisfied.entry(pred_index).and_modify(|count| {
                                                      *count -= 1;
                                                      if *count == 0 {

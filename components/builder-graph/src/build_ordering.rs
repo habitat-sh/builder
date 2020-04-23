@@ -74,9 +74,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         // Rework this later
         debug!("CB: {} components", build_order.len());
         for component in &build_order {
-            if component.len() > 1 {
-                debug!("CB: #{} {}", component.len(), join_idents(", ", component));
-            }
+            debug!("CB: #{} {}", component.len(), join_idents(", ", component));
         }
 
         let mut latest = HashMap::<PackageIdent, PackageIdent>::new();
@@ -116,7 +114,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let mut node_order: Vec<Vec<NodeIndex>> = Vec::new();
         for component in scc {
             if component.len() > 1 {
-                let ordered_component = if false {
+                let ordered_component = if true {
                     // TODO make this a real option
                     self.tsort_subgraph(&component)
                 } else {
