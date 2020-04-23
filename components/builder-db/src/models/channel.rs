@@ -194,6 +194,15 @@ impl Channel {
         trace!("DBCall channel::list_package time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::ChannelListPackagesCallTime.set(duration_millis as f64);
+
+        // Package list for a whole origin is still not very
+        // performant, and we want to track that
+        if lcp.ident.name != "" {
+            Histogram::ChannelListPackagesOriginOnlyCallTime.set(duration_millis as f64);
+        } else {
+            Histogram::ChannelListPackagesOriginNameCallTime.set(duration_millis as f64);
+        }
+
         result
     }
 

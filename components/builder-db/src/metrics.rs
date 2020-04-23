@@ -32,11 +32,14 @@ impl metrics::Metric for Counter {
     }
 }
 
+// Not quite alphabetically ordered
 pub enum Histogram {
     DbCallTime,
     ChannelGetLatestPackageCallTime,
     ChannelListAllPackagesCallTime,
     ChannelListPackagesCallTime,
+    ChannelListPackagesOriginNameCallTime,
+    ChannelListPackagesOriginOnlyCallTime,
     PackageCountOriginPackages,
     PackageGetAllCallTime,
     PackageGetAllLatestCallTime,
@@ -45,7 +48,11 @@ pub enum Histogram {
     PackageGetLatestCallTime,
     PackageGetWithoutTargetCallTime,
     PackageListCallTime,
+    PackageListOriginNameCallTime,
+    PackageListOriginOnlyCallTime,
     PackageListDistinctCallTime,
+    PackageListDistinctOriginNameCallTime,
+    PackageListDistinctOriginOnlyCallTime,
     PackageListDistinctForOriginCallTime,
     PackageListPackageChannelsCallTime,
     PackageListPackagePlatformsCallTime,
@@ -70,6 +77,12 @@ impl metrics::Metric for Histogram {
             Histogram::ChannelListPackagesCallTime => {
                 "db-call.channel-list-packages-call-time".into()
             }
+            Histogram::ChannelListPackagesOriginNameCallTime => {
+                "db-call.channel-list-packages-origin-name-call-time".into()
+            }
+            Histogram::ChannelListPackagesOriginOnlyCallTime => {
+                "db-call.channel-list-packages-origin-only-call-time".into()
+            }
 
             Histogram::PackageCountOriginPackages => {
                 "db-call.package-count-origin-packages-call-time".into()
@@ -85,8 +98,20 @@ impl metrics::Metric for Histogram {
                 "db-call.package-get-without-target-call-time".into()
             }
             Histogram::PackageListCallTime => "db-call.package-list-call-time".into(),
+            Histogram::PackageListOriginNameCallTime => {
+                "db-call.package-list-origin-name-call-time".into()
+            }
+            Histogram::PackageListOriginOnlyCallTime => {
+                "db-call.package-list-origin-only-call-time".into()
+            }
             Histogram::PackageListDistinctCallTime => {
                 "db-call.package-list-distinct-call-time".into()
+            }
+            Histogram::PackageListDistinctOriginNameCallTime => {
+                "db-call.package-list-distinct-origin-name-call-time".into()
+            }
+            Histogram::PackageListDistinctOriginOnlyCallTime => {
+                "db-call.package-list-distinct-origin-only-call-time".into()
             }
             Histogram::PackageListDistinctForOriginCallTime => {
                 "db-call.package-list-distinct-for-origin-call-time".into()

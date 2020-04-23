@@ -612,6 +612,14 @@ impl Package {
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageListCallTime.set(duration_millis as f64);
 
+        // Package list for a whole origin is still not very
+        // performant, and we want to track that
+        if pl.ident.name != "" {
+            Histogram::PackageListOriginOnlyCallTime.set(duration_millis as f64);
+        } else {
+            Histogram::PackageListOriginNameCallTime.set(duration_millis as f64);
+        }
+
         trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?}, returned {} items", pl.ident, pkgs.len());
 
         // Note: dedup here as packages_with_channel_platform can return
@@ -658,6 +666,14 @@ impl Package {
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageListDistinctCallTime.set(duration_millis as f64);
+        // Package list for a whole origin is still not very
+        // performant, and we want to track that
+        if pl.ident.name != "" {
+            Histogram::PackageListDistinctOriginOnlyCallTime.set(duration_millis as f64);
+        } else {
+            Histogram::PackageListDistinctOriginNameCallTime.set(duration_millis as f64);
+        }
+
         result
     }
 
