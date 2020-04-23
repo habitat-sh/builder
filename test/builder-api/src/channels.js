@@ -151,6 +151,19 @@ describe('Channels API', function () {
         });
     });
 
+    it('returns no packages with the given name and version swapped in a channel', function (done) {
+      request.get('/depot/channels/neurosis/foo/pkgs/0.1.3/testapp')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          done(err);
+        });
+    });
+
     it('returns all packages with the specified name and version', function (done) {
       request.get('/depot/pkgs/neurosis/testapp/0.1.3')
         .set('Authorization', global.boboBearer)
@@ -176,6 +189,22 @@ describe('Channels API', function () {
         });
     });
 
+
+    it('returns no packages with the specified name and version swapped', function (done) {
+      request.get('/depot/pkgs/neurosis/0.1.3/testapp')
+        .set('Authorization', global.boboBearer)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
+          done(err);
+        });
+    });
+
     it('returns the package with the given name, version and release in a channel', function (done) {
       request.get('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213')
         .type('application/json')
@@ -186,6 +215,29 @@ describe('Channels API', function () {
           expect(res.body.ident.name).to.equal('testapp');
           expect(res.body.ident.version).to.equal('0.1.3');
           expect(res.body.ident.release).to.equal('20171205003213');
+          done(err);
+        });
+    });
+
+    it('returns no package with the given release, name, version (swapped) channel', function (done) {
+      request.get('/depot/channels/neurosis/foo/pkgs/20171205003213/testapp/0.1.3')
+        .type('application/json')
+        .accept('application/json')
+        .expect(404)
+        .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+        });
+    });
+
+    it('returns no package with the given name, release, version (swapped) channel', function (done) {
+      this.skip(); // Fails until we do the right thing with contains ident array
+      request.get('/depot/channels/neurosis/foo/pkgs/testapp/20171205003213/0.1.3')
+        .type('application/json')
+        .accept('application/json')
+        .expect(404)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
           done(err);
         });
     });

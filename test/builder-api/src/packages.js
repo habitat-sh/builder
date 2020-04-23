@@ -445,6 +445,21 @@ describe('Working with packages', function () {
         });
     });
 
+    it('lists all distinct packages correctly', function (done) {
+      request.get('/depot/pkgs/neurosis/release8?distinct=true')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
+          done(err);
+        });
+    });
+
+
     it('lists all unique package names', function (done) {
       request.get('/depot/neurosis/pkgs')
         .type('application/json')
@@ -594,7 +609,38 @@ describe('Working with packages', function () {
         });
     });
 
-    it('returns the latest release of a package with the spcified name and version', function (done) {
+
+    it('lists no packages with the specified name and version swapped', function (done) {
+      request.get('/depot/pkgs/neurosis/0.1.3/testapp')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
+          done(err);
+        });
+    });
+
+    it('lists no packages with the specified version and release swapped', function (done) {
+      this.skip(); // Fails until we do the right thing with contains ident array
+      request.get('/depot/pkgs/neurosis/testapp/${release2}/0.1.3')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
+          done(err);
+        });
+    });
+
+
+    it('returns the latest release of a package with the specified name and version', function (done) {
       request.get('/depot/pkgs/neurosis/testapp/0.1.3/latest')
         .type('application/json')
         .accept('application/json')
@@ -621,6 +667,22 @@ describe('Working with packages', function () {
           done(err);
         });
     });
+
+    it('returns nothing with the version and specified release swapped', function (done) {
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.ident.origin).to.equal('neurosis');
+          expect(res.body.ident.name).to.equal('testapp');
+          expect(res.body.ident.version).to.equal('0.1.3');
+          expect(res.body.ident.release).to.equal(release2);
+          done(err);
+        });
+    });
+
+
   });
 
   describe('Deleting packages', function () {
