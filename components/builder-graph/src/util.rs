@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    fs::File,
-    io::{BufReader, Write},
-    path::Path,
-    str::FromStr,
-};
+use std::{fs::File,
+          io::{BufReader,
+               Write},
+          path::Path,
+          str::FromStr};
 
-use crate::hab_core::package::{PackageIdent, PackageTarget};
+use crate::hab_core::package::{PackageIdent,
+                               PackageTarget};
 
-use habitat_builder_db::models::package::{
-    BuilderPackageIdent, BuilderPackageTarget, PackageVisibility, PackageWithVersionArray,
-};
+use habitat_builder_db::models::package::{BuilderPackageIdent,
+                                          BuilderPackageTarget,
+                                          PackageVisibility,
+                                          PackageWithVersionArray};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EdgeType {
@@ -32,9 +33,7 @@ pub enum EdgeType {
 }
 
 impl Default for EdgeType {
-    fn default() -> Self {
-        EdgeType::RuntimeDep
-    }
+    fn default() -> Self { EdgeType::RuntimeDep }
 }
 
 pub fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
@@ -63,8 +62,7 @@ pub fn filter_package(package: &PackageWithVersionArray, filter: Option<&str>) -
 }
 
 pub fn write_packages_json<T>(packages: T, filename: &str)
-where
-    T: Iterator<Item = PackageWithVersionArray>,
+    where T: Iterator<Item = PackageWithVersionArray>
 {
     let mut output: Vec<PackageWithVersionArray> = Vec::new();
     for package in packages {
@@ -93,39 +91,35 @@ pub fn read_packages_json(filename: &str) -> Vec<PackageWithVersionArray> {
 
 // Helpers for test
 
-pub fn mk_package_with_versionarray(
-    ident: &str,
-    target: &str,
-    rdeps: &[&str],
-    bdeps: &[&str],
-) -> PackageWithVersionArray {
-    let manifest = format!(
-        "\\* __Dependencies__: {}\n\\* __Build Dependencies__: {}\n",
-        rdeps.join(" "),
-        bdeps.join(" ")
-    );
+pub fn mk_package_with_versionarray(ident: &str,
+                                    target: &str,
+                                    rdeps: &[&str],
+                                    bdeps: &[&str])
+                                    -> PackageWithVersionArray {
+    let manifest = format!("\\* __Dependencies__: {}\n\\* __Build Dependencies__: {}\n",
+                           rdeps.join(" "),
+                           bdeps.join(" "));
 
-    PackageWithVersionArray {
-        ident: BuilderPackageIdent(PackageIdent::from_str(ident).unwrap()),
-        name: ident.to_string(),
-        target: BuilderPackageTarget(PackageTarget::from_str(target).unwrap()),
-        manifest,
-        deps: mk_builder_package_ident_vec(rdeps),
-        build_deps: mk_builder_package_ident_vec(bdeps),
-        id: 0,
-        owner_id: 0,
-        ident_array: Vec::new(),
-        checksum: String::new(),
-        config: String::new(),
-        tdeps: Vec::new(),
-        exposes: Vec::new(),
-        created_at: None,
-        updated_at: None,
-        visibility: PackageVisibility::Public,
-        origin: String::new(),
-        build_tdeps: Vec::new(),
-        version_array: Vec::new(),
-    }
+    PackageWithVersionArray { ident: BuilderPackageIdent(PackageIdent::from_str(ident).unwrap()),
+                              name: ident.to_string(),
+                              target:
+                                  BuilderPackageTarget(PackageTarget::from_str(target).unwrap()),
+                              manifest,
+                              deps: mk_builder_package_ident_vec(rdeps),
+                              build_deps: mk_builder_package_ident_vec(bdeps),
+                              id: 0,
+                              owner_id: 0,
+                              ident_array: Vec::new(),
+                              checksum: String::new(),
+                              config: String::new(),
+                              tdeps: Vec::new(),
+                              exposes: Vec::new(),
+                              created_at: None,
+                              updated_at: None,
+                              visibility: PackageVisibility::Public,
+                              origin: String::new(),
+                              build_tdeps: Vec::new(),
+                              version_array: Vec::new() }
 }
 
 pub fn mk_builder_package_ident_vec(vals: &[&str]) -> Vec<BuilderPackageIdent> {
@@ -134,16 +128,14 @@ pub fn mk_builder_package_ident_vec(vals: &[&str]) -> Vec<BuilderPackageIdent> {
         .collect()
 }
 
-// may need to protect with a lock eventually.
-static mut temp_ident_sequence: usize = 0;
+use std::sync::atomic::{AtomicUsize,
+                        Ordering};
+static TEMP_IDENT_SEQUENCE: AtomicUsize = AtomicUsize::new(0);
 
 pub fn make_temp_ident(ident: &PackageIdent) -> PackageIdent {
-    let seq = temp_ident_sequence;
-    temp_ident_sequence += 1;
-    PackageIdent::new(
-        ident.origin,
-        ident.name,
-        ident.version,
-        Some(format!("N-{}", seq)),
-    )
+    let seq = TEMP_IDENT_SEQUENCE.fetch_add(1, Ordering::SeqCst);
+    PackageIdent::new(&ident.origin,
+                      &ident.name,
+                      ident.version.as_ref(),
+                      Some(&format!("N-{}", seq)))
 }

@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    cell::{Ref, RefCell},
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::{cell::{Ref,
+                 RefCell},
+          collections::{HashMap,
+                        HashSet},
+          rc::Rc};
 
-use petgraph::{algo::tarjan_scc, graph::NodeIndex};
+use petgraph::{algo::tarjan_scc,
+               graph::NodeIndex};
 
 use crate::hab_core::package::PackageIdent;
 
-use crate::{
-    ident_graph::IdentGraph,
-    package_table::{PackageInfo, PackageTable},
-    util::*,
-};
+use crate::{ident_graph::IdentGraph,
+            package_table::{PackageInfo,
+                            PackageTable},
+            util::*};
 
 type IdentIndex = usize;
 
@@ -36,9 +36,7 @@ pub struct PackageBuild {
     rdeps: Vec<PackageIdent>,
 }
 
-impl<Value> IdentGraph<Value>
-where
-    Value: Default + Copy,
+impl<Value> IdentGraph<Value> where Value: Default + Copy
 {
     // Compute a build ordering
     //
@@ -64,32 +62,30 @@ where
     //
     // 5) Take new latest table, walk graph to find actually used packages.
 
-    pub fn compute_build(
-        &self,
-        origin: &str,
-        package_table: &PackageTable,
-        base_set: &Vec<PackageIdent>,
-        touched: &Vec<PackageIdent>,
-        converge_count: usize,
-    ) -> Vec<PackageBuild> {
+    pub fn compute_build(&self,
+                         origin: &str,
+                         package_table: &PackageTable,
+                         base_set: &Vec<PackageIdent>,
+                         touched: &Vec<PackageIdent>,
+                         converge_count: usize)
+                         -> Vec<PackageBuild> {
         let rebuild_set = self.compute_rebuild_set(touched, origin);
 
-        println!(
-            "Rebuild: {} {}",
-            rebuild_set.len(),
-            join_idents(", ", &rebuild_set)
-        );
+        println!("Rebuild: {} {}",
+                 rebuild_set.len(),
+                 join_idents(", ", &rebuild_set));
 
         let build_order = self.compute_build_order(&rebuild_set);
-        let packages_in_build_order: Vec<Vec<Rc<RefCell<PackageInfo>>>> = build_order
-            .iter()
-            .map(|package_set| {
-                package_set
-                    .iter()
-                    .map(|package_ident| package_table.find(package_ident).unwrap())
-                    .collect()
-            })
-            .collect();
+        let packages_in_build_order: Vec<Vec<Rc<RefCell<PackageInfo>>>> =
+            build_order.iter()
+                       .map(|package_set| {
+                           package_set.iter()
+                                      .map(|package_ident| {
+                                          package_table.find(package_ident).unwrap()
+                                      })
+                                      .collect()
+                       })
+                       .collect();
 
         // Rework this later
         debug!("CB: {} components", build_order.len());
@@ -143,10 +139,10 @@ where
             node_order.push(ordered_component)
         }
 
-        let ident_result = node_order
-            .iter()
-            .map(|c| c.iter().map(|n| self.ident_for_node(*n).clone()).collect())
-            .collect();
+        let ident_result =
+            node_order.iter()
+                      .map(|c| c.iter().map(|n| self.ident_for_node(*n).clone()).collect())
+                      .collect();
 
         ident_result
     }
@@ -174,31 +170,30 @@ where
         for component in scc {
             // Maybe there's a more idomatic way of writing the filter body?
             let result = component.iter().fold(0, |count, node_index| {
-                if rebuild_nodeindex.contains(node_index) {
-                    count + 1
-                } else {
-                    count
-                }
-            });
+                                             if rebuild_nodeindex.contains(node_index) {
+                                                 count + 1
+                                             } else {
+                                                 count
+                                             }
+                                         });
 
             match result {
                 0 => (),
                 len if len == component.len() => filtered_set.push(component.clone()),
-                _ => panic!(
-                    "Unexpected filter result {}, expected 0 or {}",
-                    result,
-                    component.len()
-                ),
+                _ => {
+                    panic!("Unexpected filter result {}, expected 0 or {}",
+                           result,
+                           component.len())
+                }
             }
         }
         filtered_set
     }
 
-    pub fn build_package(
-        &self,
-        package: &PackageInfo,
-        latest: &mut HashMap<PackageIdent, PackageIdent>,
-    ) -> PackageBuild {
+    pub fn build_package(&self,
+                         package: &PackageInfo,
+                         latest: &mut HashMap<PackageIdent, PackageIdent>)
+                         -> PackageBuild {
         // Create our package name
         let ident = make_temp_ident(&package.ident);
 
@@ -214,22 +209,19 @@ where
         }
 
         // update latest
-        latest[&short_ident(&ident, false)] = ident.clone();
-        latest[&short_ident(&ident, true)] = ident;
+        latest.insert(short_ident(&ident, false), ident.clone());
+        latest.insert(short_ident(&ident, true), ident.clone());
 
         // Make the package
-        PackageBuild {
-            ident,
-            bdeps,
-            rdeps,
-        }
+        PackageBuild { ident,
+                       bdeps,
+                       rdeps }
     }
 
-    pub fn prune_tsort(
-        &self,
-        _built: &HashMap<PackageIdent, PackageBuild>,
-        _latest: &HashMap<PackageIdent, PackageIdent>,
-    ) -> Vec<PackageBuild> {
+    pub fn prune_tsort(&self,
+                       _built: &HashMap<PackageIdent, PackageBuild>,
+                       _latest: &HashMap<PackageIdent, PackageIdent>)
+                       -> Vec<PackageBuild> {
         Vec::new()
     }
 }
