@@ -171,6 +171,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                 let node_name = node.to_string();
                 let mut bdeps = Vec::new();
                 let mut rdeps = Vec::new();
+                let mut sdeps = Vec::new();
                 for succ_index in self.graph
                                       .neighbors_directed(node_index, Direction::Outgoing)
                 {
@@ -178,13 +179,18 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                     match self.graph.edge_weight(edge_index).unwrap() {
                         EdgeType::BuildDep => bdeps.push(succ_index),
                         EdgeType::RuntimeDep => rdeps.push(succ_index),
+                        EdgeType::StrongBuildDep => sdeps.push(succ_index),
                     }
                 }
                 let bdeps_join = self.join_nodes(&bdeps, ",");
                 let rdeps_join = self.join_nodes(&rdeps, ",");
-                writeln!(&mut file,
-                         "{};\t{};{};\t{};\t{}",
-                         node_name, in_count, out_count, rdeps_join, bdeps_join).unwrap();
+                let sdeps_join = self.join_nodes(&sdeps, ",");
+                writeln!(
+                    &mut file,
+                    "{};\t{};{};\t{};\t{};\t{}",
+                    node_name, in_count, out_count, rdeps_join, bdeps_join, sdeps_join
+                )
+                .unwrap();
             }
         }
     }
@@ -616,5 +622,6 @@ fn edgetype_to_abbv(edge: EdgeType) -> &'static str {
     match edge {
         EdgeType::RuntimeDep => "R",
         EdgeType::BuildDep => "B",
+        EdgeType::StrongBuildDep => "S",
     }
 }

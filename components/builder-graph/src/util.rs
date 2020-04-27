@@ -30,6 +30,7 @@ use habitat_builder_db::models::package::{BuilderPackageIdent,
 pub enum EdgeType {
     RuntimeDep,
     BuildDep,
+    StrongBuildDep,
 }
 
 impl Default for EdgeType {

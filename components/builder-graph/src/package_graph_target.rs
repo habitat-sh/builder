@@ -16,7 +16,8 @@ use std::io::prelude::*;
 
 use std::{cmp::Ordering,
           collections::{BinaryHeap,
-                        HashMap}};
+                        HashMap},
+          str::FromStr};
 
 use petgraph::{algo::{connected_components,
                       is_cyclic_directed},
@@ -285,8 +286,25 @@ impl PackageGraphForTarget {
                     }
                 }
             }
+
+            for dep in &self.strong_build_deps(&package_info) {
+                self.latest_graph
+                    .add_edge(src_node_index, dep, EdgeType::StrongBuildDep);
+            }
         }
         ((self.full_graph.node_count(), self.full_graph.edge_count()), self.latest_graph.counts())
+    }
+
+    fn strong_build_deps(&self, package: &PackageInfo) -> Vec<PackageIdent> {
+        match short_ident(&package.ident, false).to_string().as_str() {
+            "core/gcc-libs" => {
+                vec![PackageIdent::from_str("core/gcc").expect("Unable to create PackageIdent")]
+            }
+            "core/happy" => {
+                vec![PackageIdent::from_str("core/ghc").expect("Unable to create PackageIdent")]
+            }
+            _ => Vec::new(),
+        }
     }
 
     pub fn add_edge(&mut self, nfrom: NodeIndex, nto: NodeIndex, etype: EdgeType) {
