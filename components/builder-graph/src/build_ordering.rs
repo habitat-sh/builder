@@ -24,7 +24,8 @@ use petgraph::{algo::tarjan_scc,
 use crate::hab_core::package::PackageIdent;
 
 use crate::{ident_graph::IdentGraph,
-            package_table::{PackageInfo,
+            package_table::{PackageIndex,
+                            PackageInfo,
                             PackageTable},
             util::*};
 
@@ -65,33 +66,49 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
     pub fn compute_build(&self,
                          origin: &str,
                          package_table: &PackageTable,
+                         latest_map: &HashMap<PackageIdent, PackageIndex>,
                          base_set: &Vec<PackageIdent>,
                          touched: &Vec<PackageIdent>,
                          converge_count: usize)
                          -> Vec<PackageBuild> {
         let rebuild_set = self.compute_rebuild_set(touched, origin);
 
-        println!("Rebuild: {} {}",
+        println!("Rebuild: {} {}\n",
                  rebuild_set.len(),
                  join_idents(", ", &rebuild_set));
 
-        let build_order = self.compute_build_order(&rebuild_set);
-        let packages_in_build_order: Vec<Vec<Rc<RefCell<PackageInfo>>>> =
-            build_order.iter()
-                       .map(|package_set| {
-                           package_set.iter()
-                                      .map(|package_ident| {
-                                          package_table.find(package_ident).unwrap()
-                                      })
-                                      .collect()
-                       })
-                       .collect();
+        println!("Using base: {} {}\n",
+                 base_set.len(),
+                 join_idents(", ", &base_set));
 
+        println!("Using touched: {} {}\n",
+                 touched.len(),
+                 join_idents(", ", &touched));
+
+        let build_order = self.compute_build_order(&rebuild_set);
         // Rework this later
         debug!("CB: {} components", build_order.len());
         for component in &build_order {
             debug!("CB: #{} {}", component.len(), join_idents(", ", component));
         }
+
+        let packages_in_build_order: Vec<Vec<Rc<RefCell<PackageInfo>>>> =
+            build_order.iter()
+                       .map(|package_set| {
+                           package_set.iter()
+                                      .map(|package_ident| {
+                                          let index =
+                                              latest_map.get(&package_ident)
+                                                        .expect(format!("Couldn't find {} in \
+                                                                         latest_map",
+                                                                        package_ident).as_str());
+                                          package_table.get(*index)
+                                                       .expect(format!("Couldn't find {}",
+                                                                       package_ident).as_str())
+                                      })
+                                      .collect()
+                       })
+                       .collect();
 
         let mut latest = HashMap::<PackageIdent, PackageIdent>::new();
         for ident in base_set {
@@ -201,11 +218,16 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let mut bdeps = Vec::new();
         let mut rdeps = Vec::new();
 
+        println!("Building package {} with BDEP {} RDEP {}",
+                 ident,
+                 join_idents(", ", &package.plan_bdeps),
+                 join_idents(", ", &package.plan_deps));
+
         for dep in &package.plan_bdeps {
-            bdeps.push(latest[&dep].clone())
+            bdeps.push(latest.get(&dep).unwrap().clone())
         }
         for dep in &package.plan_deps {
-            rdeps.push(latest[&dep].clone())
+            rdeps.push(latest.get(&dep).unwrap().clone())
         }
 
         // update latest

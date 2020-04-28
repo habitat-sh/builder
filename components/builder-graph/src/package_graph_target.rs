@@ -483,8 +483,12 @@ impl PackageGraphForTarget {
                                origin: &str,
                                base_set: &Vec<PackageIdent>,
                                touched: &Vec<PackageIdent>) {
-        let build = self.latest_graph
-                        .compute_build(origin, &self.packages, base_set, touched, 3);
+        let build = self.latest_graph.compute_build(origin,
+                                                    &self.packages,
+                                                    &self.latest_map,
+                                                    base_set,
+                                                    touched,
+                                                    3);
     }
 }
 
