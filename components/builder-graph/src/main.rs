@@ -404,12 +404,16 @@ fn do_dump_build_order(datastore: &DataStore, graph: &PackageGraph, matches: &Ar
     let filter = str_from_matches(matches, "FILTER", "core");
     let filename = required_filename_from_matches(matches);
 
-    let base_set = datastore.get_origin_channel_latest("core", "stable", graph.current_target())
-                            .expect("No base set returned from db");
+    let mut base_set =
+        datastore.get_origin_channel_latest("core", "stable", graph.current_target())
+                 .expect("No base set returned from db");
 
     let touched = vec![PackageIdent::from_str("core/gcc").unwrap()]; // TODO use a real set, huh?
 
-    graph.dump_build_ordering(filename, filter, &base_set, &touched);
+    let ordering = graph.dump_build_ordering(filename, filter, &base_set, &touched);
+    for pkg in &ordering {
+        println!("{}", pkg.ident);
+    }
 
     let duration_secs = start_time.elapsed().as_secs_f64();
     println!("generated build order and wrote to file file {} filtered by {:?} in {} sec",

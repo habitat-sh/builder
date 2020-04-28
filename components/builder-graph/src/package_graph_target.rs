@@ -31,7 +31,8 @@ use habitat_builder_db::models::package::PackageWithVersionArray;
 
 // use habitat_builder_protocol as protocol;
 
-use crate::{hab_core::{error as herror,
+use crate::{build_ordering::PackageBuild,
+            hab_core::{error as herror,
                        package::{ident::Identifiable,
                                  PackageIdent,
                                  PackageTarget}},
@@ -482,13 +483,15 @@ impl PackageGraphForTarget {
                                _filename: &str,
                                origin: &str,
                                base_set: &Vec<PackageIdent>,
-                               touched: &Vec<PackageIdent>) {
+                               touched: &Vec<PackageIdent>)
+                               -> Vec<PackageBuild> {
         let build = self.latest_graph.compute_build(origin,
                                                     &self.packages,
                                                     &self.latest_map,
                                                     base_set,
                                                     touched,
                                                     3);
+        build
     }
 }
 

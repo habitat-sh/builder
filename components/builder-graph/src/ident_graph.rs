@@ -499,7 +499,12 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                   .neighbors_directed(*node_index, Direction::Outgoing)
             {
                 let edge = self.graph.find_edge(*node_index, succ_index).unwrap();
-                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+                // This is available in unstable rust :(
+                // if self.graph.edge_weight(edge)
+                // == Some(&EdgeType::RuntimeDep) | Some(&EdgeType::StrongBuildDep)
+                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep)
+                   || self.graph.edge_weight(edge) == Some(&EdgeType::StrongBuildDep)
+                {
                     // We assume runtime deps that aren't part of the component are already built
                     // and safe to ignore.
                     if unsatisfied.contains_key(&succ_index) {
@@ -537,7 +542,9 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                   .neighbors_directed(node_index, Direction::Incoming)
             {
                 let edge = self.graph.find_edge(pred_index, node_index).unwrap();
-                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep) {
+                if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep)
+                   || self.graph.edge_weight(edge) == Some(&EdgeType::StrongBuildDep)
+                {
                     unsatisfied.entry(pred_index).and_modify(|count| {
                                                      *count -= 1;
                                                      if *count == 0 {
@@ -547,6 +554,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                 }
             }
         }
+        println!("{} {}", iter_count, component.len());
         assert!(iter_count == component.len());
         result
     }

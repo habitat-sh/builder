@@ -19,7 +19,8 @@ use habitat_builder_db::models::package::PackageWithVersionArray;
 
 // use habitat_builder_protocol as protocol;
 
-use crate::{hab_core::package::{PackageIdent,
+use crate::{build_ordering::PackageBuild,
+            hab_core::package::{PackageIdent,
                                 PackageTarget},
             package_graph_target::{PackageGraphForTarget,
                                    Stats},
@@ -185,7 +186,8 @@ impl PackageGraph {
                                filename: &str,
                                filter: &str,
                                base_set: &Vec<PackageIdent>,
-                               touched: &Vec<PackageIdent>) {
+                               touched: &Vec<PackageIdent>)
+                               -> Vec<PackageBuild> {
         self.graphs[&self.current_target].borrow()
                                          .dump_build_ordering(filename, filter, base_set, touched)
     }

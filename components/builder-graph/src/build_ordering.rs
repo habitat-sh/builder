@@ -21,7 +21,8 @@ use std::{cell::{Ref,
 use petgraph::{algo::tarjan_scc,
                graph::NodeIndex};
 
-use crate::hab_core::package::PackageIdent;
+use crate::hab_core::package::{Identifiable,
+                               PackageIdent};
 
 use crate::{ident_graph::IdentGraph,
             package_table::{PackageIndex,
@@ -32,9 +33,9 @@ use crate::{ident_graph::IdentGraph,
 type IdentIndex = usize;
 
 pub struct PackageBuild {
-    ident: PackageIdent,
-    bdeps: Vec<PackageIdent>,
-    rdeps: Vec<PackageIdent>,
+    pub ident: PackageIdent,
+    bdeps:     Vec<PackageIdent>,
+    rdeps:     Vec<PackageIdent>,
 }
 
 impl<Value> IdentGraph<Value> where Value: Default + Copy
@@ -131,7 +132,6 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         }
 
         let build_actual = self.prune_tsort(&built, &latest);
-
         build_actual
     }
 
@@ -224,10 +224,32 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                  join_idents(", ", &package.plan_deps));
 
         for dep in &package.plan_bdeps {
-            bdeps.push(latest.get(&dep).unwrap().clone())
+            // Horrible hack to get around our own pinning
+            let dep = if dep.version().is_some() {
+                PackageIdent { origin:  dep.origin().clone().to_string(),
+                               name:    dep.name().clone().to_string(),
+                               version: None,
+                               release: None, }
+            } else {
+                dep.clone()
+            };
+            bdeps.push(latest.get(&dep)
+                             .expect(format!("Unable to find {:?}", &dep).as_str())
+                             .clone())
         }
         for dep in &package.plan_deps {
-            rdeps.push(latest.get(&dep).unwrap().clone())
+            // Horrible hack to get around our own pinning
+            let dep = if dep.version().is_some() {
+                PackageIdent { origin:  dep.origin().clone().to_string(),
+                               name:    dep.name().clone().to_string(),
+                               version: None,
+                               release: None, }
+            } else {
+                dep.clone()
+            };
+            rdeps.push(latest.get(&dep)
+                             .expect(format!("Unable to find rundep {:?}", &dep).as_str())
+                             .clone())
         }
 
         // update latest
