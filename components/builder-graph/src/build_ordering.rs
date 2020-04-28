@@ -119,9 +119,15 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let mut built = HashMap::<PackageIdent, PackageBuild>::new();
 
         for component in &packages_in_build_order {
-            // TODO: if there is only one element in component, don't need to converge, can just run
+            // If there is only one element in component, don't need to converge, can just run
             // once
-            for _i in 1..converge_count {
+            let component_converge_count = if component.len() > 1 {
+                converge_count
+            } else {
+                1
+            };
+
+            for _i in 1..=component_converge_count {
                 for package_ref in component {
                     let package: &PackageInfo = &package_ref.borrow();
                     let build = self.build_package(package, &mut latest);
