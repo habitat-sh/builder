@@ -34,8 +34,23 @@ type IdentIndex = usize;
 
 pub struct PackageBuild {
     pub ident: PackageIdent,
-    bdeps:     Vec<PackageIdent>,
-    rdeps:     Vec<PackageIdent>,
+    bt_deps:   Vec<PackageIdent>,
+    rt_deps:   Vec<PackageIdent>,
+}
+
+impl PackageBuild {
+    pub fn format_for_shell(&self) -> String {
+        let short_ident = short_ident(&self.ident, false).to_string();
+        let deps: Vec<PackageIdent> = self.bt_deps
+                                          .iter()
+                                          .chain(self.rt_deps.iter())
+                                          .map(|x| x.clone())
+                                          .collect();
+        format!("{}\t{}\t{}",
+                short_ident,
+                self.ident,
+                join_idents(",", &deps))
+    }
 }
 
 impl<Value> IdentGraph<Value> where Value: Default + Copy
@@ -221,8 +236,8 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let ident = make_temp_ident(&package.ident);
 
         // resolve our runtime and build deps
-        let mut bdeps = Vec::new();
-        let mut rdeps = Vec::new();
+        let mut bt_deps = Vec::new();
+        let mut rt_deps = Vec::new();
 
         println!("Building package {} with BDEP {} RDEP {}",
                  ident,
@@ -231,31 +246,17 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         for dep in &package.plan_bdeps {
             // Horrible hack to get around our own pinning
-            let dep = if dep.version().is_some() {
-                PackageIdent { origin:  dep.origin().clone().to_string(),
-                               name:    dep.name().clone().to_string(),
-                               version: None,
-                               release: None, }
-            } else {
-                dep.clone()
-            };
-            bdeps.push(latest.get(&dep)
-                             .expect(format!("Unable to find {:?}", &dep).as_str())
-                             .clone())
+            let dep = short_ident(dep, false);
+            bt_deps.push(latest.get(&dep)
+                               .expect(format!("Unable to find {:?}", &dep).as_str())
+                               .clone())
         }
         for dep in &package.plan_deps {
             // Horrible hack to get around our own pinning
-            let dep = if dep.version().is_some() {
-                PackageIdent { origin:  dep.origin().clone().to_string(),
-                               name:    dep.name().clone().to_string(),
-                               version: None,
-                               release: None, }
-            } else {
-                dep.clone()
-            };
-            rdeps.push(latest.get(&dep)
-                             .expect(format!("Unable to find rundep {:?}", &dep).as_str())
-                             .clone())
+            let dep = short_ident(dep, false);
+            rt_deps.push(latest.get(&dep)
+                               .expect(format!("Unable to find rundep {:?}", &dep).as_str())
+                               .clone())
         }
 
         // update latest
@@ -264,8 +265,8 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         // Make the package
         PackageBuild { ident,
-                       bdeps,
-                       rdeps }
+                       bt_deps,
+                       rt_deps }
     }
 
     pub fn prune_tsort(&self,
