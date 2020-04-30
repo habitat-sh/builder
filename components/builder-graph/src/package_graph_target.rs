@@ -479,7 +479,7 @@ impl PackageGraphForTarget {
         }
     }
 
-    pub fn dump_build_ordering(&self,
+    pub fn dump_build_ordering(&mut self,
                                _filename: &str,
                                origin: &str,
                                base_set: &Vec<PackageIdent>,

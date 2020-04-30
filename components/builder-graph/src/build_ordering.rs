@@ -79,7 +79,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
     //
     // 5) Take new latest table, walk graph to find actually used packages.
 
-    pub fn compute_build(&self,
+    pub fn compute_build(&mut self,
                          origin: &str,
                          package_table: &PackageTable,
                          latest_map: &HashMap<PackageIdent, PackageIndex>,
@@ -87,12 +87,6 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                          touched: &Vec<PackageIdent>,
                          converge_count: usize)
                          -> Vec<PackageBuild> {
-        let rebuild_set = self.compute_rebuild_set(touched, origin);
-
-        println!("Rebuild: {} {}\n",
-                 rebuild_set.len(),
-                 join_idents(", ", &rebuild_set));
-
         println!("Using base: {} {}\n",
                  base_set.len(),
                  join_idents(", ", &base_set));
@@ -100,6 +94,17 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         println!("Using touched: {} {}\n",
                  touched.len(),
                  join_idents(", ", &touched));
+
+        self.precondition_graph(origin, package_table, latest_map);
+
+        let rebuild_set = self.compute_rebuild_set(touched, origin);
+
+        // TODO DO check of rebuild set to make sure that it includes the pinned versions that had
+        // edges added in the precondition_graph phase above.
+
+        println!("Rebuild: {} {}\n",
+                 rebuild_set.len(),
+                 join_idents(", ", &rebuild_set));
 
         let build_order = self.compute_build_order(&rebuild_set);
         // Rework this later

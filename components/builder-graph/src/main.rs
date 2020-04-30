@@ -152,7 +152,7 @@ impl State {
                     ("build_levels", Some(m)) => do_build_levels(&self.graph, &m),
                     ("build_order", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_dump_build_order(&datastore, &self.graph, &m);
+                            do_dump_build_order(&datastore, &mut self.graph, &m);
                         } else {
                             println!("'build_order' requires a database connection; See \
                                       'db_connect'");
@@ -399,7 +399,7 @@ fn do_dump_diagnostics(graph: &PackageGraph, matches: &ArgMatches) {
              filename, filter, duration_secs);
 }
 
-fn do_dump_build_order(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches) {
+fn do_dump_build_order(datastore: &DataStore, graph: &mut PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
     let filter = str_from_matches(matches, "FILTER", "core");
     let filename = required_filename_from_matches(matches);

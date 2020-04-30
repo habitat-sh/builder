@@ -182,13 +182,13 @@ impl PackageGraph {
                                          .dump_diagnostics(filename, filter)
     }
 
-    pub fn dump_build_ordering(&self,
+    pub fn dump_build_ordering(&mut self,
                                filename: &str,
                                filter: &str,
                                base_set: &Vec<PackageIdent>,
                                touched: &Vec<PackageIdent>)
                                -> Vec<PackageBuild> {
-        self.graphs[&self.current_target].borrow()
+        self.graphs[&self.current_target].borrow_mut()
                                          .dump_build_ordering(filename, filter, base_set, touched)
     }
 }

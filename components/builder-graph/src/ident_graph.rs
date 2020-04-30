@@ -33,7 +33,10 @@ use std::{cmp,
           path::Path,
           str::FromStr};
 
-use crate::{hab_core::package::PackageIdent,
+use crate::{hab_core::package::{Identifiable,
+                                PackageIdent},
+            package_table::{PackageIndex,
+                            PackageTable},
             util::*};
 
 type IdentIndex = usize;
@@ -410,6 +413,117 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                         .map(|x| self.ident_for_node(*x).to_string())
                                         .collect();
         strings.join(sep)
+    }
+
+    // Many packages pin to a version, eg. /core/wordpress/1.2.3 In general pinning to versions is
+    // not supported, but there are some use cases where we need to support it for now.
+    //
+    // In particular a package with a build time dependency that pins a version *may* be ok. For
+    // example /core/hab-sup might pin to /core/rust/1.40 as a build dep. That's possibly ok,
+    // since we can build using an old package However there might eventually be a problem if we
+    // inadvertently statically link in an old libc, so this might fail outright or generate bad
+    // packages. We should flag that package and it's rdeps as problematic, but try and build
+    // anyways.
+    //
+    // A second case is when we have a runtime dep with a pinned version. If this version is the
+    // latest version, it's ok as its essentially an alias for the latest unqualified dep. If
+    // it's not the latest, the package is unbuildable.
+    //
+    // There's a possibly a third case, which I forget.
+    //
+    // Packages that pin on a fully qualified ident are similar; build time deps are possibly ok,
+    // while a runtime dep is impossible.
+    // We would be better off cloning the graph here, since we're mutating things in a way that
+    // isn't what we want longterm, but that creates a whole mess around the instability of
+    // graph node indices that we won't fix now.
+    pub fn precondition_graph(&mut self,
+                              _origin: &str,
+                              package_table: &PackageTable,
+                              latest_map: &HashMap<PackageIdent, PackageIndex>) {
+        for (ident, index) in latest_map.iter() {
+            if ident.version.is_some() {
+                continue; // we only want to visit the unqualified latest idents
+            }
+
+            let package = package_table.get(*index)
+                                       .expect(format!("Couldn't find {}", ident).as_str());
+
+            let package = package.borrow();
+
+            for bt_dep in &package.plan_bdeps {
+                let troubled = // maybe an enum some day
+                match (bt_dep.version(), bt_dep.release()) {
+                    (None, _) =>
+                        // no version we're fine
+                        false,
+                    (Some(_), None) => {
+                        // Check if we're the latest version, then it's just an alias, and we're fine, otherwise trouble
+                        let short_ident = short_ident(&bt_dep, false);
+                        // Want ident / package info from latest graph to be utility functions
+                        let latest_index = latest_map.get(&short_ident).unwrap();
+                        let latest_ident = package_table.get(*latest_index).unwrap().borrow().ident.clone();
+                        if latest_ident.version() == bt_dep.version() {
+                            // TODO add an edge here from this node to latest
+                            let (src_index, _) = self.get_node(&bt_dep);
+                            let (dst_index, _) = self. get_node(&latest_ident);
+                            // A future refinement would be to annotate this BuildDep as synthetic
+                            self.graph.add_edge(src_index, dst_index, EdgeType::BuildDep);
+                            false
+                        } else {
+                            true
+                        }
+                    },
+                    (Some(_), Some(_)) => {
+                        // if we're pining on an exact version and release, we're troubled
+                        true
+                    }
+                };
+                if troubled {
+                    println!("Trouble with package {} build dep on {}", ident, bt_dep)
+                }
+            }
+
+            for rt_dep in &package.plan_deps {
+                let broken = match (rt_dep.version(), rt_dep.release()) {
+                    (None, _) =>
+                    // no version we're fine
+                    {
+                        false
+                    }
+                    (Some(_), None) => {
+                        // Check if we're the latest version, then it's just an alias, and we're
+                        // fine, otherwise trouble
+                        let short_ident = short_ident(&rt_dep, false);
+                        // Want ident / package info from latest graph to be utility functions
+                        let latest_index = latest_map.get(&short_ident).unwrap();
+                        let latest_ident = package_table.get(*latest_index)
+                                                        .unwrap()
+                                                        .borrow()
+                                                        .ident
+                                                        .clone();
+                        if latest_ident.version() == rt_dep.version() {
+                            // TODO add an edge here from this node to latest
+                            let (src_index, _) = self.get_node(&rt_dep);
+                            let (dst_index, _) = self.get_node(&latest_ident);
+                            // A future refinement would be to annotate this BuildDep as synthetic
+                            self.graph
+                                .add_edge(src_index, dst_index, EdgeType::BuildDep);
+                            false
+                        } else {
+                            true
+                        }
+                    }
+                    (Some(_), Some(_)) => {
+                        // if we're pining on an exact version and release, we're broken
+                        true
+                    }
+                };
+
+                if broken {
+                    println!("Trouble with package {} runtime dep on {}", ident, rt_dep)
+                }
+            }
+        }
     }
 
     pub fn compute_rebuild_set(&self,
