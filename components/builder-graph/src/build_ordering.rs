@@ -16,6 +16,8 @@ use std::{cell::{Ref,
                  RefCell},
           collections::{HashMap,
                         HashSet},
+          fs::File,
+          io::Write,
           rc::Rc};
 
 use petgraph::{algo::tarjan_scc,
@@ -137,6 +139,11 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             latest.insert(short_ident(&ident, false), ident.clone());
         }
 
+        let mut file = File::create("latest_from_base.txt").expect("Failed to initialize file");
+        for (k, v) in &latest {
+            file.write(format!("{}: {}\n", &k, &v).as_bytes()).unwrap();
+        }
+
         // let mut built = HashMap::<PackageIdent, PackageBuild>::new();
         let mut built: Vec<PackageBuild> = Vec::new();
         for component in &packages_in_build_order {
@@ -251,16 +258,18 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         for dep in &package.plan_bdeps {
             // Horrible hack to get around our own pinning
-            let dep = short_ident(dep, false);
-            bt_deps.push(latest.get(&dep)
-                               .expect(format!("Unable to find {:?}", &dep).as_str())
+            let sdep = short_ident(dep, false);
+            bt_deps.push(latest.get(&sdep)
+                               .expect(format!("{} Unable to find bt dep {} ({})",
+                                               &ident, &dep, &sdep).as_str())
                                .clone())
         }
         for dep in &package.plan_deps {
             // Horrible hack to get around our own pinning
-            let dep = short_ident(dep, false);
-            rt_deps.push(latest.get(&dep)
-                               .expect(format!("Unable to find rundep {:?}", &dep).as_str())
+            let sdep = short_ident(dep, false);
+            rt_deps.push(latest.get(&sdep)
+                               .expect(format!("{} Unable to find rt dep {} ({})",
+                                               &ident, &dep, &sdep).as_str())
                                .clone())
         }
 
