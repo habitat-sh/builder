@@ -289,6 +289,7 @@ impl PackageGraphForTarget {
             }
 
             for dep in &self.strong_build_deps(&package_info) {
+                println!("Adding StrongBuildDep {} -> {}", package_info.ident, dep);
                 self.latest_graph
                     .add_edge(src_node_index, dep, EdgeType::StrongBuildDep);
             }

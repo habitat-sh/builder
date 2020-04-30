@@ -87,15 +87,16 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                          touched: &Vec<PackageIdent>,
                          converge_count: usize)
                          -> Vec<PackageBuild> {
-        println!("Using base: {} {}\n",
-                 base_set.len(),
-                 join_idents(", ", &base_set));
+        // debug!("Using base: {} {}\n",
+        // base_set.len(),
+        // join_idents(", ", &base_set));
 
         println!("Using touched: {} {}\n",
                  touched.len(),
                  join_idents(", ", &touched));
-
+        self.dump_graph_raw("raw-pre-graph.txt", Some("core"));
         self.precondition_graph(origin, package_table, latest_map);
+        self.dump_graph_raw("raw-post-graph.txt", Some("core"));
 
         let rebuild_set = self.compute_rebuild_set(touched, origin);
 
@@ -157,6 +158,8 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                 }
             }
         }
+
+        self.dump_graph_raw("raw-graph.txt", Some("core"));
 
         // let build_actual = self.prune_tsort(&built, &latest);
         // build_actual
@@ -241,10 +244,10 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let mut bt_deps = Vec::new();
         let mut rt_deps = Vec::new();
 
-        println!("Building package {} with BDEP {} RDEP {}",
-                 ident,
-                 join_idents(", ", &package.plan_bdeps),
-                 join_idents(", ", &package.plan_deps));
+        // println!("Building package {} with BDEP {} RDEP {}",
+        // ident,
+        // join_idents(", ", &package.plan_bdeps),
+        // join_idents(", ", &package.plan_deps));
 
         for dep in &package.plan_bdeps {
             // Horrible hack to get around our own pinning

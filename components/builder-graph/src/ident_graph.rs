@@ -468,10 +468,14 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                         if latest_ident.version() == bt_dep.version() {
                             // TODO add an edge here from this node to latest
                             let (src_index, _) = self.get_node(&ident);
-                            let (dst_index, _) = self. get_node(&short_ident);
+                            let (dst_index, _) = self.get_node(&short_ident);
                             // A future refinement would be to annotate this BuildDep as synthetic
                             println!("Adding build edge {} -> {}: {}", ident, short_ident, bt_dep); 
                             self.graph.add_edge(src_index, dst_index, EdgeType::BuildDep);
+                            let (old_dst_index, _) = self.get_node(bt_dep);
+                            let edge = self.graph.find_edge(src_index, old_dst_index).unwrap();
+                            println!("Removing edge type {:?}", self.graph.edge_weight(edge));
+                            self.graph.remove_edge(edge);
                             false
                         } else {
                             true
@@ -513,6 +517,10 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                             println!("Adding run edge {} -> {} : {}", ident, short_ident, rt_dep);
                             self.graph
                                 .add_edge(src_index, dst_index, EdgeType::RuntimeDep);
+                            let (old_dst_index, _) = self.get_node(rt_dep);
+                            let edge = self.graph.find_edge(src_index, old_dst_index).unwrap();
+                            println!("Removing edge type {:?}", self.graph.edge_weight(edge));
+                            self.graph.remove_edge(edge);
                             false
                         } else {
                             true
@@ -575,11 +583,33 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             .collect()
     }
 
-    fn find_unbuildable(&self, rebuild_set: &Vec<PackageIdent>) -> Vec<PackageIdent> {
-        rebuild_set.clone()
+    // This is wrong.  It will only work for the core origin.
+    fn find_unbuildable(&mut self, rebuild_set: &Vec<PackageIdent>) -> Vec<PackageIdent> {
+        let mut unbuildable = Vec::new();
+        for ident in rebuild_set {
+            let (node_index, _) = self.get_node(ident);
+            let non_origin_neighbors: Vec<_> =
+                self.graph
+                    .neighbors_directed(node_index, Direction::Outgoing)
+                    .filter_map(|s| {
+                        let dep = self.ident_for_node(s);
+                        if dep.origin == ident.origin {
+                            None
+                        } else {
+                            Some(ident)
+                        }
+                    })
+                    .collect();
+
+            if !non_origin_neighbors.is_empty() {
+                println!("Not empty {}", ident);
+                unbuildable.push(ident.clone());
+            }
+        }
+        unbuildable
     }
 
-    pub fn compute_rebuild_set(&self,
+    pub fn compute_rebuild_set(&mut self,
                                touched: &Vec<PackageIdent>,
                                origin: &str)
                                -> Vec<PackageIdent>
@@ -633,12 +663,14 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                   .neighbors_directed(*node_index, Direction::Outgoing)
             {
                 let edge = self.graph.find_edge(*node_index, succ_index).unwrap();
-                // This is available in unstable rust :(
-                // if self.graph.edge_weight(edge)
-                // == Some(&EdgeType::RuntimeDep) | Some(&EdgeType::StrongBuildDep)
                 if self.graph.edge_weight(edge) == Some(&EdgeType::RuntimeDep)
                    || self.graph.edge_weight(edge) == Some(&EdgeType::StrongBuildDep)
                 {
+                    if self.graph.edge_weight(edge) == Some(&EdgeType::StrongBuildDep) {
+                        println!("StrongEdge between {} {}",
+                                 self.ident_for_node(*node_index),
+                                 self.ident_for_node(succ_index));
+                    }
                     // We assume runtime deps that aren't part of the component are already built
                     // and safe to ignore.
                     if unsatisfied.contains_key(&succ_index) {
