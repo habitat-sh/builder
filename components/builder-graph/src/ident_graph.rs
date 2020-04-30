@@ -437,12 +437,15 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
     // isn't what we want longterm, but that creates a whole mess around the instability of
     // graph node indices that we won't fix now.
     pub fn precondition_graph(&mut self,
-                              _origin: &str,
+                              origin: &str,
                               package_table: &PackageTable,
                               latest_map: &HashMap<PackageIdent, PackageIndex>) {
         for (ident, index) in latest_map.iter() {
             if ident.version.is_some() {
                 continue; // we only want to visit the unqualified latest idents
+            }
+            if ident.origin != origin {
+                continue;
             }
 
             let package = package_table.get(*index)
@@ -464,9 +467,10 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                         let latest_ident = package_table.get(*latest_index).unwrap().borrow().ident.clone();
                         if latest_ident.version() == bt_dep.version() {
                             // TODO add an edge here from this node to latest
-                            let (src_index, _) = self.get_node(&bt_dep);
-                            let (dst_index, _) = self. get_node(&latest_ident);
+                            let (src_index, _) = self.get_node(&ident);
+                            let (dst_index, _) = self. get_node(&short_ident);
                             // A future refinement would be to annotate this BuildDep as synthetic
+                            println!("Adding build edge {} -> {}: {}", ident, short_ident, bt_dep); 
                             self.graph.add_edge(src_index, dst_index, EdgeType::BuildDep);
                             false
                         } else {
@@ -503,11 +507,12 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                                         .clone();
                         if latest_ident.version() == rt_dep.version() {
                             // TODO add an edge here from this node to latest
-                            let (src_index, _) = self.get_node(&rt_dep);
-                            let (dst_index, _) = self.get_node(&latest_ident);
+                            let (src_index, _) = self.get_node(&ident);
+                            let (dst_index, _) = self.get_node(&short_ident);
                             // A future refinement would be to annotate this BuildDep as synthetic
+                            println!("Adding run edge {} -> {} : {}", ident, short_ident, rt_dep);
                             self.graph
-                                .add_edge(src_index, dst_index, EdgeType::BuildDep);
+                                .add_edge(src_index, dst_index, EdgeType::RuntimeDep);
                             false
                         } else {
                             true
@@ -526,51 +531,39 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         }
     }
 
-    pub fn compute_rebuild_set(&self,
-                               touched: &Vec<PackageIdent>,
-                               origin: &str)
-                               -> Vec<PackageIdent>
-        where Value: Default + Copy
-    {
-        let debug = false;
-
-        if debug {
-            debug!("CRS: starting with origin {}", origin);
-            debug!("CRS: touched set {}", join_idents(", ", &touched));
-        }
+    fn flood_deps_in_origin(&self, seed: &Vec<PackageIdent>, origin: &str) -> Vec<PackageIdent> {
+        debug!("CRS: starting with origin {}", origin);
+        debug!("CRS: touched set {}", join_idents(", ", &seed));
 
         // Flood reverse dependency graph, filtering by origin
         let mut seen: HashSet<NodeIndex> = HashSet::new();
         let mut worklist: VecDeque<NodeIndex> = VecDeque::new();
 
         // Insert 'touched' nodes into worklist
-        for ident in touched {
+        for ident in seed {
             let (node_index, _) = self.get_node_if_exists(ident);
             worklist.push_back(node_index);
         }
 
         while !worklist.is_empty() {
             let node_index = worklist.pop_front().unwrap();
-            if debug {
-                debug!("CBS: processing {} {:?}",
-                       self.ident_for_node(node_index),
-                       node_index);
-            }
+            debug!("CBS: processing {} {:?}",
+                   self.ident_for_node(node_index),
+                   node_index);
             seen.insert(node_index);
 
             // loop through everyone who has a build or runtime dep on this package
             for pred_index in self.graph
                                   .neighbors_directed(node_index, Direction::Incoming)
             {
+                debug!("CBS: Checking {}", self.ident_for_node(pred_index));
                 if !seen.contains(&pred_index) {
                     let ident = self.ident_for_node(pred_index);
                     if filter_match(ident, Some(origin)) {
-                        if debug {
-                            debug!("CBS: adding from {:?} the node {} {:?}",
-                                   node_index,
-                                   self.ident_for_node(pred_index),
-                                   pred_index)
-                        }
+                        debug!("CBS: adding from {:?} the node {} {:?}",
+                               node_index,
+                               self.ident_for_node(pred_index),
+                               pred_index);
                         worklist.push_back(pred_index);
                     }
                 }
@@ -580,6 +573,33 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         seen.iter()
             .map(|node_index| self.ident_for_node(*node_index).clone())
             .collect()
+    }
+
+    fn find_unbuildable(&self, rebuild_set: &Vec<PackageIdent>) -> Vec<PackageIdent> {
+        rebuild_set.clone()
+    }
+
+    pub fn compute_rebuild_set(&self,
+                               touched: &Vec<PackageIdent>,
+                               origin: &str)
+                               -> Vec<PackageIdent>
+        where Value: Default + Copy
+    {
+        let rebuild = self.flood_deps_in_origin(touched, origin);
+        let unbuildable = self.find_unbuildable(&rebuild);
+        let unbuildable = self.flood_deps_in_origin(&unbuildable, origin);
+
+        let rebuild: HashSet<PackageIdent> = HashSet::from_iter(rebuild);
+        let unbuildable: HashSet<PackageIdent> = HashSet::from_iter(unbuildable);
+
+        let difference: HashSet<_> = rebuild.difference(&unbuildable).collect();
+
+        // let difference: HashSet<&PackageIdent> =
+        // HashSet::from_iter(rebuild_set).difference(&HashSet::from_iter(unbuildable))
+        // .collect();
+        // .map(|pi| pi.clone());
+        // difference.collect()
+        difference.into_iter().cloned().collect()
     }
 
     // for each component in SCC we sort it in topological order by runtime dep edges
@@ -668,7 +688,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                 }
             }
         }
-        println!("{} {}", iter_count, component.len());
+        // println!("{} {}", iter_count, component.len());
         assert!(iter_count == component.len());
         result
     }

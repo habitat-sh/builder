@@ -401,20 +401,30 @@ fn do_dump_diagnostics(graph: &PackageGraph, matches: &ArgMatches) {
 
 fn do_dump_build_order(datastore: &DataStore, graph: &mut PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
-    let filter = str_from_matches(matches, "FILTER", "core");
-    let filename = required_filename_from_matches(matches);
+    // let filter = str_from_matches(matches, "FILTER", "core");
+    // let filename = required_filename_from_matches(matches);
+    let filter = "core";
+    let filename = "build_order.txt";
+    let touched = ident_from_matches(matches).unwrap();
+    let mut base_set =
+        datastore.get_origin_channel_latest("core", "stable", graph.current_target())
+                 .expect("No base set returned from db");
 
-    let base_set = datastore.get_origin_channel_latest("core", "stable", graph.current_target())
-                            .expect("No base set returned from db");
-
-    let touched = vec![PackageIdent::from_str("core/gcc").unwrap()]; // TODO use a real set, huh?
+    let touched = vec![touched]; // TODO use a real set, huh?
+                                 // let touched = vec![touched];
+                                 //
 
     let ordering = graph.dump_build_ordering(filename, filter, &base_set, &touched);
+    println!("-------------------");
+    let mut file = File::create(filename).expect("Failed to initialize file");
     for pkg in &ordering {
+        file.write(pkg.format_for_shell().as_bytes()).unwrap();
         println!("{}", pkg.format_for_shell());
     }
+    println!("-------------------");
 
     let duration_secs = start_time.elapsed().as_secs_f64();
+
     println!("generated build order and wrote to file file {} filtered by {:?} in {} sec",
              filename, filter, duration_secs);
 }
@@ -867,8 +877,9 @@ fn load_from_db_subcommand() -> App<'static, 'static> {
 fn build_order_subcommand() -> App<'static, 'static> {
     let sub = clap_app!(@subcommand build_order =>
                         (about: "Write build order to file")
-                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
-                        (@arg FILTER: +required +takes_value "Filter value")
+                        // (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        // (@arg FILTER: +required +takes_value "Filter value")
+                        (@arg IDENT: +required +takes_value "Packages that changed")
     );
     sub
 }

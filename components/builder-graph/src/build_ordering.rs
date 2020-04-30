@@ -46,7 +46,7 @@ impl PackageBuild {
                                           .chain(self.rt_deps.iter())
                                           .map(|x| x.clone())
                                           .collect();
-        format!("{}\t{}\t{}",
+        format!("{}\t{}\t{}\n",
                 short_ident,
                 self.ident,
                 join_idents(",", &deps))
@@ -136,8 +136,8 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             latest.insert(short_ident(&ident, false), ident.clone());
         }
 
-        let mut built = HashMap::<PackageIdent, PackageBuild>::new();
-
+        // let mut built = HashMap::<PackageIdent, PackageBuild>::new();
+        let mut built: Vec<PackageBuild> = Vec::new();
         for component in &packages_in_build_order {
             // If there is only one element in component, don't need to converge, can just run
             // once
@@ -152,13 +152,15 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                     let package: &PackageInfo = &package_ref.borrow();
                     let build = self.build_package(package, &mut latest);
                     latest.insert(short_ident(&build.ident, false), build.ident.clone());
-                    built.insert(build.ident.clone(), build);
+                    // built.insert(build.ident.clone(), build);
+                    built.push(build);
                 }
             }
         }
 
-        let build_actual = self.prune_tsort(&built, &latest);
-        build_actual
+        // let build_actual = self.prune_tsort(&built, &latest);
+        // build_actual
+        built
     }
 
     // This could be implmented by creating a subgraph in PetGraph, but my initial experiments had
@@ -173,12 +175,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         let mut node_order: Vec<Vec<NodeIndex>> = Vec::new();
         for component in scc {
-            let ordered_component = if true {
-                // TODO make this a real option
-                self.tsort_subgraph(&component)
-            } else {
-                self.tsort_subgraph_with_build_edges(&component)
-            };
+            let ordered_component = self.tsort_subgraph(&component);
             node_order.push(ordered_component)
         }
 
