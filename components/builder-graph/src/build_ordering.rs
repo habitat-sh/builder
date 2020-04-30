@@ -12,50 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{cell::{Ref,
-                 RefCell},
-          collections::{HashMap,
-                        HashSet},
-          fs::File,
-          io::Write,
-          rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::Write,
+    rc::Rc,
+};
 
-use petgraph::{algo::tarjan_scc,
-               graph::NodeIndex};
+use petgraph::{algo::tarjan_scc, graph::NodeIndex};
 
-use crate::hab_core::package::{Identifiable,
-                               PackageIdent};
+use crate::hab_core::package::{Identifiable, PackageIdent};
 
-use crate::{ident_graph::IdentGraph,
-            package_table::{PackageIndex,
-                            PackageInfo,
-                            PackageTable},
-            util::*};
+use crate::{
+    ident_graph::IdentGraph,
+    package_table::{PackageIndex, PackageInfo, PackageTable},
+    util::*,
+};
 
 type IdentIndex = usize;
 
 pub struct PackageBuild {
     pub ident: PackageIdent,
-    bt_deps:   Vec<PackageIdent>,
-    rt_deps:   Vec<PackageIdent>,
+    bt_deps: Vec<PackageIdent>,
+    rt_deps: Vec<PackageIdent>,
 }
 
 impl PackageBuild {
     pub fn format_for_shell(&self) -> String {
         let short_ident = short_ident(&self.ident, false).to_string();
-        let deps: Vec<PackageIdent> = self.bt_deps
-                                          .iter()
-                                          .chain(self.rt_deps.iter())
-                                          .map(|x| x.clone())
-                                          .collect();
-        format!("{}\t{}\t{}\n",
-                short_ident,
-                self.ident,
-                join_idents(",", &deps))
+        let deps: Vec<PackageIdent> = self
+            .bt_deps
+            .iter()
+            .chain(self.rt_deps.iter())
+            .map(|x| x.clone())
+            .collect();
+        format!(
+            "{}\t{}\t{}\n",
+            short_ident,
+            self.ident,
+            join_idents(",", &deps)
+        )
     }
 }
 
-impl<Value> IdentGraph<Value> where Value: Default + Copy
+impl<Value> IdentGraph<Value>
+where
+    Value: Default + Copy,
 {
     // Compute a build ordering
     //
@@ -81,33 +84,37 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
     //
     // 5) Take new latest table, walk graph to find actually used packages.
 
-    pub fn compute_build(&mut self,
-                         origin: &str,
-                         package_table: &PackageTable,
-                         latest_map: &HashMap<PackageIdent, PackageIndex>,
-                         base_set: &Vec<PackageIdent>,
-                         touched: &Vec<PackageIdent>,
-                         converge_count: usize)
-                         -> Vec<PackageBuild> {
+    pub fn compute_build(
+        &mut self,
+        origin: &str,
+        package_table: &PackageTable,
+        latest_map: &HashMap<PackageIdent, PackageIndex>,
+        base_set: &Vec<PackageIdent>,
+        touched: &Vec<PackageIdent>,
+        converge_count: usize,
+    ) -> Vec<PackageBuild> {
         // debug!("Using base: {} {}\n",
         // base_set.len(),
         // join_idents(", ", &base_set));
 
-        println!("Using touched: {} {}\n",
-                 touched.len(),
-                 join_idents(", ", &touched));
+        println!(
+            "Using touched: {} {}\n",
+            touched.len(),
+            join_idents(", ", &touched)
+        );
         self.dump_graph_raw("raw-pre-graph.txt", Some("core"));
-        self.precondition_graph(origin, package_table, latest_map);
-        self.dump_graph_raw("raw-post-graph.txt", Some("core"));
+        // TODO We should check
 
         let rebuild_set = self.compute_rebuild_set(touched, origin);
 
         // TODO DO check of rebuild set to make sure that it includes the pinned versions that had
         // edges added in the precondition_graph phase above.
 
-        println!("Rebuild: {} {}\n",
-                 rebuild_set.len(),
-                 join_idents(", ", &rebuild_set));
+        println!(
+            "Rebuild: {} {}\n",
+            rebuild_set.len(),
+            join_idents(", ", &rebuild_set)
+        );
 
         let build_order = self.compute_build_order(&rebuild_set);
         // Rework this later
@@ -116,23 +123,27 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             debug!("CB: #{} {}", component.len(), join_idents(", ", component));
         }
 
-        let packages_in_build_order: Vec<Vec<Rc<RefCell<PackageInfo>>>> =
-            build_order.iter()
-                       .map(|package_set| {
-                           package_set.iter()
-                                      .map(|package_ident| {
-                                          let index =
-                                              latest_map.get(&package_ident)
-                                                        .expect(format!("Couldn't find {} in \
+        let packages_in_build_order: Vec<Vec<Rc<RefCell<PackageInfo>>>> = build_order
+            .iter()
+            .map(|package_set| {
+                package_set
+                    .iter()
+                    .map(|package_ident| {
+                        let index = latest_map.get(&package_ident).expect(
+                            format!(
+                                "Couldn't find {} in \
                                                                          latest_map",
-                                                                        package_ident).as_str());
-                                          package_table.get(*index)
-                                                       .expect(format!("Couldn't find {}",
-                                                                       package_ident).as_str())
-                                      })
-                                      .collect()
-                       })
-                       .collect();
+                                package_ident
+                            )
+                            .as_str(),
+                        );
+                        package_table
+                            .get(*index)
+                            .expect(format!("Couldn't find {}", package_ident).as_str())
+                    })
+                    .collect()
+            })
+            .collect();
 
         let mut latest = HashMap::<PackageIdent, PackageIdent>::new();
         for ident in base_set {
@@ -189,10 +200,10 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
             node_order.push(ordered_component)
         }
 
-        let ident_result =
-            node_order.iter()
-                      .map(|c| c.iter().map(|n| self.ident_for_node(*n).clone()).collect())
-                      .collect();
+        let ident_result = node_order
+            .iter()
+            .map(|c| c.iter().map(|n| self.ident_for_node(*n).clone()).collect())
+            .collect();
 
         ident_result
     }
@@ -220,30 +231,31 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         for component in scc {
             // Maybe there's a more idomatic way of writing the filter body?
             let result = component.iter().fold(0, |count, node_index| {
-                                             if rebuild_nodeindex.contains(node_index) {
-                                                 count + 1
-                                             } else {
-                                                 count
-                                             }
-                                         });
+                if rebuild_nodeindex.contains(node_index) {
+                    count + 1
+                } else {
+                    count
+                }
+            });
 
             match result {
                 0 => (),
                 len if len == component.len() => filtered_set.push(component.clone()),
-                _ => {
-                    panic!("Unexpected filter result {}, expected 0 or {}",
-                           result,
-                           component.len())
-                }
+                _ => panic!(
+                    "Unexpected filter result {}, expected 0 or {}",
+                    result,
+                    component.len()
+                ),
             }
         }
         filtered_set
     }
 
-    pub fn build_package(&self,
-                         package: &PackageInfo,
-                         latest: &mut HashMap<PackageIdent, PackageIdent>)
-                         -> PackageBuild {
+    pub fn build_package(
+        &self,
+        package: &PackageInfo,
+        latest: &mut HashMap<PackageIdent, PackageIdent>,
+    ) -> PackageBuild {
         // Create our package name
         let ident = make_temp_ident(&package.ident);
 
@@ -259,18 +271,26 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         for dep in &package.plan_bdeps {
             // Horrible hack to get around our own pinning
             let sdep = short_ident(dep, false);
-            bt_deps.push(latest.get(&sdep)
-                               .expect(format!("{} Unable to find bt dep {} ({})",
-                                               &ident, &dep, &sdep).as_str())
-                               .clone())
+            bt_deps.push(
+                latest
+                    .get(&sdep)
+                    .expect(
+                        format!("{} Unable to find bt dep {} ({})", &ident, &dep, &sdep).as_str(),
+                    )
+                    .clone(),
+            )
         }
         for dep in &package.plan_deps {
             // Horrible hack to get around our own pinning
             let sdep = short_ident(dep, false);
-            rt_deps.push(latest.get(&sdep)
-                               .expect(format!("{} Unable to find rt dep {} ({})",
-                                               &ident, &dep, &sdep).as_str())
-                               .clone())
+            rt_deps.push(
+                latest
+                    .get(&sdep)
+                    .expect(
+                        format!("{} Unable to find rt dep {} ({})", &ident, &dep, &sdep).as_str(),
+                    )
+                    .clone(),
+            )
         }
 
         // update latest
@@ -278,15 +298,18 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         latest.insert(short_ident(&ident, true), ident.clone());
 
         // Make the package
-        PackageBuild { ident,
-                       bt_deps,
-                       rt_deps }
+        PackageBuild {
+            ident,
+            bt_deps,
+            rt_deps,
+        }
     }
 
-    pub fn prune_tsort(&self,
-                       _built: &HashMap<PackageIdent, PackageBuild>,
-                       _latest: &HashMap<PackageIdent, PackageIdent>)
-                       -> Vec<PackageBuild> {
+    pub fn prune_tsort(
+        &self,
+        _built: &HashMap<PackageIdent, PackageBuild>,
+        _latest: &HashMap<PackageIdent, PackageIdent>,
+    ) -> Vec<PackageBuild> {
         Vec::new()
     }
 }

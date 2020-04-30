@@ -268,30 +268,38 @@ impl PackageGraphForTarget {
             //     .iter()
             //     .for_each(|dep| self.add_edge_to_latest(src_node_index, dep,
             // EdgeType::RuntimeDep));
+
+            // skip fully qualified idents in the graph; they never will be rebuilt, so they only
+            // add noise to the dependency graph.
+            //
+            // We also *could* skip partially qualified idents here. There are two cases to
+            // consider: deps on a version that's not latest, which again won't be rebuilt. There's
+            // a special case with some packages that bump versions in lockstep (gcc, gcc-libs) They
+            // are version pinned, but always on latest. We should treat those as if they we're
+            // unqualified. However at this time we don't have the proper information to know if
+            // they are pointing at latest version or not.  For now we are building the graph
+            // optimisically, and will need to check later if that is sane.
             for dep in &package_info.plan_deps {
-                // skip fully qualified idents in the graph; they never will be t, so they only add
-                // noise to the dependency graph
                 if !dep.fully_qualified() {
-                    self.latest_graph
-                        .add_edge(src_node_index, dep, EdgeType::RuntimeDep);
+                    self.latest_graph.add_edge(src_node_index,
+                                               &short_ident(dep, false),
+                                               EdgeType::RuntimeDep);
                 }
             }
-
             if use_build_deps {
                 for dep in &package_info.plan_bdeps {
-                    // skip fully qualified idents in the graph; they never will be t, so they only
-                    // add noise to the dependency graph
                     if !dep.fully_qualified() {
                         self.latest_graph
-                            .add_edge(src_node_index, dep, EdgeType::BuildDep);
+                            .add_edge(src_node_index, &short_ident(dep, false), EdgeType::BuildDep);
                     }
                 }
             }
 
             for dep in &self.strong_build_deps(&package_info) {
                 println!("Adding StrongBuildDep {} -> {}", package_info.ident, dep);
-                self.latest_graph
-                    .add_edge(src_node_index, dep, EdgeType::StrongBuildDep);
+                self.latest_graph.add_edge(src_node_index,
+                                           &short_ident(dep, false),
+                                           EdgeType::StrongBuildDep);
             }
         }
         ((self.full_graph.node_count(), self.full_graph.edge_count()), self.latest_graph.counts())
