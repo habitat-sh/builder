@@ -138,10 +138,10 @@ impl Channel {
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
             .filter(origin_packages_with_version_array::origin.eq(&ident.origin))
             .filter(origin_packages_with_version_array::name.eq(&ident.name))
+            .filter(origin_packages_with_version_array::ident_array.contains(ident.clone().parts()))
             .filter(origin_channels::name.eq(req.channel.as_str()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
-            .filter(origin_packages_with_version_array::ident_array.contains(ident.clone().parts()))
             .order(sql::<PackageWithVersionArray>(
                 "string_to_array(version_array[1],'.')::\
                  numeric[] desc, version_array[2] desc, \
@@ -165,25 +165,44 @@ impl Channel {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = origin_packages::table
+        let mut query = origin_packages::table
             .inner_join(
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
             )
-            .filter(origin_packages::ident_array.contains(lcp.ident.clone().parts()))
-            .filter(origin_packages::visibility.eq(any(lcp.visibility)))
-            .filter(origins::name.eq(lcp.origin))
-            .filter(origin_channels::name.eq(lcp.channel.as_str()))
-            .select(origin_packages::ident)
-            .order(origin_packages::ident.asc())
-            .paginate(lcp.page)
-            .per_page(lcp.limit)
-            .load_and_count_records(conn);
+            .filter(origin_packages::origin.eq(&lcp.ident.origin))
+            .into_boxed();
+        // We need the into_boxed above to be able to conditionally filter and not break the
+        // typesystem.
+        if lcp.ident.name != "" {
+            query = query.filter(origin_packages::name.eq(&lcp.ident.name))
+        };
+        let query = query.filter(origin_packages::ident_array.contains(lcp.ident.clone().parts()))
+                         .filter(origin_packages::visibility.eq(any(lcp.visibility)))
+                         .filter(origins::name.eq(lcp.origin))
+                         .filter(origin_channels::name.eq(lcp.channel.as_str()))
+                         .select(origin_packages::ident)
+                         .order(origin_packages::ident.asc())
+                         .paginate(lcp.page)
+                         .per_page(lcp.limit);
+        // helpful trick when debugging queries, this has Debug trait:
+        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
+
+        let result = query.load_and_count_records(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall channel::list_package time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::ChannelListPackagesCallTime.set(duration_millis as f64);
+
+        // Package list for a whole origin is still not very
+        // performant, and we want to track that
+        if lcp.ident.name != "" {
+            Histogram::ChannelListPackagesOriginOnlyCallTime.set(duration_millis as f64);
+        } else {
+            Histogram::ChannelListPackagesOriginNameCallTime.set(duration_millis as f64);
+        }
+
         result
     }
 
@@ -193,6 +212,7 @@ impl Channel {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
+        // TODO check that this join is using an appropriate index
         let result = origin_packages::table
             .inner_join(
                 origin_channel_packages::table
