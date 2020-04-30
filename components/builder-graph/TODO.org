@@ -1,5 +1,12 @@
 Work needed for the graph utility
 
+* TODO fix flood algorithm
+
+* TODO Figure out how to annotate package_info with buildability report
+* TODO Filter rebuild set by buildable from database
+* TODO filter rebuild set by buildable because of flawed deps (
+I have a pinned dep, I probably need that dep in my rebuild set or risk conflict
+
 * TODO Code cleanups
 ** TODO finish PackageTable refactor/cleanup
 ** TODO clean up PackageIdent mess (do we memoize them? Clone them everywhere? WTF)
