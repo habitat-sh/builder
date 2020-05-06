@@ -1,38 +1,41 @@
-use crate::{
-    bldr_core::{
-        build_config::{BuildCfg, BLDR_CFG},
-        metrics::CounterMetric,
-    },
-    db::models::{account::Account, projects::Project},
-    hab_core::{
-        crypto,
-        package::{
-            target::{self, PackageTarget},
-            Plan,
-        },
-    },
-    protocol::jobsrv::{JobGroup, JobGroupSpec, JobGroupTrigger},
-    server::{
-        authorize::authorize_session,
-        error::{Error, Result},
-        feat,
-        framework::{headers, middleware::route_message},
-        helpers::req_state,
-        services::metrics::Counter,
-        AppState,
-    },
-};
-use actix_web::{
-    error,
-    http::StatusCode,
-    web::{Data, Path},
-    HttpRequest, HttpResponse,
-};
-use github_api_client::{types::GitHubWebhookPush, AppToken, GitHubClient};
+use crate::{bldr_core::{build_config::{BuildCfg,
+                                       BLDR_CFG},
+                        metrics::CounterMetric},
+            db::models::{account::Account,
+                         projects::Project},
+            hab_core::{crypto,
+                       package::{target::{self,
+                                          PackageTarget},
+                                 Plan}},
+            protocol::jobsrv::{JobGroup,
+                               JobGroupSpec,
+                               JobGroupTrigger},
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     feat,
+                     framework::{headers,
+                                 middleware::route_message},
+                     helpers::req_state,
+                     services::metrics::Counter,
+                     AppState}};
+use actix_web::{error,
+                http::StatusCode,
+                web::{Data,
+                      Path},
+                HttpRequest,
+                HttpResponse};
+use github_api_client::{types::GitHubWebhookPush,
+                        AppToken,
+                        GitHubClient};
 use hex;
-use openssl::{hash::MessageDigest, pkey::PKey, sign::Signer};
+use openssl::{hash::MessageDigest,
+              pkey::PKey,
+              sign::Signer};
 use serde_json;
-use std::{collections::HashSet, path::PathBuf, str::FromStr};
+use std::{collections::HashSet,
+          path::PathBuf,
+          str::FromStr};
 
 pub enum GitHubEvent {
     Push,
@@ -104,10 +107,8 @@ pub async fn handle_event(req: HttpRequest, body: String) -> HttpResponse {
     let computed_signature = format!("sha1={}", &hex::encode(hmac));
 
     if !crypto::secure_eq(&gh_signature, &computed_signature) {
-        warn!(
-            "Web hook signatures don't match. GH = {:?}, Our = {:?}",
-            gh_signature, computed_signature
-        );
+        warn!("Web hook signatures don't match. GH = {:?}, Our = {:?}",
+              gh_signature, computed_signature);
         return Error::BadRequest.into();
     }
 
@@ -118,11 +119,10 @@ pub async fn handle_event(req: HttpRequest, body: String) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub async fn repo_file_content(
-    req: HttpRequest,
-    path: Path<(u32, u32, String)>,
-    state: Data<AppState>,
-) -> HttpResponse {
+pub async fn repo_file_content(req: HttpRequest,
+                               path: Path<(u32, u32, String)>,
+                               state: Data<AppState>)
+                               -> HttpResponse {
     if let Err(err) = authorize_session(&req, None, None) {
         return err.into();
     }
@@ -155,15 +155,13 @@ async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
         Ok(hook) => hook,
         Err(err) => return Error::SerdeJson(err).into(),
     };
-    debug!(
-        "Received GitHub web hook; sender={}, repository={} repository_id={} ref={} \
+    debug!("Received GitHub web hook; sender={}, repository={} repository_id={} ref={} \
             installation_id={}",
-        hook.sender.login,
-        hook.repository.full_name,
-        hook.repository.id,
-        hook.git_ref,
-        hook.installation.id
-    );
+           hook.sender.login,
+           hook.repository.full_name,
+           hook.repository.id,
+           hook.git_ref,
+           hook.installation.id);
 
     let conn = match req_state(req).db.get_conn() {
         Ok(conn_ref) => conn_ref,
@@ -202,23 +200,19 @@ async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
     };
     debug!("Triggered Plans: {:#?}", plans);
 
-    build_plans(
-        &req,
-        &hook.repository.clone_url,
-        &hook.pusher.name,
-        account_id,
-        &plans,
-    )
-    .await
+    build_plans(&req,
+                &hook.repository.clone_url,
+                &hook.pusher.name,
+                account_id,
+                &plans).await
 }
 
-async fn build_plans(
-    req: &HttpRequest,
-    repo_url: &str,
-    pusher: &str,
-    account_id: Option<u64>,
-    plans: &[PlanWithTarget],
-) -> HttpResponse {
+async fn build_plans(req: &HttpRequest,
+                     repo_url: &str,
+                     pusher: &str,
+                     account_id: Option<u64>,
+                     plans: &[PlanWithTarget])
+                     -> HttpResponse {
     let mut request = JobGroupSpec::new();
 
     let conn = match req_state(req).db.get_conn() {
@@ -231,18 +225,14 @@ async fn build_plans(
         match Project::get(&project_name, &plan.1, &*conn) {
             Ok(project) => {
                 if repo_url != project.vcs_data {
-                    warn!(
-                        "Repo URL ({}) doesn't match project vcs data ({}). Aborting.",
-                        repo_url, project.vcs_data
-                    );
+                    warn!("Repo URL ({}) doesn't match project vcs data ({}). Aborting.",
+                          repo_url, project.vcs_data);
                     continue;
                 }
             }
             Err(err) => {
-                debug!(
-                    "Failed to fetch project (plan may not be connected): {}, {:?}",
-                    project_name, err
-                );
+                debug!("Failed to fetch project (plan may not be connected): {}, {:?}",
+                       project_name, err);
                 continue;
             }
         }
@@ -277,26 +267,26 @@ async fn build_plans(
     HttpResponse::Ok().json(&plans)
 }
 
-async fn read_bldr_config(
-    github: &GitHubClient,
-    token: &AppToken,
-    hook: &GitHubWebhookPush,
-) -> Result<BuildCfg> {
-    match github
-        .contents(&token, hook.repository.id, BLDR_CFG)
-        .await
-        .map_err(Error::Github)
+async fn read_bldr_config(github: &GitHubClient,
+                          token: &AppToken,
+                          hook: &GitHubWebhookPush)
+                          -> Result<BuildCfg> {
+    match github.contents(&token, hook.repository.id, BLDR_CFG)
+                .await
+                .map_err(Error::Github)
     {
         Ok(Some(contents)) => {
             debug!("Found a bldr.toml for repo {}", hook.repository.full_name);
             match contents.decode().map_err(Error::Github) {
-                Ok(ref bytes) => match BuildCfg::from_slice(bytes).map_err(Error::BuilderCore) {
-                    Ok(cfg) => Ok(cfg),
-                    Err(err) => {
-                        warn!("Unable to parse bldr.toml, {:?}", err);
-                        Err(err)
+                Ok(ref bytes) => {
+                    match BuildCfg::from_slice(bytes).map_err(Error::BuilderCore) {
+                        Ok(cfg) => Ok(cfg),
+                        Err(err) => {
+                            warn!("Unable to parse bldr.toml, {:?}", err);
+                            Err(err)
+                        }
                     }
-                },
+                }
                 Err(err) => {
                     warn!("Unable to decode bldr.toml, {:?}", err);
                     Err(err)
@@ -304,10 +294,8 @@ async fn read_bldr_config(
             }
         }
         Ok(None) => {
-            debug!(
-                "No bldr.toml found for repo {}, using default config",
-                hook.repository.full_name
-            );
+            debug!("No bldr.toml found for repo {}, using default config",
+                   hook.repository.full_name);
             Ok(BuildCfg::default())
         }
         Err(err) => {
@@ -317,12 +305,11 @@ async fn read_bldr_config(
     }
 }
 
-async fn read_plans(
-    github: &GitHubClient,
-    token: &AppToken,
-    hook: &GitHubWebhookPush,
-    bldr_cfg: &BuildCfg,
-) -> Result<Vec<PlanWithTarget>> {
+async fn read_plans(github: &GitHubClient,
+                    token: &AppToken,
+                    hook: &GitHubWebhookPush,
+                    bldr_cfg: &BuildCfg)
+                    -> Result<Vec<PlanWithTarget>> {
     let mut plans = Vec::with_capacity(bldr_cfg.projects().len());
 
     for project_cfg in bldr_cfg.triggered_by(hook.branch(), hook.changed().as_slice()) {
@@ -353,32 +340,34 @@ async fn read_plans(
     Ok(plans)
 }
 
-async fn read_plan(
-    github: &GitHubClient,
-    token: &AppToken,
-    hook: &GitHubWebhookPush,
-    path: &str,
-) -> Result<Option<Plan>> {
+async fn read_plan(github: &GitHubClient,
+                   token: &AppToken,
+                   hook: &GitHubWebhookPush,
+                   path: &str)
+                   -> Result<Option<Plan>> {
     debug!("Reading plan from: {:?}", path);
 
-    match github
-        .contents(&token, hook.repository.id, path)
-        .await
-        .map_err(Error::Github)
+    match github.contents(&token, hook.repository.id, path)
+                .await
+                .map_err(Error::Github)
     {
-        Ok(Some(contents)) => match contents.decode().map_err(Error::Github) {
-            Ok(bytes) => match Plan::from_bytes(bytes.as_slice()).map_err(Error::HabitatCore) {
-                Ok(plan) => Ok(Some(plan)),
+        Ok(Some(contents)) => {
+            match contents.decode().map_err(Error::Github) {
+                Ok(bytes) => {
+                    match Plan::from_bytes(bytes.as_slice()).map_err(Error::HabitatCore) {
+                        Ok(plan) => Ok(Some(plan)),
+                        Err(err) => {
+                            warn!("Failed to parse plan: {}, {:?}", path, err);
+                            Err(err)
+                        }
+                    }
+                }
                 Err(err) => {
-                    warn!("Failed to parse plan: {}, {:?}", path, err);
+                    warn!("Failed to decode plan bytes: {}, {:?}", path, err);
                     Err(err)
                 }
-            },
-            Err(err) => {
-                warn!("Failed to decode plan bytes: {}, {:?}", path, err);
-                Err(err)
             }
-        },
+        }
         Ok(None) => Ok(None),
         Err(err) => {
             warn!("Unable to read plan: {}, {:?}", path, err);
@@ -387,19 +376,17 @@ async fn read_plan(
     }
 }
 
-async fn read_plan_targets(
-    github: &GitHubClient,
-    token: &AppToken,
-    hook: &GitHubWebhookPush,
-    path: &PathBuf,
-) -> Result<HashSet<PackageTarget>> {
+async fn read_plan_targets(github: &GitHubClient,
+                           token: &AppToken,
+                           hook: &GitHubWebhookPush,
+                           path: &PathBuf)
+                           -> Result<HashSet<PackageTarget>> {
     debug!("Reading plan targets from {:?}", path);
     let mut targets: HashSet<PackageTarget> = HashSet::new();
 
-    match github
-        .directory(&token, hook.repository.id, &path.to_string_lossy())
-        .await
-        .map_err(Error::Github)
+    match github.directory(&token, hook.repository.id, &path.to_string_lossy())
+                .await
+                .map_err(Error::Github)
     {
         Ok(Some(entries)) => {
             for entry in entries {
