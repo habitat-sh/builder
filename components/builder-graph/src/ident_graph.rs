@@ -39,6 +39,19 @@ use crate::{hab_core::package::{Identifiable,
                             PackageTable},
             util::*};
 
+// TODO: REMOVE ME
+// This is a hack because I got tired of writing the PackageIdent.from_str().expect()
+// for stub code
+macro_rules! ident {
+    ( $( $x:expr ),* ) => {
+        {
+            $(
+                PackageIdent::from_str($x).expect(format!("Unable to make ident from {}", $x).as_str())
+            )*
+        }
+    }
+}
+
 type IdentIndex = usize;
 
 #[derive(Default)]
@@ -127,6 +140,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                     value, } = self.data[ident_index];
             (node_index, value)
         } else {
+            println!("{}", ident);
             panic!("Couldn't find node, and this should never happen")
         }
     }
@@ -585,28 +599,85 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
     // This is wrong.  It will only work for the core origin.
     fn find_unbuildable(&mut self, rebuild_set: &Vec<PackageIdent>) -> Vec<PackageIdent> {
-        let mut unbuildable = Vec::new();
-        for ident in rebuild_set {
-            let (node_index, _) = self.get_node(ident);
-            let non_origin_neighbors: Vec<_> =
-                self.graph
-                    .neighbors_directed(node_index, Direction::Outgoing)
-                    .filter_map(|s| {
-                        let dep = self.ident_for_node(s);
-                        if dep.origin == ident.origin {
-                            None
-                        } else {
-                            Some(ident)
-                        }
-                    })
-                    .collect();
-
-            if !non_origin_neighbors.is_empty() {
-                println!("Not empty {}", ident);
-                unbuildable.push(ident.clone());
-            }
-        }
-        unbuildable
+        // let mut unbuildable = Vec::new();
+        // for ident in rebuild_set {
+        // let (node_index, _) = self.get_node(ident);
+        // let non_origin_neighbors: Vec<_> =
+        // self.graph
+        // .neighbors_directed(node_index, Direction::Outgoing)
+        // .filter_map(|s| {
+        // let dep = self.ident_for_node(s);
+        // if dep.origin == ident.origin {
+        // None
+        // } else {
+        // Some(ident)
+        // }
+        // })
+        // .collect();
+        //
+        // if !non_origin_neighbors.is_empty() {
+        // println!("Not empty {}", ident);
+        // unbuildable.push(ident.clone());
+        // }
+        // }
+        // unbuildable
+        vec![ident!("core/hab"),
+             ident!("core/hab-butterfly"),
+             ident!("core/hab-sup"),
+             ident!("core/hab-builder-admin"),
+             ident!("core/hab-builder-api"),
+             ident!("core/hab-builder-jobsrv"),
+             ident!("core/hab-builder-router"),
+             ident!("core/hab-builder-sessionsrv"),
+             ident!("core/hab-builder-vault"),
+             ident!("core/hab-depot"),
+             ident!("core/hab-director"),
+             ident!("core/hab-dynamic"),
+             ident!("core/hab-eventsrv"),
+             ident!("core/habitat-builder-web"),
+             ident!("core/hab-launcher"),
+             ident!("core/hab-pkg-export-helm"),
+             ident!("core/hab-pkg-export-kubernetes"),
+             ident!("core/hab-pkg-export-tar"),
+             ident!("core/hab-pkg-export-docker"),
+             ident!("core/hab-spider"),
+             ident!("core/hab-sup-static"),
+             ident!("core/builder-admin"),
+             ident!("core/builder-admin-proxy"),
+             ident!("core/builder-api"),
+             ident!("core/builder-api-proxy"),
+             ident!("core/builder-datastore"),
+             ident!("core/builder-graph"),
+             ident!("core/builder-jobsrv"),
+             ident!("core/builder-originsrv"),
+             ident!("core/builder-router"),
+             ident!("core/builder-scheduler"),
+             ident!("core/builder-sessionsrv"),
+             ident!("core/builder-web"),
+             ident!("core/nginx-builder-api"),
+             ident!("core/bazel"),
+             ident!("core/bison2"),
+             ident!("core/clang5"),
+             ident!("core/corretto"),
+             ident!("core/corretto8"),
+             ident!("core/corretto11"),
+             ident!("core/geoip"),
+             ident!("core/jre7"),
+             ident!("core/jre8"),
+             ident!("core/jre9"),
+             ident!("core/jdk7"),
+             ident!("core/jdk8"),
+             ident!("core/jdk9"),
+             ident!("core/llvm5"),
+             ident!("core/mention-bot"),
+             ident!("core/mono4"),
+             ident!("core/php5"),
+             ident!("core/rethinkdb"),
+             ident!("core/ruby22"),
+             ident!("core/ruby23"),
+             ident!("core/scaffolding-chef"),
+             ident!("core/server-jre"),
+             ident!("core/stringencoders"),]
     }
 
     pub fn compute_rebuild_set(&mut self,
@@ -618,6 +689,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
         let rebuild = self.flood_deps_in_origin(touched, origin);
         let unbuildable = self.find_unbuildable(&rebuild);
         let unbuildable = self.flood_deps_in_origin(&unbuildable, origin);
+        println!("Unbuildable: {:?}", unbuildable);
 
         let rebuild: HashSet<PackageIdent> = HashSet::from_iter(rebuild);
         let unbuildable: HashSet<PackageIdent> = HashSet::from_iter(unbuildable);

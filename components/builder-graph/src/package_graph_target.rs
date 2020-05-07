@@ -313,6 +313,9 @@ impl PackageGraphForTarget {
             "core/happy" => {
                 vec![PackageIdent::from_str("core/ghc").expect("Unable to create PackageIdent")]
             }
+            "core/ncurses" => {
+                vec![PackageIdent::from_str("core/gcc").expect("Unable to createPackageIdent")]
+            }
             _ => Vec::new(),
         }
     }
