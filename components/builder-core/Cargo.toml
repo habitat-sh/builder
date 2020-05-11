@@ -13,6 +13,7 @@ clippy = { version = "*", optional = true }
 dogstatsd = "*"
 env_proxy = "*"
 futures = "*"
+futures-util = "*"
 glob = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
@@ -21,7 +22,6 @@ log = "*"
 petgraph = "*"
 protobuf = "*"
 rand = "*"
-reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -33,6 +33,11 @@ zmq = { git = "https://github.com/habitat-sh/rust-zmq", branch = "v0.8-symlinks-
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
 
+[dependencies.reqwest]
+version = "*"
+features = ["stream"]
+
 [dependencies.tokio]
 version = "*"
 features = ["fs"]
+

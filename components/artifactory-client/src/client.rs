@@ -15,15 +15,15 @@
 use std::{collections::HashMap,
           path::PathBuf};
 
+use crate::{config::ArtifactoryCfg,
+            error::{ArtifactoryError,
+                    ArtifactoryResult}};
+use futures::stream::StreamExt;
 use reqwest::{header::{HeaderMap,
                        HeaderName,
                        HeaderValue},
               Body,
               Response};
-
-use crate::{config::ArtifactoryCfg,
-            error::{ArtifactoryError,
-                    ArtifactoryResult}};
 
 use crate::hab_core::package::{PackageArchive,
                                PackageIdent,
@@ -123,7 +123,10 @@ impl ArtifactoryClient {
         if resp.status().is_success() {
             let mut file = tokio::fs::File::create(destination_path).await
                                                                     .map_err(ArtifactoryError::IO)?;
-            file.write_all(&resp.bytes().await?).await?;
+            let mut stream = resp.bytes_stream();
+            while let Some(chunk) = stream.next().await {
+                file.write_all(&chunk?).await?;
+            }
             Ok(PackageArchive::new(destination_path))
         } else {
             error!("Artifactory download non-success status: {:?}",

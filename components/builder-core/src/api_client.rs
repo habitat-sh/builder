@@ -27,8 +27,8 @@ use reqwest::{header::HeaderMap,
               Response,
               StatusCode};
 
+use futures::stream::StreamExt;
 use serde_json;
-
 use tokio::io::AsyncWriteExt;
 
 use crate::{error::{Error,
@@ -188,7 +188,11 @@ impl ApiClient {
         debug!("Writing to {}", &tmp_file_path.display());
         let mut f = tokio::fs::File::create(&tmp_file_path).await
                                                            .map_err(Error::IO)?;
-        f.write_all(&resp.bytes().await?).await.map_err(Error::IO)?;
+
+        let mut stream = resp.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            f.write_all(&chunk?).await.map_err(Error::IO)?;
+        }
 
         debug!("Moving {} to {}",
                &tmp_file_path.display(),

@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 log = "*"
-reqwest = "*"
+futures = "*"
 serde = "*"
 serde_derive = "*"
 
@@ -20,3 +20,7 @@ path = "../builder-core"
 [dependencies.tokio]
 version = "*"
 features = ["fs"]
+
+[dependencies.reqwest]
+version = "*"
+features = ["stream"]

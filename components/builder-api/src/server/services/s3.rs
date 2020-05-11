@@ -34,7 +34,7 @@ use std::{fmt::Display,
           str::FromStr,
           time::Instant};
 
-use futures::TryStreamExt;
+use futures::StreamExt;
 
 use rusoto_s3::{CompleteMultipartUploadRequest,
                 CompletedMultipartUpload,
@@ -199,12 +199,9 @@ impl S3Handler {
                 return Err(Error::PackageDownload(e));
             }
         };
+        let mut body = body.expect("Downloaded object is empty");
 
-        let file = body.expect("Downloaded object is empty")
-                       .map_ok(|b| bytes::BytesMut::from(&b[..]))
-                       .try_concat()
-                       .await?;
-        match write_archive(&loc, &file) {
+        match write_archive(&loc, &mut body).await {
             Ok(result) => Ok(result),
             Err(e) => {
                 warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
@@ -344,7 +341,9 @@ fn s3_key(ident: &PackageIdent, target: PackageTarget) -> Result<String> {
                hart_name))
 }
 
-fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive> {
+async fn write_archive(filename: &PathBuf,
+                       body: &mut rusoto_core::ByteStream)
+                       -> Result<PackageArchive> {
     // TODO This is a blocking call, used in async functions
     let mut file = match File::create(&filename) {
         Ok(f) => f,
@@ -354,9 +353,12 @@ fn write_archive(filename: &PathBuf, body: &[u8]) -> Result<PackageArchive> {
             return Err(Error::IO(e));
         }
     };
-    if let Err(e) = file.write_all(body) {
-        warn!("Unable to write archive for {:?}, err={:?}", filename, e);
-        return Err(Error::IO(e));
+    while let Some(bytes) = body.next().await {
+        let bytes = bytes?;
+        if let Err(e) = file.write_all(&bytes) {
+            warn!("Unable to write archive for {:?}, err={:?}", filename, e);
+            return Err(Error::IO(e));
+        }
     }
     Ok(PackageArchive::new(filename))
 }
