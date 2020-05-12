@@ -104,19 +104,22 @@ impl DataStore {
                                      -> Result<Vec<PackageIdent>> {
         let conn = self.pool.get_conn()?;
 
-        let query =
-        origin_packages_with_version_array::table.inner_join(origin_channel_packages::table.
-        inner_join(origin_channels::table)) .select(origin_packages_with_version_array::
-        ident) .distinct_on((origin_packages_with_version_array::name,
-        origin_packages_with_version_array::target)) .order(sql::
-        <PackageWithVersionArray>( "origin_packages_with_version_array.name, \
+        let query = origin_packages_with_version_array::table
+            .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
+            .select(origin_packages_with_version_array::ident)
+            .distinct_on((
+                origin_packages_with_version_array::name,
+                origin_packages_with_version_array::target,
+            ))
+            .order(sql::<PackageWithVersionArray>(
+                "origin_packages_with_version_array.name, \
         origin_packages_with_version_array.target, \
         string_to_array(origin_packages_with_version_array.version_array[1],'.')::\
         numeric[] desc, origin_packages_with_version_array.ident_array[4] desc",
-        ))
-        .filter(origin_channels::name.eq(&channel))
-        .filter(origin_packages_with_version_array::origin.eq(&origin))
-        .filter(origin_packages_with_version_array::target.eq(target.to_string()));
+            ))
+            .filter(origin_channels::name.eq(&channel))
+            .filter(origin_packages_with_version_array::origin.eq(&origin))
+            .filter(origin_packages_with_version_array::target.eq(target.to_string()));
         // let query =
         // origin_packages_with_version_array::table.select(origin_packages_with_version_array::
         // ident) .filter(origin_packages_with_version_array::target.eq(target.

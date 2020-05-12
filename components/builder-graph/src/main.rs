@@ -28,7 +28,7 @@ extern crate serde_derive;
 extern crate lazy_static;
 
 extern crate diesel;
-
+extern crate internment;
 extern crate serde;
 extern crate serde_json;
 
@@ -407,9 +407,8 @@ fn do_dump_build_order(datastore: &DataStore, graph: &mut PackageGraph, matches:
     let filter = "core";
     let touched = ident_from_matches(matches).unwrap();
     let filename = format!("{}-build_order.txt", touched.name);
-    let mut base_set =
-        datastore.get_origin_channel_latest("core", "stable", graph.current_target())
-                 .expect("No base set returned from db");
+    let base_set = datastore.get_origin_channel_latest("core", "stable", graph.current_target())
+                            .expect("No base set returned from db");
 
     let touched = vec![touched]; // TODO use a real set, huh?
                                  // let touched = vec![touched];

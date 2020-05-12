@@ -30,8 +30,7 @@ use std::{cmp,
           fs::File,
           io::prelude::*,
           iter::FromIterator,
-          path::Path,
-          str::FromStr};
+          path::Path};
 
 use crate::{hab_core::package::{Identifiable,
                                 PackageIdent},
@@ -810,7 +809,7 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
                                                          None
                                                      }
                                                  },
-                                                 |ei, e| Some(e));
+                                                 |_ei, e| Some(e));
         // 2) DFS walk, finding back edges
 
         // Start with a package with no dependencies inside the component; we may have a choice

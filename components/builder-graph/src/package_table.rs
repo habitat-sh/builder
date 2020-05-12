@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{cell::{Ref,
-                 RefCell},
+use std::{cell::RefCell,
           collections::HashMap,
           rc::Rc,
           str::FromStr};

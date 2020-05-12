@@ -32,10 +32,9 @@ use habitat_builder_db::models::package::PackageWithVersionArray;
 // use habitat_builder_protocol as protocol;
 
 use crate::{build_ordering::PackageBuild,
-            hab_core::{error as herror,
-                       package::{ident::Identifiable,
-                                 PackageIdent,
-                                 PackageTarget}},
+            hab_core::package::{ident::Identifiable,
+                                PackageIdent,
+                                PackageTarget},
             ident_graph::*,
             package_table::{PackageIndex,
                             PackageInfo,
@@ -383,7 +382,7 @@ impl PackageGraphForTarget {
         }
     }
 
-    pub fn search(&self, phrase: &str) -> Vec<String> {
+    pub fn search(&self, _phrase: &str) -> Vec<String> {
         // TODO: Rework this for new PackageTable construct
         //      let v: Vec<String> = self
         //     .packages
