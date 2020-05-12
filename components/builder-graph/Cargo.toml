@@ -34,7 +34,8 @@ diesel = "*"
 regex = "*"
 lazy_static = "*"
 itertools = "*"
-tempfile = "*" 
+tempfile = "*"
+internment = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

@@ -44,6 +44,7 @@ pub mod error;
 pub mod ident_graph;
 pub mod package_graph;
 pub mod package_graph_target;
+pub mod package_ident_intern;
 pub mod package_table;
 pub mod rdeps;
 pub mod util;
