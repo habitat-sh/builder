@@ -30,7 +30,8 @@ use std::{cmp,
           fs::File,
           io::prelude::*,
           iter::FromIterator,
-          path::Path};
+          path::Path,
+          str::FromStr};
 
 use crate::{hab_core::package::{Identifiable,
                                 PackageIdent},
