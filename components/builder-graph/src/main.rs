@@ -38,6 +38,7 @@ use habitat_builder_db::models::package::PackageWithVersionArray;
 use habitat_core as hab_core;
 
 pub mod build_ordering;
+pub mod build_z3;
 pub mod config;
 pub mod data_store;
 pub mod error;

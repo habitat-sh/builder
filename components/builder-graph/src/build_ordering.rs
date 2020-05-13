@@ -166,6 +166,12 @@ impl<Value> IdentGraph<Value> where Value: Default + Copy
 
         self.dump_graph_raw("raw-graph.txt", Some(origin));
 
+        // Z3 playground
+        // let z3_file = format!("{}_build.smt2", origin);
+        // let workers = 4;
+        // println!("Emitting z3 constraint file {}", z3_file);
+        // emit_z3(workers, &built, &HashMap::new(), &z3_file);
+
         // let build_actual = self.prune_tsort(&built, &latest);
         // build_actual
         built
