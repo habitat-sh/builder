@@ -24,7 +24,8 @@ use petgraph::{algo::tarjan_scc,
 
 use crate::hab_core::package::PackageIdent;
 
-use crate::{ident_graph::IdentGraph,
+use crate::{build_z3::emit_z3,
+            ident_graph::IdentGraph,
             package_table::{PackageIndex,
                             PackageInfo,
                             PackageTable},
