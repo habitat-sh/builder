@@ -59,17 +59,17 @@ impl Ext {
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-pub fn validate_registry_credentials(req: HttpRequest,
-                                     path: Path<String>,
-                                     body: Json<Body>)
-                                     -> HttpResponse {
+pub async fn validate_registry_credentials(req: HttpRequest,
+                                           path: Path<String>,
+                                           body: Json<Body>)
+                                           -> HttpResponse {
     if let Err(err) = authorize_session(&req, None, None) {
         return err.into();
     }
 
     let registry_type = path.into_inner();
 
-    match do_validate_registry_credentials(body, &registry_type) {
+    match do_validate_registry_credentials(body, &registry_type).await {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => {
             debug!("{}", err);
@@ -80,7 +80,7 @@ pub fn validate_registry_credentials(req: HttpRequest,
 
 // Internal Functions - These functions are business logic for any handlers
 //
-fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Result<()> {
+async fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Result<()> {
     if body.username.is_none() || body.password.is_none() {
         debug!("Error: Missing username or password");
         return Err(Error::BadRequest);
@@ -100,7 +100,7 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Re
 
     let header_values = vec![USER_AGENT_BLDR.clone(),
                              ACCEPT_APPLICATION_JSON.clone(),
-                             CONTENT_TYPE_APPLICATION_JSON.clone()];
+                             CONTENT_TYPE_APPLICATION_JSON.clone(),];
     let headers = HeaderMap::from_iter(header_values.into_iter());
 
     let client = HttpClient::new(actual_url, headers)?;
@@ -113,6 +113,7 @@ fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str) -> Re
     match client.post(&post_url)
                 .body(body)
                 .send()
+                .await
                 .map_err(Error::HttpClient)
     {
         Ok(response) => {

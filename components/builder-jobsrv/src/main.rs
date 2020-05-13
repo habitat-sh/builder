@@ -33,7 +33,8 @@ use crate::{hab_core::config::ConfigFile,
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-jobsrv/config/config.toml";
 
-fn main() {
+#[actix_rt::main]
+async fn main() {
     env_logger::init();
     let matches = app().get_matches();
     debug!("CLI matches: {:?}", matches);
@@ -50,7 +51,7 @@ fn main() {
             }
         }
         "start" => {
-            match jobsrv::server::run(config) {
+            match jobsrv::server::run(config).await {
                 Ok(_) => process::exit(0),
                 Err(e) => exit_with(&e, 1),
             }

@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{io::Read,
-          iter::FromIterator};
+use std::iter::FromIterator;
 
 use reqwest::{header::HeaderMap,
               Client,
@@ -80,7 +79,7 @@ impl RpcClient {
                     endpoint: format!("{}/rpc", url) }
     }
 
-    pub fn rpc<R, T>(&self, req: &R) -> Result<T>
+    pub async fn rpc<R, T>(&self, req: &R) -> Result<T>
         where R: protobuf::Message,
               T: protobuf::Message
     {
@@ -90,7 +89,7 @@ impl RpcClient {
         debug!("Sending RPC Message: {}", msg.id);
 
         let json = serde_json::to_string(&msg)?;
-        let mut res = match self.cli.post(&self.endpoint).body(json).send() {
+        let res = match self.cli.post(&self.endpoint).body(json).send().await {
             Ok(res) => res,
             Err(err) => {
                 debug!("Got http error: {}", err);
@@ -99,19 +98,19 @@ impl RpcClient {
         };
         debug!("Got RPC response status: {}", res.status());
 
-        let mut s = String::new();
-        res.read_to_string(&mut s).map_err(Error::IO)?;
-        trace!("Got http response body: {}", s);
+        let status = res.status();
+        let body = res.text().await?;
+        trace!("Got http response body: {}", body);
 
-        match res.status() {
+        match status {
             StatusCode::OK => {
-                let resp_json: RpcMessage = serde_json::from_str(&s)?;
+                let resp_json: RpcMessage = serde_json::from_str(&body)?;
                 trace!("Got RPC JSON: {:?}", resp_json);
 
                 let resp_msg = protobuf::parse_from_bytes::<T>(&resp_json.body)?;
                 Ok(resp_msg)
             }
-            status => Err(Error::RpcError(status.as_u16(), s)),
+            status => Err(Error::RpcError(status.as_u16(), body)),
         }
     }
 }

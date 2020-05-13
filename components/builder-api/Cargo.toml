@@ -13,7 +13,8 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-bytes = "0.4.12"
+actix-rt = "*"
+bytes = "*"
 base64 = "*"
 bitflags = "1"
 clippy = {version = "*", optional = true}
@@ -25,19 +26,19 @@ env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
-reqwest = "0.9.22"
 lazy_static = "*"
 log = "*"
 num_cpus = "*"
 openssl = "=0.10.22"
 percent-encoding = "*"
 protobuf = "*"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
 sha2 = "*"
 toml = { version = "*", default-features = false }
-futures = "0.1"
+futures = "*"
 rand = "*"
 r2d2 = "*"
 regex = "*"
@@ -55,7 +56,7 @@ branch = "ssd/avoid-short-writes"
 [dependencies.actix-web]
 version = "*"
 default-features = false
-features = [ "ssl" ]
+features = [ "openssl" ]
 
 [dependencies.clap]
 version = "*"
@@ -82,3 +83,4 @@ path = "../builder-core"
 
 [dependencies.habitat_builder_db]
 path = "../builder-db"
+

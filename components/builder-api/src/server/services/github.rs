@@ -61,7 +61,7 @@ impl FromStr for GitHubEvent {
 struct PlanWithTarget(Plan, PackageTarget);
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn handle_event(req: HttpRequest, body: String) -> HttpResponse {
+pub async fn handle_event(req: HttpRequest, body: String) -> HttpResponse {
     Counter::GitHubEvent.increment();
 
     let event = match req.headers().get(headers::XGITHUBEVENT) {
@@ -114,15 +114,15 @@ pub fn handle_event(req: HttpRequest, body: String) -> HttpResponse {
 
     match event {
         GitHubEvent::Ping => HttpResponse::new(StatusCode::OK),
-        GitHubEvent::Push => handle_push(&req, &body),
+        GitHubEvent::Push => handle_push(&req, &body).await,
     }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub fn repo_file_content(req: HttpRequest,
-                         path: Path<(u32, u32, String)>,
-                         state: Data<AppState>)
-                         -> HttpResponse {
+pub async fn repo_file_content(req: HttpRequest,
+                               path: Path<(u32, u32, String)>,
+                               state: Data<AppState>)
+                               -> HttpResponse {
     if let Err(err) = authorize_session(&req, None, None) {
         return err.into();
     }
@@ -131,7 +131,7 @@ pub fn repo_file_content(req: HttpRequest,
     let (install_id, repo_id, path) = path.into_inner();
 
     let token = {
-        match github.app_installation_token(install_id) {
+        match github.app_installation_token(install_id).await {
             Ok(token) => token,
             Err(err) => {
                 warn!("Unable to generate GitHub app token, {:?}", err);
@@ -140,7 +140,7 @@ pub fn repo_file_content(req: HttpRequest,
         }
     };
 
-    match github.contents(&token, repo_id, &path) {
+    match github.contents(&token, repo_id, &path).await {
         Ok(None) => HttpResponse::new(StatusCode::NOT_FOUND),
         Ok(search) => HttpResponse::Ok().json(&search),
         Err(err) => {
@@ -150,7 +150,7 @@ pub fn repo_file_content(req: HttpRequest,
     }
 }
 
-fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
+async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
     let hook = match serde_json::from_str::<GitHubWebhookPush>(&body) {
         Ok(hook) => hook,
         Err(err) => return Error::SerdeJson(err).into(),
@@ -175,7 +175,7 @@ fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
 
     let github = &req_state(req).github;
 
-    let token = match github.app_installation_token(hook.installation.id) {
+    let token = match github.app_installation_token(hook.installation.id).await {
         Ok(token) => token,
         Err(err) => {
             warn!("Unable to generate GitHub app token, {:?}", err);
@@ -188,13 +188,13 @@ fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
         Err(_) => None,
     };
 
-    let config = match read_bldr_config(&github, &token, &hook) {
+    let config = match read_bldr_config(&github, &token, &hook).await {
         Ok(config) => config,
         Err(err) => return err.into(),
     };
     debug!("Config: {:#?}", config);
 
-    let plans = match read_plans(&github, &token, &hook, &config) {
+    let plans = match read_plans(&github, &token, &hook, &config).await {
         Ok(plans) => plans,
         Err(err) => return err.into(),
     };
@@ -204,15 +204,15 @@ fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
                 &hook.repository.clone_url,
                 &hook.pusher.name,
                 account_id,
-                &plans)
+                &plans).await
 }
 
-fn build_plans(req: &HttpRequest,
-               repo_url: &str,
-               pusher: &str,
-               account_id: Option<u64>,
-               plans: &[PlanWithTarget])
-               -> HttpResponse {
+async fn build_plans(req: &HttpRequest,
+                     repo_url: &str,
+                     pusher: &str,
+                     account_id: Option<u64>,
+                     plans: &[PlanWithTarget])
+                     -> HttpResponse {
     let mut request = JobGroupSpec::new();
 
     let conn = match req_state(req).db.get_conn() {
@@ -254,7 +254,7 @@ fn build_plans(req: &HttpRequest,
                 request.set_requester_id(a);
             }
 
-            match route_message::<JobGroupSpec, JobGroup>(&req, &request) {
+            match route_message::<JobGroupSpec, JobGroup>(&req, &request).await {
                 Ok(group) => debug!("JobGroup created, {:?}", group),
                 Err(err) => debug!("Failed to create group, {:?}", err),
             }
@@ -267,11 +267,12 @@ fn build_plans(req: &HttpRequest,
     HttpResponse::Ok().json(&plans)
 }
 
-fn read_bldr_config(github: &GitHubClient,
-                    token: &AppToken,
-                    hook: &GitHubWebhookPush)
-                    -> Result<BuildCfg> {
+async fn read_bldr_config(github: &GitHubClient,
+                          token: &AppToken,
+                          hook: &GitHubWebhookPush)
+                          -> Result<BuildCfg> {
     match github.contents(&token, hook.repository.id, BLDR_CFG)
+                .await
                 .map_err(Error::Github)
     {
         Ok(Some(contents)) => {
@@ -304,17 +305,17 @@ fn read_bldr_config(github: &GitHubClient,
     }
 }
 
-fn read_plans(github: &GitHubClient,
-              token: &AppToken,
-              hook: &GitHubWebhookPush,
-              bldr_cfg: &BuildCfg)
-              -> Result<Vec<PlanWithTarget>> {
+async fn read_plans(github: &GitHubClient,
+                    token: &AppToken,
+                    hook: &GitHubWebhookPush,
+                    bldr_cfg: &BuildCfg)
+                    -> Result<Vec<PlanWithTarget>> {
     let mut plans = Vec::with_capacity(bldr_cfg.projects().len());
 
     for project_cfg in bldr_cfg.triggered_by(hook.branch(), hook.changed().as_slice()) {
         for plan_path in project_cfg.plan_path_candidates() {
             debug!("Checking targets for plan_path candidate {:?}", plan_path);
-            let targets = read_plan_targets(github, token, hook, &plan_path)?;
+            let targets = read_plan_targets(github, token, hook, &plan_path).await?;
 
             for target in targets {
                 if project_cfg.build_targets.contains(&target) {
@@ -327,7 +328,7 @@ fn read_plans(github: &GitHubClient,
                     let plan_path = plan_path.join(plan_file);
 
                     if let Some(plan) =
-                        read_plan(github, &token, hook, &plan_path.to_string_lossy())?
+                        read_plan(github, &token, hook, &plan_path.to_string_lossy()).await?
                     {
                         plans.push(PlanWithTarget(plan, target));
                     }
@@ -339,14 +340,15 @@ fn read_plans(github: &GitHubClient,
     Ok(plans)
 }
 
-fn read_plan(github: &GitHubClient,
-             token: &AppToken,
-             hook: &GitHubWebhookPush,
-             path: &str)
-             -> Result<Option<Plan>> {
+async fn read_plan(github: &GitHubClient,
+                   token: &AppToken,
+                   hook: &GitHubWebhookPush,
+                   path: &str)
+                   -> Result<Option<Plan>> {
     debug!("Reading plan from: {:?}", path);
 
     match github.contents(&token, hook.repository.id, path)
+                .await
                 .map_err(Error::Github)
     {
         Ok(Some(contents)) => {
@@ -374,15 +376,16 @@ fn read_plan(github: &GitHubClient,
     }
 }
 
-fn read_plan_targets(github: &GitHubClient,
-                     token: &AppToken,
-                     hook: &GitHubWebhookPush,
-                     path: &PathBuf)
-                     -> Result<HashSet<PackageTarget>> {
+async fn read_plan_targets(github: &GitHubClient,
+                           token: &AppToken,
+                           hook: &GitHubWebhookPush,
+                           path: &PathBuf)
+                           -> Result<HashSet<PackageTarget>> {
     debug!("Reading plan targets from {:?}", path);
     let mut targets: HashSet<PackageTarget> = HashSet::new();
 
     match github.directory(&token, hook.repository.id, &path.to_string_lossy())
+                .await
                 .map_err(Error::Github)
     {
         Ok(Some(entries)) => {

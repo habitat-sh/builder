@@ -6,8 +6,8 @@ workspace = "../../"
 edition = "2018"
 
 [dependencies]
-reqwest = "0.9.22"
 log = "*"
+futures = "*"
 serde = "*"
 serde_derive = "*"
 
@@ -16,3 +16,11 @@ git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
+
+[dependencies.tokio]
+version = "*"
+features = ["fs"]
+
+[dependencies.reqwest]
+version = "*"
+features = ["stream"]

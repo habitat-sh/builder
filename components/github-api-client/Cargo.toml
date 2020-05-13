@@ -9,9 +9,9 @@ edition = "2018"
 base64 = "*"
 env_proxy = "*"
 frank_jwt = "*"
-reqwest = "0.9.22"
 log = "*"
 regex = "*"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -19,3 +19,7 @@ url = "*"
 
 [dependencies.builder_core]
 path = "../builder-core"
+
+[dependencies.tokio]
+version = "*"
+features = ["macros"]
