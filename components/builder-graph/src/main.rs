@@ -63,7 +63,9 @@ use clap::{App,
 use copperline::Copperline;
 
 use crate::{config::Config,
-            data_store::DataStore,
+            data_store::{DataStore,
+                         DataStoreTrait,
+                         DummyDataStore},
             hab_core::{config::ConfigFile,
                        package::{PackageIdent,
                                  PackageTarget}},
@@ -72,7 +74,7 @@ use crate::{config::Config,
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 struct State {
-    datastore: Option<DataStore>,
+    datastore: Option<Box<dyn DataStoreTrait>>,
     graph:     PackageGraph,
     filter:    String,
     done:      bool,
@@ -100,9 +102,10 @@ fn main() {
         None => Config::default(),
     };
 
-    let external_args: Vec<&str> = match matches.values_of("internal_command") {
-        Some(values) => values.collect(),
-        None => Vec::<&str>::new(),
+    // Split on commas
+    let mut external_args = match matches.values_of("internal_command") {
+        Some(values) => split_command(values.collect()),
+        None => Vec::<Vec<String>>::new(),
     };
 
     enable_features(&config);
@@ -119,7 +122,10 @@ fn main() {
     // This is meant to ease testing of this command and provide a quick one-off access to the CLI
     //
     if !external_args.is_empty() {
-        state.process_command(&external_args);
+        for command in external_args {
+            let command: Vec<&str> = command.iter().map(|s| &**s).collect();
+            state.process_command(&command);
+        }
         state.done = true
     } else {
         state.cli.print_help().unwrap();
@@ -153,7 +159,7 @@ impl State {
                     ("build_levels", Some(m)) => do_build_levels(&self.graph, &m),
                     ("build_order", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_dump_build_order(&datastore, &mut self.graph, &m);
+                            do_dump_build_order(datastore.as_ref(), &mut self.graph, &m);
                         } else {
                             println!("'build_order' requires a database connection; See \
                                       'db_connect'");
@@ -161,16 +167,17 @@ impl State {
                     }
                     ("check", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_check(&datastore, &self.graph, &m)
+                            do_check(datastore.as_ref(), &self.graph, &m)
                         } else {
                             println!("'check' requires a database connection; See 'db_connect'")
                         }
                     }
                     ("clear", _) => do_clear(&mut self.graph),
                     ("db_connect", Some(m)) => self.do_db_connect(&m),
+                    ("dummy_db_connect", Some(m)) => self.do_dummy_db_connect(&m),
                     ("db_deps", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_db_deps(&datastore, &self.graph, &m);
+                            do_db_deps(datastore.as_ref(), &self.graph, &m);
                         } else {
                             println!("'db_deps' requires a database connection; See 'db_connect'");
                         }
@@ -184,7 +191,7 @@ impl State {
                     ("load_file", Some(m)) => do_load_file(&mut self.graph, &m),
                     ("load_db", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_load_db(&datastore, &mut self.graph, &m);
+                            do_load_db(datastore.as_ref(), &mut self.graph, &m);
                         } else {
                             println!("'load_db' requires a database connection; See 'db_connect'");
                         }
@@ -212,22 +219,15 @@ impl State {
         }
     }
 
-    fn do_db_connect(&mut self, matches: &ArgMatches) {
-        let config = match matches.value_of("CONFIG_FILE") {
-            Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
-            None => Config::default(),
-        };
-
-        println!("Ignoring cli options for now");
-        println!("Connecting to {}", config.datastore.database);
-
-        let datastore = DataStore::new(&config);
-        datastore.setup().unwrap();
-
+    fn build_graph(&mut self) {
         println!("Building graph... please wait.");
 
         let start_time = Instant::now();
-        let packages = datastore.get_job_graph_packages().unwrap();
+        let packages = self.datastore
+                           .as_ref()
+                           .unwrap()
+                           .get_job_graph_packages()
+                           .unwrap();
 
         let fetch_time = start_time.elapsed().as_secs_f64();
         println!("OK: fetched {} packages ({} sec)",
@@ -245,10 +245,37 @@ impl State {
         let targets = self.graph.targets();
         let target_as_string: Vec<String> = targets.iter().map(|t| t.to_string()).collect();
 
-        self.datastore = Some(datastore);
-
         println!("Found following targets {}", target_as_string.join(", "));
         println!("Default target is {}", self.graph.current_target());
+    }
+
+    fn do_db_connect(&mut self, matches: &ArgMatches) {
+        let config = match matches.value_of("CONFIG_FILE") {
+            Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
+            None => Config::default(),
+        };
+
+        println!("Ignoring cli options for now");
+        println!("Connecting to {}", config.datastore.database);
+
+        let datastore = DataStore::new(&config);
+        datastore.setup().unwrap();
+        self.datastore = Some(Box::new(datastore));
+
+        self.build_graph();
+    }
+
+    fn do_dummy_db_connect(&mut self, matches: &ArgMatches) {
+        if let Some(data_file) = matches.value_of("CONFIG_FILE") {
+            println!("Reading Dummy DB from file {}", data_file);
+
+            let datastore = DummyDataStore::new(data_file);
+            self.datastore = Some(Box::new(datastore));
+
+            self.build_graph();
+        } else {
+            println!("No Dummy DB file provided")
+        }
     }
 }
 
@@ -353,7 +380,7 @@ fn do_load_file(graph: &mut PackageGraph, matches: &ArgMatches) {
              package_count, filename, filter, file_duration, duration_secs);
 }
 
-fn do_load_db(datastore: &DataStore, graph: &mut PackageGraph, _matches: &ArgMatches) {
+fn do_load_db(datastore: &dyn DataStoreTrait, graph: &mut PackageGraph, _matches: &ArgMatches) {
     let start_time = Instant::now();
 
     let packages: Vec<PackageWithVersionArray> = datastore.get_job_graph_packages().unwrap();
@@ -399,8 +426,9 @@ fn do_dump_diagnostics(graph: &PackageGraph, matches: &ArgMatches) {
     println!("Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
              filename, filter, duration_secs);
 }
-
-fn do_dump_build_order(datastore: &DataStore, graph: &mut PackageGraph, matches: &ArgMatches) {
+fn do_dump_build_order(datastore: &dyn DataStoreTrait,
+                       graph: &mut PackageGraph,
+                       matches: &ArgMatches) {
     let start_time = Instant::now();
     // let filter = str_from_matches(matches, "FILTER", "core");
     // let filename = required_filename_from_matches(matches);
@@ -555,7 +583,7 @@ fn resolve_name(graph: &PackageGraph, ident: &PackageIdent) -> PackageIdent {
     }
 }
 
-fn do_check(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches) {
+fn do_check(datastore: &dyn DataStoreTrait, graph: &PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
     let mut deps_map = HashMap::new();
     let mut new_deps = Vec::new();
@@ -599,7 +627,7 @@ fn do_deps(graph: &PackageGraph, matches: &ArgMatches) {
     graph.write_deps(&ident);
 }
 
-fn do_db_deps(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches) {
+fn do_db_deps(datastore: &dyn DataStoreTrait, graph: &PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
     let ident = ident_from_matches(matches).unwrap(); // safe because we validate this arg
     let filter = filter_from_matches(matches);
@@ -630,7 +658,7 @@ fn do_db_deps(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches)
     println!();
 }
 
-fn check_package(datastore: Option<&DataStore>,
+fn check_package(datastore: Option<&dyn DataStoreTrait>,
                  target: PackageTarget,
                  deps_map: &mut HashMap<PackageIdent, PackageIdent>,
                  ident: &PackageIdent,
@@ -733,6 +761,7 @@ fn make_clap_cli() -> App<'static, 'static> {
         .subcommand(check_subcommand())
         .subcommand(clear_subcommand())
         .subcommand(db_connect_subcommand())
+        .subcommand(dummy_db_connect_subcommand())
         .subcommand(db_deps_subcommand())
         .subcommand(diagnostics_subcommand())
         .subcommand(deps_subcommand())
@@ -779,6 +808,12 @@ fn db_connect_subcommand() -> App<'static, 'static> {
             (@arg DATABASE: +takes_value default_value("bldr") "Database name to use")
             (@arg USER: +takes_value default_value("hab") "Username to connect as")
             (@arg PASSWORD: +takes_value "Password for USER"))
+}
+
+fn dummy_db_connect_subcommand() -> App<'static, 'static> {
+    clap_app!(@subcommand dummy_db_connect =>
+            (about: "Connect to bldr datastore")
+            (@arg CONFIG_FILE: +takes_value "Configuration file to load. Takes precedence over remaining options"))
 }
 
 fn db_deps_subcommand() -> App<'static, 'static> {
@@ -1026,4 +1061,23 @@ fn ident_from_matches(matches: &ArgMatches) -> Result<PackageIdent, String> {
     let ident_str: &str = matches.value_of("IDENT")
                                  .ok_or_else(|| String::from("Ident required"))?;
     PackageIdent::from_str(ident_str).map_err(|e| format!("Expected ident gave error {:?}", e))
+}
+
+fn split_command(values: Vec<&str>) -> Vec<Vec<String>> {
+    let mut result = Vec::<Vec<String>>::new();
+
+    let mut command = Vec::<String>::new();
+    for word in values {
+        if word.contains(",") {
+            let split: Vec<String> = word.to_string().split(",").map(|s| s.to_string()).collect();
+            command.push(split[0].to_string().clone());
+            let post = split[1].to_string().clone();
+            result.push(command);
+            command = Vec::<String>::new();
+            command.push(post);
+        } else {
+            command.push(word.to_string().clone())
+        }
+    }
+    result
 }
