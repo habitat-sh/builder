@@ -51,9 +51,9 @@ use crate::runner::{job_streamer::JobStreamer,
 
 lazy_static! {
     /// Absolute path to the Docker exporter program
-    static ref DOCKER_EXPORTER_PROGRAM: PathBuf = hfs::resolve_cmd_in_pkg(
-        "hab-pkg-export-docker",
-        include_str!(concat!(env!("OUT_DIR"), "/DOCKER_EXPORTER_PKG_IDENT")),
+    static ref CONTAINER_EXPORTER_PROGRAM: PathBuf = hfs::resolve_cmd_in_pkg(
+        "hab-pkg-export-container",
+        include_str!(concat!(env!("OUT_DIR"), "/CONTAINER_EXPORTER_PKG_IDENT")),
     );
 
     /// Absolute path to the Dockerd program
@@ -109,12 +109,12 @@ impl<'a> DockerExporter<'a> {
     }
 
     fn run_export(&self, streamer: &mut JobStreamer) -> Result<ExitStatus> {
-        debug!("Using pre-configured docker exporter program: {:?}",
-               &*DOCKER_EXPORTER_PROGRAM);
+        debug!("Using pre-configured container exporter program: {:?}",
+               &*CONTAINER_EXPORTER_PROGRAM);
 
-        let mut cmd = Command::new(&*DOCKER_EXPORTER_PROGRAM);
+        let mut cmd = Command::new(&*CONTAINER_EXPORTER_PROGRAM);
 
-        let exporter_ident = PackageIdent::from_str("core/hab-pkg-export-docker")?;
+        let exporter_ident = PackageIdent::from_str("core/hab-pkg-export-container")?;
         let pkg_install = PackageInstall::load(&exporter_ident, Some(&*FS_ROOT_PATH))?;
 
         cmd.current_dir(self.workspace.root());
@@ -154,8 +154,8 @@ impl<'a> DockerExporter<'a> {
 
         cmd.arg(self.workspace.last_built()?.path); // Locally built artifact
         debug!(
-            "building docker export command, cmd={}",
-            format!("building docker export command, cmd={:?}", &cmd)
+            "building container export command, cmd={}",
+            format!("building container export command, cmd={:?}", &cmd)
                 .replace(&self.spec.username, "<username-redacted>")
                 .replace(&self.spec.password, "<password-redacted>")
         );
@@ -188,11 +188,12 @@ impl<'a> DockerExporter<'a> {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        debug!("spawning docker export command");
+        debug!("spawning container export command");
         let mut child = cmd.spawn().map_err(Error::Exporter)?;
         streamer.consume_child(&mut child)?;
         let exit_status = child.wait().map_err(Error::Exporter)?;
-        debug!("completed docker export command, status={:?}", exit_status);
+        debug!("completed container export command, status={:?}",
+               exit_status);
 
         Ok(exit_status)
     }

@@ -37,9 +37,9 @@ do_prepare() {
   build_line "Setting PLAN_STUDIO_PKG_IDENT=$PLAN_STUDIO_PKG_IDENT"
 
   # Compile the fully-qualified Docker exporter package identifier into the binary
-  PLAN_DOCKER_EXPORTER_PKG_IDENT=$(pkg_path_for hab-pkg-export-docker | sed "s,^$HAB_PKG_PATH/,,")
-  export PLAN_DOCKER_EXPORTER_PKG_IDENT
-  build_line "Setting PLAN_DOCKER_EXPORTER_PKG_IDENT=$PLAN_DOCKER_EXPORTER_PKG_IDENT"
+  PLAN_CONTAINER_EXPORTER_PKG_IDENT=$(pkg_path_for hab-pkg-export-container | sed "s,^$HAB_PKG_PATH/,,")
+  export PLAN_CONTAINER_EXPORTER_PKG_IDENT
+  build_line "Setting PLAN_CONTAINER_EXPORTER_PKG_IDENT=$PLAN_CONTAINER_EXPORTER_PKG_IDENT"
 
   # Compile the fully-qualified Docker package identifier into the binary
   PLAN_DOCKER_PKG_IDENT=$(pkg_path_for docker | sed "s,^$HAB_PKG_PATH/,,")
