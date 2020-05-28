@@ -10,7 +10,7 @@ $pkg_deps = @(
     "core/libsodium",
     "core/hab",
     "core/hab-studio",
-    "core/hab-pkg-export-docker",
+    "core/hab-pkg-export-container",
     "core/docker"
 )
 $pkg_bin_dirs = @("bin")
