@@ -10,7 +10,7 @@ $pkg_deps = @(
     "core/libsodium",
     "core/hab",
     "core/hab-studio",
-    "core/hab-pkg-export-docker",
+    "core/hab-pkg-export-container",
     "core/docker"
 )
 $pkg_bin_dirs = @("bin")
@@ -74,8 +74,8 @@ function Invoke-Prepare {
     Write-BuildLine "Setting env:PLAN_STUDIO_PKG_IDENT=$env:PLAN_STUDIO_PKG_IDENT"
 
     # Compile the fully-qualified Docker exporter package identifier into the binary
-    $env:PLAN_DOCKER_EXPORTER_PKG_IDENT = $(Get-HabPackagePath "hab-pkg-export-docker").replace("$HAB_PKG_PATH\","").replace("\", "/")
-    Write-BuildLine "Setting env:PLAN_DOCKER_EXPORTER_PKG_IDENT=$env:PLAN_DOCKER_EXPORTER_PKG_IDENT"
+    $env:PLAN_CONTAINER_EXPORTER_PKG_IDENT = $(Get-HabPackagePath "hab-pkg-export-container").replace("$HAB_PKG_PATH\","").replace("\", "/")
+    Write-BuildLine "Setting env:PLAN_CONTAINER_EXPORTER_PKG_IDENT=$env:PLAN_CONTAINER_EXPORTER_PKG_IDENT"
 }
 
 function Invoke-BuildConfig {
