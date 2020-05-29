@@ -21,7 +21,6 @@ sudo hab license accept
 install_hab_pkg core/bzip2 core/libarchive core/libsodium core/openssl core/xz core/zeromq core/libpq
 sudo hab pkg install core/protobuf --binlink
 
-export SODIUM_STATIC=true # so the libarchive crate links to sodium statically
 export LIBARCHIVE_STATIC=true # so the libarchive crate *builds* statically
 export OPENSSL_DIR # so the openssl crate knows what to build against
 OPENSSL_DIR="$(hab pkg path core/openssl)"
