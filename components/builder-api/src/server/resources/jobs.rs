@@ -634,9 +634,7 @@ async fn do_cancel_job_group(req: &HttpRequest, group_id: u64) -> Result<NetOk> 
     let name_split: Vec<&str> = group.get_project_name().split('/').collect();
     assert!(name_split.len() == 2);
 
-    let session = authorize_session(req,
-                                    Some(&name_split[0]),
-                                    Some(OriginMemberRole::Maintainer))?;
+    let session = authorize_session(req, Some(&name_split[0]), Some(OriginMemberRole::Member))?;
 
     let mut jgc = jobsrv::JobGroupCancel::new();
     jgc.set_group_id(group_id);
