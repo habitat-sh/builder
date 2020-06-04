@@ -24,7 +24,6 @@ curl --connect-timeout 5 \
    "source_type_name":"GIT",
    "tags":[
       "environment:acceptance"
-
 ],
    "text":"'${EXPEDITOR_TITLE}' https://github.com/habitat-sh/builder/pull/${EXPEDITOR_NUMBER} was merged with merge commit ${EXPEDITOR_MERGE_COMMIT}",
    "title":"Builder PR ${EXPEDITOR_NUMBER} merged to master"
