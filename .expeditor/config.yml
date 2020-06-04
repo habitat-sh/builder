@@ -25,6 +25,6 @@ subscriptions:
 
   - workload: pull_request_merged:habitat-sh/builder:master:*
     actions:
-      - bash:.expeditor/scripts/post_datadog_merge_event.sh
+      - bash:.expeditor/scripts/post_datadog_merge_event.sh:
           always_run: true
           post_commit: true
