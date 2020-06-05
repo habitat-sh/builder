@@ -119,6 +119,34 @@ describe('Channels API', function () {
         });
     });
 
+
+    it('returns latest packages in a channel fails without a target', function (done) {
+      request.get('/depot/channels/neurosis/foo/pkgs/latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('returns latest packages in a channel', function (done) {
+      request.get('/depot/channels/neurosis/foo/pkgs/latest?target=x86_64-linux')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.channel).to.equal('foo');
+          expect(res.body.target).to.equal('x86_64-linux');
+//          expect(res.body.data).length.to.equal(1);
+          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[0].version).to.equal('0.1.3');
+          expect(res.body.data[0].release).to.equal('20171205003213');
+          done(err);
+        });
+    });
+
     it('returns all packages with the given name in a channel', function (done) {
       request.get('/depot/channels/neurosis/foo/pkgs/testapp')
         .type('application/json')

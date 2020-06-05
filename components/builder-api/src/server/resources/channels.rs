@@ -73,6 +73,8 @@ impl Channels {
                   web::delete().to(delete_channel))
            .route("/depot/channels/{origin}/{channel}/pkgs",
                   web::get().to(get_packages_for_origin_channel))
+           .route("/depot/channels/{origin}/{channel}/pkgs/latest",
+                  web::get().to(get_latest_packages_for_origin_channel))
            .route("/depot/channels/{origin}/{channel}/pkgs/{pkg}",
                   web::get().to(get_packages_for_origin_channel_package))
            .route("/depot/channels/{origin}/{channel}/pkgs/{pkg}/latest",
@@ -678,8 +680,68 @@ fn get_package_fully_qualified(req: HttpRequest,
     }
 }
 
+fn get_latest_packages_for_origin_channel(req: HttpRequest,
+                                          path: Path<(String, String)>,
+                                          qtarget: Query<Target>)
+                                          -> HttpResponse {
+    let (origin, channel) = path.into_inner();
+    let channel = ChannelIdent::from(channel);
+
+    trace!("LOGLOG-t1 {} {}", origin, channel);
+    println!("LOGLOG-p1 {} {}", origin, channel);
+
+    match do_get_latest_channel_packages(&req, &qtarget, &origin, &channel) {
+        Ok((channel, target, data)) => {
+            let json_body = helpers::channel_listing_results_json(&channel, &target, &data);
+            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
+                              .header(http::header::CACHE_CONTROL,
+                                      headers::Cache::NoCache.to_string())
+                              .body(json_body)
+        }
+        Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
+        Err(Error::BadRequest) => HttpResponse::new(StatusCode::BAD_REQUEST),
+        Err(err) => {
+            debug!("Failed to get package, err={}", err);
+            err.into()
+        }
+    }
+}
+
 // Internal - these functions should return Result<..>
 //
+
+fn do_get_latest_channel_packages(req: &HttpRequest,
+                                  qtarget: &Query<Target>,
+                                  origin: &String,
+                                  channel: &ChannelIdent)
+                                  -> Result<(String, String, Vec<BuilderPackageIdent>)> {
+    let opt_session_id = match authorize_session(&req, None, None) {
+        Ok(session) => Some(session.get_id()),
+        Err(_) => None,
+    };
+
+    // This is a new API, so we only look at the query string not the headers.
+    let target = match qtarget.target {
+        Some(ref t) => {
+            trace!("Query requested target = {}", t);
+            t
+        }
+        None => return Err(Error::BadRequest),
+    };
+
+    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+
+    Channel::list_latest_packages(
+        &ListAllChannelPackagesForTarget {
+            visibility: &helpers::visibility_for_optional_session(&req, opt_session_id, &origin),
+            channel,
+            origin,
+            target,
+        },
+        &*conn,
+    )
+    .map_err(Error::DieselError)
+}
 
 fn do_get_channel_packages(req: &HttpRequest,
                            pagination: &Query<Pagination>,
