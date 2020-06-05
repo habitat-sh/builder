@@ -687,9 +687,6 @@ fn get_latest_packages_for_origin_channel(req: HttpRequest,
     let (origin, channel) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
-    trace!("LOGLOG-t1 {} {}", origin, channel);
-    println!("LOGLOG-p1 {} {}", origin, channel);
-
     match do_get_latest_channel_packages(&req, &qtarget, &origin, &channel) {
         Ok((channel, target, data)) => {
             let json_body = helpers::channel_listing_results_json(&channel, &target, &data);

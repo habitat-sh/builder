@@ -84,8 +84,6 @@ pub fn channel_listing_results_json<T: Serialize>(channel: &str,
                                           target:  target.to_string(),
                                           data:    packages, };
     let r = serde_json::to_string(&results).unwrap();
-    trace!("LOGLOG-t {} {} {}", channel, target, r);
-    println!("LOGLOG-p{} {} {}", channel, target, r);
     r
 }
 
