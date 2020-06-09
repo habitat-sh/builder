@@ -174,19 +174,30 @@ impl Channel {
         let channel = String::from(req.channel.as_str());
         let target = String::from(req.target);
 
-        let result = origin_packages_with_version_array::table
+        let query = origin_packages_with_version_array::table
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
             .filter(origin_packages_with_version_array::origin.eq(&req.origin))
             .filter(origin_channels::name.eq(&channel))
             .filter(origin_packages_with_version_array::target.eq(&target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
-            .select(origin_packages_with_version_array::ident)
+            .distinct_on(origin_packages_with_version_array::name)
+            .select((origin_packages_with_version_array::name, origin_packages_with_version_array::ident))
+            .order(origin_packages_with_version_array::name)
             .order(sql::<PackageWithVersionArray>(
-                "string_to_array(version_array[1],'.')::\
-numeric[] desc, version_array[2] desc, \
-ident_array[4] desc",
-            ))
-            .get_results(conn);
+                "name,\
+                string_to_array(version_array[1],'.')::numeric[] desc,\
+                version_array[2] desc,\
+                ident_array[4] desc",
+            ));
+
+        // The query returns name, ident because of the way distinct works.
+        // I could wrap it all in a subquery, but hit some snags doing that with Diesel.account
+        // Instead, I'm going to just extract the Ident here
+        let result: QueryResult<Vec<(String, BuilderPackageIdent)>> = query.get_results(conn);
+        let result: QueryResult<Vec<BuilderPackageIdent>> =
+            result.map(|v: Vec<(String, BuilderPackageIdent)>| {
+                      v.iter().map(|(_, ident)| ident.clone()).collect()
+                  });
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall channel::list_latest_package time: {} ms",
