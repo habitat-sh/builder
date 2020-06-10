@@ -680,6 +680,7 @@ fn get_package_fully_qualified(req: HttpRequest,
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn get_latest_packages_for_origin_channel(req: HttpRequest,
                                           path: Path<(String, String)>,
                                           qtarget: Query<Target>)
@@ -709,7 +710,7 @@ fn get_latest_packages_for_origin_channel(req: HttpRequest,
 
 fn do_get_latest_channel_packages(req: &HttpRequest,
                                   qtarget: &Query<Target>,
-                                  origin: &String,
+                                  origin: &str,
                                   channel: &ChannelIdent)
                                   -> Result<(String, String, Vec<BuilderPackageIdent>)> {
     let opt_session_id = match authorize_session(&req, None, None) {
