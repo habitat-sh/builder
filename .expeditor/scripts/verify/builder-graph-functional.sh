@@ -16,7 +16,8 @@ hab pkg build components/builder-graph
 source results/last_build.env
 hab pkg install results/$pkg_artifact
 echo "--- Running tests for $pkg_ident"
-export BLDR_GRAPH_PATH="$(hab pkg path $HAB_ORIGIN/builder-graph)/bin/bldr-graph"
+BLDR_GRAPH_PATH="$(hab pkg path "$HAB_ORIGIN"/builder-graph)/bin/bldr-graph"
+export BLDR_GRAPH_PATH
 echo "Using $BLDR_GRAPH_PATH"
 
 test/builder-graph/test.sh

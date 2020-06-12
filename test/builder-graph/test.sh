@@ -14,7 +14,7 @@ function install_bats_library() {
 }
 
 ( 
-    cd $project_root 
+    cd "$project_root"
     install_bats_library "bats-support"
     install_bats_library "bats-assert"
     install_bats_library "bats-file"
