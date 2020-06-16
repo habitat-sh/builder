@@ -17,6 +17,7 @@ hab origin key generate "$HAB_ORIGIN"
 #       use it to inform and improve build times.
 
 echo "--- Building changed builder components"
+mkdir -p logs
 for component in api jobsrv worker; do
     echo "--- Building builder-api"
     echo "Redirecting log output; See build artifact 'builder-$component.build.log'"
@@ -24,7 +25,7 @@ for component in api jobsrv worker; do
     # Install the thing we just built, so that we can load it later.
     ( 
         source results/last_build.env
-        hab pkg install results/$pkg_artifact
+        hab pkg install results/"$pkg_artifact"
     )
 done
 
