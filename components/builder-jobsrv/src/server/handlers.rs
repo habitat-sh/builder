@@ -26,8 +26,7 @@ use diesel::{self,
              result::Error::NotFound};
 use protobuf::RepeatedField;
 
-use crate::{bldr_core::{package_graph::PackageGraphTrait,
-                        rpc::RpcMessage},
+use crate::{bldr_core::rpc::RpcMessage,
             db::models::{jobs::*,
                          package::*,
                          projects::*},

@@ -13,12 +13,11 @@
 // limitations under the License.
 
 use std::{collections::HashMap,
-          iter::Iterator,
           str::FromStr};
 
-use crate::{hab_core::package::PackageTarget,
-            package_graph::{PackageGraph,
-                            PackageGraphTrait},
+use crate::{acyclic_package_graph::AcyclicPackageGraph,
+            hab_core::package::PackageTarget,
+            package_graph_trait::PackageGraphTrait,
             protocol::originsrv};
 
 pub struct TargetGraphStats {
@@ -39,7 +38,7 @@ impl TargetGraph {
         // We only support the following targets currently
         for target_str in &["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"] {
             graphs.insert(PackageTarget::from_str(target_str).unwrap(),
-                          Box::new(PackageGraph::new()));
+                          Box::new(AcyclicPackageGraph::new()));
         }
 
         TargetGraph { graphs }

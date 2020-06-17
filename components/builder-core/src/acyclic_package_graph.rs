@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2020 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
+// limitations under the License
 
 use petgraph::{algo::{connected_components,
                       is_cyclic_directed},
@@ -22,35 +22,11 @@ use std::{cmp::Ordering,
                         HashMap},
           str::FromStr};
 
-use crate::{hab_core::package::PackageIdent,
-            protocol::originsrv,
-            rdeps::rdeps};
-
-#[derive(Debug)]
-pub struct Stats {
-    pub node_count:     usize,
-    pub edge_count:     usize,
-    pub connected_comp: usize,
-    pub is_cyclic:      bool,
-}
-
-#[derive(Eq)]
-struct HeapEntry {
-    pkg_index:  usize,
-    rdep_count: usize,
-}
-
-impl Ord for HeapEntry {
-    fn cmp(&self, other: &HeapEntry) -> Ordering { self.rdep_count.cmp(&other.rdep_count) }
-}
-
-impl PartialOrd for HeapEntry {
-    fn partial_cmp(&self, other: &HeapEntry) -> Option<Ordering> { Some(self.cmp(other)) }
-}
-
-impl PartialEq for HeapEntry {
-    fn eq(&self, other: &HeapEntry) -> bool { self.pkg_index == other.pkg_index }
-}
+use crate::{acyclic_rdeps::rdeps,
+            hab_core::package::PackageIdent,
+            package_graph_trait::{PackageGraphTrait,
+                                  Stats},
+            protocol::originsrv};
 
 fn short_name(name: &str) -> String {
     let parts: Vec<&str> = name.split('/').collect();
@@ -58,23 +34,8 @@ fn short_name(name: &str) -> String {
     format!("{}/{}", parts[0], parts[1])
 }
 
-pub trait PackageGraphTrait: Send + Sync {
-    fn build(&mut self,
-             packages: &[originsrv::OriginPackage],
-             use_build_deps: bool)
-             -> (usize, usize);
-    fn extend(&mut self,
-              package: &originsrv::OriginPackage,
-              use_build_deps: bool)
-              -> (usize, usize);
-    fn check_extend(&mut self, package: &originsrv::OriginPackage, use_build_deps: bool) -> bool;
-    fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>>;
-    fn resolve(&self, name: &str) -> Option<String>;
-    fn stats(&self) -> Stats;
-}
-
 #[derive(Default)]
-pub struct PackageGraph {
+pub struct AcyclicPackageGraph {
     package_max:   usize,
     package_map:   HashMap<String, (usize, NodeIndex)>,
     latest_map:    HashMap<String, PackageIdent>,
@@ -82,7 +43,7 @@ pub struct PackageGraph {
     graph:         Graph<usize, usize>,
 }
 
-impl PackageGraphTrait for PackageGraph {
+impl PackageGraphTrait for AcyclicPackageGraph {
     fn build(&mut self,
              packages: &[originsrv::OriginPackage],
              use_build_deps: bool)
@@ -275,8 +236,8 @@ impl PackageGraphTrait for PackageGraph {
     }
 }
 
-impl PackageGraph {
-    pub fn new() -> Self { PackageGraph::default() }
+impl AcyclicPackageGraph {
+    pub fn new() -> Self { AcyclicPackageGraph::default() }
 
     #[allow(clippy::map_entry)]
     fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
@@ -298,6 +259,7 @@ impl PackageGraph {
     }
 
     // Mostly for debugging
+    #[allow(dead_code)]
     fn rdeps_dump(&self) {
         debug!("Reverse dependencies:");
 
@@ -316,6 +278,7 @@ impl PackageGraph {
         }
     }
 
+    #[allow(dead_code)]
     fn search(&self, phrase: &str) -> Vec<String> {
         let v: Vec<String> = self.package_names
                                  .iter()
@@ -326,8 +289,10 @@ impl PackageGraph {
         v
     }
 
+    #[allow(dead_code)]
     fn latest(&self) -> Vec<String> { self.latest_map.values().map(|x| format!("{}", x)).collect() }
 
+    #[allow(dead_code)]
     fn top(&self, max: usize) -> Vec<(String, usize)> {
         let mut v = Vec::new();
         let mut heap = BinaryHeap::new();
@@ -355,6 +320,23 @@ impl PackageGraph {
         v
     }
 }
+#[derive(Eq)]
+struct HeapEntry {
+    pkg_index:  usize,
+    rdep_count: usize,
+}
+
+impl Ord for HeapEntry {
+    fn cmp(&self, other: &HeapEntry) -> Ordering { self.rdep_count.cmp(&other.rdep_count) }
+}
+
+impl PartialOrd for HeapEntry {
+    fn partial_cmp(&self, other: &HeapEntry) -> Option<Ordering> { Some(self.cmp(other)) }
+}
+
+impl PartialEq for HeapEntry {
+    fn eq(&self, other: &HeapEntry) -> bool { self.pkg_index == other.pkg_index }
+}
 
 #[cfg(test)]
 mod test {
@@ -363,7 +345,7 @@ mod test {
 
     #[test]
     fn empty_graph() {
-        let mut graph = PackageGraph::new();
+        let mut graph = AcyclicPackageGraph::new();
         let packages = Vec::new();
         let (ncount, ecount) = graph.build(&packages, true);
         assert_eq!(ncount, 0);
@@ -372,7 +354,7 @@ mod test {
 
     #[test]
     fn disallow_circular_dependency() {
-        let mut graph = PackageGraph::new();
+        let mut graph = AcyclicPackageGraph::new();
         let mut packages = Vec::new();
 
         let mut package1 = originsrv::OriginPackage::new();
@@ -403,7 +385,7 @@ mod test {
 
     #[test]
     fn pre_check_with_dep_not_present() {
-        let mut graph = PackageGraph::new();
+        let mut graph = AcyclicPackageGraph::new();
 
         let mut package1 = originsrv::OriginPackage::new();
         package1.set_ident(originsrv::OriginPackageIdent::from_str("foo/bar/1/2").unwrap());
