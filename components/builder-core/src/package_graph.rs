@@ -58,6 +58,21 @@ fn short_name(name: &str) -> String {
     format!("{}/{}", parts[0], parts[1])
 }
 
+pub trait PackageGraphTrait: Send + Sync {
+    fn build(&mut self,
+             packages: &[originsrv::OriginPackage],
+             use_build_deps: bool)
+             -> (usize, usize);
+    fn extend(&mut self,
+              package: &originsrv::OriginPackage,
+              use_build_deps: bool)
+              -> (usize, usize);
+    fn check_extend(&mut self, package: &originsrv::OriginPackage, use_build_deps: bool) -> bool;
+    fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>>;
+    fn resolve(&self, name: &str) -> Option<String>;
+    fn stats(&self) -> Stats;
+}
+
 #[derive(Default)]
 pub struct PackageGraph {
     package_max:   usize,
@@ -67,31 +82,11 @@ pub struct PackageGraph {
     graph:         Graph<usize, usize>,
 }
 
-impl PackageGraph {
-    pub fn new() -> Self { PackageGraph::default() }
-
-    #[allow(clippy::map_entry)]
-    fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
-        let short_name = short_name(name);
-
-        if self.package_map.contains_key(&short_name) {
-            self.package_map[&short_name]
-        } else {
-            self.package_names.push(short_name.clone());
-            assert_eq!(self.package_names[self.package_max], short_name);
-
-            let node_index = self.graph.add_node(self.package_max);
-            self.package_map
-                .insert(short_name, (self.package_max, node_index));
-            self.package_max += 1;
-
-            (self.package_max - 1, node_index)
-        }
-    }
-
-    pub fn build<T>(&mut self, packages: T, use_build_deps: bool) -> (usize, usize)
-        where T: Iterator<Item = originsrv::OriginPackage>
-    {
+impl PackageGraphTrait for PackageGraph {
+    fn build(&mut self,
+             packages: &[originsrv::OriginPackage],
+             use_build_deps: bool)
+             -> (usize, usize) {
         assert!(self.package_max == 0);
 
         for p in packages {
@@ -101,10 +96,7 @@ impl PackageGraph {
         (self.graph.node_count(), self.graph.edge_count())
     }
 
-    pub fn check_extend(&mut self,
-                        package: &originsrv::OriginPackage,
-                        use_build_deps: bool)
-                        -> bool {
+    fn check_extend(&mut self, package: &originsrv::OriginPackage, use_build_deps: bool) -> bool {
         let name = format!("{}", package.get_ident());
         let pkg_short_name = short_name(&name);
 
@@ -176,10 +168,10 @@ impl PackageGraph {
     }
 
     #[allow(clippy::map_entry)]
-    pub fn extend(&mut self,
-                  package: &originsrv::OriginPackage,
-                  use_build_deps: bool)
-                  -> (usize, usize) {
+    fn extend(&mut self,
+              package: &originsrv::OriginPackage,
+              use_build_deps: bool)
+              -> (usize, usize) {
         let name = format!("{}", package.get_ident());
         let (pkg_id, pkg_node) = self.generate_id(&name);
 
@@ -244,7 +236,7 @@ impl PackageGraph {
         (self.graph.node_count(), self.graph.edge_count())
     }
 
-    pub fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>> {
+    fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>> {
         let mut v: Vec<(String, String)> = Vec::new();
 
         match self.package_map.get(name) {
@@ -266,8 +258,47 @@ impl PackageGraph {
         Some(v)
     }
 
+    // Given an identifier in 'origin/name' format, returns the
+    // most recent version (fully-qualified package ident string)
+    fn resolve(&self, name: &str) -> Option<String> {
+        match self.latest_map.get(name) {
+            Some(ident) => Some(format!("{}", ident)),
+            None => None,
+        }
+    }
+
+    fn stats(&self) -> Stats {
+        Stats { node_count:     self.graph.node_count(),
+                edge_count:     self.graph.edge_count(),
+                connected_comp: connected_components(&self.graph),
+                is_cyclic:      is_cyclic_directed(&self.graph), }
+    }
+}
+
+impl PackageGraph {
+    pub fn new() -> Self { PackageGraph::default() }
+
+    #[allow(clippy::map_entry)]
+    fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
+        let short_name = short_name(name);
+
+        if self.package_map.contains_key(&short_name) {
+            self.package_map[&short_name]
+        } else {
+            self.package_names.push(short_name.clone());
+            assert_eq!(self.package_names[self.package_max], short_name);
+
+            let node_index = self.graph.add_node(self.package_max);
+            self.package_map
+                .insert(short_name, (self.package_max, node_index));
+            self.package_max += 1;
+
+            (self.package_max - 1, node_index)
+        }
+    }
+
     // Mostly for debugging
-    pub fn rdeps_dump(&self) {
+    fn rdeps_dump(&self) {
         debug!("Reverse dependencies:");
 
         for (pkg_name, pkg_id) in &self.package_map {
@@ -285,7 +316,7 @@ impl PackageGraph {
         }
     }
 
-    pub fn search(&self, phrase: &str) -> Vec<String> {
+    fn search(&self, phrase: &str) -> Vec<String> {
         let v: Vec<String> = self.package_names
                                  .iter()
                                  .cloned()
@@ -295,27 +326,9 @@ impl PackageGraph {
         v
     }
 
-    pub fn latest(&self) -> Vec<String> {
-        self.latest_map.values().map(|x| format!("{}", x)).collect()
-    }
+    fn latest(&self) -> Vec<String> { self.latest_map.values().map(|x| format!("{}", x)).collect() }
 
-    // Given an identifier in 'origin/name' format, returns the
-    // most recent version (fully-qualified package ident string)
-    pub fn resolve(&self, name: &str) -> Option<String> {
-        match self.latest_map.get(name) {
-            Some(ident) => Some(format!("{}", ident)),
-            None => None,
-        }
-    }
-
-    pub fn stats(&self) -> Stats {
-        Stats { node_count:     self.graph.node_count(),
-                edge_count:     self.graph.edge_count(),
-                connected_comp: connected_components(&self.graph),
-                is_cyclic:      is_cyclic_directed(&self.graph), }
-    }
-
-    pub fn top(&self, max: usize) -> Vec<(String, usize)> {
+    fn top(&self, max: usize) -> Vec<(String, usize)> {
         let mut v = Vec::new();
         let mut heap = BinaryHeap::new();
 
@@ -352,7 +365,7 @@ mod test {
     fn empty_graph() {
         let mut graph = PackageGraph::new();
         let packages = Vec::new();
-        let (ncount, ecount) = graph.build(packages.into_iter(), true);
+        let (ncount, ecount) = graph.build(&packages, true);
         assert_eq!(ncount, 0);
         assert_eq!(ecount, 0);
     }
@@ -376,7 +389,7 @@ mod test {
         package2.set_deps(package2_deps);
         packages.push(package2.clone());
 
-        let (ncount, ecount) = graph.build(packages.into_iter(), true);
+        let (ncount, ecount) = graph.build(&packages, true);
 
         assert_eq!(ncount, 2);
         assert_eq!(ecount, 1); // only the first edge added

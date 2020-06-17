@@ -131,7 +131,7 @@ fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
 
 fn enable_features_from_config(cfg: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps),
-                                                          ("LEGACYPROJECT", feat::LegacyProject)]);
+                                                          ("LEGACYPROJECT", feat::LegacyProject),]);
     let features_enabled = cfg.features_enabled
                               .split(',')
                               .map(|f| f.trim().to_uppercase());
@@ -173,8 +173,7 @@ pub async fn run(config: Config) -> Result<()> {
     let origin_packages: Vec<OriginPackage> = packages.iter().map(|p| p.clone().into()).collect();
     let start_time = Instant::now();
 
-    let res = graph.build(origin_packages.into_iter(),
-                          feat::is_enabled(feat::BuildDeps));
+    let res = graph.build(&origin_packages, feat::is_enabled(feat::BuildDeps));
 
     info!("Graph build stats ({} sec):",
           start_time.elapsed().as_secs_f64());
