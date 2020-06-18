@@ -230,14 +230,16 @@ describe('Jobs API', function () {
       // We need to fake a job log here because our test suite doesn't have all
       // the required deps to run a real build. Let's pretend that it did though.
       before(function () {
-        if (!ps.env['BLDR_FULL_TEST_RUN']) {
-          fs.writeFileSync(`/tmp/${global.neurosisTestappJob.id}.log`, 'This is a log file.');
+        jobLog=`/tmp/${global.neurosisTestappJob.id}.log`
+        if (!ps.env['BLDR_FULL_TEST_RUN'] && !fs.existsSync(jobLog)) {
+          fs.writeFileSync(jobLog, 'This is a log file.');
         }
       });
 
       after(function () {
-        if (!ps.env['BLDR_FULL_TEST_RUN']) {
-          fs.unlinkSync(`/tmp/${global.neurosisTestappJob.id}.log`);
+        jobLog=`/tmp/${global.neurosisTestappJob.id}.log`
+        if (!ps.env['BLDR_FULL_TEST_RUN'] && fs.existsSync(jobLog)) {
+          fs.unlinkSync(jobLog);
         }
       });
 
