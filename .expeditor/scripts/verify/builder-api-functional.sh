@@ -19,12 +19,13 @@ hab origin key generate "$HAB_ORIGIN"
 echo "--- Building changed builder components"
 mkdir -p logs
 for component in api jobsrv worker; do
-    echo "--- Building builder-api"
+    echo "--- Building builder-$component"
     echo "Redirecting log output; See build artifact 'builder-$component.build.log'"
     hab pkg build components/builder-"$component" > logs/builder-"$component".build.log
     # Install the thing we just built, so that we can load it later.
     ( 
         source results/last_build.env
+        # shellcheck disable=SC2154
         hab pkg install results/"$pkg_artifact"
     )
 done
