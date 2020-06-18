@@ -310,7 +310,7 @@ describe('Channels API', function () {
   describe('Latest packages in an origin', function () {
 
     it('returns latest packages in a channel fails without a target', function (done) {
-      request.get('/depot/channels/neurosis/foo/pkgs/latest')
+      request.get('/depot/channels/neurosis/foo/latest')
         .type('application/json')
         .accept('application/json')
         .expect(400)
@@ -321,7 +321,7 @@ describe('Channels API', function () {
     });
 
     it('returns latest packages in a channel', function (done) {
-      request.get('/depot/channels/neurosis/foo/pkgs/latest?target=x86_64-linux')
+      request.get('/depot/channels/neurosis/foo/latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -377,7 +377,7 @@ describe('Channels API', function () {
       // })
 
       it('returns latest packages in a channel', function (done) {
-        request.get('/depot/channels/neurosis/foo/pkgs/latest?target=x86_64-linux')
+        request.get('/depot/channels/neurosis/foo/latest?target=x86_64-linux')
           .type('application/json')
           .accept('application/json')
           .expect(200)
@@ -393,7 +393,7 @@ describe('Channels API', function () {
         });
 
       it('returns latest packages in a channel, but not the private ones', function (done) {
-        request.get('/depot/channels/neurosis/baz/pkgs/latest?target=x86_64-linux')
+        request.get('/depot/channels/neurosis/baz/latest?target=x86_64-linux')
            .type('application/json')
            .accept('application/json')
            .expect(200)
@@ -409,7 +409,7 @@ describe('Channels API', function () {
       //
 
       it('returns latest packages in a channel but not the older ones', function (done) {
-          request.get('/depot/channels/neurosis/unstable/pkgs/latest?target=x86_64-linux')
+          request.get('/depot/channels/neurosis/unstable/latest?target=x86_64-linux')
             .type('application/json')
             .accept('application/json')
             .expect(200)
@@ -417,12 +417,15 @@ describe('Channels API', function () {
               expect(res.body.channel).to.equal('unstable');
               expect(res.body.target).to.equal('x86_64-linux');
               expect(res.body.data.length).to.equal(12);
+              expect(res.body.data[0].origin).to.equal('neurosis');
               expect(res.body.data[0].name).to.equal('abracadabra');
               expect(res.body.data[0].version).to.equal('3.0');
               expect(res.body.data[0].release).to.equal('20190618175235');
+              expect(res.body.data[10].origin).to.equal('neurosis');
               expect(res.body.data[10].name).to.equal('testapp');
               expect(res.body.data[10].version).to.equal('0.1.13');
               expect(res.body.data[10].release).to.equal('20190511004436');
+              expect(res.body.data[11].origin).to.equal('neurosis');
               expect(res.body.data[11].name).to.equal('testapp2');
               expect(res.body.data[11].version).to.equal('v1.2.3-master');
               expect(res.body.data[11].release).to.equal('20181018162212');
