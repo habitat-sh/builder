@@ -31,8 +31,6 @@ use habitat_builder_protocol as protocol;
 use habitat_core as hab_core;
 
 pub mod access_token;
-pub mod acyclic_package_graph;
-pub mod acyclic_rdeps;
 pub mod api_client;
 pub mod build_config;
 pub mod error;
@@ -42,10 +40,8 @@ pub mod job;
 pub mod keys;
 pub mod logger;
 pub mod metrics;
-pub mod package_graph_trait;
 pub mod privilege;
 pub mod rpc;
 pub mod socket;
-pub mod target_graph;
 
 pub use crate::error::Error;

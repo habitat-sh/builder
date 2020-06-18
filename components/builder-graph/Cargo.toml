@@ -7,6 +7,10 @@ build = "../build-builder.rs"
 workspace = "../../"
 edition = "2018"
 
+[lib]
+name = "habitat_builder_graph"
+path = "src/lib.rs"
+
 [[bin]]
 name = "bldr-graph"
 path = "src/main.rs"

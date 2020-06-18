@@ -28,6 +28,7 @@ rusoto_core = "0.42"
 rusoto_s3 = "0.42"
 env_logger = "*"
 habitat_builder_db = { path = "../builder-db" }
+habitat_builder_graph = { path = "../builder-graph" }
 habitat-builder-protocol = { path = "../builder-protocol" }
 linked-hash-map = "*"
 log = "*"

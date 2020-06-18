@@ -44,9 +44,9 @@ impl TargetGraph {
         TargetGraph { graphs }
     }
 
-    pub fn graph(&self, target_str: &str) -> Option<&Box<dyn PackageGraphTrait>> {
+    pub fn graph(&self, target_str: &str) -> Option<&dyn PackageGraphTrait> {
         match PackageTarget::from_str(target_str) {
-            Ok(target) => self.graphs.get(&target),
+            Ok(target) => self.graphs.get(&target).map(|x| x.as_ref()),
             Err(err) => {
                 error!("Invalid target specified for TargetGraph: {}! Err: {}",
                        target_str, err);
@@ -55,6 +55,10 @@ impl TargetGraph {
         }
     }
 
+    #[allow(clippy::borrowed_box)]
+    // Clippy wants
+    // pub fn graph_mut(&mut self, target_str: &str) -> Option<&mut dyn PackageGraphTrait>
+    // But then lifetime issues intrude if we follow the as_ref pattern above.
     pub fn graph_mut(&mut self, target_str: &str) -> Option<&mut Box<dyn PackageGraphTrait>> {
         match PackageTarget::from_str(target_str) {
             Ok(target) => self.graphs.get_mut(&target),

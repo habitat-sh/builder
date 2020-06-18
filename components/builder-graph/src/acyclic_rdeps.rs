@@ -70,7 +70,7 @@ pub fn rdeps(g: &Graph<GType, GType>, n: NodeIndex) -> Result<Vec<GType>, GraphE
 
 #[cfg(test)]
 mod tests {
-    use crate::rdeps::*;
+    use crate::acyclic_rdeps::*;
     use petgraph::Graph;
 
     #[test]
