@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -eu
 
 echo "--- Generating signing key"
 hab origin key generate "$HAB_ORIGIN"
@@ -84,7 +84,9 @@ hab config apply builder-api.default "$(date +%s)" datastore.toml
 
 echo "--- Creating empty builder-github-app.pem"
 mkdir -p /hab/svc/builder-api/files
+mkdir -p /hab/svc/builder-worker/files
 touch /hab/svc/builder-api/files/builder-github-app.pem
+touch /hab/svc/builder-worker/files/builder-github-app.pem
 
 echo "--- Loading api,proxy,jobsrv and worker services"
 hab svc load "$HAB_ORIGIN"/builder-api \
@@ -109,7 +111,8 @@ for svc in api jobsrv worker; do
     for retry in $(seq 1 5); do
         hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
         hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
-
+        # The service will be in a panic/boot loop before upload, take a rest before checking the status
+        sleep 5
         state="$(hab svc status | grep "builder-$svc.default" |awk '{print $4}')"
         if [ "$state" == "up" ]; then
             break
@@ -119,15 +122,8 @@ for svc in api jobsrv worker; do
             hab svc status
             exit 1
         fi
-        sleep 5
     done
 done
-
-# Arbitrary sleep to allow jobsrv to finish startup
-# Jobsrv reports as up at this point, but the test will fail as it hasn't finished booting
-# There's nothing else obvious to key off of, the api requests require data in the system,
-# so we get to take a short nap here and hope it's long enough.
-sleep 30
 
 echo "--- Listing services under test"
 hab svc status
@@ -142,5 +138,5 @@ echo "--- Running tests"
     # which halts execution after the first failure. We're running this in CI 
     # so it's nice to know everything that failed rather than just the first thing
     npm install mocha --global
-    mocha src 
+    mocha src --retries 5
 )
