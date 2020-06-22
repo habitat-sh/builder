@@ -20,7 +20,8 @@ lazy_static = "*"
 libarchive = "*"
 log = "*"
 petgraph = "*"
-protobuf = "*"
+# Pin until we are on Rust >= 1.44.0
+protobuf = "= 2.14.0"
 rand = "*"
 serde = "*"
 serde_derive = "*"
@@ -32,7 +33,7 @@ zmq = { git = "https://github.com/habitat-sh/rust-zmq", branch = "v0.8-symlinks-
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
-
+tag = "1.6.39"
 [dependencies.reqwest]
 version = "*"
 features = ["stream"]

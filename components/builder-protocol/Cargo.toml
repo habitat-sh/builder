@@ -10,7 +10,8 @@ edition = "2018"
 [dependencies]
 clippy = { version = "*", optional = true }
 fnv = "*"
-protobuf = "*"
+# Pin until we are on Rust >= 1.44.0
+protobuf = "= 2.14.0"
 serde = "*"
 serde_derive = "*"
 regex = "*"
@@ -18,9 +19,11 @@ lazy_static = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
+tag = "1.6.39"
 
 [build-dependencies]
 pkg-config = "0.3"
 protoc = "*"
-protoc-rust = "*"
+# Pin until we are on Rust >= 1.44.0
+protoc-rust = "= 2.14.0"
 protobuf-codegen = "*"

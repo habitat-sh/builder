@@ -33,6 +33,7 @@ url = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
+tag = "1.6.39"
 
 [dependencies.builder_core]
 path = "../builder-core"
