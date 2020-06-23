@@ -19,6 +19,7 @@ use itertools::Itertools;
 
 use regex::Regex;
 
+use crate::protocol::originsrv;
 use habitat_builder_db::models::package::PackageWithVersionArray;
 
 // use habitat_builder_protocol as protocol;
@@ -111,7 +112,18 @@ impl PackageInfo {
     pub fn extract_plan_deps(&mut self, _verbose: bool) {
         let package = self.package.as_ref().unwrap();
 
+        // this should call extract_plan_deps_from_manifest, but the mut self and the borrow of
+        // manifest trigger the borrow checker.
         let metadata = PackageMetadata::extract_from_manifest(&package.manifest);
+
+        self.plan_deps = metadata.plan_deps.to_vec();
+        self.plan_bdeps = metadata.plan_bdeps.to_vec();
+
+        self.strong_bdeps = strong_build_deps(self);
+    }
+
+    pub fn extract_plan_deps_from_manifest(&mut self, manifest: &str) {
+        let metadata = PackageMetadata::extract_from_manifest(manifest);
 
         self.plan_deps = metadata.plan_deps.to_vec();
         self.plan_bdeps = metadata.plan_bdeps.to_vec();
@@ -170,6 +182,22 @@ impl From<PackageWithVersionArray> for PackageInfo {
                                              plan_bdeps:   Vec::new(),
                                              strong_bdeps: Vec::new(), };
         package_info.extract_plan_deps(false);
+        package_info
+    }
+}
+
+impl From<originsrv::OriginPackage> for PackageInfo {
+    fn from(package: originsrv::OriginPackage) -> Self {
+        let mut package_info =
+            PackageInfo { ident:        PackageIdent::from(package.get_ident()),
+                          target:       PackageTarget::from_str(package.get_target()).unwrap(),
+                          package:      None,
+                          no_deps:      false,
+                          plan_deps:    Vec::new(),
+                          plan_bdeps:   Vec::new(),
+                          strong_bdeps: Vec::new(), };
+
+        package_info.extract_plan_deps_from_manifest(package.get_manifest());
         package_info
     }
 }
