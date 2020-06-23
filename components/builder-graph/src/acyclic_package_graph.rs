@@ -24,7 +24,8 @@ use std::{cmp::Ordering,
 
 use crate::{acyclic_rdeps::rdeps,
             hab_core::package::PackageIdent,
-            package_graph_trait::{PackageGraphTrait,
+            package_graph_trait::{PackageDepsTrait,
+                                  PackageGraphTrait,
                                   Stats},
             protocol::originsrv};
 
@@ -217,6 +218,13 @@ impl PackageGraphTrait for AcyclicPackageGraph {
         }
 
         Some(v)
+    }
+
+    fn rdeps_group(&self,
+                   name: &str,
+                   package_deps: &dyn PackageDepsTrait)
+                   -> Option<Vec<Vec<PackageIdent>>> {
+        unimplemented!("Need to implement a compatible rdeps_group");
     }
 
     // Given an identifier in 'origin/name' format, returns the

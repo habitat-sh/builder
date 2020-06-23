@@ -14,12 +14,19 @@
 
 use crate::protocol::originsrv;
 
+use crate::hab_core::package::{PackageIdent,
+                               PackageTarget};
+
 #[derive(Debug)]
 pub struct Stats {
     pub node_count:     usize,
     pub edge_count:     usize,
     pub connected_comp: usize,
     pub is_cyclic:      bool,
+}
+
+pub trait PackageDepsTrait {
+    fn package_deps(&self, package: &PackageIdent, target: &PackageTarget) -> Vec<PackageIdent>;
 }
 
 pub trait PackageGraphTrait: Send + Sync {
@@ -33,6 +40,10 @@ pub trait PackageGraphTrait: Send + Sync {
               -> (usize, usize);
     fn check_extend(&mut self, package: &originsrv::OriginPackage, use_build_deps: bool) -> bool;
     fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>>;
+    fn rdeps_group(&self,
+                   name: &str,
+                   package_deps: &dyn PackageDepsTrait)
+                   -> Option<Vec<Vec<PackageIdent>>>;
     fn resolve(&self, name: &str) -> Option<String>;
     fn stats(&self) -> Stats;
 }

@@ -14,8 +14,10 @@
 
 use crate::protocol::originsrv;
 
-use crate::{package_graph_target::PackageGraphForTarget,
-            package_graph_trait::{PackageGraphTrait,
+use crate::{hab_core::package::PackageIdent,
+            package_graph_target::PackageGraphForTarget,
+            package_graph_trait::{PackageDepsTrait,
+                                  PackageGraphTrait,
                                   Stats},
             package_info::PackageInfo};
 
@@ -48,6 +50,13 @@ impl PackageGraphTrait for CyclicPackageGraph {
 
     fn rdeps(&self, _name: &str) -> Option<Vec<(String, String)>> {
         unimplemented!("Need to implement a compatible rdeps");
+    }
+
+    fn rdeps_group(&self,
+                   name: &str,
+                   package_deps: &dyn PackageDepsTrait)
+                   -> Option<Vec<Vec<PackageIdent>>> {
+        unimplemented!("Need to implement a compatible rdeps_group");
     }
 
     fn resolve(&self, _name: &str) -> Option<String> {
