@@ -31,17 +31,10 @@ use crate::{data_store::Unbuildable,
                                 PackageIdent,
                                 PackageTarget},
             package_build_manifest_graph::PackageBuild,
+            package_graph_trait::Stats,
             package_ident_intern::PackageIdentIntern,
             package_info::PackageInfo,
             util::*};
-
-#[derive(Debug)]
-pub struct Stats {
-    pub node_count:     usize,
-    pub edge_count:     usize,
-    pub connected_comp: usize,
-    pub is_cyclic:      bool,
-}
 
 pub struct PackageGraphForTarget {
     target: PackageTarget,
