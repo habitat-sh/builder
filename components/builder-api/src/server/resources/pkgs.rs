@@ -1020,7 +1020,14 @@ async fn do_upload_package_finish(req: &HttpRequest,
                                   ident: &PackageIdent,
                                   temp_path: &PathBuf)
                                   -> HttpResponse {
-    let mut archive = PackageArchive::new(&temp_path);
+    let mut archive = match PackageArchive::new(&temp_path) {
+        Ok(archive) => archive,
+        Err(e) => {
+            info!("Could not read the package at {:#?}: {:#?}", temp_path, e);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                           Body::from_message(format!("ds:up:0, err={:?}", e)));
+        }
+    };
 
     debug!("Package Archive: {:#?}", archive);
 
@@ -1131,7 +1138,14 @@ async fn do_upload_package_finish(req: &HttpRequest,
 
     debug!("File added to Depot: {:?}", &filename);
 
-    let mut archive = PackageArchive::new(filename.clone());
+    let mut archive = match PackageArchive::new(filename.clone()) {
+        Ok(archive) => archive,
+        Err(e) => {
+            debug!("Could not read the package at {:#?}: {:#?}", filename, e);
+            return Error::HabitatCore(e).into();
+        }
+    };
+
     let mut package = match NewPackage::from_archive(&mut archive) {
         Ok(package) => package,
         Err(e) => {

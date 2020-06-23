@@ -52,7 +52,7 @@ impl Workspace {
     pub fn last_built(&self) -> Result<PackageArchive> {
         let last_build = self.last_build_env();
         match StudioBuild::from_file(&last_build) {
-            Ok(build) => Ok(PackageArchive::new(self.out().join(build.pkg_artifact.unwrap()))),
+            Ok(build) => Ok(PackageArchive::new(self.out().join(build.pkg_artifact.unwrap()))?),
             Err(err) => Err(Error::BuildEnvFile(last_build, err)),
         }
     }

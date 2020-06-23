@@ -143,7 +143,7 @@ impl ApiClient {
         qparams.insert("target", target);
 
         match self.download(url, &qparams, dst_path.as_ref(), token).await {
-            Ok(file) => Ok(PackageArchive::new(file)),
+            Ok(file) => Ok(PackageArchive::new(file)?),
             Err(e) => Err(e),
         }
     }

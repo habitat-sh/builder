@@ -28,6 +28,7 @@ pub enum ArtifactoryError {
     ApiError(reqwest::StatusCode, HashMap<String, String>),
     BuilderCore(builder_core::Error),
     IO(io::Error),
+    HabitatCore(habitat_core::error::Error),
 }
 
 impl fmt::Display for ArtifactoryError {
@@ -40,6 +41,7 @@ impl fmt::Display for ArtifactoryError {
             }
             ArtifactoryError::BuilderCore(ref e) => format!("{}", e),
             ArtifactoryError::IO(ref e) => format!("{}", e),
+            ArtifactoryError::HabitatCore(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
     }
@@ -52,6 +54,7 @@ impl error::Error for ArtifactoryError {
             ArtifactoryError::ApiError(..) => "Response returned a non-200 status code.",
             ArtifactoryError::BuilderCore(ref err) => err.description(),
             ArtifactoryError::IO(ref err) => err.description(),
+            ArtifactoryError::HabitatCore(ref err) => err.description(),
         }
     }
 }
@@ -63,6 +66,11 @@ impl From<io::Error> for ArtifactoryError {
 impl From<builder_core::Error> for ArtifactoryError {
     fn from(err: builder_core::Error) -> Self { ArtifactoryError::BuilderCore(err) }
 }
+
 impl From<reqwest::Error> for ArtifactoryError {
     fn from(err: reqwest::Error) -> Self { ArtifactoryError::HttpClient(err) }
+}
+
+impl From<habitat_core::error::Error> for ArtifactoryError {
+    fn from(err: habitat_core::error::Error) -> Self { ArtifactoryError::HabitatCore(err) }
 }

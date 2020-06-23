@@ -127,7 +127,7 @@ impl ArtifactoryClient {
             while let Some(chunk) = stream.next().await {
                 file.write_all(&chunk?).await?;
             }
-            Ok(PackageArchive::new(destination_path))
+            Ok(PackageArchive::new(destination_path)?)
         } else {
             error!("Artifactory download non-success status: {:?}",
                    resp.status());
