@@ -36,7 +36,7 @@ reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-sha2 = "*"
+sha2 = "= 0.8.2"
 toml = { version = "*", default-features = false }
 futures = "*"
 rand = "*"
@@ -77,6 +77,7 @@ path = "../github-api-client"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
+tag = "1.6.39"
 
 [dependencies.builder_core]
 path = "../builder-core"

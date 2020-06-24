@@ -39,7 +39,7 @@ rand = "*"
 r2d2 = "*"
 serde = "*"
 serde_derive = "*"
-sha2 = "*"
+sha2 = "= 0.8.2"
 toml = { version = "*", default-features = false }
 
 [dependencies.actix-web]
@@ -56,3 +56,4 @@ branch = "v0.8-symlinks-removed"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
+tag = "1.6.39"
