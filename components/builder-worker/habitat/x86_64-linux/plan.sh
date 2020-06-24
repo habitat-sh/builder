@@ -1,5 +1,5 @@
 # shellcheck disable=SC2034
-source "../../../support/ci/builder-base-plan.sh"
+source "../../../../support/ci/builder-base-plan.sh"
 pkg_name=builder-worker
 pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
@@ -17,6 +17,16 @@ pkg_binds=(
 pkg_svc_user="root"
 pkg_svc_group="root"
 bin="bldr-worker"
+
+# Copy hooks/config/default.toml from parent directory so we only maintain
+# one copy.
+do_begin() {
+  mkdir -p hooks
+  mkdir -p config
+  cp --no-clobber ../run hooks/run
+  cp --no-clobber ../config.toml config/config.toml
+  cp --no-clobber ../default.toml default.toml
+}
 
 do_prepare() {
   do_builder_prepare
