@@ -81,8 +81,8 @@ function Invoke-Prepare {
 function Invoke-BuildConfig {
     Invoke-DefaultBuildConfig
     Write-BuildLine "Creating config and hooks directories"
-    New-Item "$pkg_prefix/hooks" -ItemType Directory | Out-Null
-    New-Item "$pkg_prefix/config" -ItemType Directory | Out-Null
+    New-Item -ItemType Directory -Force -Path "$pkg_prefix/hooks" | Out-Null
+    New-Item -ItemType Directory -Force -Path "$pkg_prefix/config" | Out-Null
     Write-BuildLine "Copying run.ps1 to run"
     Copy-Item "$PLAN_CONTEXT/run.ps1" "$pkg_prefix/hooks/run"
     Write-BuildLine "Copying default.toml into $pkg_prefix"
