@@ -224,7 +224,6 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                    name: &str,
                    package_deps: &dyn PackageDepsTrait)
                    -> Option<Vec<Vec<PackageIdent>>> {
-        unimplemented!("Need to implement a compatible rdeps_group");
     }
 
     // Given an identifier in 'origin/name' format, returns the
