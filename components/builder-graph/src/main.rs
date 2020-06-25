@@ -28,15 +28,24 @@ extern crate serde_derive;
 extern crate lazy_static;
 
 extern crate diesel;
+extern crate internment;
+extern crate serde;
+extern crate serde_json;
 
 use habitat_builder_db as db;
+
 use habitat_core as hab_core;
 
+#[macro_use]
+pub mod package_ident_intern;
 pub mod config;
 pub mod data_store;
 pub mod error;
-pub mod ident_graph;
+pub mod graph_helpers;
+pub mod package_build_manifest_graph;
 pub mod package_graph;
+pub mod package_graph_target;
+pub mod package_info;
 pub mod rdeps;
 pub mod util;
 
@@ -54,22 +63,25 @@ use clap::{App,
 use copperline::Copperline;
 
 use crate::{config::Config,
-            data_store::DataStore,
+            data_store::{DataStore,
+                         DataStoreTrait,
+                         SerializedDatabase},
             hab_core::{config::ConfigFile,
                        package::{PackageIdent,
                                  PackageTarget}},
-            package_graph::PackageGraph};
+            package_graph::PackageGraph,
+            package_ident_intern::PackageIdentIntern};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 struct State {
-    datastore: DataStore,
+    datastore: Option<Box<dyn DataStoreTrait>>,
     graph:     PackageGraph,
-    filter:    String,
     done:      bool,
     cli:       clap::App<'static, 'static>,
 }
 
+// TODO See if we can remove this before final merge, much refactoring has happened.
 #[allow(clippy::cognitive_complexity)]
 fn main() {
     env_logger::init();
@@ -91,72 +103,46 @@ fn main() {
         None => Config::default(),
     };
 
-    let external_args: Vec<&str> = match matches.values_of("internal_command") {
-        Some(values) => values.collect(),
-        None => Vec::<&str>::new(),
+    // Split on commas
+    let external_args = match matches.values_of("internal_command") {
+        Some(values) => split_command(values.collect()),
+        None => Vec::<Vec<String>>::new(),
     };
 
     enable_features(&config);
 
     let mut cl = Copperline::new();
+    let graph = PackageGraph::new();
 
-    println!("Connecting to {}", config.datastore.database);
-
-    let datastore = DataStore::new(&config);
-    datastore.setup().unwrap();
-
-    println!("Building graph... please wait.");
-
-    let mut graph = PackageGraph::new();
-    let start_time = Instant::now();
-    let packages = datastore.get_job_graph_packages().unwrap();
-
-    let fetch_time = start_time.elapsed().as_secs_f64();
-    println!("OK: fetched {} packages ({} sec)",
-             packages.len(),
-             fetch_time);
-
-    let start_time = Instant::now();
-    let (ncount, ecount) = graph.build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
-    println!("OK: {} nodes, {} edges ({} sec)",
-             ncount,
-             ecount,
-             start_time.elapsed().as_secs_f64());
-
-    let targets = graph.targets();
-    let target_as_string: Vec<String> = targets.iter().map(|t| t.to_string()).collect();
-
-    println!("Found following targets {}", target_as_string.join(", "));
-    println!("Default target is {}", graph.current_target());
-
-    let mut state = State { datastore,
+    let mut state = State { datastore: None,
                             graph,
-                            filter: String::from(""),
                             done: false,
                             cli: make_clap_cli() };
 
     // This is meant to ease testing of this command and provide a quick one-off access to the CLI
     //
     if !external_args.is_empty() {
-        state.process_command(&external_args);
+        for command in external_args {
+            let command: Vec<&str> = command.iter().map(|s| &**s).collect();
+            println!("Cmd> {:?}", command);
+            state.process_command(&command);
+        }
         state.done = true
     } else {
-        // Interactive mode
         state.cli.print_help().unwrap();
 
         while !state.done {
             let prompt = format!("{}: command> ", state.graph.current_target());
-            let line = cl.read_line_utf8(&prompt);
-            if let Ok(cmd) = line {
-                cl.add_history(cmd.clone());
+            let line = cl.read_line_utf8(&prompt).ok();
+            if line.is_none() {
+                continue;
+            }
+            let cmd = line.expect("Could not get line");
+            cl.add_history(cmd.clone());
 
-                let v: Vec<&str> = cmd.trim_end().split_whitespace().collect();
-
-                if !v.is_empty() {
-                    state.process_command(&v);
-                }
-            } else {
-                line.expect("Could not get line");
+            let v: Vec<&str> = cmd.trim_end().split_whitespace().collect();
+            if !v.is_empty() {
+                state.process_command(&v);
             }
         }
     }
@@ -169,36 +155,130 @@ impl State {
         match match_result {
             Ok(matches) => {
                 match matches.subcommand() {
-                    ("help", _) => do_help(&matches, &mut self.cli), /* This doesn't work; goes
-                                                                       * strait Something */
-                    // is eating the help output
-                    ("build_levels", Some(m)) => do_build_levels(&self.graph, &m),
-                    ("check", Some(m)) => do_check(&self.datastore, &self.graph, &m),
-                    ("db_deps", Some(m)) => do_db_deps(&self.datastore, &self.graph, &m),
+                    ("help", _) => do_help(&matches, &mut self.cli), // This
+                    // doesn't work something is eating the help output
+                    //                   ("build_levels", Some(m)) => do_build_levels(&self.graph,
+                    // &m),
+                    ("build_order", Some(m)) => {
+                        if let Some(datastore) = &self.datastore {
+                            do_dump_build_order(datastore.as_ref(), &mut self.graph, &m);
+                        } else {
+                            println!("'build_order' requires a database connection; See \
+                                      'db_connect'");
+                        }
+                    }
+                    ("check", Some(m)) => {
+                        if let Some(datastore) = &self.datastore {
+                            do_check(datastore.as_ref(), &self.graph, &m)
+                        } else {
+                            println!("'check' requires a database connection; See 'db_connect'")
+                        }
+                    }
+                    ("db_connect", Some(m)) => self.do_db_connect(&m),
+                    // TODO RENAME THIS COMMAND
+                    ("serialized_db_connect", Some(m)) => self.do_serialized_db_connect(&m),
+                    ("db_deps", Some(m)) => {
+                        if let Some(datastore) = &self.datastore {
+                            do_db_deps(datastore.as_ref(), &self.graph, &m);
+                        } else {
+                            println!("'db_deps' requires a database connection; See 'db_connect'");
+                        }
+                    }
                     ("deps", Some(m)) => do_deps(&self.graph, &m),
+                    // Probably not publically useful
+                    ("diagnostics", Some(m)) => do_dump_diagnostics(&self.graph, &m),
                     ("dot", Some(m)) => do_dot(&self.graph, &m),
-                    ("export", Some(m)) => do_export(&self.graph, &m),
-                    ("filter", Some(m)) => self.filter = do_filter(&m),
+                    // TODO TEST
                     ("find", Some(m)) => do_find(&self.graph, &m),
                     ("quit", _) => self.done = true,
-                    ("raw", Some(m)) => do_raw(& self.graph, &m),
-                    ("rdeps", Some(m)) => do_rdeps(& self.graph, &self.filter, &m),
-                    ("resolve", Some(m)) => do_resolve(& self.graph, &m),
+                    ("raw", Some(m)) => do_raw(&self.graph, &m),
+                    // TODO: add filter as option for this command, make sure we do filtering
+                    // uniformly; this is broken
+                    ("rdeps", Some(m)) => do_rdeps(&self.graph, &m),
+                    ("resolve", Some(m)) => do_resolve(&self.graph, &m),
+                    ("save_file", Some(m)) => {
+                        if let Some(datastore) = &self.datastore {
+                            do_save_file(datastore.as_ref(), &self.graph, &m)
+                        } else {
+                            println!("'db_deps' requires a database connection; See 'db_connect'");
+                        }
+                    }
+                    // TODO TEST
                     ("scc", Some(m)) => do_scc(&self.graph, &m),
-                    ("stats", Some(m)) => do_stats(& self.graph, &m),
+                    ("stats", Some(m)) => do_stats(&self.graph, &m),
+                    // TODO TEST
                     ("target", Some(m)) => do_target(&mut self.graph, &m),
                     ("top", Some(m)) => do_top(&self.graph, &m),
-                    name => debug!("Unknown  {:?} {:?}", matches, name),
+                    name => println!("Unknown  {:?} {:?}", matches, name),
                 }
             }
             // Ideally we'd match the various errors and do something more
             // clever, e.g. Err(HelpDisplayed) => self.cli.print_help(UNKNOWN_ARGUMENTS)
             // But I've not totally figured that out yet.
             Err(x) => {
-                debug!("ClapError {:?} {:?}", x.kind, x);
-                debug!("ClapError Msg: {}", x.message);
-                debug!("ClapError Info: {:?}", x.info);
+                println!("ClapError {:?} {:?}", x.kind, x);
+                println!("ClapError Msg: {}", x.message);
+                println!("ClapError Info: {:?}", x.info);
             }
+        }
+    }
+
+    fn build_graph(&mut self) {
+        println!("Building graph... please wait.");
+
+        let start_time = Instant::now();
+        let packages = self.datastore
+                           .as_ref()
+                           .unwrap()
+                           .get_job_graph_packages()
+                           .unwrap();
+
+        let fetch_time = start_time.elapsed().as_secs_f64();
+        println!("OK: fetched {} packages ({} sec)",
+                 packages.len(),
+                 fetch_time);
+
+        let start_time = Instant::now();
+        let (ncount, ecount) = self.graph
+                                   .build(packages.into_iter(), feat::is_enabled(feat::BuildDeps));
+        println!("OK: {} nodes, {} edges ({} sec)",
+                 ncount,
+                 ecount,
+                 start_time.elapsed().as_secs_f64());
+
+        let targets = self.graph.targets();
+        let target_as_string: Vec<String> = targets.iter().map(|t| t.to_string()).collect();
+
+        println!("Found following targets {}", target_as_string.join(", "));
+        println!("Default target is {}", self.graph.current_target());
+    }
+
+    fn do_db_connect(&mut self, matches: &ArgMatches) {
+        let config = match matches.value_of("CONFIG_FILE") {
+            Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
+            None => Config::default(),
+        };
+        println!("Connecting to {}", config.datastore.database);
+
+        let datastore = DataStore::new(&config);
+        datastore.setup().unwrap();
+        self.datastore = Some(Box::new(datastore));
+
+        self.build_graph();
+    }
+
+    fn do_serialized_db_connect(&mut self, matches: &ArgMatches) {
+        if let Some(data_file) = matches.value_of("CONFIG_FILE") {
+            println!("Reading Serialized DB from file {}", data_file);
+            let start_time = Instant::now();
+            let datastore = SerializedDatabase::read_from_file(data_file).unwrap();
+            self.datastore = Some(Box::new(datastore));
+            let file_duration = start_time.elapsed().as_secs_f64();
+            println!("Reading Serialized DB from file {} in {} secs",
+                     data_file, file_duration);
+            self.build_graph();
+        } else {
+            println!("No Dummy DB file provided")
         }
     }
 }
@@ -227,12 +307,14 @@ fn do_all_stats_sub(graph: &PackageGraph) {
 }
 
 fn do_stats_sub(graph: &PackageGraph) {
-    let stats = graph.stats();
-
-    println!("Node count: {}", stats.node_count);
-    println!("Edge count: {}", stats.edge_count);
-    println!("Connected components: {}", stats.connected_comp);
-    println!("Is cyclic: {}", stats.is_cyclic);
+    if let Some(stats) = graph.stats() {
+        println!("Node count: {}", stats.node_count);
+        println!("Edge count: {}", stats.edge_count);
+        println!("Connected components: {}", stats.connected_comp);
+        println!("Is cyclic: {}", stats.is_cyclic);
+    } else {
+        println!("No graph loaded!");
+    }
 }
 
 fn do_top(graph: &PackageGraph, matches: &ArgMatches) {
@@ -248,16 +330,6 @@ fn do_top(graph: &PackageGraph, matches: &ArgMatches) {
         println!("{}: {}", name, count);
     }
     println!();
-}
-
-fn do_filter(matches: &ArgMatches) -> String {
-    let filter = filter_from_matches(matches);
-    if filter.is_empty() {
-        println!("Removed filter\n");
-    } else {
-        println!("New filter: {}\n", filter);
-    }
-    filter
 }
 
 fn do_find(graph: &PackageGraph, matches: &ArgMatches) {
@@ -283,25 +355,82 @@ fn do_find(graph: &PackageGraph, matches: &ArgMatches) {
     println!();
 }
 
+fn do_save_file(datastore: &dyn DataStoreTrait, graph: &PackageGraph, matches: &ArgMatches) {
+    let start_time = Instant::now();
+    let filter = matches.value_of("FILTER");
+    let filename = required_filename_from_matches(matches);
+
+    datastore.serialize(filename,
+                        filter.unwrap_or("core"),
+                        "stable",
+                        graph.current_target())
+             .unwrap();
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    println!("Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
+             filename, filter, duration_secs);
+}
+
+fn do_dump_diagnostics(graph: &PackageGraph, matches: &ArgMatches) {
+    let start_time = Instant::now();
+    let filter = matches.value_of("FILTER");
+    let filename = required_filename_from_matches(matches);
+
+    graph.dump_diagnostics(filename, filter);
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    println!("Wrote packages to file {} filtered by {:?} (TBI) in {} sec",
+             filename, filter, duration_secs);
+}
+fn do_dump_build_order(datastore: &dyn DataStoreTrait,
+                       graph: &mut PackageGraph,
+                       matches: &ArgMatches) {
+    let start_time = Instant::now();
+    let filter = str_from_matches(matches, "FILTER", "core");
+    let filename = required_filename_from_matches(matches);
+    let touched = ident_from_matches(matches).unwrap();
+
+    println!("Computing build order for origin {} to file {}",
+             filter, filename);
+
+    let base_set = datastore.get_origin_channel_latest("core", "stable", graph.current_target())
+                            .expect("No base set returned from db");
+
+    let touched = vec![touched]; // TODO use a real set, huh?
+                                 // let touched = vec![touched];
+                                 //
+
+    let ordering = graph.dump_build_ordering(datastore.as_unbuildable(),
+                                             filename,
+                                             filter,
+                                             &base_set,
+                                             &touched);
+    println!("-------------------");
+    let mut file = File::create(&filename).expect("Failed to initialize file");
+    for pkg in &ordering {
+        file.write_all(pkg.format_for_shell().as_bytes()).unwrap();
+    }
+    println!("-------------------");
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+
+    println!("Generated build order for '{}' and wrote to file file {} filtered by {:?} in {} sec",
+             touched.first().unwrap(),
+             filename,
+             filter,
+             duration_secs);
+}
+
 fn do_dot(graph: &PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
     let origin = origin_from_matches(matches);
     let filename = required_filename_from_matches(matches);
-    let graph_type;
-    if matches.is_present("LATEST") {
-        graph_type = "latest";
-        graph.dump_latest_graph_as_dot(&filename, origin.as_deref());
-    } else {
-        graph_type = "current";
-        if let Some(o) = origin {
-            println!("Origin {} ignored", o)
-        }
-        graph.emit_graph(&filename, None, true, None);
-    }
+
+    graph.dump_latest_graph_as_dot(&filename, origin.as_deref());
     let duration_secs = start_time.elapsed().as_secs_f64();
 
-    println!("Wrote {} graph to file {} filtered by {:?} TBI in {} sec",
-             graph_type, filename, origin, duration_secs);
+    println!("Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
+             filename, origin, duration_secs);
 }
 
 fn do_raw(graph: &PackageGraph, matches: &ArgMatches) {
@@ -337,6 +466,7 @@ fn do_scc(graph: &PackageGraph, matches: &ArgMatches) {
              filename, origin, duration_secs);
 }
 
+#[allow(dead_code)]
 fn do_build_levels(graph: &PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
     let origin = origin_from_matches(matches);
@@ -361,38 +491,21 @@ fn do_resolve(graph: &PackageGraph, matches: &ArgMatches) {
     println!();
 }
 
-fn do_rdeps(graph: &PackageGraph, filter: &str, matches: &ArgMatches) {
+fn do_rdeps(graph: &PackageGraph, matches: &ArgMatches) {
     // These are safe because we have validators on the args
-    let ident = ident_from_matches(matches).unwrap();
-    let count = count_from_matches(matches).unwrap();
+    let filename = required_filename_from_matches(matches);
+    let ident: PackageIdentIntern = ident_from_matches(matches).unwrap().into();
+    let origin = origin_from_matches(matches);
 
-    let start_time = Instant::now();
+    let rdeps = graph.rdeps(&ident, origin);
+    let mut file = File::create(&filename).unwrap();
 
-    match graph.rdeps(&ident) {
-        Some(rdeps) => {
-            let duration_secs = start_time.elapsed().as_secs_f64();
-            let mut filtered: Vec<(String, String)> =
-                rdeps.into_iter()
-                     .filter(|&(ref x, _)| x.starts_with(filter))
-                     .collect();
-
-            println!("OK: {} items ({} sec)\n", filtered.len(), duration_secs);
-
-            if filtered.len() > count {
-                filtered.drain(count..);
-            }
-
-            if !filter.is_empty() {
-                println!("Results filtered by: {}", filter);
-            }
-
-            for (s1, s2) in filtered {
-                println!("{} ({})", s1, s2);
-            }
+    writeln!(&mut file, "{}", ident).unwrap();
+    for dep in &rdeps {
+        if *dep != ident {
+            writeln!(&mut file, "  {}", dep).unwrap();
         }
-        None => println!("No entries found"),
     }
-    println!();
 }
 
 fn resolve_name(graph: &PackageGraph, ident: &PackageIdent) -> PackageIdent {
@@ -407,13 +520,71 @@ fn resolve_name(graph: &PackageGraph, ident: &PackageIdent) -> PackageIdent {
     }
 }
 
+/// Recursively expand package's deps from database, verifying that they all exist
+/// This might need some rethinking in the new graph..
+/// We are leaving this for now, as there is a interesting kernel of an idea here.
+/// NOTE THIS IS ASKING THE WHAT IF QUESTION around if deps were updated, but does it in an
+/// incorrect way See below
+/// There are two commands we probably want.
+/// 1) take multiple existing packages and determine if their deps conflict
+/// 2) take an existing package and see if it is 'buildable' given the plan deps, possibly as a set
+/// with other    packages to see if they resolve to a compatible set of packages
+fn do_check(datastore: &dyn DataStoreTrait, graph: &PackageGraph, matches: &ArgMatches) {
+    let start_time = Instant::now();
+    let mut deps_map = HashMap::new();
+    let idents = idents_from_matches(matches).unwrap();
+    let filter = filter_from_matches(matches);
+    let resolved_idents = idents.iter().map(|ident| resolve_name(graph, &ident));
+    let target = graph.current_target();
+
+    let mut conflicts = 0;
+    for ident in resolved_idents {
+        let mut new_deps = Vec::new();
+        match datastore.get_job_graph_package(&ident, target) {
+            Ok(package) => {
+                if !filter.is_empty() {
+                    println!("Checks filtered by: {}\n", filter);
+                }
+
+                println!("Dependency version updates for {} {}:",
+                         ident, package.ident.0);
+                for dep in package.deps {
+                    if dep.to_string().starts_with(&filter) {
+                        // BUG need to actually respect pinned plan deps rather than just use the
+                        // short name For example this would say rethinkdb
+                        // is ok even though it pins deps and is incompatible
+                        // with core/gcc
+                        let dep_name = util::short_ident(&(dep.0), false);
+                        let dep_latest = resolve_name(graph, &dep_name);
+                        deps_map.insert(dep_name.clone(), dep_latest.clone());
+                        new_deps.push(dep_latest.clone());
+                        println!("{} -> {}", dep.0, dep_latest);
+                    }
+                }
+
+                println!();
+
+                for new_dep in new_deps {
+                    conflicts +=
+                        check_package(Some(datastore), target, 0, &mut deps_map, &new_dep, &filter);
+                }
+            }
+            Err(_) => println!("No matching package found"),
+        }
+    }
+
+    println!("\n{} conflicts found in time: {} sec\n",
+             conflicts,
+             start_time.elapsed().as_secs_f64());
+}
+
 fn do_deps(graph: &PackageGraph, matches: &ArgMatches) {
     let ident = ident_from_matches(matches).unwrap(); // safe because we validate this arg
     println!("Dependencies for: {}", ident);
     graph.write_deps(&ident);
 }
 
-fn do_db_deps(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches) {
+fn do_db_deps(datastore: &dyn DataStoreTrait, graph: &PackageGraph, matches: &ArgMatches) {
     let start_time = Instant::now();
     let ident = ident_from_matches(matches).unwrap(); // safe because we validate this arg
     let filter = filter_from_matches(matches);
@@ -444,89 +615,52 @@ fn do_db_deps(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches)
     println!();
 }
 
-fn do_check(datastore: &DataStore, graph: &PackageGraph, matches: &ArgMatches) {
-    let start_time = Instant::now();
-    let mut deps_map = HashMap::new();
-    let mut new_deps = Vec::new();
-    let ident = ident_from_matches(matches).unwrap();
-    let filter = filter_from_matches(matches);
-    let ident = resolve_name(graph, &ident);
-    let target = graph.current_target();
-
-    match datastore.get_job_graph_package(&ident, target) {
-        Ok(package) => {
-            if !filter.is_empty() {
-                println!("Checks filtered by: {}\n", filter);
-            }
-
-            println!("Dependency version updates:");
-            for dep in package.deps {
-                if dep.to_string().starts_with(&filter) {
-                    let dep_name = util::short_ident(&(dep.0), false);
-                    let dep_latest = resolve_name(graph, &dep_name);
-                    deps_map.insert(dep_name.clone(), dep_latest.clone());
-                    new_deps.push(dep_latest.clone());
-                    println!("{} -> {}", dep.0, dep_latest);
-                }
-            }
-
-            println!();
-
-            for new_dep in new_deps {
-                check_package(datastore, target, &mut deps_map, &new_dep, &filter);
-            }
-        }
-        Err(_) => println!("No matching package found"),
-    }
-
-    println!("\nTime: {} sec\n", start_time.elapsed().as_secs_f64());
-}
-
-fn check_package(datastore: &DataStore,
+#[allow(clippy::map_entry)]
+fn check_package(datastore: Option<&dyn DataStoreTrait>,
                  target: PackageTarget,
+                 depth: usize,
                  deps_map: &mut HashMap<PackageIdent, PackageIdent>,
                  ident: &PackageIdent,
-                 filter: &str) {
-    match datastore.get_job_graph_package(ident, target) {
-        Ok(package) => {
-            for dep in package.deps {
-                if dep.to_string().starts_with(filter) {
-                    let name = util::short_ident(&dep, false);
-                    {
-                        let entry = deps_map.entry(name).or_insert_with(|| dep.0.clone());
-                        if *entry != dep.0 {
-                            println!("Conflict: {}", ident);
-                            println!("  {}", *entry);
-                            println!("  {}", dep.0);
+                 filter: &str)
+                 -> u32 {
+    let mut conflicts = 0;
+    if let Some(datastore) = datastore {
+        println!("{}{}", " ".repeat(depth * 2), ident);
+        match datastore.get_job_graph_package(ident, target) {
+            Ok(package) => {
+                for dep in package.deps {
+                    if dep.to_string().starts_with(filter) {
+                        let name = util::short_ident(&dep, false);
+                        {
+                            if deps_map.contains_key(&name) {
+                                let value = deps_map.get(&name).unwrap();
+                                if *value != dep.0 {
+                                    conflicts += 1;
+                                    println!("Conflict: {}", ident);
+                                    println!("  {}", value);
+                                    println!("  {}", dep.0);
+                                } else {
+                                    println!("{}{} seen", " ".repeat((depth + 1) * 2), dep.0);
+                                }
+                            } else {
+                                deps_map.insert(name, dep.0.clone());
+                                conflicts += check_package(Some(datastore),
+                                                           target,
+                                                           depth + 1,
+                                                           deps_map,
+                                                           &dep.0,
+                                                           filter);
+                            }
                         }
                     }
-                    check_package(datastore, target, deps_map, &dep.0, filter);
                 }
             }
+            Err(_) => println!("No matching package found for {}", ident),
         }
-        Err(_) => println!("No matching package found for {}", ident),
+    } else {
+        println!("Not connected to a database. See 'db_connect --help'");
     };
-}
-
-fn do_export(graph: &PackageGraph, matches: &ArgMatches) {
-    let start_time = Instant::now();
-    let latest = graph.latest();
-    let filename = required_filename_from_matches(matches);
-    let filter = filter_from_matches(matches);
-
-    println!("\nTime: {} sec\n", start_time.elapsed().as_secs_f64());
-
-    let mut file = File::create(filename).expect("Failed to initialize file");
-
-    if !filter.is_empty() {
-        println!("Checks filtered by: {}\n", filter);
-    }
-
-    for ident in latest {
-        if ident.starts_with(&filter) {
-            file.write_fmt(format_args!("{}\n", ident)).unwrap();
-        }
-    }
+    conflicts
 }
 
 fn do_target(graph: &mut PackageGraph, matches: &ArgMatches) {
@@ -577,13 +711,18 @@ fn make_clap_cli() -> App<'static, 'static> {
         .setting(AppSettings::NoBinaryName)
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(build_levels_subcommand())
+        .subcommand(build_order_subcommand())
         .subcommand(check_subcommand())
+        .subcommand(db_connect_subcommand())
+        .subcommand(serialized_db_connect_subcommand())
         .subcommand(db_deps_subcommand())
+        .subcommand(diagnostics_subcommand())
         .subcommand(deps_subcommand())
         .subcommand(dot_subcommand())
-        .subcommand(export_subcommand())
-        .subcommand(filter_subcommand())
         .subcommand(find_subcommand())
+        .subcommand(load_from_db_subcommand())
+        .subcommand(load_from_file_subcommand())
+        .subcommand(save_to_file_subcommand())
         .subcommand(help_subcommand())
         .subcommand(quit_subcommand())
         .subcommand(raw_subcommand())
@@ -608,14 +747,30 @@ fn build_levels_subcommand() -> App<'static, 'static> {
 fn check_subcommand() -> App<'static, 'static> {
     clap_app!(@subcommand check =>
               (about: "Check package")
-              (@arg IDENT: +takes_value {valid_ident} "Package ident to resolve")
+              (@arg IDENT: ... +required +takes_value {valid_ident} "Package ident to resolve")
     )
+}
+
+fn db_connect_subcommand() -> App<'static, 'static> {
+    clap_app!(@subcommand db_connect =>
+            (about: "Connect to bldr datastore")
+            (@arg CONFIG_FILE: +takes_value "Configuration file to load. Takes precedence over remaining options")
+            (@arg HOST: +takes_value default_value("127.0.0.1:5432") "Host to connect to")
+            (@arg DATABASE: +takes_value default_value("bldr") "Database name to use")
+            (@arg USER: +takes_value default_value("hab") "Username to connect as")
+            (@arg PASSWORD: +takes_value "Password for USER"))
+}
+
+fn serialized_db_connect_subcommand() -> App<'static, 'static> {
+    clap_app!(@subcommand serialized_db_connect =>
+            (about: "Connect to serialized copy of bldr datastore")
+            (@arg CONFIG_FILE: +takes_value "File to load database from"))
 }
 
 fn db_deps_subcommand() -> App<'static, 'static> {
     clap_app!(@subcommand db_deps =>
               (about: "Dump package deps from db")
-              (@arg IDENT: +takes_value {valid_ident} "Package ident to resolve")
+              (@arg IDENT: +required +takes_value {valid_ident} "Package ident to resolve")
               (@arg FILTER: +takes_value default_value("") "Filter value")
     )
 }
@@ -623,7 +778,7 @@ fn db_deps_subcommand() -> App<'static, 'static> {
 fn deps_subcommand() -> App<'static, 'static> {
     clap_app!(@subcommand deps =>
               (about: "Dump package deps from graph")
-              (@arg IDENT: +takes_value {valid_ident} "Package ident to resolve")
+              (@arg IDENT: +required +takes_value {valid_ident} "Package ident to resolve")
     )
 }
 
@@ -632,15 +787,6 @@ fn dot_subcommand() -> App<'static, 'static> {
               (about: "Dump DOT format graph of packages")
               (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
               (@arg ORIGIN: "Restrict to this origin")
-              (@arg LATEST: --latest -l "Write latest graph")
-    )
-}
-
-fn export_subcommand() -> App<'static, 'static> {
-    clap_app!(@subcommand export =>
-              (about: "Export graph")
-              (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
-              (@arg FILTER: +takes_value default_value("") "Filter value")
     )
 }
 
@@ -667,13 +813,6 @@ fn raw_subcommand() -> App<'static, 'static> {
     )
 }
 
-fn filter_subcommand() -> App<'static, 'static> {
-    clap_app!(@subcommand filter =>
-              (about: "Set (unset) filter for packages")
-              (@arg FILTER: +takes_value default_value("") "Filter value")
-    )
-}
-
 fn find_subcommand() -> App<'static, 'static> {
     clap_app!(@subcommand find =>
               (about: "Find packages")
@@ -682,18 +821,63 @@ fn find_subcommand() -> App<'static, 'static> {
     )
 }
 
+fn load_from_file_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand load_file =>
+                        (about: "Load packages from file into graph")
+                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        (@arg FILTER: +takes_value "Filter value")
+    );
+    sub
+}
+
+fn save_to_file_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand save_file =>
+                        (about: "Write packages into graph for current target to file")
+                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        (@arg FILTER: +takes_value "Filter value")
+    );
+    sub
+}
+
+fn load_from_db_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand load_db =>
+                        (about: "Read packages from DB into graph")
+    );
+    sub
+}
+
+fn build_order_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand build_order =>
+                        (about: "Write build order to file")
+                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        (@arg FILTER: +required +takes_value "Filter value")
+                        (@arg IDENT: +required +takes_value "Packages that changed")
+    );
+    sub
+}
+
+fn diagnostics_subcommand() -> App<'static, 'static> {
+    let sub = clap_app!(@subcommand diagnostics =>
+                        (about: "Write diagnostics about current graph to file")
+                        (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+                        (@arg FILTER: +takes_value "Filter value")
+    );
+    sub
+}
+
 fn rdeps_subcommand() -> App<'static, 'static> {
     clap_app!(@subcommand rdeps =>
               (about: "Find rdeps of a package")
-              (@arg IDENT: +takes_value {valid_ident} "Package ident to resolve")
-              (@arg COUNT: {valid_numeric::<usize>} default_value("10") "Number of rdeps to show")
+              (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+              (@arg IDENT: +required +takes_value {valid_ident} "Package ident to resolve")
+              (@arg ORIGIN: "Restrict to this origin")
     )
 }
 
 fn resolve_subcommand() -> App<'static, 'static> {
     clap_app!(@subcommand resolve =>
               (about: "Resolve packages")
-              (@arg IDENT: +takes_value {valid_ident} "Package ident to resolve")
+              (@arg IDENT: +required +takes_value {valid_ident} "Package ident to resolve")
     )
 }
 
@@ -806,4 +990,40 @@ fn ident_from_matches(matches: &ArgMatches) -> Result<PackageIdent, String> {
     let ident_str: &str = matches.value_of("IDENT")
                                  .ok_or_else(|| String::from("Ident required"))?;
     PackageIdent::from_str(ident_str).map_err(|e| format!("Expected ident gave error {:?}", e))
+}
+
+fn idents_from_matches(matches: &ArgMatches) -> Result<Vec<PackageIdent>, String> {
+    let ident_strings = matches.values_of("IDENT")
+                               .ok_or_else(|| String::from("Ident required"))?;
+    let idents =
+        ident_strings.map(|s| {
+                         PackageIdent::from_str(s).map_err(|e| {
+                                                      format!("Expected ident gave error {:?}", e)
+                                                  })
+                     });
+    idents.collect()
+}
+
+fn split_command(values: Vec<&str>) -> Vec<Vec<String>> {
+    let mut result = Vec::<Vec<String>>::new();
+
+    let mut command = Vec::<String>::new();
+    for word in values {
+        if word.contains(',') {
+            let split: Vec<String> = word.to_string().split(',').map(|s| s.to_string()).collect();
+            if !split[0].is_empty() {
+                command.push(split[0].to_string().clone());
+            }
+            let post = split[1].to_string().clone();
+            result.push(command);
+            command = Vec::<String>::new();
+            if !post.is_empty() {
+                command.push(post);
+            }
+        } else {
+            command.push(word.to_string().clone())
+        }
+    }
+    result.push(command);
+    result
 }

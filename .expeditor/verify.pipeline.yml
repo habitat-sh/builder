@@ -165,3 +165,19 @@ steps:
           privileged: true
           environment:
             - HAB_ORIGIN=habitat
+
+  - label: "[functional] :linux: builder-graph"
+    command:
+      - hab pkg install core/bats
+      - .expeditor/scripts/verify/builder-graph-functional.sh
+    artifact_paths:
+      - "logs/**/*"
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+          privileged: true
+          environment:
+            - HAB_ORIGIN=ci
