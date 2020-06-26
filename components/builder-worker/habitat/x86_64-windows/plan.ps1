@@ -84,7 +84,7 @@ function Invoke-BuildConfig {
     New-Item -ItemType Directory -Force -Path "$pkg_prefix/hooks" | Out-Null
     New-Item -ItemType Directory -Force -Path "$pkg_prefix/config" | Out-Null
     Write-BuildLine "Copying run.ps1 to run"
-    Copy-Item "$PLAN_CONTEXT/x86_64-windows/hooks/run.ps1" "$pkg_prefix/hooks/run"
+    Copy-Item "$PLAN_CONTEXT/hooks/run.ps1" "$pkg_prefix/hooks/run"
     Write-BuildLine "Copying default.toml into $pkg_prefix"
     Copy-Item "$PLAN_CONTEXT/../default.toml" "$pkg_prefix/default.toml"
     Write-BuildLine "Copying config.toml into $pkg_prefix/config"
