@@ -1,5 +1,35 @@
-source ../habitat/plan.sh
-source ../../../support/ci/builder-dev-plan.sh
+pkg_name=builder-worker
+pkg_origin=habitat
+pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
+pkg_license=('Apache-2.0')
+pkg_bin_dirs=(bin)
+pkg_deps=(core/glibc core/openssl core/gcc-libs core/zeromq core/libsodium
+  core/libarchive core/zlib core/hab core/hab-studio core/hab-pkg-export-container
+  core/docker core/curl)
+pkg_build_deps=(core/make core/cmake core/protobuf-cpp core/protobuf-rust core/coreutils core/cacerts
+  core/rust core/gcc core/git core/pkg-config)
+
+pkg_binds=(
+  [jobsrv]="worker_port worker_heartbeat log_port"
+  [depot]="url"
+)
+pkg_svc_user="root"
+pkg_svc_group="root"
+bin="bldr-worker"
+
+# shellcheck disable=SC2034
+source "../../../support/ci/builder-base-plan.sh"
+source "../../../support/ci/builder-dev-plan.sh"
+
+# Copy hooks/config/default.toml from parent directory so we only maintain
+# one copy.
+do_begin() {
+  mkdir -p ../habitat/hooks
+  mkdir -p ../habitat/config
+  cp --no-clobber ../habitat/_common/run ../habitat/hooks/run
+  cp --no-clobber ../habitat/_common/config.toml ../habitat/config/config.toml
+  cp --no-clobber ../habitat/_common/default.toml ../habitat/default.toml
+}
 
 do_prepare() {
   do_dev_prepare
