@@ -86,9 +86,9 @@ function Invoke-BuildConfig {
     Write-BuildLine "Copying run.ps1 to run"
     Copy-Item "$PLAN_CONTEXT/hooks/run.ps1" "$pkg_prefix/hooks/run"
     Write-BuildLine "Copying default.toml into $pkg_prefix"
-    Copy-Item "$PLAN_CONTEXT/../default.toml" "$pkg_prefix/default.toml"
+    Copy-Item "$PLAN_CONTEXT/../_common/default.toml" "$pkg_prefix/default.toml"
     Write-BuildLine "Copying config.toml into $pkg_prefix/config"
-    Copy-Item "$PLAN_CONTEXT/../config.toml" "$pkg_prefix/config/config.toml"
+    Copy-Item "$PLAN_CONTEXT/../_common/config.toml" "$pkg_prefix/config/config.toml"
 }
 
 function Invoke-Build {
