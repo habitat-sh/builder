@@ -26,9 +26,9 @@ source "../../../support/ci/builder-dev-plan.sh"
 do_begin() {
   mkdir -p ../habitat/hooks
   mkdir -p ../habitat/config
-  cp --no-clobber ../habitat/run ../habitat/hooks/run
-  cp --no-clobber ../habitat/config.toml ../habitat/config/config.toml
-  cp --no-clobber ../habitat/default.toml ../habitat/default.toml
+  cp --no-clobber ../habitat/_common/run ../habitat/hooks/run
+  cp --no-clobber ../habitat/_common/config.toml ../habitat/config/config.toml
+  cp --no-clobber ../habitat/_common/default.toml ../habitat/default.toml
 }
 
 do_prepare() {

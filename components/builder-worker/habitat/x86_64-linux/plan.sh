@@ -23,9 +23,9 @@ bin="bldr-worker"
 do_begin() {
   mkdir -p hooks
   mkdir -p config
-  cp --no-clobber ../run hooks/run
-  cp --no-clobber ../config.toml config/config.toml
-  cp --no-clobber ../default.toml default.toml
+  cp --no-clobber ../_common/run hooks/run
+  cp --no-clobber ../_common/config.toml config/config.toml
+  cp --no-clobber ../_common/default.toml default.toml
 }
 
 do_prepare() {
