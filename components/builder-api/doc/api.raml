@@ -1259,38 +1259,6 @@ securitySchemes:
                         description: Channel can not be deleted
                     500:
                         description: Server error
-             /latest:
-                get:
-                    description: List latest packages in a channel, by target (required)
-                    queryParameters:
-                        target:
-                            description: Target architecture
-                            type: string
-                            required: true
-                    responses:
-                        200:
-                            description: Returns a list of packages
-                            body:
-                                application/json:
-                                    example:
-                                        {
-                                            "channel": "stable",
-                                            "target": "x86_64-linux",
-                                            "data": [
-                                                {
-                                                    "origin": "core",
-                                                    "name": "glibc",
-                                                    "version": "2.22",
-                                                    "release": "20160612063629"
-                                                },
-                                                {
-                                                    "origin": "core",
-                                                    "name": "linux-headers",
-                                                    "version": "4.3",
-                                                    "release": "20160612063537"
-                                                }
-
-                                        }
             /pkgs:
                 get:
                     description: List all packages in a channel
@@ -1325,6 +1293,39 @@ securitySchemes:
                             description: Origin or channel does not exist
                         500:
                             description: Server error
+                /_latest:
+                    get:
+                        description: List latest packages in a channel, by target (required)
+                        queryParameters:
+                        target:
+                          description: Target architecture
+                          type: string
+                          required: true
+                        responses:
+                          200:
+                            description: Returns a list of packages
+                            body:
+                              application/json:
+                                example:
+                                  {
+                                  "channel": "stable",
+                                  "target": "x86_64-linux",
+                                  "data": [
+                                       {
+                                       "origin": "core",
+                                       "name": "glibc",
+                                       "version": "2.22",
+                                       "release": "20160612063629"
+                                       },
+                                       {
+                                       "origin": "core",
+                                       "name": "linux-headers",
+                                       "version": "4.3",
+                                       "release": "20160612063537"
+                                       }
+                                       ]
+                                  }
+
                 /promote:
                     post:
                         description: Promotes all packages in a channel

@@ -310,7 +310,7 @@ describe('Channels API', function () {
   describe('Latest packages in an origin', function () {
 
     it('returns latest packages in a channel fails without a target', function (done) {
-      request.get('/depot/channels/neurosis/foo/latest')
+      request.get('/depot/channels/neurosis/foo/pkgs/_latest')
         .type('application/json')
         .accept('application/json')
         .expect(400)
@@ -321,7 +321,7 @@ describe('Channels API', function () {
     });
 
     it('returns latest packages in a channel', function (done) {
-      request.get('/depot/channels/neurosis/foo/latest?target=x86_64-linux')
+      request.get('/depot/channels/neurosis/foo/pkgs/_latest?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -377,7 +377,7 @@ describe('Channels API', function () {
       // })
 
       it('returns latest packages in a channel', function (done) {
-        request.get('/depot/channels/neurosis/foo/latest?target=x86_64-linux')
+        request.get('/depot/channels/neurosis/foo/pkgs/_latest?target=x86_64-linux')
           .type('application/json')
           .accept('application/json')
           .expect(200)
@@ -393,7 +393,7 @@ describe('Channels API', function () {
         });
 
       it('returns latest packages in a channel, but not the private ones', function (done) {
-        request.get('/depot/channels/neurosis/baz/latest?target=x86_64-linux')
+        request.get('/depot/channels/neurosis/baz/pkgs/_latest?target=x86_64-linux')
            .type('application/json')
            .accept('application/json')
            .expect(200)
@@ -409,7 +409,7 @@ describe('Channels API', function () {
       //
 
       it('returns latest packages in a channel but not the older ones', function (done) {
-          request.get('/depot/channels/neurosis/unstable/latest?target=x86_64-linux')
+          request.get('/depot/channels/neurosis/unstable/pkgs/_latest?target=x86_64-linux')
             .type('application/json')
             .accept('application/json')
             .expect(200)

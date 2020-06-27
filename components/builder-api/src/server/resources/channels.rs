@@ -71,10 +71,10 @@ impl Channels {
                   web::post().to(create_channel))
            .route("/depot/channels/{origin}/{channel}",
                   web::delete().to(delete_channel))
-           .route("/depot/channels/{origin}/{channel}/latest",
-                  web::get().to(get_latest_packages_for_origin_channel))
            .route("/depot/channels/{origin}/{channel}/pkgs",
                   web::get().to(get_packages_for_origin_channel))
+           .route("/depot/channels/{origin}/{channel}/pkgs/_latest",
+                  web::get().to(get_latest_packages_for_origin_channel))
            .route("/depot/channels/{origin}/{channel}/pkgs/{pkg}",
                   web::get().to(get_packages_for_origin_channel_package))
            .route("/depot/channels/{origin}/{channel}/pkgs/{pkg}/latest",
