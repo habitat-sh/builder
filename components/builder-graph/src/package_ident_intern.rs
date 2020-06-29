@@ -262,3 +262,39 @@ impl Ord for PackageIdentIntern {
         }
     }
 }
+
+pub fn display_ordering_cmp<T>(a: &T, b: &T) -> Ordering
+    where T: Identifiable
+{
+    let cmp = a.origin().cmp(b.origin());
+    if cmp != Ordering::Equal {
+        return cmp;
+    }
+
+    let cmp = a.name().cmp(b.name());
+    if cmp != Ordering::Equal {
+        return cmp;
+    }
+
+    let cmp = match (a.version(), b.version()) {
+        (None, None) => return Ordering::Equal,
+        (None, Some(_)) => return Ordering::Less,
+        (Some(_), None) => return Ordering::Greater,
+        (Some(a_v), Some(b_v)) => {
+            // We could panic here, but since this is intended for display formatting, we just make
+            // a choice.
+            //
+            version_sort(a_v, b_v).unwrap_or(Ordering::Equal)
+        }
+    };
+    if cmp != Ordering::Equal {
+        return cmp;
+    }
+
+    match (a.release(), b.release()) {
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
+        (Some(a_r), Some(b_r)) => a_r.cmp(b_r),
+    }
+}

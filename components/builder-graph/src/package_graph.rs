@@ -203,6 +203,14 @@ impl PackageGraph {
                                                               base_set,
                                                               touched)
     }
+
+    pub fn compute_attributed_deps(&self,
+                                   idents: &[PackageIdentIntern],
+                                   include_build_deps: bool)
+                                   -> HashMap<PackageIdentIntern, Vec<PackageIdentIntern>> {
+        self.graphs[&self.current_target].borrow_mut()
+                                         .compute_attributed_deps(idents, include_build_deps)
+    }
 }
 
 #[cfg(test)]
