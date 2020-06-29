@@ -225,8 +225,8 @@ describe('Channels API', function () {
         .accept('application/json')
         .expect(404)
         .end(function (err, res) {
-            expect(res.text).to.be.empty;
-            done(err);
+          expect(res.text).to.be.empty;
+          done(err);
         });
     });
 
@@ -305,6 +305,134 @@ describe('Channels API', function () {
           done(err);
         });
     });
+  });
+
+  describe('Latest packages in an origin', function () {
+
+    it('returns latest packages in a channel fails without a target', function (done) {
+      request.get('/depot/channels/neurosis/foo/pkgs/_latest')
+        .type('application/json')
+        .accept('application/json')
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('returns latest packages in a channel', function (done) {
+      request.get('/depot/channels/neurosis/foo/pkgs/_latest?target=x86_64-linux')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.channel).to.equal('foo');
+          expect(res.body.target).to.equal('x86_64-linux');
+          expect(res.body.data.length).to.equal(1);
+          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[0].version).to.equal('0.1.3');
+          expect(res.body.data[0].release).to.equal('20171205003213');
+          done(err);
+        });
+    });
+
+    describe('with multiple versions of package in channel', function () {
+
+      // What I really want to do is have a separate channel for the tests, with promotion/demotion and isolation from the other tests
+      // But for the the life of me I can't get the before/after clauses to work.
+      // They execute at random times, often the before clause runs *AFTER* the test, and I have no clue why.
+      //
+      // So for now, we test against existing channels, as fragile as that might be
+      //
+
+      // Below is one variant, but
+      // before(function () {
+      //   request.post('/depot/channels/neurosis/baz')
+      //     .set('Authorization', global.boboBearer)
+      //     .expect(201)
+      //     .end();
+      //   request.put('/depot/channels/neurosis/baz/pkgs/testapp/0.1.3/20171205003213/promote')
+      //     .set('Authorization', global.boboBearer)
+      //     .expect(200)
+      //     .end();
+      //   request.put('/depot/channels/neurosis/baz/pkgs/neurosis/testapp/0.1.4/20171206004139/promote')
+      //     .set('Authorization', global.boboBearer)
+      //     .expect(200)
+      //     .end();
+      //   request.put('/depot/channels/neurosis/baz/pkgs/neurosis/neurosis/testapp/0.1.4/20181115124506/promote')
+      //     .set('Authorization', global.boboBearer)
+      //     .expect(200)
+      //     .end();
+      //   request.put('/depot/channels/neurosis/baz/pkgs/testapp2/v1.2.3-aaster/20181018162220/promote')
+      //     .set('Authorization', global.boboBearer)
+      //     .expect(200)
+      //     .end();
+      // });
+
+      // after(function () {
+      //   request.delete('/depot/channels/neurosis/baz')
+      //     .set('Authorization', global.boboBearer)
+      //     .expect(200)
+      //     .end();
+      // })
+
+      it('returns latest packages in a channel', function (done) {
+        request.get('/depot/channels/neurosis/foo/pkgs/_latest?target=x86_64-linux')
+          .type('application/json')
+          .accept('application/json')
+          .expect(200)
+          .end(function (err, res) {
+            expect(res.body.channel).to.equal('foo');
+            expect(res.body.target).to.equal('x86_64-linux');
+            expect(res.body.data.length).to.equal(1);
+            expect(res.body.data[0].name).to.equal('testapp');
+            expect(res.body.data[0].version).to.equal('0.1.3');
+            expect(res.body.data[0].release).to.equal('20171205003213');
+            done(err);
+          });
+        });
+
+      it('returns latest packages in a channel, but not the private ones', function (done) {
+        request.get('/depot/channels/neurosis/baz/pkgs/_latest?target=x86_64-linux')
+           .type('application/json')
+           .accept('application/json')
+           .expect(200)
+           .end(function (err, res) {
+             expect(res.body.channel).to.equal('baz');
+             expect(res.body.target).to.equal('x86_64-linux');
+             expect(res.body.data.length).to.equal(0);
+             done(err);
+           });
+      });
+
+      // Wishful verify that it can see the private ones if the right auth is provided
+      //
+
+      it('returns latest packages in a channel but not the older ones', function (done) {
+          request.get('/depot/channels/neurosis/unstable/pkgs/_latest?target=x86_64-linux')
+            .type('application/json')
+            .accept('application/json')
+            .expect(200)
+            .end(function (err, res) {
+              expect(res.body.channel).to.equal('unstable');
+              expect(res.body.target).to.equal('x86_64-linux');
+              expect(res.body.data.length).to.equal(12);
+              expect(res.body.data[0].origin).to.equal('neurosis');
+              expect(res.body.data[0].name).to.equal('abracadabra');
+              expect(res.body.data[0].version).to.equal('3.0');
+              expect(res.body.data[0].release).to.equal('20190618175235');
+              expect(res.body.data[10].origin).to.equal('neurosis');
+              expect(res.body.data[10].name).to.equal('testapp');
+              expect(res.body.data[10].version).to.equal('0.1.13');
+              expect(res.body.data[10].release).to.equal('20190511004436');
+              expect(res.body.data[11].origin).to.equal('neurosis');
+              expect(res.body.data[11].name).to.equal('testapp2');
+              expect(res.body.data[11].version).to.equal('v1.2.3-master');
+              expect(res.body.data[11].release).to.equal('20181018162212');
+              done(err);
+            });
+        });
+      });
   });
 
   describe('Listing channels in an origin', function () {

@@ -37,6 +37,7 @@ pub enum Histogram {
     DbCallTime,
     ChannelGetLatestPackageCallTime,
     ChannelListAllPackagesCallTime,
+    ChannelListLatestPackagesCallTime,
     ChannelListPackagesCallTime,
     ChannelListPackagesOriginNameCallTime,
     ChannelListPackagesOriginOnlyCallTime,
@@ -76,6 +77,9 @@ impl metrics::Metric for Histogram {
             }
             Histogram::ChannelListPackagesCallTime => {
                 "db-call.channel-list-packages-call-time".into()
+            }
+            Histogram::ChannelListLatestPackagesCallTime => {
+                "db-call.channel-list-latest-packages-call-time".into()
             }
             Histogram::ChannelListPackagesOriginNameCallTime => {
                 "db-call.channel-list-packages-origin-name-call-time".into()

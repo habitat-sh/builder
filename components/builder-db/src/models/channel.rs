@@ -80,6 +80,13 @@ pub struct ListAllChannelPackages<'a> {
     pub origin:     &'a str,
 }
 
+pub struct ListAllChannelPackagesForTarget<'a> {
+    pub visibility: &'a Vec<PackageVisibility>,
+    pub channel:    &'a ChannelIdent,
+    pub origin:     &'a str,
+    pub target:     &'a str,
+}
+
 impl Channel {
     pub fn list(origin: &str,
                 include_sandbox_channels: bool,
@@ -157,6 +164,48 @@ impl Channel {
         Histogram::ChannelGetLatestPackageCallTime.set(duration_millis as f64);
 
         result
+    }
+
+    pub fn list_latest_packages(req: &ListAllChannelPackagesForTarget,
+                                conn: &PgConnection)
+                                -> QueryResult<(String, String, Vec<BuilderPackageIdent>)> {
+        Counter::DBCall.increment();
+        let start_time = Instant::now();
+        let channel = String::from(req.channel.as_str());
+        let target = String::from(req.target);
+
+        let query = origin_packages_with_version_array::table
+            .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
+            .filter(origin_packages_with_version_array::origin.eq(&req.origin))
+            .filter(origin_channels::name.eq(&channel))
+            .filter(origin_packages_with_version_array::target.eq(&target))
+            .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
+            .distinct_on(origin_packages_with_version_array::name)
+            .select((origin_packages_with_version_array::name, origin_packages_with_version_array::ident))
+            .order(origin_packages_with_version_array::name)
+            .order(sql::<PackageWithVersionArray>(
+                "name,\
+                string_to_array(version_array[1],'.')::numeric[] desc,\
+                version_array[2] desc,\
+                ident_array[4] desc",
+            ));
+
+        // The query returns name, ident because of the way distinct works.
+        // I could wrap it all in a subquery, but hit some snags doing that with Diesel.account
+        // Instead, I'm going to just extract the Ident here
+        let result: QueryResult<Vec<(String, BuilderPackageIdent)>> = query.get_results(conn);
+        let result: QueryResult<Vec<BuilderPackageIdent>> =
+            result.map(|v: Vec<(String, BuilderPackageIdent)>| {
+                      v.iter().map(|(_, ident)| ident.clone()).collect()
+                  });
+
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall channel::list_latest_package time: {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::ChannelListLatestPackagesCallTime.set(duration_millis as f64);
+
+        result.map(|x| (channel, target, x))
     }
 
     pub fn list_packages(lcp: &ListChannelPackages,
