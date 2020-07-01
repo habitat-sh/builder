@@ -311,6 +311,6 @@ fn member_role_ns_key(origin: &str, account_id: u64) -> String {
 
 fn hash_key(key: &str) -> String {
     let mut hasher = Sha512::new();
-    hasher.input(key);
-    format!("{:02x}", hasher.result())
+    hasher.update(key);
+    format!("{:02x}", hasher.finalize())
 }

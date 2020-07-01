@@ -39,7 +39,7 @@ rand = "*"
 r2d2 = "*"
 serde = "*"
 serde_derive = "*"
-sha2 = "= 0.8.2"
+sha2 = "*"
 toml = { version = "*", default-features = false }
 
 [dependencies.actix-web]
