@@ -284,9 +284,18 @@ impl PackageGraphForTarget {
         }
     }
 
-    pub fn rdeps(&self, name: PackageIdentIntern, origin: Option<&str>) -> Vec<PackageIdentIntern> {
+    pub fn rdeps(&self,
+                 name: PackageIdentIntern,
+                 origin: Option<&str>)
+                 -> Vec<(PackageIdentIntern, PackageIdentIntern)> {
         let seed = vec![name];
-        graph_helpers::flood_deps_in_origin(&self.latest_graph, &seed, origin)
+        let deps = graph_helpers::flood_deps_in_origin(&self.latest_graph, &seed, origin);
+        deps.iter()
+            .map(|&dep| {
+                let fq_dep: PackageIdentIntern = *(self.latest_map.get(&dep).unwrap_or(&dep));
+                (dep, fq_dep)
+            })
+            .collect()
     }
 
     // Mostly for debugging

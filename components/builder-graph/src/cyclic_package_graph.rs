@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{str::FromStr,
+          string::ToString};
+
 use crate::protocol::originsrv;
 
 use crate::{hab_core::package::PackageIdent,
             package_graph_target::PackageGraphForTarget,
-            package_graph_trait::{PackageDepsTrait,
-                                  PackageGraphTrait,
+            package_graph_trait::{PackageGraphTrait,
                                   Stats},
+            package_ident_intern::PackageIdentIntern,
             package_info::PackageInfo};
 
 struct CyclicPackageGraph {
@@ -48,19 +51,24 @@ impl PackageGraphTrait for CyclicPackageGraph {
         self.graph.check_extend(&package_info, use_build_deps)
     }
 
-    fn rdeps(&self, _name: &str) -> Option<Vec<(String, String)>> {
-        unimplemented!("Need to implement a compatible rdeps");
+    fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>> {
+        let ident = PackageIdentIntern::from_str(name);
+        let rdeps = ident.ok().map(|r| {
+                                  self.graph
+                                      .rdeps(r, None)
+                                      .iter()
+                                      .map(|(dep, fq_dep)| (dep.to_string(), fq_dep.to_string()))
+                                      .collect()
+                              });
+        rdeps
     }
 
-    fn rdeps_group(&self,
-                   name: &str,
-                   package_deps: &dyn PackageDepsTrait)
-                   -> Option<Vec<Vec<PackageIdent>>> {
-        unimplemented!("Need to implement a compatible rdeps_group");
-    }
-
-    fn resolve(&self, _name: &str) -> Option<String> {
-        unimplemented!("Need to implement a compatible resolve");
+    fn resolve(&self, name: &str) -> Option<String> {
+        let ident = PackageIdent::from_str(name);
+        let resolved = ident.ok()
+                            .map(|r| self.graph.resolve(r.as_ref()).map(|r| r.to_string()))
+                            .flatten();
+        resolved
     }
 
     fn stats(&self) -> Stats { self.graph.stats() }
