@@ -82,7 +82,7 @@ impl PackageGraph {
     pub fn rdeps(&self,
                  ident: &PackageIdentIntern,
                  origin: Option<&str>)
-                 -> Vec<PackageIdentIntern> {
+                 -> Vec<(PackageIdentIntern, PackageIdentIntern)> {
         if let Some(graph) = self.graphs.get(&self.current_target) {
             graph.borrow().rdeps(*ident, origin)
         } else {

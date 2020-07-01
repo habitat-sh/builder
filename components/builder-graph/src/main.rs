@@ -503,7 +503,7 @@ fn do_rdeps(graph: &PackageGraph, matches: &ArgMatches) {
     let mut file = File::create(&filename).unwrap();
 
     writeln!(&mut file, "{}", ident).unwrap();
-    for dep in &rdeps {
+    for (dep, _) in &rdeps {
         if *dep != ident {
             writeln!(&mut file, "  {}", dep).unwrap();
         }
