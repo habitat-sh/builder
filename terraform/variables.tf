@@ -15,7 +15,7 @@ variable "aws_ami" {
   description = "Base AMI for all nodes"
 
   default = {
-    us-west-2 = "ami-efd0428f"
+    us-west-2 = "ami-043505d1b57b5d3e3"
   }
 }
 

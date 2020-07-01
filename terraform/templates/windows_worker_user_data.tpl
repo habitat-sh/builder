@@ -57,7 +57,15 @@
   $configXml.Save((Join-Path $svcPath HabService.dll.config))
 
   # Start service
-  Start-Service Habitat
+  Start-Service -Name "Habitat"
+
+  # Allow sup to update if needed
+  Start-Sleep -Seconds 180
+
+  # Without this logging doesn't seem to happen
+  Restart-Service -Name "Habitat" -Force
+
+  Write-Debug "Starting habitat/builder-worker"
 
   # Load builder-worker
   mkdir c:\hab\svc\builder-worker
