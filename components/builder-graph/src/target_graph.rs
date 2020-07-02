@@ -17,6 +17,7 @@ use std::{borrow::BorrowMut,
           str::FromStr};
 
 use crate::{acyclic_package_graph::AcyclicPackageGraph,
+            cyclic_package_graph::CyclicPackageGraph,
             hab_core::package::PackageTarget,
             package_graph_trait::PackageGraphTrait,
             protocol::originsrv};
@@ -33,13 +34,18 @@ pub struct TargetGraph {
 }
 
 impl TargetGraph {
-    pub fn new() -> Self {
+    pub fn new(use_cyclic_graph: bool) -> Self {
         let mut graphs: HashMap<PackageTarget, Box<dyn PackageGraphTrait>> = HashMap::new();
 
         // We only support the following targets currently
         for target_str in &["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"] {
-            graphs.insert(PackageTarget::from_str(target_str).unwrap(),
-                          Box::new(AcyclicPackageGraph::new()));
+            let target = PackageTarget::from_str(target_str).unwrap();
+            let graph: Box<dyn PackageGraphTrait> = if use_cyclic_graph {
+                Box::new(CyclicPackageGraph::new(target))
+            } else {
+                Box::new(AcyclicPackageGraph::new())
+            };
+            graphs.insert(target, graph);
         }
 
         TargetGraph { graphs }

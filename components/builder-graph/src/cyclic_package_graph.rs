@@ -17,15 +17,22 @@ use std::{str::FromStr,
 
 use crate::protocol::originsrv;
 
-use crate::{hab_core::package::PackageIdent,
+use crate::{hab_core::package::{PackageIdent,
+                                PackageTarget},
             package_graph_target::PackageGraphForTarget,
             package_graph_trait::{PackageGraphTrait,
                                   Stats},
             package_ident_intern::PackageIdentIntern,
             package_info::PackageInfo};
 
-struct CyclicPackageGraph {
+pub struct CyclicPackageGraph {
     graph: PackageGraphForTarget,
+}
+
+impl CyclicPackageGraph {
+    pub fn new(target: PackageTarget) -> Self {
+        CyclicPackageGraph { graph: PackageGraphForTarget::new(target), }
+    }
 }
 
 impl PackageGraphTrait for CyclicPackageGraph {
@@ -53,22 +60,20 @@ impl PackageGraphTrait for CyclicPackageGraph {
 
     fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>> {
         let ident = PackageIdentIntern::from_str(name);
-        let rdeps = ident.ok().map(|r| {
-                                  self.graph
-                                      .rdeps(r, None)
-                                      .iter()
-                                      .map(|(dep, fq_dep)| (dep.to_string(), fq_dep.to_string()))
-                                      .collect()
-                              });
-        rdeps
+        ident.ok().map(|r| {
+                      self.graph
+                          .rdeps(r, None)
+                          .iter()
+                          .map(|(dep, fq_dep)| (dep.to_string(), fq_dep.to_string()))
+                          .collect()
+                  })
     }
 
     fn resolve(&self, name: &str) -> Option<String> {
         let ident = PackageIdent::from_str(name);
-        let resolved = ident.ok()
-                            .map(|r| self.graph.resolve(r.as_ref()).map(|r| r.to_string()))
-                            .flatten();
-        resolved
+        ident.ok()
+             .map(|r| self.graph.resolve(r.as_ref()).map(|r| r.to_string()))
+             .flatten()
     }
 
     fn stats(&self) -> Stats { self.graph.stats() }
