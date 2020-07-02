@@ -9,6 +9,13 @@ let projectExpectations = function (res) {
   expect(res.body.owner_id).to.equal(global.sessionBobo.id);
 };
 
+let projectExpectationsTestapp3 = function (res) {
+    expect(res.body.origin).to.equal('neurosis');
+    expect(res.body.name).to.equal('testapp3');
+    expect(res.body.visibility).to.equal('public');
+    expect(res.body.owner_id).to.equal(global.sessionBobo.id);
+};
+
 describe("Settings API", function () {
   describe("Creating a package entry", function () {
     it("requires authentication", function (done) {
@@ -29,6 +36,16 @@ describe("Settings API", function () {
         .end(function (err, res) {
           projectExpectations(res);
           done(err);
+        });
+        
+        it('creates a second project', function (done) {
+            request.post('/settings/neurosis/testapp3')
+            .set('Authorization', global.boboBearer)
+            .expect(201)
+            .end(function (err, res) {
+                projectExpectationsTestapp3(res);
+                done(err);
+            });
         });
     });
   });

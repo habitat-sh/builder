@@ -467,15 +467,17 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(3);
-          expect(res.body.total_count).to.equal(4);
-          expect(res.body.data.length).to.equal(4);
+          expect(res.body.range_end).to.equal(4);
+          expect(res.body.total_count).to.equal(5);
+          expect(res.body.data.length).to.equal(5);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('abracadabra');
           expect(res.body.data[1].origin).to.equal('neurosis');
           expect(res.body.data[1].name).to.equal('neurosis');
           expect(res.body.data[2].origin).to.equal('neurosis');
           expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].name).to.equal('testapp2');
           done(err);
         });
     });
