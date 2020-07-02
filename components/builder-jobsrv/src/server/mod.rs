@@ -167,7 +167,7 @@ pub async fn run(config: Config) -> Result<()> {
 
     let datastore = DataStore::new(&config.datastore);
     let db_pool = DbPool::new(&config.datastore.clone());
-    let mut graph = TargetGraph::new();
+    let mut graph = TargetGraph::new(config.use_cyclic_graph);
     let pkg_conn = &db_pool.get_conn()?;
     let packages = Package::get_all_latest(&pkg_conn)?;
     let origin_packages: Vec<OriginPackage> = packages.iter().map(|p| p.clone().into()).collect();

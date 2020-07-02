@@ -17,15 +17,22 @@ use std::{str::FromStr,
 
 use crate::protocol::originsrv;
 
-use crate::{hab_core::package::PackageIdent,
+use crate::{hab_core::package::{PackageIdent,
+                                PackageTarget},
             package_graph_target::PackageGraphForTarget,
             package_graph_trait::{PackageGraphTrait,
                                   Stats},
             package_ident_intern::PackageIdentIntern,
             package_info::PackageInfo};
 
-struct CyclicPackageGraph {
+pub struct CyclicPackageGraph {
     graph: PackageGraphForTarget,
+}
+
+impl CyclicPackageGraph {
+    pub fn new(target: PackageTarget) -> Self {
+        CyclicPackageGraph { graph: PackageGraphForTarget::new(target), }
+    }
 }
 
 impl PackageGraphTrait for CyclicPackageGraph {
