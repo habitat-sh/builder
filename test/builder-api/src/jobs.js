@@ -95,6 +95,22 @@ describe("Jobs API", function () {
           done(err);
         });
     });
+    
+    it('returns all projects in the group', function (done) {
+      request.get(`/depot/pkgs/schedule/${global.neurosisJobGroup['id']}?include_projects=true`)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body).to.not.be.empty;
+          console.log(res.body.projects);
+          projects = res.body.projects.map(function(project,_index) { project.name }).sort();
+          expect(projects.length).to.equal(2);
+          expect(projects[0]).to.equal("neurosis/testapp");
+          expect(projects[1]).to.equal("neurosis/testapp3");
+          done(err);
+        });
+      });
   });
 
   describe("Retrieving information about every job group in an origin", function () {
