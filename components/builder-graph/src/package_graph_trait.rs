@@ -14,9 +14,6 @@
 
 use crate::protocol::originsrv;
 
-use crate::hab_core::package::{PackageIdent,
-                               PackageTarget};
-
 #[derive(Debug)]
 pub struct Stats {
     pub node_count:     usize,
