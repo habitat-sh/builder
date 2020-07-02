@@ -995,8 +995,8 @@ impl FromArchive for NewPackage {
             Err(e) => return Err(e),
         };
 
-        let config = match archive.config()? {
-            Some(config) => config,
+        let config = match archive.config() {
+            Some(config) => config.to_string(),
             None => String::from(""),
         };
 
@@ -1030,7 +1030,7 @@ impl FromArchive for NewPackage {
         Ok(NewPackage { ident: ident.clone(),
                         ident_array: ident.clone().parts(),
                         origin: ident.origin().to_string(),
-                        manifest: archive.manifest()?,
+                        manifest: archive.manifest()?.to_string(),
                         target: BuilderPackageTarget(archive.target()?),
                         deps,
                         tdeps,

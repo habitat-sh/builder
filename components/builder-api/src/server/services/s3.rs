@@ -360,7 +360,7 @@ async fn write_archive(filename: &PathBuf,
             return Err(Error::IO(e));
         }
     }
-    Ok(PackageArchive::new(filename))
+    Ok(PackageArchive::new(filename)?)
 }
 
 #[cfg(test)]
