@@ -446,13 +446,13 @@ pub fn transitive_deps(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
 pub fn compute_rebuild_set(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                            unbuildable: &dyn Unbuildable,
                            touched: &[PackageIdentIntern],
-                           origin: &str,
+                           origin: Option<&str>,
                            target: PackageTarget)
                            -> Vec<PackageIdentIntern> {
     // Note: consider making these APIs use HashSet all the way through
-    let rebuild = flood_deps_in_origin(&graph, touched, Some(origin));
+    let rebuild = flood_deps_in_origin(&graph, touched, origin);
     let unbuildable = unbuildable.filter_unbuildable(&rebuild, target).unwrap();
-    let unbuildable = flood_deps_in_origin(&graph, &unbuildable, Some(origin));
+    let unbuildable = flood_deps_in_origin(&graph, &unbuildable, origin);
 
     let rebuild: HashSet<PackageIdentIntern> = HashSet::from_iter(rebuild);
     let unbuildable: HashSet<PackageIdentIntern> = HashSet::from_iter(unbuildable);
