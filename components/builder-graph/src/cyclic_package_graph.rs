@@ -17,8 +17,10 @@ use std::{str::FromStr,
 
 use crate::protocol::originsrv;
 
-use crate::{hab_core::package::{PackageIdent,
+use crate::{data_store::Unbuildable,
+            hab_core::package::{PackageIdent,
                                 PackageTarget},
+            package_build_manifest_graph::PackageBuildManifest,
             package_graph_target::PackageGraphForTarget,
             package_graph_trait::{PackageGraphTrait,
                                   Stats},
@@ -77,4 +79,14 @@ impl PackageGraphTrait for CyclicPackageGraph {
     }
 
     fn stats(&self) -> Stats { self.graph.stats() }
+
+    fn compute_build(&self,
+                     touched: &[PackageIdentIntern],
+                     unbuildable: &dyn Unbuildable,
+                     _target: PackageTarget /* WRONG WRONG WRONG WRONG, WRONG WRONG WRONG
+                                             * WRONG */)
+                     -> PackageBuildManifest {
+        // TODO FIX assert!(_target == self.graph.current_target());
+        self.graph.compute_build(touched, unbuildable)
+    }
 }

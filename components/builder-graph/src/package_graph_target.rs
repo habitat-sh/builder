@@ -15,8 +15,7 @@
 use std::{collections::{HashMap,
                         HashSet},
           fmt,
-          fs::File,
-          io::prelude::*};
+          iter::FromIterator};
 
 use petgraph::{algo::{connected_components,
                       is_cyclic_directed},
@@ -31,12 +30,23 @@ use crate::hab_core::package::{ident::Identifiable,
 
 use crate::{data_store::Unbuildable,
             graph_helpers,
-            package_build_manifest_graph::PackageBuild,
+            package_build_manifest_graph::{PackageBuildManifest,
+                                           UnbuildableReason,
+                                           UnresolvedPackageIdent},
             package_graph_trait::Stats,
             package_ident_intern::{display_ordering_cmp,
                                    PackageIdentIntern},
             package_info::PackageInfo,
             util::*};
+
+// How many times we cycle around the loop in a cycle before declaring it converged
+// This is based on cultural lore from compiler bootstrapping, where generally
+// you rebuild a compiler three times on itself to wring out bugs. You need more than once, so that
+// your new build tools are used to build what you ship. So it should be at least two. The third
+// round is to catch subtle bugs that only manifest when you you build with yourself. Very
+// occasionally bugs of this sort do manifest. More is probably pointless, as a bug subtle enough to
+// only manifest past the third iteration is *extremely* low probability.
+const CYCLIC_BUILD_CONVERGE_COUNT: usize = 3;
 
 pub struct PackageGraphForTarget {
     target: PackageTarget,
@@ -133,10 +143,10 @@ impl PackageGraphForTarget {
             // We also *could* skip partially qualified idents here. There are two cases to
             // consider: deps on a version that's not latest, which again won't be rebuilt. There's
             // a special case with some packages that bump versions in lockstep (gcc, gcc-libs) They
-            // are version pinned, but always on latest. We should treat those as if they we're
+            // are version pinned, but always on latest. We should treat those as if they're
             // unqualified. However at this time we don't have the proper information to know if
             // they are pointing at latest version or not.  For now we are building the graph
-            // optimisically, and will need to check later if that is sane.
+            // optimistically, and will need to check later if that is sane.
             let plan_deps = filter_out_fully_qualified(&package_info.plan_deps);
 
             let (added, deleted) = graph_helpers::changed_edges_for_type(&self.latest_graph,
@@ -432,12 +442,9 @@ impl PackageGraphForTarget {
 
     pub fn dump_build_ordering(&mut self,
                                unbuildable: &dyn Unbuildable,
-                               _filename: &str,
-                               origin: &str,
-                               base_set: &[PackageIdent],
-                               touched: &[PackageIdent])
-                               -> Vec<PackageBuild> {
-        self.compute_build(unbuildable, origin, base_set, touched, 3)
+                               touched: &[PackageIdentIntern])
+                               -> PackageBuildManifest {
+        self.compute_build(touched, unbuildable)
     }
 
     // Compute a build ordering
@@ -464,24 +471,33 @@ impl PackageGraphForTarget {
     //
     // 5) Take new latest table, walk graph to find actually used packages.
 
-    pub fn compute_build(&mut self,
-                         unbuildable: &dyn Unbuildable,
-                         origin: &str,
-                         base_set: &[PackageIdent],
-                         touched: &[PackageIdent],
-                         converge_count: usize)
-                         -> Vec<PackageBuild> {
-        // debug!("Using base: {} {}\n",
-        // base_set.len(),
-        // join_idents(", ", &base_set));
+    // Thoughts on refining this for future work
+    // Maybe we return a smarter structure (PackageBuildManifest) than Vec<PackageBuild>
+    // It may be worth making it a graph internally.
+    // Then unbuildable could be factore out of the function and make something that gets applied to
+    // the PackageBuildManifest Base set could be computed on the fly and returned in that
+    // structure We may not want to filter by origin yet.
+    // Remaining signature would be (touched, unbuildable) -> PackageBuildManifest
+    //
+    pub fn compute_build(&self,
+                         touched: &[PackageIdentIntern],
+                         unbuildable: &dyn Unbuildable)
+                         -> PackageBuildManifest {
+        // In the future we will filter the graph to a rebuild a single origin, but that's a
+        // potentially breaking change, so we're not filtering by origin today.
+        let origin = None;
 
         debug!("Using touched: {} {}\n",
                touched.len(),
                join_idents(", ", &touched));
 
-        let preconditioned_graph = self.precondition_graph(origin);
+        // When we start restricting the builds to a single origin, we may need to rethink how we
+        // compute/filter the graph. For example if we use touched to indicate things in core that
+        // have been promoted, we want to propagate the updates fully before filtering the
+        // graph to a single origin
+        let preconditioned_graph = self.precondition_graph();
 
-        let touched: Vec<PackageIdentIntern> = touched.iter().map(|x| x.into()).collect();
+        //  TODO CAPTURE UNBUILDABLE INFO HERE
         let rebuild_set = graph_helpers::compute_rebuild_set(&preconditioned_graph,
                                                              unbuildable,
                                                              &touched,
@@ -502,45 +518,51 @@ impl PackageGraphForTarget {
             debug!("CB: #{} {}", component.len(), join_idents(", ", component));
         }
 
-        let mut latest = HashMap::<PackageIdent, PackageIdent>::new();
-        for ident in base_set {
-            latest.insert(short_ident(&ident, false), ident.clone());
-        }
+        let mut latest = HashMap::<PackageIdentIntern, UnresolvedPackageIdent>::new();
 
-        let mut file = File::create("latest_from_base.txt").expect("Failed to initialize file");
-        for (k, v) in &latest {
-            file.write_all(format!("{}: {}\n", &k, &v).as_bytes())
-                .unwrap();
-        }
-
-        let mut built: Vec<PackageBuild> = Vec::new();
+        let mut build_graph: DiGraphMap<UnresolvedPackageIdent, EdgeType> = DiGraphMap::new();
+        //        let mut built: Vec<PackageBuild> = Vec::new();
         for component in build_order.iter() {
             // If there is only one element in component, don't need to converge, can just run
             // once
             let component_converge_count = if component.len() > 1 {
-                converge_count
+                CYCLIC_BUILD_CONVERGE_COUNT
             } else {
                 1
             };
 
-            for _i in 1..=component_converge_count {
+            for i in 1..=component_converge_count {
                 for &ident in component {
                     let ident: PackageIdentIntern = ident;
+
+                    let package_name = UnresolvedPackageIdent::InternalNode(ident, i as _);
+
                     let ident_latest = self.latest_map[&ident];
-                    let package =
-                        self.packages.get(&ident_latest).unwrap_or_else(|| {
-                                                            panic!("Expected to find package for \
-                                                                    {} {} iter {}",
-                                                                   ident_latest, ident, _i)
-                                                        });
-                    let build = build_package(package, &mut latest);
-                    latest.insert(short_ident(&build.ident, false), build.ident.clone());
-                    built.push(build);
+                    let package = self.packages.get(&ident_latest).unwrap_or_else(|| {
+                                                                      panic!("Expected to find \
+                                                                              package for {} {} \
+                                                                              iter {}",
+                                                                             ident_latest, ident, i)
+                                                                  });
+
+                    build_package(&mut build_graph, package, package_name, &mut latest);
                 }
             }
         }
 
-        built
+        let idents_for_plan: HashMap<PackageIdentIntern, HashSet<UnresolvedPackageIdent>> =
+            HashMap::new();
+        let external_dependencies: HashSet<PackageIdentIntern> = HashSet::new();
+
+        // Forensics
+        let unbuildable_reasons: HashMap<PackageIdentIntern, UnbuildableReason> = HashMap::new();
+
+        PackageBuildManifest { graph: build_graph,
+                               idents_for_plan,
+                               external_dependencies,
+
+                               input_set: HashSet::from_iter(touched.iter().copied()),
+                               unbuildable_reasons }
     }
 
     // Precondition Graph
@@ -552,14 +574,17 @@ impl PackageGraphForTarget {
     // if the package rebuilds. If we depend on an older version, we will not rebuild it unless
     // a new release of that version is uploaded (or if we modify builder to build old versions)
     // So we fixup the graph here to represent that
-    pub fn precondition_graph(&self, origin: &str) -> DiGraphMap<PackageIdentIntern, EdgeType> {
+    // This was originally written to filter the nodes to a single origin. But when we moved
+    // resolution of external (not rebuilt) packages later, we needed to retain knowledge about
+    // the full dependencies of a package, even if those dependencies weren't being rebuilt or
+    // in the same origin.
+    pub fn precondition_graph(&self) -> DiGraphMap<PackageIdentIntern, EdgeType> {
         let mut graph: DiGraphMap<PackageIdentIntern, EdgeType> = DiGraphMap::new();
         for node in self.latest_graph.nodes() {
-            if self.node_filter_helper(Some(origin), node) {
-                graph.add_node(node);
-            }
+            graph.add_node(node);
         }
         for (src, dst, edge) in self.latest_graph.all_edges() {
+            // Both nodes have to be in the filtered graph to be relevant
             if graph.contains_node(src) && graph.contains_node(dst) {
                 if dst.version().is_some() {
                     let short_dst = dst.short_ident();
@@ -615,43 +640,34 @@ impl PackageGraphForTarget {
 // and we won't be using anything beyond the standard PackageIdent hasher here.
 // https://rust-lang.github.io/rust-clippy/master/index.html#implicit_hasher
 #[allow(clippy::implicit_hasher)]
-pub fn build_package(package: &PackageInfo,
-                     latest: &mut HashMap<PackageIdent, PackageIdent>)
-                     -> PackageBuild {
-    // Create our package name
-    let ident = make_temp_ident(&package.ident);
-
-    // resolve our runtime and build deps
-    let mut bt_deps = Vec::new();
-    let mut rt_deps = Vec::new();
-
+pub fn build_package(graph: &mut DiGraphMap<UnresolvedPackageIdent, EdgeType>,
+                     package: &PackageInfo,
+                     package_name: UnresolvedPackageIdent,
+                     latest: &mut HashMap<PackageIdentIntern, UnresolvedPackageIdent>) {
     for dep in &package.plan_bdeps {
-        // Horrible hack to get around our own pinning
-        let sdep = short_ident(dep, false);
-        bt_deps.push(latest.get(&sdep)
-                           .unwrap_or_else(|| {
-                               panic!("{} Unable to find bt dep {} ({})", &ident, &dep, &sdep)
-                           })
-                           .clone())
+        let sdep_resolved = resolve_package(latest, dep.into());
+        graph.add_edge(package_name, sdep_resolved, EdgeType::BuildDep);
     }
     for dep in &package.plan_deps {
-        // Horrible hack to get around our own pinning
-        let sdep = short_ident(dep, false);
-        rt_deps.push(latest.get(&sdep)
-                           .unwrap_or_else(|| {
-                               panic!("{} Unable to find rt dep {} ({})", &ident, &dep, &sdep)
-                           })
-                           .clone())
+        let sdep_resolved = resolve_package(latest, dep.into());
+        graph.add_edge(package_name, sdep_resolved, EdgeType::RuntimeDep);
     }
 
     // update latest
-    latest.insert(short_ident(&ident, false), ident.clone());
-    latest.insert(short_ident(&ident, true), ident.clone());
+    let short_name: PackageIdentIntern = (&package.ident).into();
+    latest.insert(short_name.short_ident(), package_name);
+}
 
-    // Make the package
-    PackageBuild { ident,
-                   bt_deps,
-                   rt_deps }
+pub fn resolve_package(latest: &mut HashMap<PackageIdentIntern, UnresolvedPackageIdent>,
+                       dep: PackageIdentIntern)
+                       -> UnresolvedPackageIdent {
+    let sdep = dep.short_ident();
+
+    let resolved_sdep = latest.entry(sdep).or_insert_with(|| {
+                                              // TODO Does not handle pins yet
+                                              UnresolvedPackageIdent::ExternalLatestVersion(sdep)
+                                          });
+    *resolved_sdep
 }
 
 #[cfg(test)]
