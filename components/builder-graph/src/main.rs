@@ -396,21 +396,15 @@ fn do_dump_build_order(datastore: &dyn DataStoreTrait,
     println!("Computing build order for origin {} to file {}",
              filter, filename);
 
-    let base_set = datastore.get_origin_channel_latest("core", "stable", graph.current_target())
-                            .expect("No base set returned from db");
+    let touched = vec![touched.into()]; // TODO use a real set, huh?
+                                        // let touched = vec![touched];
+                                        //
 
-    let touched = vec![touched]; // TODO use a real set, huh?
-                                 // let touched = vec![touched];
-                                 //
-
-    let ordering = graph.dump_build_ordering(datastore.as_unbuildable(),
-                                             filename,
-                                             filter,
-                                             &base_set,
-                                             &touched);
+    let manifest = graph.compute_build(&touched, datastore.as_unbuildable());
     println!("-------------------");
+
     let mut file = File::create(&filename).expect("Failed to initialize file");
-    for pkg in &ordering {
+    for pkg in &manifest.build_order() {
         file.write_all(pkg.format_for_shell().as_bytes()).unwrap();
     }
     println!("-------------------");

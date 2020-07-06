@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::protocol::originsrv;
+use crate::{data_store::Unbuildable,
+            error::Result,
+            package_build_manifest_graph::PackageBuildManifest,
+            package_ident_intern::PackageIdentIntern,
+            protocol::originsrv};
 
 #[derive(Debug)]
 pub struct Stats {
@@ -41,4 +45,21 @@ pub trait PackageGraphTrait: Send + Sync {
     // This probably should be refactored to a return some sort of Result type
     fn resolve(&self, name: &str) -> Option<String>;
     fn stats(&self) -> Stats;
+
+    // Compute a build ordering
+    //
+    // Inputs:
+    //
+    // * Kernel of packages 'modified'
+    // * DataStore 'oracle' to query if a given package is buildable
+    // * The current implementation of the Unbuildable trait requires the target, so we need to
+    //   provide it. That probably should be abstracted into the trait.
+    //
+    // Output:
+    //
+    // * PackageManifestGraph
+    fn compute_build(&self,
+                     touched: &[PackageIdentIntern],
+                     unbuildable: &dyn Unbuildable)
+                     -> Result<PackageBuildManifest>;
 }

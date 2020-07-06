@@ -27,6 +27,7 @@ use std::{collections::{HashMap,
 use crate::hab_core::package::PackageTarget;
 
 use crate::{data_store::Unbuildable,
+            package_build_manifest_graph::UnbuildableReason,
             package_ident_intern::PackageIdentIntern,
             util::*};
 
@@ -383,6 +384,7 @@ pub fn flood_deps_in_origin(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
         seen.insert(node_ident);
 
         // loop through everyone who has a build or runtime dep on this package
+        // Note: if a package is missing from the graph, we get an empty iterator
         for pred_ident in graph.neighbors_directed(node_ident, Direction::Incoming) {
             debug!("CBS: Checking {}", pred_ident);
             if !seen.contains(&pred_ident) && filter_match(&pred_ident, origin) {
@@ -443,23 +445,36 @@ pub fn transitive_deps(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
 // depend them, filtered by an origin 2) we find the packages in that set that are unbuildable
 // 3) we flood the graph to find all the packages that are rendered unbuildable because a dep is
 // unbuilable.
-pub fn compute_rebuild_set(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
-                           unbuildable: &dyn Unbuildable,
-                           touched: &[PackageIdentIntern],
-                           origin: &str,
-                           target: PackageTarget)
-                           -> Vec<PackageIdentIntern> {
+pub fn compute_rebuild_set(
+    graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
+    unbuildable: &dyn Unbuildable,
+    touched: &[PackageIdentIntern],
+    origin: Option<&str>,
+    target: PackageTarget)
+    -> (Vec<PackageIdentIntern>, HashMap<PackageIdentIntern, UnbuildableReason>) {
     // Note: consider making these APIs use HashSet all the way through
-    let rebuild = flood_deps_in_origin(&graph, touched, Some(origin));
+    let rebuild = flood_deps_in_origin(&graph, touched, origin);
+
     let unbuildable = unbuildable.filter_unbuildable(&rebuild, target).unwrap();
-    let unbuildable = flood_deps_in_origin(&graph, &unbuildable, Some(origin));
+
+    let mut unbuildable_reasons: HashMap<PackageIdentIntern, UnbuildableReason> = HashMap::new();
+    for &package in unbuildable.iter() {
+        unbuildable_reasons.insert(package, UnbuildableReason::Direct);
+    }
+
+    let unbuildable = flood_deps_in_origin(&graph, &unbuildable, origin);
+    for &package in unbuildable.iter() {
+        unbuildable_reasons.entry(package)
+                           .or_insert(UnbuildableReason::Indirect);
+    }
 
     let rebuild: HashSet<PackageIdentIntern> = HashSet::from_iter(rebuild);
     let unbuildable: HashSet<PackageIdentIntern> = HashSet::from_iter(unbuildable);
 
     let difference: HashSet<_> = rebuild.difference(&unbuildable).collect();
 
-    difference.into_iter().cloned().collect()
+    let rebuild_set = difference.into_iter().cloned().collect();
+    (rebuild_set, unbuildable_reasons)
 }
 
 // This could be implmented by creating a subgraph in PetGraph, but my initial experiments had
@@ -565,6 +580,6 @@ pub fn tsort_subgraph(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
         }
     }
 
-    assert!(iter_count == component.len());
+    assert_eq!(iter_count, component.len());
     result
 }
