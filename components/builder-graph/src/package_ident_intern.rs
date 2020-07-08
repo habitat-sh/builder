@@ -51,12 +51,8 @@ macro_rules! ident_intern {
 
 #[macro_export]
 macro_rules! ident_intern_vec {
-    ( $( $x:expr ),* ) => {
-        {
-            $(
-                let v: Vec<PackageIdentIntern> = $x.iter().map(|x| ident_intern!(x)).collect()
-            )*
-        }
+    ( $( $x:expr ),* $(,)? ) => {
+        <[PackageIdentIntern]>::into_vec(Box::new([$(PackageIdentIntern::from_str($x).expect(format!("Unable to make ident from {}", $x).as_str())),+]))
     }
 }
 
