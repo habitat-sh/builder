@@ -34,8 +34,8 @@ linked-hash-map = "*"
 log = "*"
 num_cpus = "*"
 protobuf = "*"
-postgres = { version = "*", features = ["with-chrono"] }
-postgres-derive = "0.3.3"
+postgres = { version = "0.17.4", features = ["with-chrono-0_4"] }
+postgres-derive = "*"
 rand = "*"
 r2d2 = "*"
 serde = "*"

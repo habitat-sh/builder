@@ -6,7 +6,23 @@ use diesel::{dsl::count_star,
              BoolExpressionMethods,
              ExpressionMethods,
              QueryDsl,
-             RunQueryDsl};
+             RunQueryDsl,
+             TextExpressionMethods};
+
+use diesel::{deserialize::{self,
+                           FromSql,
+                           Queryable},
+             pg::Pg};
+
+use diesel::sql_types::{Array,
+                        BigInt,
+                        Bool,
+                        Integer,
+                        Nullable,
+                        Record,
+                        Text,
+                        Timestamptz};
+
 use protobuf::ProtobufEnum;
 
 use crate::protocol::{jobsrv,
@@ -20,12 +36,15 @@ use crate::{models::pagination::Paginate,
                            groups,
                            jobs}};
 
+use crate::functions::jobs as job_functions;
+
 use crate::{bldr_core::metrics::CounterMetric,
             hab_core::package::PackageTarget,
             metrics::Counter};
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "jobs"]
+#[diesel(deserialize_as = "Job")]
 pub struct Job {
     #[serde(with = "db_id_format")]
     pub id:                i64,
@@ -61,12 +80,13 @@ pub struct NewJob<'a> {
     pub owner_id:          i64,
     pub project_id:        i64,
     pub project_name:      &'a str,
+    pub job_state:         &'a str,
     pub project_owner_id:  i64,
     pub project_plan_path: &'a str,
     pub vcs:               &'a str,
-    pub vcs_arguments:     Vec<&'a str>,
+    pub vcs_arguments:     &'a Vec<Option<&'a str>>,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
-    pub channel:           &'a str,
+    pub channel:           Option<&'a str>,
     pub target:            &'a str,
 }
 
@@ -76,10 +96,63 @@ pub struct ListProjectJobs {
     pub limit: i64,
 }
 
+#[derive(AsChangeset)]
+#[table_name = "jobs"]
+pub struct UpdateJob {
+    pub id:                i64,
+    pub job_state:         String,
+    pub net_error_code:    Option<i32>,
+    pub net_error_msg:     Option<String>,
+    pub build_started_at:  Option<DateTime<Utc>>,
+    pub build_finished_at: Option<DateTime<Utc>>,
+    pub package_ident:     Option<String>,
+}
+
+type JobFields = (BigInt,
+                  BigInt,
+                  Text,
+                  BigInt,
+                  Text,
+                  BigInt,
+                  Text,
+                  Text,
+                  Array<Nullable<Text>>,
+                  Nullable<Integer>,
+                  Nullable<Text>,
+                  Bool,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Text>,
+                  Bool,
+                  Nullable<Text>,
+                  Integer,
+                  Nullable<Text>,
+                  Text);
+pub type JobRecord = Record<JobFields>;
+
 impl Job {
     pub fn get(id: i64, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
         jobs::table.filter(jobs::id.eq(id)).get_result(conn)
+    }
+
+    pub fn get_next_pending(worker: &str, target: &str, conn: &PgConnection) -> QueryResult<Job> {
+        Counter::DBCall.increment();
+        let result = jobs::table.select(job_functions::next_pending_job_v2(worker, target))
+                                .first::<Vec<Job>>(conn)?; // should this be get_result?
+        result.first()
+              .ok_or(diesel::result::Error::NotFound)
+              .map(|x| (*x).clone())
+    }
+
+    // job_state should be an enum, at least on the rust side (see  jobsrv::JobState)
+    // Maybe this should filter by target.... (CanceledPending is ok, but Dispatched might not make
+    // sense)
+    pub fn get_job_by_state(job_state: &str, conn: &PgConnection) -> QueryResult<Vec<Job>> {
+        Counter::DBCall.increment();
+        jobs::table.filter(jobs::job_state.eq(job_state)).load(conn)
     }
 
     pub fn list(lpj: ListProjectJobs, conn: &PgConnection) -> QueryResult<(Vec<Job>, i64)> {
@@ -96,6 +169,25 @@ impl Job {
                                         .get_result(conn)
     }
 
+    pub fn update(job: &UpdateJob, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(jobs::table.find(job.id)).set(job)
+                                                .execute(conn)
+    }
+
+    pub fn update_with_sync(job: &UpdateJob, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(jobs::table.find(job.id)).set((jobs::job_state.eq(&job.job_state),
+            jobs::scheduler_sync.eq(false),
+            jobs::sync_count.eq(jobs::sync_count + 1),
+            jobs::build_started_at.eq(job.build_started_at),
+            jobs::build_finished_at.eq(job.build_finished_at),
+            jobs::package_ident.eq(&job.package_ident),
+            jobs::net_error_code.eq(job.net_error_code),
+            jobs::net_error_msg.eq(&job.net_error_msg)))
+                                                .execute(conn)
+    }
+
     pub fn count(job_state: jobsrv::JobState,
                  target: PackageTarget,
                  conn: &PgConnection)
@@ -105,6 +197,32 @@ impl Job {
                    .filter(jobs::job_state.eq(job_state.to_string()))
                    .filter(jobs::target.eq(target.to_string()))
                    .first(conn)
+    }
+
+    pub fn mark_as_archived(job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        diesel::update(jobs::table.find(job_id)).set(jobs::archived.eq(true))
+                                                .execute(conn)
+    }
+
+    pub fn sync_jobs(conn: &PgConnection) -> QueryResult<Vec<Job>> {
+        Counter::DBCall.increment();
+        jobs::table.filter(jobs::scheduler_sync.eq(false))
+                   .filter(jobs::sync_count.gt(0))
+                   .load(conn)
+    }
+
+    pub fn set_job_sync(job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(jobs::table.find(job_id)).set((jobs::scheduler_sync.eq(false),
+                                                      jobs::sync_count.eq(jobs::sync_count - 1)))
+                                                .execute(conn)
+    }
+}
+
+impl FromSql<JobRecord, diesel::pg::Pg> for Job {
+    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+        let tuple = <_ as FromSql<JobRecord, Pg>>::from_sql(bytes)?;
+        Ok(<Self as Queryable<JobFields, Pg>>::build(tuple))
     }
 }
 
@@ -184,7 +302,7 @@ impl Into<jobsrv::Job> for Job {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "groups"]
 pub struct Group {
     #[serde(with = "db_id_format")]
@@ -195,6 +313,11 @@ pub struct Group {
     pub created_at:   Option<DateTime<Utc>>,
     pub updated_at:   Option<DateTime<Utc>>,
 }
+
+// The ordering here must match the above, or strange errors occur.
+pub type GroupFields = (BigInt, Text, Text, Text, Nullable<Timestamptz>, Nullable<Timestamptz>);
+
+pub type GroupRecord = Record<GroupFields>;
 
 impl Group {
     pub fn get(id: i64, conn: &PgConnection) -> QueryResult<Group> {
@@ -226,6 +349,18 @@ impl Group {
                      .get_results(conn)
     }
 
+    pub fn get_all_for_origin(origin: &str,
+                              limit: i64,
+                              conn: &PgConnection)
+                              -> QueryResult<Vec<Group>> {
+        Counter::DBCall.increment();
+        let terminated_origin = origin.to_owned() + "/%";
+        groups::table.filter(groups::project_name.like(&terminated_origin))
+                     .order(groups::created_at.desc())
+                     .limit(limit)
+                     .get_results(conn)
+    }
+
     pub fn get_pending(target: PackageTarget, conn: &PgConnection) -> QueryResult<Group> {
         Counter::DBCall.increment();
         groups::table.filter(groups::group_state.eq("Pending"))
@@ -244,6 +379,60 @@ impl Group {
                      .filter(groups::target.eq(target.to_string()))
                      .filter(groups::project_name.eq(project_name))
                      .get_result(conn)
+    }
+
+    pub fn pending_job_groups(count: i32, conn: &PgConnection) -> QueryResult<Vec<Group>> {
+        Counter::DBCall.increment();
+        let result = groups::table.select(job_functions::pending_groups_v1(count))
+                                  .get_result::<Vec<Group>>(conn)?;
+        Ok(result)
+    }
+
+    pub fn insert_group(root_project: &str,
+                        target: &str, // We want PackageTarget, but we can't have nice things
+                        project_tuples: &[(String, String)],
+                        conn: &PgConnection)
+                        -> QueryResult<Group> {
+        Counter::DBCall.increment();
+
+        let (project_names, project_idents): (Vec<String>, Vec<String>) =
+            project_tuples.iter().cloned().unzip();
+
+        let result = groups::table.select(job_functions::insert_group_v3(root_project,
+                                                                         project_names,
+                                                                         project_idents,
+                                                                         target.to_string()))
+                                  .first::<Vec<Group>>(conn)?; // should this be get_result?
+        result.first()
+              .ok_or(diesel::result::Error::NotFound)
+              .map(|x| (*x).clone())
+    }
+
+    pub fn cancel_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<()> {
+        Counter::DBCall.increment();
+        groups::table.select(job_functions::cancel_group_v1(group_id))
+                     .execute(conn)?;
+        Ok(())
+    }
+
+    pub fn get_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<Group> {
+        Counter::DBCall.increment();
+        groups::table.filter(groups::id.eq(group_id)).first(conn)
+    }
+
+    pub fn set_group_state(group_id: i64,
+                           group_state: &str,
+                           conn: &PgConnection)
+                           -> QueryResult<usize> {
+        diesel::update(groups::table.find(group_id)).set(groups::group_state.eq(group_state))
+                                                    .execute(conn)
+    }
+}
+
+impl FromSql<GroupRecord, diesel::pg::Pg> for Group {
+    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+        let tuple = <_ as FromSql<GroupRecord, Pg>>::from_sql(bytes)?;
+        Ok(<Self as Queryable<GroupFields, Pg>>::build(tuple))
     }
 }
 
@@ -377,5 +566,63 @@ impl GroupProject {
         Counter::DBCall.increment();
         group_projects::table.filter(group_projects::owner_id.eq(group_id))
                              .get_results(conn)
+    }
+
+    // The only consumer of this only wants the id, maybe simplify
+    //
+    pub fn get_group_project_by_name(group_id: i64,
+                                     name: &str,
+                                     conn: &PgConnection)
+                                     -> QueryResult<GroupProject> {
+        Counter::DBCall.increment();
+        group_projects::table.filter(group_projects::owner_id.eq(group_id))
+                             .filter(group_projects::project_name.eq(name))
+                             // We would like to assume that group_id/name form
+                             // a unique id. However the group_projects table lacks a constraint
+                             // to that effect, so we're just trusting things here.
+                             // TODO ADD A CONSTRAINT
+                             .first(conn)
+    }
+
+    // Diesel interprets a 'None' in an option field as not needing update
+    // http://diesel.rs/guides/all-about-updates/#aschangeset
+    // TODO Figure out timestamp now for updated_at (not implemented)
+    // https://github.com/diesel-rs/diesel/issues/91
+    pub fn update_group_project(project: &UpdateGroupProject,
+                                conn: &PgConnection)
+                                -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(group_projects::table.find(project.id)).set(project)
+                                                              .execute(conn)
+    }
+
+    pub fn update_group_project_state(job_id: i64,
+                                      project_ident: &str,
+                                      state: jobsrv::JobGroupProjectState,
+                                      conn: &PgConnection)
+                                      -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(group_projects::table.filter(group_projects::id.eq(job_id)))
+        .set((group_projects::project_ident.eq(project_ident),
+        group_projects::project_state.eq(state.to_string())))
+                                                          .execute(conn)
+    }
+}
+impl Into<jobsrv::JobGroupProject> for GroupProject {
+    fn into(self) -> jobsrv::JobGroupProject {
+        let mut project = jobsrv::JobGroupProject::new();
+
+        // TODO: Should this return a result?
+        let project_state = self.project_state
+                                .parse::<jobsrv::JobGroupProjectState>()
+                                .unwrap();
+
+        project.set_name(self.project_name);
+        project.set_ident(self.project_ident);
+        project.set_state(project_state);
+        project.set_target(self.target);
+        project.set_job_id(self.job_id as u64);
+
+        project
     }
 }

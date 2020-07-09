@@ -23,9 +23,7 @@ extern crate diesel_derive_enum;
 extern crate diesel_migrations;
 #[macro_use]
 extern crate log;
-#[macro_use]
 extern crate postgres;
-#[macro_use]
 extern crate postgres_derive;
 #[macro_use]
 extern crate serde_derive;
@@ -37,6 +35,7 @@ use habitat_core as hab_core;
 pub mod config;
 pub mod diesel_pool;
 pub mod error;
+pub mod functions;
 pub mod metrics;
 pub mod migration;
 pub mod models;

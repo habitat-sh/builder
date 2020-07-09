@@ -554,6 +554,9 @@ resource "aws_instance" "windows-worker" {
   ami           = "ami-09194d3374023cff7"
   instance_type = var.instance_size_windows_worker
   key_name      = var.aws_key_pair
+  lifecycle {
+    ignore_changes = ["user_data"]
+  }
 
   // JW TODO: switch to private subnet after VPN is ready
   subnet_id = var.public_subnet_id
