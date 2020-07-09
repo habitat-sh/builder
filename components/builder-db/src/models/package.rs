@@ -8,6 +8,19 @@ use std::{fmt,
 use chrono::NaiveDateTime;
 use protobuf;
 
+use super::db_id_format;
+use crate::{hab_core::{self,
+                       package::{FromArchive,
+                                 Identifiable,
+                                 PackageArchive,
+                                 PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent},
+            models::{channel::{Channel,
+                               OriginChannelPackage,
+                               OriginChannelPromote},
+                     pagination::*,
+                     settings::OriginPackageSettings}};
 use diesel::{self,
              deserialize::{self,
                            FromSql},
@@ -29,20 +42,6 @@ use diesel::{self,
              RunQueryDsl};
 use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
-
-use super::db_id_format;
-use crate::{hab_core::{self,
-                       package::{FromArchive,
-                                 Identifiable,
-                                 PackageArchive,
-                                 PackageIdent,
-                                 PackageTarget},
-                       ChannelIdent},
-            models::{channel::{Channel,
-                               OriginChannelPackage,
-                               OriginChannelPromote},
-                     pagination::*,
-                     settings::OriginPackageSettings}};
 
 use crate::schema::{channel::{origin_channel_packages,
                               origin_channels},
@@ -334,26 +333,13 @@ pub struct OriginPackageVersions {
     pub visibility:    PackageVisibility,
 }
 
-#[derive(DbEnum,
-         Debug,
-         Eq,
-         Hash,
-         Serialize,
-         Deserialize,
-         PartialEq,
-         Clone,
-         ToSql,
-         FromSql)]
+#[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone)]
 #[PgType = "origin_package_visibility"]
-#[postgres(name = "origin_package_visibility")]
 pub enum PackageVisibility {
-    #[postgres(name = "public")]
     #[serde(rename = "public")]
     Public,
-    #[postgres(name = "private")]
     #[serde(rename = "private")]
     Private,
-    #[postgres(name = "hidden")]
     #[serde(rename = "hidden")]
     Hidden,
 }

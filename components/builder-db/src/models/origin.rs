@@ -80,26 +80,19 @@ pub struct OriginWithStats {
          Debug,
          Serialize,
          Deserialize,
-         ToSql,
-         FromSql,
          PartialEq,
          PartialOrd)]
 #[PgType = "origin_member_role"]
-#[postgres(name = "origin_member_role")]
 pub enum OriginMemberRole {
     // It is important to preserve the declaration order
     // here so that order comparisons work as expected.
     // The values are from least to greatest.
-    #[postgres(name = "member")]
     #[serde(rename = "member")]
     Member,
-    #[postgres(name = "maintainer")]
     #[serde(rename = "maintainer")]
     Maintainer,
-    #[postgres(name = "administrator")]
     #[serde(rename = "administrator")]
     Administrator,
-    #[postgres(name = "owner")]
     #[serde(rename = "owner")]
     Owner,
 }

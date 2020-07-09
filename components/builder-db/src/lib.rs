@@ -23,9 +23,7 @@ extern crate diesel_derive_enum;
 extern crate diesel_migrations;
 #[macro_use]
 extern crate log;
-#[macro_use]
 extern crate postgres;
-#[macro_use]
 extern crate postgres_derive;
 #[macro_use]
 extern crate serde_derive;
