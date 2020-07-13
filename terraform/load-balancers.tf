@@ -32,6 +32,12 @@ resource "aws_elb" "api" {
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
   }
+
+  access_logs {
+    bucket   = "habitat-builder-elb.${var.env}"
+    enabled  = true
+    interval = 5
+  }
 }
 
 // We want this to be configured to have unsafe SSL Protocols and Ciphers turned off from the

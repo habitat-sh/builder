@@ -12,10 +12,10 @@ variable "dns_zone_id" {
 }
 
 variable "aws_ami" {
-  description = "Base AMI for all nodes"
+  description = "Base AMI for all latest LTS ubuntu nodes"
 
   default = {
-    us-west-2 = "ami-efd0428f"
+    us-west-2 = "ami-043505d1b57b5d3e3"
   }
 }
 

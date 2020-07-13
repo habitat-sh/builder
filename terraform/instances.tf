@@ -47,6 +47,10 @@ resource "aws_instance" "api" {
   subnet_id     = var.public_subnet_id
   count         = var.api_count
 
+  lifecycle {
+    ignore_changes = ["ami", "tags", "instance_type"]
+  }
+
   vpc_security_group_ids = [
     var.aws_admin_sg,
     var.hab_sup_sg,
@@ -59,7 +63,7 @@ resource "aws_instance" "api" {
     // JW TODO: switch to private ip after VPN is ready
     host                = self.public_ip
     user                = "ubuntu"
-    private_key         = file(var.connection_private_key)
+    private_key         = var.connection_private_key
     agent               = var.connection_agent
     bastion_host        = var.bastion_host
     bastion_user        = var.bastion_user
@@ -83,7 +87,6 @@ resource "aws_instance" "api" {
 
   provisioner "remote-exec" {
     scripts = [
-      "${path.module}/scripts/init_filesystem.sh",
       "${path.module}/scripts/foundation.sh",
     ]
   }
@@ -153,11 +156,24 @@ resource "aws_instance" "api" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sleep 10",
+      "until sudo hab svc status; do sleep 5; done",
+      "echo \"Supervisor is up. Sleeping 120s to allow for auto upgrade.\"",
+      "sleep 120",
       "sudo hab svc load habitat/builder-memcached --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load habitat/builder-api --group ${var.env} --bind memcached:builder-memcached.${var.env} --bind jobsrv:builder-jobsrv.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load habitat/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
+    ]
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/files/db_connect.sh"
+    destination = "/home/ubuntu/db_connect.sh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /home/ubuntu/db_connect.sh",
     ]
   }
 
@@ -182,6 +198,10 @@ resource "aws_instance" "jobsrv" {
   subnet_id = var.public_subnet_id
   count     = 1
 
+  lifecycle {
+    ignore_changes = ["ami", "tags", "instance_type"]
+  }
+
   vpc_security_group_ids = [
     var.aws_admin_sg,
     var.hab_sup_sg,
@@ -195,7 +215,7 @@ resource "aws_instance" "jobsrv" {
     // JW TODO: switch to private ip after VPN is ready
     host                = self.public_ip
     user                = "ubuntu"
-    private_key         = file(var.connection_private_key)
+    private_key         = var.connection_private_key
     agent               = var.connection_agent
     bastion_host        = var.bastion_host
     bastion_user        = var.bastion_user
@@ -219,7 +239,6 @@ resource "aws_instance" "jobsrv" {
 
   provisioner "remote-exec" {
     scripts = [
-      "${path.module}/scripts/init_filesystem.sh",
       "${path.module}/scripts/foundation.sh",
     ]
   }
@@ -279,7 +298,9 @@ resource "aws_instance" "jobsrv" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sleep 10",
+      "until sudo hab svc status; do sleep 10; done",
+      "echo \"Supervisor is up. Sleeping 120s to allow for auto upgrade.\"",
+      "sleep 120",
       "sudo hab svc load habitat/builder-jobsrv --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
@@ -303,6 +324,10 @@ resource "aws_instance" "worker" {
   subnet_id = var.public_subnet_id
   count     = var.jobsrv_worker_count
 
+  lifecycle {
+    ignore_changes = ["ami", "tags", "instance_type"]
+  }
+
   vpc_security_group_ids = [
     var.aws_admin_sg,
     var.hab_sup_sg,
@@ -315,7 +340,7 @@ resource "aws_instance" "worker" {
     // JW TODO: switch to private ip after VPN is ready
     host                = self.public_ip
     user                = "ubuntu"
-    private_key         = file(var.connection_private_key)
+    private_key         = var.connection_private_key
     agent               = var.connection_agent
     bastion_host        = var.bastion_host
     bastion_user        = var.bastion_user
@@ -339,7 +364,6 @@ resource "aws_instance" "worker" {
 
   provisioner "remote-exec" {
     scripts = [
-      "${path.module}/scripts/init_filesystem.sh",
       "${path.module}/scripts/foundation.sh",
       "${path.module}/scripts/worker_bootstrap.sh",
     ]
@@ -406,7 +430,9 @@ resource "aws_instance" "worker" {
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
-      "sleep 10",
+      "until sudo hab svc status; do sleep 10; done",
+      "echo \"Supervisor is up. Sleeping 120s to allow for auto upgrade.\"",
+      "sleep 120",
       "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.worker_release_channel}",
       "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
@@ -430,6 +456,10 @@ resource "aws_instance" "linux2-worker" {
   subnet_id = var.public_subnet_id
   count     = var.linux2_worker_count
 
+  lifecycle {
+    ignore_changes = ["ami", "tags", "instance_type"]
+  }
+
   vpc_security_group_ids = [
     var.aws_admin_sg,
     var.hab_sup_sg,
@@ -442,7 +472,7 @@ resource "aws_instance" "linux2-worker" {
     // JW TODO: switch to private ip after VPN is ready
     host                = self.public_ip
     user                = "ubuntu"
-    private_key         = file(var.connection_private_key)
+    private_key         = var.connection_private_key
     agent               = var.connection_agent
     bastion_host        = var.bastion_host
     bastion_user        = var.bastion_user
@@ -466,7 +496,6 @@ resource "aws_instance" "linux2-worker" {
 
   provisioner "remote-exec" {
     scripts = [
-      "${path.module}/scripts/init_filesystem.sh",
       "${path.module}/scripts/foundation.sh",
       "${path.module}/scripts/linux2_worker_bootstrap.sh",
     ]
@@ -504,7 +533,9 @@ resource "aws_instance" "linux2-worker" {
       "sudo mkdir -p /hab/sup/default/config",
       "sudo mv /tmp/sup_log.yml /hab/sup/default/config/log.yml",
       "sudo service hab-sup start",
-      "sleep 10",
+      "until sudo hab svc status; do sleep 10; done",
+      "echo \"Supervisor is up. Sleeping 120s to allow for auto upgrade.\"",
+      "sleep 120",
       "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.worker_release_channel}",
     ]
   }
@@ -519,14 +550,18 @@ resource "aws_instance" "linux2-worker" {
 }
 
 resource "aws_instance" "windows-worker" {
-  // Windows_Server-2019-English-Full-ContainersLatest-2020.02.12
-  ami           = "ami-001589977a146ef31"
+  // Windows Server 2019 English Core with Containers 2020-06-10
+  ami           = "ami-09194d3374023cff7"
   instance_type = var.instance_size_windows_worker
   key_name      = var.aws_key_pair
 
   // JW TODO: switch to private subnet after VPN is ready
   subnet_id = var.public_subnet_id
   count     = var.windows_worker_count
+
+  lifecycle {
+    ignore_changes = ["ami", "tags", "user_data", "instance_type"]
+  }
 
   vpc_security_group_ids = [
     var.aws_admin_sg,
