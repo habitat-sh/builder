@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2017-2020 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ pub fn rdeps(g: &Graph<GType, GType>, n: NodeIndex) -> Result<Vec<GType>, GraphE
 
 #[cfg(test)]
 mod tests {
-    use crate::rdeps::*;
+    use crate::acyclic_rdeps::*;
     use petgraph::Graph;
 
     #[test]

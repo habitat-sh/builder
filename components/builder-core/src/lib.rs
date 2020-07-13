@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2017-2020 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,11 +40,8 @@ pub mod job;
 pub mod keys;
 pub mod logger;
 pub mod metrics;
-pub mod package_graph;
 pub mod privilege;
-pub mod rdeps;
 pub mod rpc;
 pub mod socket;
-pub mod target_graph;
 
 pub use crate::error::Error;

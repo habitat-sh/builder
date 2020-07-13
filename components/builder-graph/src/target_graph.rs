@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2017-2020 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap,
-          iter::Iterator,
+use std::{borrow::BorrowMut,
+          collections::HashMap,
           str::FromStr};
 
-use crate::{hab_core::package::PackageTarget,
-            package_graph::PackageGraph,
+use crate::{acyclic_package_graph::AcyclicPackageGraph,
+            hab_core::package::PackageTarget,
+            package_graph_trait::PackageGraphTrait,
             protocol::originsrv};
 
 pub struct TargetGraphStats {
@@ -28,25 +29,25 @@ pub struct TargetGraphStats {
 
 #[derive(Default)]
 pub struct TargetGraph {
-    graphs: HashMap<PackageTarget, PackageGraph>,
+    graphs: HashMap<PackageTarget, Box<dyn PackageGraphTrait>>,
 }
 
 impl TargetGraph {
     pub fn new() -> Self {
-        let mut graphs = HashMap::new();
+        let mut graphs: HashMap<PackageTarget, Box<dyn PackageGraphTrait>> = HashMap::new();
 
         // We only support the following targets currently
         for target_str in &["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"] {
             graphs.insert(PackageTarget::from_str(target_str).unwrap(),
-                          PackageGraph::new());
+                          Box::new(AcyclicPackageGraph::new()));
         }
 
         TargetGraph { graphs }
     }
 
-    pub fn graph(&self, target_str: &str) -> Option<&PackageGraph> {
+    pub fn graph(&self, target_str: &str) -> Option<&dyn PackageGraphTrait> {
         match PackageTarget::from_str(target_str) {
-            Ok(target) => self.graphs.get(&target),
+            Ok(target) => self.graphs.get(&target).map(|x| x.as_ref()),
             Err(err) => {
                 error!("Invalid target specified for TargetGraph: {}! Err: {}",
                        target_str, err);
@@ -55,9 +56,11 @@ impl TargetGraph {
         }
     }
 
-    pub fn graph_mut(&mut self, target_str: &str) -> Option<&mut PackageGraph> {
+    pub fn graph_mut(&mut self,
+                     target_str: &str)
+                     -> Option<&mut (dyn PackageGraphTrait + 'static)> {
         match PackageTarget::from_str(target_str) {
-            Ok(target) => self.graphs.get_mut(&target),
+            Ok(target) => self.graphs.get_mut(&target).map(|x| x.borrow_mut()),
             Err(err) => {
                 error!("Invalid target specified for TargetGraph: {}! Err: {}",
                        target_str, err);
@@ -66,9 +69,10 @@ impl TargetGraph {
         }
     }
 
-    pub fn build<T>(&mut self, packages: T, use_build_deps: bool) -> Vec<TargetGraphStats>
-        where T: Iterator<Item = originsrv::OriginPackage>
-    {
+    pub fn build(&mut self,
+                 packages: &[originsrv::OriginPackage],
+                 use_build_deps: bool)
+                 -> Vec<TargetGraphStats> {
         for p in packages {
             if let Some(ref mut graph) = self.graph_mut(p.get_target()) {
                 graph.extend(&p, use_build_deps);

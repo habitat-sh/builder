@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2020 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
+// limitations under the License
 
 use petgraph::{algo::{connected_components,
                       is_cyclic_directed},
@@ -22,35 +22,11 @@ use std::{cmp::Ordering,
                         HashMap},
           str::FromStr};
 
-use crate::{hab_core::package::PackageIdent,
-            protocol::originsrv,
-            rdeps::rdeps};
-
-#[derive(Debug)]
-pub struct Stats {
-    pub node_count:     usize,
-    pub edge_count:     usize,
-    pub connected_comp: usize,
-    pub is_cyclic:      bool,
-}
-
-#[derive(Eq)]
-struct HeapEntry {
-    pkg_index:  usize,
-    rdep_count: usize,
-}
-
-impl Ord for HeapEntry {
-    fn cmp(&self, other: &HeapEntry) -> Ordering { self.rdep_count.cmp(&other.rdep_count) }
-}
-
-impl PartialOrd for HeapEntry {
-    fn partial_cmp(&self, other: &HeapEntry) -> Option<Ordering> { Some(self.cmp(other)) }
-}
-
-impl PartialEq for HeapEntry {
-    fn eq(&self, other: &HeapEntry) -> bool { self.pkg_index == other.pkg_index }
-}
+use crate::{acyclic_rdeps::rdeps,
+            hab_core::package::PackageIdent,
+            package_graph_trait::{PackageGraphTrait,
+                                  Stats},
+            protocol::originsrv};
 
 fn short_name(name: &str) -> String {
     let parts: Vec<&str> = name.split('/').collect();
@@ -59,7 +35,7 @@ fn short_name(name: &str) -> String {
 }
 
 #[derive(Default)]
-pub struct PackageGraph {
+pub struct AcyclicPackageGraph {
     package_max:   usize,
     package_map:   HashMap<String, (usize, NodeIndex)>,
     latest_map:    HashMap<String, PackageIdent>,
@@ -67,31 +43,11 @@ pub struct PackageGraph {
     graph:         Graph<usize, usize>,
 }
 
-impl PackageGraph {
-    pub fn new() -> Self { PackageGraph::default() }
-
-    #[allow(clippy::map_entry)]
-    fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
-        let short_name = short_name(name);
-
-        if self.package_map.contains_key(&short_name) {
-            self.package_map[&short_name]
-        } else {
-            self.package_names.push(short_name.clone());
-            assert_eq!(self.package_names[self.package_max], short_name);
-
-            let node_index = self.graph.add_node(self.package_max);
-            self.package_map
-                .insert(short_name, (self.package_max, node_index));
-            self.package_max += 1;
-
-            (self.package_max - 1, node_index)
-        }
-    }
-
-    pub fn build<T>(&mut self, packages: T, use_build_deps: bool) -> (usize, usize)
-        where T: Iterator<Item = originsrv::OriginPackage>
-    {
+impl PackageGraphTrait for AcyclicPackageGraph {
+    fn build(&mut self,
+             packages: &[originsrv::OriginPackage],
+             use_build_deps: bool)
+             -> (usize, usize) {
         assert!(self.package_max == 0);
 
         for p in packages {
@@ -101,10 +57,7 @@ impl PackageGraph {
         (self.graph.node_count(), self.graph.edge_count())
     }
 
-    pub fn check_extend(&mut self,
-                        package: &originsrv::OriginPackage,
-                        use_build_deps: bool)
-                        -> bool {
+    fn check_extend(&mut self, package: &originsrv::OriginPackage, use_build_deps: bool) -> bool {
         let name = format!("{}", package.get_ident());
         let pkg_short_name = short_name(&name);
 
@@ -176,10 +129,10 @@ impl PackageGraph {
     }
 
     #[allow(clippy::map_entry)]
-    pub fn extend(&mut self,
-                  package: &originsrv::OriginPackage,
-                  use_build_deps: bool)
-                  -> (usize, usize) {
+    fn extend(&mut self,
+              package: &originsrv::OriginPackage,
+              use_build_deps: bool)
+              -> (usize, usize) {
         let name = format!("{}", package.get_ident());
         let (pkg_id, pkg_node) = self.generate_id(&name);
 
@@ -244,7 +197,7 @@ impl PackageGraph {
         (self.graph.node_count(), self.graph.edge_count())
     }
 
-    pub fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>> {
+    fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>> {
         let mut v: Vec<(String, String)> = Vec::new();
 
         match self.package_map.get(name) {
@@ -266,8 +219,48 @@ impl PackageGraph {
         Some(v)
     }
 
+    // Given an identifier in 'origin/name' format, returns the
+    // most recent version (fully-qualified package ident string)
+    fn resolve(&self, name: &str) -> Option<String> {
+        match self.latest_map.get(name) {
+            Some(ident) => Some(format!("{}", ident)),
+            None => None,
+        }
+    }
+
+    fn stats(&self) -> Stats {
+        Stats { node_count:     self.graph.node_count(),
+                edge_count:     self.graph.edge_count(),
+                connected_comp: connected_components(&self.graph),
+                is_cyclic:      is_cyclic_directed(&self.graph), }
+    }
+}
+
+impl AcyclicPackageGraph {
+    pub fn new() -> Self { AcyclicPackageGraph::default() }
+
+    #[allow(clippy::map_entry)]
+    fn generate_id(&mut self, name: &str) -> (usize, NodeIndex) {
+        let short_name = short_name(name);
+
+        if self.package_map.contains_key(&short_name) {
+            self.package_map[&short_name]
+        } else {
+            self.package_names.push(short_name.clone());
+            assert_eq!(self.package_names[self.package_max], short_name);
+
+            let node_index = self.graph.add_node(self.package_max);
+            self.package_map
+                .insert(short_name, (self.package_max, node_index));
+            self.package_max += 1;
+
+            (self.package_max - 1, node_index)
+        }
+    }
+
     // Mostly for debugging
-    pub fn rdeps_dump(&self) {
+    #[allow(dead_code)]
+    fn rdeps_dump(&self) {
         debug!("Reverse dependencies:");
 
         for (pkg_name, pkg_id) in &self.package_map {
@@ -285,7 +278,8 @@ impl PackageGraph {
         }
     }
 
-    pub fn search(&self, phrase: &str) -> Vec<String> {
+    #[allow(dead_code)]
+    fn search(&self, phrase: &str) -> Vec<String> {
         let v: Vec<String> = self.package_names
                                  .iter()
                                  .cloned()
@@ -295,27 +289,11 @@ impl PackageGraph {
         v
     }
 
-    pub fn latest(&self) -> Vec<String> {
-        self.latest_map.values().map(|x| format!("{}", x)).collect()
-    }
+    #[allow(dead_code)]
+    fn latest(&self) -> Vec<String> { self.latest_map.values().map(|x| format!("{}", x)).collect() }
 
-    // Given an identifier in 'origin/name' format, returns the
-    // most recent version (fully-qualified package ident string)
-    pub fn resolve(&self, name: &str) -> Option<String> {
-        match self.latest_map.get(name) {
-            Some(ident) => Some(format!("{}", ident)),
-            None => None,
-        }
-    }
-
-    pub fn stats(&self) -> Stats {
-        Stats { node_count:     self.graph.node_count(),
-                edge_count:     self.graph.edge_count(),
-                connected_comp: connected_components(&self.graph),
-                is_cyclic:      is_cyclic_directed(&self.graph), }
-    }
-
-    pub fn top(&self, max: usize) -> Vec<(String, usize)> {
+    #[allow(dead_code)]
+    fn top(&self, max: usize) -> Vec<(String, usize)> {
         let mut v = Vec::new();
         let mut heap = BinaryHeap::new();
 
@@ -342,6 +320,23 @@ impl PackageGraph {
         v
     }
 }
+#[derive(Eq)]
+struct HeapEntry {
+    pkg_index:  usize,
+    rdep_count: usize,
+}
+
+impl Ord for HeapEntry {
+    fn cmp(&self, other: &HeapEntry) -> Ordering { self.rdep_count.cmp(&other.rdep_count) }
+}
+
+impl PartialOrd for HeapEntry {
+    fn partial_cmp(&self, other: &HeapEntry) -> Option<Ordering> { Some(self.cmp(other)) }
+}
+
+impl PartialEq for HeapEntry {
+    fn eq(&self, other: &HeapEntry) -> bool { self.pkg_index == other.pkg_index }
+}
 
 #[cfg(test)]
 mod test {
@@ -350,16 +345,16 @@ mod test {
 
     #[test]
     fn empty_graph() {
-        let mut graph = PackageGraph::new();
+        let mut graph = AcyclicPackageGraph::new();
         let packages = Vec::new();
-        let (ncount, ecount) = graph.build(packages.into_iter(), true);
+        let (ncount, ecount) = graph.build(&packages, true);
         assert_eq!(ncount, 0);
         assert_eq!(ecount, 0);
     }
 
     #[test]
     fn disallow_circular_dependency() {
-        let mut graph = PackageGraph::new();
+        let mut graph = AcyclicPackageGraph::new();
         let mut packages = Vec::new();
 
         let mut package1 = originsrv::OriginPackage::new();
@@ -376,7 +371,7 @@ mod test {
         package2.set_deps(package2_deps);
         packages.push(package2.clone());
 
-        let (ncount, ecount) = graph.build(packages.into_iter(), true);
+        let (ncount, ecount) = graph.build(&packages, true);
 
         assert_eq!(ncount, 2);
         assert_eq!(ecount, 1); // only the first edge added
@@ -390,7 +385,7 @@ mod test {
 
     #[test]
     fn pre_check_with_dep_not_present() {
-        let mut graph = PackageGraph::new();
+        let mut graph = AcyclicPackageGraph::new();
 
         let mut package1 = originsrv::OriginPackage::new();
         package1.set_ident(originsrv::OriginPackageIdent::from_str("foo/bar/1/2").unwrap());

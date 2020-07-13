@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2020 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ use self::{log_archiver::LogArchiver,
            log_ingester::LogIngester,
            scheduler::ScheduleMgr,
            worker_manager::WorkerMgr};
-use crate::{bldr_core::{rpc::RpcMessage,
-                        target_graph::TargetGraph},
+use crate::{bldr_core::rpc::RpcMessage,
+            builder_graph::target_graph::TargetGraph,
             config::{Config,
                      GatewayCfg},
             data_store::DataStore,
@@ -131,7 +131,7 @@ fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
 
 fn enable_features_from_config(cfg: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps),
-                                                          ("LEGACYPROJECT", feat::LegacyProject)]);
+                                                          ("LEGACYPROJECT", feat::LegacyProject),]);
     let features_enabled = cfg.features_enabled
                               .split(',')
                               .map(|f| f.trim().to_uppercase());
@@ -173,8 +173,7 @@ pub async fn run(config: Config) -> Result<()> {
     let origin_packages: Vec<OriginPackage> = packages.iter().map(|p| p.clone().into()).collect();
     let start_time = Instant::now();
 
-    let res = graph.build(origin_packages.into_iter(),
-                          feat::is_enabled(feat::BuildDeps));
+    let res = graph.build(&origin_packages, feat::is_enabled(feat::BuildDeps));
 
     info!("Graph build stats ({} sec):",
           start_time.elapsed().as_secs_f64());

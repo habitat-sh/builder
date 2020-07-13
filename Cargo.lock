@@ -1639,6 +1639,7 @@ dependencies = [
  "futures 0.1.29",
  "habitat-builder-protocol",
  "habitat_builder_db",
+ "habitat_builder_graph",
  "habitat_core",
  "linked-hash-map",
  "log",
