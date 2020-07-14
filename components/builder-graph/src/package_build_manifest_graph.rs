@@ -20,29 +20,9 @@ use crate::{package_ident_intern::PackageIdentIntern,
 
 use petgraph::graphmap::DiGraphMap;
 
-use std::collections::{HashMap,
-                       HashSet};
-
-pub struct PackageBuild {
-    pub ident:   PackageIdent,
-    pub bt_deps: Vec<PackageIdent>,
-    pub rt_deps: Vec<PackageIdent>,
-}
-
-impl PackageBuild {
-    pub fn format_for_shell(&self) -> String {
-        let short_ident = short_ident(&self.ident, false).to_string();
-        let deps: Vec<PackageIdent> = self.bt_deps
-                                          .iter()
-                                          .chain(self.rt_deps.iter())
-                                          .cloned()
-                                          .collect();
-        format!("{}\t{}\t{}\n",
-                short_ident,
-                self.ident,
-                join_idents(",", &deps))
-    }
-}
+use std::{collections::{HashMap,
+                        HashSet},
+          fmt};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum UnbuildableReason {
@@ -59,6 +39,8 @@ pub enum UnbuildableReason {
     // correct, but still a best effort build will provide dependency info for later builds.
     // It shouldn't have anyone depending on it, unless the graph is outdated, as all
     // dependencies in the graph will create nodes even if their packages haven't been seen.
+    // For now, we're only marking missing if it wasn't in the touched set; that covers the above
+    // case, but might never happen otherwise.
     Missing,
 }
 
@@ -98,6 +80,57 @@ pub enum UnresolvedPackageIdent {
     InternalVersionedNode(PackageIdentIntern, u8),
 }
 
+impl UnresolvedPackageIdent {
+    pub fn ident(&self) -> Option<PackageIdentIntern> {
+        match self {
+            UnresolvedPackageIdent::Undefined => None,
+            UnresolvedPackageIdent::ExternalLatestVersion(ident)
+            | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
+            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => Some(*ident),
+            UnresolvedPackageIdent::InternalNode(ident, _)
+            | UnresolvedPackageIdent::InternalVersionedNode(ident, _) => Some(*ident),
+        }
+    }
+}
+
+impl fmt::Display for UnresolvedPackageIdent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UnresolvedPackageIdent::Undefined => write!(f, "Undef"),
+            UnresolvedPackageIdent::ExternalLatestVersion(ident)
+            | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
+            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => write!(f, "Ext:{}", ident),
+            UnresolvedPackageIdent::InternalNode(ident, version)
+            | UnresolvedPackageIdent::InternalVersionedNode(ident, version) => {
+                write!(f, "Int:{}:{}", ident, version)
+            }
+        }
+    }
+}
+
+pub struct PackageBuild {
+    pub name:         UnresolvedPackageIdent,
+    pub runtime_deps: Vec<UnresolvedPackageIdent>,
+    pub build_deps:   Vec<UnresolvedPackageIdent>,
+    pub strong_deps:  Vec<UnresolvedPackageIdent>,
+}
+
+impl PackageBuild {
+    pub fn format_for_shell(&self) -> String {
+        let short_ident = &self.name.ident().unwrap().short_ident().to_string();
+        let deps: Vec<UnresolvedPackageIdent> =
+            self.runtime_deps
+                .iter()
+                .chain(self.build_deps.iter().chain(self.strong_deps.iter()))
+                .cloned()
+                .collect();
+        format!("{}\t{}\t{}\n",
+                short_ident,
+                self.name,
+                join_idents(",", &deps))
+    }
+}
+
 #[derive(Debug)]
 pub struct PackageBuildManifest {
     pub graph: DiGraphMap<UnresolvedPackageIdent, EdgeType>,
@@ -124,15 +157,14 @@ impl PackageBuildManifest {
         unimplemented!()
     }
 
-    pub fn get_buildable_package() -> PackageBuild { unimplemented!() }
-
     // Resolved package build record (with all placeholders filled in)
     pub fn mark_package_complete(_completed: PackageIdent,
                                  _package_name: FullyQualifiedPackageIdent) {
         unimplemented!()
     }
 
-    pub fn serialize() -> Vec<PackageBuild> { unimplemented!() }
-
-    pub fn deserialze(_db: Vec<PackageBuild>) { unimplemented!() }
+    pub fn emit_sequential_build_order() -> Vec<PackageBuild> {
+        // Do the TSORT
+        unimplemented!()
+    }
 }
