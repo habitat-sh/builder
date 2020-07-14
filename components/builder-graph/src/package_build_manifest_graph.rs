@@ -46,9 +46,20 @@ impl PackageBuild {
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum UnbuildableReason {
-    Direct,   // Plan not buildable because it is marked as unbuildable in the db
-    Indirect, // Plan depends on something that isn't buildable, but otherwise should be rebuilt
-    Missing,  // Plan not found in the graph
+    // Plan not buildable because it is marked as unbuildable in the db
+    Direct,
+    // Plan depends on something that isn't buildable, but otherwise should be rebuilt
+    Indirect,
+    // Plan not found in the graph. We quite possibly should *never* mark unbuildable for this
+    // reason, but instead forge ahead and treat it as an independent 'treelet' in the graph.
+    // This can happen for legitimate reasons, for example a new plan linked to a repo that
+    // has never been built and uploaded will never have created a package and so jobsrv will
+    // never have included it in its view of the graph. We should still make a best effort build.
+    // It may have dependencies, and there is a posibility that the graph isn't technically
+    // correct, but still a best effort build will provide dependency info for later builds.
+    // It shouldn't have anyone depending on it, unless the graph is outdated, as all
+    // dependencies in the graph will create nodes even if their packages haven't been seen.
+    Missing,
 }
 
 // database entry
@@ -81,15 +92,18 @@ pub enum UnresolvedPackageIdent {
     // Internal nodes (nodes being rebuilt)
     // latest_version/placeholder_release (we won't necessarily know the version, might be updated
     // in plan)
-    // u8 since the max value is likely 3
+    // The second field refers to the generation; this starts with one, and the max value is
+    // likely 3
     InternalNode(PackageIdentIntern, u8),
     InternalVersionedNode(PackageIdentIntern, u8),
 }
 
+#[derive(Debug)]
 pub struct PackageBuildManifest {
-    pub graph:                 DiGraphMap<UnresolvedPackageIdent, EdgeType>,
-    // maps plan id (shortname) to idents in graph.
-    pub idents_for_plan:       HashMap<PackageIdentIntern, HashSet<UnresolvedPackageIdent>>,
+    pub graph: DiGraphMap<UnresolvedPackageIdent, EdgeType>,
+
+    // These amounts to materialized views of the graph above; in that they can be
+    // extracted, at a O(n) cost from the graph
     pub external_dependencies: HashSet<PackageIdentIntern>, /* maybe unneeded? New model can
                                                              * find by walking graph */
     // Forensics
