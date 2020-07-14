@@ -301,7 +301,14 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                     rebuild_graph.add_edge(short_ident, package, EdgeType::RuntimeDep);
                 }
             } else {
-                unbuildable_map.insert(package, UnbuildableReason::Missing);
+                // It's possible we've never seen this package because it's the first time it was
+                // built, and so never uploaded. That should only happen when we're explicitly
+                // rebuilding the package, e.g. it's in the touched set.
+                if touched.contains(&package) {
+                    rebuild_graph.add_node(package);
+                } else {
+                    unbuildable_map.insert(package, UnbuildableReason::Missing);
+                }
             }
         }
 
@@ -721,14 +728,17 @@ mod test {
                                            PackageTarget::from_str("x86_64-linux").unwrap());
         assert_eq!(manifest.input_set.len(), 2);
 
-        assert_eq!(manifest.unbuildable_reasons.len(), 1);
-        assert_eq!(manifest.unbuildable_reasons[&ident_intern!("zz/top")],
-                   UnbuildableReason::Missing);
+        assert_eq!(manifest.unbuildable_reasons.len(), 0);
 
-        assert_eq!(manifest.graph.node_count(), 4);
+        assert_eq!(manifest.graph.node_count(), 5);
         assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
         assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
         assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
         assert_eq!(manifest.graph.contains_node(mk_ELV("a/left")), true);
+
+        // TBD: does this belong here? Also should check the dependencies of ZZ top; it should stand
+        // alone
+        println!("MANIFEST:\n{:?}\n", manifest);
+        assert_eq!(manifest.graph.contains_node(mk_IN("zz/top", 1)), true);
     }
 }
