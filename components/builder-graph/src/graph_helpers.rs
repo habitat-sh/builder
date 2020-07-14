@@ -580,6 +580,6 @@ pub fn tsort_subgraph(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
         }
     }
 
-    assert!(iter_count == component.len());
+    assert_eq!(iter_count, component.len());
     result
 }
