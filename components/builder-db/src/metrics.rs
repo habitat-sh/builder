@@ -121,7 +121,7 @@ impl metrics::Metric for Histogram {
                 "db-call.package-list-distinct-for-origin-call-time".into()
             }
             Histogram::PackageListPackageChannelsCallTime => {
-                "db-call.list-package-list-package-channels-call-time".into()
+                "db-call.package-list-package-channels-call-time".into()
             }
             Histogram::PackageListPackagePlatformsCallTime => {
                 "db-call.package-list-package-platforms-call-time".into()
