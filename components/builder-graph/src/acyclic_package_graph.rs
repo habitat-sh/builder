@@ -375,7 +375,6 @@ impl PackageGraphTrait for AcyclicPackageGraph {
 
         PackageBuildManifest { graph:                 unresolved_rebuild_graph,
                                input_set:             HashSet::from_iter(touched.iter().copied()),
-                               idents_for_plan:       HashMap::new(),
                                external_dependencies: all_external_dependencies,
                                unbuildable_reasons:   unbuildable_map, }
     }
