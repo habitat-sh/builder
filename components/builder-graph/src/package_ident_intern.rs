@@ -28,7 +28,7 @@ use crate::db::models::package::BuilderPackageIdent;
 
 use internment::Intern;
 
-#[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Default, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct PackageIdentIntern {
     origin:  Intern<String>,
     name:    Intern<String>,
@@ -97,6 +97,27 @@ impl Identifiable for PackageIdentIntern {
 
 impl fmt::Display for PackageIdentIntern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.version.is_some() && self.release.is_some() {
+            write!(f,
+                   "{}/{}/{}/{}",
+                   self.origin,
+                   self.name,
+                   self.version.as_ref().unwrap(),
+                   self.release.as_ref().unwrap())
+        } else if self.version.is_some() {
+            write!(f,
+                   "{}/{}/{}",
+                   self.origin,
+                   self.name,
+                   self.version.as_ref().unwrap())
+        } else {
+            write!(f, "{}/{}", self.origin, self.name)
+        }
+    }
+}
+
+impl fmt::Debug for PackageIdentIntern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.version.is_some() && self.release.is_some() {
             write!(f,
                    "{}/{}/{}/{}",
