@@ -30,6 +30,8 @@ use protobuf::{self,
 
 use crate::db::{config::DataStoreCfg,
                 migration::setup_ids,
+                models::jobs::{Job,
+                               NewJob},
                 pool::Pool,
                 DbPool};
 
@@ -86,8 +88,11 @@ impl DataStore {
     /// * If the job cannot be created
     /// * If the job has an unknown VCS type
     pub fn create_job(&self, job: &jobsrv::Job) -> Result<jobsrv::Job> {
-        let conn = self.pool.get()?;
+        // let conn = self.pool.get()?;
+        let conn = self.diesel_pool.get_conn()?;
 
+        // TODO: What job never has a channel?
+        // DB schema is nullable for some reason
         let channel = if job.has_channel() {
             Some(job.get_channel())
         } else {
@@ -104,18 +109,21 @@ impl DataStore {
                 }
             };
 
-            let rows = conn.query("SELECT * FROM insert_job_v3($1, $2, $3, $4, $5, $6, $7, $8, \
-                                   $9)",
-                                  &[&(job.get_owner_id() as i64),
-                                    &(project.get_id() as i64),
-                                    &project.get_name(),
-                                    &(project.get_owner_id() as i64),
-                                    &project.get_plan_path(),
-                                    &project.get_vcs_type(),
-                                    &vec![Some(project.get_vcs_data().to_string()), install_id],
-                                    &channel,
-                                    &job.get_target()])
-                           .map_err(Error::JobCreate)?;
+            // TODO: vcs_argument is taking an option in its vec... why?
+            let new_job = NewJob { owner_id:          job.get_owner_id() as i64,
+                                   project_id:        project.get_id() as i64,
+                                   project_name:      &project.get_name(),
+                                   job_state:         "Pending",
+                                   project_owner_id:  project.get_owner_id() as i64,
+                                   project_plan_path: &project.get_plan_path(),
+                                   vcs:               &project.get_vcs_type(),
+                                   vcs_arguments:     &vec![Some(project.get_vcs_data()
+                                                                        .to_string()),
+                                                            install_id],
+                                   channel:           &channel,
+                                   target:            &job.get_target(), };
+
+            let rows = jobs::Job::create(new_job, &conn).map_err(Error::JobCreate)?;
             let job = row_to_job(&rows.get(0))?;
             Ok(job)
         } else {
@@ -341,58 +349,6 @@ impl DataStore {
         Ok(workers)
     }
 
-    pub fn is_job_group_active(&self, project_name: &str) -> Result<bool> {
-        let conn = self.pool.get()?;
-
-        let rows = &conn.query("SELECT * FROM check_active_group_v1($1)", &[&project_name])
-                        .map_err(Error::JobGroupGet)?;
-
-        // If we get any rows back, we found one or more active groups
-        Ok(!rows.is_empty())
-    }
-
-    pub fn get_queued_job_group(&self, project_name: &str) -> Result<Option<jobsrv::JobGroup>> {
-        let conn = self.pool.get()?;
-
-        let rows = &conn.query("SELECT * FROM get_queued_group_v1($1)", &[&project_name])
-                        .map_err(Error::JobGroupGet)?;
-
-        if rows.is_empty() {
-            debug!("JobGroup {} not queued (not found)", project_name);
-            return Ok(None);
-        }
-
-        assert!(rows.len() == 1); // should never have more than one
-
-        let mut group = self.row_to_job_group(&rows.get(0))?;
-        let group_id = group.get_id();
-
-        let project_rows = &conn.query("SELECT * FROM get_group_projects_for_group_v1($1)",
-                                       &[&(group_id as i64)])
-                                .map_err(Error::JobGroupGet)?;
-
-        assert!(!project_rows.is_empty()); // should at least have one
-        let projects = self.rows_to_job_group_projects(&project_rows)?;
-
-        group.set_projects(projects);
-        Ok(Some(group))
-    }
-
-    pub fn get_queued_job_groups(&self) -> Result<RepeatedField<jobsrv::JobGroup>> {
-        let mut groups = RepeatedField::new();
-
-        let conn = self.pool.get()?;
-
-        let rows = &conn.query("SELECT * FROM get_queued_groups_v1()", &[])
-                        .map_err(Error::JobGroupGet)?;
-
-        for row in rows {
-            let group = self.row_to_job_group(&row)?;
-            groups.push(group);
-        }
-        Ok(groups)
-    }
-
     pub fn create_job_group(&self,
                             msg: &jobsrv::JobGroupSpec,
                             project_tuples: Vec<(String, String)>)
@@ -507,7 +463,7 @@ impl DataStore {
         Ok(Some(group))
     }
 
-    fn row_to_job_group(&self, row: &postgres::rows::Row) -> Result<jobsrv::JobGroup> {
+    fn row_to_job_group(&self, row: &postgres::row::Row) -> Result<jobsrv::JobGroup> {
         let mut group = jobsrv::JobGroup::new();
 
         let id: i64 = row.get("id");
@@ -529,7 +485,7 @@ impl DataStore {
     }
 
     fn row_to_job_group_project(&self,
-                                row: &postgres::rows::Row)
+                                row: &postgres::row::Row)
                                 -> Result<jobsrv::JobGroupProject> {
         let mut project = jobsrv::JobGroupProject::new();
 
@@ -550,7 +506,7 @@ impl DataStore {
     }
 
     fn rows_to_job_group_projects(&self,
-                                  rows: &postgres::rows::Rows)
+                                  rows: &postgres::row::Rows)
                                   -> Result<RepeatedField<jobsrv::JobGroupProject>> {
         let mut projects = RepeatedField::new();
 
@@ -681,7 +637,7 @@ impl DataStore {
 }
 
 /// Translate a database `busy_workers` row to a `jobsrv::BusyWorker`.
-fn row_to_busy_worker(row: &postgres::rows::Row) -> Result<jobsrv::BusyWorker> {
+fn row_to_busy_worker(row: &postgres::row::Row) -> Result<jobsrv::BusyWorker> {
     let mut bw = jobsrv::BusyWorker::new();
     let ident: String = row.get("ident");
     let job_id: i64 = row.get("job_id");
@@ -700,7 +656,7 @@ fn row_to_busy_worker(row: &postgres::rows::Row) -> Result<jobsrv::BusyWorker> {
 ///
 /// * If the job state is unknown
 /// * If the VCS type is unknown
-fn row_to_job(row: &postgres::rows::Row) -> Result<jobsrv::Job> {
+fn row_to_job(row: &postgres::row::Row) -> Result<jobsrv::Job> {
     let mut job = jobsrv::Job::new();
     let id: i64 = row.get("id");
     job.set_id(id as u64);

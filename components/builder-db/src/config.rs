@@ -76,6 +76,13 @@ impl Default for DataStoreCfg {
     }
 }
 
+// impl IntoPgConfig for DataStoreCfg {
+//    fn into_pg_config(self) -> Result<postgres::config::Config> {
+//        unimplemented!();
+//        let mut pg_config = postgres::config::
+//    }
+//}
+
 impl fmt::Display for DataStoreCfg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut connect = format!("postgres://{}", self.user);

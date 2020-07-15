@@ -59,12 +59,13 @@ pub struct NewJob<'a> {
     pub owner_id:          i64,
     pub project_id:        i64,
     pub project_name:      &'a str,
+    pub job_state:         &'a str,
     pub project_owner_id:  i64,
     pub project_plan_path: &'a str,
     pub vcs:               &'a str,
-    pub vcs_arguments:     Vec<&'a str>,
+    pub vcs_arguments:     Vec<Option<&'a str>>,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
-    pub channel:           &'a str,
+    pub channel:           Option<&'a str>,
     pub target:            &'a str,
 }
 

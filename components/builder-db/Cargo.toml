@@ -27,7 +27,7 @@ percent-encoding = "*"
 postgres = "*"
 postgres-derive = "*"
 postgres-shared = "*"
-r2d2_postgres = "0.14.0"
+r2d2_postgres = "*"
 threadpool = "*"
 url = "*"
 
