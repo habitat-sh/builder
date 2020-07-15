@@ -86,9 +86,7 @@ impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", *self) }
 }
 
-impl error::Error for ConfigError {
-    fn description(&self) -> &str { "Error reading config file" }
-}
+impl error::Error for ConfigError {}
 
 impl ConfigFile for Config {
     type Error = ConfigError;

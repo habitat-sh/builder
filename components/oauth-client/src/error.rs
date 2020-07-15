@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{error,
-          fmt};
+use std::fmt;
 
 use builder_core;
 use reqwest;
@@ -41,17 +40,6 @@ impl fmt::Display for Error {
             Error::Serialization(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
-    }
-}
-
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::BuilderCore(ref err) => err.description(),
-            Error::HttpClient(ref err) => err.description(),
-            Error::HttpResponse(..) => "Non-200 HTTP response.",
-            Error::Serialization(ref err) => err.description(),
-        }
     }
 }
 

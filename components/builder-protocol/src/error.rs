@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{error,
-          fmt,
+use std::{fmt,
           result,
           string::FromUtf8Error};
 
@@ -56,23 +55,5 @@ impl fmt::Display for ProtocolError {
             }
         };
         write!(f, "{}", msg)
-    }
-}
-
-impl error::Error for ProtocolError {
-    fn description(&self) -> &str {
-        match *self {
-            ProtocolError::BadJobGroupProjectState(_) => "Job Group Project state cannot be parsed",
-            ProtocolError::BadJobGroupState(_) => "Job Group state cannot be parsed",
-            ProtocolError::BadJobState(_) => "Job state cannot be parsed",
-            ProtocolError::BadOriginPackageVisibility(_) => {
-                "Origin package visibility cannot be parsed"
-            }
-            ProtocolError::BadOs(_) => "OS cannot be parsed",
-            ProtocolError::Decode(_) => "Unable to decode protocol message",
-            ProtocolError::Encode(_) => "Unable to encode protocol message",
-            ProtocolError::IdentityDecode(_) => "Unable to decode identity message part",
-            ProtocolError::NoProtocol(_) => "No `net::Protocol` matches the given string",
-        }
     }
 }

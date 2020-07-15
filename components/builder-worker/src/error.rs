@@ -140,40 +140,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::BuildEnvFile(..) => "Unable to read workspace build env file",
-            Error::BuildFailure(_) => "Build studio exited with a non-zero exit code",
-            Error::BuilderCore(ref err) => err.description(),
-            Error::CannotAddCreds => "Cannot add credentials to url",
-            Error::Chown(..) => "Unable to recursively chown path",
-            Error::ChownWait(_) => "Unable to complete chown process",
-            Error::CreateDirectory(..) => "Unable to create directory",
-            Error::Exporter(_) => "IO Error while spawning or piping data from exporter proc",
-            Error::ExportFailure(_) => "Docker export exited with a non-zero exit code",
-            Error::Git(ref err) => err.description(),
-            Error::GithubAppAuthErr(ref err) => err.description(),
-            Error::HabitatCore(ref err) => err.description(),
-            Error::InvalidIntegrations(_) => "Invalid integrations detected",
-            Error::NotHTTPSCloneUrl(_) => "Only HTTPS clone urls are supported",
-            Error::Protobuf(ref err) => err.description(),
-            Error::Protocol(ref err) => err.description(),
-            Error::Retry(ref err) => err.description(),
-            Error::StreamTargetSend(_) => "Error while writing message to a job stream",
-            Error::StreamLine(_) => "Error while reading a line while consuming an output stream",
-            Error::StudioBuild(..) => "IO Error while running studio build",
-            Error::StudioTeardown(..) => "IO Error while tearing down studio",
-            Error::WorkspaceSetup(..) => "IO Error while creating workspace on disk",
-            Error::WorkspaceTeardown(..) => "IO Error while destroying workspace on disk",
-            Error::Zmq(ref err) => err.description(),
-            Error::UrlParseError(ref err) => err.description(),
-            Error::Mpsc(ref err) => err.description(),
-            Error::MpscAsync(ref err) => err.description(),
-            Error::JobCanceled => "Job was canceled",
-        }
-    }
-}
+impl error::Error for Error {}
 
 impl From<bldr_core::Error> for Error {
     fn from(err: bldr_core::Error) -> Error { Error::BuilderCore(err) }
