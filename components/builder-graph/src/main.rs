@@ -400,7 +400,7 @@ fn do_dump_build_order(datastore: &dyn DataStoreTrait,
                                         // let touched = vec![touched];
                                         //
 
-    let manifest = graph.compute_build(&touched, datastore);
+    let manifest = graph.compute_build(&touched, datastore.as_unbuildable());
     println!("-------------------");
 
     let mut file = File::create(&filename).expect("Failed to initialize file");
