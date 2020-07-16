@@ -90,6 +90,8 @@ pub trait DataStoreTrait: Unbuildable {
                  channel: &str,
                  target: PackageTarget)
                  -> Result<()>;
+
+    fn unbuildable(&self) -> Box<dyn Unbuildable>;
 }
 
 /// Simple serial
@@ -190,6 +192,10 @@ impl DataStoreTrait for SerializedDatabase {
         // TODO check that origin, channel, target match and fail
         self.write_to_file(filename).unwrap();
         Ok(())
+    }
+
+    fn unbuildable(&self) -> Box<dyn Unbuildable> {
+      Box::new(*self) 
     }
 }
 
@@ -349,6 +355,10 @@ impl DataStoreTrait for DataStore {
 
         sd.write_to_file(filename).unwrap();
         Ok(())
+    }
+
+    fn unbuildable(&self) -> Box<dyn Unbuildable> {
+        Box::new(*self) 
     }
 }
 

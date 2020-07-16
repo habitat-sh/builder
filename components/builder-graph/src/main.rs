@@ -400,15 +400,13 @@ fn do_dump_build_order(datastore: &dyn DataStoreTrait,
                                         // let touched = vec![touched];
                                         //
 
-    let _ordering =
-        graph.dump_build_ordering(datastore.as_unbuildable(), filename, filter, &touched);
+    let manifest = graph.compute_build(&touched, datastore);
     println!("-------------------");
 
-    // TODO(SM): This will need to be reimplemented
-    // let mut file = File::create(&filename).expect("Failed to initialize file");
-    // for pkg in &ordering {
-    //     file.write_all(pkg.format_for_shell().as_bytes()).unwrap();
-    // }
+    let mut file = File::create(&filename).expect("Failed to initialize file");
+    for pkg in &manifest.build_order() {
+        file.write_all(pkg.format_for_shell().as_bytes()).unwrap();
+    }
     println!("-------------------");
 
     let duration_secs = start_time.elapsed().as_secs_f64();

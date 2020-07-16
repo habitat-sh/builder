@@ -206,6 +206,14 @@ impl PackageGraph {
         self.graphs[&self.current_target].borrow_mut()
                                          .compute_attributed_deps(idents, include_build_deps)
     }
+
+    pub fn compute_build(&self,
+                         touched: &[PackageIdentIntern],
+                         unbuildable: &dyn Unbuildable)
+                         -> PackageBuildManifest {
+        self.graphs[&self.current_target].borrow()
+                                         .compute_build(touched, unbuildable)
+    }
 }
 
 #[cfg(test)]
