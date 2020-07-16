@@ -88,7 +88,6 @@ impl DataStore {
     /// * If the job cannot be created
     /// * If the job has an unknown VCS type
     pub fn create_job(&self, job: &jobsrv::Job) -> Result<jobsrv::Job> {
-        // let conn = self.pool.get()?;
         let conn = self.diesel_pool.get_conn()?;
 
         // TODO: What job never has a channel?
@@ -101,30 +100,29 @@ impl DataStore {
 
         if job.get_project().get_vcs_type() == "git" {
             let project = job.get_project();
-            let install_id: Option<String> = {
+            let install_id: Option<&str> = {
                 if project.has_vcs_installation_id() {
-                    Some(project.get_vcs_installation_id().to_string())
+                    Some(project.get_vcs_installation_id().to_string().as_str())
                 } else {
                     None
                 }
             };
 
             // TODO: vcs_argument is taking an option in its vec... why?
-            let new_job = NewJob { owner_id:          job.get_owner_id() as i64,
-                                   project_id:        project.get_id() as i64,
-                                   project_name:      &project.get_name(),
-                                   job_state:         "Pending",
-                                   project_owner_id:  project.get_owner_id() as i64,
+            let new_job = NewJob { owner_id: job.get_owner_id() as i64,
+                                   project_id: project.get_id() as i64,
+                                   project_name: &project.get_name(),
+                                   job_state: "Pending",
+                                   project_owner_id: project.get_owner_id() as i64,
                                    project_plan_path: &project.get_plan_path(),
-                                   vcs:               &project.get_vcs_type(),
-                                   vcs_arguments:     &vec![Some(project.get_vcs_data()
-                                                                        .to_string()),
-                                                            install_id],
-                                   channel:           &channel,
-                                   target:            &job.get_target(), };
+                                   vcs: &project.get_vcs_type(),
+                                   vcs_arguments: &vec![Some(project.get_vcs_data()),
+                                                        install_id],
+                                   channel,
+                                   target: &job.get_target() };
 
-            let rows = jobs::Job::create(new_job, &conn).map_err(Error::JobCreate)?;
-            let job = row_to_job(&rows.get(0))?;
+            let rows = Job::create(&new_job, &conn).map_err(Error::JobCreate)?;
+            let job = rows.into();
             Ok(job)
         } else {
             Err(Error::UnknownVCS)

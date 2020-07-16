@@ -65,7 +65,7 @@ pub enum Error {
     JobGraphPackageStats(postgres::error::Error),
     JobGraphPackagesGet(postgres::error::Error),
     JobGroupProjectSetState(postgres::error::Error),
-    JobCreate(postgres::error::Error),
+    JobCreate(diesel::result::Error),
     JobGet(postgres::error::Error),
     JobLogArchive(u64, rusoto_core::RusotoError<rusoto_s3::PutObjectError>),
     JobLogRetrieval(u64, rusoto_core::RusotoError<rusoto_s3::GetObjectError>),

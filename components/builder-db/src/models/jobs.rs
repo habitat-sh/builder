@@ -7,6 +7,20 @@ use diesel::{dsl::count_star,
              ExpressionMethods,
              QueryDsl,
              RunQueryDsl};
+
+use diesel::{deserialize::{self,
+                           FromSql},
+             pg::Pg};
+
+use diesel::sql_types::{Array,
+                        BigInt,
+                        Bool,
+                        Integer,
+                        Nullable,
+                        Record,
+                        Text,
+                        Timestamptz};
+
 use protobuf::ProtobufEnum;
 
 use crate::protocol::{jobsrv,
@@ -18,12 +32,15 @@ use crate::{models::pagination::Paginate,
                            groups,
                            jobs}};
 
+use crate::functions::jobs as job_functions;
+
 use crate::{bldr_core::metrics::CounterMetric,
             hab_core::package::PackageTarget,
             metrics::Counter};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "jobs"]
+#[diesel(deserialize_as = "Job")]
 pub struct Job {
     #[serde(with = "db_id_format")]
     pub id:                i64,
@@ -63,7 +80,7 @@ pub struct NewJob<'a> {
     pub project_owner_id:  i64,
     pub project_plan_path: &'a str,
     pub vcs:               &'a str,
-    pub vcs_arguments:     Vec<Option<&'a str>>,
+    pub vcs_arguments:     &'a Vec<Option<&'a str>>,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub channel:           Option<&'a str>,
     pub target:            &'a str,
@@ -79,6 +96,15 @@ impl Job {
     pub fn get(id: i64, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
         jobs::table.filter(jobs::id.eq(id)).get_result(conn)
+    }
+
+    pub fn get_next_pending(worker: &str,
+                            target: &str,
+                            conn: &PgConnection)
+                            -> QueryResult<Vec<Job>> {
+        Counter::DBCall.increment();
+        jobs::table.select(job_functions::next_pending_job_v2(worker, target))
+                   .first::<Vec<Job>>(conn)
     }
 
     pub fn list(lpj: ListProjectJobs, conn: &PgConnection) -> QueryResult<(Vec<Job>, i64)> {
@@ -104,6 +130,101 @@ impl Job {
                    .filter(jobs::job_state.eq(job_state.to_string()))
                    .filter(jobs::target.eq(target.to_string()))
                    .first(conn)
+    }
+}
+
+impl
+    FromSql<Record<(BigInt,
+                    BigInt,
+                    Text,
+                    BigInt,
+                    Text,
+                    BigInt,
+                    Text,
+                    Text,
+                    Array<Nullable<Text>>,
+                    Nullable<Integer>,
+                    Nullable<Text>,
+                    Bool,
+                    Nullable<Timestamptz>,
+                    Nullable<Timestamptz>,
+                    Nullable<Timestamptz>,
+                    Nullable<Timestamptz>,
+                    Nullable<Text>,
+                    Bool,
+                    Nullable<Text>,
+                    Integer,
+                    Nullable<Text>,
+                    Text)>,
+            Pg> for Job
+{
+    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+        let (id,
+             owner_id,
+             job_state,
+             project_id,
+             project_name,
+             project_owner_id,
+             project_plan_path,
+             vcs,
+             vcs_arguments,
+             net_error_code,
+             net_error_msg,
+             scheduler_sync,
+             created_at,
+             updated_at,
+             build_started_at,
+             build_finished_at,
+             package_ident,
+             archived,
+             channel,
+             sync_count,
+             worker,
+             target) = FromSql::<Record<(BigInt,
+                                       BigInt,
+                                       Text,
+                                       BigInt,
+                                       Text,
+                                       BigInt,
+                                       Text,
+                                       Text,
+                                       Array<Nullable<Text>>,
+                                       Nullable<Integer>,
+                                       Nullable<Text>,
+                                       Bool,
+                                       Nullable<Timestamptz>,
+                                       Nullable<Timestamptz>,
+                                       Nullable<Timestamptz>,
+                                       Nullable<Timestamptz>,
+                                       Nullable<Text>,
+                                       Bool,
+                                       Nullable<Text>,
+                                       Integer,
+                                       Nullable<Text>,
+                                       Text)>,
+                               Pg>::from_sql(bytes)?;
+        Ok(Job { id,
+                 owner_id,
+                 job_state,
+                 project_id,
+                 project_name,
+                 project_owner_id,
+                 project_plan_path,
+                 vcs,
+                 vcs_arguments,
+                 net_error_code,
+                 net_error_msg,
+                 scheduler_sync,
+                 created_at,
+                 updated_at,
+                 build_started_at,
+                 build_finished_at,
+                 package_ident,
+                 archived,
+                 channel,
+                 sync_count,
+                 worker,
+                 target })
     }
 }
 
