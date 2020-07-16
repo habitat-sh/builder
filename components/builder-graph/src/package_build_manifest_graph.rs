@@ -163,8 +163,49 @@ impl PackageBuildManifest {
         unimplemented!()
     }
 
-    pub fn emit_sequential_build_order() -> Vec<PackageBuild> {
-        // Do the TSORT
-        unimplemented!()
+    pub fn build_order(&self) -> Vec<PackageBuild> {
+        let mut order: Vec<PackageBuild> = Vec::new();
+
+        for component in petgraph::algo::tarjan_scc(&self.graph) {
+            assert_eq!(component.len(), 1);
+
+            match component.first().unwrap() {
+                ident @ UnresolvedPackageIdent::InternalNode(_, _) 
+                | ident @ UnresolvedPackageIdent::InternalVersionedNode(_,_) => {
+                    let package_build = self.package_build_from_unresolved_ident(*ident);
+                    order.push(package_build);
+                }
+                _ => ()
+            }
+        }
+
+        order
     }
+
+    fn package_build_from_unresolved_ident(&self, name: UnresolvedPackageIdent)-> PackageBuild {
+        let mut runtime_deps  = Vec::new();
+        let mut build_deps = Vec::new();
+        let mut strong_deps = Vec::new();
+
+        for dep in self.graph.neighbors_directed(name, petgraph::EdgeDirection::Outgoing) {
+            match self.graph.edge_weight(name, dep).unwrap() {
+                EdgeType::RuntimeDep => runtime_deps.push(dep),
+                EdgeType::BuildDep => build_deps.push(dep),
+                EdgeType::StrongBuildDep => strong_deps.push(dep),
+            }            
+
+        }
+
+        PackageBuild { 
+            name,
+            runtime_deps,
+            build_deps,
+            strong_deps
+        }
+    }
+
+
+    pub fn serialize() -> Vec<PackageBuild> { unimplemented!() }
+
+    pub fn deserialze(_db: Vec<PackageBuild>) { unimplemented!() }
 }
