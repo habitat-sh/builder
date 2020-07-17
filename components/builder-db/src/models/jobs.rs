@@ -9,7 +9,8 @@ use diesel::{dsl::count_star,
              RunQueryDsl};
 
 use diesel::{deserialize::{self,
-                           FromSql},
+                           FromSql,
+                           Queryable},
              pg::Pg};
 
 use diesel::sql_types::{Array,
@@ -104,6 +105,30 @@ pub struct UpdateJob {
     pub package_ident:     Option<String>,
 }
 
+type JobFields = (BigInt,
+                  BigInt,
+                  Text,
+                  BigInt,
+                  Text,
+                  BigInt,
+                  Text,
+                  Text,
+                  Array<Nullable<Text>>,
+                  Nullable<Integer>,
+                  Nullable<Text>,
+                  Bool,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Text>,
+                  Bool,
+                  Nullable<Text>,
+                  Integer,
+                  Nullable<Text>,
+                  Text);
+pub type JobRecord = Record<JobFields>;
+
 impl Job {
     pub fn get(id: i64, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
@@ -159,98 +184,10 @@ impl Job {
     }
 }
 
-impl
-    FromSql<Record<(BigInt,
-                    BigInt,
-                    Text,
-                    BigInt,
-                    Text,
-                    BigInt,
-                    Text,
-                    Text,
-                    Array<Nullable<Text>>,
-                    Nullable<Integer>,
-                    Nullable<Text>,
-                    Bool,
-                    Nullable<Timestamptz>,
-                    Nullable<Timestamptz>,
-                    Nullable<Timestamptz>,
-                    Nullable<Timestamptz>,
-                    Nullable<Text>,
-                    Bool,
-                    Nullable<Text>,
-                    Integer,
-                    Nullable<Text>,
-                    Text)>,
-            Pg> for Job
-{
+impl FromSql<JobRecord, diesel::pg::Pg> for Job {
     fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
-        let (id,
-             owner_id,
-             job_state,
-             project_id,
-             project_name,
-             project_owner_id,
-             project_plan_path,
-             vcs,
-             vcs_arguments,
-             net_error_code,
-             net_error_msg,
-             scheduler_sync,
-             created_at,
-             updated_at,
-             build_started_at,
-             build_finished_at,
-             package_ident,
-             archived,
-             channel,
-             sync_count,
-             worker,
-             target) = FromSql::<Record<(BigInt,
-                                       BigInt,
-                                       Text,
-                                       BigInt,
-                                       Text,
-                                       BigInt,
-                                       Text,
-                                       Text,
-                                       Array<Nullable<Text>>,
-                                       Nullable<Integer>,
-                                       Nullable<Text>,
-                                       Bool,
-                                       Nullable<Timestamptz>,
-                                       Nullable<Timestamptz>,
-                                       Nullable<Timestamptz>,
-                                       Nullable<Timestamptz>,
-                                       Nullable<Text>,
-                                       Bool,
-                                       Nullable<Text>,
-                                       Integer,
-                                       Nullable<Text>,
-                                       Text)>,
-                               Pg>::from_sql(bytes)?;
-        Ok(Job { id,
-                 owner_id,
-                 job_state,
-                 project_id,
-                 project_name,
-                 project_owner_id,
-                 project_plan_path,
-                 vcs,
-                 vcs_arguments,
-                 net_error_code,
-                 net_error_msg,
-                 scheduler_sync,
-                 created_at,
-                 updated_at,
-                 build_started_at,
-                 build_finished_at,
-                 package_ident,
-                 archived,
-                 channel,
-                 sync_count,
-                 worker,
-                 target })
+        let tuple = <_ as FromSql<JobRecord, Pg>>::from_sql(bytes)?;
+        Ok(<Self as Queryable<JobFields, Pg>>::build(tuple))
     }
 }
 
