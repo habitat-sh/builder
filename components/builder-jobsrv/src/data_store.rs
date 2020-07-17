@@ -356,9 +356,9 @@ impl DataStore {
     }
 
     pub fn cancel_job_group(&self, group_id: u64) -> Result<()> {
-        let conn = self.pool.get()?;
-        conn.query("SELECT cancel_group_v1($1)", &[&(group_id as i64)])
-            .map_err(Error::JobGroupCancel)?;
+        let conn = self.diesel_pool.get_conn()?;
+
+        Group::cancel_job_group(group_id as i64, &conn).map_err(Error::JobGroupCancel)?;
 
         Ok(())
     }
@@ -555,12 +555,12 @@ impl DataStore {
     pub fn pending_job_groups(&self, count: i32) -> Result<Vec<jobsrv::JobGroup>> {
         let mut groups = Vec::new();
 
-        let conn = self.pool.get()?;
-        let group_rows = &conn.query("SELECT * FROM pending_groups_v1($1)", &[&count])
-                              .map_err(Error::JobGroupPending)?;
+        let conn = self.diesel_pool.get_conn()?;
 
-        for group_row in group_rows {
-            let mut group = self.row_to_job_group(&group_row)?;
+        let groups = Groups::pending_job_groups(count, &conn).map_err(Error::JobGroupPending)?;
+
+        for group_row in groups {
+            let mut group: jobsrv::JobGroup = group_row.into();
 
             let project_rows = &conn.query("SELECT * FROM get_group_projects_for_group_v1($1)",
                                            &[&(group.get_id() as i64)])

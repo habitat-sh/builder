@@ -56,7 +56,7 @@ pub enum Error {
     IO(io::Error),
     JobGroupAudit(postgres::error::Error),
     JobGroupCreate(postgres::error::Error),
-    JobGroupCancel(postgres::error::Error),
+    JobGroupCancel(diesel::result::Error),
     JobGroupGet(postgres::error::Error),
     JobGroupOriginGet(postgres::error::Error),
     JobGroupPending(postgres::error::Error),

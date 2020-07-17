@@ -329,6 +329,13 @@ impl Group {
                      .get_result(conn)
     }
 
+    pub fn pending_job_groups(count: i32, conn: &PgConnection) -> QueryResult<Vec<Group>> {
+        Counter::DBCall.increment();
+        let result = groups::table.select(job_functions::pending_groups_v1(count))
+                                  .get_result::<Vec<Group>>(conn)?;
+        Ok(result)
+    }
+
     pub fn insert_group(root_project: &str,
                         target: &str, // We want PackageTarget, but we can't have nice things
                         project_tuples: &Vec<(String, String)>,
@@ -339,14 +346,21 @@ impl Group {
         let (project_names, project_idents): (Vec<String>, Vec<String>) =
             project_tuples.iter().cloned().unzip();
 
-        let result = jobs::table.select(job_functions::insert_group_v3(root_project,
-                                                                       project_names,
-                                                                       project_idents,
-                                                                       target.to_string()))
-                                .first::<Vec<Group>>(conn)?; // should this be get_result?
+        let result = groups::table.select(job_functions::insert_group_v3(root_project,
+                                                                         project_names,
+                                                                         project_idents,
+                                                                         target.to_string()))
+                                  .first::<Vec<Group>>(conn)?; // should this be get_result?
         result.first()
               .ok_or(diesel::result::Error::NotFound)
               .map(|x| (*x).clone())
+    }
+
+    pub fn cancel_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<()> {
+        Counter::DBCall.increment();
+        groups::table.select(job_functions::cancel_group_v1(group_id))
+                     .execute(conn)?;
+        Ok(())
     }
 }
 
