@@ -50,6 +50,7 @@ table! {
         project_ident -> Text,
         project_state -> Text,
         job_id -> BigInt,
+        target -> Text,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
     }

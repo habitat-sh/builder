@@ -31,6 +31,7 @@ use crate::protocol::{jobsrv,
 use crate::{models::pagination::Paginate,
             schema::jobs::{busy_workers,
                            groups,
+                           group_projects,
                            jobs}};
 
 use crate::functions::jobs as job_functions;
@@ -362,6 +363,12 @@ impl Group {
                      .execute(conn)?;
         Ok(())
     }
+
+    pub fn get_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<Group> {
+        Counter::DBCall.increment();
+
+        groups::table.filter(groups::id.eq(group_id)).first(conn)
+    }
 }
 
 impl FromSql<GroupRecord, diesel::pg::Pg> for Group {
@@ -430,5 +437,43 @@ impl BusyWorker {
         Counter::DBCall.increment();
         diesel::delete(busy_workers::table.filter(busy_workers::ident.eq(ident))
                                           .filter(busy_workers::job_id.eq(job_id))).execute(conn)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[table_name = "group_projects"]
+pub struct GroupProject { 
+  pub id: i64,
+  pub owner_id: i64,
+  pub project_name: String,
+  pub project_ident: String, //PackageIdent?
+  pub project_state: String, //Enum?
+  pub job_id: i64,
+  pub target: String, //PackageTarget?
+  pub created_at: Option<DateTime<Utc>>,
+  pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl GroupProject {
+  pub fn get_group_projects(group_id: i64, conn: &PgConnection) -> QueryResult<Vec<GroupProject>> {
+        Counter::DBCall.increment();
+        group_projects::table.filter(group_projects::owner_id.eq(group_id)).get_results(conn)
+  }
+}
+
+impl Into<jobsrv::JobGroupProject> for GroupProject {
+    fn into(self) -> jobsrv::JobGroupProject {
+        let mut project = jobsrv::JobGroupProject::new();
+        
+        //TODO: Should this return a result?
+        let project_state = self.project_state.parse::<jobsrv::JobGroupProjectState>().unwrap();
+
+        project.set_name(self.project_name);
+        project.set_ident(self.project_ident);
+        project.set_state(project_state);
+        project.set_target(self.target);
+        project.set_job_id(self.job_id as u64);
+
+        project
     }
 }
