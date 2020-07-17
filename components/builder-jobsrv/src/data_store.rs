@@ -30,7 +30,8 @@ use protobuf::{self,
 
 use crate::db::{config::DataStoreCfg,
                 migration::setup_ids,
-                models::jobs::{Job,
+                models::jobs::{Group,
+                               Job,
                                NewJob},
                 pool::Pool,
                 DbPool};
@@ -326,26 +327,18 @@ impl DataStore {
     }
 
     pub fn create_job_group(&self,
-                            msg: &jobsrv::JobGroupSpec,
+                            msg: &jobsrv::JobGroupSpec, // This should someday be jobs::Group
                             project_tuples: Vec<(String, String)>)
                             -> Result<jobsrv::JobGroup> {
-        let conn = self.pool.get()?;
+        let conn = self.diesel_pool.get_conn()?;
 
         assert!(!project_tuples.is_empty());
 
         let root_project = format!("{}/{}", msg.get_origin(), msg.get_package());
+        let target = msg.get_target().to_string();
+        let result = Group::insert_group(&root_project, &target, &project_tuples, &conn)?;
+        let group: jobsrv::JobGroup = result.into();
 
-        let (project_names, project_idents): (Vec<String>, Vec<String>) =
-            project_tuples.iter().cloned().unzip();
-
-        let rows = conn.query("SELECT * FROM insert_group_v3($1, $2, $3, $4)",
-                              &[&root_project,
-                                &project_names,
-                                &project_idents,
-                                &msg.get_target()])
-                       .map_err(Error::JobGroupCreate)?;
-
-        let mut group = self.row_to_job_group(&rows.get(0))?;
         let mut projects = RepeatedField::new();
 
         for (name, ident) in project_tuples {
@@ -358,8 +351,6 @@ impl DataStore {
         }
 
         group.set_projects(projects);
-
-        debug!("JobGroup created: {:?}", group);
 
         Ok(group)
     }

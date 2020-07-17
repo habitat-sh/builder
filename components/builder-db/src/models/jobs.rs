@@ -267,7 +267,7 @@ impl Into<jobsrv::Job> for Job {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "groups"]
 pub struct Group {
     #[serde(with = "db_id_format")]
@@ -278,6 +278,11 @@ pub struct Group {
     pub created_at:   Option<DateTime<Utc>>,
     pub updated_at:   Option<DateTime<Utc>>,
 }
+
+// The ordering here must match the above, or strange errors occur.
+pub type GroupFields = (BigInt, Text, Text, Text, Nullable<Timestamptz>, Nullable<Timestamptz>);
+
+pub type GroupRecord = Record<GroupFields>;
 
 impl Group {
     pub fn get_queued(project_name: &str, target: &str, conn: &PgConnection) -> QueryResult<Group> {
@@ -322,6 +327,33 @@ impl Group {
                      .filter(groups::target.eq(target.to_string()))
                      .filter(groups::project_name.eq(project_name))
                      .get_result(conn)
+    }
+
+    pub fn insert_group(root_project: &str,
+                        target: &str, // We want PackageTarget, but we can't have nice things
+                        project_tuples: &Vec<(String, String)>,
+                        conn: &PgConnection)
+                        -> QueryResult<Group> {
+        Counter::DBCall.increment();
+
+        let (project_names, project_idents): (Vec<String>, Vec<String>) =
+            project_tuples.iter().cloned().unzip();
+
+        let result = jobs::table.select(job_functions::insert_group_v3(root_project,
+                                                                       project_names,
+                                                                       project_idents,
+                                                                       target.to_string()))
+                                .first::<Vec<Group>>(conn)?; // should this be get_result?
+        result.first()
+              .ok_or(diesel::result::Error::NotFound)
+              .map(|x| (*x).clone())
+    }
+}
+
+impl FromSql<GroupRecord, diesel::pg::Pg> for Group {
+    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+        let tuple = <_ as FromSql<GroupRecord, Pg>>::from_sql(bytes)?;
+        Ok(<Self as Queryable<GroupFields, Pg>>::build(tuple))
     }
 }
 

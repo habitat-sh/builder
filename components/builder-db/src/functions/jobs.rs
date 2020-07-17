@@ -20,3 +20,8 @@ sql_function! {
 sql_function! {
     fn next_pending_job_v2(p_worker: Text, p_target: Text) -> Array<jobs::JobRecord>;
 }
+
+sql_function! {
+    fn insert_group_v3(root_project: Text, project_names: Array<Text>, project_idents: Array<Text>, p_target: Text)
+    -> Array<jobs::GroupRecord>;
+}
