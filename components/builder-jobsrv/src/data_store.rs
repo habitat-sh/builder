@@ -137,18 +137,17 @@ impl DataStore {
     /// * If a connection cannot be gotten from the pool
     /// * If the job cannot be selected from the database
     pub fn get_job(&self, get_job: &jobsrv::JobGet) -> Result<Option<jobsrv::Job>> {
-        let conn = self.pool.get()?;
-        let rows = &conn.query("SELECT * FROM get_job_v1($1)",
-                               &[&(get_job.get_id() as i64)])
-                        .map_err(Error::JobGet)?;
+        let conn = self.diesel_pool.get_conn()?;
+        let id = get_job.get_id() as i64;
+        let result = Job::get(id, &conn);
 
-        if !rows.is_empty() {
-            let row = rows.get(0);
-            let job = row_to_job(&row)?;
-            Ok(Some(job))
+        let job = if let diesel::QueryResult::Err(NotFound) = result {
+            None
         } else {
-            Ok(None)
-        }
+            let jobsrv: jobsrv::Job = result.map_err(Error::JobGet)?.into();
+            Some(jobsrv)
+        };
+        Ok(job)
     }
 
     /// Get the next pending job from the list of pending jobs
@@ -160,18 +159,16 @@ impl DataStore {
     /// * If the pending jobs cannot be selected from the database
     /// * If the row returned cannot be translated into a Job
     pub fn next_pending_job(&self, worker: &str, target: &str) -> Result<Option<jobsrv::Job>> {
-        let conn = self.pool.get()?;
-        let rows = &conn.query("SELECT * FROM next_pending_job_v2($1, $2)",
-                               &[&worker, &target])
-                        .map_err(Error::JobPending)?;
+        let conn = self.diesel_pool.get_conn()?;
 
-        if !rows.is_empty() {
-            let row = rows.get(0);
-            let job = row_to_job(&row)?;
-            Ok(Some(job))
+        let result = Job::get_next_pending(worker, target, &conn);
+        let job = if let diesel::QueryResult::Err(NotFound) = result {
+            None
         } else {
-            Ok(None)
-        }
+            let jobsrv: jobsrv::Job = result.map_err(Error::JobPending)?.into();
+            Some(jobsrv)
+        };
+        Ok(job)
     }
 
     /// Get a list of cancel-pending jobs
@@ -182,14 +179,10 @@ impl DataStore {
     /// * If the cancel pending jobs cannot be selected from the database
     /// * If the row returned cannot be translated into a Job
     pub fn get_cancel_pending_jobs(&self) -> Result<Vec<jobsrv::Job>> {
-        let mut jobs = Vec::new();
-        let conn = self.pool.get()?;
-        let rows = &conn.query("SELECT * FROM get_cancel_pending_jobs_v1()", &[])
-                        .map_err(Error::JobPending)?;
-        for row in rows {
-            let job = row_to_job(&row)?;
-            jobs.push(job);
-        }
+        let conn = self.diesel_pool.get_conn()?;
+
+        let result = Job::get_job_by_state("CancelPending", &conn).map_err(Error::JobPending)?;
+        let jobs: Vec<jobsrv::Job> = result.iter().map(|&x| x.into()).collect();
         Ok(jobs)
     }
 
@@ -201,29 +194,11 @@ impl DataStore {
     /// * If the cancel pending jobs cannot be selected from the database
     /// * If the row returned cannot be translated into a Job
     pub fn get_dispatched_jobs(&self) -> Result<Vec<jobsrv::Job>> {
-        let mut jobs = Vec::new();
-        let conn = self.pool.get()?;
-        let rows = &conn.query("SELECT * FROM get_dispatched_jobs_v1()", &[])
-                        .map_err(Error::JobGet)?;
-        for row in rows {
-            let job = row_to_job(&row)?;
-            jobs.push(job);
-        }
-        Ok(jobs)
-    }
+        let conn = self.diesel_pool.get_conn()?;
 
-    /// Count the number of jobs in a given state
-    ///
-    /// # Errors
-    ///
-    /// * If a connection cannot be gotten from the pool
-    pub fn count_jobs(&self, job_state: jobsrv::JobState) -> Result<i64> {
-        let conn = self.pool.get()?;
-        let rows = &conn.query("SELECT * FROM count_jobs_v1($1)", &[&job_state.to_string()])
-                        .map_err(Error::JobGet)?;
-        assert!(rows.len() == 1);
-        let count: i64 = rows.get(0).get("count_jobs_v1");
-        Ok(count)
+        let result = Job::get_job_by_state("Dispatched", &conn).map_err(Error::JobGet)?;
+        let jobs: Vec<jobsrv::Job> = result.iter().map(|&x| x.into()).collect();
+        Ok(jobs)
     }
 
     /// Updates a job. Currently, this entails updating the state,
@@ -235,6 +210,9 @@ impl DataStore {
     /// * If a connection cannot be gotten from the pool
     /// * If the job cannot be updated in the database
     pub fn update_job(&self, job: &jobsrv::Job) -> Result<()> {
+        // TODO MAKE THIS USE THE Job::update function we just wrote
+        //
+
         let conn = self.pool.get()?;
         let job_id = job.get_id() as i64;
         let job_state = job.get_state().to_string();
@@ -504,7 +482,7 @@ impl DataStore {
     }
 
     fn rows_to_job_group_projects(&self,
-                                  rows: &postgres::row::Rows)
+                                  rows: &postgres::row::Row)
                                   -> Result<RepeatedField<jobsrv::JobGroupProject>> {
         let mut projects = RepeatedField::new();
 

@@ -38,7 +38,7 @@ use crate::{bldr_core::metrics::CounterMetric,
             hab_core::package::PackageTarget,
             metrics::Counter};
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "jobs"]
 #[diesel(deserialize_as = "Job")]
 pub struct Job {
@@ -92,19 +92,39 @@ pub struct ListProjectJobs {
     pub limit: i64,
 }
 
+#[derive(AsChangeset)]
+#[table_name = "jobs"]
+pub struct UpdateJob {
+    pub id:                i64,
+    pub job_state:         String,
+    pub net_error_code:    Option<i32>,
+    pub net_error_msg:     Option<String>,
+    pub build_started_at:  Option<DateTime<Utc>>,
+    pub build_finished_at: Option<DateTime<Utc>>,
+    pub package_ident:     Option<String>,
+}
+
 impl Job {
     pub fn get(id: i64, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
         jobs::table.filter(jobs::id.eq(id)).get_result(conn)
     }
 
-    pub fn get_next_pending(worker: &str,
-                            target: &str,
-                            conn: &PgConnection)
-                            -> QueryResult<Vec<Job>> {
+    pub fn get_next_pending(worker: &str, target: &str, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
-        jobs::table.select(job_functions::next_pending_job_v2(worker, target))
-                   .first::<Vec<Job>>(conn)
+        let result = jobs::table.select(job_functions::next_pending_job_v2(worker, target))
+                                .first::<Vec<Job>>(conn)?; // should this be get_result?
+        result.first()
+              .ok_or(diesel::result::Error::NotFound)
+              .map(|x| (*x).clone())
+    }
+
+    // job_state should be an enum, at least on the rust side
+    // Maybe this should filter by target.... (CanceledPending is ok, but Dispatched might not make
+    // sense)
+    pub fn get_job_by_state(job_state: &str, conn: &PgConnection) -> QueryResult<Vec<Job>> {
+        Counter::DBCall.increment();
+        jobs::table.filter(jobs::job_state.eq(job_state)).load(conn)
     }
 
     pub fn list(lpj: ListProjectJobs, conn: &PgConnection) -> QueryResult<(Vec<Job>, i64)> {
@@ -119,6 +139,12 @@ impl Job {
         Counter::DBCall.increment();
         diesel::insert_into(jobs::table).values(job)
                                         .get_result(conn)
+    }
+
+    pub fn update(job: &UpdateJob, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(jobs::table.find(job.id)).set(job)
+                                                .execute(conn)
     }
 
     pub fn count(job_state: jobsrv::JobState,
