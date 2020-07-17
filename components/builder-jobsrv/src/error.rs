@@ -59,7 +59,7 @@ pub enum Error {
     JobGroupCancel(diesel::result::Error),
     JobGroupGet(postgres::error::Error),
     JobGroupOriginGet(postgres::error::Error),
-    JobGroupPending(postgres::error::Error),
+    JobGroupPending(diesel::result::Error),
     JobGroupSetState(postgres::error::Error),
     JobGraphPackageInsert(postgres::error::Error),
     JobGraphPackageStats(postgres::error::Error),

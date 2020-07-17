@@ -31,6 +31,7 @@ use protobuf::{self,
 use crate::db::{config::DataStoreCfg,
                 migration::setup_ids,
                 models::jobs::{Group,
+                               GroupProject,
                                Job,
                                NewJob},
                 pool::Pool,
@@ -557,17 +558,17 @@ impl DataStore {
 
         let conn = self.diesel_pool.get_conn()?;
 
-        let groups = Groups::pending_job_groups(count, &conn).map_err(Error::JobGroupPending)?;
+        let group_rows = Group::pending_job_groups(count, &conn).map_err(Error::JobGroupPending)?;
 
-        for group_row in groups {
+        for group_row in group_rows {
             let mut group: jobsrv::JobGroup = group_row.into();
 
-            let project_rows = &conn.query("SELECT * FROM get_group_projects_for_group_v1($1)",
-                                           &[&(group.get_id() as i64)])
+            let projects = GroupProject::get_group_projects(group_row.id, &conn)                                  
                                     .map_err(Error::JobGroupPending)?;
-            let projects = self.rows_to_job_group_projects(&project_rows)?;
+            let projects: Vec<jobsrv::JobGroupProject> =
+                projects.iter().map(|&x| x.into()).collect();
 
-            group.set_projects(projects);
+            group.set_projects(RepeatedField::from_vec(projects));
             groups.push(group);
         }
 
