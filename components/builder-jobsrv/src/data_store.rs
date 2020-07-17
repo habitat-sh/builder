@@ -401,31 +401,18 @@ impl DataStore {
     }
 
     pub fn get_job_group(&self, msg: &jobsrv::JobGroupGet) -> Result<Option<jobsrv::JobGroup>> {
-        let group_id = msg.get_group_id();
+        let group_id = msg.get_group_id() as i64;
         let include_projects = msg.get_include_projects();
 
-        let conn = self.pool.get()?;
-        let rows = &conn.query("SELECT * FROM get_group_v1($1)", &[&(group_id as i64)])
-                        .map_err(Error::JobGroupGet)?;
-
-        if rows.is_empty() {
-            warn!("JobGroup id {} not found", group_id);
-            return Ok(None);
-        }
-
-        assert!(rows.len() == 1); // should never have more than one
-
-        let mut group = self.row_to_job_group(&rows.get(0))?;
+        let conn = self.diesel_pool.get_conn()?;
+        let group: jobsrv::JobGroup = Group::get_job_group(group_id, &conn)?.into();
 
         if include_projects {
-            let project_rows = &conn.query("SELECT * FROM get_group_projects_for_group_v1($1)",
-                                           &[&(group_id as i64)])
-                                    .map_err(Error::JobGroupGet)?;
+            let projects = GroupProject::get_group_projects(group_id, &conn)?;
 
-            assert!(!project_rows.is_empty()); // should at least have one
-            let projects = self.rows_to_job_group_projects(&project_rows)?;
+            let projects: Vec<jobsrv::JobGroupProject> = projects.iter().map(|&p| p.into()).collect();
 
-            group.set_projects(projects);
+            group.set_projects(RepeatedField::from_vec(projects));
         }
 
         Ok(Some(group))
