@@ -500,6 +500,18 @@ impl GroupProject {
         diesel::update(group_projects::table.find(project.id)).set(project)
                                                               .execute(conn)
     }
+
+    pub fn update_group_project_state(job_id: i64,
+                                      project_ident: &str,
+                                      state: jobsrv::JobGroupProjectState,
+                                      conn: &PgConnection)
+                                      -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(group_projects::table.filter(group_projects::id.eq(job_id)))
+        .set((group_projects::project_ident.eq(project_ident),
+        group_projects::project_state.eq(state.to_string())))
+                                                          .execute(conn)
+    }
 }
 impl Into<jobsrv::JobGroupProject> for GroupProject {
     fn into(self) -> jobsrv::JobGroupProject {

@@ -460,11 +460,12 @@ impl DataStore {
                                        project_name: &str,
                                        project_state: jobsrv::JobGroupProjectState)
                                        -> Result<()> {
-        let conn = self.pool.get()?;
-        let state = project_state.to_string();
-        conn.execute("SELECT set_group_project_name_state_v1($1, $2, $3)",
-                     &[&(group_id as i64), &project_name, &state])
-            .map_err(Error::JobGroupProjectSetState)?;
+        let conn = self.diesel_pool.get_conn()?;
+
+        GroupProject::update_group_project_state(group_id as i64,
+                                                 project_name,
+                                                 project_state,
+                                                 &conn).map_err(Error::JobGroupProjectSetState)?;
         Ok(())
     }
 
@@ -478,7 +479,7 @@ impl DataStore {
 
         let pid: i64 = group_project.id;
 
-        // This should not be here; we need first class types
+        // TODO This should not be here; we need first class types
         let state = match job.get_state() {
             jobsrv::JobState::Complete => "Success",
             jobsrv::JobState::Rejected => "NotStarted", // retry submission
