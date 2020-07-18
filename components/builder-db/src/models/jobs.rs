@@ -30,8 +30,8 @@ use crate::protocol::{jobsrv,
 
 use crate::{models::pagination::Paginate,
             schema::jobs::{busy_workers,
-                           groups,
                            group_projects,
+                           groups,
                            jobs}};
 
 use crate::functions::jobs as job_functions;
@@ -145,7 +145,7 @@ impl Job {
               .map(|x| (*x).clone())
     }
 
-    // job_state should be an enum, at least on the rust side
+    // job_state should be an enum, at least on the rust side (see  jobsrv::JobState)
     // Maybe this should filter by target.... (CanceledPending is ok, but Dispatched might not make
     // sense)
     pub fn get_job_by_state(job_state: &str, conn: &PgConnection) -> QueryResult<Vec<Job>> {
@@ -442,31 +442,73 @@ impl BusyWorker {
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "group_projects"]
-pub struct GroupProject { 
-  pub id: i64,
-  pub owner_id: i64,
-  pub project_name: String,
-  pub project_ident: String, //PackageIdent?
-  pub project_state: String, //Enum?
-  pub job_id: i64,
-  pub target: String, //PackageTarget?
-  pub created_at: Option<DateTime<Utc>>,
-  pub updated_at: Option<DateTime<Utc>>,
+pub struct GroupProject {
+    pub id:            i64,
+    pub owner_id:      i64,
+    pub project_name:  String,
+    pub project_ident: String,
+    pub project_state: String, // Enum?
+    pub job_id:        i64,
+    pub target:        String, // PackageTarget?
+    pub created_at:    Option<DateTime<Utc>>,
+    pub updated_at:    Option<DateTime<Utc>>,
+}
+
+#[derive(AsChangeset)]
+#[table_name = "group_projects"]
+pub struct UpdateGroupProject {
+    pub id:            i64,
+    pub project_state: String,
+    pub job_id:        i64,
+    pub project_ident: Option<String>,
+    pub updated_at:    Option<DateTime<Utc>>,
 }
 
 impl GroupProject {
-  pub fn get_group_projects(group_id: i64, conn: &PgConnection) -> QueryResult<Vec<GroupProject>> {
+    pub fn get_group_projects(group_id: i64,
+                              conn: &PgConnection)
+                              -> QueryResult<Vec<GroupProject>> {
         Counter::DBCall.increment();
-        group_projects::table.filter(group_projects::owner_id.eq(group_id)).get_results(conn)
-  }
-}
+        group_projects::table.filter(group_projects::owner_id.eq(group_id))
+                             .get_results(conn)
+    }
 
+    // The only consumer of this only wants the id, maybe simplify
+    //
+    pub fn get_group_project_by_name(group_id: i64,
+                                     name: &str,
+                                     conn: &PgConnection)
+                                     -> QueryResult<GroupProject> {
+        Counter::DBCall.increment();
+        group_projects::table.filter(group_projects::owner_id.eq(group_id))
+                             .filter(group_projects::project_name.eq(name))
+                             // We would like to assume that group_id/name form
+                             // a unique id. However the group_projects table lacks a constraint
+                             // to that effect, so we're just trusting things here.
+                             // TODO ADD A CONSTRAINT
+                             .first(conn)
+    }
+
+    // Diesel interprets a 'None' in an option field as not needing update
+    // http://diesel.rs/guides/all-about-updates/#aschangeset
+    // TODO Figure out timestamp now for updated_at (not implemented)
+    // https://github.com/diesel-rs/diesel/issues/91
+    pub fn update_group_project(project: &UpdateGroupProject,
+                                conn: &PgConnection)
+                                -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(group_projects::table.find(project.id)).set(project)
+                                                              .execute(conn)
+    }
+}
 impl Into<jobsrv::JobGroupProject> for GroupProject {
     fn into(self) -> jobsrv::JobGroupProject {
         let mut project = jobsrv::JobGroupProject::new();
-        
-        //TODO: Should this return a result?
-        let project_state = self.project_state.parse::<jobsrv::JobGroupProjectState>().unwrap();
+
+        // TODO: Should this return a result?
+        let project_state = self.project_state
+                                .parse::<jobsrv::JobGroupProjectState>()
+                                .unwrap();
 
         project.set_name(self.project_name);
         project.set_ident(self.project_ident);

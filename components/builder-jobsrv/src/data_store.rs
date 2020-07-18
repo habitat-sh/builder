@@ -33,7 +33,8 @@ use crate::db::{config::DataStoreCfg,
                 models::jobs::{Group,
                                GroupProject,
                                Job,
-                               NewJob},
+                               NewJob,
+                               UpdateGroupProject},
                 pool::Pool,
                 DbPool};
 
@@ -405,12 +406,15 @@ impl DataStore {
         let include_projects = msg.get_include_projects();
 
         let conn = self.diesel_pool.get_conn()?;
-        let group: jobsrv::JobGroup = Group::get_job_group(group_id, &conn)?.into();
+        let group: jobsrv::JobGroup =
+            Group::get_job_group(group_id, &conn).map_err(Error::JobGroupGet)?
+                                                 .into();
 
         if include_projects {
             let projects = GroupProject::get_group_projects(group_id, &conn)?;
 
-            let projects: Vec<jobsrv::JobGroupProject> = projects.iter().map(|&p| p.into()).collect();
+            let projects: Vec<jobsrv::JobGroupProject> =
+                projects.iter().map(|&p| p.into()).collect();
 
             group.set_projects(RepeatedField::from_vec(projects));
         }
@@ -439,40 +443,6 @@ impl DataStore {
         Ok(group)
     }
 
-    fn row_to_job_group_project(&self,
-                                row: &postgres::row::Row)
-                                -> Result<jobsrv::JobGroupProject> {
-        let mut project = jobsrv::JobGroupProject::new();
-
-        let name: String = row.get("project_name");
-        let ident: String = row.get("project_ident");
-        let state: String = row.get("project_state");
-        let job_id: i64 = row.get("job_id");
-        let target: String = row.get("target");
-        let project_state = state.parse::<jobsrv::JobGroupProjectState>()?;
-
-        project.set_name(name);
-        project.set_ident(ident);
-        project.set_state(project_state);
-        project.set_target(target);
-        project.set_job_id(job_id as u64);
-
-        Ok(project)
-    }
-
-    fn rows_to_job_group_projects(&self,
-                                  rows: &postgres::row::Row)
-                                  -> Result<RepeatedField<jobsrv::JobGroupProject>> {
-        let mut projects = RepeatedField::new();
-
-        for row in rows {
-            let project = self.row_to_job_group_project(&row)?;
-            projects.push(project);
-        }
-
-        Ok(projects)
-    }
-
     pub fn set_job_group_state(&self,
                                group_id: u64,
                                group_state: jobsrv::JobGroupState)
@@ -499,20 +469,16 @@ impl DataStore {
     }
 
     pub fn set_job_group_job_state(&self, job: &jobsrv::Job) -> Result<()> {
-        let conn = self.pool.get()?;
-        let rows = &conn.query("SELECT * FROM find_group_project_v1($1, $2)",
-                               &[&(job.get_owner_id() as i64), &job.get_project().get_name()])
-                        .map_err(Error::JobGroupProjectSetState)?;
+        let conn = self.diesel_pool.get_conn()?;
+        let group_project =
+            GroupProject::get_group_project_by_name(job.get_owner_id() as i64,
+                                                    &job.get_project().get_name(),
+                                                    &conn).map_err(Error::JobGroupProjectSetState)?;
+        // TODO Capture not found and returnErr(Error::UnknownJobGroupProjectState);
 
-        // No rows means this job might not be one we care about
-        if rows.is_empty() {
-            warn!("No project found for job id: {}", job.get_id());
-            return Err(Error::UnknownJobGroupProjectState);
-        }
+        let pid: i64 = group_project.id;
 
-        assert!(rows.len() == 1); // should never have more than one
-        let pid: i64 = rows.get(0).get("id");
-
+        // This should not be here; we need first class types
         let state = match job.get_state() {
             jobsrv::JobState::Complete => "Success",
             jobsrv::JobState::Rejected => "NotStarted", // retry submission
@@ -525,17 +491,21 @@ impl DataStore {
             | jobsrv::JobState::CancelComplete => "Canceled",
         };
 
-        if job.get_state() == jobsrv::JobState::Complete {
-            let ident = job.get_package_ident().to_string();
-
-            conn.execute("SELECT set_group_project_state_ident_v1($1, $2, $3, $4)",
-                         &[&pid, &(job.get_id() as i64), &state, &ident])
-                .map_err(Error::JobGroupProjectSetState)?;
+        let update_ident = if job.get_state() == jobsrv::JobState::Complete {
+            Some(job.get_package_ident().to_string())
         } else {
-            conn.execute("SELECT set_group_project_state_v1($1, $2, $3)",
-                         &[&pid, &(job.get_id() as i64), &state])
-                .map_err(Error::JobGroupProjectSetState)?;
+            None
         };
+
+        let update = UpdateGroupProject { id:            group_project.id,
+                                          project_state: state.to_string(),
+                                          job_id:        job.get_id() as i64,
+                                          project_ident: update_ident,
+                                          updated_at:    None, /* TODO THIS MIGHT NEED TO BE
+                                                                * FILLED OUT BY US, figure this
+                                                                * out! */ };
+
+        GroupProject::update_group_project(&update, &conn)?;
 
         Ok(())
     }
