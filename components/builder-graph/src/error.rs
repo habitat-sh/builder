@@ -62,22 +62,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Db(ref err) => err.description(),
-            Error::DbPoolTimeout(ref err) => err.description(),
-            Error::DbTransaction(ref err) => err.description(),
-            Error::DieselError(ref err) => err.description(),
-            Error::HabitatCore(ref err) => err.description(),
-            Error::IO(ref err) => err.description(),
-            Error::JobGraphPackagesGet(ref err) => err.description(),
-            Error::Protobuf(ref err) => err.description(),
-            Error::Serde(ref err) => err.description(),
-            Error::UnknownJobGraphPackage => "Unknown Package",
-        }
-    }
-}
+impl error::Error for Error {}
 
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }

@@ -80,30 +80,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::ApiError(..) => "Response returned a non-200 status code.",
-            Error::RpcError(..) => "Response returned a non-200 status code.",
-            Error::HttpClient(ref err) => err.description(),
-            Error::IO(ref err) => err.description(),
-            Error::Base64Error(ref e) => e.description(),
-            Error::ChronoError(ref e) => e.description(),
-            Error::DecryptError(_) => "Error decrypting integration",
-            Error::EncryptError(_) => "Error encrypting integration",
-            Error::FromUtf8Error(ref e) => e.description(),
-            Error::HabitatCore(ref err) => err.description(),
-            Error::OriginDeleteError(_) => "Error attempting to delete origin",
-            Error::OriginMemberRoleError(_) => "Error parsing member type",
-            Error::Protobuf(ref err) => err.description(),
-            Error::Protocol(ref err) => err.description(),
-            Error::Serialization(ref err) => err.description(),
-            Error::TokenInvalid => "Token is invalid",
-            Error::TokenExpired => "Token is expired",
-            Error::BadResponse => "Response missing required fields",
-        }
-    }
-}
+impl error::Error for Error {}
 
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }

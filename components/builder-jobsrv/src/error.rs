@@ -196,66 +196,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::BuilderCore(ref err) => err.description(),
-            Error::BusyWorkerUpsert(ref err) => err.description(),
-            Error::BusyWorkerDelete(ref err) => err.description(),
-            Error::BusyWorkersGet(ref err) => err.description(),
-            Error::CaughtPanic(..) => "Caught a panic",
-            Error::Conflict => "Entity conflict",
-            Error::Db(ref err) => err.description(),
-            Error::DbPoolTimeout(ref err) => err.description(),
-            Error::DbTransaction(ref err) => err.description(),
-            Error::DbTransactionCommit(ref err) => err.description(),
-            Error::DbTransactionStart(ref err) => err.description(),
-            Error::DieselError(ref err) => err.description(),
-            Error::FromUtf8(ref err) => err.description(),
-            Error::HabitatCore(ref err) => err.description(),
-            Error::IO(ref err) => err.description(),
-            Error::InvalidUrl => "Bad Url!",
-            Error::JobGroupAudit(ref err) => err.description(),
-            Error::JobGroupCreate(ref err) => err.description(),
-            Error::JobGroupCancel(ref err) => err.description(),
-            Error::JobGroupGet(ref err) => err.description(),
-            Error::JobGroupOriginGet(ref err) => err.description(),
-            Error::JobGroupPending(ref err) => err.description(),
-            Error::JobGroupSetState(ref err) => err.description(),
-            Error::JobGraphPackageInsert(ref err) => err.description(),
-            Error::JobGraphPackageStats(ref err) => err.description(),
-            Error::JobGraphPackagesGet(ref err) => err.description(),
-            Error::JobGroupProjectSetState(ref err) => err.description(),
-            Error::JobCreate(ref err) => err.description(),
-            Error::JobGet(ref err) => err.description(),
-            Error::JobLogArchive(_, ref err) => err.description(),
-            Error::JobLogRetrieval(_, ref err) => err.description(),
-            Error::JobMarkArchived(ref err) => err.description(),
-            Error::JobPending(ref err) => err.description(),
-            Error::JobReset(ref err) => err.description(),
-            Error::JobSetLogUrl(ref err) => err.description(),
-            Error::JobSetState(ref err) => err.description(),
-            Error::SyncJobs(ref err) => err.description(),
-            Error::LogDirDoesNotExist(_, ref err) => err.description(),
-            Error::LogDirIsNotDir(_) => "Build log directory is not a directory",
-            Error::LogDirNotWritable(_) => "Build log directory is not writable",
-            Error::NotFound => "Entity not found",
-            Error::ParseError(ref err) => err.description(),
-            Error::ParseVCSInstallationId(_) => "VCS installation id could not be parsed as u64",
-            Error::Protobuf(ref err) => err.description(),
-            Error::Protocol(ref err) => err.description(),
-            Error::System => "Internal error",
-            Error::UnknownJobState(ref err) => err.description(),
-            Error::UnknownJobGroup => "Unknown Group",
-            Error::UnknownJobGroupState => "Unknown Group State",
-            Error::UnknownJobGraphPackage => "Unknown Package",
-            Error::UnknownJobGroupProjectState => "Unknown Project State",
-            Error::UnknownVCS => "Unknown VCS",
-            Error::Utf8(ref err) => err.description(),
-            Error::Zmq(ref err) => err.description(),
-        }
-    }
-}
+impl error::Error for Error {}
 
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {

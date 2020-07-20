@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{error,
-          fmt,
+use std::{fmt,
           result};
 
 use postgres;
@@ -87,35 +86,6 @@ impl fmt::Display for Error {
             Error::TransactionCommit(ref e) => format!("Error committing transaction: {}", e),
         };
         write!(f, "{}", msg)
-    }
-}
-
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::AsyncListen(ref e) => e.description(),
-            Error::AsyncNotification(ref e) => e.description(),
-            Error::AsyncMalformedChannel(_) => "Error parsing a channel string",
-            Error::AsyncMalformedShardId(_) => "Error parsing a channel strings shard id",
-            Error::AsyncFunctionCheck(ref e) => e.description(),
-            Error::AsyncFunctionUpdate(ref e) => e.description(),
-            Error::ConnectionTimeout(ref e) => e.description(),
-            Error::FunctionCreate(_) => "Error creating database function",
-            Error::FunctionDrop(_) => "Error dropping database function",
-            Error::FunctionRun(_) => "Error running a database function",
-            Error::Migration(_) => "Error executing migration",
-            Error::MigrationCheck(_) => "Error checking if a migration has run",
-            Error::MigrationTable(_) => "Error creat2ing migration tracking table",
-            Error::MigrationTracking(_) => "Error updating migration tracking table",
-            Error::MigrationLock(_) => "Error getting migration lock",
-            Error::PostgresConnect(ref e) => e.description(),
-            Error::SchemaCreate(_) => "Error creating a schema",
-            Error::SchemaDrop(_) => "Error dropping a schema",
-            Error::SchemaSwitch(_) => "Error switching schema",
-            Error::SetSearchPath(_) => "Error setting local search path",
-            Error::TransactionCreate(_) => "Error creating a transaction",
-            Error::TransactionCommit(_) => "Error committing a transaction",
-        }
     }
 }
 

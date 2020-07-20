@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::{collections::HashMap,
-          error,
           fmt,
           io};
 
@@ -55,21 +54,6 @@ impl fmt::Display for HubError {
             HubError::Serialization(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
-    }
-}
-
-impl error::Error for HubError {
-    fn description(&self) -> &str {
-        match *self {
-            HubError::ApiError(..) => "Response returned a non-200 status code.",
-            HubError::AppAuth(_) => "GitHub App authorization error.",
-            HubError::BuilderCore(ref err) => err.description(),
-            HubError::ContentDecode(ref err) => err.description(),
-            HubError::HttpClient(ref err) => err.description(),
-            HubError::IO(ref err) => err.description(),
-            HubError::JWT(_) => "Unable to generate JWT token",
-            HubError::Serialization(ref err) => err.description(),
-        }
     }
 }
 

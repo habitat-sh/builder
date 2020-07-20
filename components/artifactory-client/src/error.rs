@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::{collections::HashMap,
-          error,
           fmt,
           io};
 
@@ -44,18 +43,6 @@ impl fmt::Display for ArtifactoryError {
             ArtifactoryError::HabitatCore(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
-    }
-}
-
-impl error::Error for ArtifactoryError {
-    fn description(&self) -> &str {
-        match *self {
-            ArtifactoryError::HttpClient(ref err) => err.description(),
-            ArtifactoryError::ApiError(..) => "Response returned a non-200 status code.",
-            ArtifactoryError::BuilderCore(ref err) => err.description(),
-            ArtifactoryError::IO(ref err) => err.description(),
-            ArtifactoryError::HabitatCore(ref err) => err.description(),
-        }
     }
 }
 
