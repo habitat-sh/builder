@@ -173,6 +173,19 @@ impl Job {
                                                 .execute(conn)
     }
 
+    pub fn update_with_sync(job: &UpdateJob, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(jobs::table.find(job.id)).set((jobs::job_state.eq(&job.job_state),
+            jobs::scheduler_sync.eq(false),
+            jobs::sync_count.eq(jobs::sync_count + 1),
+            jobs::build_started_at.eq(job.build_started_at),
+            jobs::build_finished_at.eq(job.build_finished_at),
+            jobs::package_ident.eq(&job.package_ident),
+            jobs::net_error_code.eq(job.net_error_code),
+            jobs::net_error_msg.eq(&job.net_error_msg)))
+                                                .execute(conn)
+    }
+
     pub fn count(job_state: jobsrv::JobState,
                  target: PackageTarget,
                  conn: &PgConnection)
@@ -182,6 +195,11 @@ impl Job {
                    .filter(jobs::job_state.eq(job_state.to_string()))
                    .filter(jobs::target.eq(target.to_string()))
                    .first(conn)
+    }
+
+    pub fn mark_as_archived(job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        diesel::update(jobs::table.find(job_id)).set(jobs::archived.eq(true))
+                                                .execute(conn)
     }
 
     pub fn sync_jobs(conn: &PgConnection) -> QueryResult<Vec<Job>> {

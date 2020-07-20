@@ -33,7 +33,8 @@ use crate::db::{config::DataStoreCfg,
                                GroupProject,
                                Job,
                                NewJob,
-                               UpdateGroupProject},
+                               UpdateGroupProject,
+                               UpdateJob},
                 pool::Pool,
                 DbPool};
 
@@ -209,10 +210,7 @@ impl DataStore {
     /// * If a connection cannot be gotten from the pool
     /// * If the job cannot be updated in the database
     pub fn update_job(&self, job: &jobsrv::Job) -> Result<()> {
-        // TODO MAKE THIS USE THE Job::update function we just wrote
-        //
-
-        let conn = self.pool.get()?;
+        let conn = self.diesel_pool.get_conn()?;
         let job_id = job.get_id() as i64;
         let job_state = job.get_state().to_string();
 
@@ -241,20 +239,20 @@ impl DataStore {
         };
 
         let (err_code, err_msg) = if job.has_error() {
-            (Some(job.get_error().get_code() as i32), Some(job.get_error().get_msg()))
+            (Some(job.get_error().get_code() as i32), Some(job.get_error().get_msg().to_string()))
         } else {
             (None, None)
         };
 
-        conn.execute("SELECT update_job_v3($1, $2, $3, $4, $5, $6, $7)",
-                     &[&job_id,
-                       &job_state,
-                       &build_started_at,
-                       &build_finished_at,
-                       &ident,
-                       &err_code,
-                       &err_msg])
-            .map_err(Error::JobSetState)?;
+        let job = UpdateJob { id: job_id,
+                              job_state,
+                              net_error_code: err_code,
+                              net_error_msg: err_msg,
+                              package_ident: ident,
+                              build_started_at,
+                              build_finished_at };
+
+        Job::update_with_sync(&job, &conn).map_err(Error::JobSetState)?;
 
         Ok(())
     }
@@ -263,65 +261,9 @@ impl DataStore {
     /// and mechanism for retrieval are dependent on the configured archiving
     /// mechanism.
     pub fn mark_as_archived(&self, job_id: u64) -> Result<()> {
-        let conn = self.pool.get()?;
-        conn.execute("SELECT mark_as_archived_v1($1)", &[&(job_id as i64)])
-            .map_err(Error::JobMarkArchived)?;
+        let conn = self.diesel_pool.get_conn()?;
+        Job::mark_as_archived(job_id as i64, &conn).map_err(Error::JobMarkArchived)?;
         Ok(())
-    }
-
-    /// Create or update a busy worker
-    ///
-    /// # Errors
-    ///
-    /// * If the pool has no connections available
-    /// * If the busy worker cannot be created
-    pub fn upsert_busy_worker(&self, bw: &jobsrv::BusyWorker) -> Result<()> {
-        let conn = self.pool.get()?;
-
-        conn.execute("SELECT FROM upsert_busy_worker_v1($1, $2, $3)",
-                     &[&bw.get_ident(),
-                       &(bw.get_job_id() as i64),
-                       &bw.get_quarantined()])
-            .map_err(Error::BusyWorkerUpsert)?;
-
-        Ok(())
-    }
-
-    /// Delete a busy worker
-    ///
-    /// # Errors
-    ///
-    /// * If the pool has no connections available
-    /// * If the busy worker cannot be created
-    pub fn delete_busy_worker(&self, bw: &jobsrv::BusyWorker) -> Result<()> {
-        let conn = self.pool.get()?;
-
-        conn.execute("SELECT FROM delete_busy_worker_v1($1, $2)",
-                     &[&bw.get_ident(), &(bw.get_job_id() as i64)])
-            .map_err(Error::BusyWorkerDelete)?;
-
-        Ok(())
-    }
-
-    /// Get a list of busy workers
-    ///
-    /// # Errors
-    ///
-    /// * If the pool has no connections available
-    /// * If the busy workers cannot be created
-    pub fn get_busy_workers(&self) -> Result<Vec<jobsrv::BusyWorker>> {
-        let conn = self.pool.get()?;
-
-        let rows = conn.query("SELECT * FROM get_busy_workers_v1()", &[])
-                       .map_err(Error::BusyWorkersGet)?;
-
-        let mut workers = Vec::new();
-        for row in rows.iter() {
-            let bw = row_to_busy_worker(&row)?;
-            workers.push(bw);
-        }
-
-        Ok(workers)
     }
 
     pub fn create_job_group(&self,
