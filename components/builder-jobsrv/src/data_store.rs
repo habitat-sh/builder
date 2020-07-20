@@ -25,7 +25,6 @@ use diesel::{result::Error as Dre,
              Connection};
 use postgres;
 use protobuf::{self,
-               ProtobufEnum,
                RepeatedField};
 
 use crate::db::{config::DataStoreCfg,
@@ -38,10 +37,7 @@ use crate::db::{config::DataStoreCfg,
                 pool::Pool,
                 DbPool};
 
-use crate::protocol::{jobsrv,
-                      net::{ErrCode,
-                            NetError},
-                      originsrv};
+use crate::protocol::jobsrv;
 
 use crate::error::{Error,
                    Result};
@@ -103,9 +99,9 @@ impl DataStore {
 
         if job.get_project().get_vcs_type() == "git" {
             let project = job.get_project();
-            let install_id: Option<&str> = {
+            let install_id: Option<String> = {
                 if project.has_vcs_installation_id() {
-                    Some(project.get_vcs_installation_id().to_string().as_str())
+                    Some(project.get_vcs_installation_id().to_string())
                 } else {
                     None
                 }
@@ -120,7 +116,7 @@ impl DataStore {
                                    project_plan_path: &project.get_plan_path(),
                                    vcs: &project.get_vcs_type(),
                                    vcs_arguments: &vec![Some(project.get_vcs_data()),
-                                                        install_id],
+                                                        install_id.as_deref()],
                                    channel,
                                    target: &job.get_target() };
 
@@ -144,7 +140,7 @@ impl DataStore {
         let id = get_job.get_id() as i64;
         let result = Job::get(id, &conn);
 
-        let job = if let diesel::QueryResult::Err(NotFound) = result {
+        let job = if let diesel::QueryResult::Err(diesel::result::Error::NotFound) = result {
             None
         } else {
             let jobsrv: jobsrv::Job = result.map_err(Error::JobGet)?.into();
@@ -165,7 +161,7 @@ impl DataStore {
         let conn = self.diesel_pool.get_conn()?;
 
         let result = Job::get_next_pending(worker, target, &conn);
-        let job = if let diesel::QueryResult::Err(NotFound) = result {
+        let job = if let diesel::QueryResult::Err(diesel::result::Error::NotFound) = result {
             None
         } else {
             let jobsrv: jobsrv::Job = result.map_err(Error::JobPending)?.into();
@@ -185,7 +181,7 @@ impl DataStore {
         let conn = self.diesel_pool.get_conn()?;
 
         let result = Job::get_job_by_state("CancelPending", &conn).map_err(Error::JobPending)?;
-        let jobs: Vec<jobsrv::Job> = result.iter().map(|&x| x.into()).collect();
+        let jobs: Vec<jobsrv::Job> = result.into_iter().map(|x| x.into()).collect();
         Ok(jobs)
     }
 
@@ -200,7 +196,7 @@ impl DataStore {
         let conn = self.diesel_pool.get_conn()?;
 
         let result = Job::get_job_by_state("Dispatched", &conn).map_err(Error::JobGet)?;
-        let jobs: Vec<jobsrv::Job> = result.iter().map(|&x| x.into()).collect();
+        let jobs: Vec<jobsrv::Job> = result.into_iter().map(|x| x.into()).collect();
         Ok(jobs)
     }
 
@@ -339,7 +335,7 @@ impl DataStore {
         let root_project = format!("{}/{}", msg.get_origin(), msg.get_package());
         let target = msg.get_target().to_string();
         let result = Group::insert_group(&root_project, &target, &project_tuples, &conn)?;
-        let group: jobsrv::JobGroup = result.into();
+        let mut group: jobsrv::JobGroup = result.into();
 
         let mut projects = RepeatedField::new();
 
@@ -406,7 +402,7 @@ impl DataStore {
         let include_projects = msg.get_include_projects();
 
         let conn = self.diesel_pool.get_conn()?;
-        let group: jobsrv::JobGroup =
+        let mut group: jobsrv::JobGroup =
             Group::get_job_group(group_id, &conn).map_err(Error::JobGroupGet)?
                                                  .into();
 
@@ -414,7 +410,7 @@ impl DataStore {
             let projects = GroupProject::get_group_projects(group_id, &conn)?;
 
             let projects: Vec<jobsrv::JobGroupProject> =
-                projects.iter().map(|&p| p.into()).collect();
+                projects.into_iter().map(|p| p.into()).collect();
 
             group.set_projects(RepeatedField::from_vec(projects));
         }
@@ -477,8 +473,6 @@ impl DataStore {
                                                     &conn).map_err(Error::JobGroupProjectSetState)?;
         // TODO Capture not found and returnErr(Error::UnknownJobGroupProjectState);
 
-        let pid: i64 = group_project.id;
-
         // TODO This should not be here; we need first class types
         let state = match job.get_state() {
             jobsrv::JobState::Complete => "Success",
@@ -518,13 +512,14 @@ impl DataStore {
 
         let group_rows = Group::pending_job_groups(count, &conn).map_err(Error::JobGroupPending)?;
 
-        for group_row in group_rows {
+        for group_row in group_rows.into_iter() {
+            let row_id = group_row.id;
             let mut group: jobsrv::JobGroup = group_row.into();
 
-            let projects = GroupProject::get_group_projects(group_row.id, &conn)                                  
-                                    .map_err(Error::JobGroupPending)?;
+            let projects =
+                GroupProject::get_group_projects(row_id, &conn).map_err(Error::JobGroupPending)?;
             let projects: Vec<jobsrv::JobGroupProject> =
-                projects.iter().map(|&x| x.into()).collect();
+                projects.into_iter().map(|x| x.into()).collect();
 
             group.set_projects(RepeatedField::from_vec(projects));
             groups.push(group);
@@ -534,30 +529,15 @@ impl DataStore {
     }
 
     pub fn sync_jobs(&self) -> Result<Vec<jobsrv::Job>> {
-        let mut jobs = Vec::new();
-        let conn = self.pool.get()?;
-
-        let rows = &conn.query("SELECT * FROM sync_jobs_v2()", &[])
-                        .map_err(Error::SyncJobs)?;
-
-        for row in rows.iter() {
-            match row_to_job(&row) {
-                Ok(job) => jobs.push(job),
-                Err(e) => {
-                    warn!("Failed to convert row to job {}", e);
-                }
-            };
-        }
-
-        Ok(jobs)
+        let conn = self.diesel_pool.get_conn()?;
+        let rows = Job::sync_jobs(&conn).map_err(Error::SyncJobs)?;
+        let result: Vec<jobsrv::Job> = rows.into_iter().map(|x| x.into()).collect();
+        Ok(result)
     }
 
     pub fn set_job_sync(&self, job_id: u64) -> Result<()> {
-        let conn = self.pool.get()?;
-
-        conn.query("SELECT * FROM set_jobs_sync_v2($1)", &[&(job_id as i64)])
-            .map_err(Error::SyncJobs)?;
-
+        let conn = self.diesel_pool.get_conn()?;
+        Job::set_job_sync(job_id as i64, &conn).map_err(Error::SyncJobs)?;
         Ok(())
     }
 }
@@ -574,110 +554,4 @@ fn row_to_busy_worker(row: &postgres::row::Row) -> Result<jobsrv::BusyWorker> {
     bw.set_quarantined(quarantined);
 
     Ok(bw)
-}
-
-/// Translate a database `jobs` row to a `jobsrv::Job`.
-///
-/// # Errors
-///
-/// * If the job state is unknown
-/// * If the VCS type is unknown
-fn row_to_job(row: &postgres::row::Row) -> Result<jobsrv::Job> {
-    let mut job = jobsrv::Job::new();
-    let id: i64 = row.get("id");
-    job.set_id(id as u64);
-    let owner_id: i64 = row.get("owner_id");
-    job.set_owner_id(owner_id as u64);
-
-    let js: String = row.get("job_state");
-    let job_state: jobsrv::JobState = js.parse().map_err(Error::UnknownJobState)?;
-    job.set_state(job_state);
-
-    let created_at = row.get::<&str, DateTime<Utc>>("created_at");
-    job.set_created_at(created_at.to_rfc3339());
-
-    // Note: these may be null (e.g., a job is scheduled, but hasn't
-    // started; a job has started and is currently running)
-    if let Some(Ok(start)) = row.get_opt::<&str, DateTime<Utc>>("build_started_at") {
-        job.set_build_started_at(start.to_rfc3339());
-    }
-    if let Some(Ok(stop)) = row.get_opt::<&str, DateTime<Utc>>("build_finished_at") {
-        job.set_build_finished_at(stop.to_rfc3339());
-    }
-
-    // package_ident will only be present if the build succeeded
-    if let Some(Ok(ident_str)) = row.get_opt::<&str, String>("package_ident") {
-        let ident: originsrv::OriginPackageIdent = ident_str.parse().unwrap();
-        job.set_package_ident(ident);
-    }
-
-    let mut project = originsrv::OriginProject::new();
-    let project_id: i64 = row.get("project_id");
-    project.set_id(project_id as u64);
-
-    // only 'project_name' exists in the jobs table, but it's just
-    // "origin/name", so we can set those fields in the Project
-    // struct.
-    //
-    // 'package_ident' may be null, though, so we shouldn't use it to
-    // get the origin and name.
-    let name: String = row.get("project_name");
-    let name_for_split = name.clone();
-    let name_split: Vec<&str> = name_for_split.split('/').collect();
-    project.set_origin_name(name_split[0].to_string());
-    project.set_package_name(name_split[1].to_string());
-    project.set_name(name);
-
-    let project_owner_id: i64 = row.get("project_owner_id");
-    project.set_owner_id(project_owner_id as u64);
-    project.set_plan_path(row.get("project_plan_path"));
-
-    let rvcs: String = row.get("vcs");
-    match rvcs.as_ref() {
-        "git" => {
-            let mut vcsa: Vec<Option<String>> = row.get("vcs_arguments");
-            project.set_vcs_type(String::from("git"));
-            project.set_vcs_data(vcsa.remove(0).expect("expected vcs data"));
-            if !vcsa.is_empty() {
-                if let Some(install_id) = vcsa.remove(0) {
-                    project.set_vcs_installation_id(
-                        install_id
-                            .parse::<u32>()
-                            .map_err(Error::ParseVCSInstallationId)?,
-                    );
-                }
-            }
-        }
-        e => {
-            error!("Unknown VCS, {}", e);
-            return Err(Error::UnknownVCS);
-        }
-    }
-    job.set_project(project);
-
-    if let Some(Ok(err_msg)) = row.get_opt::<&str, String>("net_error_msg") {
-        let err_code: i32 = row.get("net_error_code");
-        let mut err = NetError::new();
-
-        if let Some(net_err_code) = ErrCode::from_i32(err_code) {
-            err.set_code(net_err_code);
-            err.set_msg(err_msg);
-            job.set_error(err);
-        }
-    }
-
-    job.set_is_archived(row.get("archived"));
-
-    if let Some(Ok(channel)) = row.get_opt::<&str, String>("channel") {
-        job.set_channel(channel);
-    };
-
-    if let Some(Ok(worker)) = row.get_opt::<&str, String>("worker") {
-        job.set_worker(worker);
-    };
-
-    let target: String = row.get("target");
-    job.set_target(target);
-
-    Ok(job)
 }

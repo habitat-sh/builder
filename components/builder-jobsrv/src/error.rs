@@ -74,7 +74,7 @@ pub enum Error {
     JobReset(postgres::error::Error),
     JobSetLogUrl(postgres::error::Error),
     JobSetState(postgres::error::Error),
-    SyncJobs(postgres::error::Error),
+    SyncJobs(diesel::result::Error),
     LogDirDoesNotExist(PathBuf, io::Error),
     LogDirIsNotDir(PathBuf),
     LogDirNotWritable(PathBuf),

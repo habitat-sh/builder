@@ -42,6 +42,8 @@ DROP FUNCTION pending_jobs_v1 ;
 DROP FUNCTION set_group_project_name_state_v1 ;
 DROP FUNCTION set_group_project_state_ident_v1 ;
 DROP FUNCTION set_group_project_state_v1 ;
+DROP FUNCTION set_jobs_sync_v2
+DROP FUNCTION sync_jobs_v2
 
 -- USED
 -- add_audit_jobs_entry_v1 ;

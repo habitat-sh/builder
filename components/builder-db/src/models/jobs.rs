@@ -183,6 +183,20 @@ impl Job {
                    .filter(jobs::target.eq(target.to_string()))
                    .first(conn)
     }
+
+    pub fn sync_jobs(conn: &PgConnection) -> QueryResult<Vec<Job>> {
+        Counter::DBCall.increment();
+        jobs::table.filter(jobs::scheduler_sync.eq(false))
+                   .filter(jobs::sync_count.gt(0))
+                   .load(conn)
+    }
+
+    pub fn set_job_sync(job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(jobs::table.find(job_id)).set((jobs::scheduler_sync.eq(false),
+                                                      jobs::sync_count.eq(jobs::sync_count - 1)))
+                                                .execute(conn)
+    }
 }
 
 impl FromSql<JobRecord, diesel::pg::Pg> for Job {
