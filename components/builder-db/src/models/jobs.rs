@@ -14,7 +14,9 @@ use crate::protocol::{jobsrv,
                       originsrv};
 
 use crate::{models::pagination::Paginate,
-            schema::jobs::{busy_workers,
+            schema::jobs::{audit_jobs,
+                           busy_workers,
+                           group_projects,
                            groups,
                            jobs}};
 
@@ -195,6 +197,11 @@ pub struct Group {
 }
 
 impl Group {
+    pub fn get(id: i64, conn: &PgConnection) -> QueryResult<Group> {
+        Counter::DBCall.increment();
+        groups::table.filter(groups::id.eq(id)).get_result(conn)
+    }
+
     pub fn get_queued(project_name: &str, target: &str, conn: &PgConnection) -> QueryResult<Group> {
         Counter::DBCall.increment();
         groups::table.filter(groups::project_name.eq(project_name))
@@ -256,6 +263,43 @@ impl Into<jobsrv::JobGroup> for Group {
     }
 }
 
+////////////////////
+
+#[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[table_name = "audit_jobs"]
+pub struct AuditJob {
+    pub group_id:       i64,
+    pub operation:      i16,
+    pub trigger:        i16,
+    pub requester_id:   i64,
+    pub requester_name: String,
+    pub created_at:     Option<DateTime<Utc>>,
+}
+
+#[derive(Insertable)]
+#[table_name = "audit_jobs"]
+pub struct NewAuditJob<'a> {
+    pub group_id:       i64,
+    pub operation:      i16,
+    pub trigger:        i16,
+    pub requester_id:   i64,
+    pub requester_name: &'a str,
+    pub created_at:     Option<DateTime<Utc>>,
+}
+
+impl AuditJob {
+    pub fn create(audit_job: &NewAuditJob, conn: &PgConnection) -> QueryResult<AuditJob> {
+        Counter::DBCall.increment();
+        diesel::insert_into(audit_jobs::table).values(audit_job)
+                                              .get_result(conn)
+    }
+
+    pub fn get_for_group(g_id: i64, conn: &PgConnection) -> QueryResult<Vec<AuditJob>> {
+        Counter::DBCall.increment();
+        diesel::sql_query(format!("SELECT * from audit_jobs WHERE group_id={}", g_id)).get_results(conn)
+    }
+}
+
 pub struct NewBusyWorker<'a> {
     pub target:      &'a str,
     pub ident:       &'a str,
@@ -299,5 +343,39 @@ impl BusyWorker {
         Counter::DBCall.increment();
         diesel::delete(busy_workers::table.filter(busy_workers::ident.eq(ident))
                                           .filter(busy_workers::job_id.eq(job_id))).execute(conn)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[table_name = "group_projects"]
+pub struct GroupProject {
+    pub id:            i64,
+    pub owner_id:      i64, // This is the id of the associated group (should have been group_id)
+    pub project_name:  String,
+    pub project_ident: String,
+    pub project_state: String, // Enum?
+    pub job_id:        i64,
+    pub target:        String, // PackageTarget?
+    pub created_at:    Option<DateTime<Utc>>,
+    pub updated_at:    Option<DateTime<Utc>>,
+}
+
+#[derive(AsChangeset)]
+#[table_name = "group_projects"]
+pub struct UpdateGroupProject {
+    pub id:            i64,
+    pub project_state: String,
+    pub job_id:        i64,
+    pub project_ident: Option<String>,
+    pub updated_at:    Option<DateTime<Utc>>,
+}
+
+impl GroupProject {
+    pub fn get_group_projects(group_id: i64,
+                              conn: &PgConnection)
+                              -> QueryResult<Vec<GroupProject>> {
+        Counter::DBCall.increment();
+        group_projects::table.filter(group_projects::owner_id.eq(group_id))
+                             .get_results(conn)
     }
 }

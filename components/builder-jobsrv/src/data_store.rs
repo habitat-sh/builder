@@ -16,8 +16,7 @@
 
 embed_migrations!("src/migrations");
 
-use std::{io,
-          sync::Arc};
+use std::io;
 
 use chrono::{DateTime,
              Utc};
@@ -40,6 +39,8 @@ use crate::protocol::{jobsrv,
 use crate::error::{Error,
                    Result};
 
+mod test;
+
 /// DataStore inherints being Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Clone)]
 pub struct DataStore {
@@ -58,10 +59,11 @@ impl DataStore {
         DataStore { pool, diesel_pool }
     }
 
+    #[cfg(test)]
+    pub fn get_pool(&self) -> habitat_builder_db::diesel_pool::DbPool { self.diesel_pool.clone() }
+
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
-    pub fn from_pool(pool: Pool, diesel_pool: DbPool, _: Vec<u32>, _: Arc<String>) -> Self {
-        DataStore { pool, diesel_pool }
-    }
+    pub fn from_pool(pool: Pool, diesel_pool: DbPool) -> Self { DataStore { pool, diesel_pool } }
 
     /// Setup the datastore.
     ///
@@ -157,7 +159,6 @@ impl DataStore {
         let rows = &conn.query("SELECT * FROM next_pending_job_v2($1, $2)",
                                &[&worker, &target])
                         .map_err(Error::JobPending)?;
-
         if !rows.is_empty() {
             let row = rows.get(0);
             let job = row_to_job(&row)?;
@@ -283,113 +284,6 @@ impl DataStore {
         conn.execute("SELECT mark_as_archived_v1($1)", &[&(job_id as i64)])
             .map_err(Error::JobMarkArchived)?;
         Ok(())
-    }
-
-    /// Create or update a busy worker
-    ///
-    /// # Errors
-    ///
-    /// * If the pool has no connections available
-    /// * If the busy worker cannot be created
-    pub fn upsert_busy_worker(&self, bw: &jobsrv::BusyWorker) -> Result<()> {
-        let conn = self.pool.get()?;
-
-        conn.execute("SELECT FROM upsert_busy_worker_v1($1, $2, $3)",
-                     &[&bw.get_ident(),
-                       &(bw.get_job_id() as i64),
-                       &bw.get_quarantined()])
-            .map_err(Error::BusyWorkerUpsert)?;
-
-        Ok(())
-    }
-
-    /// Delete a busy worker
-    ///
-    /// # Errors
-    ///
-    /// * If the pool has no connections available
-    /// * If the busy worker cannot be created
-    pub fn delete_busy_worker(&self, bw: &jobsrv::BusyWorker) -> Result<()> {
-        let conn = self.pool.get()?;
-
-        conn.execute("SELECT FROM delete_busy_worker_v1($1, $2)",
-                     &[&bw.get_ident(), &(bw.get_job_id() as i64)])
-            .map_err(Error::BusyWorkerDelete)?;
-
-        Ok(())
-    }
-
-    /// Get a list of busy workers
-    ///
-    /// # Errors
-    ///
-    /// * If the pool has no connections available
-    /// * If the busy workers cannot be created
-    pub fn get_busy_workers(&self) -> Result<Vec<jobsrv::BusyWorker>> {
-        let conn = self.pool.get()?;
-
-        let rows = conn.query("SELECT * FROM get_busy_workers_v1()", &[])
-                       .map_err(Error::BusyWorkersGet)?;
-
-        let mut workers = Vec::new();
-        for row in rows.iter() {
-            let bw = row_to_busy_worker(&row)?;
-            workers.push(bw);
-        }
-
-        Ok(workers)
-    }
-
-    pub fn is_job_group_active(&self, project_name: &str) -> Result<bool> {
-        let conn = self.pool.get()?;
-
-        let rows = &conn.query("SELECT * FROM check_active_group_v1($1)", &[&project_name])
-                        .map_err(Error::JobGroupGet)?;
-
-        // If we get any rows back, we found one or more active groups
-        Ok(!rows.is_empty())
-    }
-
-    pub fn get_queued_job_group(&self, project_name: &str) -> Result<Option<jobsrv::JobGroup>> {
-        let conn = self.pool.get()?;
-
-        let rows = &conn.query("SELECT * FROM get_queued_group_v1($1)", &[&project_name])
-                        .map_err(Error::JobGroupGet)?;
-
-        if rows.is_empty() {
-            debug!("JobGroup {} not queued (not found)", project_name);
-            return Ok(None);
-        }
-
-        assert!(rows.len() == 1); // should never have more than one
-
-        let mut group = self.row_to_job_group(&rows.get(0))?;
-        let group_id = group.get_id();
-
-        let project_rows = &conn.query("SELECT * FROM get_group_projects_for_group_v1($1)",
-                                       &[&(group_id as i64)])
-                                .map_err(Error::JobGroupGet)?;
-
-        assert!(!project_rows.is_empty()); // should at least have one
-        let projects = self.rows_to_job_group_projects(&project_rows)?;
-
-        group.set_projects(projects);
-        Ok(Some(group))
-    }
-
-    pub fn get_queued_job_groups(&self) -> Result<RepeatedField<jobsrv::JobGroup>> {
-        let mut groups = RepeatedField::new();
-
-        let conn = self.pool.get()?;
-
-        let rows = &conn.query("SELECT * FROM get_queued_groups_v1()", &[])
-                        .map_err(Error::JobGroupGet)?;
-
-        for row in rows {
-            let group = self.row_to_job_group(&row)?;
-            groups.push(group);
-        }
-        Ok(groups)
     }
 
     pub fn create_job_group(&self,
@@ -677,20 +571,6 @@ impl DataStore {
 
         Ok(())
     }
-}
-
-/// Translate a database `busy_workers` row to a `jobsrv::BusyWorker`.
-fn row_to_busy_worker(row: &postgres::rows::Row) -> Result<jobsrv::BusyWorker> {
-    let mut bw = jobsrv::BusyWorker::new();
-    let ident: String = row.get("ident");
-    let job_id: i64 = row.get("job_id");
-    let quarantined: bool = row.get("quarantined");
-
-    bw.set_ident(ident);
-    bw.set_job_id(job_id as u64);
-    bw.set_quarantined(quarantined);
-
-    Ok(bw)
 }
 
 /// Translate a database `jobs` row to a `jobsrv::Job`.
