@@ -23,15 +23,16 @@ use chrono::{DateTime,
              Utc};
 use diesel::{result::Error as Dre,
              Connection};
-use postgres;
 use protobuf::{self,
                RepeatedField};
 
 use crate::db::{config::DataStoreCfg,
                 migration::setup_ids,
-                models::jobs::{Group,
+                models::jobs::{AuditJob,
+                               Group,
                                GroupProject,
                                Job,
+                               NewAuditJob,
                                NewJob,
                                UpdateGroupProject,
                                UpdateJob},
@@ -297,21 +298,20 @@ impl DataStore {
 
     pub fn cancel_job_group(&self, group_id: u64) -> Result<()> {
         let conn = self.diesel_pool.get_conn()?;
-
         Group::cancel_job_group(group_id as i64, &conn).map_err(Error::JobGroupCancel)?;
-
         Ok(())
     }
 
     pub fn create_audit_entry(&self, msg: &jobsrv::JobGroupAudit) -> Result<()> {
-        let conn = self.pool.get()?;
-        conn.query("SELECT add_audit_jobs_entry_v1($1, $2, $3, $4, $5)",
-                   &[&(msg.get_group_id() as i64),
-                     &(msg.get_operation() as i16),
-                     &(msg.get_trigger() as i16),
-                     &(msg.get_requester_id() as i64),
-                     &msg.get_requester_name().to_string()])
-            .map_err(Error::JobGroupAudit)?;
+        let conn = self.diesel_pool.get_conn()?;
+        let audit_job = NewAuditJob { group_id:       msg.get_group_id() as i64,
+                                      operation:      msg.get_operation() as i16,
+                                      trigger:        msg.get_trigger() as i16,
+                                      requester_id:   msg.get_requester_id() as i64,
+                                      requester_name: msg.get_requester_name(),
+                                      created_at:     None, }; // TODO FIX
+
+        AuditJob::create(&audit_job, &conn).map_err(Error::JobGroupAudit)?;
 
         Ok(())
     }
@@ -322,16 +322,15 @@ impl DataStore {
         let origin = msg.get_origin();
         let limit = msg.get_limit();
 
-        let conn = self.pool.get()?;
-        let rows = &conn.query("SELECT * FROM get_job_groups_for_origin_v2($1, $2)",
-                               &[&origin, &(limit as i32)])
-                        .map_err(Error::JobGroupOriginGet)?;
+        let conn = self.diesel_pool.get_conn()?;
+        let rows = Group::get_all_for_origin(origin, limit as i64, &conn)
+                   .map_err(Error::JobGroupOriginGet)?;
 
         let mut response = jobsrv::JobGroupOriginResponse::new();
         let mut job_groups = RepeatedField::new();
 
-        for row in rows {
-            let group = self.row_to_job_group(&row)?;
+        for row in rows.into_iter() {
+            let group: jobsrv::JobGroup = row.into();
             job_groups.push(group);
         }
 
@@ -360,36 +359,13 @@ impl DataStore {
         Ok(Some(group))
     }
 
-    fn row_to_job_group(&self, row: &postgres::row::Row) -> Result<jobsrv::JobGroup> {
-        let mut group = jobsrv::JobGroup::new();
-
-        let id: i64 = row.get("id");
-        group.set_id(id as u64);
-        let js: String = row.get("group_state");
-        let group_state = js.parse::<jobsrv::JobGroupState>()?;
-        group.set_state(group_state);
-
-        let created_at = row.get::<&str, DateTime<Utc>>("created_at");
-        group.set_created_at(created_at.to_rfc3339());
-
-        let project_name: String = row.get("project_name");
-        group.set_project_name(project_name);
-
-        let target: String = row.get("target");
-        group.set_target(target);
-
-        Ok(group)
-    }
-
     pub fn set_job_group_state(&self,
                                group_id: u64,
                                group_state: jobsrv::JobGroupState)
                                -> Result<()> {
-        let conn = self.pool.get()?;
+        let conn = self.diesel_pool.get_conn()?;
         let state = group_state.to_string();
-        conn.execute("SELECT set_group_state_v1($1, $2)",
-                     &[&(group_id as i64), &state])
-            .map_err(Error::JobGroupSetState)?;
+        Group::set_group_state(group_id as i64, &state, &conn).map_err(Error::JobGroupSetState)?;
         Ok(())
     }
 
@@ -482,18 +458,4 @@ impl DataStore {
         Job::set_job_sync(job_id as i64, &conn).map_err(Error::SyncJobs)?;
         Ok(())
     }
-}
-
-/// Translate a database `busy_workers` row to a `jobsrv::BusyWorker`.
-fn row_to_busy_worker(row: &postgres::row::Row) -> Result<jobsrv::BusyWorker> {
-    let mut bw = jobsrv::BusyWorker::new();
-    let ident: String = row.get("ident");
-    let job_id: i64 = row.get("job_id");
-    let quarantined: bool = row.get("quarantined");
-
-    bw.set_ident(ident);
-    bw.set_job_id(job_id as u64);
-    bw.set_quarantined(quarantined);
-
-    Ok(bw)
 }

@@ -68,3 +68,16 @@ table! {
         updated_at -> Nullable<Timestamptz>,
     }
 }
+
+table! {
+    use diesel::sql_types::{BigInt, SmallInt, Text, Nullable, Timestamptz};
+
+    audit_jobs (group_id) { // TODO THIS IS WRONG!!!! there isn't a primary key on this table.
+        group_id -> BigInt,
+        operation -> SmallInt,
+        trigger -> SmallInt,
+        requester_id -> BigInt,
+        requester_name -> Text,
+        created_at -> Nullable<Timestamptz>,
+    }
+}

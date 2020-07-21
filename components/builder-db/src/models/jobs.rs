@@ -6,7 +6,8 @@ use diesel::{dsl::count_star,
              BoolExpressionMethods,
              ExpressionMethods,
              QueryDsl,
-             RunQueryDsl};
+             RunQueryDsl,
+             TextExpressionMethods};
 
 use diesel::{deserialize::{self,
                            FromSql,
@@ -29,7 +30,8 @@ use crate::protocol::{jobsrv,
                       originsrv};
 
 use crate::{models::pagination::Paginate,
-            schema::jobs::{busy_workers,
+            schema::jobs::{audit_jobs,
+                           busy_workers,
                            group_projects,
                            groups,
                            jobs}};
@@ -342,6 +344,18 @@ impl Group {
                      .get_results(conn)
     }
 
+    pub fn get_all_for_origin(origin: &str,
+                              limit: i64,
+                              conn: &PgConnection)
+                              -> QueryResult<Vec<Group>> {
+        Counter::DBCall.increment();
+        groups::table.filter(groups::project_name.like(origin))
+                     .or_filter(groups::project_name.like("/%"))
+                     .order(groups::created_at.desc())
+                     .limit(limit)
+                     .get_results(conn)
+    }
+
     pub fn get_pending(target: PackageTarget, conn: &PgConnection) -> QueryResult<Group> {
         Counter::DBCall.increment();
         groups::table.filter(groups::group_state.eq("Pending"))
@@ -371,7 +385,7 @@ impl Group {
 
     pub fn insert_group(root_project: &str,
                         target: &str, // We want PackageTarget, but we can't have nice things
-                        project_tuples: &Vec<(String, String)>,
+                        project_tuples: &[(String, String)],
                         conn: &PgConnection)
                         -> QueryResult<Group> {
         Counter::DBCall.increment();
@@ -398,8 +412,15 @@ impl Group {
 
     pub fn get_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<Group> {
         Counter::DBCall.increment();
-
         groups::table.filter(groups::id.eq(group_id)).first(conn)
+    }
+
+    pub fn set_group_state(group_id: i64,
+                           group_state: &str,
+                           conn: &PgConnection)
+                           -> QueryResult<usize> {
+        diesel::update(groups::table.find(group_id)).set(groups::group_state.eq(group_state))
+                                                    .execute(conn)
     }
 }
 
@@ -426,6 +447,39 @@ impl Into<jobsrv::JobGroup> for Group {
     }
 }
 
+////////////////////
+
+#[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[table_name = "audit_jobs"]
+pub struct AuditJob {
+    pub group_id:       i64,
+    pub operation:      i16,
+    pub trigger:        i16,
+    pub requester_id:   i64,
+    pub requester_name: String,
+    pub created_at:     Option<DateTime<Utc>>,
+}
+
+#[derive(Insertable)]
+#[table_name = "audit_jobs"]
+pub struct NewAuditJob<'a> {
+    pub group_id:       i64,
+    pub operation:      i16,
+    pub trigger:        i16,
+    pub requester_id:   i64,
+    pub requester_name: &'a str,
+    pub created_at:     Option<DateTime<Utc>>,
+}
+
+impl AuditJob {
+    pub fn create(audit_job: &NewAuditJob, conn: &PgConnection) -> QueryResult<AuditJob> {
+        Counter::DBCall.increment();
+        diesel::insert_into(audit_jobs::table).values(audit_job)
+                                              .get_result(conn)
+    }
+}
+
+///////////////////////////////////////
 pub struct NewBusyWorker<'a> {
     pub target:      &'a str,
     pub ident:       &'a str,
