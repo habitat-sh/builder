@@ -349,8 +349,8 @@ impl Group {
                               conn: &PgConnection)
                               -> QueryResult<Vec<Group>> {
         Counter::DBCall.increment();
-        groups::table.filter(groups::project_name.like(origin))
-                     .or_filter(groups::project_name.like("/%"))
+        let terminated_origin = origin.to_owned() + "/%";
+        groups::table.filter(groups::project_name.like(&terminated_origin))
                      .order(groups::created_at.desc())
                      .limit(limit)
                      .get_results(conn)

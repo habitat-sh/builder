@@ -392,6 +392,7 @@ impl DataStore {
         // TODO Capture not found and returnErr(Error::UnknownJobGroupProjectState);
 
         // TODO This should not be here; we need first class types
+        // Mapping JobState to a string version of JobGroupState
         let state = match job.get_state() {
             jobsrv::JobState::Complete => "Success",
             jobsrv::JobState::Rejected => "NotStarted", // retry submission
