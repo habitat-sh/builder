@@ -102,7 +102,7 @@ impl GitHubClient {
     pub async fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
 
-        let url_path = format!("{}/installations/{}/access_tokens",
+        let url_path = format!("{}/app/installations/{}/access_tokens",
                                self.api_url, install_id);
         debug!("app_installation_token posting to url path {:?}", url_path);
         Counter::InstallationToken.increment();
