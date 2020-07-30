@@ -698,15 +698,14 @@ export class BuilderApiClient {
       fetch(`${this.urlPrefix}/settings/${origin}/${name}`, {
         headers: this.headers,
       })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve(response.json());
-          } else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
+      .then(response => {
+        if (response.ok || response.status === 401) {
+          resolve(response.json());
+        } else {
+          reject(new Error(response.statusText));
+        }
+      })
+      .catch(error => this.handleError(error, reject));
     });
   }
 
