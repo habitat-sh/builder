@@ -137,7 +137,7 @@ impl MemcacheClient {
     }
 
     pub fn clear_cache_for_member_role(&mut self, origin: &str, account_id: u64) {
-        self.delete_session_key(&member_role_ns_key(origin, account_id));
+        self.delete_role_key(&member_role_ns_key(origin, account_id));
     }
 
     pub fn clear_cache_for_channel(&mut self, origin: &str, channel: &ChannelIdent) {
@@ -159,10 +159,23 @@ impl MemcacheClient {
         }
     }
 
+    pub fn delete_role_key(&mut self, key: &str) {
+        match self.cli.delete(key) {
+            Ok(b) => {
+                if b {
+                    debug!("Deleted key {}, {:?}", key, b)
+                } else {
+                    debug!("Could not find key {}: {}", key, b)
+                }
+            }
+            Err(e) => debug!("Failed to delete key {}: {}", key, e),
+        };
+    }
+
     pub fn delete_session_key(&mut self, key: &str) {
         match self.cli.delete(&hash_key(key)) {
-            Ok(b) => trace!("Deleted key {}, {:?}", key, b),
-            Err(e) => warn!("Failed to delete key {}: {}", key, e),
+            Ok(b) => debug!("Deleted key {}, {:?}", key, b),
+            Err(e) => debug!("Failed to delete key {}: {}", key, e),
         };
     }
 
@@ -230,10 +243,8 @@ impl MemcacheClient {
         let key = member_role_ns_key(origin, account_id);
         match self.cli.set(&key, role, self.ttl * 60) {
             Ok(_) => {
-                trace!("Saved origin role membership {}/{}/{} to memcached!",
-                       origin,
-                       account_id,
-                       role);
+                debug!("Saved origin role membership {}/{}/{} to memcached!",
+                       origin, account_id, role);
             }
             Err(e) => warn!("Failed to save origin role membership to memcached: {}", e),
         }

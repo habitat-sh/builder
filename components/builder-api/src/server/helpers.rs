@@ -164,7 +164,7 @@ pub fn visibility_for_optional_session(req: &HttpRequest,
     v.push(PackageVisibility::Public);
 
     if optional_session_id.is_some()
-       && authorize_session(req, Some(&origin), Some(OriginMemberRole::Member)).is_ok()
+       && authorize_session(req, Some(&origin), Some(OriginMemberRole::ReadonlyMember)).is_ok()
     {
         v.push(PackageVisibility::Hidden);
         v.push(PackageVisibility::Private);

@@ -304,7 +304,7 @@ async fn delete_package(req: HttpRequest,
                         -> HttpResponse {
     let (origin, pkg, version, release) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Member)) {
         return err.into();
     }
 
@@ -536,11 +536,11 @@ async fn schedule_job_group(req: HttpRequest,
                             -> HttpResponse {
     let (origin_name, package) = path.into_inner();
 
-    let session =
-        match authorize_session(&req, Some(&origin_name), Some(OriginMemberRole::Maintainer)) {
-            Ok(session) => session,
-            Err(err) => return err.into(),
-        };
+    let session = match authorize_session(&req, Some(&origin_name), Some(OriginMemberRole::Member))
+    {
+        Ok(session) => session,
+        Err(err) => return err.into(),
+    };
 
     let target = match PackageTarget::from_str(&qschedule.target) {
         Ok(t) => t,
@@ -971,7 +971,7 @@ fn do_upload_package_start(req: &HttpRequest,
                            qupload: &Query<Upload>,
                            ident: &PackageIdent)
                            -> Result<(PathBuf, BufWriter<File>)> {
-    authorize_session(req, Some(&ident.origin), Some(OriginMemberRole::Maintainer))?;
+    authorize_session(req, Some(&ident.origin), Some(OriginMemberRole::Member))?;
 
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 

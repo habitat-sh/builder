@@ -1,8 +1,8 @@
-const expect = require('chai').expect;
-const supertest = require('supertest');
-const request = supertest('http://localhost:9636/v1');
-const fs = require('fs');
-const ps = require('process');
+const expect = require("chai").expect;
+const supertest = require("supertest");
+const request = supertest("http://localhost:9636/v1");
+const fs = require("fs");
+const ps = require("process");
 
 /*
  * There's some odd stuff going on in this file around the BLDR_FULL_TEST_RUN
@@ -23,12 +23,13 @@ let jobLogExpectations = function (res) {
   expect(res.body.start).to.equal(0);
 };
 
-describe('Jobs API', function () {
-  describe('Scheduling jobs', function () {
-    it('requires authentication', function (done) {
-      request.post('/depot/pkgs/schedule/neurosis/testapp')
-        .type('application/json')
-        .accept('application/json')
+describe("Jobs API", function () {
+  describe("Scheduling jobs", function () {
+    it("requires authentication", function (done) {
+      request
+        .post("/depot/pkgs/schedule/neurosis/testapp")
+        .type("application/json")
+        .accept("application/json")
         .expect(401)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -36,11 +37,12 @@ describe('Jobs API', function () {
         });
     });
 
-    it('requires that you belong to the origin', function (done) {
-      request.post('/depot/pkgs/schedule/neurosis/testapp')
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.mystiqueBearer)
+    it("requires that you belong to the origin", function (done) {
+      request
+        .post("/depot/pkgs/schedule/neurosis/testapp")
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.mystiqueBearer)
         .expect(403)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -48,27 +50,29 @@ describe('Jobs API', function () {
         });
     });
 
-    it('returns the group', function (done) {
-      request.post('/depot/pkgs/schedule/neurosis/testapp')
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.boboBearer)
+    it("returns the group", function (done) {
+      request
+        .post("/depot/pkgs/schedule/neurosis/testapp")
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.boboBearer)
         .expect(201)
         .end(function (err, res) {
           expect(res.body).to.not.be.empty;
-          expect(res.body.state).to.equal('Queued');
-          expect(res.body.project_name).to.equal('neurosis/testapp');
+          expect(res.body.state).to.equal("Queued");
+          expect(res.body.project_name).to.equal("neurosis/testapp");
           global.neurosisJobGroup = res.body;
           done(err);
         });
     });
   });
 
-  describe('Retrieving information about a job group', function () {
-    it('requires a group id that is a u64', function (done) {
-      request.get('/depot/pkgs/schedule/haha')
-        .type('application/json')
-        .accept('application/json')
+  describe("Retrieving information about a job group", function () {
+    it("requires a group id that is a u64", function (done) {
+      request
+        .get("/depot/pkgs/schedule/haha")
+        .type("application/json")
+        .accept("application/json")
         .expect(400)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -76,42 +80,49 @@ describe('Jobs API', function () {
         });
     });
 
-    it('return the group', function (done) {
-      request.get(`/depot/pkgs/schedule/${global.neurosisJobGroup['id']}`)
-        .type('application/json')
-        .accept('application/json')
+    it("return the group", function (done) {
+      request
+        .get(`/depot/pkgs/schedule/${global.neurosisJobGroup["id"]}`)
+        .type("application/json")
+        .accept("application/json")
         .expect(200)
         .end(function (err, res) {
           expect(res.body).to.not.be.empty;
-          expect(['Queued', 'Pending', 'Dispatching']).to.include(res.body.state);
-          expect(res.body.project_name).to.equal('neurosis/testapp');
+          expect(["Queued", "Pending", "Dispatching"]).to.include(
+            res.body.state
+          );
+          expect(res.body.project_name).to.equal("neurosis/testapp");
           done(err);
         });
     });
   });
 
-  describe('Retrieving information about every job group in an origin', function () {
-    it('returns all of the groups', function (done) {
-      request.get('/depot/pkgs/schedule/neurosis/status')
-        .type('application/json')
-        .accept('application/json')
+  describe("Retrieving information about every job group in an origin", function () {
+    it("returns all of the groups", function (done) {
+      request
+        .get("/depot/pkgs/schedule/neurosis/status")
+        .type("application/json")
+        .accept("application/json")
         .expect(200)
         .end(function (err, res) {
           expect(res.body).to.not.be.empty;
           expect(res.body.length).to.equal(1);
-          expect(['Queued', 'Pending', 'Dispatching']).to.include(res.body[0].state);
-          expect(res.body[0].project_name).to.equal('neurosis/testapp');
+          expect(["Queued", "Pending", "Dispatching"]).to.include(
+            res.body[0].state
+          );
+          expect(res.body[0].project_name).to.equal("neurosis/testapp");
           done(err);
         });
     });
   });
 
-  describe('Listing all jobs for a project', function () {
+  describe("Listing all jobs for a project", function () {
     // JB TODO: should this require auth? seems like for public projects, no
-    it('requires authentication', function (done) {
-      request.get('/projects/neurosis/testapp/jobs')
-        .type('application/json')
-        .accept('application/json')
+    it("requires authentication", function (done) {
+      request
+        .get("/projects/neurosis/testapp/jobs")
+        .type("application/json")
+        .accept("application/json")
         .expect(401)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -119,11 +130,12 @@ describe('Jobs API', function () {
         });
     });
 
-    it('requires membership in the origin that the project refers to', function (done) {
-      request.get('/projects/neurosis/testapp/jobs')
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.mystiqueBearer)
+    it("requires membership in the origin that the project refers to", function (done) {
+      request
+        .get("/projects/neurosis/testapp/jobs")
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.mystiqueBearer)
         .expect(403)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -131,31 +143,33 @@ describe('Jobs API', function () {
         });
     });
 
-    it('succeeds', function (done) {
-      request.get('/projects/neurosis/testapp/jobs')
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.boboBearer)
+    it("succeeds", function (done) {
+      request
+        .get("/projects/neurosis/testapp/jobs")
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.boboBearer)
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
           expect(res.body.range_end).to.equal(0);
           expect(res.body.total_count).to.equal(1);
           expect(res.body.data.length).to.equal(1);
-          expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[0].origin).to.equal("neurosis");
+          expect(res.body.data[0].name).to.equal("testapp");
           global.neurosisTestappJob = res.body.data[0];
           done(err);
         });
     });
   });
 
-  describe('Getting details of a job', function () {
+  describe("Getting details of a job", function () {
     // JB TODO: should this require auth? for public projects, i don't think so
-    it('requires authentication', function (done) {
-      request.get(`/jobs/${global.neurosisTestappJob.id}`)
-        .type('application/json')
-        .accept('application/json')
+    it("requires authentication", function (done) {
+      request
+        .get(`/jobs/${global.neurosisTestappJob.id}`)
+        .type("application/json")
+        .accept("application/json")
         .expect(401)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -163,11 +177,12 @@ describe('Jobs API', function () {
         });
     });
 
-    it('requires you are a member of the origin that the job belongs to', function (done) {
-      request.get(`/jobs/${global.neurosisTestappJob.id}`)
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.mystiqueBearer)
+    it("requires you are a member of the origin that the job belongs to", function (done) {
+      request
+        .get(`/jobs/${global.neurosisTestappJob.id}`)
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.mystiqueBearer)
         .expect(403)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -175,11 +190,12 @@ describe('Jobs API', function () {
         });
     });
 
-    it('requires a job id that is a u64', function (done) {
-      request.get('/jobs/haha')
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.boboBearer)
+    it("requires a job id that is a u64", function (done) {
+      request
+        .get("/jobs/haha")
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.boboBearer)
         .expect(400)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
@@ -187,11 +203,12 @@ describe('Jobs API', function () {
         });
     });
 
-    it('returns a NotFound for a non-existent job id', function (done) {
-      request.get(`/jobs/123456`)
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.boboBearer)
+    it("returns a NotFound for a non-existent job id", function (done) {
+      request
+        .get(`/jobs/123456`)
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.boboBearer)
         .expect(404)
         .end(function (err, res) {
           expect(res.body).to.be.empty;
@@ -199,34 +216,36 @@ describe('Jobs API', function () {
         });
     });
 
-    it('succeeds', function (done) {
-      request.get(`/jobs/${global.neurosisTestappJob.id}`)
-        .type('application/json')
-        .accept('application/json')
-        .set('Authorization', global.boboBearer)
+    it("succeeds", function (done) {
+      request
+        .get(`/jobs/${global.neurosisTestappJob.id}`)
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.boboBearer)
         .expect(200)
         .end(function (err, res) {
           expect(res.body.id).to.equal(global.neurosisTestappJob.id);
-          expect(res.body.origin).to.equal('neurosis');
-          expect(res.body.name).to.equal('testapp');
-          expect(res.body.channel).to.include('bldr-');
+          expect(res.body.origin).to.equal("neurosis");
+          expect(res.body.name).to.equal("testapp");
+          expect(res.body.channel).to.include("bldr-");
           done(err);
         });
     });
 
-    it('returns an empty job log', function (done) {
-      request.get(`/jobs/${global.neurosisTestappJob.id}/log`)
-        .accept('application/json')
-        .set('Authorization', global.boboBearer)
+    it("returns an empty job log", function (done) {
+      request
+        .get(`/jobs/${global.neurosisTestappJob.id}/log`)
+        .accept("application/json")
+        .set("Authorization", global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.start).to.equal(0)
-          expect(res.body.is_complete).to.equal(false)
+          expect(res.body.start).to.equal(0);
+          expect(res.body.is_complete).to.equal(false);
           done(err);
         });
     });
 
-    describe('Getting logs of a job', function () {
+    describe("Getting logs of a job", function () {
       // We need to fake a job log here because our test suite doesn't have all
       // the required deps to run a real build. Let's pretend that it did though.
       before(function () {
@@ -241,11 +260,12 @@ describe('Jobs API', function () {
         }
       });
 
-      describe('private projects', function () {
-        it('sets the project to private first', function (done) {
-          request.patch('/projects/neurosis/testapp/private')
-            .accept('application/json')
-            .set('Authorization', global.boboBearer)
+      describe("private projects", function () {
+        it("sets the project to private first", function (done) {
+          request
+            .patch("/projects/neurosis/testapp/private")
+            .accept("application/json")
+            .set("Authorization", global.boboBearer)
             .expect(204)
             .end(function (err, res) {
               expect(res.text).to.be.empty;
@@ -253,10 +273,11 @@ describe('Jobs API', function () {
             });
         });
 
-        it('requires you are a member of the origin that the job belongs to when viewing logs for a private project', function (done) {
-          request.get(`/jobs/${global.neurosisTestappJob.id}/log`)
-            .accept('application/json')
-            .set('Authorization', global.mystiqueBearer)
+        it("requires you are a member of the origin that the job belongs to when viewing logs for a private project", function (done) {
+          request
+            .get(`/jobs/${global.neurosisTestappJob.id}/log`)
+            .accept("application/json")
+            .set("Authorization", global.mystiqueBearer)
             .expect(403)
             .end(function (err, res) {
               expect(res.text).to.be.empty;
@@ -264,10 +285,11 @@ describe('Jobs API', function () {
             });
         });
 
-        it('shows the logs for a private project', function (done) {
-          request.get(`/jobs/${global.neurosisTestappJob.id}/log`)
-            .accept('application/json')
-            .set('Authorization', global.boboBearer)
+        it("shows the logs for a private project", function (done) {
+          request
+            .get(`/jobs/${global.neurosisTestappJob.id}/log`)
+            .accept("application/json")
+            .set("Authorization", global.boboBearer)
             .expect(200)
             .end(function (err, res) {
               jobLogExpectations(res);
@@ -275,10 +297,11 @@ describe('Jobs API', function () {
             });
         });
 
-        it('set the project back to public', function (done) {
-          request.patch('/projects/neurosis/testapp/public')
-            .accept('application/json')
-            .set('Authorization', global.boboBearer)
+        it("set the project back to public", function (done) {
+          request
+            .patch("/projects/neurosis/testapp/public")
+            .accept("application/json")
+            .set("Authorization", global.boboBearer)
             .expect(204)
             .end(function (err, res) {
               expect(res.text).to.be.empty;
@@ -287,10 +310,11 @@ describe('Jobs API', function () {
         });
       });
 
-      it('requires a job id that is a u64', function (done) {
-        request.get('/jobs/haha/log')
-          .accept('application/json')
-          .set('Authorization', global.boboBearer)
+      it("requires a job id that is a u64", function (done) {
+        request
+          .get("/jobs/haha/log")
+          .accept("application/json")
+          .set("Authorization", global.boboBearer)
           .expect(400)
           .end(function (err, res) {
             expect(res.text).to.be.empty;
@@ -298,10 +322,11 @@ describe('Jobs API', function () {
           });
       });
 
-      it('returns a NotFound for a non-existent job log', function (done) {
-        request.get(`/jobs/123456/log`)
-          .accept('application/json')
-          .set('Authorization', global.boboBearer)
+      it("returns a NotFound for a non-existent job log", function (done) {
+        request
+          .get(`/jobs/123456/log`)
+          .accept("application/json")
+          .set("Authorization", global.boboBearer)
           .expect(404)
           .end(function (err, res) {
             expect(res.body).to.be.empty;
@@ -309,10 +334,11 @@ describe('Jobs API', function () {
           });
       });
 
-      it('succeeds', function (done) {
-        request.get(`/jobs/${global.neurosisTestappJob.id}/log`)
-          .accept('application/json')
-          .set('Authorization', global.boboBearer)
+      it("succeeds", function (done) {
+        request
+          .get(`/jobs/${global.neurosisTestappJob.id}/log`)
+          .accept("application/json")
+          .set("Authorization", global.boboBearer)
           .expect(200)
           .end(function (err, res) {
             jobLogExpectations(res);
@@ -321,13 +347,13 @@ describe('Jobs API', function () {
       });
     });
 
-
-    describe('Promoting a job group', function () {
-      it('requires authentication', function (done) {
-        request.post(`/jobs/group/${global.neurosisJobGroup.id}/promote/bar`)
-          .type('application/json')
-          .accept('application/json')
-          .send({ idents: ['neurosis/testapp'] })
+    describe("Promoting a job group", function () {
+      it("requires authentication", function (done) {
+        request
+          .post(`/jobs/group/${global.neurosisJobGroup.id}/promote/bar`)
+          .type("application/json")
+          .accept("application/json")
+          .send({ idents: ["neurosis/testapp"] })
           .expect(401)
           .end(function (err, res) {
             expect(res.text).to.be.empty;
@@ -340,14 +366,15 @@ describe('Jobs API', function () {
       //
       // I'm skipping these for now but we should figure out a way to test these
       // at some point.
-      it('requires you are a member of the origin that the job group belongs to', function (done) {
+      it("requires you are a member of the origin that the job group belongs to", function (done) {
         this.skip();
 
-        request.post(`/jobs/group/${global.neurosisJobGroup.id}/promote/bar`)
-          .type('application/json')
-          .accept('application/json')
-          .set('Authorization', global.mystiqueBearer)
-          .send({ idents: ['neurosis/testapp'] })
+        request
+          .post(`/jobs/group/${global.neurosisJobGroup.id}/promote/bar`)
+          .type("application/json")
+          .accept("application/json")
+          .set("Authorization", global.mystiqueBearer)
+          .send({ idents: ["neurosis/testapp"] })
           .expect(403)
           .end(function (err, res) {
             expect(res.text).to.be.empty;
@@ -361,12 +388,13 @@ describe('Jobs API', function () {
       // it('promotes every build in the group to the specified channel');
     });
 
-    describe('Demoting a job group', function () {
-      it('requires authentication', function (done) {
-        request.post(`/jobs/group/${global.neurosisJobGroup.id}/demote/bar`)
-          .type('application/json')
-          .accept('application/json')
-          .send({ idents: ['neurosis/testapp'] })
+    describe("Demoting a job group", function () {
+      it("requires authentication", function (done) {
+        request
+          .post(`/jobs/group/${global.neurosisJobGroup.id}/demote/bar`)
+          .type("application/json")
+          .accept("application/json")
+          .send({ idents: ["neurosis/testapp"] })
           .expect(401)
           .end(function (err, res) {
             expect(res.text).to.be.empty;
@@ -381,11 +409,12 @@ describe('Jobs API', function () {
       // it('promotes every build in the group to the specified channel');
     });
 
-    describe('Canceling a job group', function () {
-      it('requires authentication', function (done) {
-        request.post(`/jobs/group/${global.neurosisJobGroup.id}/cancel`)
-          .type('application/json')
-          .accept('application/json')
+    describe("Canceling a job group", function () {
+      it("requires authentication", function (done) {
+        request
+          .post(`/jobs/group/${global.neurosisJobGroup.id}/cancel`)
+          .type("application/json")
+          .accept("application/json")
           .expect(401)
           .end(function (err, res) {
             expect(res.text).to.be.empty;
@@ -393,11 +422,12 @@ describe('Jobs API', function () {
           });
       });
 
-      it('requires you are a member of the origin that the job group belongs to', function (done) {
-        request.post(`/jobs/group/${global.neurosisJobGroup.id}/cancel`)
-          .type('application/json')
-          .accept('application/json')
-          .set('Authorization', global.mystiqueBearer)
+      it("requires you are a member of the origin that the job group belongs to", function (done) {
+        request
+          .post(`/jobs/group/${global.neurosisJobGroup.id}/cancel`)
+          .type("application/json")
+          .accept("application/json")
+          .set("Authorization", global.mystiqueBearer)
           .expect(403)
           .end(function (err, res) {
             expect(res.text).to.be.empty;
@@ -405,11 +435,12 @@ describe('Jobs API', function () {
           });
       });
 
-      it('cancels the group', function (done) {
-        request.post(`/jobs/group/${global.neurosisJobGroup.id}/cancel`)
-          .type('application/json')
-          .accept('application/json')
-          .set('Authorization', global.boboBearer)
+      it("cancels the group", function (done) {
+        request
+          .post(`/jobs/group/${global.neurosisJobGroup.id}/cancel`)
+          .type("application/json")
+          .accept("application/json")
+          .set("Authorization", global.boboBearer)
           .expect(204)
           .end(function (err, res) {
             expect(res.text).to.be.empty;

@@ -90,6 +90,9 @@ pub enum OriginMemberRole {
     // It is important to preserve the declaration order
     // here so that order comparisons work as expected.
     // The values are from least to greatest.
+    #[postgres(name = "readonly_member")]
+    #[serde(rename = "readonly_member")]
+    ReadonlyMember,
     #[postgres(name = "member")]
     #[serde(rename = "member")]
     Member,
@@ -111,6 +114,7 @@ impl fmt::Display for OriginMemberRole {
             OriginMemberRole::Maintainer => "maintainer",
             OriginMemberRole::Member => "member",
             OriginMemberRole::Owner => "owner",
+            OriginMemberRole::ReadonlyMember => "readonly_member",
         };
         write!(f, "{}", value)
     }
@@ -125,12 +129,13 @@ impl FromStr for OriginMemberRole {
             "maintainer" => Ok(OriginMemberRole::Maintainer),
             "member" => Ok(OriginMemberRole::Member),
             "owner" => Ok(OriginMemberRole::Owner),
+            "readonly_member" => Ok(OriginMemberRole::ReadonlyMember),
             _ => {
                 Err(BuilderError::OriginMemberRoleError(format!("Invalid OriginMemberRole \
                                                                  \"{}\", must be one of: \
                                                                  [\"administrator\", \
                                                                  \"maintainer\",\"member\",\"\
-                                                                 owner\"].",
+                                                                 owner\",\"readonly_member\"].",
                                                                 value)))
             }
         }
@@ -424,12 +429,13 @@ mod tests {
 
     #[test]
     fn origin_member_role_hierarchy() {
+        let readonly_member = OriginMemberRole::ReadonlyMember;
         let member = OriginMemberRole::Member;
         let maintainer = OriginMemberRole::Maintainer;
         let administrator = OriginMemberRole::Administrator;
         let owner = OriginMemberRole::Owner;
-        assert_eq!(owner > administrator, true);
         assert_eq!(administrator > maintainer, true);
         assert_eq!(maintainer > member, true);
+        assert_eq!(member > readonly_member, true);
     }
 }
