@@ -15,7 +15,6 @@ resource "aws_iam_user" "jobs" {
 resource "aws_s3_bucket" "jobs" {
   bucket = "habitat-jobs-${var.env}"
   acl    = "private"
-  region = var.aws_region
 
   lifecycle {
     prevent_destroy = true
