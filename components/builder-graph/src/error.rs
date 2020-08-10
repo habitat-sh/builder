@@ -64,27 +64,7 @@ impl fmt::Display for Error {
     }
 }
 
-<<<<<<< HEAD
 impl error::Error for Error {}
-=======
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Db(ref err) => err.description(),
-            Error::DbPoolTimeout(ref err) => err.description(),
-            Error::DbTransaction(ref err) => err.description(),
-            Error::DieselError(ref err) => err.description(),
-            Error::HabitatCore(ref err) => err.description(),
-            Error::IO(ref err) => err.description(),
-            Error::JobGraphPackagesGet(ref err) => err.description(),
-            Error::Misc(ref s) => s,
-            Error::Protobuf(ref err) => err.description(),
-            Error::Serde(ref err) => err.description(),
-            Error::UnknownJobGraphPackage => "Unknown Package",
-        }
-    }
-}
->>>>>>> 13b7b1e1... Add a command to take a map a set of packages to their plan deps
 
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
