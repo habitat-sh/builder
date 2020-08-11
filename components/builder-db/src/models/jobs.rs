@@ -403,17 +403,13 @@ impl Group {
                                                                   project_idents,
                                                                   target.to_string()));
 
-        dbg!(diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query));
-
-        let result: Group = dbg!(query.first(conn))?; // should this be get_result?
-        dbg!(&result);
+        let result: Group = query.first(conn)?; // should this be get_result?
         Ok(result)
     }
 
     pub fn cancel_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<()> {
         Counter::DBCall.increment();
         let query = diesel::select(job_functions::cancel_group_v1(group_id));
-        dbg!(diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query));
         query.execute(conn)?;
         Ok(())
     }
@@ -609,8 +605,6 @@ impl GroupProject {
                 group_projects::table.filter(group_projects::owner_id.eq(group_id))
                                      .filter(group_projects::project_name.eq(project_name)))
         .set(group_projects::project_state.eq(state.to_string()));
-
-        dbg!(diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query));
 
         query.execute(conn)
     }
