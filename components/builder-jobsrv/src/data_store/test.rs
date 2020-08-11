@@ -218,23 +218,6 @@ mod test {
     }
 
     #[test]
-    fn count_jobs() {
-        let ds = datastore_test!(DataStore);
-        assert_eq!(0, ds.count_jobs(JobState::Pending).unwrap());
-
-        let job1 = helpers::create_job();
-        let _ = ds.create_job(&job1);
-        assert_eq!(1, ds.count_jobs(JobState::Pending).unwrap());
-
-        let job2 = helpers::create_job();
-        let _ = ds.create_job(&job2);
-        assert_eq!(2, ds.count_jobs(JobState::Pending).unwrap());
-
-        // TODO: Advance job1 to new state
-        // assert_eq!(1, ds.count_jobs(JobState::Dispatched).unwrap());
-    }
-
-    #[test]
     fn update_jobs() {
         let ds = datastore_test!(DataStore);
         let mut job = helpers::create_job();

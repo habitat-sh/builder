@@ -35,7 +35,6 @@ use crate::db::{config::DataStoreCfg,
                                NewJob,
                                UpdateGroupProject,
                                UpdateJob},
-                pool::Pool,
                 DbPool};
 
 use crate::protocol::jobsrv;
@@ -48,7 +47,6 @@ mod test;
 /// DataStore inherints being Send + Sync by virtue of having only one member, the pool itself.
 #[derive(Clone)]
 pub struct DataStore {
-    pool:        Pool,
     diesel_pool: DbPool,
 }
 
@@ -58,16 +56,15 @@ impl DataStore {
     /// * Can fail if the pool cannot be created
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
     pub fn new(cfg: &DataStoreCfg) -> Self {
-        let pool = Pool::new(cfg);
         let diesel_pool = DbPool::new(&cfg);
-        DataStore { pool, diesel_pool }
+        DataStore { diesel_pool }
     }
 
     #[cfg(test)]
     pub fn get_pool(&self) -> habitat_builder_db::diesel_pool::DbPool { self.diesel_pool.clone() }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
-    pub fn from_pool(pool: Pool, diesel_pool: DbPool) -> Self { DataStore { pool, diesel_pool } }
+    pub fn from_pool(diesel_pool: DbPool) -> Self { DataStore { diesel_pool } }
 
     /// Setup the datastore.
     ///
