@@ -11,7 +11,7 @@ sql_function! {
 
 sql_function! {
     fn insert_group_v3(root_project: Text, project_names: Array<Text>, project_idents: Array<Text>, p_target: Text)
-    -> Array<jobs::GroupRecord>;
+    -> jobs::GroupRecord;
 }
 
 sql_function! {

@@ -140,7 +140,7 @@ impl Job {
 
     pub fn get_next_pending(worker: &str, target: &str, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
-        let result = jobs::table.select(job_functions::next_pending_job_v2(worker, target))
+        let result = diesel::select(job_functions::next_pending_job_v2(worker, target))
                                 .first::<Vec<Job>>(conn)?; // should this be get_result?
         result.first()
               .ok_or(diesel::result::Error::NotFound)
@@ -309,13 +309,13 @@ pub struct Group {
     pub id:           i64,
     pub group_state:  String,
     pub project_name: String,
-    pub target:       String,
     pub created_at:   Option<DateTime<Utc>>,
     pub updated_at:   Option<DateTime<Utc>>,
+    pub target:       String,
 }
 
 // The ordering here must match the above, or strange errors occur.
-pub type GroupFields = (BigInt, Text, Text, Text, Nullable<Timestamptz>, Nullable<Timestamptz>);
+pub type GroupFields = (BigInt, Text, Text, Nullable<Timestamptz>, Nullable<Timestamptz>, Text);
 
 pub type GroupRecord = Record<GroupFields>;
 
@@ -383,8 +383,8 @@ impl Group {
 
     pub fn pending_job_groups(count: i32, conn: &PgConnection) -> QueryResult<Vec<Group>> {
         Counter::DBCall.increment();
-        let result = groups::table.select(job_functions::pending_groups_v1(count))
-                                  .get_result::<Vec<Group>>(conn)?;
+        let result =
+            diesel::select(job_functions::pending_groups_v1(count)).get_result::<Vec<Group>>(conn)?;
         Ok(result)
     }
 
@@ -398,20 +398,23 @@ impl Group {
         let (project_names, project_idents): (Vec<String>, Vec<String>) =
             project_tuples.iter().cloned().unzip();
 
-        let result = groups::table.select(job_functions::insert_group_v3(root_project,
-                                                                         project_names,
-                                                                         project_idents,
-                                                                         target.to_string()))
-                                  .first::<Vec<Group>>(conn)?; // should this be get_result?
-        result.first()
-              .ok_or(diesel::result::Error::NotFound)
-              .map(|x| (*x).clone())
+        let query = diesel::select(job_functions::insert_group_v3(root_project,
+                                                                  project_names,
+                                                                  project_idents,
+                                                                  target.to_string()));
+
+        dbg!(diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query));
+
+        let result: Group = dbg!(query.first(conn))?; // should this be get_result?
+        dbg!(&result);
+        Ok(result)
     }
 
     pub fn cancel_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<()> {
         Counter::DBCall.increment();
-        groups::table.select(job_functions::cancel_group_v1(group_id))
-                     .execute(conn)?;
+        let query = diesel::select(job_functions::cancel_group_v1(group_id));
+        dbg!(diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query));
+        query.execute(conn)?;
         Ok(())
     }
 
@@ -596,16 +599,20 @@ impl GroupProject {
                                                               .execute(conn)
     }
 
-    pub fn update_group_project_state(job_id: i64,
-                                      project_ident: &str,
+    pub fn update_group_project_state(group_id: i64,
+                                      project_name: &str,
                                       state: jobsrv::JobGroupProjectState,
                                       conn: &PgConnection)
                                       -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(group_projects::table.filter(group_projects::id.eq(job_id)))
-        .set((group_projects::project_ident.eq(project_ident),
-        group_projects::project_state.eq(state.to_string())))
-                                                          .execute(conn)
+        let query = diesel::update(
+                group_projects::table.filter(group_projects::owner_id.eq(group_id))
+                                     .filter(group_projects::project_name.eq(project_name)))
+        .set(group_projects::project_state.eq(state.to_string()));
+
+        dbg!(diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query));
+
+        query.execute(conn)
     }
 }
 impl Into<jobsrv::JobGroupProject> for GroupProject {
