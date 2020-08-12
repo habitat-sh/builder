@@ -287,7 +287,7 @@ fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
             continue;
         };
 
-        let origin = s.0.split('/').nth(0).unwrap();
+        let origin = s.0.split('/').next().unwrap();
 
         // If the origin_only flag is true, make sure the origin matches
         if !msg.get_origin_only() || origin == msg.get_origin() {
