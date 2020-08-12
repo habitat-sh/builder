@@ -14,7 +14,7 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { combineLatest, Subject, Subscription } from 'rxjs';
-import { filter, takeUntil } from 'rxjs/operators';
+import { filter, map, takeUntil } from 'rxjs/operators';
 import { List } from 'immutable';
 import { PackageJobComponent } from '../package-job/package-job.component';
 import { PackageJobsComponent } from '../package-jobs/package-jobs.component';
@@ -37,6 +37,7 @@ export class PackageComponent implements OnInit, OnDestroy {
   target: string;
   version: string;
   release: string;
+  isOriginMember: boolean = false;
   showSidebar: boolean = false;
   showReleaseSidebar: boolean = false;
   showActiveJob: boolean = false;
@@ -55,6 +56,8 @@ export class PackageComponent implements OnInit, OnDestroy {
     const origins$ = this.store.observe('origins.mine');
     const platforms$ = this.store.observe('packages.currentPlatforms');
     const versionsLoading$ = this.store.observe('packages.ui.versions.loading');
+    const isOriginMember$ = combineLatest(origin$, origins$)
+      .pipe(map(([origin, origins]) => !!origins.find(o => o.name === origin)));
 
     this.store.observe('router.route.params')
       .pipe(takeUntil(this.isDestroyed$))
@@ -66,15 +69,23 @@ export class PackageComponent implements OnInit, OnDestroy {
         this.release = release;
       });
 
+    isOriginMember$
+      .pipe(takeUntil(this.isDestroyed$))
+      .subscribe(isOriginMember => {
+        this.isOriginMember = isOriginMember;
+      });
+
     origin$
       .pipe(takeUntil(this.isDestroyed$))
       .subscribe(() => this.fetchOrigin());
 
-    combineLatest(origin$, name$)
+    combineLatest(origin$, name$, isOriginMember$)
       .pipe(takeUntil(this.isDestroyed$))
-      .subscribe(() => {
-        this.fetchPackageSettings();
+      .subscribe(([origin, name, isOriginMember]) => {
         this.fetchPackageVersions();
+        if (isOriginMember) {
+          this.fetchPackageSettings();
+        }
       });
 
     combineLatest(origin$, name$, version$, release$)
@@ -140,12 +151,6 @@ export class PackageComponent implements OnInit, OnDestroy {
       version: this.version,
       release: this.release
     };
-  }
-
-  get isOriginMember() {
-    return !!this.store.getState().origins.mine.find((o) => {
-      return o.name === this.origin;
-    });
   }
 
   get isNewProject() {
