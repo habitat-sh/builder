@@ -22,7 +22,8 @@ use crate::hab_core::package::{ident::Identifiable,
                                PackageIdent,
                                PackageTarget};
 
-use crate::package_ident_intern::PackageIdentIntern;
+use crate::{error,
+            package_ident_intern::PackageIdentIntern};
 
 use habitat_builder_db::models::package::{BuilderPackageIdent,
                                           BuilderPackageTarget,
@@ -170,4 +171,21 @@ pub fn make_temp_ident(ident: &PackageIdent) -> PackageIdent {
                       &ident.name,
                       ident.version.as_ref(),
                       Some(&format!("N-{}", seq)))
+}
+
+pub fn file_into_idents(path: &str) -> Result<Vec<PackageIdent>, error::Error> {
+    let s = std::fs::read_to_string(&path).map_err(|_| {
+                                              error::Error::Misc(format!("Could not open file {}",
+                                                                         path))
+                                          })?;
+
+    s.lines().filter_map(line_to_ident).collect()
+}
+
+fn line_to_ident(line: &str) -> Option<Result<PackageIdent, error::Error>> {
+    let trimmed = line.split('#').nth(0).unwrap_or("").trim();
+    match trimmed.len() {
+        0 => None,
+        _ => Some(PackageIdent::from_str(trimmed).map_err(error::Error::HabitatCore)),
+    }
 }

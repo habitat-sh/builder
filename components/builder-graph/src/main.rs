@@ -33,7 +33,6 @@ extern crate serde;
 extern crate serde_json;
 
 use habitat_builder_db as db;
-
 use habitat_core as hab_core;
 
 #[macro_use]
@@ -53,6 +52,7 @@ use std::{collections::HashMap,
           fs::File,
           io::Write,
           iter::FromIterator,
+          path::Path,
           str::FromStr,
           time::Instant};
 
@@ -173,6 +173,9 @@ impl State {
                         } else {
                             println!("'check' requires a database connection; See 'db_connect'")
                         }
+                    }
+                    ("compute_attributed_deps", Some(m)) => {
+                        do_compute_attributed_deps(&self.graph, &m)
                     }
                     ("db_connect", Some(m)) => self.do_db_connect(&m),
                     // TODO RENAME THIS COMMAND
@@ -615,6 +618,52 @@ fn do_db_deps(datastore: &dyn DataStoreTrait, graph: &PackageGraph, matches: &Ar
     println!();
 }
 
+fn do_compute_attributed_deps(graph: &PackageGraph, matches: &ArgMatches) {
+    let in_file_opt = matches.value_of("IN_FILENAME");
+    let out_file = required_filename_from_matches(matches);
+    let include_build_deps = matches.is_present("BUILD_DEPS");
+
+    let mut idents: Vec<PackageIdentIntern> = if let Some(in_file) = in_file_opt {
+        util::file_into_idents(in_file).unwrap()
+                                       .iter()
+                                       .map(|x| x.into())
+                                       .collect()
+    } else {
+        Vec::new()
+    };
+    let mut packages: Vec<PackageIdentIntern> =
+        interned_idents_from_matches(matches).unwrap_or_else(|_| Vec::new())
+                                             .to_vec();
+    idents.append(&mut packages);
+
+    let a_deps = graph.compute_attributed_deps(&idents, include_build_deps);
+
+    let path = Path::new(out_file);
+    let mut file = File::create(&path).unwrap();
+
+    //
+    println!("Expanded {} to {} deps, with (including build deps = {}), writing to {}",
+             if let Some(in_file) = in_file_opt {
+                 format!("input file {}", in_file)
+             } else {
+                 "args".to_string()
+             },
+             a_deps.len(),
+             include_build_deps,
+             out_file);
+
+    let mut keys: Vec<PackageIdentIntern> = a_deps.keys().copied().collect();
+    keys.sort_by(package_ident_intern::display_ordering_cmp);
+
+    for package in keys.iter() {
+        let deps_list: Vec<PackageIdentIntern> = a_deps[package].iter().copied().collect();
+        writeln!(&mut file,
+                 "{}\t{}",
+                 package,
+                 util::join_idents(", ", &deps_list)).unwrap();
+    }
+}
+
 #[allow(clippy::map_entry)]
 fn check_package(datastore: Option<&dyn DataStoreTrait>,
                  target: PackageTarget,
@@ -713,6 +762,7 @@ fn make_clap_cli() -> App<'static, 'static> {
         .subcommand(build_levels_subcommand())
         .subcommand(build_order_subcommand())
         .subcommand(check_subcommand())
+        .subcommand(compute_attributed_deps_subcommand())
         .subcommand(db_connect_subcommand())
         .subcommand(serialized_db_connect_subcommand())
         .subcommand(db_deps_subcommand())
@@ -748,6 +798,17 @@ fn check_subcommand() -> App<'static, 'static> {
     clap_app!(@subcommand check =>
               (about: "Check package")
               (@arg IDENT: ... +required +takes_value {valid_ident} "Package ident to resolve")
+    )
+}
+
+fn compute_attributed_deps_subcommand() -> App<'static, 'static> {
+    clap_app!(@subcommand compute_attributed_deps =>
+              (about: "Compute transitive deps from input, with attribution of the user(s)")
+              (@arg REQUIRED_FILENAME: +required +takes_value "Filename to write to")
+              (@arg IN_FILENAME: --infile +takes_value "Filename to read deps from")
+              (@arg IDENT: --idents ... +takes_value {valid_ident} "Package ident to resolve" )
+              (@arg FILTER: --filter +takes_value "Filter to this origin")
+              (@arg BUILD_DEPS: --build "Expand to build deps as well")
     )
 }
 
@@ -1001,6 +1062,19 @@ fn idents_from_matches(matches: &ArgMatches) -> Result<Vec<PackageIdent>, String
                                                       format!("Expected ident gave error {:?}", e)
                                                   })
                      });
+    idents.collect()
+}
+
+fn interned_idents_from_matches(matches: &ArgMatches) -> Result<Vec<PackageIdentIntern>, String> {
+    let ident_strings = matches.values_of("IDENT")
+                               .ok_or_else(|| String::from("Ident required"))?;
+    let idents = ident_strings.map(|s| {
+                                  PackageIdentIntern::from_str(s).map_err(|e| {
+                                                                     format!("Expected ident gave \
+                                                                              error {:?}",
+                                                                             e)
+                                                                 })
+                              });
     idents.collect()
 }
 

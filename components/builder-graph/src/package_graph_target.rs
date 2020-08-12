@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fmt,
+use std::{collections::{HashMap,
+                        HashSet},
+          fmt,
+          fs::File,
           io::prelude::*};
 
 use petgraph::{algo::{connected_components,
@@ -20,18 +23,17 @@ use petgraph::{algo::{connected_components,
                graphmap::DiGraphMap,
                Direction};
 
-use std::{collections::HashMap,
-          fs::File};
-
 use habitat_builder_db::models::package::PackageWithVersionArray;
+
+use crate::hab_core::package::{ident::Identifiable,
+                               PackageIdent,
+                               PackageTarget};
 
 use crate::{data_store::Unbuildable,
             graph_helpers,
-            hab_core::package::{ident::Identifiable,
-                                PackageIdent,
-                                PackageTarget},
             package_build_manifest_graph::PackageBuild,
-            package_ident_intern::PackageIdentIntern,
+            package_ident_intern::{display_ordering_cmp,
+                                   PackageIdentIntern},
             package_info::PackageInfo,
             util::*};
 
@@ -336,6 +338,44 @@ impl PackageGraphForTarget {
     pub fn top(&self, _max: usize) -> Vec<(String, usize)> {
         unimplemented!("Top isn't a thing right now, come back later");
         // TODO REIMPLEMENT IN NEW WORLD;
+    }
+
+    // Takes a initial list of package idents and expands their deps; then permutes this
+    // to produce a map of dep with the list of each item in the initial set that required it.
+    // Optionally follows build time dep edges as well.
+    //
+    pub fn compute_attributed_deps(&self,
+                                   idents: &[PackageIdentIntern],
+                                   include_build_deps: bool)
+                                   -> HashMap<PackageIdentIntern, Vec<PackageIdentIntern>> {
+        let mut acc: HashMap<PackageIdentIntern, HashSet<PackageIdentIntern>> = HashMap::new();
+        for ident in idents {
+            let deps = graph_helpers::transitive_deps(&self.latest_graph,
+                                                      &[*ident],
+                                                      None,
+                                                      include_build_deps);
+            for dep in deps {
+                acc.entry(dep)
+                   .and_modify(|e| {
+                       (*e).insert(*ident);
+                   })
+                   .or_insert_with(|| {
+                       let mut s = HashSet::new();
+                       s.insert(*ident);
+                       s
+                   });
+            }
+        }
+        let mut results: HashMap<PackageIdentIntern, Vec<PackageIdentIntern>> = HashMap::new();
+
+        for dep in acc.keys() {
+            let mut r: Vec<PackageIdentIntern> = acc[dep].iter()
+                                                         .cloned()
+                                                         .collect::<Vec<PackageIdentIntern>>();
+            r.sort_by(display_ordering_cmp);
+            results.insert(*dep, r);
+        }
+        results
     }
 
     pub fn write_deps(&self, ident: &PackageIdent) {

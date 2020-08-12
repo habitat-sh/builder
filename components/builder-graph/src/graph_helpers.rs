@@ -394,6 +394,49 @@ pub fn flood_deps_in_origin(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
     Vec::from_iter(seen)
 }
 
+// This recursively expands the deps of a set of packages, to compute the transitive dep set.
+// Similar to flood deps, but in reverse with more options, might be worth attempting to unify
+pub fn transitive_deps(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
+                       seed: &[PackageIdentIntern],
+                       origin: Option<&str>,
+                       include_build_deps: bool)
+                       -> HashSet<PackageIdentIntern> {
+    debug!("TDEP: starting with origin {}",
+           origin.unwrap_or("No origin specified"));
+    debug!("TDEP: seed set {}", join_idents(", ", &seed));
+
+    let mut seen: HashSet<PackageIdentIntern> = HashSet::new();
+    let mut worklist: VecDeque<PackageIdentIntern> = VecDeque::new();
+
+    // Insert 'touched' nodes into worklist
+    for &node_ident in seed {
+        worklist.push_back(node_ident);
+    }
+
+    while !worklist.is_empty() {
+        let node_ident = worklist.pop_front().unwrap();
+        debug!("CBS: processing {}", node_ident);
+        seen.insert(node_ident);
+
+        // loop through everyone who has a build or runtime dep on this package
+        for succ_ident in graph.neighbors_directed(node_ident, Direction::Outgoing) {
+            debug!("TDEP: Checking {}", succ_ident);
+            let &edge = graph.edge_weight(node_ident, succ_ident).unwrap(); // unwrap safe because of neighbors finding it a moment ago
+            let edge_ok = match edge {
+                EdgeType::RuntimeDep => true,
+                EdgeType::BuildDep => include_build_deps,
+                EdgeType::StrongBuildDep => include_build_deps,
+            };
+
+            if edge_ok && !seen.contains(&succ_ident) && filter_match(&succ_ident, origin) {
+                debug!("TDEP: adding from {} the node {}", node_ident, succ_ident);
+                worklist.push_back(succ_ident);
+            }
+        }
+    }
+    seen
+}
+
 // All work is filtered by an origin
 // Computing the rebuild set is done in three phases
 // 1) we take the set of touched packages, and then flood the graph to find all the packages that
