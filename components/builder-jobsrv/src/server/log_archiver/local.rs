@@ -54,8 +54,8 @@ impl LocalArchiver {
     /// as not to run afoul of directory limits.
     pub fn archive_path(&self, job_id: u64) -> PathBuf {
         let mut hasher = Sha256::default();
-        hasher.input(job_id.to_string().as_bytes());
-        let checksum = hasher.result();
+        hasher.update(job_id.to_string().as_bytes());
+        let checksum = hasher.finalize();
 
         let mut new_path = self.0.clone();
         for byte in checksum.iter().take(4) {

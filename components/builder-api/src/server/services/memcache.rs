@@ -322,6 +322,24 @@ fn member_role_ns_key(origin: &str, account_id: u64) -> String {
 
 fn hash_key(key: &str) -> String {
     let mut hasher = Sha512::new();
-    hasher.input(key);
-    format!("{:02x}", hasher.result())
+    hasher.update(key);
+    format!("{:02x}", hasher.finalize())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn hash_key_with_empty_input() {
+        let expected = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e".to_string();
+        assert_eq!(hash_key(""), expected);
+    }
+
+    #[test]
+    fn hash_key_with_session_token() {
+        let token =
+            "CIyAhviVt/aAChIFMYz4NYETACIoZDM2NDg9ZjEzOWY0MTQ5YzZiNmNjDMBkYTA4NTAzODkaMzdiNGZlNQ==";
+        let expected = "33a8f10726b1ada86d9f60e4abbb1cb8726798a2303395cecace82225236cfc3d5a82815d1017a1dd6f8d34e8b77a51c30d972ba2031e1207679fb2a4db925ea".to_string();
+        assert_eq!(hash_key(token), expected)
+    }
 }

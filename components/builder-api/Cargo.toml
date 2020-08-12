@@ -36,7 +36,7 @@ reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-sha2 = "= 0.8.2"
+sha2 = "*"
 toml = { version = "*", default-features = false }
 futures = "*"
 rand = "*"
