@@ -20,10 +20,6 @@ use std::{error,
 use crate::{db,
             hab_core};
 
-use postgres;
-use protobuf;
-use r2d2;
-
 #[derive(Debug)]
 pub enum Error {
     Db(db::error::Error),

@@ -17,8 +17,6 @@ use std::{sync::mpsc,
                    JoinHandle},
           time::Duration};
 
-use zmq;
-
 use crate::{bldr_core::{logger::Logger,
                         socket::DEFAULT_CONTEXT},
             config::Config,

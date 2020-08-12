@@ -14,7 +14,6 @@
 
 use std::path::Path;
 
-use git2;
 use github_api_client::{GitHubCfg,
                         GitHubClient};
 use url::Url;

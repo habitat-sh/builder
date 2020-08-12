@@ -18,9 +18,6 @@ use reqwest::{header::HeaderMap,
               Client,
               StatusCode};
 
-use protobuf;
-use serde_json;
-
 use crate::{error::{Error,
                     Result},
             http_client::{ACCEPT_APPLICATION_JSON,

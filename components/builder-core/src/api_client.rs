@@ -28,7 +28,6 @@ use reqwest::{header::HeaderMap,
               StatusCode};
 
 use futures::stream::StreamExt;
-use serde_json;
 use tokio::io::AsyncWriteExt;
 
 use crate::{error::{Error,

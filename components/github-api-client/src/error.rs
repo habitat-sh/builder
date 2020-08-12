@@ -16,11 +16,6 @@ use std::{collections::HashMap,
           fmt,
           io};
 
-use base64;
-use builder_core;
-use reqwest;
-use serde_json;
-
 use crate::{jwt,
             types};
 

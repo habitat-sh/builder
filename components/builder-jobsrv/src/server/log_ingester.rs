@@ -29,7 +29,6 @@ use std::{fs::{self,
           sync::mpsc,
           thread::{self,
                    JoinHandle}};
-use zmq;
 
 /// ZMQ protocol frame to indicate a log line is being sent
 const LOG_LINE: &str = "L";

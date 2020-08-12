@@ -13,8 +13,6 @@
 
 use std::iter::FromIterator;
 
-use serde_json;
-
 use reqwest::{header::HeaderMap,
               Body};
 

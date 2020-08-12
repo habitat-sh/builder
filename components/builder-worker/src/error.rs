@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures_channel;
-use git2;
-use github_api_client;
-use protobuf;
-use retry;
 use std::{error,
           fmt,
           io,
           path::PathBuf,
           result,
           sync::mpsc};
-use url;
-use zmq;
 
 use crate::{bldr_core,
             hab_core,

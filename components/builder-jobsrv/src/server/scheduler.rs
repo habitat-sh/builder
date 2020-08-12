@@ -22,8 +22,6 @@ use std::{collections::{HashMap,
 use chrono::{DateTime,
              Duration,
              Utc};
-use diesel;
-use zmq;
 
 use crate::{config::Config,
             data_store::DataStore,

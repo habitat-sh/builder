@@ -22,8 +22,6 @@ use actix_web::{http::StatusCode,
                 HttpRequest,
                 HttpResponse};
 
-use serde_json;
-
 use reqwest::header::HeaderMap;
 
 use builder_core::http_client::{HttpClient,

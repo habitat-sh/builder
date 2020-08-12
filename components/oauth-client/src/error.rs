@@ -14,10 +14,6 @@
 
 use std::fmt;
 
-use builder_core;
-use reqwest;
-use serde_json;
-
 #[derive(Debug)]
 pub enum Error {
     BuilderCore(builder_core::Error),

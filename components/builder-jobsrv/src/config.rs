@@ -25,8 +25,6 @@ use std::{collections::HashSet,
           option::IntoIter,
           path::PathBuf};
 
-use num_cpus;
-
 use crate::{db::config::DataStoreCfg,
             hab_core::{config::ConfigFile,
                        package::target::{self,

@@ -16,9 +16,6 @@ use std::{collections::HashMap,
           fmt,
           io};
 
-use builder_core;
-use reqwest;
-
 pub type ArtifactoryResult<T> = Result<T, ArtifactoryError>;
 
 #[derive(Debug)]

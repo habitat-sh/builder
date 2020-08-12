@@ -25,7 +25,6 @@ use actix_web::{http::{self,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
-use serde_json;
 
 use crate::protocol::jobsrv;
 

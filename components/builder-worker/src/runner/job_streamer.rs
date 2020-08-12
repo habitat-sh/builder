@@ -31,7 +31,6 @@ use std::{fmt,
           thread};
 
 use protobuf::Message;
-use zmq;
 
 use crate::{bldr_core::{logger::Logger,
                         socket::DEFAULT_CONTEXT},

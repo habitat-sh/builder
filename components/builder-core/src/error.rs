@@ -18,12 +18,6 @@ use std::{error,
           result,
           string};
 
-use base64;
-use chrono;
-use protobuf;
-use reqwest;
-use serde_json;
-
 use crate::{hab_core,
             protocol};
 

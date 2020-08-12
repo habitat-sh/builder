@@ -17,8 +17,6 @@ use std::{cell::UnsafeCell,
                 SocketAddrV4,
                 SocketAddrV6}};
 
-use zmq;
-
 use crate::hab_core::os;
 
 lazy_static! {

@@ -46,7 +46,6 @@ use std::{fs,
           thread::{self,
                    JoinHandle},
           time::Duration};
-use zmq;
 
 // TODO fn: copied from `components/common/src/ui.rs`. As this component doesn't currently depend
 // on habitat_common it didnt' seem worth it to add a dependency for only this constant. Probably

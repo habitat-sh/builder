@@ -28,11 +28,9 @@ use actix_web::{error,
 use github_api_client::{types::GitHubWebhookPush,
                         AppToken,
                         GitHubClient};
-use hex;
 use openssl::{hash::MessageDigest,
               pkey::PKey,
               sign::Signer};
-use serde_json;
 use std::{collections::HashSet,
           path::PathBuf,
           str::FromStr};

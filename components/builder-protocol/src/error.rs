@@ -16,8 +16,6 @@ use std::{fmt,
           result,
           string::FromUtf8Error};
 
-use protobuf;
-
 #[derive(Debug)]
 pub enum ProtocolError {
     BadJobGroupProjectState(String),

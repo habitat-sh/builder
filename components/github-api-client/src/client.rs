@@ -12,7 +12,7 @@ use builder_core::{http_client::{HttpClient,
                    metrics::CounterMetric};
 use reqwest::{header::HeaderMap,
               StatusCode};
-use serde_json;
+
 use std::{collections::HashMap,
           iter::FromIterator,
           path::Path,
