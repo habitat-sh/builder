@@ -140,11 +140,10 @@ impl Job {
 
     pub fn get_next_pending(worker: &str, target: &str, conn: &PgConnection) -> QueryResult<Job> {
         Counter::DBCall.increment();
-        let result = diesel::select(job_functions::next_pending_job_v2(worker, target))
-                                .first::<Vec<Job>>(conn)?; // should this be get_result?
-        result.first()
-              .ok_or(diesel::result::Error::NotFound)
-              .map(|x| (*x).clone())
+        let query = diesel::select(job_functions::next_pending_job_v2(worker, target));
+        let result = query.first::<Job>(conn)?;
+
+        Ok(result)
     }
 
     // job_state should be an enum, at least on the rust side (see  jobsrv::JobState)

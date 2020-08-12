@@ -19,5 +19,5 @@ sql_function! {
 }
 
 sql_function! {
-    fn next_pending_job_v2(p_worker: Text, p_target: Text) -> Array<jobs::JobRecord>;
+    fn next_pending_job_v2(p_worker: Text, p_target: Text) -> jobs::JobRecord;
 }
