@@ -53,22 +53,20 @@ impl PackageGraphTrait for CyclicPackageGraph {
 
     fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>> {
         let ident = PackageIdentIntern::from_str(name);
-        let rdeps = ident.ok().map(|r| {
-                                  self.graph
-                                      .rdeps(r, None)
-                                      .iter()
-                                      .map(|(dep, fq_dep)| (dep.to_string(), fq_dep.to_string()))
-                                      .collect()
-                              });
-        rdeps
+        ident.ok().map(|r| {
+                      self.graph
+                          .rdeps(r, None)
+                          .iter()
+                          .map(|(dep, fq_dep)| (dep.to_string(), fq_dep.to_string()))
+                          .collect()
+                  })
     }
 
     fn resolve(&self, name: &str) -> Option<String> {
         let ident = PackageIdent::from_str(name);
-        let resolved = ident.ok()
-                            .map(|r| self.graph.resolve(r.as_ref()).map(|r| r.to_string()))
-                            .flatten();
-        resolved
+        ident.ok()
+             .map(|r| self.graph.resolve(r.as_ref()).map(|r| r.to_string()))
+             .flatten()
     }
 
     fn stats(&self) -> Stats { self.graph.stats() }
