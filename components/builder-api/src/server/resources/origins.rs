@@ -1180,7 +1180,7 @@ fn get_origin_member_role(req: HttpRequest,
                           -> HttpResponse {
     let (origin, username) = path.into_inner();
 
-    if let Err(err) = authorize_session(&req, Some(&origin), None) {
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Member)) {
         return err.into();
     }
 
