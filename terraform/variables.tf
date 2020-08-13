@@ -165,6 +165,6 @@ variable "enabled_features" {
   default = []
 }
 
-variable "aws_public_key" {
-  description = "File path to the public key to use for authentication to windows builder"
+variable "connection_public_key" {
+  description = "File path to the public key to use for SSH authentication to windows builder"
 }
