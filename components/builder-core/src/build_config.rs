@@ -22,13 +22,11 @@ use std::{collections::{HashMap,
           str::FromStr,
           string::ToString};
 
-use glob;
 use serde::{de,
             Deserialize,
             Deserializer,
             Serialize,
             Serializer};
-use toml;
 
 use crate::{error::{Error,
                     Result},

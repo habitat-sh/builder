@@ -70,10 +70,7 @@ use bytes::Bytes;
 use diesel::result::Error::NotFound;
 use futures::{channel::mpsc,
               StreamExt};
-use percent_encoding;
-use protobuf;
 use serde::ser::Serialize;
-use serde_json;
 use std::{fs::{self,
                remove_file,
                File},

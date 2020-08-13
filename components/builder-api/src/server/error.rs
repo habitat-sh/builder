@@ -17,14 +17,11 @@ use actix_web::{self,
                 HttpResponse,
                 ResponseError};
 use artifactory_client::error::ArtifactoryError;
-use diesel;
 use github_api_client::HubError;
 use oauth_client::error::Error as OAuthError;
-use protobuf;
-use reqwest;
+
 use rusoto_core::RusotoError;
-use rusoto_s3;
-use serde_json;
+
 use std::{fmt,
           fs,
           io,

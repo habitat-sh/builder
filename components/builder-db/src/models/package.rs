@@ -6,7 +6,6 @@ use std::{fmt,
           time::Instant};
 
 use chrono::NaiveDateTime;
-use protobuf;
 
 use diesel::{self,
              deserialize::{self,

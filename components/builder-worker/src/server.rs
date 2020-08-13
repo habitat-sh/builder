@@ -19,8 +19,6 @@ use std::{collections::HashMap,
           thread,
           time::Duration};
 
-use zmq;
-
 use crate::{bldr_core::{self,
                         socket::DEFAULT_CONTEXT},
             protocol::{jobsrv,

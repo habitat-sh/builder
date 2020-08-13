@@ -25,8 +25,6 @@ use std::{env,
           option::IntoIter,
           path::PathBuf};
 
-use num_cpus;
-
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
 use oauth_client::config::OAuth2Cfg;

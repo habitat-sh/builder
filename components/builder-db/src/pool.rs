@@ -18,7 +18,6 @@ use std::{fmt,
           thread,
           time::Duration};
 
-use r2d2;
 use r2d2_postgres::{self,
                     PostgresConnectionManager,
                     TlsMode};

@@ -26,9 +26,7 @@ use futures::future::{ok,
                       Either,
                       Future};
 
-use base64;
 use oauth_client::types::OAuth2User;
-use protobuf;
 
 use crate::bldr_core::{self,
                        access_token::{BUILDER_ACCOUNT_ID,

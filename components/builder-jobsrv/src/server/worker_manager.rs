@@ -47,8 +47,6 @@ use crate::db::models::{integration::*,
 use crate::protocol::{jobsrv,
                       originsrv};
 
-use zmq;
-
 use crate::{config::Config,
             data_store::DataStore,
             error::{Error,

@@ -14,8 +14,6 @@
 
 use std::fmt;
 
-use base64;
-
 use crate::error::{HubError,
                    HubResult};
 

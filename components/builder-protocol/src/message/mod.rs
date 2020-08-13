@@ -19,8 +19,6 @@ pub mod net;
 #[allow(renamed_and_removed_lints)]
 pub mod originsrv;
 
-use protobuf;
-
 use crate::error::ProtocolError;
 
 pub use self::net::{ErrCode,

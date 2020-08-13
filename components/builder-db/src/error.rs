@@ -15,9 +15,6 @@
 use std::{fmt,
           result};
 
-use postgres;
-use r2d2;
-
 #[derive(Debug)]
 pub enum Error {
     AsyncListen(postgres::error::Error),

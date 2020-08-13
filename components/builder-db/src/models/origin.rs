@@ -434,6 +434,7 @@ mod tests {
         let maintainer = OriginMemberRole::Maintainer;
         let administrator = OriginMemberRole::Administrator;
         let owner = OriginMemberRole::Owner;
+        assert_eq!(owner > administrator, true);
         assert_eq!(administrator > maintainer, true);
         assert_eq!(maintainer > member, true);
         assert_eq!(member > readonly_member, true);

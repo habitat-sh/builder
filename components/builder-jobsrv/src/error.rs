@@ -22,15 +22,6 @@ use std::{error,
 use actix_web::{http::StatusCode,
                 HttpResponse};
 
-use chrono;
-use diesel;
-use postgres;
-use protobuf;
-use r2d2;
-use rusoto_core;
-use rusoto_s3;
-use zmq;
-
 use crate::{bldr_core,
             db,
             hab_core,

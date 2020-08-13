@@ -183,7 +183,7 @@ pub fn file_into_idents(path: &str) -> Result<Vec<PackageIdent>, error::Error> {
 }
 
 fn line_to_ident(line: &str) -> Option<Result<PackageIdent, error::Error>> {
-    let trimmed = line.split('#').nth(0).unwrap_or("").trim();
+    let trimmed = line.split('#').next().unwrap_or("").trim();
     match trimmed.len() {
         0 => None,
         _ => Some(PackageIdent::from_str(trimmed).map_err(error::Error::HabitatCore)),

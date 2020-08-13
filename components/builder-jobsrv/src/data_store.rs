@@ -23,7 +23,6 @@ use chrono::{DateTime,
              Utc};
 use diesel::{result::Error as Dre,
              Connection};
-use postgres;
 use protobuf::{self,
                ProtobufEnum,
                RepeatedField};

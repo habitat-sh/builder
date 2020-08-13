@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num_cpus;
 use percent_encoding::{utf8_percent_encode,
                        AsciiSet,
                        CONTROLS};

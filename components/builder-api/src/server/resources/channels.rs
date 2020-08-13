@@ -27,7 +27,6 @@ use diesel::{pg::PgConnection,
              result::{DatabaseErrorKind,
                       Error::{DatabaseError,
                               NotFound}}};
-use serde_json;
 
 use crate::{bldr_core::metrics::CounterMetric,
             hab_core::{package::{PackageIdent,
