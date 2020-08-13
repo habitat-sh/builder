@@ -380,7 +380,7 @@ resource "aws_instance" "worker" {
       "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
-      "sudo /etc/init.d/datadog-agent stop",
+      "sudo /etc/init.d/datadog-agent start",
     ]
   }
 
