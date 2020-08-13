@@ -37,6 +37,7 @@ locals {
       bldr_url               = var.bldr_url
       worker_release_channel = var.worker_release_channel
       enabled_features       = var.enabled_features
+      authorized_keys        = file(var.connection_public_key)
     })
 }
 

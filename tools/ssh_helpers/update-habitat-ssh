@@ -26,10 +26,14 @@ for l in $("$script_dir/hab-instances" "$environment" | jq -r '.Reservations[] |
 do
     dns=${l%;*}
     name=${l#*;}
+    user=ubuntu
+    if [[ "$name" == *"builder-windows-worker"* ]] ; then
+        user=Administrator
+    fi
     echo "Host ${name}" >> ~/.ssh/config
     echo "  HostName ${dns}" >> ~/.ssh/config
     echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-    echo "  User ubuntu" >> ~/.ssh/config
+    echo "  User ${user}" >> ~/.ssh/config
     echo "  IdentitiesOnly yes" >> ~/.ssh/config
     echo "  IdentityFile ~/.ssh/habitat-srv-admin" >> ~/.ssh/config
     echo "  ProxyJump jump.chef.co" >> ~/.ssh/config

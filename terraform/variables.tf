@@ -164,3 +164,7 @@ variable "enabled_features" {
   type    = list(string)
   default = []
 }
+
+variable "connection_public_key" {
+  description = "File path to the public key to use for SSH authentication to windows builder"
+}

@@ -2,6 +2,19 @@
   winrm quickconfig -q & winrm set winrm/config @{MaxTimeoutms="1800000"} & winrm set winrm/config/service @{AllowUnencrypted="true"} & winrm set winrm/config/service/auth @{Basic="true"}
 </script>
 <powershell>
+  Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+  Start-Service sshd
+  Set-Service -Name sshd -StartupType 'Automatic'
+  $authKeysPath = "C:\ProgramData\ssh\administrators_authorized_keys"
+  Set-Content -Path $authKeysPath -Value "${authorized_keys}"
+  $acl = Get-Acl $authKeysPath
+  $acl.SetAccessRuleProtection($true, $false)
+  $administratorsRule = New-Object system.security.accesscontrol.filesystemaccessrule("Administrators","FullControl","Allow")
+  $systemRule = New-Object system.security.accesscontrol.filesystemaccessrule("SYSTEM","FullControl","Allow")
+  $acl.SetAccessRule($administratorsRule)
+  $acl.SetAccessRule($systemRule)
+  $acl | Set-Acl
+
   netsh advfirewall firewall add rule name="WinRM in" protocol=TCP dir=in profile=any localport=5985 remoteip=any localip=any action=allow
   New-NetFirewallRule -DisplayName "Habitat TCP" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 9631,9638
   New-NetFirewallRule -DisplayName "Habitat UDP" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 9638
