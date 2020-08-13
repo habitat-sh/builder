@@ -1,4 +1,9 @@
 #[cfg(test)]
+#[cfg(feature = "postgres_tests")]
+// cargo test --features postgres_tests to enable
+// from root
+// cargo test -p habitat_builder_jobsrv --features=postgres_tests
+// --manifest-path=components/builder-jobsrv/Cargo.toml
 mod test {
     use crate::data_store::DataStore;
     use chrono::{DateTime,
