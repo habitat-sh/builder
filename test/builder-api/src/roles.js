@@ -142,6 +142,18 @@ describe("Origin Roles API", function () {
           done(err);
         });
     });
+    it("user with readonly_member role not authorized to query role of other origin members", function (done) {
+      request
+        .get("/depot/origins/rcpd/users/bobo/role")
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.lkennedyBearer)
+        .expect(403)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
     it("user not authorized to query role of members in other origins", function (done) {
       request
         .get("/depot/origins/rcpd/users/lkennedy/role")
@@ -827,6 +839,18 @@ describe("Origin Roles API", function () {
         .expect(404)
         .end(function (err, res) {
           expect(res.body).to.be.empty;
+          done(err);
+        });
+    });
+    it("user with member role authorized to query role of other origin members", function (done) {
+      request
+        .get("/depot/origins/rcpd/users/bobo/role")
+        .type("application/json")
+        .accept("application/json")
+        .set("Authorization", global.lkennedyBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.equal('{"role":"owner"}');
           done(err);
         });
     });
