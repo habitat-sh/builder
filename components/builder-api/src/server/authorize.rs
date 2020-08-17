@@ -54,12 +54,9 @@ pub fn authorize_session(req: &HttpRequest,
         let minimum_req_role = match min_role {
             Some(r) => r,
             None => {
-                let r = OriginMemberRole::Maintainer;
-                // TODO: When we have finalized implementation of the various member roles,
-                // we should turn this into a warn level message.
-                // see: https://github.com/habitat-sh/builder/issues/1403
-                debug!("authorize_session: minimum role parameter not set! Assuming {}",
-                       r);
+                let r = OriginMemberRole::ReadonlyMember;
+                warn!("authorize_session: minimum role parameter not set! Assuming {}",
+                      r);
                 r
             }
         };
