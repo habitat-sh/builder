@@ -39,16 +39,19 @@
   Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
   # Install habitat
+  $env:Path = "C:\hab\bin",$env:Path -join ";"
+  [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
   iwr https://packages.chef.io/files/stable/habitat/latest/hab-x86_64-windows.zip -Outfile c:\habitat.zip
   Expand-Archive c:/habitat.zip c:/
   mv c:/hab-* c:/habitat
-  $env:Path = $env:Path,"C:\habitat" -join ";"
-  [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
+  Remove-Item c:/habitat.zip
 
   # Install hab as a Windows service
   $env:HAB_LICENSE='accept';
   SETX HAB_LICENSE accept /m;
+  c:\habitat\hab.exe pkg install core/hab --binlink --force
+  Remove-Item c:\habitat -Recurse -Force
   hab pkg install core/windows-service
   hab pkg exec core/windows-service install
 
