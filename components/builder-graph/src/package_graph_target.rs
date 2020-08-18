@@ -32,18 +32,11 @@ use crate::hab_core::package::{ident::Identifiable,
 use crate::{data_store::Unbuildable,
             graph_helpers,
             package_build_manifest_graph::PackageBuild,
+            package_graph_trait::Stats,
             package_ident_intern::{display_ordering_cmp,
                                    PackageIdentIntern},
             package_info::PackageInfo,
             util::*};
-
-#[derive(Debug)]
-pub struct Stats {
-    pub node_count:     usize,
-    pub edge_count:     usize,
-    pub connected_comp: usize,
-    pub is_cyclic:      bool,
-}
 
 pub struct PackageGraphForTarget {
     target: PackageTarget,
@@ -293,9 +286,18 @@ impl PackageGraphForTarget {
         }
     }
 
-    pub fn rdeps(&self, name: PackageIdentIntern, origin: Option<&str>) -> Vec<PackageIdentIntern> {
+    pub fn rdeps(&self,
+                 name: PackageIdentIntern,
+                 origin: Option<&str>)
+                 -> Vec<(PackageIdentIntern, PackageIdentIntern)> {
         let seed = vec![name];
-        graph_helpers::flood_deps_in_origin(&self.latest_graph, &seed, origin)
+        let deps = graph_helpers::flood_deps_in_origin(&self.latest_graph, &seed, origin);
+        deps.iter()
+            .map(|&dep| {
+                let fq_dep: PackageIdentIntern = *(self.latest_map.get(&dep).unwrap_or(&dep));
+                (dep, fq_dep)
+            })
+            .collect()
     }
 
     // Mostly for debugging

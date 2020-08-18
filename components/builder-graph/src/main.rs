@@ -33,6 +33,8 @@ extern crate serde;
 extern crate serde_json;
 
 use habitat_builder_db as db;
+use habitat_builder_protocol as protocol;
+
 use habitat_core as hab_core;
 
 #[macro_use]
@@ -44,6 +46,7 @@ pub mod graph_helpers;
 pub mod package_build_manifest_graph;
 pub mod package_graph;
 pub mod package_graph_target;
+pub mod package_graph_trait;
 pub mod package_info;
 pub mod rdeps;
 pub mod util;
@@ -504,7 +507,7 @@ fn do_rdeps(graph: &PackageGraph, matches: &ArgMatches) {
     let mut file = File::create(&filename).unwrap();
 
     writeln!(&mut file, "{}", ident).unwrap();
-    for dep in &rdeps {
+    for (dep, _) in &rdeps {
         if *dep != ident {
             writeln!(&mut file, "  {}", dep).unwrap();
         }

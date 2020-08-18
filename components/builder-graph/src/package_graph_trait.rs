@@ -32,7 +32,13 @@ pub trait PackageGraphTrait: Send + Sync {
               use_build_deps: bool)
               -> (usize, usize);
     fn check_extend(&mut self, package: &originsrv::OriginPackage, use_build_deps: bool) -> bool;
+    // This probably should be refactored to a return some sort of Result type
+
+    // The tuple returned is the plan name (e.g. short name) and
+    // the fully qualifed package name of the latest package with that short name.
     fn rdeps(&self, name: &str) -> Option<Vec<(String, String)>>;
+
+    // This probably should be refactored to a return some sort of Result type
     fn resolve(&self, name: &str) -> Option<String>;
     fn stats(&self) -> Stats;
 }
