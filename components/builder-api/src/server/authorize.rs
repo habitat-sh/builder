@@ -55,8 +55,8 @@ pub fn authorize_session(req: &HttpRequest,
             Some(r) => r,
             None => {
                 let r = OriginMemberRole::ReadonlyMember;
-                warn!("authorize_session: minimum role parameter not set! Assuming {}",
-                      r);
+                debug!("authorize_session: minimum role parameter not set! Assuming {}",
+                       r);
                 r
             }
         };
