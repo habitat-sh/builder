@@ -12,6 +12,9 @@ name = "bldr-jobsrv"
 path = "src/main.rs"
 doc = false
 
+[features]
+postgres_tests = []
+
 [dependencies]
 actix-rt = "*"
 backtrace = "*"
