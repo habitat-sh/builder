@@ -1,26 +1,11 @@
 # Minio must be started with static number of server/disk by design
-# so there are 3 possible ways to run minio
+# It is allowed to extend cluster with new servers in a controlled way
+# Run command must be same on all instances
 
+# There are 2 possible ways to run minio:
 # --= Standalone mode =--
-#
 # Best for local experiments
-standalone = true
-
-# --= Automatic cluster =--
 #
-# Best for temporary installation, integration test,
-# and when you sure hostname or ipaddress will not change.
-#
-# Just set ~expected~ number of nodes and habitat will do the rest
-# Note: If cluster view changes:
-# * Habitat will validate new view and use if valid
-# * Otherwise, habitat will use last known good configuration
-# Options is ignored when ~standalone~
-# Ignored when ~members~ is defined
-# Ignored when ~standalone~
-# Must be >= 2
-expected = 2
-
 # --= Explicit Cluster =--
 #
 # Recommended for production environments: explicitly set cluster members.
@@ -32,20 +17,33 @@ expected = 2
 #   distributed setup are encoded as HTTP(s) URIs.
 #
 # ~members~ is a ~Array~ of DIRs
-# Ignored when standalone
+# When members is empty standalone mode will be used with svc_data_path
 members = []
-
-# Admin Account
-key_id = "depot"
-secret_key = "password"
-
-# Enable SSL in your Minio
-# This expects certificates files loaded via ~hab file upload~ or
-# in $pkg_svc_config_path/certs: ~private.key~ and ~public.crt~
-use_ssl = false
-
-# Password for certificate
-ssl_cert_pw = ""
 
 # Default bucket name to create
 bucket_name = "habitat-builder-artifact-store.default"
+
+# Bind to a specific ADDRESS (can be an IP or hostname). Default - all
+bind_address = ""
+# Bind to a specific PORT
+bind_port = 9000
+
+# For backward compatibility these values are used if set:
+# key_id = "depot"
+# secret_key = "password"
+
+# Setup additional environment variables to pass to minio
+# Doc: https://docs.min.io/docs/minio-server-configuration-guide.html
+[env]
+# Set minio admin user and password
+MINIO_ACCESS_KEY = "depot"
+MINIO_SECRET_KEY = "password"
+
+# Specify private key password for TLS mode
+# Note:
+#   minio automatically switches to tls if private.key and public.crt files
+#   were found in svc_files_path
+# MINIO_CERT_PASSWD = "certificate-password"
+
+# MINIO_BROWSER = "off"
+# MINIO_DOMAIN = "mydomain.com"

@@ -1,98 +1,48 @@
-#!/bin/bash
+# -*- mode: shell-script -*-
+# shellcheck shell=bash
 
-# This helper optimizes minio hooks by:
-# * extracting toml variables to bash
-# * creating helper methods
-# * keeping secrets out: https://github.com/habitat-sh/habitat/issues/6076
-#
-# Expected be sourced by all hooks at very early stage
+# shellcheck disable=SC2140
+# {{#each cfg.env}}
+export "{{@key}}"="{{this}}"
+# {{/each }}
 
-standalone="{{ cfg.standalone }}"
-expected="{{ cfg.expected }}"
-use_ssl="{{ cfg.use_ssl }}"
-ssl_cert_pw="{{ cfg.ssl_cert_pw }}"
+DEPRECATED_KEY_ID='{{cfg.key_id}}'
+DEPRECATED_SECRET_KEY='{{cfg.secret_key}}'
 
-# This hook is used for caching last known good configuration
-run_good_hook="{{pkg.svc_static_path}}/run-good"
+if [ -n "$DEPRECATED_KEY_ID" ]; then
+    echo 'Using deprecated key_id and secret_key options'
+    echo 'Please replace it with new one:'
+    echo '[env]'
+    echo 'MINIO_ACCESS_KEY = "depot"'
+    echo 'MINIO_SECRET_KEY = "password"'
 
-# This meta hook is used for restart detection
-meta_restart_hook="{{pkg.svc_config_path}}/restart-hook.txt"
-
-# For aws cli
-export AWS_ACCESS_KEY_ID="{{cfg.key_id}}"
-export AWS_SECRET_ACCESS_KEY="{{cfg.secret_key}}"
-
-# For minio server
-export MINIO_ACCESS_KEY="{{cfg.key_id}}"
-export MINIO_SECRET_KEY="{{cfg.secret_key}}"
-
-if [ -n "$ssl_cert_pw" ]; then
-    export MINIO_CERT_PASSWD="$ssl_cert_pw"
+    # shellcheck disable=SC2140
+    export MINIO_ACCESS_KEY="$DEPRECATED_KEY_ID"
+    export MINIO_SECRET_KEY="$DEPRECATED_SECRET_KEY"
 fi
 
-# Generate Expected Members
-# {{#eachAlive svc.members as |member|}}
-svc_members="$svc_members http://{{member.sys.hostname}}{{../pkg.svc_data_path}}"
-# {{/eachAlive}}
-svc_count=$(echo "$svc_members" | wc -w)
+# AWS CLI is required to create bucket automatically
+export AWS_ACCESS_KEY_ID="$MINIO_ACCESS_KEY"
+export AWS_SECRET_ACCESS_KEY="$MINIO_SECRET_KEY"
 
-# Generate Explicit Members
-# {{#each cfg.members as |member|}}
-explicit_members="$explicit_members {{member}}"
-# {{/each}}
-explicit_count=$(echo "$explicit_members" | wc -w)
+MEMBERS='{{#if cfg.members }}{{strJoin cfg.members " "}}{{else}}{{pkg.svc_data_path}}{{/if}}'
+BUCKET_NAME="{{cfg.bucket_name}}"
 
-# Helper methods
-
-# Can't calculate PID on the early stage, so defer it by method
-minio_pid() {
-    cat "{{pkg.svc_pid_file}}"
-}
-
-# Copy certificates from ring
-copy_certs() {
-    cert_dir="{{pkg.svc_config_path}}/certs"
-    priv_key="{{pkg.svc_files_path}}/private.key"
-    pub_key="{{pkg.svc_files_path}}/public.crt"
-
-    mkdir -p $cert_dir
-
-    cp $priv_key $cert_dir
-    cp $pub_key $cert_dir
-}
-
-# TODO: Remove or refactor this method
-# when fixed https://github.com/habitat-sh/habitat/issues/2364
-# Wait a little so minio can initialize
-minio_splay_delay() {
-    if [ "$standalone" == "true" ]; then
-        # In standalone mode more likely it starts quickly
-        sleep 1
-    else
-        sleep $((RANDOM % 5 + 5))
-    fi
-}
+BIND_ADDRESS="{{cfg.bind_address}}"
+BIND_PORT="{{cfg.bind_port}}"
 
 create_bucket() {
-    if [ "$use_ssl" == "true" ]; then
-        aws_s3="aws --endpoint-url https://localhost:9000 --no-verify-ssl s3api"
+    # When private.key file exists tls automatically is enabled
+    if [ -f "{{pkg.svc_files_path}}/private.key" ]; then
+        aws_s3="aws --endpoint-url https://localhost:$BIND_PORT --no-verify-ssl s3api"
     else
-        aws_s3="aws --endpoint-url http://localhost:9000 s3api"
+        aws_s3="aws --endpoint-url http://localhost:$BIND_PORT s3api"
     fi
 
-    if $aws_s3 list-buckets | grep "{{cfg.bucket_name}}" > /dev/null; then
+    if $aws_s3 list-buckets | grep "$BUCKET_NAME" > /dev/null; then
         echo "Minio bucket is up to date."
     else
-        echo "Creating minio bucket {{cfg.bucket_name}}."
-        $aws_s3 create-bucket --bucket "{{cfg.bucket_name}}"
+        echo "Creating minio bucket $BUCKET_NAME."
+        $aws_s3 create-bucket --bucket "$BUCKET_NAME"
     fi
-}
-
-# If something in restart-hook.txt will change then reload hook will restart service
-checksum_restart_hook() {
-    sha256sum $meta_restart_hook > $meta_restart_hook.sha256
-}
-
-check_restart_hook() {
-    sha256sum -c $meta_restart_hook.sha256 --status 2> /dev/null
 }

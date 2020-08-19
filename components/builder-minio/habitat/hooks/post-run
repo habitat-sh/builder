@@ -1,15 +1,13 @@
-#!/bin/bash
-# shellcheck disable=2154
+# -*- mode: shell-script -*-
+# shellcheck shell=bash
+
+set -e
 
 exec 2>&1
 
-source "{{ pkg.svc_config_path }}/hook-helper.sh"
+. "{{ pkg.svc_config_path }}/hook-helper.sh"
 
-minio_splay_delay
-
-if [ "$standalone" != "true" ] && [ ! -f "$run_good_hook" ]; then
-    echo "Minio is not ready for bucket configuring. May be later"
-    exit 1
-fi
+# post-run is much faster than minio
+sleep 2
 
 create_bucket
