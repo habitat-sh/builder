@@ -105,26 +105,36 @@ Note: the existing code has Queued and Pending, should figure out the distinctio
 
 # Job schedule lifecycle
 
-When a group is first created, the group and the group projects entries are created for every package that is
+In the current system when a group is first created, the group and the group projects entries are created for every package that is
 being built as part of the group (see job\_group\_create, jobsrv::server::handlers#302). The job entries are
 created when the group is scheduled (see schedule\_job,jobsrv::server::scheduler#533). The dependencies between
 the jobs aren’t represented in the job entries, but are instead looked up separately from the origin_packages
-table.
+table. Note: The Processing state doesn't seem to be used; things move from Pending to Dispatched directly.
 
-The new system will do things differently. First, the manifest contains the complete dependency relationships
-between the packages being rebuilt, and that information needs to be represented in the new_job entry. This is
-necessary because the new system will build packages multiple times, and the actual information is unique to
-the manifest in question.
+The new system will do things differently. First, the manifest contains the complete dependency
+relationships between the packages being rebuilt, and that information needs to be represented in the
+job_dependencies table. This is necessary because the new system will build packages multiple times, and
+the actual information is unique to the manifest in question.
 
-Jobs entries are created in the state Pending as a part of moving a group from Created to Queued. When a group
-is moved to Dispatching, all of the jobs in the group are moved to Eligible. When an Eligible job has all of
-its dependencies built it is marked Schedulable.  When a worker becomes available, we choose the highest
-priority Schedulable job and mark it Dispatched. There are a few outcomes as the worker builds the job. The
-job can complete successfully, look for jobs that now have all their dependencies complete, and mark those as
-Schedulable and move to Built. The job can fail for some reason, mark dependent jobs as DependencyFailed and
-move to JobFailed. The worker can die/go silent, and move to JobLost. (We might want to retry JobLost). The
-group might be cancelled, and move to CancelPending. Once the worker actually verifies that it’s canceled, it
-is marked CancelComplete.
+
+
+Jobs entries are created in the state Pending as a when a group moves
+from Created to Queued. When a group is moved to Dispatching, all of
+the jobs in the group are moved to Schedulable. When an Schedulable job has
+all of its dependencies built it is marked Eligible.  When a worker
+becomes available, we choose the highest priority Eligible job and
+mark it Dispatched.
+
+There are a few outcomes as the worker builds the job. The job can
+complete successfully, look for jobs that now have all their
+dependencies complete, and mark those as Eligible and move to
+Built.
+
+The job can fail for some reason, mark dependent jobs as DependencyFailed and move to JobFailed. The
+worker can die/go silent, and move to JobLost. (We might want to retry JobLost). JobLost might not be a necessary state; we might just return it to Eligible. 
+
+The group might be cancelled, and move to CancelPending. Once the worker actually verifies that it’s
+canceled, it is marked CancelComplete.
 
 Schedule priority. The initial prioritization scheme will be oldest by creation date first. We will want a more sophisticated scheme eventually (some initial research suggests that prioritising jobs that ‘unlock’ many other jobs is very worthwhile for maximum parallelism), but that won’t be done immediately. It is worthwhile having a simple prioritization scheme to provide some determinism to our queuing algorithm, both for testing and better user experience. 
 
@@ -160,7 +170,7 @@ error_msg:
 log_archived
 built_package_ident
 
- 
+
 
 Selecting next job
 Must be Schedulable.
@@ -182,6 +192,13 @@ NOTE: Either package or job result metadata should have details about it’s bui
 NOTE figure out how we are going to handle deconflicting the various versions of packages in cycles. Answer: at some point add a dependency edge on cyclic built package ‘p’, so that p(n+1) depends on every package that depends on v(n); that ensures that p(n+1) is not built and uploaded into the channel until everyone who needed p(n) is finished. 
 
 TODO Figure out failure cases and watchdog
+
+# Implementation
+
+## Management of available jobs
+Logically a job becomes available to execute when it has no dependencies
+
+## Next job selecton
 
 
 # Misc topics

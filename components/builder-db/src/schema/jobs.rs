@@ -80,3 +80,20 @@ table! {
         created_at -> Nullable<Timestamptz>,
     }
 }
+
+table! {
+    use diesel::sql_types::{Array, BigInt, Text, Nullable, Timestamptz};
+    job_graph(id) {
+        id -> BigInt,
+        group_id -> BigInt,
+        job_state -> Text,// Should be enum
+        plan_ident -> Text, // BuilderPackageIdent
+        manifest_ident -> Text,
+        as_built_ident -> Nullable<Text>,
+        dependencies -> Array<BigInt>,
+        target -> Text, // Should be enum
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+
+}
