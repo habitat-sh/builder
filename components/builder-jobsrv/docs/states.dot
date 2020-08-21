@@ -2,8 +2,9 @@ digraph STATES {
 
   ranksep=0.2;
 
+////////////////////////////////////////////////////////////////////////
+// Group states
 node[fontname="Courier", shape=oval];
-
 Triggered;
 Created;
 Queued;
@@ -14,7 +15,6 @@ Failed;
 Cancelling;
 Cancelled;
 
-//
 Triggered -> Created;
 Triggered -> Failed;
 Triggered -> Cancelled;
@@ -34,34 +34,36 @@ FailureCleanup -> Failed;
 
 Cancelling -> Cancelled;
 
+////////////////////////////////////////////////////////////////////////
+// Job states
 node[fontname="Courier", shape=box];
-
-  Pending;
-  Dispatched;
-  Schedulable;
-  Eligible;
-  Built;
-  JobFailed;
-  DependencyFailed;
-  CancelPending;
-  CancelComplete;
+Pending;
+Dispatched;
+Schedulable;
+Eligible;
+Built;
+JobFailed;
+DependencyFailed;
+CancelPending;
+CancelComplete;
 
 Pending -> Schedulable;
 Pending -> CancelComplete;
+
 Schedulable -> Eligible;
 Schedulable -> DependencyFailed;
 Schedulable -> CancelComplete;
+
 Eligible -> Dispatched;
 Eligible -> CancelComplete;
 Eligible -> DependencyFailed;
-Dispatched -> Built;
-Dispatched -> JobFailed;
-// Dispatched -> JobLost;
-// JobLost -> Dispatched;
-// {rank=same; Dispatched JobLost}
-Dispatched -> CancelPending;
-CancelPending -> CancelComplete;
 
+Dispatched -> Built; // Complete
+Dispatched -> JobFailed; // FatalError
+Dispatched -> Eligible; // NonFatalError
+Dispatched -> CancelPending;
+
+CancelPending -> CancelComplete;
 
 // Cross FSM relationships
 {rank=same; Created Pending}
