@@ -18,6 +18,7 @@ use crate::{models::pagination::Paginate,
                            busy_workers,
                            group_projects,
                            groups,
+                           job_graph,
                            jobs}};
 
 use crate::{bldr_core::metrics::CounterMetric,
@@ -377,5 +378,53 @@ impl GroupProject {
         Counter::DBCall.increment();
         group_projects::table.filter(group_projects::owner_id.eq(group_id))
                              .get_results(conn)
+    }
+}
+
+////////////////////////////////////////////////////
+//
+#[derive(Insertable)]
+#[table_name = "job_graph"]
+pub struct NewJobGraphEntry<'a> {
+    pub group_id:       i64,
+    pub job_state:      &'a str,         // Should be enum
+    pub plan_ident:     &'a str,         // BuilderPackageIdent
+    pub manifest_ident: &'a str,         //
+    pub as_built_ident: Option<&'a str>, //
+    pub dependencies:   Vec<i64>,
+    pub target:         &'a str, // PackageTarget?
+}
+
+#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[table_name = "job_graph"]
+pub struct JobGraphEntry {
+    pub id:             i64,
+    pub group_id:       i64, // This is the id of the associated group (should have been group_id)
+    pub job_state:      String, // Should be enum
+    pub plan_ident:     String, // BuilderPackageIdent
+    pub manifest_ident: String, //
+    pub as_built_ident: Option<String>, //
+    pub dependencies:   Vec<i64>,
+    pub target:         String, // PackageTarget?
+    pub created_at:     DateTime<Utc>,
+    pub updated_at:     DateTime<Utc>,
+}
+
+#[derive(AsChangeset)]
+#[table_name = "job_graph"]
+pub struct UpdateJobGraphEntry<'a> {
+    pub id:             i64,
+    pub job_state:      &'a str,         // Should be enum
+    pub plan_ident:     &'a str,         // BuilderPackageIdent
+    pub manifest_ident: &'a str,         //
+    pub as_built_ident: Option<&'a str>, //
+    pub dependencies:   Vec<i64>,
+}
+
+impl JobGraphEntry {
+    pub fn create(req: &NewJobGraphEntry, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
+        Counter::DBCall.increment();
+        diesel::insert_into(job_graph::table).values(req)
+                                             .get_result(conn)
     }
 }
