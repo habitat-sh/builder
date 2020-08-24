@@ -21,6 +21,12 @@ export HAB_BLDR_URL="${PIPELINE_HAB_BLDR_URL}"
 # the container we happen to be running in.
 curlbash_hab "${BUILD_PKG_TARGET}"
 
+# Explicitly set what hab binary we want to use, to avoid any potential conflicts
+# with $PATH and provided cli.
+# FAILURE CASE: If we change the default install location, this will possibly fail, or 
+#               use an incorrect version of the cli.
+hab_binary="/bin/hab"
+
 import_keys "${HAB_ORIGIN}"
 
 echo "--- :habicat: Building builder-worker using $hab_binary "
