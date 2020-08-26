@@ -516,46 +516,62 @@ fn upload_origin_key(req: HttpRequest,
                      -> HttpResponse {
     let (origin, revision) = path.into_inner();
 
-    let account_id =
-        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-            Ok(session) => session.get_id(),
-            Err(err) => return err.into(),
-        };
+    // Since this route allows users to upload keys, we verify their membership
+    // before we determine if the key they're using actually exists. This is a
+    // backward compatibility workaround needed when RBAC was introduced. hab
+    // pkg upload optimistically uploads keys as well as packages, but the RBAC
+    // changes only give 'members' and 'maintainers' upload permissions for
+    // packages, not keys.
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Member)) {
+        return err.into();
+    }
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match parse_key_str(&body) {
-        Ok((PairType::Public, ..)) => {
-            debug!("Received a valid public key");
-        }
-        Ok(_) => {
-            debug!("Received a secret key instead of a public key");
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
-        }
-        Err(e) => {
-            debug!("Invalid public key content: {}", e);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
-        }
-    }
+    if OriginPublicSigningKey::get(&origin, &revision, &conn).is_ok() {
+        HttpResponse::new(StatusCode::CONFLICT)
+    } else {
+        // In this case we are checking if the user actually has permissions to write a
+        // NEW key into the origin_public_keys data table
+        let account_id =
+            match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
+                Ok(session) => session.get_id(),
+                Err(err) => return err.into(),
+            };
 
-    let new_pk = NewOriginPublicSigningKey { owner_id:  account_id as i64,
-                                             origin:    &origin,
-                                             full_name: &format!("{}-{}", &origin, &revision),
-                                             name:      &origin,
-                                             revision:  &revision,
-                                             body:      &body.into_bytes(), };
-
-    match OriginPublicSigningKey::create(&new_pk, &*conn).map_err(Error::DieselError) {
-        Ok(_) => {
-            HttpResponse::Created().header(http::header::LOCATION, format!("{}", req.uri()))
-                                   .body(format!("/origins/{}/keys/{}", &origin, &revision))
+        match parse_key_str(&body) {
+            Ok((PairType::Public, ..)) => {
+                debug!("Received a valid public key");
+            }
+            Ok(_) => {
+                debug!("Received a secret key instead of a public key");
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+            Err(e) => {
+                debug!("Invalid public key content: {}", e);
+                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            }
         }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
+
+        let new_pk = NewOriginPublicSigningKey { owner_id:  account_id as i64,
+                                                 origin:    &origin,
+                                                 full_name: &format!("{}-{}", &origin, &revision),
+                                                 name:      &origin,
+                                                 revision:  &revision,
+                                                 body:      &body.into_bytes(), };
+
+        match OriginPublicSigningKey::create(&new_pk, &*conn).map_err(Error::DieselError) {
+            Ok(_) => {
+                HttpResponse::Created().header(http::header::LOCATION, format!("{}", req.uri()))
+                                       .body(format!("/origins/{}/keys/{}", &origin, &revision))
+            }
+            Err(err) => {
+                debug!("{}", err);
+                err.into()
+            }
         }
     }
 }
