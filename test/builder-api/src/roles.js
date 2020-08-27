@@ -427,7 +427,6 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -717,7 +716,6 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
           done(err);
         });
     });

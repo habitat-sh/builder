@@ -542,9 +542,13 @@ fn upload_origin_key(req: HttpRequest,
                 Err(_) => {
                     debug!("Unable to upload origin public signing key due to lack of permissions");
                     return HttpResponse::with_body(StatusCode::FORBIDDEN,
-                                                   Body::from_message("In order to upload an \
-                                                   origin public signing key you must be at least \
-                                                   an administrator in the origin".to_string()));
+                                                   Body::from_message(format!("You do not \
+                                                                               have permissions \
+                                                                               to upload a \
+                                                                               new origin \
+                                                                               signing public \
+                                                                               key: {}-{}",
+                                                                              origin, revision)));
                 }
             };
 
