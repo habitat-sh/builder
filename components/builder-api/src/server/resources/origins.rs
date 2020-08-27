@@ -539,7 +539,13 @@ fn upload_origin_key(req: HttpRequest,
         let account_id =
             match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
                 Ok(session) => session.get_id(),
-                Err(err) => return err.into(),
+                Err(_) => {
+                    debug!("Unable to upload origin public signing key due to lack of permissions");
+                    return HttpResponse::with_body(StatusCode::FORBIDDEN,
+                                                   Body::from_message("In order to upload an \
+                                                   origin public signing key you must be at least \
+                                                   an administrator in the origin".to_string()));
+                }
             };
 
         match parse_key_str(&body) {
