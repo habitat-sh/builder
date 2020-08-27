@@ -46,6 +46,11 @@ serde_derive = "*"
 sha2 = "*"
 toml = { version = "*", default-features = false }
 
+tokio = {version = "*", features = [ "rt-threaded", "macros"]}
+tracing = "*"
+tracing-subscriber = "*"
+tracing-futures = "*"
+
 [dependencies.actix-web]
 version = "*"
 default-features = false

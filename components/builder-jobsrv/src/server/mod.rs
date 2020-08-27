@@ -18,6 +18,7 @@ mod log_directory;
 mod log_ingester;
 mod metrics;
 mod scheduler;
+mod scheduler2;
 mod worker_manager;
 
 use self::{log_archiver::LogArchiver,
