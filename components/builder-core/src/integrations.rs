@@ -1,5 +1,5 @@
-// This module holds code that's common to dealing with the integrations for builder-api and
-// builder-depot
+//! This module holds code that's common to dealing with the
+//! integrations for builder-api and builder-depot
 
 use crate::{error::{Error,
                     Result},
