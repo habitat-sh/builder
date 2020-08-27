@@ -30,6 +30,21 @@ use crate::hab_core::package::{target,
                                PackageIdent,
                                PackageTarget};
 
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+pub enum JobState {
+    Pending          = 0,
+    Processing       = 1,
+    Complete         = 2,
+    Rejected         = 3,
+    Failed           = 4,
+    Dispatched       = 5,
+    CancelPending    = 6,
+    CancelProcessing = 7,
+    CancelComplete   = 8,
+    Schedulable      = 9,
+    Eligible         = 10,
+}
+
 #[derive(Debug)]
 struct WorkerId(String);
 #[derive(Debug)]
@@ -82,6 +97,7 @@ enum WorkerManagerMessage {
 // This wraps the datastore API; this should probably be thread safe so it can be shared.
 trait SchedulerDataStore: Send + Sync {
     fn TakeNextJobForTarget(&self, target: PackageTarget) -> JobId;
+    fn MarkJobCompleteAndUpdateDependencies(&self, job: JobId);
 }
 
 #[derive(Debug)]
@@ -129,7 +145,7 @@ impl Scheduler {
     #[tracing::instrument]
     fn worker_finished(&self, worker: &WorkerId, job_id: JobId, state: jobsrv::JobState) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
-        // loosing work in flight
+        // losing work in flight
         match state {
             // If it successful, we will mark it done, and update the available jobs to run
 
@@ -152,7 +168,37 @@ impl fmt::Debug for dyn SchedulerDataStore {
 // Possibly the former, since we will need to hand out the tx end of the scheduler mpsc
 // which would change our return type to (mpsc::Sender, JoinHandle)
 pub fn start_scheduler(mut scheduler: Scheduler) -> JoinHandle<()> {
-    tokio::task::spawn(async move {
+    let x = tokio::task::spawn(async move {
         scheduler.run().await;
-    })
+    });
+    x
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    #[derive(Default)]
+    struct DummySchedulerDataStore {}
+
+    impl SchedulerDataStore for DummySchedulerDataStore {
+        fn TakeNextJobForTarget(target: PackageTarget) -> JobId { JobId(1); }
+
+        fn MarkJobCompleteAndUpdateDependencies(&self, job: JobId) { () }
+    }
+
+    #[test]
+    fn simple() {
+        let (tx, rx) = tokio::sync::mpsc::channel();
+        let scheduler = Scheduler::new(Box::new(DummySchedulerDataStore {}), rx);
+        let join = tokio::task::spawn(async move { scheduler.run() });
+        // Do some tests.
+        let (otx, orx) = tokio::sync::oneshot::channel::JobId();
+
+        tx.send(SchedulerMessage::WorkerNeedsWork(WorkerId("worker1"),
+                                                  PackageTarget::from_str("x86_64-linux"),
+                                                  otx));
+
+        join.await
+    }
 }

@@ -157,8 +157,6 @@ impl Serialize for JobState {
             6 => serializer.serialize_str("CancelPending"),
             7 => serializer.serialize_str("CancelProcessing"),
             8 => serializer.serialize_str("CancelComplete"),
-            9 => serializer.serialize_str("Schedulable"),
-            10 => serializer.serialize_str("Eligible"),
             _ => panic!("Unexpected enum value"),
         }
     }
@@ -178,8 +176,6 @@ impl FromStr for JobState {
             "cancelpending" => Ok(JobState::CancelPending),
             "cancelprocessing" => Ok(JobState::CancelProcessing),
             "cancelcomplete" => Ok(JobState::CancelComplete),
-            "schedulable" => Ok(JobState::Schedulable),
-            "eligible" => Ok(JobState::Eligible),
             _ => Err(ProtocolError::BadJobState(value.to_string())),
         }
     }
@@ -198,8 +194,6 @@ impl fmt::Display for JobState {
             JobState::CancelPending => "CancelPending",
             JobState::CancelProcessing => "CancelProcessing",
             JobState::CancelComplete => "CancelComplete",
-            JobState::Schedulable => "Schedulable",
-            JobState::Eligible => "Eligible",
         };
         write!(f, "{}", value)
     }
