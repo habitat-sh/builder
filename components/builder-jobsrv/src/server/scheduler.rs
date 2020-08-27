@@ -404,6 +404,9 @@ impl ScheduleMgr {
         {
             // Check the deps for the project. If we don't find any dep that
             // is in our project list and needs to be built, we can dispatch the project.
+            // NOTE: get_ident().is_empty() is only true if the project has never been built
+            // Otherwise ident is going to be the FQPI of the latest ident (which channel is
+            // unclear)
             let dispatchable = if project.get_ident().is_empty() {
                 true
             } else {
