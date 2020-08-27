@@ -81,40 +81,31 @@ enum WorkerManagerMessage {
 
 // This wraps the datastore API; this should probably be thread safe so it can be shared.
 trait SchedulerDataStore: Send + Sync {
-    fn TakeNextJobForTarget(&mut self, target: PackageTarget) -> JobId;
+    fn TakeNextJobForTarget(&self, target: PackageTarget) -> JobId;
 }
 
+#[derive(Debug)]
 struct Scheduler {
-    transmit: mpsc::Sender<SchedulerMessage>, /* Things we need
-                                               * the scheduler owns it own rx, and */
-}
-
-struct SchedulerInternals<'a> {
-    data_store: &'a dyn SchedulerDataStore,
     rx:         mpsc::Receiver<SchedulerMessage>,
+    data_store: Box<dyn SchedulerDataStore>,
 }
 
-impl<'a> SchedulerInternals<'a> {
-    async fn start(data_store: &dyn SchedulerDataStore,
-                   mut rx: mpsc::Receiver<SchedulerMessage>,
-                   mut tx: mpsc::Sender<WorkerManagerMessage>,
-                   mut started: Started) {
-        // maybe log entry
-        let sched = SchedulerInternals { data_store, rx };
-
-        tokio::task::spawn(async move { sched.main_loop() });
-
-        // Maybe log exit here...
+impl Scheduler {
+    pub fn new(data_store: Box<dyn SchedulerDataStore>,
+               rx: mpsc::Receiver<SchedulerMessage>,
+               _tx: mpsc::Sender<WorkerManagerMessage>)
+               -> Scheduler {
+        Scheduler { data_store, rx }
     }
 
     #[tracing::instrument]
-    async fn main_loop(&'a mut self) {
+    pub async fn run(&mut self) {
         while let Some(msg) = self.rx.recv().await {
             match msg {
                 SchedulerMessage::WorkerNeedsWork { worker: worker,
                                                     target: target,
                                                     reply: reply, } => {
-                    self.worker_needs_work(&worker, target, &reply)
+                    self.worker_needs_work(&worker, target, reply)
                 }
                 SchedulerMessage::WorkerFinished { worker: worker,
                                                    job: job_id,
@@ -127,16 +118,16 @@ impl<'a> SchedulerInternals<'a> {
     }
 
     #[tracing::instrument]
-    fn worker_needs_work(&'a self,
+    fn worker_needs_work(&mut self,
                          worker: &WorkerId,
                          target: PackageTarget,
-                         reply: &Responder<JobId>) {
+                         reply: Responder<JobId>) {
         let job_id = self.data_store.TakeNextJobForTarget(target);
-        reply.send(Ok(job_id))
+        reply.send(Ok(job_id));
     }
 
     #[tracing::instrument]
-    fn worker_finished(&'a self, worker: &WorkerId, job_id: JobId, state: jobsrv::JobState) {
+    fn worker_finished(&self, worker: &WorkerId, job_id: JobId, state: jobsrv::JobState) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // loosing work in flight
         match state {
@@ -152,10 +143,16 @@ impl<'a> SchedulerInternals<'a> {
     }
 }
 
-impl<'a> fmt::Debug for SchedulerInternals<'a> {
-    fn fmt(&'a self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SchedulerInternals")
-         .field("data", "dummy")
-         .finish()
-    }
+impl fmt::Debug for dyn SchedulerDataStore {
+    // TODO: What should go here?
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "SchedulerDataStore{{}}") }
+}
+
+// TODO: Take a scheduler or the parameters to create one?
+// Possibly the former, since we will need to hand out the tx end of the scheduler mpsc
+// which would change our return type to (mpsc::Sender, JoinHandle)
+pub fn start_scheduler(mut scheduler: Scheduler) -> JoinHandle<()> {
+    tokio::task::spawn(async move {
+        scheduler.run().await;
+    })
 }
