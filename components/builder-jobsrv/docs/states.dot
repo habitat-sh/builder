@@ -38,10 +38,10 @@ Cancelling -> Cancelled;
 // Job states
 node[fontname="Courier", shape=box];
 Pending;
-Dispatched;
 Schedulable;
 Eligible;
-Built;
+Dispatched;
+Complete;
 JobFailed;
 DependencyFailed;
 CancelPending;
@@ -58,7 +58,7 @@ Eligible -> Dispatched;
 Eligible -> CancelComplete;
 Eligible -> DependencyFailed;
 
-Dispatched -> Built; // Complete
+Dispatched -> Complete; // Complete
 Dispatched -> JobFailed; // FatalError
 Dispatched -> Eligible; // NonFatalError
 Dispatched -> CancelPending;
