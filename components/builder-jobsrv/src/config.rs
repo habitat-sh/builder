@@ -1,5 +1,11 @@
 //! Configuration for a Habitat JobSrv service
 
+use crate::{db::config::DataStoreCfg,
+            error::Error,
+            server::log_archiver::ArchiveBackend};
+use habitat_core::{config::ConfigFile,
+                   package::target::{self,
+                                     PackageTarget}};
 use std::{collections::HashSet,
           env,
           io,
@@ -10,14 +16,6 @@ use std::{collections::HashSet,
                 ToSocketAddrs},
           option::IntoIter,
           path::PathBuf};
-
-use crate::{db::config::DataStoreCfg,
-            hab_core::{config::ConfigFile,
-                       package::target::{self,
-                                         PackageTarget}},
-            server::log_archiver::ArchiveBackend};
-
-use crate::error::Error;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]

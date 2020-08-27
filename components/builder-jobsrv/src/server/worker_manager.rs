@@ -1,3 +1,31 @@
+use super::{metrics::Gauge,
+            scheduler::ScheduleClient};
+use crate::{bldr_core::{self,
+                        job::Job,
+                        metrics::GaugeMetric,
+                        socket::DEFAULT_CONTEXT},
+            config::Config,
+            data_store::DataStore,
+            db::{models::{integration::*,
+                          jobs::*,
+                          keys::*,
+                          project_integration::*,
+                          secrets::*},
+                 DbPool},
+            error::{Error,
+                    Result},
+            protocol::{jobsrv,
+                       originsrv}};
+use habitat_core::{crypto::{keys::{box_key_pair::WrappedSealedBox,
+                                   parse_key_str,
+                                   parse_name_with_rev},
+                            BoxKeyPair},
+                   package::{target,
+                             PackageTarget}};
+use linked_hash_map::LinkedHashMap;
+use protobuf::{parse_from_bytes,
+               Message,
+               RepeatedField};
 use std::{collections::HashSet,
           path::PathBuf,
           str::{from_utf8,
@@ -7,39 +35,6 @@ use std::{collections::HashSet,
                    JoinHandle},
           time::{Duration,
                  Instant}};
-
-use crate::{bldr_core::{self,
-                        job::Job,
-                        metrics::GaugeMetric,
-                        socket::DEFAULT_CONTEXT},
-            db::DbPool,
-            hab_core::{crypto::{keys::{box_key_pair::WrappedSealedBox,
-                                       parse_key_str,
-                                       parse_name_with_rev},
-                                BoxKeyPair},
-                       package::{target,
-                                 PackageTarget}}};
-use linked_hash_map::LinkedHashMap;
-use protobuf::{parse_from_bytes,
-               Message,
-               RepeatedField};
-
-use crate::db::models::{integration::*,
-                        jobs::*,
-                        keys::*,
-                        project_integration::*,
-                        secrets::*};
-
-use crate::protocol::{jobsrv,
-                      originsrv};
-
-use crate::{config::Config,
-            data_store::DataStore,
-            error::{Error,
-                    Result}};
-
-use super::{metrics::Gauge,
-            scheduler::ScheduleClient};
 
 const WORKER_MGR_ADDR: &str = "inproc://work-manager";
 const WORKER_TIMEOUT_MS: u64 = 33_000; // 33 sec

@@ -1,13 +1,12 @@
 // This module holds code that's common to dealing with the integrations for builder-api and
 // builder-depot
 
-use std::path::Path;
-
 use crate::{error::{Error,
                     Result},
-            hab_core::crypto::{keys::box_key_pair::WrappedSealedBox,
-                               BoxKeyPair},
             keys};
+use habitat_core::crypto::{keys::box_key_pair::WrappedSealedBox,
+                           BoxKeyPair};
+use std::path::Path;
 
 // TBD - these functions should take keys directly instead of key directory.
 

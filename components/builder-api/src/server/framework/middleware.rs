@@ -1,5 +1,15 @@
-use std::env;
-
+use crate::{bldr_core::{self,
+                        access_token::{BUILDER_ACCOUNT_ID,
+                                       BUILDER_ACCOUNT_NAME},
+                        metrics::CounterMetric,
+                        privilege::FeatureFlags},
+            db::models::account::*,
+            protocol::{self,
+                       originsrv},
+            server::{error,
+                     helpers::req_state,
+                     services::metrics::Counter,
+                     AppState}};
 use actix_web::{dev::{Body,
                       Service,
                       ServiceRequest,
@@ -11,23 +21,8 @@ use actix_web::{dev::{Body,
 use futures::future::{ok,
                       Either,
                       Future};
-
 use oauth_client::types::OAuth2User;
-
-use crate::bldr_core::{self,
-                       access_token::{BUILDER_ACCOUNT_ID,
-                                      BUILDER_ACCOUNT_NAME},
-                       metrics::CounterMetric,
-                       privilege::FeatureFlags};
-
-use crate::{db::models::account::*,
-            protocol::{self,
-                       originsrv}};
-
-use crate::server::{error,
-                    helpers::req_state,
-                    services::metrics::Counter,
-                    AppState};
+use std::env;
 
 lazy_static! {
     static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;

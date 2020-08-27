@@ -1,17 +1,15 @@
 //! Configuration for a Habitat JobSrv Worker
 
+use crate::error::Error;
+use github_api_client::config::GitHubCfg;
+use habitat_core::{config::ConfigFile,
+                   package::PackageTarget,
+                   url,
+                   ChannelIdent};
 use std::{net::{IpAddr,
                 Ipv4Addr},
           path::PathBuf,
           str::FromStr};
-
-use crate::hab_core::{config::ConfigFile,
-                      package::PackageTarget,
-                      url,
-                      ChannelIdent};
-use github_api_client::config::GitHubCfg;
-
-use crate::error::Error;
 
 pub type JobSrvCfg = Vec<JobSrvAddr>;
 

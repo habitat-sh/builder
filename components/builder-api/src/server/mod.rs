@@ -6,53 +6,44 @@ pub mod migrations;
 pub mod resources;
 pub mod services;
 
-use std::{cell::RefCell,
-          collections::HashMap,
-          iter::FromIterator,
-          sync::Arc};
-
+use self::{framework::middleware::authentication_middleware,
+           resources::{authenticate::Authenticate,
+                       channels::Channels,
+                       ext::Ext,
+                       jobs::Jobs,
+                       notify::Notify,
+                       origins::Origins,
+                       pkgs::Packages,
+                       profile::Profile,
+                       projects::Projects,
+                       settings::Settings,
+                       user::User},
+           services::{memcache::MemcacheClient,
+                      s3::S3Handler}};
+use crate::{bldr_core::rpc::RpcClient,
+            config::{Config,
+                     GatewayCfg},
+            db::{migration,
+                 DbPool}};
 use actix_web::{http::StatusCode,
                 middleware::Logger,
                 web,
                 App,
                 HttpResponse,
                 HttpServer};
-
-use crate::{bldr_core::rpc::RpcClient,
-            db::{migration,
-                 DbPool}};
-use github_api_client::GitHubClient;
-
 use artifactory_client::client::ArtifactoryClient;
+use github_api_client::GitHubClient;
 use oauth_client::client::OAuth2Client;
-
-use self::framework::middleware::authentication_middleware;
-
-use self::services::{memcache::MemcacheClient,
-                     s3::S3Handler};
-
 use openssl::ssl::{SslAcceptor,
                    SslFiletype,
                    SslMethod,
                    SslVerifyMode};
-
-use self::resources::{authenticate::Authenticate,
-                      channels::Channels,
-                      ext::Ext,
-                      jobs::Jobs,
-                      notify::Notify,
-                      origins::Origins,
-                      pkgs::Packages,
-                      profile::Profile,
-                      projects::Projects,
-                      settings::Settings,
-                      user::User};
-
 use rand::{self,
            Rng};
-
-use crate::config::{Config,
-                    GatewayCfg};
+use std::{cell::RefCell,
+          collections::HashMap,
+          iter::FromIterator,
+          sync::Arc};
 
 // This cipher list corresponds to the "intermediate" configuration
 // recommended by Mozilla:

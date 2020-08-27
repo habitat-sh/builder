@@ -1,3 +1,12 @@
+use crate::{bldr_core,
+            db::models::account::*,
+            protocol::originsrv,
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     framework::headers,
+                     helpers::req_state,
+                     AppState}};
 use actix_web::{http::{self,
                        StatusCode},
                 web::{self,
@@ -7,18 +16,6 @@ use actix_web::{http::{self,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
-
-use crate::{bldr_core,
-            protocol::originsrv};
-
-use crate::db::models::account::*;
-
-use crate::server::{authorize::authorize_session,
-                    error::{Error,
-                            Result},
-                    framework::headers,
-                    helpers::req_state,
-                    AppState};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {

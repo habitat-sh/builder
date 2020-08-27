@@ -1,11 +1,9 @@
-use std::{path::PathBuf,
-          time::Instant};
-
 use crate::{db::models::keys::OriginPrivateSigningKey,
             server::error::{Error,
                             Result}};
-
 use diesel::pg::PgConnection;
+use std::{path::PathBuf,
+          time::Instant};
 
 // This value was arbitrarily chosen and might need some tuning
 const KEY_MIGRATION_CHUNK_SIZE: i64 = 100;

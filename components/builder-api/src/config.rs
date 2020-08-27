@@ -1,5 +1,12 @@
 //! Configuration for a Habitat Builder-API service
 
+use crate::db::config::DataStoreCfg;
+use artifactory_client::config::ArtifactoryCfg;
+use github_api_client::config::GitHubCfg;
+use habitat_core::{config::ConfigFile,
+                   package::target::{self,
+                                     PackageTarget}};
+use oauth_client::config::OAuth2Cfg;
 use std::{env,
           error,
           fmt,
@@ -10,16 +17,6 @@ use std::{env,
                 ToSocketAddrs},
           option::IntoIter,
           path::PathBuf};
-
-use artifactory_client::config::ArtifactoryCfg;
-use github_api_client::config::GitHubCfg;
-use oauth_client::config::OAuth2Cfg;
-
-use crate::{db::config::DataStoreCfg,
-            hab_core::{self,
-                       config::ConfigFile,
-                       package::target::{self,
-                                         PackageTarget}}};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.
@@ -76,8 +73,8 @@ impl ConfigFile for Config {
     type Error = ConfigError;
 }
 
-impl From<hab_core::Error> for ConfigError {
-    fn from(err: hab_core::Error) -> ConfigError { ConfigError(format!("{:?}", err)) }
+impl From<habitat_core::Error> for ConfigError {
+    fn from(err: habitat_core::Error) -> ConfigError { ConfigError(format!("{:?}", err)) }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
