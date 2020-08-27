@@ -29,6 +29,8 @@ enum JobState {
   CancelPending = 6;
   CancelProcessing = 7;
   CancelComplete = 8;
+  Schedulable = 9; // Available for consideration by the scheduler, but may not have deps satisfied
+  Eligible = 10;  // Deps are satisfied, and ready to run
 }
 
 message WorkerCommand {
