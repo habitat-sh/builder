@@ -31,6 +31,7 @@ use crate::hab_core::package::{target,
                                PackageIdent,
                                PackageTarget};
 
+#[allow(dead_code)] // TODO REMOVE
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub enum JobState {
     Pending          = 0,
@@ -59,6 +60,7 @@ type Responder<T> = oneshot::Sender<Result<T>>;
 type Started = oneshot::Sender<()>;
 
 #[derive(Debug)]
+#[allow(dead_code)] // TODO REMOVE
 #[non_exhaustive]
 pub enum SchedulerMessage {
     JobGroupAdded {
@@ -117,7 +119,9 @@ impl Scheduler {
 
     #[tracing::instrument]
     pub async fn run(&mut self) {
+        println!("Loop started");
         while let Some(msg) = self.rx.recv().await {
+            println!("Msg {:?}", msg);
             match msg {
                 SchedulerMessage::WorkerNeedsWork { worker: worker,
                                                     target: target,
@@ -196,12 +200,18 @@ mod test {
         let mut scheduler = Scheduler::new(Box::new(DummySchedulerDataStore {}), s_rx, wrk_tx);
         let join = tokio::task::spawn(async move { scheduler.run().await });
         // Do some tests.
-        let (otx, orx) = oneshot::channel::<Result<JobId>>();
+        let (o_tx, o_rx) = oneshot::channel::<Result<JobId>>();
 
         s_tx.send(SchedulerMessage::WorkerNeedsWork { worker: WorkerId("worker1".to_string()),
                                                       target:
                                                           PackageTarget::from_str("x86_64-linux").unwrap(),
-                                                      reply:  otx, }).await;
+                                                      reply:  o_tx, }).await;
+
+        let reply = o_rx.await;
+        println!("Reply {:?}", reply);
+
+        drop(s_tx);
         join.await;
+        assert_eq!(1, 2);
     }
 }
