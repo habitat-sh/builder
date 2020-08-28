@@ -1,6 +1,7 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
 use diesel::{self,
+             dsl::count,
              pg::PgConnection,
              result::QueryResult,
              ExpressionMethods,
@@ -9,7 +10,8 @@ use diesel::{self,
 
 use crate::schema::settings::origin_package_settings;
 
-use crate::models::package::PackageVisibility;
+use crate::{models::package::PackageVisibility,
+            schema::package::origin_packages};
 
 use crate::{bldr_core::metrics::CounterMetric,
             metrics::Counter};
@@ -60,6 +62,13 @@ pub struct GetOriginPackageSettings<'a> {
     pub name:   &'a str,
 }
 
+#[derive(Debug)]
+pub struct DeleteOriginPackageSettings<'a> {
+    pub origin:   &'a str,
+    pub name:     &'a str,
+    pub owner_id: i64,
+}
+
 impl OriginPackageSettings {
     pub fn get(req: &GetOriginPackageSettings,
                conn: &PgConnection)
@@ -87,5 +96,33 @@ impl OriginPackageSettings {
             .filter(origin_package_settings::name.eq(&req.name)))
             .set(req)
             .get_result(conn)
+    }
+
+    pub fn delete(req: &DeleteOriginPackageSettings, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::delete(
+            origin_package_settings::table
+                .filter(origin_package_settings::origin.eq(&req.origin))
+                .filter(origin_package_settings::name.eq(&req.name)),
+        )
+        .execute(conn)
+    }
+
+    pub fn count_origin_package_settings(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origin_package_settings::table.select(count(origin_package_settings::id))
+                                      .filter(origin_package_settings::origin.eq(&origin))
+                                      .first(conn)
+    }
+
+    pub fn count_packages_for_origin_package(origin: &str,
+                                             pkg: &str,
+                                             conn: &PgConnection)
+                                             -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origin_packages::table.select(count(origin_packages::id))
+                              .filter(origin_packages::origin.eq(&origin))
+                              .filter(origin_packages::name.eq(&pkg))
+                              .first(conn)
     }
 }

@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{http::StatusCode,
+use actix_web::{body::Body,
+                http::StatusCode,
                 web::{self,
                       Data,
                       Json,
@@ -21,12 +22,16 @@ use actix_web::{http::StatusCode,
                 HttpRequest,
                 HttpResponse};
 
+use builder_core::Error::PackageSettingDeleteError;
+
 use crate::db::models::{origin::*,
                         package::*,
                         settings::*};
+use diesel::PgConnection;
 
 use crate::server::{authorize::authorize_session,
-                    error::Error,
+                    error::{Error,
+                            Result},
                     helpers::req_state,
                     AppState};
 
@@ -47,7 +52,9 @@ impl Settings {
            .route("/settings/{origin}/{name}",
                   web::get().to(get_origin_package_settings))
            .route("/settings/{origin}/{name}",
-                  web::put().to(update_origin_package_settings));
+                  web::put().to(update_origin_package_settings))
+           .route("/settings/{origin}/{name}",
+                  web::delete().to(delete_origin_package_settings));
     }
 }
 
@@ -166,6 +173,62 @@ fn update_origin_package_settings(req: HttpRequest,
             err.into()
         }
     }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn delete_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -> HttpResponse {
+    let (origin, pkg) = path.into_inner();
+
+    let account_id =
+        match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
+            Ok(session) => session.get_id(),
+            Err(err) => return err.into(),
+        };
+
+    let conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    // Prior to passing the deletion request to the backend, we validate
+    // that the user has already cleaned up any existing packages.
+    match package_settings_delete_preflight(&origin, &pkg, &*conn) {
+        Ok(_) => {
+            // Delete the package setting
+            match OriginPackageSettings::delete(&DeleteOriginPackageSettings { origin:   &origin,
+                                                                               name:     &pkg,
+                                                                               owner_id: account_id
+                                                                                         as i64, },
+                                                &*conn).map_err(Error::DieselError)
+            {
+                Ok(_) => HttpResponse::new(StatusCode::NO_CONTENT),
+                Err(err) => {
+                    debug!("{}", err);
+                    err.into()
+                }
+            }
+        }
+        Err(err) => {
+            debug!("Origin preflight determined that {} is not deletable, err = {}!",
+                   origin, err);
+            // Here we want to enrich the http response with a sanitized error
+            // by returning a 409 with a helpful message in the body.
+            HttpResponse::with_body(StatusCode::CONFLICT, Body::from_message(format!("{}", err)))
+        }
+    }
+}
+
+fn package_settings_delete_preflight(origin: &str, pkg: &str, conn: &PgConnection) -> Result<()> {
+    match OriginPackageSettings::count_packages_for_origin_package(&origin, &pkg, &*conn) {
+        Ok(0) => {}
+        Ok(count) => {
+            let err = format!("There are {} packages remaining for setting {}/{}. Must be zero.",
+                              count, origin, pkg);
+            return Err(Error::BuilderCore(PackageSettingDeleteError(err)));
+        }
+        Err(e) => return Err(Error::DieselError(e)),
+    };
+    Ok(())
 }
 
 // This function is deprecated.

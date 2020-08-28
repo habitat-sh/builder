@@ -64,7 +64,8 @@ use crate::db::models::{account::*,
                                   Package,
                                   PackageVisibility},
                         projects::Project,
-                        secrets::*};
+                        secrets::*,
+                        settings::OriginPackageSettings};
 
 use crate::server::{authorize::{authorize_session,
                                 check_origin_member,
@@ -385,6 +386,19 @@ fn origin_delete_preflight(origin: &str, conn: &PgConnection) -> Result<()> {
         Ok(0) => {}
         Ok(count) => {
             let err = format!("There are {} packages remaining in origin {}. Must be zero.",
+                              count, origin);
+            return Err(Error::BuilderCore(OriginDeleteError(err)));
+        }
+        Err(e) => {
+            return Err(Error::DieselError(e));
+        }
+    };
+
+    match OriginPackageSettings::count_origin_package_settings(&origin, &*conn) {
+        Ok(0) => {}
+        Ok(count) => {
+            let err = format!("There are {} package settings entries remaining in origin {}. \
+                               Must be zero.",
                               count, origin);
             return Err(Error::BuilderCore(OriginDeleteError(err)));
         }
