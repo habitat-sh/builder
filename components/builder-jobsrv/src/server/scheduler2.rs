@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
+use std::{fmt,
+          str::FromStr};
 
 use tokio::{sync::{mpsc,
                    oneshot},
@@ -59,7 +60,7 @@ type Started = oneshot::Sender<()>;
 
 #[derive(Debug)]
 #[non_exhaustive]
-enum SchedulerMessage {
+pub enum SchedulerMessage {
     JobGroupAdded {
         group: GroupId,
     },
@@ -89,19 +90,19 @@ enum SchedulerMessage {
 }
 
 #[derive(Debug)]
-enum WorkerManagerMessage {
+pub enum WorkerManagerMessage {
     NewWorkForTarget { target: PackageTarget },
     CancelJob { jobs: Vec<JobId> },
 }
 
 // This wraps the datastore API; this should probably be thread safe so it can be shared.
-trait SchedulerDataStore: Send + Sync {
+pub trait SchedulerDataStore: Send + Sync {
     fn TakeNextJobForTarget(&self, target: PackageTarget) -> JobId;
     fn MarkJobCompleteAndUpdateDependencies(&self, job: JobId);
 }
 
 #[derive(Debug)]
-struct Scheduler {
+pub struct Scheduler {
     rx:         mpsc::Receiver<SchedulerMessage>,
     data_store: Box<dyn SchedulerDataStore>,
 }
@@ -168,7 +169,7 @@ impl fmt::Debug for dyn SchedulerDataStore {
 // Possibly the former, since we will need to hand out the tx end of the scheduler mpsc
 // which would change our return type to (mpsc::Sender, JoinHandle)
 pub fn start_scheduler(mut scheduler: Scheduler) -> JoinHandle<()> {
-    let x = tokio::task::spawn(async move {
+    let x: JoinHandle<()> = tokio::task::spawn(async move {
         scheduler.run().await;
     });
     x
@@ -182,23 +183,26 @@ mod test {
     struct DummySchedulerDataStore {}
 
     impl SchedulerDataStore for DummySchedulerDataStore {
-        fn TakeNextJobForTarget(target: PackageTarget) -> JobId { JobId(1); }
+        fn TakeNextJobForTarget(&self, target: PackageTarget) -> JobId { JobId(1) }
 
-        fn MarkJobCompleteAndUpdateDependencies(&self, job: JobId) { () }
+        fn MarkJobCompleteAndUpdateDependencies(&self, _job: JobId) { () }
     }
 
-    #[test]
-    fn simple() {
-        let (tx, rx) = tokio::sync::mpsc::channel();
-        let scheduler = Scheduler::new(Box::new(DummySchedulerDataStore {}), rx);
-        let join = tokio::task::spawn(async move { scheduler.run() });
+    #[tokio::test]
+    async fn simple() {
+        let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
+        let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
+
+        let mut scheduler = Scheduler::new(Box::new(DummySchedulerDataStore {}), s_rx, wrk_tx);
+        let join = tokio::task::spawn(async move { scheduler.run().await });
         // Do some tests.
-        let (otx, orx) = tokio::sync::oneshot::channel::JobId();
+        let (otx, orx) = oneshot::channel::<Result<JobId>>();
 
-        tx.send(SchedulerMessage::WorkerNeedsWork(WorkerId("worker1"),
-                                                  PackageTarget::from_str("x86_64-linux"),
-                                                  otx));
+        s_tx.send(SchedulerMessage::WorkerNeedsWork { worker: WorkerId("worker1".to_string()),
+                                                      target:
+                                                          PackageTarget::from_str("x86_64-linux").unwrap(),
+                                                      reply:  otx, }).await;
 
-        join.await
+        join.await;
     }
 }
