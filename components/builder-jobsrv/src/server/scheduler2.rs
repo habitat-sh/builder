@@ -202,7 +202,6 @@ mod test {
                                                       target:
                                                           PackageTarget::from_str("x86_64-linux").unwrap(),
                                                       reply:  otx, }).await;
-
         join.await;
     }
 }
