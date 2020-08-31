@@ -1670,6 +1670,7 @@ dependencies = [
  "habitat_builder_db",
  "habitat_builder_graph",
  "habitat_core",
+ "lazy_static",
  "linked-hash-map",
  "log",
  "num_cpus",

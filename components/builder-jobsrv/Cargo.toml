@@ -33,6 +33,7 @@ habitat_builder_db = { path = "../builder-db" }
 habitat_builder_graph = { path = "../builder-graph" }
 habitat-builder-protocol = { path = "../builder-protocol" }
 linked-hash-map = "*"
+lazy_static = "*"
 log = "*"
 num_cpus = "*"
 protobuf = "*"

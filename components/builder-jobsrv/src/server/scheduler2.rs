@@ -19,7 +19,6 @@ use tokio::{sync::{mpsc,
             task::JoinHandle};
 
 use crate::{error::Result,
-            protocol::jobsrv,
             scheduler_datastore::{GroupId,
                                   JobId,
                                   JobState,
@@ -29,11 +28,9 @@ use crate::{error::Result,
 use crate::hab_core::package::PackageTarget;
 
 #[derive(Debug)]
-struct StateBlob(String);
+pub struct StateBlob(String);
 
 type Responder<T> = oneshot::Sender<Result<T>>;
-type Reply<T> = oneshot::Receiver<Result<T>>;
-type Started = oneshot::Sender<()>;
 
 #[derive(Debug)]
 #[allow(dead_code)] // TODO REMOVE
@@ -53,8 +50,8 @@ pub enum SchedulerMessage {
     WorkerFinished {
         worker: WorkerId,
         job:    JobId,
-        state:  jobsrv::JobState, /* do we distingush cancel from fail and sucess? Should this
-                                   * be a status? */
+        state:  JobState, /* do we distingush cancel from fail and sucess? Should this
+                           * be a status? */
     },
     WorkerGone {
         worker: WorkerId,
@@ -93,14 +90,14 @@ impl Scheduler {
         while let Some(msg) = self.rx.recv().await {
             println!("Msg {:?}", msg);
             match msg {
-                SchedulerMessage::WorkerNeedsWork { worker: worker,
-                                                    target: target,
-                                                    reply: reply, } => {
+                SchedulerMessage::WorkerNeedsWork { worker,
+                                                    target,
+                                                    reply, } => {
                     self.worker_needs_work(&worker, target, reply)
                 }
-                SchedulerMessage::WorkerFinished { worker: worker,
+                SchedulerMessage::WorkerFinished { worker,
                                                    job: job_id,
-                                                   state: state, } => {
+                                                   state, } => {
                     self.worker_finished(&worker, job_id, state)
                 }
                 _ => (),
@@ -116,11 +113,15 @@ impl Scheduler {
         let job_id = self.data_store.take_next_job_for_target(target);
         // Probably should do some sort of parse/check here to examine the error
         // returned.SchedulerDataStore
-        reply.send(job_id);
+
+        // If the worker manager goes away, we're going to be restarting the server because we have
+        // no recovery path. So panic is the right strategy.
+        reply.send(job_id)
+             .expect("Reply failed: Worker manager appears to have died");
     }
 
     #[tracing::instrument]
-    fn worker_finished(&self, worker: &WorkerId, job_id: JobId, state: jobsrv::JobState) {
+    fn worker_finished(&self, worker: &WorkerId, job_id: JobId, state: JobState) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
         match state {
@@ -156,44 +157,105 @@ mod test {
 
     use super::*;
 
-    use crate::scheduler_datastore::{GroupId,
+    use crate::scheduler_datastore::{DummySchedulerDataStore,
+                                     DummySchedulerDataStoreCall,
+                                     DummySchedulerDataStoreResult,
+                                     GroupId,
                                      JobId,
                                      JobState,
                                      SchedulerDataStore,
                                      WorkerId};
+
+    use lazy_static;
     use std::str::FromStr;
 
-    #[derive(Default)]
-    struct DummySchedulerDataStore {}
-
-    impl SchedulerDataStore for DummySchedulerDataStore {
-        fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobId>> {
-            Ok(Some(JobId(1)))
-        }
-
-        fn mark_job_complete_and_update_dependencies(&mut self, _job: JobId) -> Result<()> {
-            Ok(())
-        }
+    lazy_static! {
+        static ref TARGET_LINUX: PackageTarget = PackageTarget::from_str("x86_64-linux").unwrap();
+        static ref TARGET_WINDOWS: PackageTarget =
+            PackageTarget::from_str("x86_64-windows").unwrap();
     }
 
     #[tokio::test]
-    async fn simple() {
+    async fn simple_job_fetch() {
+        let actions =
+            vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_LINUX, },
+                  DummySchedulerDataStoreResult::JobOption(Ok(Some(JobId(1))))),
+                 (DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_WINDOWS, },
+                  DummySchedulerDataStoreResult::JobOption(Ok(None)))];
+
+        let dummy_store = DummySchedulerDataStore::new(actions);
+
         let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
         let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
 
-        let mut scheduler = Scheduler::new(Box::new(DummySchedulerDataStore {}), s_rx, wrk_tx);
+        let mut scheduler = Scheduler::new(Box::new(dummy_store), s_rx, wrk_tx);
         let join = tokio::task::spawn(async move { scheduler.run().await });
-        // Do some tests.
-        let (o_tx, o_rx) = oneshot::channel::<Result<Option<JobId>>>();
 
-        s_tx.send(SchedulerMessage::WorkerNeedsWork { worker: WorkerId("worker1".to_string()),
-                                                      target:
-                                                          PackageTarget::from_str("x86_64-linux").unwrap(),
-                                                      reply:  o_tx, }).await;
+        // expect a job for this target
+        let (o_tx, o_rx) = oneshot::channel::<Result<Option<JobId>>>();
+        let _ = s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
+                                                                  WorkerId("worker1".to_string()),
+                                                              target: *TARGET_LINUX,
+                                                              reply:  o_tx, })
+                    .await;
 
         let reply: Result<Option<JobId>> = o_rx.await.unwrap();
-        println!("Reply {:?}", reply);
+        println!("Reply 1 {:?}", reply);
         assert_eq!(1, reply.unwrap().unwrap().0);
+
+        // No job for this target
+        let (o_tx, o_rx) = oneshot::channel::<Result<Option<JobId>>>();
+        let _ = s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
+                                                                  WorkerId("worker1".to_string()),
+                                                              target: *TARGET_WINDOWS,
+                                                              reply:  o_tx, })
+                    .await;
+
+        let reply: Result<Option<JobId>> = o_rx.await.unwrap();
+        println!("Reply 2 {:?}", reply);
+        assert_eq!(None, reply.unwrap());
+
+        drop(s_tx);
+        join.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn simple_job_fetch() {
+        let worker = WorkerId("worker1".to_string();
+
+        let actions =
+            vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_LINUX, },
+                  DummySchedulerDataStoreResult::JobOption(Ok(Some(JobId(1))))),
+                 (DummySchedulerDataStoreCall::MarkJobCompleteAndUpdateDependencies { job_id:
+                                                                                          JobId(1), },
+                  DummySchedulerDataStoreResult::UnitResult())];
+
+        let dummy_store = DummySchedulerDataStore::new(actions);
+
+        let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
+        let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
+
+        let mut scheduler = Scheduler::new(Box::new(dummy_store), s_rx, wrk_tx);
+        let join = tokio::task::spawn(async move { scheduler.run().await });
+
+        // expect a job for this target
+        let (o_tx, o_rx) = oneshot::channel::<Result<Option<JobId>>>();
+        let _ = s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
+                                                                  worker.clone()),
+                                                              target: *TARGET_LINUX,
+                                                              reply:  o_tx, })
+                    .await;
+
+        let reply: Result<Option<JobId>> = o_rx.await.unwrap();
+        println!("Reply 1 {:?}", reply);
+        assert_eq!(1, reply.unwrap().unwrap().0);
+        let job_id = reply.unwrap().unwrap();
+
+        let _ = s_tx.send(SchedulerMessage::WorkerFinished{ worker: worker.clone(),
+                job_id, JobState::Complete}).await;
+
+
+
         drop(s_tx);
         join.await.unwrap();
     }
