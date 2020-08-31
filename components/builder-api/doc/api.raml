@@ -1555,3 +1555,13 @@ securitySchemes:
                       description: Body of request did not include a visibility setting
                   500:
                     description: Internal server error
+          /delete:
+              securedBy: [oauth_2_0]
+              description: Delete a package settings entry
+              responses:
+                204:
+                  description: Package  setting deleted successfully
+                403:
+                  description: Permission denied 
+                500:
+                  description: Internal server error
