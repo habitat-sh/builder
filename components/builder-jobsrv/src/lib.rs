@@ -34,6 +34,7 @@ pub mod config;
 pub mod data_store;
 pub mod error;
 pub mod server;
+pub mod scheduler_datastore;
 
 pub use crate::{config::Config,
                 error::{Error,

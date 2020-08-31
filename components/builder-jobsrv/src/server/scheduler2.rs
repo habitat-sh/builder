@@ -12,51 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fmt,
-          str::FromStr};
+use std::fmt;
 
 use tokio::{sync::{mpsc,
                    oneshot},
-            task::JoinHandle,
-            time::interval};
+            task::JoinHandle};
 
-use crate::{config::Config,
-            data_store::DataStore,
-            db::DbPool,
-            error::{Error,
-                    Result},
-            protocol::jobsrv};
+use crate::{error::Result,
+            protocol::jobsrv,
+            scheduler_datastore::{GroupId,
+                                  JobId,
+                                  JobState,
+                                  SchedulerDataStore,
+                                  WorkerId}};
 
-use crate::hab_core::package::{target,
-                               PackageIdent,
-                               PackageTarget};
+use crate::hab_core::package::PackageTarget;
 
-#[allow(dead_code)] // TODO REMOVE
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub enum JobState {
-    Pending          = 0,
-    Processing       = 1,
-    Complete         = 2,
-    Rejected         = 3,
-    Failed           = 4,
-    Dispatched       = 5,
-    CancelPending    = 6,
-    CancelProcessing = 7,
-    CancelComplete   = 8,
-    Schedulable      = 9,
-    Eligible         = 10,
-}
-
-#[derive(Debug)]
-struct WorkerId(String);
-#[derive(Debug)]
-struct JobId(i64);
-#[derive(Debug)]
-struct GroupId(i64);
 #[derive(Debug)]
 struct StateBlob(String);
 
 type Responder<T> = oneshot::Sender<Result<T>>;
+type Reply<T> = oneshot::Receiver<Result<T>>;
 type Started = oneshot::Sender<()>;
 
 #[derive(Debug)]
@@ -72,7 +48,7 @@ pub enum SchedulerMessage {
     WorkerNeedsWork {
         worker: WorkerId,
         target: PackageTarget,
-        reply:  Responder<JobId>,
+        reply:  Responder<Option<JobId>>,
     },
     WorkerFinished {
         worker: WorkerId,
@@ -95,12 +71,6 @@ pub enum SchedulerMessage {
 pub enum WorkerManagerMessage {
     NewWorkForTarget { target: PackageTarget },
     CancelJob { jobs: Vec<JobId> },
-}
-
-// This wraps the datastore API; this should probably be thread safe so it can be shared.
-pub trait SchedulerDataStore: Send + Sync {
-    fn TakeNextJobForTarget(&self, target: PackageTarget) -> JobId;
-    fn MarkJobCompleteAndUpdateDependencies(&self, job: JobId);
 }
 
 #[derive(Debug)]
@@ -142,9 +112,11 @@ impl Scheduler {
     fn worker_needs_work(&mut self,
                          worker: &WorkerId,
                          target: PackageTarget,
-                         reply: Responder<JobId>) {
-        let job_id = self.data_store.TakeNextJobForTarget(target);
-        reply.send(Ok(job_id));
+                         reply: Responder<Option<JobId>>) {
+        let job_id = self.data_store.take_next_job_for_target(target);
+        // Probably should do some sort of parse/check here to examine the error
+        // returned.SchedulerDataStore
+        reply.send(job_id);
     }
 
     #[tracing::instrument]
@@ -183,13 +155,25 @@ pub fn start_scheduler(mut scheduler: Scheduler) -> JoinHandle<()> {
 mod test {
 
     use super::*;
+
+    use crate::scheduler_datastore::{GroupId,
+                                     JobId,
+                                     JobState,
+                                     SchedulerDataStore,
+                                     WorkerId};
+    use std::str::FromStr;
+
     #[derive(Default)]
     struct DummySchedulerDataStore {}
 
     impl SchedulerDataStore for DummySchedulerDataStore {
-        fn TakeNextJobForTarget(&self, target: PackageTarget) -> JobId { JobId(1) }
+        fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobId>> {
+            Ok(Some(JobId(1)))
+        }
 
-        fn MarkJobCompleteAndUpdateDependencies(&self, _job: JobId) { () }
+        fn mark_job_complete_and_update_dependencies(&mut self, _job: JobId) -> Result<()> {
+            Ok(())
+        }
     }
 
     #[tokio::test]
@@ -200,18 +184,17 @@ mod test {
         let mut scheduler = Scheduler::new(Box::new(DummySchedulerDataStore {}), s_rx, wrk_tx);
         let join = tokio::task::spawn(async move { scheduler.run().await });
         // Do some tests.
-        let (o_tx, o_rx) = oneshot::channel::<Result<JobId>>();
+        let (o_tx, o_rx) = oneshot::channel::<Result<Option<JobId>>>();
 
         s_tx.send(SchedulerMessage::WorkerNeedsWork { worker: WorkerId("worker1".to_string()),
                                                       target:
                                                           PackageTarget::from_str("x86_64-linux").unwrap(),
                                                       reply:  o_tx, }).await;
 
-        let reply = o_rx.await;
+        let reply: Result<Option<JobId>> = o_rx.await.unwrap();
         println!("Reply {:?}", reply);
-
+        assert_eq!(1, reply.unwrap().unwrap().0);
         drop(s_tx);
-        join.await;
-        assert_eq!(1, 2);
+        join.await.unwrap();
     }
 }
