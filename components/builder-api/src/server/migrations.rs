@@ -1,7 +1,10 @@
 use crate::{db::models::keys::OriginPrivateSigningKey,
             server::error::{Error,
                             Result}};
+use builder_core::integrations;
 use diesel::pg::PgConnection;
+use habitat_core::crypto::keys::{Key,
+                                 KeyCache};
 use std::{path::PathBuf,
           time::Instant};
 
@@ -12,7 +15,7 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result
     let start_time = Instant::now();
     let mut updated_keys = 0;
     let mut skipped_keys = 0;
-    let key_pair = builder_core::integrations::get_keypair_helper(key_path)?;
+    let builder_secret_key = key_cache.latest_builder_key()?;
     let mut next_id: i64 = 0;
 
     loop {
@@ -30,12 +33,13 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result
             next_id = skey.id;
             if skey.encryption_key_rev.is_none() {
                 let unencrypted_key = skey.body;
-                let encrypted_key =
-                    builder_core::integrations::encrypt_with_keypair(&key_pair, &unencrypted_key)?;
+                let (encrypted_key, _revision) =
+                    integrations::encrypt_with_key(&builder_secret_key, unencrypted_key);
 
                 OriginPrivateSigningKey::update_key(skey.id,
                                                     encrypted_key.as_bytes(),
-                                                    &key_pair.rev,
+                                                    &builder_secret_key.named_revision()
+                                                                       .revision(),
                                                     conn).map_err(Error::DieselError)?;
                 updated_keys += 1;
             } else {
