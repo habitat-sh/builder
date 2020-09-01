@@ -471,7 +471,7 @@ pub struct NewJobGraphEntry<'a> {
     pub manifest_ident:  &'a str,         //
     pub as_built_ident:  Option<&'a str>, //
     pub dependencies:    &'a [i64],
-    pub target_platform: BuilderPackageTarget, // PackageTarget?
+    pub target_platform: &'a BuilderPackageTarget, // PackageTarget?
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
@@ -515,7 +515,7 @@ impl JobGraphEntry {
 
     // Right now we only return the job id, but as a efficiency measure we may want to
     // join with other tables to fill out the
-    pub fn take_next_job_for_target(target: PackageTarget,
+    pub fn take_next_job_for_target(target: &BuilderPackageTarget,
                                     conn: &PgConnection)
                                     -> QueryResult<Option<i64>> /* jobid */ {
         Counter::DBCall.increment();

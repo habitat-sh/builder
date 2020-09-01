@@ -48,17 +48,75 @@ mod test {
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
         let slice: [i64; 3] = [1, 2, 3];
-        let entry = NewJobGraphEntry { group_id: 0,
-                                       job_state: JobExecState::Pending,
-                                       plan_ident: "foo/bar",
-                                       manifest_ident: "foo/bar/1.2.3/123",
-                                       as_built_ident: None,
-                                       dependencies: &[1, 2, 3],
-                                       target_platform };
+        let entry = NewJobGraphEntry { group_id:        0,
+                                       job_state:       JobExecState::Pending,
+                                       plan_ident:      "foo/bar",
+                                       manifest_ident:  "foo/bar/1.2.3/123",
+                                       as_built_ident:  None,
+                                       dependencies:    &[1, 2, 3],
+                                       target_platform: &target_platform, };
 
         let job_graph_entry = JobGraphEntry::create(&entry, &conn).unwrap();
 
         assert_eq!(job_graph_entry.group_id, 0);
         assert_eq!(job_graph_entry.job_state, JobExecState::Pending);
+    }
+
+    #[test]
+    fn take_next_job_for_target() {
+        let target_platform =
+            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
+        let other_platform =
+            BuilderPackageTarget(PackageTarget::from_str("x86_64-windows").unwrap());
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+        let slice: [i64; 3] = [1, 2, 3];
+        let entry = NewJobGraphEntry { group_id:        0,
+                                       job_state:       JobExecState::Pending,
+                                       plan_ident:      "foo/bar",
+                                       manifest_ident:  "foo/bar/1.2.3/123",
+                                       as_built_ident:  None,
+                                       dependencies:    &[1, 2, 3],
+                                       target_platform: &target_platform, };
+
+        let job_graph_entry_1 = JobGraphEntry::create(&entry, &conn).unwrap();
+
+        let entry = NewJobGraphEntry { group_id:        0,
+                                       job_state:       JobExecState::Schedulable,
+                                       plan_ident:      "foo/baz",
+                                       manifest_ident:  "foo/baz/1.2.3/123",
+                                       as_built_ident:  None,
+                                       dependencies:    &[1, 2, 3],
+                                       target_platform: &target_platform, };
+
+        let job_graph_entry_2 = JobGraphEntry::create(&entry, &conn).unwrap();
+
+        let entry = NewJobGraphEntry { group_id:        0,
+                                       job_state:       JobExecState::Eligible,
+                                       plan_ident:      "foo/ping",
+                                       manifest_ident:  "foo/ping/1.2.3/123",
+                                       as_built_ident:  None,
+                                       dependencies:    &[1, 2, 3],
+                                       target_platform: &target_platform, };
+
+        let job_graph_entry_3 = JobGraphEntry::create(&entry, &conn).unwrap();
+
+        let entry = NewJobGraphEntry { group_id:        0,
+                                       job_state:       JobExecState::Eligible,
+                                       plan_ident:      "foo/pong",
+                                       manifest_ident:  "foo/pong/1.2.3/123",
+                                       as_built_ident:  None,
+                                       dependencies:    &[1, 2, 3],
+                                       target_platform: &other_platform, };
+
+        let job_graph_entry_4 = JobGraphEntry::create(&entry, &conn).unwrap();
+
+        let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
+        assert!(job_next.is_some());
+        assert_eq!(job_next.unwrap(), job_graph_entry_3.id);
+        // TODO verify we update the state to 'dispatched'
+
+        let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
+        assert!(job_next.is_none());
     }
 }
