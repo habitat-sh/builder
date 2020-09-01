@@ -16,10 +16,9 @@ use crate::{bldr_core::{self,
                     Result},
             protocol::{jobsrv,
                        originsrv}};
-use habitat_core::{crypto::{keys::{box_key_pair::WrappedSealedBox,
-                                   parse_key_str,
-                                   parse_name_with_rev},
-                            BoxKeyPair},
+use habitat_core::{crypto::keys::{AnonymousBox,
+                                  KeyCache,
+                                  OriginSecretEncryptionKey},
                    package::{target,
                              PackageTarget}};
 use linked_hash_map::LinkedHashMap;
@@ -567,39 +566,21 @@ impl WorkerMgr {
                     {
                         Ok(key) => {
                             let key_str = from_utf8(&key.body)?;
-                            BoxKeyPair::secret_key_from_str(key_str)?
+                            key_str.parse::<OriginSecretEncryptionKey>()?
                         }
                         Err(err) => return Err(err),
                     };
 
-                    // fetch the public origin encryption key from the database
-                    let (name, rev, pub_key) =
-                        match OriginPublicEncryptionKey::latest(&origin, &*conn)
-                            .map_err(Error::DieselError)
-                        {
-                            Ok(key) => {
-                                let key_str = from_utf8(&key.body)?;
-                                let (name, rev) = match parse_key_str(key_str) {
-                                    Ok((_, name_with_rev, _)) => {
-                                        parse_name_with_rev(name_with_rev)?
-                                    }
-                                    Err(e) => return Err(Error::HabitatCore(e)),
-                                };
-                                (name, rev, BoxKeyPair::public_key_from_str(key_str)?)
-                            }
-                            Err(err) => return Err(err),
-                        };
-
-                    let box_key_pair = BoxKeyPair::new(name, rev, Some(pub_key), Some(priv_key));
                     for secret in secrets_list {
                         debug!("Adding secret to job: {:?}", secret);
-                        let mut secret_decrypted = originsrv::OriginSecret::new();
-                        let mut secret_decrypted_wrapper = originsrv::OriginSecretDecrypted::new();
-                        match BoxKeyPair::secret_metadata(&WrappedSealedBox::from(secret.value)) {
-                            Ok(secret_metadata) => {
-                                match box_key_pair.decrypt(&secret_metadata.ciphertext, None, None)
-                                {
+                        match secret.value.parse::<AnonymousBox>() {
+                            Ok(anonymous_box) => {
+                                match priv_key.decrypt(&anonymous_box) {
                                     Ok(decrypted_secret) => {
+                                        let mut secret_decrypted = originsrv::OriginSecret::new();
+                                        let mut secret_decrypted_wrapper =
+                                            originsrv::OriginSecretDecrypted::new();
+
                                         secret_decrypted.set_id(secret.id as u64);
                                         secret_decrypted.set_origin(secret.origin);
                                         secret_decrypted.set_name(secret.name.to_string());
@@ -617,7 +598,7 @@ impl WorkerMgr {
                                 };
                             }
                             Err(e) => {
-                                warn!("Failed to get metadata from secret: {}", e);
+                                warn!("Failed to decrypt secret: {}", e);
                                 continue;
                             }
                         };
