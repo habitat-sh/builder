@@ -500,6 +500,12 @@ pub struct UpdateJobGraphEntry<'a> {
 }
 
 impl JobGraphEntry {
+    pub fn get(id: i64, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
+        Counter::DBCall.increment();
+        job_graph::table.filter(job_graph::id.eq(id))
+                        .get_result(conn)
+    }
+
     pub fn create(req: &NewJobGraphEntry, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
         Counter::DBCall.increment();
         diesel::insert_into(job_graph::table).values(req)
@@ -511,6 +517,7 @@ impl JobGraphEntry {
     pub fn take_next_job_for_target(target: PackageTarget,
                                     conn: &PgConnection)
                                     -> QueryResult<Option<i64>> /* jobid */ {
+        Counter::DBCall.increment();
         // TODO make this a transaction
         // Logically this is going to be a select over the target for job_graph entries that are in
         // state Eligible sorted by some sort of priority.
