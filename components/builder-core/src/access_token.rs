@@ -1,9 +1,7 @@
 use super::privilege::FeatureFlags;
 use crate::{error::{Error,
                     Result},
-            integrations::{decrypt,
-                           encrypt,
-                           validate},
+            integrations,
             protocol::{message,
                        originsrv}};
 use chrono::{self,
@@ -57,17 +55,16 @@ fn generate_access_token(key_cache: &KeyCache,
     token.set_expires(expires);
 
     let bytes = message::encode(&token).map_err(Error::Protocol)?;
-    let (ciphertext, _) = encrypt(key_dir, &bytes)?;
 
-    Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, ciphertext))
+    let (token_value, _) = integrations::encrypt(&key_cache, bytes)?;
+    Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, token_value))
 }
 
 pub fn is_access_token(token: &str) -> bool { token.starts_with(ACCESS_TOKEN_PREFIX) }
 
-pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<originsrv::Session> {
-    assert!(is_access_token(token));
-
-    let bytes = decrypt(key_dir, &token[ACCESS_TOKEN_PREFIX.len()..])?;
+/// Decrypts a token to get a valid `Session`.
+pub fn validate_access_token(key_cache: &KeyCache, token: &str) -> Result<originsrv::Session> {
+    let bytes = integrations::decrypt(&key_cache, &token[ACCESS_TOKEN_PREFIX.len()..])?;
 
     let payload: originsrv::AccessToken = match message::decode(&bytes) {
         Ok(p) => p,
@@ -76,10 +73,6 @@ pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<originsrv
             return Err(Error::TokenInvalid);
         }
     };
-
-    if payload.get_account_id() == BUILDER_ACCOUNT_ID {
-        validate(key_dir, &token[ACCESS_TOKEN_PREFIX.len()..])?
-    }
 
     match Utc.timestamp_opt(payload.get_expires(), 0 /* nanoseconds */) {
         Single(expires) => {

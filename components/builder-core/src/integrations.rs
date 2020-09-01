@@ -57,42 +57,6 @@ pub fn encrypt_with_key<B>(key: &BuilderSecretEncryptionKey, bytes: B) -> (Strin
     (b64, key.named_revision().revision().clone())
 }
 
-// This function takes in a double base64 encoded string
-pub fn validate<A>(key_dir: A, b64text: &str) -> Result<()>
-    where A: AsRef<Path>
-{
-    let decoded = base64::decode(b64text).map_err(Error::Base64Error)?;
-    let wsb = &WrappedSealedBox::from(String::from_utf8(decoded).unwrap());
-    let box_secret = BoxKeyPair::secret_metadata(wsb)?;
-
-    match BoxKeyPair::get_pair_for(box_secret.sender, &key_dir.as_ref()) {
-        Ok(_) => (),
-        Err(err) => {
-            let e = format!("Unable to find sender key pair, err={:?}", &err);
-            error!("Unable to find sender key pair, err={:?}", err);
-            return Err(Error::DecryptError(e));
-        }
-    }
-
-    match box_secret.receiver {
-        Some(recv) => {
-            match BoxKeyPair::get_pair_for(recv, &key_dir.as_ref()) {
-                Ok(_) => (),
-                Err(err) => {
-                    let e = format!("Unable to find receiver key pair, err={:?}", &err);
-                    error!("Unable to find receiver key pair, err={:?}", err);
-                    return Err(Error::DecryptError(e));
-                }
-            }
-        }
-        None => {
-            let e = "No receiver key pair specified".to_string();
-            error!("No receiver key pair specified");
-            return Err(Error::DecryptError(e));
-        }
-    };
-
-    Ok(())
 /// Decrypts a given base64 `SignedBox` using the appropriate Builder
 /// encryption key. We pass the `KeyCache` because the encoded message
 /// tells us which key revision to use, so we don't know which key
