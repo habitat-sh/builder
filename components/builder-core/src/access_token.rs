@@ -11,6 +11,7 @@ use chrono::{self,
              LocalResult::Single,
              TimeZone,
              Utc};
+use habitat_core::crypto::keys::KeyCache;
 use std::path::PathBuf;
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
@@ -24,25 +25,28 @@ const ACCESS_TOKEN_PREFIX: &str = "_";
 
 const BUILDER_TOKEN_LIFETIME_HOURS: i64 = 2;
 
-pub fn generate_bldr_token(key_dir: &PathBuf) -> Result<String> {
-    generate_access_token(key_dir,
+pub fn generate_bldr_token(key_cache: &KeyCache) -> Result<String> {
+    generate_access_token(key_cache,
                           BUILDER_ACCOUNT_ID,
                           FeatureFlags::all().bits(),
                           Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
 }
 
-pub fn generate_user_token(key_dir: &PathBuf, account_id: u64, privileges: u32) -> Result<String> {
-    generate_access_token(key_dir,
+pub fn generate_user_token(key_cache: &KeyCache,
+                           account_id: u64,
+                           privileges: u32)
+                           -> Result<String> {
+    generate_access_token(key_cache,
                           account_id,
                           privileges,
                           Duration::max_value() /* User tokens never expire, can only be revoked */)
 }
 
-pub fn generate_access_token(key_dir: &PathBuf,
-                             account_id: u64,
-                             flags: u32,
-                             lifetime: Duration)
-                             -> Result<String> {
+fn generate_access_token(key_cache: &KeyCache,
+                         account_id: u64,
+                         flags: u32,
+                         lifetime: Duration)
+                         -> Result<String> {
     let expires = Utc::now().checked_add_signed(lifetime)
                             .unwrap_or_else(|| chrono::MAX_DATE.and_hms(0, 0, 0))
                             .timestamp();

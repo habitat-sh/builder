@@ -8,7 +8,7 @@ use std::{path::PathBuf,
 // This value was arbitrarily chosen and might need some tuning
 const KEY_MIGRATION_CHUNK_SIZE: i64 = 100;
 
-pub fn migrate_to_encrypted(conn: &PgConnection, key_path: &PathBuf) -> Result<()> {
+pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result<()> {
     let start_time = Instant::now();
     let mut updated_keys = 0;
     let mut skipped_keys = 0;

@@ -4,6 +4,7 @@ use crate::db::config::DataStoreCfg;
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
 use habitat_core::{config::ConfigFile,
+                   crypto::keys::KeyCache,
                    package::target::{self,
                                      PackageTarget}};
 use oauth_client::config::OAuth2Cfg;
@@ -110,7 +111,8 @@ impl Default for S3Cfg {
 pub struct ApiCfg {
     pub data_path:        PathBuf,
     pub log_path:         PathBuf,
-    pub key_path:         PathBuf,
+    /// Location of Builder encryption keys
+    pub key_path:         KeyCache,
     pub targets:          Vec<PackageTarget>,
     pub build_targets:    Vec<PackageTarget>,
     pub features_enabled: String,
@@ -122,7 +124,7 @@ impl Default for ApiCfg {
     fn default() -> Self {
         ApiCfg { data_path:        PathBuf::from("/hab/svc/builder-api/data"),
                  log_path:         env::temp_dir(),
-                 key_path:         PathBuf::from("/hab/svc/builder-api/files"),
+                 key_path:         KeyCache::new("/hab/svc/builder-api/files"),
                  targets:          vec![target::X86_64_LINUX,
                                         target::X86_64_LINUX_KERNEL2,
                                         target::X86_64_WINDOWS,],
@@ -389,7 +391,7 @@ mod tests {
         assert_eq!(config.api.log_path,
                    PathBuf::from("/hab/svc/hab-depot/var/log"));
         assert_eq!(config.api.key_path,
-                   PathBuf::from("/hab/svc/hab-depot/files"));
+                   KeyCache::new("/hab/svc/hab-depot/files"));
 
         assert_eq!(config.api.targets.len(), 3);
         assert_eq!(config.api.targets[0], target::X86_64_LINUX);

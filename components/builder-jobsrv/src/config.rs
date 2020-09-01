@@ -4,6 +4,7 @@ use crate::{db::config::DataStoreCfg,
             error::Error,
             server::log_archiver::ArchiveBackend};
 use habitat_core::{config::ConfigFile,
+                   crypto::keys::KeyCache,
                    package::target::{self,
                                      PackageTarget}};
 use std::{collections::HashSet,
@@ -29,8 +30,8 @@ pub struct Config {
     pub log_dir:          PathBuf,
     /// Configuration for the job log archiver
     pub archive:          ArchiveCfg,
-    /// Filepath to where the builder encryption keys can be found
-    pub key_dir:          PathBuf,
+    /// Location of Builder encryption keys
+    pub key_dir:          KeyCache,
     /// Path to scheduler event logs
     pub log_path:         PathBuf,
     /// Max time (in minutes) allowed for a build job
@@ -50,7 +51,7 @@ impl Default for Config {
                  datastore,
                  log_dir: env::temp_dir(),
                  archive: ArchiveCfg::default(),
-                 key_dir: PathBuf::from("/hab/svc/hab-depot/files"),
+                 key_dir: KeyCache::new("/hab/svc/hab-depot/files"),
                  log_path: PathBuf::from("/tmp"),
                  job_timeout: 60,
                  build_targets: HashSet::from_iter(vec![target::X86_64_LINUX,
@@ -238,7 +239,7 @@ mod tests {
         let config = Config::from_raw(&content).unwrap();
         assert_eq!(&format!("{}", config.http.listen), "1.2.3.4");
         assert_eq!(config.http.port, 1234);
-        assert_eq!(config.key_dir, PathBuf::from("/path/to/keys"));
+        assert_eq!(config.key_dir, KeyCache::new("/path/to/keys"));
         assert_eq!(config.log_path, PathBuf::from("/path/to/logs"));
         assert_eq!(config.job_timeout, 12345678);
 

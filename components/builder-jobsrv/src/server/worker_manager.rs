@@ -131,7 +131,8 @@ impl Worker {
 pub struct WorkerMgr {
     datastore:        DataStore,
     db:               DbPool,
-    key_dir:          PathBuf,
+    /// Location of Builder encryption keys
+    key_cache:        KeyCache,
     hb_sock:          zmq::Socket,
     rq_sock:          zmq::Socket,
     work_mgr_sock:    zmq::Socket,
@@ -157,7 +158,12 @@ impl WorkerMgr {
 
         WorkerMgr { datastore: datastore.clone(),
                     db,
-                    key_dir: cfg.key_dir.clone(),
+                    // cfg is hydrated from a TOML file, and the
+                    // `key_dir` name is currently part of that
+                    // interface. `WorkerMgr` is fully private,
+                    // though, so we can actually freely name this
+                    // `key_cache`.
+                    key_cache: cfg.key_dir.clone(),
                     hb_sock,
                     rq_sock,
                     work_mgr_sock,
@@ -492,7 +498,8 @@ impl WorkerMgr {
             Ok(oir) => {
                 for i in oir {
                     let mut oi = originsrv::OriginIntegration::new();
-                    let plaintext = match bldr_core::integrations::decrypt(&self.key_dir, &i.body) {
+                    let plaintext = match bldr_core::integrations::decrypt(&self.key_cache, &i.body)
+                    {
                         Ok(b) => {
                             match String::from_utf8(b) {
                                 Ok(s) => s,

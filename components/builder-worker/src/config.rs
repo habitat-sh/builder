@@ -3,6 +3,7 @@
 use crate::error::Error;
 use github_api_client::config::GitHubCfg;
 use habitat_core::{config::ConfigFile,
+                   crypto::keys::KeyCache,
                    package::PackageTarget,
                    url,
                    ChannelIdent};
@@ -20,8 +21,8 @@ pub struct Config {
     pub auto_publish:     bool,
     /// Filepath where persistent application data is stored
     pub data_path:        PathBuf,
-    /// Filepath to where the builder encryption keys can be found
-    pub key_dir:          PathBuf,
+    /// Location of Builder encryption keys
+    pub key_dir:          KeyCache,
     /// Path to worker event logs
     pub log_path:         PathBuf,
     /// Default channel name for Publish post-processor to use to determine which channel to
@@ -56,7 +57,7 @@ impl Default for Config {
         Config { auto_publish:     true,
                  data_path:        PathBuf::from("/tmp"),
                  log_path:         PathBuf::from("/tmp"),
-                 key_dir:          PathBuf::from("/hab/svc/builder-worker/files"),
+                 key_dir:          KeyCache::new("/hab/svc/builder-worker/files"),
                  bldr_channel:     ChannelIdent::unstable(),
                  bldr_url:         url::default_bldr_url(),
                  jobsrv:           vec![JobSrvAddr::default()],
@@ -115,7 +116,7 @@ mod tests {
         let config = Config::from_raw(&content).unwrap();
         assert_eq!(&format!("{}", config.data_path.display()), "/path/to/data");
         assert_eq!(&format!("{}", config.log_path.display()), "/path/to/logs");
-        assert_eq!(&format!("{}", config.key_dir.display()), "/path/to/key");
+        assert_eq!(config.key_dir, KeyCache::new("/path/to/key"));
         assert_eq!(&format!("{}", config.jobsrv[0].host), "1:1:1:1:1:1:1:1");
         assert_eq!(config.jobsrv[0].port, 9000);
         assert_eq!(config.jobsrv[0].heartbeat, 9001);
