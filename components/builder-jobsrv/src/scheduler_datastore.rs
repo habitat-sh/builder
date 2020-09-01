@@ -23,6 +23,8 @@ use crate::{db::{config::DataStoreCfg,
 
 use crate::hab_core::package::PackageTarget;
 
+mod test;
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct WorkerId(pub String);
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]

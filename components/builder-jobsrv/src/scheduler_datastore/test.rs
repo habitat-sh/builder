@@ -1,15 +1,22 @@
 #[cfg(test)]
-#[cfg(feature = "postgres_tests")]
-// cargo test --features postgres_tests to enable
+#[cfg(feature = "postgres_scheduler_tests")]
+// cargo test --features postgres_scheduler_tests to enable
 // from root
-// cargo test -p habitat_builder_jobsrv --features=postgres_tests
+// cargo test -p habitat_builder_jobsrv --features=postgres_scheduler_tests
 // --manifest-path=components/builder-jobsrv/Cargo.toml
 mod test {
-    use crate::data_store::DataStore;
+    use crate::{data_store::DataStore,
+                hab_core::package::PackageTarget};
     use chrono::{DateTime,
                  Duration,
                  Utc};
-    use habitat_builder_db::datastore_test;
+
+    use habitat_builder_db::{datastore_test,
+                             models::{jobs::{JobExecState,
+                                             JobGraphEntry,
+                                             NewJobGraphEntry,
+                                             UpdateJobGraphEntry},
+                                      package::BuilderPackageTarget}};
     use habitat_builder_protocol::message::{jobsrv::*,
                                             originsrv::{OriginPackageIdent,
                                                         OriginProject}};
@@ -35,5 +42,23 @@ mod test {
     }
 
     #[test]
-    fn create_job_graph_entry() { let ds = datastore_test!(DataStore); }
+    fn create_job_graph_entry() {
+        let target_platform =
+            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+        let slice: [i64; 3] = [1, 2, 3];
+        let entry = NewJobGraphEntry { group_id: 0,
+                                       job_state: JobExecState::Pending,
+                                       plan_ident: "foo/bar",
+                                       manifest_ident: "foo/bar/1.2.3/123",
+                                       as_built_ident: None,
+                                       dependencies: &[1, 2, 3],
+                                       target_platform };
+
+        let job_graph_entry = JobGraphEntry::create(&entry, &conn).unwrap();
+
+        assert_eq!(job_graph_entry.group_id, 0);
+        assert_eq!(job_graph_entry.job_state, JobExecState::Pending);
+    }
 }

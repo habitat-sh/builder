@@ -83,10 +83,11 @@ table! {
 
 table! {
     use diesel::sql_types::{Array, BigInt, Text, Nullable, Timestamptz};
+    use crate::models::jobs::JobExecStateMapping;
     job_graph(id) {
         id -> BigInt,
         group_id -> BigInt,
-        job_state -> Text,// Should be enum
+        job_state -> JobExecStateMapping,
         plan_ident -> Text, // BuilderPackageIdent
         manifest_ident -> Text,
         as_built_ident -> Nullable<Text>,

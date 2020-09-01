@@ -13,7 +13,8 @@ use crate::protocol::{jobsrv,
                       net,
                       originsrv};
 
-use crate::{models::pagination::Paginate,
+use crate::{models::{package::BuilderPackageTarget,
+                     pagination::Paginate},
             schema::jobs::{audit_jobs,
                            busy_workers,
                            group_projects,
@@ -465,12 +466,12 @@ impl FromStr for JobExecState {
 #[table_name = "job_graph"]
 pub struct NewJobGraphEntry<'a> {
     pub group_id:        i64,
-    pub job_state:       &'a str,         // Should be enum
+    pub job_state:       JobExecState,    // Should be enum
     pub plan_ident:      &'a str,         // BuilderPackageIdent
     pub manifest_ident:  &'a str,         //
     pub as_built_ident:  Option<&'a str>, //
-    pub dependencies:    Vec<i64>,
-    pub target_platform: &'a str, // PackageTarget?
+    pub dependencies:    &'a [i64],
+    pub target_platform: BuilderPackageTarget, // PackageTarget?
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
@@ -478,12 +479,12 @@ pub struct NewJobGraphEntry<'a> {
 pub struct JobGraphEntry {
     pub id:              i64,
     pub group_id:        i64, // This is the id of the associated group (should have been group_id)
-    pub job_state:       String, // Should be enum
+    pub job_state:       JobExecState, // Should be enum
     pub plan_ident:      String, // BuilderPackageIdent
     pub manifest_ident:  String, //
     pub as_built_ident:  Option<String>, //
     pub dependencies:    Vec<i64>,
-    pub target_platform: String, // PackageTarget?
+    pub target_platform: BuilderPackageTarget, // PackageTarget?
     pub created_at:      DateTime<Utc>,
     pub updated_at:      DateTime<Utc>,
 }
@@ -492,7 +493,7 @@ pub struct JobGraphEntry {
 #[table_name = "job_graph"]
 pub struct UpdateJobGraphEntry<'a> {
     pub id:             i64,
-    pub job_state:      &'a str,         // Should be enum
+    pub job_state:      JobExecState,    // Should be enum
     pub plan_ident:     &'a str,         // BuilderPackageIdent
     pub manifest_ident: &'a str,         //
     pub as_built_ident: Option<&'a str>, //
@@ -522,10 +523,9 @@ impl JobGraphEntry {
         // Logically this is going to be a select over the target for job_graph entries that are in
         // state Eligible sorted by some sort of priority.
         // conn.transaction::(<_, Error, _>)|| {
-        let next_job =
-            job_graph::table.select(job_graph::id)
+        let next_job = job_graph::table.select(job_graph::id)
             .filter(job_graph::target_platform.eq(target.to_string()))
-            .filter(job_graph::job_state.eq(JobExecState::Eligible.to_string()))
+            .filter(job_graph::job_state.eq(JobExecState::Eligible))
             // This is the effective priority of a job; right now we select the oldest entry, but
             // in the future we may want to prioritize finishing one group before starting the next, or by
             // some precomputed metric (e.g. total number of transitive deps or some other parallelisim maximising
@@ -536,7 +536,7 @@ impl JobGraphEntry {
         match next_job {
             Ok(job_id) => {
                 // This should be done in a transaction
-                diesel::update(job_graph::table.find(job_id)).set(job_graph::job_state.eq(JobExecState::Dispatched.to_string())).execute(conn)?;
+                diesel::update(job_graph::table.find(job_id)).set(job_graph::job_state.eq(JobExecState::Dispatched)).execute(conn)?;
                 diesel::QueryResult::Ok(Some(job_id))
             }
             diesel::QueryResult::Err(diesel::result::Error::NotFound) => {

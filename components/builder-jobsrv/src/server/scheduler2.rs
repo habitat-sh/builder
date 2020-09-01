@@ -158,14 +158,14 @@ mod test {
 
     use super::*;
 
-    use crate::scheduler_datastore::{DummySchedulerDataStore,
-                                     DummySchedulerDataStoreCall,
-                                     DummySchedulerDataStoreResult,
-                                     GroupId,
-                                     JobId,
-                                     JobState,
-                                     SchedulerDataStore,
-                                     WorkerId};
+    use crate::{db::models::jobs::JobExecState,
+                scheduler_datastore::{DummySchedulerDataStore,
+                                      DummySchedulerDataStoreCall,
+                                      DummySchedulerDataStoreResult,
+                                      GroupId,
+                                      JobId,
+                                      SchedulerDataStore,
+                                      WorkerId}};
 
     use lazy_static;
     use std::str::FromStr;
