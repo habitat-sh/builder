@@ -21,15 +21,27 @@ export HAB_BLDR_URL="${PIPELINE_HAB_BLDR_URL}"
 # the container we happen to be running in.
 curlbash_hab "${BUILD_PKG_TARGET}"
 
+# Explicitly set what hab binary we want to use, to avoid any potential conflicts
+# with $PATH and provided cli.
+# FAILURE CASE: If we change the default install location, this will possibly fail, or 
+#               use an incorrect version of the cli.
+hab_binary="/bin/hab"
+
 import_keys "${HAB_ORIGIN}"
 
-echo "--- :habicat: Building builder-worker"
+echo "--- :habicat: Building builder-worker using $hab_binary "
 
-hab pkg build "components/builder-worker"
+${hab_binary} pkg build "components/builder-worker"
 source results/last_build.env
 
+if [ "${pkg_target}" != "${BUILD_PKG_TARGET}" ]; then
+    echo "--- :face_with_symbols_on_mouth: Expected to build for target ${BUILD_PKG_TARGET}, but built ${pkg_target} instead!"
+    exit 1
+fi
+
 echo "--- :habicat: Uploading ${pkg_ident:?} to ${HAB_BLDR_URL} in the 'unstable' channel"
-hab pkg upload \
+
+${hab_binary} pkg upload \
     --auth="${HAB_AUTH_TOKEN}" \
     --no-build \
     "results/${pkg_artifact:?}"
