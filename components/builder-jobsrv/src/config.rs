@@ -201,6 +201,9 @@ mod tests {
         let content = r#"
         build_targets = ["x86_64-linux"]
         features_enabled = "foo, bar"
+        key_dir = "/path/to/keys"
+        log_path = "/path/to/logs"
+        job_timeout = 12345678
 
         [http]
         listen = "1.2.3.4"
@@ -235,6 +238,9 @@ mod tests {
         let config = Config::from_raw(&content).unwrap();
         assert_eq!(&format!("{}", config.http.listen), "1.2.3.4");
         assert_eq!(config.http.port, 1234);
+        assert_eq!(config.key_dir, PathBuf::from("/path/to/keys"));
+        assert_eq!(config.log_path, PathBuf::from("/path/to/logs"));
+        assert_eq!(config.job_timeout, 12345678);
 
         assert_eq!(&format!("{}", config.net.worker_command_listen),
                    "1:1:1:1:1:1:1:1");
