@@ -91,7 +91,7 @@ table! {
         manifest_ident -> Text,
         as_built_ident -> Nullable<Text>,
         dependencies -> Array<BigInt>,
-        target -> Text, // Should be enum
+        target_platform -> Text, // Should be enum
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
     }

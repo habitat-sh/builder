@@ -12,25 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::error::Result;
+use diesel::{result::Error as Dre,
+             Connection};
+
+use crate::{db::{config::DataStoreCfg,
+                 models::jobs::{JobExecState,
+                                JobGraphEntry},
+                 DbPool},
+            error::Result};
 
 use crate::hab_core::package::PackageTarget;
-
-#[allow(dead_code)] // TODO REMOVE
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub enum JobState {
-    Pending          = 0,
-    Processing       = 1,
-    Complete         = 2,
-    Rejected         = 3,
-    Failed           = 4,
-    Dispatched       = 5,
-    CancelPending    = 6,
-    CancelProcessing = 7,
-    CancelComplete   = 8,
-    Schedulable      = 9,
-    Eligible         = 10,
-}
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct WorkerId(pub String);
@@ -45,6 +36,32 @@ pub trait SchedulerDataStore: Send + Sync {
     fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<()>;
 }
 
+//
+pub struct SchedulerDataStoreDb {
+    diesel_pool: DbPool,
+}
+
+impl SchedulerDataStoreDb {
+    /// Create a new DataStore.
+    ///
+    /// * Can fail if the pool cannot be created
+    /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
+    pub fn new(cfg: &DataStoreCfg) -> Self {
+        let diesel_pool = DbPool::new(&cfg);
+        SchedulerDataStoreDb { diesel_pool }
+    }
+}
+
+impl SchedulerDataStore for SchedulerDataStoreDb {
+    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobId>> {
+        Ok(Some(JobId(0)))
+    }
+
+    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<()> { Ok(()) }
+}
+
+// Test code
+//
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum DummySchedulerDataStoreCall {
     TakeNextJobForTarget { target: PackageTarget },
@@ -84,10 +101,10 @@ impl SchedulerDataStore for DummySchedulerDataStore {
         assert!(self.actions.len() > 0);
         assert_eq!(self.actions[0].0,
                    DummySchedulerDataStoreCall::MarkJobCompleteAndUpdateDependencies { job_id });
-        if let (_, DummySchedulerDataStoreResult::UnitResult() = self.actions.remove(0) {
+        if let (_, DummySchedulerDataStoreResult::UnitResult()) = self.actions.remove(0) {
             Ok(())
         } else {
             unreachable!("some sort of strange data problem")
         }
-     }
+    }
 }

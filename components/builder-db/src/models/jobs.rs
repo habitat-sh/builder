@@ -21,9 +21,13 @@ use crate::{models::pagination::Paginate,
                            job_graph,
                            jobs}};
 
-use crate::{bldr_core::metrics::CounterMetric,
+use crate::{bldr_core::{metrics::CounterMetric,
+                        Error as BuilderError},
             hab_core::package::PackageTarget,
             metrics::Counter};
+
+use std::{fmt,
+          str::FromStr};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "jobs"]
@@ -383,31 +387,105 @@ impl GroupProject {
 
 ////////////////////////////////////////////////////
 //
+
+// This needs to be kept in sync with the enum in the database
+#[derive(DbEnum,
+         PartialEq,
+         Eq,
+         Debug,
+         Hash,
+         Serialize,
+         Deserialize,
+         ToSql,
+         FromSql)]
+#[PgType = "job_exec_state"]
+#[postgres(name = "job_exec_state")]
+pub enum JobExecState {
+    #[postgres(name = "pending")]
+    Pending,
+    #[postgres(name = "schedulable")]
+    Schedulable,
+    #[postgres(name = "eligible")]
+    Eligible,
+    #[postgres(name = "dispatched")]
+    Dispatched,
+    #[postgres(name = "complete")]
+    Complete,
+    #[postgres(name = "job_failed")]
+    JobFailed,
+    #[postgres(name = "dependency_failed")]
+    DependencyFailed,
+    #[postgres(name = "cancel_pending")]
+    CancelPending,
+    #[postgres(name = "cancel_complete")]
+    CancelComplete,
+}
+
+impl fmt::Display for JobExecState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match *self {
+            JobExecState::Pending => "pending",
+            JobExecState::Schedulable => "schedulable",
+            JobExecState::Eligible => "eligible",
+            JobExecState::Dispatched => "dispatched",
+            JobExecState::Complete => "complete",
+            JobExecState::JobFailed => "job_failed",
+            JobExecState::DependencyFailed => "dependency_failed",
+            JobExecState::CancelPending => "cancel_pending",
+            JobExecState::CancelComplete => "cancel_complete",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl FromStr for JobExecState {
+    type Err = BuilderError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            "pending" => Ok(JobExecState::Pending),
+            "schedulable" => Ok(JobExecState::Schedulable),
+            "eligible" => Ok(JobExecState::Eligible),
+            "dispatched" => Ok(JobExecState::Dispatched),
+            "complete" => Ok(JobExecState::Complete),
+            "job_failed" => Ok(JobExecState::JobFailed),
+            "dependency_failed" => Ok(JobExecState::DependencyFailed),
+            "cancel_pending" => Ok(JobExecState::CancelPending),
+            "cancel_complete" => Ok(JobExecState::CancelComplete),
+            _ => {
+                Err(BuilderError::JobExecStateConversionError(format!("Could not convert {} to \
+                                                                       a JobExecState",
+                                                                      value)))
+            }
+        }
+    }
+}
+
 #[derive(Insertable)]
 #[table_name = "job_graph"]
 pub struct NewJobGraphEntry<'a> {
-    pub group_id:       i64,
-    pub job_state:      &'a str,         // Should be enum
-    pub plan_ident:     &'a str,         // BuilderPackageIdent
-    pub manifest_ident: &'a str,         //
-    pub as_built_ident: Option<&'a str>, //
-    pub dependencies:   Vec<i64>,
-    pub target:         &'a str, // PackageTarget?
+    pub group_id:        i64,
+    pub job_state:       &'a str,         // Should be enum
+    pub plan_ident:      &'a str,         // BuilderPackageIdent
+    pub manifest_ident:  &'a str,         //
+    pub as_built_ident:  Option<&'a str>, //
+    pub dependencies:    Vec<i64>,
+    pub target_platform: &'a str, // PackageTarget?
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "job_graph"]
 pub struct JobGraphEntry {
-    pub id:             i64,
-    pub group_id:       i64, // This is the id of the associated group (should have been group_id)
-    pub job_state:      String, // Should be enum
-    pub plan_ident:     String, // BuilderPackageIdent
-    pub manifest_ident: String, //
-    pub as_built_ident: Option<String>, //
-    pub dependencies:   Vec<i64>,
-    pub target:         String, // PackageTarget?
-    pub created_at:     DateTime<Utc>,
-    pub updated_at:     DateTime<Utc>,
+    pub id:              i64,
+    pub group_id:        i64, // This is the id of the associated group (should have been group_id)
+    pub job_state:       String, // Should be enum
+    pub plan_ident:      String, // BuilderPackageIdent
+    pub manifest_ident:  String, //
+    pub as_built_ident:  Option<String>, //
+    pub dependencies:    Vec<i64>,
+    pub target_platform: String, // PackageTarget?
+    pub created_at:      DateTime<Utc>,
+    pub updated_at:      DateTime<Utc>,
 }
 
 #[derive(AsChangeset)]
@@ -426,5 +504,38 @@ impl JobGraphEntry {
         Counter::DBCall.increment();
         diesel::insert_into(job_graph::table).values(req)
                                              .get_result(conn)
+    }
+
+    // Right now we only return the job id, but as a efficiency measure we may want to
+    // join with other tables to fill out the
+    pub fn take_next_job_for_target(target: PackageTarget,
+                                    conn: &PgConnection)
+                                    -> QueryResult<Option<i64>> /* jobid */ {
+        // TODO make this a transaction
+        // Logically this is going to be a select over the target for job_graph entries that are in
+        // state Eligible sorted by some sort of priority.
+        // conn.transaction::(<_, Error, _>)|| {
+        let next_job =
+            job_graph::table.select(job_graph::id)
+            .filter(job_graph::target_platform.eq(target.to_string()))
+            .filter(job_graph::job_state.eq(JobExecState::Eligible.to_string()))
+            // This is the effective priority of a job; right now we select the oldest entry, but
+            // in the future we may want to prioritize finishing one group before starting the next, or by
+            // some precomputed metric (e.g. total number of transitive deps or some other parallelisim maximising
+                // heuristic
+            .order(job_graph::created_at.asc())
+            .limit(1)
+            .get_result(conn);
+        match next_job {
+            Ok(job_id) => {
+                // This should be done in a transaction
+                diesel::update(job_graph::table.find(job_id)).set(job_graph::job_state.eq(JobExecState::Dispatched.to_string())).execute(conn)?;
+                diesel::QueryResult::Ok(Some(job_id))
+            }
+            diesel::QueryResult::Err(diesel::result::Error::NotFound) => {
+                diesel::QueryResult::Ok(None)
+            }
+            diesel::QueryResult::Err(x) => diesel::QueryResult::<Option<i64>>::Err(x),
+        }
     }
 }
