@@ -4,78 +4,57 @@
 use crate::{error::{Error,
                     Result},
             keys};
-use habitat_core::crypto::{keys::box_key_pair::WrappedSealedBox,
-                           BoxKeyPair};
+use habitat_core::crypto::keys::{BuilderSecretEncryptionKey,
+                                 Key,
+                                 KeyCache,
+                                 KeyRevision,
+                                 SignedBox};
 use std::path::Path;
 
-// TBD - these functions should take keys directly instead of key directory.
-
-pub fn encrypt_with_keypair(key_pair: &BoxKeyPair, bytes: &[u8]) -> Result<String> {
-    let wsb = match key_pair.encrypt(bytes, Some(&key_pair)) {
-        Ok(s) => s,
-        Err(err) => {
-            let e = format!("Unable to encrypt with bldr key pair, err={:?}", &err);
-            error!("Unable to encrypt with bldr key pair, err={:?}", err);
-            return Err(Error::EncryptError(e));
-        }
-    };
-
-    // kp.encrypt returns a WrappedSealedBox which contains readable metadata and base64
-    // ciphertext. We base64 encode the WrappedSealedBox again, so that the returned string
-    // is consistently base64 and does not have random text interspersed with readable text.
-    // This makes it easier to pass around, eg, for access tokens, and is by design.
-    // The downside is that there is double base64 happening.
-    Ok(base64::encode(wsb.as_bytes()))
+/// Encrypts bytes using the latest Builder encryption key in the
+/// `KeyCache`, returning the base64-encoded encrypted `SignedBox`,
+/// along with the revision of the Builder key that was used. The
+/// bytes are encrypted such that only Builder could have encrypted
+/// it, and only Builder can decrypt it.
+///
+/// It is *not* returning the `NamedRevision` because all Builder keys
+/// have the same name, by definition (there's no inherent reason to
+/// *just* return the `KeyRevision`, it's just what other parts of
+/// Builder take right now).
+///
+/// This function is what all encryption in Builder uses. While the
+/// base64 encoding used here is only strictly necessary for access
+/// tokens, but it is also used for storing encrypted data in the
+/// database, even though the actual cryptographic bits of a
+/// `SignedBox` are already serialized as base64.
+// TODO (CM): If we were to ever change this, we'd need to migrate
+// data stored in the database to decode it first. Furthermore, the
+// paired `decrypt` method below assumes that its input will be base64
+// encoded. Interestingly, we store *public* keys (i.e., unencrypted
+// key strings, which themselves are a mix of plaintext and base64
+// encoded binary information, just like our SignedBoxes are).
+//
+// TODO (CM): If we were to just return a SignedBox, we would be able
+// to get the KeyRevision directly from it, since all SignedBoxes know
+// who the encryptor is. However, that would require knowing that for
+// these SignedBoxes, the encryptor and decryptor are always the
+// same. If we were to do that, it would be useful to create a new
+// type to represent that fact, but that could require database
+// migrations if not done properly.
+pub fn encrypt<B>(key_cache: &KeyCache, bytes: B) -> Result<(String, KeyRevision)>
+    where B: AsRef<[u8]>
+{
+    let key = key_cache.latest_builder_key()?;
+    Ok(encrypt_with_key(&key, bytes))
 }
 
-pub fn get_keypair_helper<A>(key_dir: A) -> Result<BoxKeyPair>
-    where A: AsRef<Path>
+/// Same as `encrypt`, but using a specific key.
+pub fn encrypt_with_key<B>(key: &BuilderSecretEncryptionKey, bytes: B) -> (String, KeyRevision)
+    where B: AsRef<[u8]>
 {
-    // This probably could be rewritten as a map_err
-    let display_path = key_dir.as_ref().display();
-    match BoxKeyPair::get_latest_pair_for(keys::BUILDER_KEY_NAME, &key_dir.as_ref()) {
-        Ok(p) => Ok(p),
-        Err(err) => {
-            let e = format!("Can't find bldr key pair at {}, err={}", &display_path, err);
-            error!("Can't find bldr key pair at {}", &display_path);
-            Err(Error::EncryptError(e))
-        }
-    }
-}
-
-pub fn encrypt<A>(key_dir: A, bytes: &[u8]) -> Result<(String, String)>
-    where A: AsRef<Path>
-{
-    let display_path = key_dir.as_ref().display();
-
-    let kp = match BoxKeyPair::get_latest_pair_for(keys::BUILDER_KEY_NAME, &key_dir.as_ref()) {
-        Ok(p) => p,
-        Err(err) => {
-            let e = format!("Can't find bldr key pair at {}, err={}", &display_path, err);
-            error!("Can't find bldr key pair at {}", &display_path);
-            return Err(Error::EncryptError(e));
-        }
-    };
-
-    encrypt_with_keypair(&kp, bytes).map(|x| (x, kp.rev))
-}
-
-// This function takes in a double base64 encoded string
-pub fn decrypt<A>(key_dir: A, b64text: &str) -> Result<Vec<u8>>
-    where A: AsRef<Path>
-{
-    let decoded = base64::decode(b64text).map_err(Error::Base64Error)?;
-    let wsb = &WrappedSealedBox::from(String::from_utf8(decoded).unwrap());
-    let plaintext = match BoxKeyPair::decrypt_with_path(wsb, &key_dir.as_ref()) {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            let e = format!("Unable to decrypt with bldr key pair, err={:?}", &err);
-            debug!("Unable to decrypt with bldr key pair, err={:?}", err);
-            return Err(Error::DecryptError(e));
-        }
-    };
-
-    Ok(plaintext)
+    let encrypted: SignedBox = key.encrypt(bytes);
+    let b64 = base64::encode(encrypted.to_string());
+    (b64, key.named_revision().revision().clone())
 }
 
 // This function takes in a double base64 encoded string
@@ -114,4 +93,13 @@ pub fn validate<A>(key_dir: A, b64text: &str) -> Result<()>
     };
 
     Ok(())
+/// Decrypts a given base64 `SignedBox` using the appropriate Builder
+/// encryption key. We pass the `KeyCache` because the encoded message
+/// tells us which key revision to use, so we don't know which key
+/// we're going to use until we dig into the message itself.
+pub fn decrypt(key_cache: &KeyCache, b64text: &str) -> Result<Vec<u8>> {
+    let signed_box = base64::decode(b64text).map(String::from_utf8)??
+                                            .parse::<SignedBox>()?;
+    let builder_key = key_cache.builder_secret_encryption_key(signed_box.decryptor())?;
+    Ok(builder_key.decrypt(&signed_box)?)
 }
