@@ -1,7 +1,7 @@
 // TODO: Origins is still huge ... should it break down further into
 // sub-resources?
 
-use crate::{bldr_core,
+use crate::{bldr_core::integrations,
             db::models::{account::*,
                          channel::Channel,
                          integration::*,
@@ -50,12 +50,16 @@ use builder_core::Error::OriginDeleteError;
 use bytes::Bytes;
 use diesel::{pg::PgConnection,
              result::Error::NotFound};
-use habitat_core::{crypto::{keys::{box_key_pair::WrappedSealedBox,
-                                   parse_key_str,
-                                   parse_name_with_rev,
-                                   PairType},
-                            BoxKeyPair,
-                            SigKeyPair},
+use habitat_core::{crypto::keys::{generate_origin_encryption_key_pair,
+                                  generate_signing_key_pair,
+                                  AnonymousBox,
+                                  Key,
+                                  KeyCache,
+                                  KeyFile,
+                                  KeyRevision,
+                                  OriginSecretEncryptionKey,
+                                  PublicOriginSigningKey,
+                                  SecretOriginSigningKey},
                    package::{ident,
                              PackageIdent}};
 use std::{collections::HashMap,
@@ -401,8 +405,6 @@ fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> H
             Err(err) => return err.into(),
         };
 
-    let pair = SigKeyPair::generate_pair_for_origin(&origin);
-
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => {
@@ -411,60 +413,24 @@ fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> H
         }
     };
 
-    let pk_body = match pair.to_public_string().map_err(Error::HabitatCore) {
-        Ok(pk) => pk.into_bytes(),
-        Err(err) => {
-            error!("create_keys: Failed to get pk body, err={}", err);
-            return err.into();
-        }
-    };
+    // For Builder, we actually don't want to go through the KeyCache
+    // to create a pair, because we don't want to store anything to
+    // disk. That's why we have a database.
+    let (public, secret) = generate_signing_key_pair(&origin);
 
-    let new_pk = NewOriginPublicSigningKey { owner_id:  account_id as i64,
-                                             origin:    &origin,
-                                             full_name: &format!("{}-{}", &origin, &pair.rev),
-                                             name:      &origin,
-                                             revision:  &pair.rev,
-                                             body:      &pk_body, };
-
-    match OriginPublicSigningKey::create(&new_pk, &*conn).map_err(Error::DieselError) {
-        Ok(_) => (),
-        Err(err) => {
-            error!("create_keys: Failed to create public key, err={}", err);
-            return err.into();
-        }
+    if let Err(e) = save_public_origin_signing_key(account_id, &origin, &public, &*conn) {
+        error!("create_keys: Failed to create public key, err={}", e);
+        return e.into();
     }
 
-    let sk_body = match pair.to_secret_string().map_err(Error::HabitatCore) {
-        Ok(sk) => sk.into_bytes(),
-        Err(err) => {
-            error!("create_keys: Failed to get sk body, err={}", err);
-            return err.into();
-        }
-    };
-
-    let (sk_encrypted, bldr_key_rev) = match encrypt(&req, &Bytes::from(sk_body)) {
-        Ok((encrypted, rev)) => (encrypted, rev),
-        Err(err) => {
-            debug!("create_keys: Failed to encrypt sk_body, err={:?}", err);
-            return err.into();
-        }
-    };
-
-    let new_sk = NewOriginPrivateSigningKey { owner_id:           account_id as i64,
-                                              origin:             &origin,
-                                              full_name:          &format!("{}-{}",
-                                                                           &origin, &pair.rev),
-                                              name:               &origin,
-                                              revision:           &pair.rev,
-                                              body:               &sk_encrypted.as_bytes(),
-                                              encryption_key_rev: &bldr_key_rev, };
-
-    match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
-        Ok(_) => (),
-        Err(err) => {
-            error!("create_keys: Failed to create private key, err={}", err);
-            return err.into();
-        }
+    if let Err(e) = save_secret_origin_signing_key(account_id,
+                                                   &origin,
+                                                   &state.config.api.key_path,
+                                                   &secret,
+                                                   &*conn)
+    {
+        error!("create_keys: Failed to create private key, err={}", e);
+        return e.into();
     }
 
     HttpResponse::Created().finish()
@@ -546,32 +512,20 @@ fn upload_origin_key(req: HttpRequest,
                                                                               origin, revision)));
                 }
             };
-
-        match parse_key_str(&body) {
-            Ok((PairType::Public, ..)) => {
-                debug!("Received a valid public key");
-            }
-            Ok(_) => {
-                debug!("Received a secret key instead of a public key");
-                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
-            }
+        let key = match body.parse::<PublicOriginSigningKey>() {
+            Ok(key) => key,
             Err(e) => {
                 debug!("Invalid public key content: {}", e);
                 return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
             }
-        }
+        };
 
-        let new_pk = NewOriginPublicSigningKey { owner_id:  account_id as i64,
-                                                 origin:    &origin,
-                                                 full_name: &format!("{}-{}", &origin, &revision),
-                                                 name:      &origin,
-                                                 revision:  &revision,
-                                                 body:      &body.into_bytes(), };
-
-        match OriginPublicSigningKey::create(&new_pk, &*conn).map_err(Error::DieselError) {
+        match save_public_origin_signing_key(account_id, &origin, &key, &*conn) {
             Ok(_) => {
                 HttpResponse::Created().header(http::header::LOCATION, format!("{}", req.uri()))
-                                       .body(format!("/origins/{}/keys/{}", &origin, &revision))
+                                       .body(format!("/origins/{}/keys/{}",
+                                                     origin,
+                                                     key.named_revision().revision()))
             }
             Err(err) => {
                 debug!("{}", err);
@@ -680,9 +634,7 @@ fn create_origin_secret(req: HttpRequest,
                                        Body::from_message("Missing value for field `value`"));
     }
 
-    // get metadata from secret payload
-    let ciphertext = WrappedSealedBox::from(body.value.as_str());
-    let secret_metadata = match BoxKeyPair::secret_metadata(&ciphertext) {
+    let anonymous_box = match body.value.parse::<AnonymousBox>() {
         Ok(res) => {
             debug!("Secret Metadata: {:?}", res);
             res
@@ -690,8 +642,9 @@ fn create_origin_secret(req: HttpRequest,
         Err(err) => {
             debug!("{}", err);
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           Body::from_message(format!("Failed to get metadata \
-                                                                       from payload: {}",
+                                           Body::from_message(format!("Failed to parse \
+                                                                       encrypted message from \
+                                                                       payload: {}",
                                                                       err)));
         }
     };
@@ -701,12 +654,12 @@ fn create_origin_secret(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    // fetch the private origin encryption key from the database
-    let priv_key =
+    // Fetch the origin's secret encryption key from the database
+    let secret_encryption_key =
         match OriginPrivateEncryptionKey::get(&origin, &*conn).map_err(Error::DieselError) {
             Ok(key) => {
                 let key_str = from_utf8(&key.body).unwrap();
-                match BoxKeyPair::secret_key_from_str(key_str) {
+                match key_str.parse::<OriginSecretEncryptionKey>() {
                     Ok(key) => key,
                     Err(err) => {
                         debug!("{}", err);
@@ -723,50 +676,12 @@ fn create_origin_secret(req: HttpRequest,
             }
         };
 
-    let (name, rev) = match parse_name_with_rev(secret_metadata.sender) {
-        Ok(val) => val,
-        Err(e) => {
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           Body::from_message(format!("Failed to parse name \
-                                                                       and revision: {}",
-                                                                      e)));
-        }
-    };
-
-    debug!("Using key {:?}-{:?}", name, &rev);
-
-    // fetch the public origin encryption key from the database
-    let pub_key =
-        match OriginPublicEncryptionKey::get(&origin, &rev, &*conn).map_err(Error::DieselError) {
-            Ok(key) => {
-                let key_str = from_utf8(&key.body).unwrap();
-                match BoxKeyPair::public_key_from_str(key_str) {
-                    Ok(key) => key,
-                    Err(err) => {
-                        debug!("{}", err);
-                        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                                       Body::from_message(format!("{}", err)));
-                    }
-                }
-            }
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        };
-
-    let box_key_pair = BoxKeyPair::new(name, rev, Some(pub_key), Some(priv_key));
-
-    debug!("Decrypting string: {:?}", &secret_metadata.ciphertext);
-
-    // verify we can decrypt the message
-    match box_key_pair.decrypt(&secret_metadata.ciphertext, None, None) {
-        Ok(_) => (),
-        Err(err) => {
-            debug!("{}", err);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           Body::from_message(format!("{}", err)));
-        }
+    // Though we're storing the data in its encrypted form, we still
+    // need to ensure that we have the ability to decrypt it.
+    if let Err(err) = secret_encryption_key.decrypt(&anonymous_box) {
+        debug!("{}", err);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                       Body::from_message(format!("{}", err)));
     };
 
     match OriginSecret::create(&NewOriginSecret { origin:   &origin,
@@ -815,7 +730,7 @@ fn upload_origin_secret_key(req: HttpRequest,
                             body: ActixBytes,
                             state: Data<AppState>)
                             -> HttpResponse {
-    let (origin, revision) = path.into_inner();
+    let (origin, _revision) = path.into_inner();
 
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
@@ -828,16 +743,10 @@ fn upload_origin_secret_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match String::from_utf8(body.to_vec()) {
+    let key = match String::from_utf8(body.to_vec()) {
         Ok(content) => {
-            match parse_key_str(&content) {
-                Ok((PairType::Secret, ..)) => {
-                    debug!("Received a valid secret key");
-                }
-                Ok(_) => {
-                    debug!("Received a public key instead of a secret key");
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
-                }
+            match content.parse::<SecretOriginSigningKey>() {
+                Ok(key) => key,
                 Err(e) => {
                     debug!("Invalid secret key content: {}", e);
                     return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
@@ -848,32 +757,19 @@ fn upload_origin_secret_key(req: HttpRequest,
             debug!("Can't parse secret key upload content: {}", e);
             return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
         }
-    }
-
-    let (encrypted_body, bldr_key_rev) = match encrypt(&req, &body) {
-        Ok((encrypted, rev)) => (encrypted, rev),
-        Err(err) => {
-            debug!("Failed to encrypt body, err={:?}", err);
-            return err.into();
-        }
     };
 
-    let new_sk = NewOriginPrivateSigningKey { owner_id:           account_id as i64,
-                                              origin:             &origin,
-                                              name:               &origin,
-                                              full_name:          &format!("{}-{}",
-                                                                           &origin, &revision),
-                                              revision:           &revision,
-                                              body:               &encrypted_body.as_bytes(),
-                                              encryption_key_rev: &bldr_key_rev, };
-
-    match OriginPrivateSigningKey::create(&new_sk, &*conn).map_err(Error::DieselError) {
-        Ok(_) => HttpResponse::Created().finish(),
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
+    if let Err(e) = save_secret_origin_signing_key(account_id,
+                                                   &origin,
+                                                   &state.config.api.key_path,
+                                                   &key,
+                                                   &*conn)
+    {
+        error!("create_keys: Failed to create private key, err={}", e);
+        return e.into();
     }
+
+    HttpResponse::Created().finish()
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -908,8 +804,8 @@ fn download_latest_origin_secret_key(req: HttpRequest,
                 return err.into();
             }
         };
-        match decrypt(&req, &str_body) {
-            Ok(decrypted) => decrypted.as_bytes().to_vec(),
+        match integrations::decrypt(&state.config.api.key_path, &str_body).map_err(Error::BuilderCore) {
+            Ok(decrypted) => decrypted,
             Err(err) => {
                 debug!("{}", err);
                 return err.into();
@@ -1569,13 +1465,14 @@ fn create_origin_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let (encrypted, _) = match encrypt(&req, &body) {
-        Ok(encrypted) => encrypted,
-        Err(err) => {
-            debug!("{}", err);
-            return err.into();
-        }
-    };
+    let (encrypted, _) =
+        match integrations::encrypt(&state.config.api.key_path, &body).map_err(Error::BuilderCore) {
+            Ok(encrypted) => encrypted,
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
 
     let noi = NewOriginIntegration { origin:      &origin,
                                      integration: &integration,
@@ -1636,9 +1533,9 @@ fn get_origin_integration(req: HttpRequest,
 
     match OriginIntegration::get(&origin, &integration, &name, &*conn).map_err(Error::DieselError) {
         Ok(integration) => {
-            match decrypt(&req, &integration.body) {
+            match integrations::decrypt(&state.config.api.key_path, &integration.body).map_err(Error::BuilderCore) {
                 Ok(decrypted) => {
-                    let val = serde_json::from_str(&decrypted).unwrap();
+                    let val = serde_json::from_slice(&decrypted).unwrap();
                     let mut map: serde_json::Map<String, serde_json::Value> =
                         serde_json::from_value(val).unwrap();
 
@@ -1696,41 +1593,67 @@ fn generate_origin_encryption_keys(origin: &str,
                                    conn: &PgConnection)
                                    -> Result<OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
+    let (public, secret) = generate_origin_encryption_key_pair(origin);
 
-    let pair = BoxKeyPair::generate_pair_for_origin(origin).map_err(Error::HabitatCore)?;
-
-    let pk_body = pair.to_public_string()
-                      .map_err(Error::HabitatCore)?
-                      .into_bytes();
-
+    let pk_body = public.to_key_string();
     let new_pk = NewOriginPublicEncryptionKey { owner_id:  session_id as i64,
-                                                name:      &origin,
                                                 origin:    &origin,
-                                                full_name: &format!("{}-{}", &origin, &pair.rev),
-                                                revision:  &pair.rev,
-                                                body:      &pk_body, };
+                                                name:      public.named_revision().name(),
+                                                full_name: &public.named_revision().to_string(),
+                                                revision:  &public.named_revision().revision(),
+                                                body:      pk_body.as_ref(), };
 
-    let sk_body = pair.to_secret_string()
-                      .map_err(Error::HabitatCore)?
-                      .into_bytes();
-
+    let sk_body = secret.to_key_string();
     let new_sk = NewOriginPrivateEncryptionKey { owner_id:  session_id as i64,
-                                                 name:      origin,
                                                  origin:    &origin,
-                                                 full_name: &format!("{}-{}", &origin, &pair.rev),
-                                                 revision:  &pair.rev,
-                                                 body:      &sk_body, };
+                                                 name:      secret.named_revision().name(),
+                                                 full_name: &secret.named_revision().to_string(),
+                                                 revision:  &secret.named_revision().revision(),
+                                                 body:      sk_body.as_ref(), };
 
     OriginPrivateEncryptionKey::create(&new_sk, &*conn)?;
-    OriginPublicEncryptionKey::create(&new_pk, &*conn).map_err(Error::DieselError)
+    Ok(OriginPublicEncryptionKey::create(&new_pk, &*conn)?)
 }
 
-fn encrypt(req: &HttpRequest, content: &Bytes) -> Result<(String, String)> {
-    bldr_core::integrations::encrypt(&req_state(req).config.api.key_path, content)
-        .map_err(Error::BuilderCore)
+fn save_public_origin_signing_key(account_id: u64,
+                                  origin: &str,
+                                  key: &PublicOriginSigningKey,
+                                  conn: &PgConnection)
+                                  -> Result<()> {
+    // Note that this is *not* base64 encoded
+    let key_body = key.to_key_string();
+
+    let new_pk = NewOriginPublicSigningKey { owner_id: account_id as i64,
+                                             origin,
+                                             full_name: &key.named_revision().to_string(),
+                                             name: key.named_revision().name(),
+                                             revision: key.named_revision().revision(),
+                                             body: key_body.as_ref() };
+
+    OriginPublicSigningKey::create(&new_pk, conn)?;
+    Ok(())
 }
 
-fn decrypt(req: &HttpRequest, content: &str) -> Result<String> {
-    let bytes = bldr_core::integrations::decrypt(&req_state(req).config.api.key_path, content)?;
-    Ok(String::from_utf8(bytes)?)
+fn save_secret_origin_signing_key(account_id: u64,
+                                  origin: &str,
+                                  key_cache: &KeyCache,
+                                  key: &SecretOriginSigningKey,
+                                  conn: &PgConnection)
+                                  -> Result<()> {
+    // Here we want to encrypt the full contents of the secret signing
+    // key (i.e., encrypt the full "file", not merely the
+    // cryptographic material) using our Builder encryption key. The
+    // resulting bytes are what need to be saved in the database.
+    let (sk_encrypted, bldr_key_rev) = integrations::encrypt(key_cache, key.to_key_string())?;
+
+    let new_sk = NewOriginPrivateSigningKey { owner_id: account_id as i64,
+                                              origin,
+                                              full_name: &key.named_revision().to_string(),
+                                              name: key.named_revision().name(),
+                                              revision: key.named_revision().revision(),
+                                              body: sk_encrypted.as_ref(),
+                                              encryption_key_rev: &bldr_key_rev };
+
+    OriginPrivateSigningKey::create(&new_sk, &*conn)?;
+    Ok(())
 }
