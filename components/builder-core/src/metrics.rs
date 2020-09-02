@@ -8,7 +8,7 @@ use std::{borrow::{Borrow,
                         Receiver,
                         Sender,
                         SyncSender},
-                 Once},
+                 Mutex},
           thread};
 
 // Statsd Application name
@@ -97,17 +97,23 @@ type MetricValue = f64;
 type MetricTuple = (MetricType, MetricOperation, MetricId, Option<MetricValue>, Vec<String>);
 
 // One-time initialization
-static mut SENDER: *const Sender<MetricTuple> = 0 as *const Sender<MetricTuple>;
-
-static INIT: Once = Once::new();
+lazy_static! {
+    // Assuming it's safe to have lazy static start thread
+    static ref SENDER: Mutex<Sender<MetricTuple>> = Mutex::new(init());
+}
 
 fn sender() -> Sender<MetricTuple> {
-    unsafe {
-        INIT.call_once(|| {
-                SENDER = Box::into_raw(Box::new(init()));
-            });
-        (*SENDER).clone()
-    }
+    // Assuming it's safe to have lazy static start thread
+    // As best as I can determine, this will acquire and release two locks
+    // * acquire lock around the lazy static SENDER, specifically:
+    // * if it is not initialized, init
+    // * release that lock now that we have the initialized value
+    // * acquire lock for SENDER mutex,
+    // * clone SENDER
+    // * release mutex
+    // A cleverer implementation could probably avoid one of those locks, but that would
+    // probably require some care to be correct.
+    (*SENDER).lock().unwrap().clone()
 }
 
 // init creates a worker thread ready to receive and process metric events,
