@@ -91,6 +91,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::many_single_char_names)]
     fn basic_graph_works() {
         let mut deps = Graph::<usize, crate::util::EdgeType>::new();
         let a = deps.add_node(10);
