@@ -10,7 +10,6 @@ use chrono::{self,
              TimeZone,
              Utc};
 use habitat_core::crypto::keys::KeyCache;
-use std::path::PathBuf;
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
 pub const BUILDER_ACCOUNT_NAME: &str = "BUILDER";

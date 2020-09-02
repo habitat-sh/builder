@@ -1,15 +1,12 @@
 //! This module holds code that's common to dealing with the
 //! integrations for builder-api and builder-depot
 
-use crate::{error::{Error,
-                    Result},
-            keys};
+use crate::error::Result;
 use habitat_core::crypto::keys::{BuilderSecretEncryptionKey,
                                  Key,
                                  KeyCache,
                                  KeyRevision,
                                  SignedBox};
-use std::path::Path;
 
 /// Encrypts bytes using the latest Builder encryption key in the
 /// `KeyCache`, returning the base64-encoded encrypted `SignedBox`,

@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(config.http.port, 1234);
         assert_eq!(config.key_dir, KeyCache::new("/path/to/keys"));
         assert_eq!(config.log_path, PathBuf::from("/path/to/logs"));
-        assert_eq!(config.job_timeout, 12345678);
+        assert_eq!(config.job_timeout, 12_345_678);
 
         assert_eq!(&format!("{}", config.net.worker_command_listen),
                    "1:1:1:1:1:1:1:1");

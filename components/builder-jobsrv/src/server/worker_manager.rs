@@ -26,7 +26,6 @@ use protobuf::{parse_from_bytes,
                Message,
                RepeatedField};
 use std::{collections::HashSet,
-          path::PathBuf,
           str::{from_utf8,
                 FromStr},
           sync::mpsc,

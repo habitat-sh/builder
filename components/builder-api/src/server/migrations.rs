@@ -5,8 +5,7 @@ use builder_core::integrations;
 use diesel::pg::PgConnection;
 use habitat_core::crypto::keys::{Key,
                                  KeyCache};
-use std::{path::PathBuf,
-          time::Instant};
+use std::time::Instant;
 
 // This value was arbitrarily chosen and might need some tuning
 const KEY_MIGRATION_CHUNK_SIZE: i64 = 100;
