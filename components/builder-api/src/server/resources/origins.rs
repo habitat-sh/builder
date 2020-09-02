@@ -417,7 +417,8 @@ fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> H
     let (public, secret) = generate_signing_key_pair(&origin);
 
     if let Err(e) = save_public_origin_signing_key(account_id, &origin, &public, &*conn) {
-        error!("create_keys: Failed to create public key, err={}", e);
+        error!("Failed to save public signing key for origin '{}', err={}",
+               origin, e);
         return e.into();
     }
 
@@ -427,7 +428,8 @@ fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> H
                                                    &secret,
                                                    &*conn)
     {
-        error!("create_keys: Failed to create private key, err={}", e);
+        error!("Failed to save secret signing key for origin '{}', err={}",
+               origin, e);
         return e.into();
     }
 
@@ -763,7 +765,8 @@ fn upload_origin_secret_key(req: HttpRequest,
                                                    &key,
                                                    &*conn)
     {
-        error!("create_keys: Failed to create private key, err={}", e);
+        error!("Failed to save uploaded secret signing key for origin '{}', err={}",
+               origin, e);
         return e.into();
     }
 
