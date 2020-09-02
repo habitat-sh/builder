@@ -1,7 +1,7 @@
 use crate::{db::models::keys::OriginPrivateSigningKey,
             server::error::{Error,
                             Result}};
-use builder_core::integrations;
+use builder_core::crypto;
 use diesel::pg::PgConnection;
 use habitat_core::crypto::keys::{Key,
                                  KeyCache};
@@ -33,7 +33,7 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result
             if skey.encryption_key_rev.is_none() {
                 let unencrypted_key = skey.body;
                 let (encrypted_key, _revision) =
-                    integrations::encrypt_with_key(&builder_secret_key, unencrypted_key);
+                    crypto::encrypt_with_key(&builder_secret_key, unencrypted_key);
 
                 OriginPrivateSigningKey::update_key(skey.id,
                                                     encrypted_key.as_bytes(),

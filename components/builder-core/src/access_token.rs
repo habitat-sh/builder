@@ -1,7 +1,7 @@
 use super::privilege::FeatureFlags;
-use crate::{error::{Error,
+use crate::{crypto,
+            error::{Error,
                     Result},
-            integrations,
             protocol::{message,
                        originsrv}};
 use chrono::{self,
@@ -55,7 +55,7 @@ fn generate_access_token(key_cache: &KeyCache,
 
     let bytes = message::encode(&token).map_err(Error::Protocol)?;
 
-    let (token_value, _) = integrations::encrypt(&key_cache, bytes)?;
+    let (token_value, _) = crypto::encrypt(&key_cache, bytes)?;
     Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, token_value))
 }
 
@@ -63,7 +63,7 @@ pub fn is_access_token(token: &str) -> bool { token.starts_with(ACCESS_TOKEN_PRE
 
 /// Decrypts a token to get a valid `Session`.
 pub fn validate_access_token(key_cache: &KeyCache, token: &str) -> Result<originsrv::Session> {
-    let bytes = integrations::decrypt(&key_cache, &token[ACCESS_TOKEN_PREFIX.len()..])?;
+    let bytes = crypto::decrypt(&key_cache, &token[ACCESS_TOKEN_PREFIX.len()..])?;
 
     let payload: originsrv::AccessToken = match message::decode(&bytes) {
         Ok(p) => p,

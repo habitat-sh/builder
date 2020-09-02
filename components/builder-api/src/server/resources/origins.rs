@@ -1,7 +1,7 @@
 // TODO: Origins is still huge ... should it break down further into
 // sub-resources?
 
-use crate::{bldr_core::integrations,
+use crate::{bldr_core::crypto,
             db::models::{account::*,
                          channel::Channel,
                          integration::*,
@@ -805,7 +805,7 @@ fn download_latest_origin_secret_key(req: HttpRequest,
                 return err.into();
             }
         };
-        match integrations::decrypt(&state.config.api.key_path, &str_body).map_err(Error::BuilderCore) {
+        match crypto::decrypt(&state.config.api.key_path, &str_body).map_err(Error::BuilderCore) {
             Ok(decrypted) => decrypted,
             Err(err) => {
                 debug!("{}", err);
@@ -1467,7 +1467,7 @@ fn create_origin_integration(req: HttpRequest,
     };
 
     let (encrypted, _) =
-        match integrations::encrypt(&state.config.api.key_path, &body).map_err(Error::BuilderCore) {
+        match crypto::encrypt(&state.config.api.key_path, &body).map_err(Error::BuilderCore) {
             Ok(encrypted) => encrypted,
             Err(err) => {
                 debug!("{}", err);
@@ -1534,7 +1534,7 @@ fn get_origin_integration(req: HttpRequest,
 
     match OriginIntegration::get(&origin, &integration, &name, &*conn).map_err(Error::DieselError) {
         Ok(integration) => {
-            match integrations::decrypt(&state.config.api.key_path, &integration.body).map_err(Error::BuilderCore) {
+            match crypto::decrypt(&state.config.api.key_path, &integration.body).map_err(Error::BuilderCore) {
                 Ok(decrypted) => {
                     let val = serde_json::from_slice(&decrypted).unwrap();
                     let mut map: serde_json::Map<String, serde_json::Value> =
@@ -1645,7 +1645,7 @@ fn save_secret_origin_signing_key(account_id: u64,
     // key (i.e., encrypt the full "file", not merely the
     // cryptographic material) using our Builder encryption key. The
     // resulting bytes are what need to be saved in the database.
-    let (sk_encrypted, bldr_key_rev) = integrations::encrypt(key_cache, key.to_key_string())?;
+    let (sk_encrypted, bldr_key_rev) = crypto::encrypt(key_cache, key.to_key_string())?;
 
     let new_sk = NewOriginPrivateSigningKey { owner_id: account_id as i64,
                                               origin,
