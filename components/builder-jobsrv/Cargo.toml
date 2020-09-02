@@ -20,7 +20,6 @@ actix-rt = "*"
 backtrace = "*"
 bitflags = "*"
 builder_core = { path = "../builder-core" }
-clippy = {version = "*", optional = true}
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 diesel-derive-enum = { version = "*", features = ["postgres"] }

@@ -8,7 +8,6 @@ workspace = "../../"
 edition = "2018"
 
 [dependencies]
-clippy = { version = "*", optional = true }
 fnv = "*"
 # Pin until we are on Rust >= 1.44.0
 protobuf = "= 2.14.0"

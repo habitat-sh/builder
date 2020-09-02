@@ -18,7 +18,6 @@ doc = false
 
 [dependencies]
 bitflags = "*"
-clippy = {version = "*", optional = true}
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 log = "*"

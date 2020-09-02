@@ -7,6 +7,8 @@ set -euo pipefail
 # shellcheck disable=SC1094
 source ./support/ci/shared.sh
 
+export RUSTFLAGS="-D warnings"
+
 # Because sadness
 if ${BUILDKITE:-false}; then
   sudo chown buildkite-agent /home/buildkite-agent

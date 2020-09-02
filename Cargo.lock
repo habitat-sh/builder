@@ -506,7 +506,6 @@ dependencies = [
  "base64 0.12.3",
  "bitflags 1.2.1",
  "chrono",
- "clippy",
  "dogstatsd",
  "env_proxy",
  "futures 0.3.5",
@@ -635,15 +634,6 @@ dependencies = [
  "textwrap",
  "unicode-width",
  "vec_map",
-]
-
-[[package]]
-name = "clippy"
-version = "0.0.302"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d911ee15579a3f50880d8c1d59ef6e79f9533127a3bd342462f5d584f5e8c294"
-dependencies = [
- "term",
 ]
 
 [[package]]
@@ -1534,7 +1524,6 @@ dependencies = [
 name = "habitat-builder-protocol"
 version = "0.0.0"
 dependencies = [
- "clippy",
  "fnv",
  "habitat_core",
  "lazy_static",
@@ -1561,7 +1550,6 @@ dependencies = [
  "bytes 0.5.5",
  "chrono",
  "clap",
- "clippy",
  "diesel",
  "diesel-derive-enum",
  "diesel_full_text_search",
@@ -1604,7 +1592,6 @@ version = "0.0.0"
 dependencies = [
  "builder_core",
  "chrono",
- "clippy",
  "diesel",
  "diesel-derive-enum",
  "diesel_full_text_search",
@@ -1636,7 +1623,6 @@ dependencies = [
  "bitflags 1.2.1",
  "builder_core",
  "clap",
- "clippy",
  "copperline",
  "diesel",
  "env_logger",
@@ -1673,7 +1659,6 @@ dependencies = [
  "builder_core",
  "chrono",
  "clap",
- "clippy",
  "diesel",
  "diesel-derive-enum",
  "diesel_migrations",
@@ -1710,7 +1695,6 @@ dependencies = [
  "builder_core",
  "chrono",
  "clap",
- "clippy",
  "env_logger",
  "features",
  "futures 0.3.5",
@@ -3779,17 +3763,6 @@ dependencies = [
  "rand 0.7.3",
  "redox_syscall",
  "remove_dir_all",
- "winapi 0.3.9",
-]
-
-[[package]]
-name = "term"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edd106a334b7657c10b7c540a0106114feadeb4dc314513e97df481d5d966f42"
-dependencies = [
- "byteorder",
- "dirs 1.0.5",
  "winapi 0.3.9",
 ]
 
