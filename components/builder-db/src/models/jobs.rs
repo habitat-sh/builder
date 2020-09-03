@@ -391,6 +391,8 @@ impl GroupProject {
 
 // This needs to be kept in sync with the enum in the database
 #[derive(DbEnum,
+         Clone,
+         Copy,
          PartialEq,
          Eq,
          Debug,

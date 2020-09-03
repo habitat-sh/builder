@@ -67,7 +67,56 @@ INVARIANT: A Queued group should either have
   daylights out if it at first, be clever later.
   
 
+# Scheduler: updating job dependencies
 
-* 
+The difference between a Schedulable and an Eligible job is whether the dependencies are fullfilled; we
+mark that by changing the state.
 
+The database entry has an array field containing the IDs of it's dependencies. The trick is to track and
+update Eligible fields when a dependency is completed.
 
+A few approaches suggest themselves
+
+## Option 1: Smart query
+
+We could just mark jobs complete, and the build a query with a subselect that finds all job entries that
+have all their dependencies in the Complete state; that query could be used to update to eligible.
+
+That would be a complex query, and to keep it tractable we'd probably want to find ways to limit the
+number of rows examined. (filtering by state Schedulable, and possibly only updating a single job
+group). It also would most likely require some care to keep correct. We'd need an (partial) index over the
+dependency array, but it wouldn't be updated except when groups were added or deleted.
+
+It also has the potential to be slow.
+
+The advantage is that it would have a simple recovery path. Marking a job complete either succeeds or
+fails, and the computation to find jobs to update to Eligible is stateless and idempotent.
+
+We probably will want a query like this in any event, simply to allow us a debugging dashboard and
+recovery path when things go wrong.
+
+## Option 2: Modify dependency array
+
+A second option would be to build a transaction that simultaneously marks a job complete, and deletes
+itself from any dependency arrays that reference it. We could then select jobs that have no dependencies
+and update them to Eligible. (Note: that we'd need that query no matter what, since we will have to figure
+out where to start a group)
+
+Deletion could be an expensive task, and in particular create a lot of garbage. For debugging, we
+probably would want to clone the dependency array (unfulfilled dependencies or the like). We'd need an
+(partial) index over that, which would be heavily updated as deletions proceeded.
+
+This is relatively simple to write, and provides an easy to track indication of where each job was
+waiting on dependencies.
+
+## Option 3: Counter
+
+The second option could be refined with a simple counter 'unfulfilled\_dependency\_count'. On job
+completion we'd find every job that had it as a dependency, and decrement the counter. These would have
+to be done as a single transaction for safety. We'd then have a separate update to find jobs with a zero
+counter and mark them Eligible. Indexing a counter is cheap, so we could just eliminate the Eligible
+state, and select Schedulable and 0 unfullfiled.
+
+We'd be updating the index with the counter pretty frequently, so there would be some cost there. 
+
+This doesn't give us visibility into what precisely is outstanding. 
