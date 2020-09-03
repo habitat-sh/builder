@@ -1136,7 +1136,7 @@ impl Into<Package> for PackageWithVersionArray {
                   visibility:  self.visibility,
                   created_at:  self.created_at,
                   updated_at:  self.updated_at,
-                  origin:      self.origin.clone(), }
+                  origin:      self.origin, }
     }
 }
 

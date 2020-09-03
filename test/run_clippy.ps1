@@ -10,6 +10,8 @@ param (
 $ErrorActionPreference="stop"
 . $PSScriptRoot\..\support\ci\shared.ps1
 
+$Env:RUSTFLAGS="-D warnings"
+
 function Convert-ArrayToArgs ($arg, $list) {
     if($list) {
         $list | ForEach-Object { "-$arg $_ ``" } | Out-String

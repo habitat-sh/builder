@@ -7,7 +7,6 @@ workspace = "../../"
 edition = "2018"
 
 [dependencies]
-clippy = {version = "*", optional = true}
 habitat-builder-protocol = { path = "../builder-protocol" }
 log = "*"
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }

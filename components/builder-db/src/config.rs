@@ -117,7 +117,7 @@ impl<'a> IntoConnectParams for &'a DataStoreCfg {
     fn into_connect_params(self) -> Result<ConnectParams, Box<dyn Error + Sync + Send>> {
         let mut builder = ConnectParams::builder();
         builder.port(self.port);
-        builder.user(&self.user, self.password.as_ref().map(|p| &**p));
+        builder.user(&self.user, self.password.as_deref());
         builder.database(&self.database);
         Ok(builder.build(Host::Tcp(self.host.to_string())))
     }

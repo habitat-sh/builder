@@ -9,7 +9,6 @@ edition = "2018"
 base64 = "*"
 bitflags = "*"
 chrono = { version = "*", features = ["serde"] }
-clippy = { version = "*", optional = true }
 dogstatsd = "*"
 env_proxy = "*"
 futures = "*"
