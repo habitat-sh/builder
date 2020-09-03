@@ -865,7 +865,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
         Ok(key) => key,
         Err(NotFound) => {
             // TODO: redesign to not be generating keys during d/l
-            match generate_origin_encryption_keys(&origin, account_id, &conn) {
+            match generate_origin_encryption_keys(&origin, account_id, &*conn) {
                 Ok(key) => key,
                 Err(err) => {
                     debug!("{}", err);
@@ -1584,17 +1584,29 @@ fn generate_origin_encryption_keys(origin: &str,
                                                 revision:  &public.named_revision().revision(),
                                                 body:      &pk_body, };
 
-    let sk_body = secret.to_key_string();
+    save_secret_origin_encryption_key(&secret, session_id, conn)?;
+    Ok(db_keys::OriginPublicEncryptionKey::create(&new_pk, &*conn)?)
+}
+
+fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryptionKey,
+                                     owner_id: u64,
+                                     conn: &PgConnection)
+                                     -> Result<()> {
+    let sk_body = key.to_key_string();
+
     let new_sk =
-        db_keys::NewOriginPrivateEncryptionKey { owner_id:  session_id as i64,
-                                                 origin:    &origin,
-                                                 name:      secret.named_revision().name(),
-                                                 full_name: &secret.named_revision().to_string(),
-                                                 revision:  &secret.named_revision().revision(),
+        db_keys::NewOriginPrivateEncryptionKey { owner_id:  owner_id as i64,
+                                                 // The name of the
+                                                 // key is the origin!
+                                                 origin:    key.named_revision().name(),
+                                                 name:      key.named_revision().name(),
+                                                 full_name: &key.named_revision().to_string(),
+                                                 revision:  &key.named_revision().revision(),
                                                  body:      sk_body.as_ref(), };
 
-    db_keys::OriginPrivateEncryptionKey::create(&new_sk, &*conn)?;
-    Ok(db_keys::OriginPublicEncryptionKey::create(&new_pk, &*conn)?)
+    db_keys::OriginPrivateEncryptionKey::create(&new_sk, conn)?;
+
+    Ok(())
 }
 
 fn save_public_origin_signing_key(account_id: u64,
