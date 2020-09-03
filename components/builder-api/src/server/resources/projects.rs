@@ -144,11 +144,20 @@ async fn create_project(req: HttpRequest,
 
     // Test hook - bypass the github dance
     if env::var_os("HAB_FUNC_TEST").is_some() {
+        let package_name = match body.plan_path.as_str() {
+          "plan.sh" => "testapp",
+          "testapp3/plan.sh" =>  "testapp3",
+          "windows/plan.ps1" => "testapp",
+          _ => {
+            debug!("Unknown plan path in tests! {}", &body.plan_path);
+            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+          }
+        };
         let new_project =
             NewProject { owner_id:            account_id as i64,
                          origin:              &origin.name,
-                         package_name:        "testapp",
-                         name:                &format!("{}/{}", &origin.name, "testapp"),
+                         package_name:        &package_name,
+                         name:                &format!("{}/{}", &origin.name, &package_name),
                          plan_path:           &body.plan_path,
                          target:              &target,
                          vcs_type:            "git",

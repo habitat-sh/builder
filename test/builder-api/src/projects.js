@@ -13,6 +13,14 @@ const projectCreatePayload = {
   auto_build: true
 };
 
+const dependentProjectCreatePayload = {
+  origin: 'neurosis',
+  plan_path: 'testapp3/plan.sh',
+  installation_id: installationId,
+  repo_id: repoId,
+  auto_build: true
+};
+
 const projectCreatePayloadWindows = {
   origin: 'neurosis',
   plan_path: 'windows/plan.ps1',
@@ -28,6 +36,20 @@ let projectExpectations = function (res) {
   expect(res.body.package_name).to.equal('testapp');
   expect(res.body.name).to.equal('neurosis/testapp');
   expect(res.body.plan_path).to.equal('plan.sh');
+  expect(res.body.target).to.equal('x86_64-linux');
+  expect(res.body.owner_id).to.equal(global.sessionBobo.id);
+  expect(res.body.vcs_type).to.equal('git');
+  expect(res.body.vcs_data).to.equal('https://github.com/habitat-sh/testapp.git');
+  expect(res.body.vcs_installation_id).to.equal(installationId.toString());
+  expect(res.body.auto_build).to.equal(true);
+};
+
+let dependentProjectExpectations = function (res) {
+  expect(res.body.id).to.not.be.empty;
+  expect(res.body.origin).to.equal(global.originNeurosis.name);
+  expect(res.body.package_name).to.equal('testapp3');
+  expect(res.body.name).to.equal('neurosis/testapp3');
+  expect(res.body.plan_path).to.equal('testapp3/plan.sh');
   expect(res.body.target).to.equal('x86_64-linux');
   expect(res.body.owner_id).to.equal(global.sessionBobo.id);
   expect(res.body.vcs_type).to.equal('git');
@@ -119,6 +141,22 @@ describe('Projects API', function () {
           done(err);
         });
     });
+
+    it('creates a dependent project', function (done) {
+      this.timeout(5000);
+      request.post('/projects')
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .send(dependentProjectCreatePayload)
+        .expect(201)
+        .end(function (err, res) {
+          console.log(res.body);
+          dependentProjectExpectations(res);
+          done(err);
+        });
+    });
+
   });
 
   describe('Retrieving a project', function () {
@@ -206,7 +244,7 @@ describe('Projects API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.length).to.equal(2);
+          expect(res.body.length).to.equal(3);
           expect(res.body[0]).to.equal('testapp');
           done(err);
         });

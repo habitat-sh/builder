@@ -103,8 +103,7 @@ describe("Jobs API", function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body).to.not.be.empty;
-          console.log(res.body.projects);
-          projects = res.body.projects.map(function(project,_index) { project.name }).sort();
+          projects = res.body.projects.map(project => { return project.name }).sort();
           expect(projects.length).to.equal(2);
           expect(projects[0]).to.equal("neurosis/testapp");
           expect(projects[1]).to.equal("neurosis/testapp3");
