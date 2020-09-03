@@ -652,26 +652,16 @@ fn create_origin_secret(req: HttpRequest,
     };
 
     // Fetch the origin's secret encryption key from the database
-    let secret_encryption_key =
-        match db_keys::OriginPrivateEncryptionKey::get(&origin, &*conn).map_err(Error::DieselError)
-        {
-            Ok(key) => {
-                match key.body.parse::<core_keys::OriginSecretEncryptionKey>() {
-                    Ok(key) => key,
-                    Err(err) => {
-                        debug!("{}", err);
-                        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                                       Body::from_message(format!("Failed to get secret from \
-                                                                payload: {}",
-                                                               err)));
-                    }
-                }
-            }
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        };
+    let secret_encryption_key = match get_secret_origin_encryption_key(&origin, &*conn) {
+        Ok(key) => key,
+        Err(err) => {
+            debug!("{}", err);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                           Body::from_message(format!("Failed to get secret \
+                                                                       from payload: {}",
+                                                                      err)));
+        }
+    };
 
     // Though we're storing the data in its encrypted form, we still
     // need to ensure that we have the ability to decrypt it.
@@ -1609,6 +1599,13 @@ fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryptionKey,
     Ok(())
 }
 
+/// Retrieve an encryption key from the origin
+fn get_secret_origin_encryption_key(origin: &str,
+                                    conn: &PgConnection)
+                                    -> Result<core_keys::OriginSecretEncryptionKey> {
+    let db_record = db_keys::OriginPrivateEncryptionKey::get(origin, conn)?;
+    Ok(db_record.body.parse()?)
+}
 fn save_public_origin_signing_key(account_id: u64,
                                   origin: &str,
                                   key: &core_keys::PublicOriginSigningKey,
