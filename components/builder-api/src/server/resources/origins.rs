@@ -58,6 +58,7 @@ use habitat_core::{crypto::keys::{self as core_keys,
                    package::{ident,
                              PackageIdent}};
 use std::{collections::HashMap,
+          convert::TryInto,
           str::FromStr};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -786,7 +787,7 @@ fn download_latest_origin_secret_key(req: HttpRequest,
     };
 
     let key =
-        match db_keys::OriginPrivateSigningKey::get(&origin, &*conn).map_err(Error::DieselError) {
+        match get_latest_secret_origin_signing_key(&origin, &state.config.api.key_path, &*conn) {
             Ok(key) => key,
             Err(err) => {
                 debug!("{}", err);
@@ -794,28 +795,8 @@ fn download_latest_origin_secret_key(req: HttpRequest,
             }
         };
 
-    let key_body = if key.encryption_key_rev.is_some() {
-        match crypto::decrypt(&state.config.api.key_path, &key.body).map_err(Error::BuilderCore) {
-            Ok(decrypted) => {
-                match String::from_utf8(decrypted).map_err(Error::Utf8) {
-                    Ok(body) => body,
-                    Err(err) => {
-                        debug!("{}", err);
-                        return err.into();
-                    }
-                }
-            }
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        }
-    } else {
-        key.body
-    };
-
-    let xfilename = format!("{}-{}.sig.key", key.name, key.revision);
-    download_content_as_file(key_body, xfilename)
+    download_content_as_file(key.to_key_string(),
+                             key.own_filename().to_string_lossy().into_owned())
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -1667,4 +1648,22 @@ fn save_secret_origin_signing_key(account_id: u64,
 
     db_keys::OriginPrivateSigningKey::create(&new_sk, &*conn)?;
     Ok(())
+}
+
+/// Retrieve the latest secret origin signing key for an origin,
+/// decrypting it in the process.
+fn get_latest_secret_origin_signing_key(origin: &str,
+                                        key_cache: &KeyCache,
+                                        conn: &PgConnection)
+                                        -> Result<core_keys::SecretOriginSigningKey> {
+    let db_record = db_keys::OriginPrivateSigningKey::get(origin, conn)?;
+
+    let key = if db_record.encryption_key_rev.is_some() {
+        let bytes = crypto::decrypt(key_cache, &db_record.body)?;
+        AsRef::<[u8]>::as_ref(&bytes).try_into()?
+    } else {
+        db_record.body.parse()?
+    };
+
+    Ok(key)
 }
