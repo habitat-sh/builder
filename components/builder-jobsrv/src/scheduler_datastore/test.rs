@@ -37,7 +37,8 @@ mod test {
                                           package::BuilderPackageTarget}};
         use habitat_builder_protocol::message::{jobsrv::*,
                                                 originsrv::OriginProject};
-        use std::collections::HashMap;
+        use std::{collections::HashMap,
+                  thread};
 
         pub fn is_recent(time: Option<DateTime<Utc>>, tolerance: isize) -> bool {
             Utc::now() - time.unwrap() < Duration::seconds(tolerance as i64)
@@ -62,8 +63,8 @@ mod test {
         pub fn make_job_graph_entries(group_id: i64,
                                       job_state: JobExecState,
                                       target_platform: &BuilderPackageTarget,
-                                      data: Vec<(String, String, Vec<String>)>,
-                                      conn: diesel::pg::PgConnection)
+                                      data: &Vec<(String, String, Vec<String>)>,
+                                      conn: &diesel::pg::PgConnection)
                                       -> HashMap<String, JobGraphEntry> {
             let mut jobs: HashMap<String, JobGraphEntry> = HashMap::new();
             for (plan_ident, manifest_ident, deps) in data {
@@ -78,7 +79,7 @@ mod test {
                                                dependencies: &dependencies,
                                                target_platform };
                 let job = JobGraphEntry::create(&entry, &conn).unwrap();
-                jobs.insert(manifest_ident, job);
+                jobs.insert(manifest_ident.clone(), job);
             }
             jobs
         }
@@ -161,5 +162,23 @@ mod test {
 
         let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
         assert!(job_next.is_none());
+    }
+
+    #[test]
+    fn insert_many_jobs() {
+        let target_platform =
+            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+
+        let manifest = helpers::manifest_data_from_file();
+        for i in 1..50 {
+            helpers::make_job_graph_entries(i as i64,
+                                            JobExecState::Schedulable,
+                                            &target_platform,
+                                            &manifest,
+                                            &conn);
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1000));
     }
 }

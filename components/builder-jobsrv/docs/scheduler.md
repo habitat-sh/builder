@@ -15,7 +15,7 @@ Potential events are:
 * New group added (API)
 
   Notify workers for target
-
+select id, group_id, job_state, manifest_ident, dependencies, array_length(dependencies, 1) as count from job_graph where array_length(dependencies, 1) is null;
 * Cancellation of group (API)
 
 * Worker x wants job for target t (WM)
