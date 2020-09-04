@@ -264,15 +264,25 @@ describe("Jobs API", function () {
     describe("Getting logs of a job", function () {
       // We need to fake a job log here because our test suite doesn't have all
       // the required deps to run a real build. Let's pretend that it did though.
+      //
+      // We currently aren't guaranteed the completed execution of the before/after
+      // around tests, so we can get into a state where 'before' runs twice before
+      // 'after' is run, causing it to fail. Add extra guards around the log file
+      // creation/deletion to protect against this state. This should hopefully
+      // be no more unsafe than the previous state.
       before(function () {
-        if (!ps.env['BLDR_FULL_TEST_RUN']) {
-          fs.writeFileSync(`/tmp/${global.neurosisTestappJob.id}.log`, 'This is a log file.');
+        jobLog=`/tmp/${global.neurosisTestappJob.id}.log`
+        // Is BLDR_FULL_TEST_RUN even used anymore?
+        if (!ps.env['BLDR_FULL_TEST_RUN'] && !fs.existsSync(jobLog)) {
+          fs.writeFileSync(jobLog, 'This is a log file.');
         }
       });
 
       after(function () {
-        if (!ps.env['BLDR_FULL_TEST_RUN']) {
-          fs.unlinkSync(`/tmp/${global.neurosisTestappJob.id}.log`);
+      jobLog=`/tmp/${global.neurosisTestappJob.id}.log`
+        // Is BLDR_FULL_TEST_RUN even used anymore?
+        if (!ps.env['BLDR_FULL_TEST_RUN'] && fs.existsSync(jobLog)) {
+          fs.unlinkSync(jobLog);
         }
       });
 
