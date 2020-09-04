@@ -541,17 +541,16 @@ fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>) -> H
         Err(err) => return err.into(),
     };
 
-    let key =
-        match db_keys::OriginPublicSigningKey::get(&origin, &revision, &*conn).map_err(Error::DieselError) {
-            Ok(key) => key,
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        };
+    let key = match get_specific_public_origin_signing_key(&origin, &revision, &*conn) {
+        Ok(key) => key,
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
+    };
 
-    let xfilename = format!("{}-{}.pub", key.name, key.revision);
-    download_content_as_file(key.body, xfilename)
+    download_content_as_file(key.to_key_string(),
+                             key.own_filename().to_string_lossy().into_owned())
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -1645,6 +1644,16 @@ fn get_latest_public_origin_signing_key(origin: &str,
                                         conn: &PgConnection)
                                         -> Result<core_keys::PublicOriginSigningKey> {
     let db_record = db_keys::OriginPublicSigningKey::latest(origin, conn)?;
+    Ok(db_record.body.parse()?)
+}
+
+/// Retrieve a specific revision of the origin's public
+/// signing key from the database.
+fn get_specific_public_origin_signing_key(origin: &str,
+                                          revision: &str, // TODO (CM): KeyRevision
+                                          conn: &PgConnection)
+                                          -> Result<core_keys::PublicOriginSigningKey> {
+    let db_record = db_keys::OriginPublicSigningKey::get(origin, revision, conn)?;
     Ok(db_record.body.parse()?)
 }
 
