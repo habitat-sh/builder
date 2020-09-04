@@ -851,9 +851,9 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let key = match db_keys::OriginPublicEncryptionKey::latest(&origin, &*conn) {
+    let key = match get_latest_public_origin_encryption_key(&origin, &*conn) {
         Ok(key) => key,
-        Err(NotFound) => {
+        Err(Error::DieselError(NotFound)) => {
             // TODO: redesign to not be generating keys during d/l
             match generate_origin_encryption_keys(&origin, account_id, &*conn) {
                 Ok(key) => key,
@@ -865,12 +865,12 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
         }
         Err(err) => {
             debug!("{}", err);
-            return Error::DieselError(err).into();
+            return err.into();
         }
     };
 
-    let xfilename = format!("{}-{}.pub", key.name, key.revision);
-    download_content_as_file(key.body, xfilename)
+    download_content_as_file(key.to_key_string(),
+                             key.own_filename().to_string_lossy().into_owned())
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -1561,7 +1561,7 @@ fn download_content_as_file(content: String, filename: String) -> HttpResponse {
 fn generate_origin_encryption_keys(origin: &str,
                                    session_id: u64,
                                    conn: &PgConnection)
-                                   -> Result<db_keys::OriginPublicEncryptionKey> {
+                                   -> Result<core_keys::OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
     let (public, secret) = generate_origin_encryption_key_pair(origin);
 
@@ -1575,7 +1575,9 @@ fn generate_origin_encryption_keys(origin: &str,
                                                 body:      &pk_body, };
 
     save_secret_origin_encryption_key(&secret, session_id, conn)?;
-    Ok(db_keys::OriginPublicEncryptionKey::create(&new_pk, &*conn)?)
+    db_keys::OriginPublicEncryptionKey::create(&new_pk, &*conn)?;
+
+    Ok(public)
 }
 
 fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryptionKey,
@@ -1606,6 +1608,18 @@ fn get_secret_origin_encryption_key(origin: &str,
     let db_record = db_keys::OriginPrivateEncryptionKey::get(origin, conn)?;
     Ok(db_record.body.parse()?)
 }
+
+/// Retrieve the latest available revision of the origin's public
+/// encryption key from the database.
+// TODO (CM): NOTE - There doesn't appear to be a way to update origin
+// encryption keys, so "latest" is a distinction without a difference.
+fn get_latest_public_origin_encryption_key(origin: &str,
+                                           conn: &PgConnection)
+                                           -> Result<core_keys::OriginPublicEncryptionKey> {
+    let db_record = db_keys::OriginPublicEncryptionKey::latest(origin, conn)?;
+    Ok(db_record.body.parse()?)
+}
+
 fn save_public_origin_signing_key(account_id: u64,
                                   origin: &str,
                                   key: &core_keys::PublicOriginSigningKey,
