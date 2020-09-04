@@ -549,8 +549,7 @@ fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>) -> H
         }
     };
 
-    download_content_as_file(key.to_key_string(),
-                             key.own_filename().to_string_lossy().into_owned())
+    key_as_http_response(&key)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -570,8 +569,7 @@ fn download_latest_origin_key(path: Path<String>, state: Data<AppState>) -> Http
         }
     };
 
-    download_content_as_file(key.to_key_string(),
-                             key.own_filename().to_string_lossy().into_owned())
+    key_as_http_response(&key)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -784,8 +782,7 @@ fn download_latest_origin_secret_key(req: HttpRequest,
             }
         };
 
-    download_content_as_file(key.to_key_string(),
-                             key.own_filename().to_string_lossy().into_owned())
+    key_as_http_response(&key)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -868,8 +865,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
         }
     };
 
-    download_content_as_file(key.to_key_string(),
-                             key.own_filename().to_string_lossy().into_owned())
+    key_as_http_response(&key)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -1536,7 +1532,18 @@ fn get_origin_integration(req: HttpRequest,
 // Internal helpers
 //
 
-fn download_content_as_file(content: String, filename: String) -> HttpResponse {
+/// Return a Habitat key as a file.
+///
+/// This is essentially doing what an `actix_web::Responder`
+/// implementation for each key type would do, if we could directly
+/// implement it on those types (we can't, though, because they're not
+/// from this crate!).
+fn key_as_http_response<K>(key: &K) -> HttpResponse
+    where K: KeyFile
+{
+    let filename = key.own_filename().display().to_string();
+    let contents = key.to_key_string();
+
     HttpResponse::Ok()
         .header(
             http::header::CONTENT_DISPOSITION,
@@ -1545,7 +1552,7 @@ fn download_content_as_file(content: String, filename: String) -> HttpResponse {
                 parameters: vec![DispositionParam::FilenameExt(ExtendedValue {
                     charset: Charset::Iso_8859_1, // The character set for the bytes of the filename
                     language_tag: None, // The optional language tag (see `language-tag` crate)
-                    value: filename.as_bytes().to_vec(), // the actual bytes of the filename
+                    value: filename.clone().into_bytes(), // the actual bytes of the filename
                 })],
             },
         )
@@ -1554,7 +1561,7 @@ fn download_content_as_file(content: String, filename: String) -> HttpResponse {
             filename,
         )
         .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-        .body(content)
+        .body(&contents)
 }
 
 fn generate_origin_encryption_keys(origin: &str,
