@@ -1604,7 +1604,7 @@ fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryptionKey,
 fn get_secret_origin_encryption_key(origin: &str,
                                     conn: &PgConnection)
                                     -> Result<core_keys::OriginSecretEncryptionKey> {
-    let db_record = db_keys::OriginPrivateEncryptionKey::get(origin, conn)?;
+    let db_record = db_keys::OriginPrivateEncryptionKey::latest(origin, conn)?;
     Ok(db_record.body.parse()?)
 }
 

@@ -558,7 +558,7 @@ impl WorkerMgr {
             Ok(secrets_list) => {
                 if !secrets_list.is_empty() {
                     // fetch the private origin encryption key from the database
-                    let priv_key = match OriginPrivateEncryptionKey::get(&origin, &*conn)
+                    let priv_key = match OriginPrivateEncryptionKey::latest(&origin, &*conn)
                         .map_err(Error::DieselError)
                     {
                         Ok(key) => {
