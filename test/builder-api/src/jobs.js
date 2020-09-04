@@ -144,22 +144,38 @@ describe("Jobs API", function () {
     });
 
     it("succeeds", function (done) {
-      request
-        .get("/projects/neurosis/testapp/jobs")
-        .type("application/json")
-        .accept("application/json")
-        .set("Authorization", global.boboBearer)
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(0);
-          expect(res.body.total_count).to.equal(1);
-          expect(res.body.data.length).to.equal(1);
-          expect(res.body.data[0].origin).to.equal("neurosis");
-          expect(res.body.data[0].name).to.equal("testapp");
-          global.neurosisTestappJob = res.body.data[0];
-          done(err);
-        });
+      // This api call is sensitive to timing. The job that it requests
+      // is created above on line 53. This creates a 'group_project' entry
+      // in the database, but this api call returns results from the 'job'
+      // table. The 'job' table is populated in
+      // builder-jobsrv::server::scheduler#566, which runs in the main
+      // scheduler loop with tasks both before and after it that may
+      // take time to process.
+      //
+      // Since we don't have a great way to poll the api until this data is
+      // available (it returns something or nothing, rather than a blocking
+      // or "not ready" response), we take a short nap here to give the
+      // scheduler a chance to do its thing. Don't forget your blanket,
+      // a stiff drink and a good book.
+      setTimeout(function() {
+        request
+          .get("/projects/neurosis/testapp/jobs")
+          .type("application/json")
+          .accept("application/json")
+          .set("Authorization", global.boboBearer)
+          .expect(200)
+          .end(function (err, res) {
+            console.log(res.body);
+            expect(res.body.range_start).to.equal(0);
+            expect(res.body.range_end).to.equal(0);
+            expect(res.body.total_count).to.equal(1);
+            expect(res.body.data.length).to.equal(1);
+            expect(res.body.data[0].origin).to.equal("neurosis");
+            expect(res.body.data[0].name).to.equal("testapp");
+            global.neurosisTestappJob = res.body.data[0];
+            done(err);
+          });
+      }, 1000);
     });
   });
 
@@ -248,15 +264,25 @@ describe("Jobs API", function () {
     describe("Getting logs of a job", function () {
       // We need to fake a job log here because our test suite doesn't have all
       // the required deps to run a real build. Let's pretend that it did though.
+      //
+      // We currently aren't guaranteed the completed execution of the before/after
+      // around tests, so we can get into a state where 'before' runs twice before
+      // 'after' is run, causing it to fail. Add extra guards around the log file
+      // creation/deletion to protect against this state. This should hopefully
+      // be no more unsafe than the previous state.
       before(function () {
-        if (!ps.env['BLDR_FULL_TEST_RUN']) {
-          fs.writeFileSync(`/tmp/${global.neurosisTestappJob.id}.log`, 'This is a log file.');
+        jobLog=`/tmp/${global.neurosisTestappJob.id}.log`
+        // Is BLDR_FULL_TEST_RUN even used anymore?
+        if (!ps.env['BLDR_FULL_TEST_RUN'] && !fs.existsSync(jobLog)) {
+          fs.writeFileSync(jobLog, 'This is a log file.');
         }
       });
 
       after(function () {
-        if (!ps.env['BLDR_FULL_TEST_RUN']) {
-          fs.unlinkSync(`/tmp/${global.neurosisTestappJob.id}.log`);
+      jobLog=`/tmp/${global.neurosisTestappJob.id}.log`
+        // Is BLDR_FULL_TEST_RUN even used anymore?
+        if (!ps.env['BLDR_FULL_TEST_RUN'] && fs.existsSync(jobLog)) {
+          fs.unlinkSync(jobLog);
         }
       });
 

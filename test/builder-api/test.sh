@@ -62,6 +62,28 @@ clean_test_artifacts() {
   psql builder -q -c "$sql"
 }
 
+wait_for_migrations() {
+  echo "Waiting for migrations to finish"
+  local count=0
+  # while ! command with set -e fails on the first loop, so we get this slightly 
+  # more complex implementation
+  while true; do
+    # The status endpoint won't become available until migrations are finished
+    if curl --silent --fail http://localhost:9636/v1/status; then
+      break
+    fi
+
+    ((++count))
+    if [ "$count" -ge 60 ]; then
+      echo "--- Migrations failed to complete after one minute ---"
+      exit 1
+    fi
+    sleep 1
+  done
+}
+
+wait_for_migrations
+
 # start with a clean slate
 clean_test_artifacts
 
