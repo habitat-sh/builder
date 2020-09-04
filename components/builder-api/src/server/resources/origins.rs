@@ -648,8 +648,10 @@ fn create_origin_secret(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
+    let key_cache = &state.config.api.key_path;
+
     // Fetch the origin's secret encryption key from the database
-    let secret_encryption_key = match get_secret_origin_encryption_key(&origin, &*conn) {
+    let secret_encryption_key = match get_secret_origin_encryption_key(&origin, key_cache, &*conn) {
         Ok(key) => key,
         Err(err) => {
             debug!("{}", err);
@@ -847,11 +849,12 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
+    let key_cache = &state.config.api.key_path;
     let key = match get_latest_public_origin_encryption_key(&origin, &*conn) {
         Ok(key) => key,
         Err(Error::DieselError(NotFound)) => {
             // TODO: redesign to not be generating keys during d/l
-            match generate_origin_encryption_keys(&origin, account_id, &*conn) {
+            match generate_origin_encryption_keys(&origin, account_id, key_cache, &*conn) {
                 Ok(key) => key,
                 Err(err) => {
                     debug!("{}", err);
@@ -1566,6 +1569,7 @@ fn key_as_http_response<K>(key: &K) -> HttpResponse
 
 fn generate_origin_encryption_keys(origin: &str,
                                    session_id: u64,
+                                   key_cache: &KeyCache,
                                    conn: &PgConnection)
                                    -> Result<core_keys::OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
@@ -1580,27 +1584,27 @@ fn generate_origin_encryption_keys(origin: &str,
                                                 revision:  &public.named_revision().revision(),
                                                 body:      &pk_body, };
 
-    save_secret_origin_encryption_key(&secret, session_id, conn)?;
+    save_secret_origin_encryption_key(&secret, session_id, key_cache, conn)?;
     db_keys::OriginPublicEncryptionKey::create(&new_pk, &*conn)?;
 
     Ok(public)
 }
 
-fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryptionKey,
-                                     owner_id: u64,
-                                     conn: &PgConnection)
-                                     -> Result<()> {
-    let sk_body = key.to_key_string();
+pub fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryptionKey,
+                                         owner_id: u64,
+                                         key_cache: &KeyCache,
+                                         conn: &PgConnection)
+                                         -> Result<()> {
+    let (encrypted, _bldr_key_rev) = crypto::encrypt(key_cache, key.to_key_string())?;
 
     let new_sk =
         db_keys::NewOriginPrivateEncryptionKey { owner_id:  owner_id as i64,
-                                                 // The name of the
-                                                 // key is the origin!
+                                                 // The name of the key is the origin!
                                                  origin:    key.named_revision().name(),
                                                  name:      key.named_revision().name(),
                                                  full_name: &key.named_revision().to_string(),
                                                  revision:  &key.named_revision().revision(),
-                                                 body:      sk_body.as_ref(), };
+                                                 body:      &encrypted, };
 
     db_keys::OriginPrivateEncryptionKey::create(&new_sk, conn)?;
 
@@ -1609,10 +1613,12 @@ fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryptionKey,
 
 /// Retrieve an encryption key from the origin
 fn get_secret_origin_encryption_key(origin: &str,
+                                    key_cache: &KeyCache,
                                     conn: &PgConnection)
                                     -> Result<core_keys::OriginSecretEncryptionKey> {
     let db_record = db_keys::OriginPrivateEncryptionKey::latest(origin, conn)?;
-    Ok(db_record.body.parse()?)
+    let decrypted = crypto::decrypt(key_cache, &db_record.body)?;
+    Ok(AsRef::<[u8]>::as_ref(&decrypted).try_into()?)
 }
 
 /// Retrieve the latest available revision of the origin's public

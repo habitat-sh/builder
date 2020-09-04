@@ -2,6 +2,9 @@
 // https://github.com/rust-lang/rust/issues/50504
 #![allow(proc_macro_derive_resolution_fallback)]
 
+#[macro_use]
+mod migration_support;
+
 pub mod account;
 pub mod channel;
 pub mod integration;

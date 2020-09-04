@@ -7,6 +7,8 @@ use habitat_core::crypto::keys::{Key,
                                  KeyCache};
 use std::time::Instant;
 
+pub mod encrypt_secret_keys;
+
 // This value was arbitrarily chosen and might need some tuning
 const KEY_MIGRATION_CHUNK_SIZE: i64 = 100;
 
