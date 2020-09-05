@@ -76,6 +76,42 @@ RETURN i_count;
 END
 $$ LANGUAGE PLPGSQL;
 
+-- Mark a job complete and update the jobs that depend on it
+-- If a job has zero dependencies, mark it eligible to be scheduled
+--
+-- It might be better to write this as a diesel transaction, but it's kinda complex
+--
+CREATE OR REPLACE FUNCTION job_graph_mark_complete(job_graph_id BIGINT) RETURNS integer AS $$
+DECLARE
+  i_count integer;
+BEGIN
+  -- Decrement count of the things that depend on us
+  -- TODO: Consider limiting this update to jobs 'Pending'
+  UPDATE job_graph
+    SET waiting_on_count = waiting_on_count - 1
+    FROM (SELECT id
+          FROM job_graph AS d
+          WHERE job_graph_id = ANY (d.dependencies)
+         ) as deps
+    WHERE job_graph.id = deps.id;
+
+  UPDATE job_graph
+    SET job_state = 'eligible'
+    WHERE waiting_on_count = 0
+    AND job_state = 'schedulable';
+
+  GET DIAGNOSTICS i_count = ROW_COUNT;
+
+  -- Mark this job complete
+  -- TODO: Consider limiting this update to jobs 'Pending'
+  UPDATE job_graph SET job_state = 'complete'
+  WHERE id = job_graph_id;
+
+  RETURN i_count; 
+END
+$$ LANGUAGE PLPGSQL;
+
+
 -- TODO:
 -- add foreign key constraint on group_id
 -- is id tied to job.id?

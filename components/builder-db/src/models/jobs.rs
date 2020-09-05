@@ -24,6 +24,7 @@ use crate::{models::{package::BuilderPackageTarget,
 
 use crate::{bldr_core::{metrics::CounterMetric,
                         Error as BuilderError},
+            functions::jobs as job_functions,
             hab_core::package::PackageTarget,
             metrics::Counter};
 
@@ -549,5 +550,12 @@ impl JobGraphEntry {
             }
             diesel::QueryResult::Err(x) => diesel::QueryResult::<Option<i64>>::Err(x),
         }
+    }
+
+    pub fn mark_job_complete(id: i64, conn: &PgConnection) -> QueryResult<i32> {
+        Counter::DBCall.increment();
+        let result =
+            diesel::select(job_functions::job_graph_mark_complete(id)).get_result::<i32>(conn)?;
+        Ok(result)
     }
 }
