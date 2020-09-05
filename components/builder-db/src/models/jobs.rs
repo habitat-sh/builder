@@ -467,28 +467,31 @@ impl FromStr for JobExecState {
 #[derive(Insertable)]
 #[table_name = "job_graph"]
 pub struct NewJobGraphEntry<'a> {
-    pub group_id:        i64,
-    pub job_state:       JobExecState,    // Should be enum
-    pub plan_ident:      &'a str,         // BuilderPackageIdent
-    pub manifest_ident:  &'a str,         //
-    pub as_built_ident:  Option<&'a str>, //
-    pub dependencies:    &'a [i64],
-    pub target_platform: &'a BuilderPackageTarget, // PackageTarget?
+    pub group_id:         i64,
+    pub job_state:        JobExecState,    // Should be enum
+    pub plan_ident:       &'a str,         // BuilderPackageIdent
+    pub manifest_ident:   &'a str,         //
+    pub as_built_ident:   Option<&'a str>, //
+    pub dependencies:     &'a [i64],
+    pub waiting_on_count: i32,
+    pub target_platform:  &'a BuilderPackageTarget, // PackageTarget?
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "job_graph"]
 pub struct JobGraphEntry {
-    pub id:              i64,
-    pub group_id:        i64, // This is the id of the associated group (should have been group_id)
-    pub job_state:       JobExecState, // Should be enum
-    pub plan_ident:      String, // BuilderPackageIdent
-    pub manifest_ident:  String, //
-    pub as_built_ident:  Option<String>, //
-    pub dependencies:    Vec<i64>,
-    pub target_platform: BuilderPackageTarget, // PackageTarget?
-    pub created_at:      DateTime<Utc>,
-    pub updated_at:      DateTime<Utc>,
+    pub id:               i64,
+    pub group_id:         i64, /* This is the id of the associated group (should have been
+                                * group_id) */
+    pub job_state:        JobExecState,   // Should be enum
+    pub plan_ident:       String,         // BuilderPackageIdent
+    pub manifest_ident:   String,         //
+    pub as_built_ident:   Option<String>, //
+    pub dependencies:     Vec<i64>,
+    pub waiting_on_count: i32,
+    pub target_platform:  BuilderPackageTarget, // PackageTarget?
+    pub created_at:       DateTime<Utc>,
+    pub updated_at:       DateTime<Utc>,
 }
 
 #[derive(AsChangeset)]

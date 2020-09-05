@@ -77,6 +77,7 @@ mod test {
                                                manifest_ident: &manifest_ident,
                                                as_built_ident: None,
                                                dependencies: &dependencies,
+                                               waiting_on_count: dependencies.len() as i32,
                                                target_platform };
                 let job = JobGraphEntry::create(&entry, &conn).unwrap();
                 jobs.insert(manifest_ident.clone(), job);
@@ -92,13 +93,14 @@ mod test {
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
         let slice: [i64; 3] = [1, 2, 3];
-        let entry = NewJobGraphEntry { group_id:        0,
-                                       job_state:       JobExecState::Pending,
-                                       plan_ident:      "foo/bar",
-                                       manifest_ident:  "foo/bar/1.2.3/123",
-                                       as_built_ident:  None,
-                                       dependencies:    &[1, 2, 3],
-                                       target_platform: &target_platform, };
+        let entry = NewJobGraphEntry { group_id:         0,
+                                       job_state:        JobExecState::Pending,
+                                       plan_ident:       "foo/bar",
+                                       manifest_ident:   "foo/bar/1.2.3/123",
+                                       as_built_ident:   None,
+                                       dependencies:     &[1, 2, 3],
+                                       waiting_on_count: 3,
+                                       target_platform:  &target_platform, };
 
         let job_graph_entry = JobGraphEntry::create(&entry, &conn).unwrap();
 
@@ -115,43 +117,47 @@ mod test {
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
         let slice: [i64; 3] = [1, 2, 3];
-        let entry = NewJobGraphEntry { group_id:        0,
-                                       job_state:       JobExecState::Pending,
-                                       plan_ident:      "foo/bar",
-                                       manifest_ident:  "foo/bar/1.2.3/123",
-                                       as_built_ident:  None,
-                                       dependencies:    &[1, 2, 3],
-                                       target_platform: &target_platform, };
+        let entry = NewJobGraphEntry { group_id:         0,
+                                       job_state:        JobExecState::Pending,
+                                       plan_ident:       "foo/bar",
+                                       manifest_ident:   "foo/bar/1.2.3/123",
+                                       as_built_ident:   None,
+                                       dependencies:     &[1, 2, 3],
+                                       waiting_on_count: 3,
+                                       target_platform:  &target_platform, };
 
         let job_graph_entry_1 = JobGraphEntry::create(&entry, &conn).unwrap();
 
-        let entry = NewJobGraphEntry { group_id:        0,
-                                       job_state:       JobExecState::Schedulable,
-                                       plan_ident:      "foo/baz",
-                                       manifest_ident:  "foo/baz/1.2.3/123",
-                                       as_built_ident:  None,
-                                       dependencies:    &[1, 2, 3],
-                                       target_platform: &target_platform, };
+        let entry = NewJobGraphEntry { group_id:         0,
+                                       job_state:        JobExecState::Schedulable,
+                                       plan_ident:       "foo/baz",
+                                       manifest_ident:   "foo/baz/1.2.3/123",
+                                       as_built_ident:   None,
+                                       dependencies:     &[1, 2, 3],
+                                       waiting_on_count: 3,
+                                       target_platform:  &target_platform, };
 
         let job_graph_entry_2 = JobGraphEntry::create(&entry, &conn).unwrap();
 
-        let entry = NewJobGraphEntry { group_id:        0,
-                                       job_state:       JobExecState::Eligible,
-                                       plan_ident:      "foo/ping",
-                                       manifest_ident:  "foo/ping/1.2.3/123",
-                                       as_built_ident:  None,
-                                       dependencies:    &[1, 2, 3],
-                                       target_platform: &target_platform, };
+        let entry = NewJobGraphEntry { group_id:         0,
+                                       job_state:        JobExecState::Eligible,
+                                       plan_ident:       "foo/ping",
+                                       manifest_ident:   "foo/ping/1.2.3/123",
+                                       as_built_ident:   None,
+                                       dependencies:     &[1, 2, 3],
+                                       waiting_on_count: 3,
+                                       target_platform:  &target_platform, };
 
         let job_graph_entry_3 = JobGraphEntry::create(&entry, &conn).unwrap();
 
-        let entry = NewJobGraphEntry { group_id:        0,
-                                       job_state:       JobExecState::Eligible,
-                                       plan_ident:      "foo/pong",
-                                       manifest_ident:  "foo/pong/1.2.3/123",
-                                       as_built_ident:  None,
-                                       dependencies:    &[1, 2, 3],
-                                       target_platform: &other_platform, };
+        let entry = NewJobGraphEntry { group_id:         0,
+                                       job_state:        JobExecState::Eligible,
+                                       plan_ident:       "foo/pong",
+                                       manifest_ident:   "foo/pong/1.2.3/123",
+                                       as_built_ident:   None,
+                                       dependencies:     &[1, 2, 3],
+                                       waiting_on_count: 3,
+                                       target_platform:  &other_platform, };
 
         let job_graph_entry_4 = JobGraphEntry::create(&entry, &conn).unwrap();
 
@@ -179,6 +185,6 @@ mod test {
                                             &manifest,
                                             &conn);
         }
-        std::thread::sleep(std::time::Duration::from_secs(1000));
+        std::thread::sleep(std::time::Duration::from_secs(10000));
     }
 }
