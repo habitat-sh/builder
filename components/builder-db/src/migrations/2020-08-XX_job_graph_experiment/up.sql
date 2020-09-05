@@ -86,7 +86,7 @@ DECLARE
   i_count integer;
 BEGIN
   -- Decrement count of the things that depend on us
-  -- TODO: Consider limiting this update to jobs 'Pending'
+  -- TODO: Consider limiting this update to jobs 'Schedulable'
   UPDATE job_graph
     SET waiting_on_count = waiting_on_count - 1
     FROM (SELECT id
