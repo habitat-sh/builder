@@ -1,4 +1,3 @@
-
 CREATE TYPE job_exec_state AS ENUM (
   'pending',
   'schedulable',
@@ -28,9 +27,14 @@ CREATE TABLE IF NOT EXISTS job_graph (
     updated_at timestamp WITH time zone DEFAULT now() NOT NULL
 );
 
+-- diesel trigger to manage update
+SELECT diesel_manage_updated_at('job_graph');
 
-CREATE INDEX state ON job_graph (job_state);
+-- This is required for fast search inside the array
 CREATE INDEX dependencies ON job_graph USING GIN(dependencies);
+
+-- This index might be combined with another field (maybe group_id?)
+CREATE INDEX state ON job_graph (job_state);
 
 -- This is too slow for production use, but is intended as a debugging aid
 CREATE OR REPLACE VIEW job_graph_completed AS
@@ -42,6 +46,7 @@ SELECT *,
 FROM job_graph AS j;
 
 -- Also very slow, but useful for recovery
+-- note doesn't reset state if dependencies aren't complete
 CREATE OR REPLACE FUNCTION job_graph_fixup_waiting_on_count() RETURNS integer AS $$
 DECLARE
 i_count integer;
