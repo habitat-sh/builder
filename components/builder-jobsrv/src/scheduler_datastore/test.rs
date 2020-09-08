@@ -24,6 +24,11 @@ mod test {
               convert::TryInto,
               str::FromStr};
 
+    lazy_static! {
+        pub static ref TARGET_PLATFORM: BuilderPackageTarget =
+            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
+    }
+
     mod helpers {
         use crate::data_store::DataStore;
         use chrono::{DateTime,
@@ -58,6 +63,73 @@ mod test {
                 data.push((fields[0].clone(), fields[1].clone(), deps));
             }
             data
+        }
+
+        pub fn job_state_count(group_id: i64,
+                               conn: &diesel::pg::PgConnection)
+                               -> (i64, i64, i64, i64, i64) {
+            let schedulable =
+                JobGraphEntry::count_by_state(group_id, JobExecState::Schedulable, &conn).unwrap();
+            let eligible =
+                JobGraphEntry::count_by_state(group_id, JobExecState::Eligible, &conn).unwrap();
+            let complete =
+                JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap();
+            let failed =
+                JobGraphEntry::count_by_state(group_id, JobExecState::JobFailed, &conn).unwrap();
+            let dep_failed = JobGraphEntry::count_by_state(group_id,
+                                                           JobExecState::DependencyFailed,
+                                                           &conn).unwrap();
+
+            (schedulable, eligible, complete, failed, dep_failed)
+        }
+
+        pub fn make_simple_graph_helper(group_id: i64,
+                                        target_platform: &BuilderPackageTarget,
+                                        conn: &diesel::pg::PgConnection) {
+            let entry = NewJobGraphEntry { group_id,
+                                           job_state: JobExecState::Eligible,
+                                           plan_ident: "foo/bar",
+                                           manifest_ident: "foo/bar/1.2.3/123",
+                                           as_built_ident: None,
+                                           dependencies: &[],
+                                           waiting_on_count: 0,
+                                           target_platform: &target_platform };
+
+            let job_graph_entry_1 = JobGraphEntry::create(&entry, &conn).unwrap();
+
+            let entry = NewJobGraphEntry { group_id,
+                                           job_state: JobExecState::Schedulable,
+                                           plan_ident: "foo/baz",
+                                           manifest_ident: "foo/baz/1.2.3/123",
+                                           as_built_ident: None,
+                                           dependencies: &[job_graph_entry_1.id],
+                                           waiting_on_count: 1,
+                                           target_platform: &target_platform };
+
+            let job_graph_entry_2 = JobGraphEntry::create(&entry, &conn).unwrap();
+
+            let entry = NewJobGraphEntry { group_id,
+                                           job_state: JobExecState::Schedulable,
+                                           plan_ident: "foo/ping",
+                                           manifest_ident: "foo/ping/1.2.3/123",
+                                           as_built_ident: None,
+                                           dependencies: &[job_graph_entry_1.id],
+                                           waiting_on_count: 1,
+                                           target_platform: &target_platform };
+
+            let job_graph_entry_3 = JobGraphEntry::create(&entry, &conn).unwrap();
+
+            let entry = NewJobGraphEntry { group_id,
+                                           job_state: JobExecState::Schedulable,
+                                           plan_ident: "foo/pong",
+                                           manifest_ident: "foo/pong/1.2.3/123",
+                                           as_built_ident: None,
+                                           dependencies: &[job_graph_entry_2.id,
+                                                           job_graph_entry_3.id],
+                                           waiting_on_count: 2,
+                                           target_platform: &target_platform };
+
+            let job_graph_entry_4 = JobGraphEntry::create(&entry, &conn).unwrap();
         }
 
         pub fn make_job_graph_entries(group_id: i64,
@@ -163,7 +235,7 @@ mod test {
 
         let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
         assert!(job_next.is_some());
-        assert_eq!(job_next.unwrap(), job_graph_entry_3.id);
+        assert_eq!(job_next.unwrap().id, job_graph_entry_3.id);
         // TODO verify we update the state to 'dispatched'
 
         let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
@@ -185,7 +257,149 @@ mod test {
                                             &manifest,
                                             &conn);
         }
-
+        // Test some stuff for real here
         // std::thread::sleep(std::time::Duration::from_secs(10000));
+    }
+
+    #[test]
+    fn count_by_state() {
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+
+        let group_id = 1;
+        helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
+
+        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Schedulable, &conn).unwrap(),
+        0);
+        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Eligible, &conn).unwrap(),
+                   0);
+        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap(),
+                   0);
+
+        helpers::make_simple_graph_helper(group_id, &TARGET_PLATFORM, &conn);
+
+        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Schedulable, &conn).unwrap(),
+                   3);
+        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Eligible, &conn).unwrap(),
+                   1);
+        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap(),
+                   0);
+    }
+
+    #[test]
+    fn mark_job_complete() {
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+
+        helpers::make_simple_graph_helper(1, &TARGET_PLATFORM, &conn);
+        helpers::make_simple_graph_helper(2, &TARGET_PLATFORM, &conn); // This group should not be scheduled
+
+        // We prefer group 1 while there is work left; then group 2
+        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        assert!(job_next.is_some());
+        let job_data = job_next.unwrap();
+        assert_eq!(job_data.plan_ident, "foo/bar");
+        assert_eq!(job_data.group_id, 1);
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+        assert_eq!(ready.unwrap(), 2);
+
+        assert_eq!((1, 2, 1, 0, 0), helpers::job_state_count(1, &conn));
+
+        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        assert!(job_next.is_some());
+        let job_data = job_next.unwrap();
+        assert_eq!(job_data.group_id, 1);
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+        assert_eq!(ready.unwrap(), 0);
+
+        assert_eq!((1, 1, 2, 0, 0), helpers::job_state_count(1, &conn));
+
+        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        assert!(job_next.is_some());
+        let job_data = job_next.unwrap();
+        assert_eq!(job_data.group_id, 1);
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+        assert_eq!(ready.unwrap(), 1);
+
+        assert_eq!((0, 1, 3, 0, 0), helpers::job_state_count(1, &conn));
+
+        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        assert!(job_next.is_some());
+        let job_data = job_next.unwrap();
+        assert_eq!(job_data.group_id, 1);
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+        assert_eq!(ready.unwrap(), 0);
+
+        assert_eq!((0, 0, 4, 0, 0), helpers::job_state_count(1, &conn));
+
+        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        assert!(job_next.is_some());
+        let job_data = job_next.unwrap();
+        assert_eq!(job_data.group_id, 2);
+    }
+
+    #[test]
+    fn mark_job_complete_interleaved() {
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+
+        helpers::make_simple_graph_helper(1, &TARGET_PLATFORM, &conn);
+        helpers::make_simple_graph_helper(2, &TARGET_PLATFORM, &conn); // This group should not be scheduled
+
+        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        assert!(job_next.is_some());
+        let job_data = job_next.unwrap();
+        assert_eq!(job_data.plan_ident, "foo/bar");
+        assert_eq!(job_data.group_id, 1);
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+        assert_eq!(ready.unwrap(), 2);
+
+        assert_eq!((1, 2, 1, 0, 0), helpers::job_state_count(1, &conn));
+        assert_eq!((3, 1, 0, 0, 0), helpers::job_state_count(2, &conn));
+
+        // Get another job from group 1
+        let job_a = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
+                                                                                    .unwrap();
+        assert_eq!(job_a.group_id, 1);
+        assert_eq!((1, 1, 1, 0, 0), helpers::job_state_count(1, &conn));
+        assert_eq!((3, 1, 0, 0, 0), helpers::job_state_count(2, &conn));
+
+        // Get another job, expect group 1
+        let job_b = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
+                                                                                    .unwrap();
+        assert_eq!(job_b.group_id, 1);
+        assert_eq!((1, 0, 1, 0, 0), helpers::job_state_count(1, &conn));
+        assert_eq!((3, 1, 0, 0, 0), helpers::job_state_count(2, &conn));
+
+        // There are no more group one jobs, so expect group 2
+        let job_c = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
+                                                                                    .unwrap();
+
+        assert_eq!(job_c.group_id, 2);
+        assert_eq!((1, 0, 1, 0, 0), helpers::job_state_count(1, &conn));
+        assert_eq!((3, 0, 0, 0, 0), helpers::job_state_count(2, &conn));
+
+        let ready = JobGraphEntry::mark_job_complete(job_a.id, &conn);
+        assert_eq!(ready.unwrap(), 0);
+        assert_eq!((1, 0, 2, 0, 0), helpers::job_state_count(1, &conn));
+        assert_eq!((3, 0, 0, 0, 0), helpers::job_state_count(2, &conn));
+
+        let ready = JobGraphEntry::mark_job_complete(job_b.id, &conn);
+        assert_eq!(ready.unwrap(), 1);
+        assert_eq!((0, 1, 3, 0, 0), helpers::job_state_count(1, &conn));
+        assert_eq!((3, 0, 0, 0, 0), helpers::job_state_count(2, &conn));
+
+        let ready = JobGraphEntry::mark_job_complete(job_c.id, &conn);
+        assert_eq!(ready.unwrap(), 2);
+        assert_eq!((0, 1, 3, 0, 0), helpers::job_state_count(1, &conn));
+        assert_eq!((1, 2, 1, 0, 0), helpers::job_state_count(2, &conn));
+
+        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
+                                                                                       .unwrap();
+        assert_eq!(job_next.group_id, 1);
+        let ready = JobGraphEntry::mark_job_complete(job_next.id, &conn);
+        assert_eq!(ready.unwrap(), 0);
+        assert_eq!((0, 0, 4, 0, 0), helpers::job_state_count(1, &conn));
+        assert_eq!((1, 2, 1, 0, 0), helpers::job_state_count(2, &conn));
     }
 }

@@ -546,36 +546,49 @@ impl JobGraphEntry {
         result
     }
 
+    pub fn count_by_state(group_id: i64,
+                          job_state: JobExecState,
+                          conn: &PgConnection)
+                          -> QueryResult<i64> {
+        Counter::DBCall.increment();
+
+        job_graph::table.select(count_star())
+                        .filter(job_graph::job_state.eq(job_state))
+                        .filter(job_graph::group_id.eq(group_id))
+                        .first(conn)
+    }
+
     // Right now we only return the job id, but as a efficiency measure we may want to
     // join with other tables to fill out the
     pub fn take_next_job_for_target(target: &BuilderPackageTarget,
                                     conn: &PgConnection)
-                                    -> QueryResult<Option<i64>> /* jobid */ {
+                                    -> QueryResult<Option<JobGraphEntry>> {
         Counter::DBCall.increment();
         // TODO make this a transaction
         // Logically this is going to be a select over the target for job_graph entries that are in
         // state Eligible sorted by some sort of priority.
         // conn.transaction::(<_, Error, _>)|| {
-        let next_job = job_graph::table.select(job_graph::id)
+        let next_job: QueryResult<JobGraphEntry> =
+            job_graph::table
             .filter(job_graph::target_platform.eq(target.to_string()))
             .filter(job_graph::job_state.eq(JobExecState::Eligible))
             // This is the effective priority of a job; right now we select the oldest entry, but
             // in the future we may want to prioritize finishing one group before starting the next, or by
             // some precomputed metric (e.g. total number of transitive deps or some other parallelisim maximising
                 // heuristic
-            .order(job_graph::created_at.asc())
+            .order((job_graph::group_id, job_graph::created_at.asc(), job_graph::id))
             .limit(1)
             .get_result(conn);
         match next_job {
-            Ok(job_id) => {
+            Ok(job) => {
                 // This should be done in a transaction
-                diesel::update(job_graph::table.find(job_id)).set(job_graph::job_state.eq(JobExecState::Dispatched)).execute(conn)?;
-                diesel::QueryResult::Ok(Some(job_id))
+                diesel::update(job_graph::table.find(job.id)).set(job_graph::job_state.eq(JobExecState::Dispatched)).execute(conn)?;
+                diesel::QueryResult::Ok(Some(job))
             }
             diesel::QueryResult::Err(diesel::result::Error::NotFound) => {
                 diesel::QueryResult::Ok(None)
             }
-            diesel::QueryResult::Err(x) => diesel::QueryResult::<Option<i64>>::Err(x),
+            diesel::QueryResult::Err(x) => diesel::QueryResult::<Option<JobGraphEntry>>::Err(x),
         }
     }
 
