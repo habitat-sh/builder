@@ -79,6 +79,7 @@ $$ LANGUAGE PLPGSQL;
 -- Mark a job complete and update the jobs that depend on it
 -- If a job has zero dependencies, mark it eligible to be scheduled
 --
+-- We rely on this being atomic (like all functions in postgres)
 -- It might be better to write this as a diesel transaction, but it's kinda complex
 --
 CREATE OR REPLACE FUNCTION job_graph_mark_complete(job_graph_id BIGINT) RETURNS integer AS $$
@@ -100,6 +101,7 @@ BEGIN
     WHERE waiting_on_count = 0
     AND job_state = 'schedulable';
 
+  -- postgres magic to get number of altered rows in prior query
   GET DIAGNOSTICS i_count = ROW_COUNT;
 
   -- Mark this job complete

@@ -178,13 +178,14 @@ mod test {
         let conn = ds.get_pool().get_conn().unwrap();
 
         let manifest = helpers::manifest_data_from_file();
-        for i in 1..50 {
+        for i in 1..2 {
             helpers::make_job_graph_entries(i as i64,
                                             JobExecState::Schedulable,
                                             &target_platform,
                                             &manifest,
                                             &conn);
         }
-        std::thread::sleep(std::time::Duration::from_secs(10000));
+
+        // std::thread::sleep(std::time::Duration::from_secs(10000));
     }
 }

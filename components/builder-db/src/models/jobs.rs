@@ -503,7 +503,6 @@ pub struct UpdateJobGraphEntry<'a> {
     pub plan_ident:     &'a str,         // BuilderPackageIdent
     pub manifest_ident: &'a str,         //
     pub as_built_ident: Option<&'a str>, //
-    pub dependencies:   Vec<i64>,
 }
 
 impl JobGraphEntry {
@@ -515,8 +514,36 @@ impl JobGraphEntry {
 
     pub fn create(req: &NewJobGraphEntry, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
         Counter::DBCall.increment();
-        diesel::insert_into(job_graph::table).values(req)
-                                             .get_result(conn)
+        let start = std::time::Instant::now();
+        let query = diesel::insert_into(job_graph::table).values(req);
+
+        // let debug = diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query);
+        // let out = format!("{:?}", debug);
+
+        let result = query.get_result(conn);
+
+        // let insert_one = (start.elapsed().as_micros() as f64) / 1_000_000.0;
+        // println!("One insert took {} s, {}", insert_one, out);
+
+        result
+    }
+
+    pub fn create_batch(req: &[NewJobGraphEntry],
+                        conn: &PgConnection)
+                        -> QueryResult<JobGraphEntry> {
+        Counter::DBCall.increment();
+        let start = std::time::Instant::now();
+        let query = diesel::insert_into(job_graph::table).values(req);
+
+        let debug = diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query);
+        let out = format!("{:?}", debug);
+
+        let result = query.get_result(conn);
+
+        let insert_one = (start.elapsed().as_micros() as f64) / 1_000_000.0;
+        println!("One insert took {} s, {}", insert_one, out);
+
+        result
     }
 
     // Right now we only return the job id, but as a efficiency measure we may want to
