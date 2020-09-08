@@ -36,7 +36,7 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result
                     crypto::encrypt_with_key(&builder_secret_key, unencrypted_key);
 
                 OriginPrivateSigningKey::update_key(skey.id,
-                                                    encrypted_key.as_bytes(),
+                                                    &encrypted_key,
                                                     &builder_secret_key.named_revision()
                                                                        .revision(),
                                                     conn).map_err(Error::DieselError)?;

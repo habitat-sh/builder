@@ -20,7 +20,7 @@ pub struct OriginPublicEncryptionKey {
     pub name:       String,
     pub revision:   String,
     pub full_name:  String,
-    pub body:       Vec<u8>,
+    pub body:       String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub origin:     String,
@@ -36,7 +36,7 @@ pub struct OriginPrivateEncryptionKey {
     pub name:       String,
     pub revision:   String,
     pub full_name:  String,
-    pub body:       Vec<u8>,
+    pub body:       String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub origin:     String,
@@ -52,7 +52,7 @@ pub struct OriginPrivateSigningKey {
     pub name:               String,
     pub revision:           String,
     pub full_name:          String,
-    pub body:               Vec<u8>,
+    pub body:               String,
     pub created_at:         Option<NaiveDateTime>,
     pub updated_at:         Option<NaiveDateTime>,
     pub origin:             String,
@@ -69,7 +69,7 @@ pub struct OriginPublicSigningKey {
     pub name:       String,
     pub revision:   String,
     pub full_name:  String,
-    pub body:       Vec<u8>,
+    pub body:       String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub origin:     String,
@@ -82,7 +82,7 @@ pub struct NewOriginPublicEncryptionKey<'a> {
     pub name:      &'a str,
     pub full_name: &'a str,
     pub revision:  &'a str,
-    pub body:      &'a [u8],
+    pub body:      &'a str,
     pub origin:    &'a str,
 }
 
@@ -93,7 +93,7 @@ pub struct NewOriginPrivateEncryptionKey<'a> {
     pub name:      &'a str,
     pub full_name: &'a str,
     pub revision:  &'a str,
-    pub body:      &'a [u8],
+    pub body:      &'a str,
     pub origin:    &'a str,
 }
 
@@ -104,7 +104,7 @@ pub struct NewOriginPrivateSigningKey<'a> {
     pub name:               &'a str,
     pub full_name:          &'a str,
     pub revision:           &'a str,
-    pub body:               &'a [u8],
+    pub body:               &'a str,
     pub origin:             &'a str,
     pub encryption_key_rev: &'a str,
 }
@@ -116,7 +116,7 @@ pub struct NewOriginPublicSigningKey<'a> {
     pub name:      &'a str,
     pub full_name: &'a str,
     pub revision:  &'a str,
-    pub body:      &'a [u8],
+    pub body:      &'a str,
     pub origin:    &'a str,
 }
 
@@ -236,7 +236,7 @@ impl OriginPrivateSigningKey {
     }
 
     pub fn update_key(id: i64,
-                      body: &[u8],
+                      body: &str,
                       key_rev: &str,
                       conn: &PgConnection)
                       -> QueryResult<OriginPrivateSigningKey> {
