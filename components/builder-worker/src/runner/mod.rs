@@ -22,10 +22,6 @@ use crate::{bldr_core::{self,
             config::Config,
             error::{Error,
                     Result},
-            hab_core::{env,
-                       package::{archive::PackageArchive,
-                                 target::{self,
-                                          PackageTarget}}},
             protocol::{jobsrv,
                        message,
                        net::{self,
@@ -35,6 +31,10 @@ use crate::{bldr_core::{self,
 use chrono::Utc;
 use futures::{channel::mpsc as async_mpsc,
               sink::SinkExt};
+use habitat_core::{env,
+                   package::{archive::PackageArchive,
+                             target::{self,
+                                      PackageTarget}}};
 use retry::delay;
 use std::{fs,
           process::Command,

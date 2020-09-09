@@ -1,19 +1,13 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //! Configuration for a Habitat Builder-API service
 
+use crate::db::config::DataStoreCfg;
+use artifactory_client::config::ArtifactoryCfg;
+use github_api_client::config::GitHubCfg;
+use habitat_core::{config::ConfigFile,
+                   crypto::keys::KeyCache,
+                   package::target::{self,
+                                     PackageTarget}};
+use oauth_client::config::OAuth2Cfg;
 use std::{env,
           error,
           fmt,
@@ -24,16 +18,6 @@ use std::{env,
                 ToSocketAddrs},
           option::IntoIter,
           path::PathBuf};
-
-use artifactory_client::config::ArtifactoryCfg;
-use github_api_client::config::GitHubCfg;
-use oauth_client::config::OAuth2Cfg;
-
-use crate::{db::config::DataStoreCfg,
-            hab_core::{self,
-                       config::ConfigFile,
-                       package::target::{self,
-                                         PackageTarget}}};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.
@@ -90,8 +74,8 @@ impl ConfigFile for Config {
     type Error = ConfigError;
 }
 
-impl From<hab_core::Error> for ConfigError {
-    fn from(err: hab_core::Error) -> ConfigError { ConfigError(format!("{:?}", err)) }
+impl From<habitat_core::Error> for ConfigError {
+    fn from(err: habitat_core::Error) -> ConfigError { ConfigError(format!("{:?}", err)) }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -127,7 +111,8 @@ impl Default for S3Cfg {
 pub struct ApiCfg {
     pub data_path:        PathBuf,
     pub log_path:         PathBuf,
-    pub key_path:         PathBuf,
+    /// Location of Builder encryption keys
+    pub key_path:         KeyCache,
     pub targets:          Vec<PackageTarget>,
     pub build_targets:    Vec<PackageTarget>,
     pub features_enabled: String,
@@ -139,7 +124,7 @@ impl Default for ApiCfg {
     fn default() -> Self {
         ApiCfg { data_path:        PathBuf::from("/hab/svc/builder-api/data"),
                  log_path:         env::temp_dir(),
-                 key_path:         PathBuf::from("/hab/svc/builder-api/files"),
+                 key_path:         KeyCache::new("/hab/svc/builder-api/files"),
                  targets:          vec![target::X86_64_LINUX,
                                         target::X86_64_LINUX_KERNEL2,
                                         target::X86_64_WINDOWS,],
@@ -406,7 +391,7 @@ mod tests {
         assert_eq!(config.api.log_path,
                    PathBuf::from("/hab/svc/hab-depot/var/log"));
         assert_eq!(config.api.key_path,
-                   PathBuf::from("/hab/svc/hab-depot/files"));
+                   KeyCache::new("/hab/svc/hab-depot/files"));
 
         assert_eq!(config.api.targets.len(), 3);
         assert_eq!(config.api.targets[0], target::X86_64_LINUX);

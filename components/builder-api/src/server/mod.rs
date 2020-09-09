@@ -1,17 +1,3 @@
-// Copyright (c) 2016 Chef Software Inc. and/or applicable contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 pub mod authorize;
 pub mod error;
 pub mod framework;
@@ -20,53 +6,44 @@ pub mod migrations;
 pub mod resources;
 pub mod services;
 
-use std::{cell::RefCell,
-          collections::HashMap,
-          iter::FromIterator,
-          sync::Arc};
-
+use self::{framework::middleware::authentication_middleware,
+           resources::{authenticate::Authenticate,
+                       channels::Channels,
+                       ext::Ext,
+                       jobs::Jobs,
+                       notify::Notify,
+                       origins::Origins,
+                       pkgs::Packages,
+                       profile::Profile,
+                       projects::Projects,
+                       settings::Settings,
+                       user::User},
+           services::{memcache::MemcacheClient,
+                      s3::S3Handler}};
+use crate::{bldr_core::rpc::RpcClient,
+            config::{Config,
+                     GatewayCfg},
+            db::{migration,
+                 DbPool}};
 use actix_web::{http::StatusCode,
                 middleware::Logger,
                 web,
                 App,
                 HttpResponse,
                 HttpServer};
-
-use crate::{bldr_core::rpc::RpcClient,
-            db::{migration,
-                 DbPool}};
-use github_api_client::GitHubClient;
-
 use artifactory_client::client::ArtifactoryClient;
+use github_api_client::GitHubClient;
 use oauth_client::client::OAuth2Client;
-
-use self::framework::middleware::authentication_middleware;
-
-use self::services::{memcache::MemcacheClient,
-                     s3::S3Handler};
-
 use openssl::ssl::{SslAcceptor,
                    SslFiletype,
                    SslMethod,
                    SslVerifyMode};
-
-use self::resources::{authenticate::Authenticate,
-                      channels::Channels,
-                      ext::Ext,
-                      jobs::Jobs,
-                      notify::Notify,
-                      origins::Origins,
-                      pkgs::Packages,
-                      profile::Profile,
-                      projects::Projects,
-                      settings::Settings,
-                      user::User};
-
 use rand::{self,
            Rng};
-
-use crate::config::{Config,
-                    GatewayCfg};
+use std::{cell::RefCell,
+          collections::HashMap,
+          iter::FromIterator,
+          sync::Arc};
 
 // This cipher list corresponds to the "intermediate" configuration
 // recommended by Mozilla:

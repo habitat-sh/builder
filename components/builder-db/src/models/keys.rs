@@ -1,4 +1,7 @@
 use super::db_id_format;
+use crate::{bldr_core::metrics::CounterMetric,
+            metrics::Counter,
+            schema::key::*};
 use chrono::NaiveDateTime;
 use diesel::{self,
              pg::PgConnection,
@@ -6,10 +9,6 @@ use diesel::{self,
              ExpressionMethods,
              QueryDsl,
              RunQueryDsl};
-
-use crate::{bldr_core::metrics::CounterMetric,
-            metrics::Counter,
-            schema::key::*};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origin_public_encryption_keys"]

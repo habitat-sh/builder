@@ -1,19 +1,12 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //! Configuration for a Habitat JobSrv service
 
+use crate::{db::config::DataStoreCfg,
+            error::Error,
+            server::log_archiver::ArchiveBackend};
+use habitat_core::{config::ConfigFile,
+                   crypto::keys::KeyCache,
+                   package::target::{self,
+                                     PackageTarget}};
 use std::{collections::HashSet,
           env,
           io,
@@ -24,14 +17,6 @@ use std::{collections::HashSet,
                 ToSocketAddrs},
           option::IntoIter,
           path::PathBuf};
-
-use crate::{db::config::DataStoreCfg,
-            hab_core::{config::ConfigFile,
-                       package::target::{self,
-                                         PackageTarget}},
-            server::log_archiver::ArchiveBackend};
-
-use crate::error::Error;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
@@ -45,8 +30,8 @@ pub struct Config {
     pub log_dir:          PathBuf,
     /// Configuration for the job log archiver
     pub archive:          ArchiveCfg,
-    /// Filepath to where the builder encryption keys can be found
-    pub key_dir:          PathBuf,
+    /// Location of Builder encryption keys
+    pub key_dir:          KeyCache,
     /// Path to scheduler event logs
     pub log_path:         PathBuf,
     /// Max time (in minutes) allowed for a build job
@@ -66,7 +51,7 @@ impl Default for Config {
                  datastore,
                  log_dir: env::temp_dir(),
                  archive: ArchiveCfg::default(),
-                 key_dir: PathBuf::from("/hab/svc/hab-depot/files"),
+                 key_dir: KeyCache::new("/hab/svc/hab-depot/files"),
                  log_path: PathBuf::from("/tmp"),
                  job_timeout: 60,
                  build_targets: HashSet::from_iter(vec![target::X86_64_LINUX,
@@ -217,6 +202,9 @@ mod tests {
         let content = r#"
         build_targets = ["x86_64-linux"]
         features_enabled = "foo, bar"
+        key_dir = "/path/to/keys"
+        log_path = "/path/to/logs"
+        job_timeout = 12345678
 
         [http]
         listen = "1.2.3.4"
@@ -251,6 +239,9 @@ mod tests {
         let config = Config::from_raw(&content).unwrap();
         assert_eq!(&format!("{}", config.http.listen), "1.2.3.4");
         assert_eq!(config.http.port, 1234);
+        assert_eq!(config.key_dir, KeyCache::new("/path/to/keys"));
+        assert_eq!(config.log_path, PathBuf::from("/path/to/logs"));
+        assert_eq!(config.job_timeout, 12_345_678);
 
         assert_eq!(&format!("{}", config.net.worker_command_listen),
                    "1:1:1:1:1:1:1:1");

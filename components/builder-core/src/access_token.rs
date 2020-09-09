@@ -1,33 +1,15 @@
-// Copyright (c) 2017 Chef Software Inc. and/or applicable contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-use std::path::PathBuf;
-
+use super::privilege::FeatureFlags;
+use crate::{crypto,
+            error::{Error,
+                    Result},
+            protocol::{message,
+                       originsrv}};
 use chrono::{self,
              Duration,
              LocalResult::Single,
              TimeZone,
              Utc};
-
-use super::privilege::FeatureFlags;
-use crate::{error::{Error,
-                    Result},
-            integrations::{decrypt,
-                           encrypt,
-                           validate},
-            protocol::{message,
-                       originsrv}};
+use habitat_core::crypto::keys::KeyCache;
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
 pub const BUILDER_ACCOUNT_NAME: &str = "BUILDER";
@@ -40,25 +22,28 @@ const ACCESS_TOKEN_PREFIX: &str = "_";
 
 const BUILDER_TOKEN_LIFETIME_HOURS: i64 = 2;
 
-pub fn generate_bldr_token(key_dir: &PathBuf) -> Result<String> {
-    generate_access_token(key_dir,
+pub fn generate_bldr_token(key_cache: &KeyCache) -> Result<String> {
+    generate_access_token(key_cache,
                           BUILDER_ACCOUNT_ID,
                           FeatureFlags::all().bits(),
                           Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
 }
 
-pub fn generate_user_token(key_dir: &PathBuf, account_id: u64, privileges: u32) -> Result<String> {
-    generate_access_token(key_dir,
+pub fn generate_user_token(key_cache: &KeyCache,
+                           account_id: u64,
+                           privileges: u32)
+                           -> Result<String> {
+    generate_access_token(key_cache,
                           account_id,
                           privileges,
                           Duration::max_value() /* User tokens never expire, can only be revoked */)
 }
 
-pub fn generate_access_token(key_dir: &PathBuf,
-                             account_id: u64,
-                             flags: u32,
-                             lifetime: Duration)
-                             -> Result<String> {
+fn generate_access_token(key_cache: &KeyCache,
+                         account_id: u64,
+                         flags: u32,
+                         lifetime: Duration)
+                         -> Result<String> {
     let expires = Utc::now().checked_add_signed(lifetime)
                             .unwrap_or_else(|| chrono::MAX_DATE.and_hms(0, 0, 0))
                             .timestamp();
@@ -69,17 +54,16 @@ pub fn generate_access_token(key_dir: &PathBuf,
     token.set_expires(expires);
 
     let bytes = message::encode(&token).map_err(Error::Protocol)?;
-    let (ciphertext, _) = encrypt(key_dir, &bytes)?;
 
-    Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, ciphertext))
+    let (token_value, _) = crypto::encrypt(&key_cache, bytes)?;
+    Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, token_value))
 }
 
 pub fn is_access_token(token: &str) -> bool { token.starts_with(ACCESS_TOKEN_PREFIX) }
 
-pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<originsrv::Session> {
-    assert!(is_access_token(token));
-
-    let bytes = decrypt(key_dir, &token[ACCESS_TOKEN_PREFIX.len()..])?;
+/// Decrypts a token to get a valid `Session`.
+pub fn validate_access_token(key_cache: &KeyCache, token: &str) -> Result<originsrv::Session> {
+    let bytes = crypto::decrypt(&key_cache, &token[ACCESS_TOKEN_PREFIX.len()..])?;
 
     let payload: originsrv::AccessToken = match message::decode(&bytes) {
         Ok(p) => p,
@@ -88,10 +72,6 @@ pub fn validate_access_token(key_dir: &PathBuf, token: &str) -> Result<originsrv
             return Err(Error::TokenInvalid);
         }
     };
-
-    if payload.get_account_id() == BUILDER_ACCOUNT_ID {
-        validate(key_dir, &token[ACCESS_TOKEN_PREFIX.len()..])?
-    }
 
     match Utc.timestamp_opt(payload.get_expires(), 0 /* nanoseconds */) {
         Single(expires) => {
