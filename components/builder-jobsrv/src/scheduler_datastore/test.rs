@@ -29,6 +29,19 @@ mod test {
             BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
     }
 
+    macro_rules! assert_match {
+        ($result:expr, $expected:pat) => {
+            match ($result) {
+                $expected => {}
+                x => {
+                    panic!("assertion failed: expected {:?}, received {:?}",
+                           stringify!($expected),
+                           x)
+                }
+            };
+        };
+    }
+
     mod helpers {
         use crate::data_store::DataStore;
         use chrono::{DateTime,
@@ -65,20 +78,42 @@ mod test {
             data
         }
 
-        pub fn job_state_count(group_id: i64,
+        #[derive(Default, Debug, Clone)]
+        pub struct JobStateCounts {
+            pub p:  i64,
+            pub s:  i64,
+            pub e:  i64,
+            pub d:  i64,
+            pub c:  i64,
+            pub jf: i64,
+            pub df: i64,
+            pub cp: i64,
+            pub cc: i64,
+        }
+
+        pub fn job_state_count_s(gid: i64, conn: &diesel::pg::PgConnection) -> JobStateCounts {
+            let mut j = JobStateCounts::default();
+            j.p = JobGraphEntry::count_by_state(gid, JobExecState::Pending, &conn).unwrap();
+            j.s = JobGraphEntry::count_by_state(gid, JobExecState::Schedulable, &conn).unwrap();
+            j.e = JobGraphEntry::count_by_state(gid, JobExecState::Eligible, &conn).unwrap();
+            j.d = JobGraphEntry::count_by_state(gid, JobExecState::Dispatched, &conn).unwrap();
+            j.c = JobGraphEntry::count_by_state(gid, JobExecState::Complete, &conn).unwrap();
+            j
+        }
+
+        pub fn job_state_count(gid: i64,
                                conn: &diesel::pg::PgConnection)
                                -> (i64, i64, i64, i64, i64) {
             let schedulable =
-                JobGraphEntry::count_by_state(group_id, JobExecState::Schedulable, &conn).unwrap();
+                JobGraphEntry::count_by_state(gid, JobExecState::Schedulable, &conn).unwrap();
             let eligible =
-                JobGraphEntry::count_by_state(group_id, JobExecState::Eligible, &conn).unwrap();
+                JobGraphEntry::count_by_state(gid, JobExecState::Eligible, &conn).unwrap();
             let complete =
-                JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap();
+                JobGraphEntry::count_by_state(gid, JobExecState::Complete, &conn).unwrap();
             let failed =
-                JobGraphEntry::count_by_state(group_id, JobExecState::JobFailed, &conn).unwrap();
-            let dep_failed = JobGraphEntry::count_by_state(group_id,
-                                                           JobExecState::DependencyFailed,
-                                                           &conn).unwrap();
+                JobGraphEntry::count_by_state(gid, JobExecState::JobFailed, &conn).unwrap();
+            let dep_failed =
+                JobGraphEntry::count_by_state(gid, JobExecState::DependencyFailed, &conn).unwrap();
 
             (schedulable, eligible, complete, failed, dep_failed)
         }
@@ -355,6 +390,10 @@ mod test {
         assert_eq!(ready.unwrap(), 2);
 
         assert_eq!((1, 2, 1, 0, 0), helpers::job_state_count(1, &conn));
+
+        assert_match!(helpers::job_state_count_s(1, &conn),
+                      helpers::JobStateCounts { p: 0, s: 1, e: 2, d: 0, c: 1, .. });
+
         assert_eq!((3, 1, 0, 0, 0), helpers::job_state_count(2, &conn));
 
         // Get another job from group 1
