@@ -16,12 +16,15 @@ use diesel::{result::Error as Dre,
              Connection};
 
 use crate::{db::{config::DataStoreCfg,
-                 models::jobs::{JobExecState,
-                                JobGraphEntry},
+                 models::{jobs::{JobExecState,
+                                 JobGraphEntry},
+                          package::BuilderPackageTarget},
                  DbPool},
             error::Result};
 
 use crate::hab_core::package::PackageTarget;
+
+use std::str::FromStr;
 
 mod test;
 
@@ -34,8 +37,8 @@ pub struct GroupId(pub i64);
 
 // This wraps the datastore API; this should probably be thread safe so it can be shared.
 pub trait SchedulerDataStore: Send + Sync {
-    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobId>>;
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<()>;
+    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>>;
+    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32>;
 }
 
 //
@@ -54,12 +57,25 @@ impl SchedulerDataStoreDb {
     }
 }
 
+use chrono::{TimeZone,
+             Utc}; // TODO see if this can be cleaned up/eliminated
 impl SchedulerDataStore for SchedulerDataStoreDb {
-    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobId>> {
-        Ok(Some(JobId(0)))
+    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>> {
+        Ok(Some(JobGraphEntry { id: 0,
+             group_id:         0, 
+             job_state:        JobExecState::Pending, 
+             plan_ident:       "dummy_plan_ident".to_owned(),       
+             manifest_ident:   "dummy_manifest_ident".to_owned(),         
+             as_built_ident:   None, 
+             dependencies:     vec![],
+             waiting_on_count: 0,
+             target_platform:  BuilderPackageTarget( PackageTarget::from_str("x86_64-linux").unwrap()), 
+             created_at:       Utc.timestamp(1431648000, 0),
+             updated_at:       Utc.timestamp(1431648001, 0)
+    }))
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<()> { Ok(()) }
+    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32> { Ok(0) }
 }
 
 // Test code
@@ -72,7 +88,7 @@ pub enum DummySchedulerDataStoreCall {
 
 #[derive(Debug)]
 pub enum DummySchedulerDataStoreResult {
-    JobOption(Result<Option<JobId>>),
+    JobOption(Result<Option<JobGraphEntry>>),
     UnitResult(),
 }
 
@@ -88,7 +104,7 @@ impl DummySchedulerDataStore {
 }
 
 impl SchedulerDataStore for DummySchedulerDataStore {
-    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobId>> {
+    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>> {
         assert!(self.actions.len() > 0);
         assert_eq!(self.actions[0].0,
                    DummySchedulerDataStoreCall::TakeNextJobForTarget { target });
@@ -99,12 +115,12 @@ impl SchedulerDataStore for DummySchedulerDataStore {
         }
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job_id: JobId) -> Result<()> {
+    fn mark_job_complete_and_update_dependencies(&mut self, job_id: JobId) -> Result<i32> {
         assert!(self.actions.len() > 0);
         assert_eq!(self.actions[0].0,
                    DummySchedulerDataStoreCall::MarkJobCompleteAndUpdateDependencies { job_id });
         if let (_, DummySchedulerDataStoreResult::UnitResult()) = self.actions.remove(0) {
-            Ok(())
+            Ok(1)
         } else {
             unreachable!("some sort of strange data problem")
         }

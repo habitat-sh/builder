@@ -111,14 +111,20 @@ impl Scheduler {
                          worker: &WorkerId,
                          target: PackageTarget,
                          reply: Responder<Option<JobId>>) {
-        let job_id = self.data_store.take_next_job_for_target(target);
-        // Probably should do some sort of parse/check here to examine the error
-        // returned.SchedulerDataStore
+        let maybe_job_id = match self.data_store.take_next_job_for_target(target) {
+            Ok(Some(job)) =>
+            // Probably should do some sort of parse/check here to examine the error
+            // returned.SchedulerDataStore
 
-        // If the worker manager goes away, we're going to be restarting the server because we have
-        // no recovery path. So panic is the right strategy.
-        reply.send(job_id)
-             .expect("Reply failed: Worker manager appears to have died");
+            // If the worker manager goes away, we're going to be restarting the server because
+            // we have no recovery path. So panic is the right strategy.
+            {
+                Ok(Some(JobId(job.id)))
+            }
+            _ => Ok(None), // TODO Process them errors!
+        };
+        reply.send(maybe_job_id)
+             .expect("Reply failed: Worker manager appears to have died")
     }
 
     #[tracing::instrument]
@@ -158,7 +164,9 @@ mod test {
 
     use super::*;
 
-    use crate::{db::models::jobs::JobExecState,
+    use crate::{db::models::{jobs::{JobExecState,
+                                    JobGraphEntry},
+                             package::BuilderPackageTarget},
                 scheduler_datastore::{DummySchedulerDataStore,
                                       DummySchedulerDataStoreCall,
                                       DummySchedulerDataStoreResult,
@@ -176,11 +184,28 @@ mod test {
             PackageTarget::from_str("x86_64-windows").unwrap();
     }
 
+    use chrono::{TimeZone,
+                 Utc};
+    fn make_job_graph_entry(id: i64) -> JobGraphEntry {
+        JobGraphEntry { id,
+                        group_id: 0,
+                        job_state: JobExecState::Pending,
+                        plan_ident: "dummy_plan_ident".to_owned(),
+                        manifest_ident: "dummy_manifest_ident".to_owned(),
+                        as_built_ident: None,
+                        dependencies: vec![],
+                        waiting_on_count: 0,
+                        target_platform:
+                            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap()),
+                        created_at: Utc.timestamp(1431648000, 0),
+                        updated_at: Utc.timestamp(1431648001, 0) }
+    }
+
     #[tokio::test]
     async fn simple_job_fetch() {
         let actions =
             vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_LINUX, },
-                  DummySchedulerDataStoreResult::JobOption(Ok(Some(JobId(1))))),
+                  DummySchedulerDataStoreResult::JobOption(Ok(Some(make_job_graph_entry(1))))),
                  (DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_WINDOWS, },
                   DummySchedulerDataStoreResult::JobOption(Ok(None)))];
 
