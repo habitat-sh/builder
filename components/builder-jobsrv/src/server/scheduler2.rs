@@ -112,34 +112,41 @@ impl Scheduler {
                          target: PackageTarget,
                          reply: Responder<Option<JobId>>) {
         let maybe_job_id = match self.data_store.take_next_job_for_target(target) {
-            Ok(Some(job)) =>
-            // Probably should do some sort of parse/check here to examine the error
-            // returned.SchedulerDataStore
-
-            // If the worker manager goes away, we're going to be restarting the server because
-            // we have no recovery path. So panic is the right strategy.
-            {
-                Ok(Some(JobId(job.id)))
-            }
+            Ok(v) => Ok(v.map(|job| JobId(job.id))),
             _ => Ok(None), // TODO Process them errors!
         };
+        // If the worker manager goes away, we're going to be restarting the server because
+        // we have no recovery path. So panic is the right strategy.
         reply.send(maybe_job_id)
              .expect("Reply failed: Worker manager appears to have died")
     }
 
     #[tracing::instrument]
-    fn worker_finished(&self, worker: &WorkerId, job_id: JobId, state: JobExecState) {
+    fn worker_finished(&mut self, worker: &WorkerId, job_id: JobId, state: JobExecState) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
         match state {
-            // If it successful, we will mark it done, and update the available jobs to run
-
-            // If it fails, we will mark it failed, and recursively mark the dependent jobs as
-            // failed
+            JobExecState::Complete => {
+                // If it successful, we will mark it done, and update the available jobs to run
+                let new_avail = self.data_store
+                                    .mark_job_complete_and_update_dependencies(job_id)
+                                    .expect("Can't yet handle db error");
+                debug!("Job {} completed, {} now avail to run", job_id.0, new_avail);
+            }
+            JobExecState::JobFailed => {
+                // If it fails, we will mark it failed, and recursively mark the dependent jobs as
+                // failed
+                let marked_failed = self.data_store
+                                        .mark_job_failed(job_id)
+                                        .expect("Can't yet handle db error");
+                debug!("Job {} failed, {} total not runnable",
+                       job_id.0, marked_failed);
+            }
+            // TODO: Handle canceled, and worker going AWOL
 
             // If it is canceled, (maybe handled here?) we mark it canceled; probably should check
             // if the containing group is canceled for sanitys sake.
-            _ => (), // log an error
+            state => panic!("Unexpected state {:?}", state),
         }
     }
 }

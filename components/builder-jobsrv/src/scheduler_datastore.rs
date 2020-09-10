@@ -33,15 +33,16 @@ mod test;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct WorkerId(pub String);
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct JobId(pub i64);
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct GroupId(pub i64);
 
 // This wraps the datastore API; this should probably be thread safe so it can be shared.
 pub trait SchedulerDataStore: Send + Sync {
     fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>>;
     fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32>;
+    fn mark_job_failed(&mut self, job: JobId) -> Result<i32>;
 }
 
 //
@@ -86,7 +87,11 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
                                                 &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32> { Ok(0) }
+    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32> {
+        JobGraphEntry::mark_job_complete(job.0, &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
+    }
+
+    fn mark_job_failed(&mut self, job: JobId) -> Result<i32> { Ok(0) }
 }
 
 // Test code
@@ -136,4 +141,6 @@ impl SchedulerDataStore for DummySchedulerDataStore {
             unreachable!("some sort of strange data problem")
         }
     }
+
+    fn mark_job_failed(&mut self, job: JobId) -> Result<i32> { Ok(0) }
 }
