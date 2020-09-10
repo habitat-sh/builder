@@ -6,7 +6,7 @@ use crate::{bldr_core::crypto,
                          channel::Channel,
                          integration::*,
                          invitations::*,
-                         keys::*,
+                         keys as db_keys,
                          origin::*,
                          package::{BuilderPackageIdent,
                                    ListPackages,
@@ -48,15 +48,13 @@ use actix_web::{body::Body,
 use builder_core::Error::OriginDeleteError;
 use diesel::{pg::PgConnection,
              result::Error::NotFound};
-use habitat_core::{crypto::keys::{generate_origin_encryption_key_pair,
+use habitat_core::{crypto::keys::{self as core_keys,
+                                  generate_origin_encryption_key_pair,
                                   generate_signing_key_pair,
                                   AnonymousBox,
                                   Key,
                                   KeyCache,
-                                  KeyFile,
-                                  OriginSecretEncryptionKey,
-                                  PublicOriginSigningKey,
-                                  SecretOriginSigningKey},
+                                  KeyFile},
                    package::{ident,
                              PackageIdent}};
 use std::{collections::HashMap,
@@ -443,7 +441,7 @@ fn list_origin_keys(path: Path<String>, state: Data<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match OriginPublicSigningKey::list(&origin, &*conn).map_err(Error::DieselError) {
+    match db_keys::OriginPublicSigningKey::list(&origin, &*conn).map_err(Error::DieselError) {
         Ok(list) => {
             let list: Vec<OriginKeyIdent> =
                 list.iter()
@@ -490,7 +488,7 @@ fn upload_origin_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    if OriginPublicSigningKey::get(&origin, &revision, &conn).is_ok() {
+    if db_keys::OriginPublicSigningKey::get(&origin, &revision, &conn).is_ok() {
         HttpResponse::new(StatusCode::CONFLICT)
     } else {
         // In this case we are checking if the user actually has permissions to write a
@@ -510,7 +508,7 @@ fn upload_origin_key(req: HttpRequest,
                                                                               origin, revision)));
                 }
             };
-        let key = match body.parse::<PublicOriginSigningKey>() {
+        let key = match body.parse::<core_keys::PublicOriginSigningKey>() {
             Ok(key) => key,
             Err(e) => {
                 debug!("Invalid public key content: {}", e);
@@ -543,7 +541,7 @@ fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>) -> H
     };
 
     let key =
-        match OriginPublicSigningKey::get(&origin, &revision, &*conn).map_err(Error::DieselError) {
+        match db_keys::OriginPublicSigningKey::get(&origin, &revision, &*conn).map_err(Error::DieselError) {
             Ok(key) => key,
             Err(err) => {
                 debug!("{}", err);
@@ -564,13 +562,14 @@ fn download_latest_origin_key(path: Path<String>, state: Data<AppState>) -> Http
         Err(err) => return err.into(),
     };
 
-    let key = match OriginPublicSigningKey::latest(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(key) => key,
-        Err(err) => {
-            debug!("{}", err);
-            return err.into();
-        }
-    };
+    let key =
+        match db_keys::OriginPublicSigningKey::latest(&origin, &*conn).map_err(Error::DieselError) {
+            Ok(key) => key,
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
 
     let xfilename = format!("{}-{}.pub", key.name, key.revision);
     download_content_as_file(key.body, xfilename)
@@ -654,9 +653,10 @@ fn create_origin_secret(req: HttpRequest,
 
     // Fetch the origin's secret encryption key from the database
     let secret_encryption_key =
-        match OriginPrivateEncryptionKey::get(&origin, &*conn).map_err(Error::DieselError) {
+        match db_keys::OriginPrivateEncryptionKey::get(&origin, &*conn).map_err(Error::DieselError)
+        {
             Ok(key) => {
-                match key.body.parse::<OriginSecretEncryptionKey>() {
+                match key.body.parse::<core_keys::OriginSecretEncryptionKey>() {
                     Ok(key) => key,
                     Err(err) => {
                         debug!("{}", err);
@@ -742,7 +742,7 @@ fn upload_origin_secret_key(req: HttpRequest,
 
     let key = match String::from_utf8(body.to_vec()) {
         Ok(content) => {
-            match content.parse::<SecretOriginSigningKey>() {
+            match content.parse::<core_keys::SecretOriginSigningKey>() {
                 Ok(key) => key,
                 Err(e) => {
                     debug!("Invalid secret key content: {}", e);
@@ -786,13 +786,14 @@ fn download_latest_origin_secret_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let key = match OriginPrivateSigningKey::get(&origin, &*conn).map_err(Error::DieselError) {
-        Ok(key) => key,
-        Err(err) => {
-            debug!("{}", err);
-            return err.into();
-        }
-    };
+    let key =
+        match db_keys::OriginPrivateSigningKey::get(&origin, &*conn).map_err(Error::DieselError) {
+            Ok(key) => key,
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
 
     let key_body = if key.encryption_key_rev.is_some() {
         match crypto::decrypt(&state.config.api.key_path, &key.body).map_err(Error::BuilderCore) {
@@ -880,7 +881,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let key = match OriginPublicEncryptionKey::latest(&origin, &*conn) {
+    let key = match db_keys::OriginPublicEncryptionKey::latest(&origin, &*conn) {
         Ok(key) => key,
         Err(NotFound) => {
             // TODO: redesign to not be generating keys during d/l
@@ -1590,12 +1591,13 @@ fn download_content_as_file(content: String, filename: String) -> HttpResponse {
 fn generate_origin_encryption_keys(origin: &str,
                                    session_id: u64,
                                    conn: &PgConnection)
-                                   -> Result<OriginPublicEncryptionKey> {
+                                   -> Result<db_keys::OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
     let (public, secret) = generate_origin_encryption_key_pair(origin);
 
     let pk_body = public.to_key_string();
-    let new_pk = NewOriginPublicEncryptionKey { owner_id:  session_id as i64,
+    let new_pk =
+        db_keys::NewOriginPublicEncryptionKey { owner_id:  session_id as i64,
                                                 origin:    &origin,
                                                 name:      public.named_revision().name(),
                                                 full_name: &public.named_revision().to_string(),
@@ -1603,39 +1605,41 @@ fn generate_origin_encryption_keys(origin: &str,
                                                 body:      &pk_body, };
 
     let sk_body = secret.to_key_string();
-    let new_sk = NewOriginPrivateEncryptionKey { owner_id:  session_id as i64,
+    let new_sk =
+        db_keys::NewOriginPrivateEncryptionKey { owner_id:  session_id as i64,
                                                  origin:    &origin,
                                                  name:      secret.named_revision().name(),
                                                  full_name: &secret.named_revision().to_string(),
                                                  revision:  &secret.named_revision().revision(),
                                                  body:      sk_body.as_ref(), };
 
-    OriginPrivateEncryptionKey::create(&new_sk, &*conn)?;
-    Ok(OriginPublicEncryptionKey::create(&new_pk, &*conn)?)
+    db_keys::OriginPrivateEncryptionKey::create(&new_sk, &*conn)?;
+    Ok(db_keys::OriginPublicEncryptionKey::create(&new_pk, &*conn)?)
 }
 
 fn save_public_origin_signing_key(account_id: u64,
                                   origin: &str,
-                                  key: &PublicOriginSigningKey,
+                                  key: &core_keys::PublicOriginSigningKey,
                                   conn: &PgConnection)
                                   -> Result<()> {
     let key_body = key.to_key_string();
 
-    let new_pk = NewOriginPublicSigningKey { owner_id: account_id as i64,
-                                             origin,
-                                             full_name: &key.named_revision().to_string(),
-                                             name: key.named_revision().name(),
-                                             revision: key.named_revision().revision(),
-                                             body: &key_body };
+    let new_pk = db_keys::NewOriginPublicSigningKey { owner_id: account_id as i64,
+                                                      origin,
+                                                      full_name: &key.named_revision()
+                                                                     .to_string(),
+                                                      name: key.named_revision().name(),
+                                                      revision: key.named_revision().revision(),
+                                                      body: &key_body };
 
-    OriginPublicSigningKey::create(&new_pk, conn)?;
+    db_keys::OriginPublicSigningKey::create(&new_pk, conn)?;
     Ok(())
 }
 
 fn save_secret_origin_signing_key(account_id: u64,
                                   origin: &str,
                                   key_cache: &KeyCache,
-                                  key: &SecretOriginSigningKey,
+                                  key: &core_keys::SecretOriginSigningKey,
                                   conn: &PgConnection)
                                   -> Result<()> {
     // Here we want to encrypt the full contents of the secret signing
@@ -1644,14 +1648,15 @@ fn save_secret_origin_signing_key(account_id: u64,
     // resulting bytes are what need to be saved in the database.
     let (sk_encrypted, bldr_key_rev) = crypto::encrypt(key_cache, key.to_key_string())?;
 
-    let new_sk = NewOriginPrivateSigningKey { owner_id: account_id as i64,
-                                              origin,
-                                              full_name: &key.named_revision().to_string(),
-                                              name: key.named_revision().name(),
-                                              revision: key.named_revision().revision(),
-                                              body: &sk_encrypted,
-                                              encryption_key_rev: &bldr_key_rev };
+    let new_sk = db_keys::NewOriginPrivateSigningKey { owner_id: account_id as i64,
+                                                       origin,
+                                                       full_name: &key.named_revision()
+                                                                      .to_string(),
+                                                       name: key.named_revision().name(),
+                                                       revision: key.named_revision().revision(),
+                                                       body: &sk_encrypted,
+                                                       encryption_key_rev: &bldr_key_rev };
 
-    OriginPrivateSigningKey::create(&new_sk, &*conn)?;
+    db_keys::OriginPrivateSigningKey::create(&new_sk, &*conn)?;
     Ok(())
 }
