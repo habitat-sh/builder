@@ -96,7 +96,7 @@ However, if you are going to be doing Web UI development, and running the Web UI
 1. Give it a meaningful `GitHub App name`, e.g., "Builder Local Dev"
 1. Set the value of `Homepage URL` to `http://${APP_HOSTNAME}`. A host alias that you define on your workstation pointed to a local IP such as the loopback (127.0.0.1) will suffice for APP_HOSTNAME when testing locally.
 1. Set the value of `User authorization callback URL` to `http://${APP_HOSTNAME}/` (The trailing `/` is *important*)
-1. Set the value of `Webhook URL` to `http://${APP_HOSTNAME}/`
+1. Set the value of `Webhook URL` to `http://${APP_HOSTNAME}/` (Optional - only needed for testing builds triggered from github. APP_HOSTNAME will need to be routable on the Internet, `localhost` will not work.)
 1. Set Repository metadata, Repository administration, Repository content and Organization members to read only (this is only used for your org so it's safe)
 1. Download and save the private key. It will result in a file like `app-name.date.private-key.pem`
 1. Record the the client-id, client-secret, app_id and public page link (in the left sidebar). These will be used for the `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_APP_ID` and `GITHUB_APP_URL` config variables in the section below.
