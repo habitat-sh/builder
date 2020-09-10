@@ -59,7 +59,7 @@ impl DataStore {
         DataStore { pool, diesel_pool }
     }
 
-    #[cfg(test)]
+    // #[cfg(test)] // TODO figure out if we  have to expose this for SchedulerDataStoreDb
     pub fn get_pool(&self) -> habitat_builder_db::diesel_pool::DbPool { self.diesel_pool.clone() }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.

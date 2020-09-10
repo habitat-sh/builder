@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use diesel::{result::Error as Dre,
-             Connection};
+use diesel::{r2d2::{ConnectionManager,
+                    PooledConnection},
+             result::Error as Dre,
+             PgConnection};
 
 use crate::{db::{config::DataStoreCfg,
                  models::{jobs::{JobExecState,
                                  JobGraphEntry},
-                          package::BuilderPackageTarget},
-                 DbPool},
-            error::Result};
+                          package::BuilderPackageTarget}},
+            error::{Error,
+                    Result}};
 
 use crate::hab_core::package::PackageTarget;
 
-use std::str::FromStr;
+use crate::data_store::DataStore;
+use habitat_builder_db::datastore_test;
 
 mod test;
 
@@ -43,7 +46,7 @@ pub trait SchedulerDataStore: Send + Sync {
 
 //
 pub struct SchedulerDataStoreDb {
-    diesel_pool: DbPool,
+    data_store: DataStore, // When we get rid of non-diesel stuff maybe just use directly
 }
 
 impl SchedulerDataStoreDb {
@@ -52,27 +55,35 @@ impl SchedulerDataStoreDb {
     /// * Can fail if the pool cannot be created
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
     pub fn new(cfg: &DataStoreCfg) -> Self {
-        let diesel_pool = DbPool::new(&cfg);
-        SchedulerDataStoreDb { diesel_pool }
+        let data_store = DataStore::new(cfg);
+        SchedulerDataStoreDb { data_store }
+    }
+
+    // This works because there's a Deref to  PgConnection implemented
+    // https://docs.diesel.rs/1.4.x/src/r2d2/lib.rs.html#620-629
+    pub fn get_connection(&self) -> PooledConnection<ConnectionManager<PgConnection>> {
+        self.data_store.get_pool().get_conn().unwrap()
+    }
+
+    // Test helpers for setup/teardown of internal DB
+    #[cfg(test)]
+    #[cfg(feature = "postgres_scheduler_tests")]
+    pub fn new_test() -> Self {
+        let data_store = datastore_test!(DataStore);
+        SchedulerDataStoreDb { data_store }
+    }
+
+    #[cfg(test)]
+    #[cfg(feature = "postgres_scheduler_tests")]
+    pub fn get_connection_for_test(&self) -> PooledConnection<ConnectionManager<PgConnection>> {
+        self.get_connection()
     }
 }
 
-use chrono::{TimeZone,
-             Utc}; // TODO see if this can be cleaned up/eliminated
 impl SchedulerDataStore for SchedulerDataStoreDb {
     fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>> {
-        Ok(Some(JobGraphEntry { id: 0,
-             group_id:         0, 
-             job_state:        JobExecState::Pending, 
-             plan_ident:       "dummy_plan_ident".to_owned(),       
-             manifest_ident:   "dummy_manifest_ident".to_owned(),         
-             as_built_ident:   None, 
-             dependencies:     vec![],
-             waiting_on_count: 0,
-             target_platform:  BuilderPackageTarget( PackageTarget::from_str("x86_64-linux").unwrap()), 
-             created_at:       Utc.timestamp(1431648000, 0),
-             updated_at:       Utc.timestamp(1431648001, 0)
-    }))
+        JobGraphEntry::take_next_job_for_target(&BuilderPackageTarget(target),
+                                                &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
     }
 
     fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32> { Ok(0) }

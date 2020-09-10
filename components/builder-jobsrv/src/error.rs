@@ -65,6 +65,7 @@ pub enum Error {
     JobReset(postgres::error::Error),
     JobSetLogUrl(postgres::error::Error),
     JobSetState(postgres::error::Error),
+    SchedulerDbError(diesel::result::Error),
     SyncJobs(postgres::error::Error),
     LogDirDoesNotExist(PathBuf, io::Error),
     LogDirIsNotDir(PathBuf),
@@ -156,6 +157,7 @@ impl fmt::Display for Error {
             Error::JobReset(ref e) => format!("Database error reseting jobs, {}", e),
             Error::JobSetLogUrl(ref e) => format!("Database error setting job log URL, {}", e),
             Error::JobSetState(ref e) => format!("Database error setting job state, {}", e),
+            Error::SchedulerDbError(ref e) => format!("Database error setting in scheduler, {}", e),
             Error::SyncJobs(ref e) => format!("Database error retrieving sync jobs, {}", e),
             Error::LogDirDoesNotExist(ref path, ref e) => {
                 format!("Build log directory {:?} doesn't exist!: {:?}", path, e)

@@ -7,9 +7,6 @@
 mod test {
     use crate::{data_store::DataStore,
                 hab_core::package::PackageTarget};
-    use chrono::{DateTime,
-                 Duration,
-                 Utc};
 
     use habitat_builder_db::{datastore_test,
                              models::{jobs::{JobExecState,
@@ -17,12 +14,8 @@ mod test {
                                              NewJobGraphEntry,
                                              UpdateJobGraphEntry},
                                       package::BuilderPackageTarget}};
-    use habitat_builder_protocol::message::{jobsrv::*,
-                                            originsrv::{OriginPackageIdent,
-                                                        OriginProject}};
-    use std::{collections::HashMap,
-              convert::TryInto,
-              str::FromStr};
+    use habitat_builder_protocol::message::jobsrv::*;
+    use std::str::FromStr;
 
     lazy_static! {
         pub static ref TARGET_PLATFORM: BuilderPackageTarget =
@@ -47,16 +40,14 @@ mod test {
         use chrono::{DateTime,
                      Duration,
                      Utc};
-        use habitat_builder_db::{datastore_test,
-                                 models::{jobs::{JobExecState,
-                                                 JobGraphEntry,
-                                                 NewJobGraphEntry,
-                                                 UpdateJobGraphEntry},
-                                          package::BuilderPackageTarget}};
+        use habitat_builder_db::models::{jobs::{JobExecState,
+                                                JobGraphEntry,
+                                                NewJobGraphEntry,
+                                                UpdateJobGraphEntry},
+                                         package::BuilderPackageTarget};
         use habitat_builder_protocol::message::{jobsrv::*,
                                                 originsrv::OriginProject};
-        use std::{collections::HashMap,
-                  thread};
+        use std::collections::HashMap;
 
         pub fn is_recent(time: Option<DateTime<Utc>>, tolerance: isize) -> bool {
             Utc::now() - time.unwrap() < Duration::seconds(tolerance as i64)
