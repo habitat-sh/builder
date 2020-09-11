@@ -620,8 +620,10 @@ impl WorkerMgr {
             }
 
             let worker = self.workers.pop_front().unwrap().1;
-            debug!("Expiring worker due to missed heartbeat: {:?}", worker);
+            warn!("Expiring worker due to missed heartbeat: {:?}", worker);
 
+            // TODO: There may be a possible corner case here that
+            // a worker can have work assigned, but not be Busy.
             if worker.state == jobsrv::WorkerState::Busy {
                 self.requeue_job(worker.job_id.unwrap())?; // unwrap Ok
                 self.delete_worker(&worker)?;
@@ -729,7 +731,7 @@ impl WorkerMgr {
         let mut worker = match self.workers.remove(&worker_ident) {
             Some(worker) => worker,
             None => {
-                debug!("New worker detected, heartbeat: {:?}", heartbeat);
+                info!("New worker detected, heartbeat: {:?}", heartbeat);
                 let worker_target = match PackageTarget::from_str(heartbeat.get_target()) {
                     Ok(t) => t,
                     Err(_) => target::X86_64_LINUX,
@@ -738,7 +740,7 @@ impl WorkerMgr {
                 if heartbeat.get_state() == jobsrv::WorkerState::Ready {
                     Worker::new(&worker_ident, worker_target)
                 } else {
-                    warn!("Unexpacted Busy heartbeat from unknown worker {}",
+                    warn!("Unexpected Busy heartbeat from unknown worker {}",
                           worker_ident);
                     return Ok(()); // Something went wrong, don't process this HB
                 }
@@ -754,7 +756,7 @@ impl WorkerMgr {
             (jobsrv::WorkerState::Busy, jobsrv::WorkerState::Busy) => {
                 let job_id = worker.job_id.unwrap(); // unwrap Ok
                 if worker.is_job_expired() && !worker.is_canceling() {
-                    debug!("Canceling job due to timeout: {}", job_id);
+                    warn!("Canceling job due to timeout: {}, {:?}", job_id, worker);
                     self.cancel_job(job_id, &worker_ident)?;
                     worker.cancel();
                 };
@@ -764,8 +766,9 @@ impl WorkerMgr {
                 if !self.is_job_complete(worker.job_id.unwrap())? {
                     // Handle potential race condition where a Ready heartbeat
                     // is received right *after* the job has been dispatched
-                    warn!("Unexpected Ready heartbeat from incomplete job: {}",
-                          worker.job_id.unwrap());
+                    warn!("Unexpected Ready heartbeat from incomplete job: {}, {:?}",
+                          worker.job_id.unwrap(),
+                          worker);
                     worker.refresh();
                 } else {
                     self.delete_worker(&worker)?;
