@@ -47,8 +47,7 @@ CREATE INDEX state ON job_graph (job_state);
 -- the gin index doesn't supprt that function, and is hella slow.
 -- Using @> is vastly faster. (e.g. 30k entries, 7000 ms becomes 15ms)
 --
--- This could be made faster by filtering by group id, and adding an index for that
---
+-- needs gin index on dependencies 
 CREATE OR REPLACE FUNCTION t_rdeps_for_id(job_graph_id BIGINT)
 RETURNS SETOF BIGINT
 AS $$
@@ -58,13 +57,12 @@ BEGIN
   -- Recursively expand all things that depend on me
   RETURN QUERY (
     WITH RECURSIVE re(id) AS (
-      SELECT g.id FROM job_graph g where g.dependencies @> array[job_graph_id]::bigint[]
+      SELECT g.id FROM job_graph g WHERE g.dependencies @> array[job_graph_id]::bigint[]
     UNION
       SELECT g.id
       FROM job_graph g, re
       WHERE g.dependencies @> array[re.id]::bigint[] )
     SELECT * FROM re);
-
 END
 $$ LANGUAGE PLPGSQL;
 
@@ -72,6 +70,9 @@ $$ LANGUAGE PLPGSQL;
 --
 -- Compute transitively expanded deps for id
 --
+-- Not super performant (28ms with 30k entries), but
+-- not on critical path either.
+-- needs gin index on dependencies
 CREATE OR REPLACE FUNCTION t_deps_for_id(job_graph_id BIGINT)
 RETURNS SETOF BIGINT
 AS $$
@@ -81,20 +82,36 @@ BEGIN
   -- Recursively expand all things that depend on me
   RETURN QUERY (
     WITH RECURSIVE re(id) AS (
-      SELECT UNNEST(g.dependencies) FROM job_graph g where g.id = job_graph_id
+      SELECT UNNEST(g.dependencies) FROM job_graph g WHERE g.id = job_graph_id
     UNION
       SELECT UNNEST(g.dependencies)
       FROM job_graph g, re
       WHERE g.id = re.id)
     SELECT * FROM re);
-
 END
 $$ LANGUAGE PLPGSQL;
 
+-- as above, but faster (3ms) because group_id filter
+-- needs index on group_id
+CREATE OR REPLACE FUNCTION t_deps_for_id_group(in_id BIGINT, in_group_id BIGINT)
+RETURNS SETOF BIGINT
+AS $$
+BEGIN
+  -- Recursively expand all things that depend on me
+  RETURN QUERY (
+    WITH RECURSIVE re(id) AS (
+      SELECT UNNEST(g.dependencies) FROM job_graph g where g.id = in_id
+    AND g.group_id = in_group_id
+    UNION
+      SELECT UNNEST(g2.dependencies)
+      FROM job_graph g2, re
+      WHERE g2.id = re.id  AND g2.group_id = in_group_id )
+    SELECT * FROM re);
+END
+$$ LANGUAGE PLPGSQL;
 
-
-
-
+--
+--
 -- This is too slow for production use, but is intended as a debugging aid
 CREATE OR REPLACE VIEW job_graph_completed AS
 SELECT *,
@@ -122,7 +139,7 @@ FROM (SELECT id, (cardinality(k.dependencies) - complete_count) AS remaining
                job_graph AS d
                WHERE
                d.group_id = d.group_id
-               AND d.id = ANY (j.dependencies)
+               AND j.dependencies @> array[d.id]::bigint[]
                AND d.job_state = 'complete')
              AS complete_count
              FROM job_graph AS j)
@@ -134,8 +151,6 @@ GET DIAGNOSTICS i_count = ROW_COUNT;
 RETURN i_count;
 END
 $$ LANGUAGE PLPGSQL;
-
-
 
 
 -- Mark a job complete and update the jobs that depend on it
@@ -154,7 +169,7 @@ BEGIN
     SET waiting_on_count = waiting_on_count - 1
     FROM (SELECT id
           FROM job_graph AS d
-          WHERE job_graph_id = ANY (d.dependencies)
+          WHERE d.dependencies @> array[job_graph_id]::bigint[]
          ) as deps
     WHERE job_graph.id = deps.id;
 
@@ -187,12 +202,13 @@ DECLARE
   failed_count integer;
 BEGIN
   -- Recursively expand all things that depend on me
+  -- this maybe could be DRY with the t_rdeps_for_id call above
   WITH RECURSIVE re(id) AS (
-    SELECT g.id FROM job_graph g where job_graph_id = ANY(g.dependencies)
+    SELECT g.id FROM job_graph g where g.dependencies @> array[job_graph_id]::bigint[]
   UNION
     SELECT g.id
     FROM job_graph g, re
-    WHERE re.id = ANY(g.dependencies))
+    WHERE g.dependencies @> array[re.id]::bigint[])
   UPDATE job_graph SET job_state = 'dependency_failed'
     WHERE id IN (SELECT id from re)
     AND (job_state = 'eligible' OR job_state = 'schedulable');
