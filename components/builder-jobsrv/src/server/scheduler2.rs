@@ -112,7 +112,11 @@ impl Scheduler {
                          target: PackageTarget,
                          reply: Responder<Option<JobId>>) {
         let maybe_job_id = match self.data_store.take_next_job_for_target(target) {
-            Ok(v) => Ok(v.map(|job| JobId(job.id))),
+            Ok(Some(job)) => Ok(Some(JobId(job.id))),
+            Ok(None) => {
+                // TODO: queue up more work if available
+                Ok(None)
+            }
             _ => Ok(None), // TODO Process them errors!
         };
         // If the worker manager goes away, we're going to be restarting the server because
@@ -125,12 +129,18 @@ impl Scheduler {
     fn worker_finished(&mut self, worker: &WorkerId, job_id: JobId, state: JobExecState) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
+        // NOTE: Should check job group invariants;
+        // for each group (jobs in eligible + jobs in dispatched) states > 0
+        // Others?
         match state {
             JobExecState::Complete => {
                 // If it successful, we will mark it done, and update the available jobs to run
+                // TODO detect if job group is done (
                 let new_avail = self.data_store
                                     .mark_job_complete_and_update_dependencies(job_id)
                                     .expect("Can't yet handle db error");
+
+                // TODO Detect when group is complete
                 debug!("Job {} completed, {} now avail to run", job_id.0, new_avail);
             }
             JobExecState::JobFailed => {
@@ -141,8 +151,9 @@ impl Scheduler {
                                         .expect("Can't yet handle db error");
                 debug!("Job {} failed, {} total not runnable",
                        job_id.0, marked_failed);
+                // TODO Detect when group is complete (failed)
             }
-            // TODO: Handle canceled, and worker going AWOL
+            // TODO: Handle cancel complete, and worker going AWOL
 
             // If it is canceled, (maybe handled here?) we mark it canceled; probably should check
             // if the containing group is canceled for sanitys sake.

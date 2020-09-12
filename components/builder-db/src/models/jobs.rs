@@ -598,4 +598,11 @@ impl JobGraphEntry {
             diesel::select(job_functions::job_graph_mark_complete(id)).get_result::<i32>(conn)?;
         Ok(result)
     }
+
+    pub fn mark_job_failed(id: i64, conn: &PgConnection) -> QueryResult<i32> {
+        Counter::DBCall.increment();
+        let result =
+            diesel::select(job_functions::job_graph_mark_failed(id)).get_result::<i32>(conn)?;
+        Ok(result)
+    }
 }
