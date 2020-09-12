@@ -31,10 +31,69 @@ CREATE TABLE IF NOT EXISTS job_graph (
 SELECT diesel_manage_updated_at('job_graph');
 
 -- This is required for fast search inside the array
+-- It might get large, maybe we should create partial index
+-- either filtered on job state or a separate active/archived flag
 CREATE INDEX dependencies ON job_graph USING GIN(dependencies);
 
 -- This index might be combined with another field (maybe group_id?)
 CREATE INDEX state ON job_graph (job_state);
+
+----------------------------------------------
+--
+-- Compute transitively expanded rdeps for id
+--
+-- Performance note:
+-- While it might seem easier to write "re.id = ANY(g.dependencies))" below
+-- the gin index doesn't supprt that function, and is hella slow.
+-- Using @> is vastly faster. (e.g. 30k entries, 7000 ms becomes 15ms)
+--
+-- This could be made faster by filtering by group id, and adding an index for that
+--
+CREATE OR REPLACE FUNCTION t_rdeps_for_id(job_graph_id BIGINT)
+RETURNS SETOF BIGINT
+AS $$
+DECLARE
+  failed_count integer;
+BEGIN
+  -- Recursively expand all things that depend on me
+  RETURN QUERY (
+    WITH RECURSIVE re(id) AS (
+      SELECT g.id FROM job_graph g where g.dependencies @> array[job_graph_id]::bigint[]
+    UNION
+      SELECT g.id
+      FROM job_graph g, re
+      WHERE g.dependencies @> array[re.id]::bigint[] )
+    SELECT * FROM re);
+
+END
+$$ LANGUAGE PLPGSQL;
+
+----------------------------------------------
+--
+-- Compute transitively expanded deps for id
+--
+CREATE OR REPLACE FUNCTION t_deps_for_id(job_graph_id BIGINT)
+RETURNS SETOF BIGINT
+AS $$
+DECLARE
+  failed_count integer;
+BEGIN
+  -- Recursively expand all things that depend on me
+  RETURN QUERY (
+    WITH RECURSIVE re(id) AS (
+      SELECT UNNEST(g.dependencies) FROM job_graph g where g.id = job_graph_id
+    UNION
+      SELECT UNNEST(g.dependencies)
+      FROM job_graph g, re
+      WHERE g.id = re.id)
+    SELECT * FROM re);
+
+END
+$$ LANGUAGE PLPGSQL;
+
+
+
+
 
 -- This is too slow for production use, but is intended as a debugging aid
 CREATE OR REPLACE VIEW job_graph_completed AS
@@ -76,6 +135,9 @@ RETURN i_count;
 END
 $$ LANGUAGE PLPGSQL;
 
+
+
+
 -- Mark a job complete and update the jobs that depend on it
 -- If a job has zero dependencies, mark it eligible to be scheduled
 --
@@ -109,9 +171,43 @@ BEGIN
   UPDATE job_graph SET job_state = 'complete'
   WHERE id = job_graph_id;
 
-  RETURN i_count; 
+  RETURN i_count;
 END
 $$ LANGUAGE PLPGSQL;
+
+
+-- Mark a job complete and recursively update the jobs that depend on it
+--
+-- We rely on this being atomic (like all functions in postgres)
+-- It might be better to write this as a diesel transaction, but it's kinda complex,
+-- we'd probably have to write the recursion as multiple calls, which gets messy
+--
+CREATE OR REPLACE FUNCTION job_graph_mark_failed(job_graph_id BIGINT) RETURNS integer AS $$
+DECLARE
+  failed_count integer;
+BEGIN
+  -- Recursively expand all things that depend on me
+  WITH RECURSIVE re(id) AS (
+    SELECT g.id FROM job_graph g where job_graph_id = ANY(g.dependencies)
+  UNION
+    SELECT g.id
+    FROM job_graph g, re
+    WHERE re.id = ANY(g.dependencies))
+  UPDATE job_graph SET job_state = 'dependency_failed'
+    WHERE id IN (SELECT id from re)
+    AND (job_state = 'eligible' OR job_state = 'schedulable');
+
+  GET DIAGNOSTICS failed_count = ROW_COUNT;
+
+  -- Mark this job complete
+  -- TODO: Consider limiting this update to jobs 'Pending'
+  UPDATE job_graph SET job_state = 'job_failed'
+  WHERE id = job_graph_id;
+
+  RETURN failed_count;
+END
+$$ LANGUAGE PLPGSQL;
+
 
 
 -- TODO:
