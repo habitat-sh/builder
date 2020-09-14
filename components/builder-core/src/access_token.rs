@@ -35,6 +35,11 @@ impl AccessToken {
                                     Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
     }
 
+    pub fn user_token(key_cache: &KeyCache, account_id: u64, privileges: u32) -> Result<Self> {
+        // User tokens never expire, can only be revoked
+        Self::generate_access_token(key_cache, account_id, privileges, Duration::max_value())
+    }
+
     ////////////////////////////////////////////////////////////////////////
 
     fn generate_access_token(key_cache: &KeyCache,
@@ -84,37 +89,6 @@ impl fmt::Display for AccessToken {
     }
 }
 
-}
-
-pub fn generate_user_token(key_cache: &KeyCache,
-                           account_id: u64,
-                           privileges: u32)
-                           -> Result<String> {
-    generate_access_token(key_cache,
-                          account_id,
-                          privileges,
-                          Duration::max_value() /* User tokens never expire, can only be revoked */)
-}
-
-fn generate_access_token(key_cache: &KeyCache,
-                         account_id: u64,
-                         flags: u32,
-                         lifetime: Duration)
-                         -> Result<String> {
-    let expires = Utc::now().checked_add_signed(lifetime)
-                            .unwrap_or_else(|| chrono::MAX_DATE.and_hms(0, 0, 0))
-                            .timestamp();
-
-    let mut token = originsrv::AccessToken::new();
-    token.set_account_id(account_id);
-    token.set_flags(flags);
-    token.set_expires(expires);
-
-    let bytes = message::encode(&token).map_err(Error::Protocol)?;
-    let (token_value, _) = crypto::encrypt(&key_cache, bytes)?;
-    let token_value = base64::encode(token_value);
-
-    Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, token_value))
 }
 
 pub fn is_access_token(token: &str) -> bool { token.starts_with(ACCESS_TOKEN_PREFIX) }
