@@ -10,6 +10,7 @@ use chrono::{self,
              TimeZone,
              Utc};
 use habitat_core::crypto::keys::KeyCache;
+use std::str::FromStr;
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
 pub const BUILDER_ACCOUNT_NAME: &str = "BUILDER";
@@ -22,11 +23,67 @@ const ACCESS_TOKEN_PREFIX: &str = "_";
 
 const BUILDER_TOKEN_LIFETIME_HOURS: i64 = 2;
 
-pub fn generate_bldr_token(key_cache: &KeyCache) -> Result<String> {
-    generate_access_token(key_cache,
-                          BUILDER_ACCOUNT_ID,
-                          FeatureFlags::all().bits(),
-                          Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
+/// The string form of the encrypted OriginSrv::AccessToken type
+#[derive(Clone, Debug)]
+pub struct AccessToken(String);
+
+impl AccessToken {
+    pub fn bldr_token(key_cache: &KeyCache) -> Result<Self> {
+        Self::generate_access_token(key_cache,
+                                    BUILDER_ACCOUNT_ID,
+                                    FeatureFlags::all().bits(),
+                                    Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+
+    fn generate_access_token(key_cache: &KeyCache,
+                             account_id: u64,
+                             flags: u32,
+                             lifetime: Duration)
+                             -> Result<Self> {
+        // Create originsrv::AccessToken protobuf struct
+        let token = AccessToken::new_proto(account_id, flags, lifetime);
+
+        // Encrypt that protobuf struct to a String.
+        let token = AccessToken::encrypt(&token, key_cache)?;
+
+        // Turn it into our general AccessToken domain object
+        Ok(Self(token))
+    }
+
+    // Ideally, this would be a function on the originsrv::AccessToken
+    // struct.
+    //
+    // Would call this function `new`, but that's taken by the
+    // protobuf-generated code :/
+    fn new_proto(account_id: u64, flags: u32, lifetime: Duration) -> originsrv::AccessToken {
+        let expires = Utc::now().checked_add_signed(lifetime)
+                                .unwrap_or_else(|| chrono::MAX_DATE.and_hms(0, 0, 0))
+                                .timestamp();
+
+        let mut token = originsrv::AccessToken::new();
+        token.set_account_id(account_id);
+        token.set_flags(flags);
+        token.set_expires(expires);
+
+        token
+    }
+
+    // Ideally, this would be a function on the originsrv::AccessToken
+    // struct.
+    fn encrypt(proto_token: &originsrv::AccessToken, key_cache: &KeyCache) -> Result<String> {
+        let bytes = message::encode(proto_token).map_err(Error::Protocol)?;
+        let (token_value, _) = crypto::encrypt(&key_cache, bytes)?;
+        Ok(token_value)
+    }
+
+impl fmt::Display for AccessToken {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}", ACCESS_TOKEN_PREFIX, base64::encode(&self.0))
+    }
+}
+
 }
 
 pub fn generate_user_token(key_cache: &KeyCache,

@@ -14,7 +14,7 @@ use self::{docker::DockerExporter,
            studio::Studio,
            workspace::Workspace};
 pub use crate::protocol::jobsrv::JobState;
-use crate::{bldr_core::{self,
+use crate::{bldr_core::{access_token::AccessToken,
                         api_client::ApiClient,
                         job::Job,
                         logger::Logger,
@@ -99,13 +99,14 @@ impl Runner {
         let log_path = config.log_path.clone();
         let mut logger = Logger::init(log_path, "builder-worker.log");
         logger.log_ident(net_ident);
-        let bldr_token = bldr_core::access_token::generate_bldr_token(&config.key_dir).unwrap();
+
+        let bldr_token = AccessToken::bldr_token(&config.key_dir)?;
 
         Ok(Runner { workspace: Workspace::new(&config.data_path, job),
                     config,
                     depot_cli,
                     logger,
-                    bldr_token,
+                    bldr_token: bldr_token.to_string(),
                     cancel })
     }
 
