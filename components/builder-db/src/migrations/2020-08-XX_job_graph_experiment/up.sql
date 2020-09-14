@@ -33,7 +33,8 @@ SELECT diesel_manage_updated_at('job_graph');
 -- This is required for fast search inside the array
 -- It might get large, maybe we should create partial index
 -- either filtered on job state or a separate active/archived flag
-CREATE INDEX dependencies ON job_graph USING GIN(dependencies);
+CREATE EXTENSION intarray;
+CREATE INDEX ON job_graph USING GIN(dependencies);
 
 -- This index might be combined with another field (maybe group_id?)
 CREATE INDEX state ON job_graph (job_state);

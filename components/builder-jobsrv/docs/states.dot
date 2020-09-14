@@ -38,37 +38,45 @@ Cancelling -> Cancelled;
 // Job states
 node[fontname="Courier", shape=box];
 Pending;
-Schedulable;
-Eligible;
-Dispatched;
-Complete;
+WaitingOnDependency;
+WaitingOnWorker;
+Working;
+JobComplete;
 JobFailed;
 DependencyFailed;
 CancelPending;
 CancelComplete;
 
-Pending -> Schedulable;
+Pending -> WaitingOnDependency; 
 Pending -> CancelComplete;
 
-Schedulable -> Eligible;
-Schedulable -> DependencyFailed;
-Schedulable -> CancelComplete;
+WaitingOnDependency -> WaitingOnWorker;
+WaitingOnDependency -> DependencyFailed;
+WaitingOnDependency -> CancelComplete;
 
-Eligible -> Dispatched;
-Eligible -> CancelComplete;
-Eligible -> DependencyFailed;
+WaitingOnWorker -> Working;
+WaitingOnWorker -> CancelComplete;
+WaitingOnWorker -> DependencyFailed;
 
-Dispatched -> Complete; // Complete
-Dispatched -> JobFailed; // FatalError
-Dispatched -> Eligible; // NonFatalError
-Dispatched -> CancelPending;
+Working -> JobComplete; // Complete
+Working -> JobFailed; // FatalError
+Working -> WaitingOnWorker; // NonFatalError
+Working -> CancelPending;
 
 CancelPending -> CancelComplete;
 
+{rank=same; JobFailed JobComplete DependencyFailed CancelComplete}
+
 // Cross FSM relationships
 {rank=same; Created Pending}
-{rank=same; Dispatching Eligible}
+{rank=same; Dispatching WaitingOnWorker}
 
-{rank=same; Complete FailureCleanup Cancelling CancelPending DependencyFailed }
+{rank=same; Cancelling FailureCleanup}
 
+{rank=same; Complete Failed Cancelled }
+
+{rank=same; Complete JobComplete}
 }
+
+
+
