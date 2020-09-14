@@ -26,8 +26,7 @@ use protobuf::{parse_from_bytes,
                Message,
                RepeatedField};
 use std::{collections::HashSet,
-          str::{from_utf8,
-                FromStr},
+          str::FromStr,
           sync::mpsc,
           thread::{self,
                    JoinHandle},
@@ -563,8 +562,7 @@ impl WorkerMgr {
                         .map_err(Error::DieselError)
                     {
                         Ok(key) => {
-                            let key_str = from_utf8(&key.body)?;
-                            key_str.parse::<OriginSecretEncryptionKey>()?
+                            key.body.parse::<OriginSecretEncryptionKey>()?
                         }
                         Err(err) => return Err(err),
                     };

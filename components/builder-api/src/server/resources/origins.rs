@@ -46,7 +46,6 @@ use actix_web::{body::Body,
                 HttpRequest,
                 HttpResponse};
 use builder_core::Error::OriginDeleteError;
-use bytes::Bytes;
 use diesel::{pg::PgConnection,
              result::Error::NotFound};
 use habitat_core::{crypto::keys::{generate_origin_encryption_key_pair,
@@ -61,8 +60,7 @@ use habitat_core::{crypto::keys::{generate_origin_encryption_key_pair,
                    package::{ident,
                              PackageIdent}};
 use std::{collections::HashMap,
-          str::{from_utf8,
-                FromStr}};
+          str::FromStr};
 
 #[derive(Clone, Serialize, Deserialize)]
 struct OriginSecretPayload {
@@ -554,7 +552,7 @@ fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>) -> H
         };
 
     let xfilename = format!("{}-{}.pub", key.name, key.revision);
-    download_content_as_file(&key.body, xfilename)
+    download_content_as_file(key.body, xfilename)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -575,7 +573,7 @@ fn download_latest_origin_key(path: Path<String>, state: Data<AppState>) -> Http
     };
 
     let xfilename = format!("{}-{}.pub", key.name, key.revision);
-    download_content_as_file(&key.body, xfilename)
+    download_content_as_file(key.body, xfilename)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -658,8 +656,7 @@ fn create_origin_secret(req: HttpRequest,
     let secret_encryption_key =
         match OriginPrivateEncryptionKey::get(&origin, &*conn).map_err(Error::DieselError) {
             Ok(key) => {
-                let key_str = from_utf8(&key.body).unwrap();
-                match key_str.parse::<OriginSecretEncryptionKey>() {
+                match key.body.parse::<OriginSecretEncryptionKey>() {
                     Ok(key) => key,
                     Err(err) => {
                         debug!("{}", err);
@@ -798,15 +795,16 @@ fn download_latest_origin_secret_key(req: HttpRequest,
     };
 
     let key_body = if key.encryption_key_rev.is_some() {
-        let str_body = match String::from_utf8(key.body).map_err(Error::Utf8) {
-            Ok(s) => s,
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
+        match crypto::decrypt(&state.config.api.key_path, &key.body).map_err(Error::BuilderCore) {
+            Ok(decrypted) => {
+                match String::from_utf8(decrypted).map_err(Error::Utf8) {
+                    Ok(body) => body,
+                    Err(err) => {
+                        debug!("{}", err);
+                        return err.into();
+                    }
+                }
             }
-        };
-        match crypto::decrypt(&state.config.api.key_path, &str_body).map_err(Error::BuilderCore) {
-            Ok(decrypted) => decrypted,
             Err(err) => {
                 debug!("{}", err);
                 return err.into();
@@ -817,7 +815,7 @@ fn download_latest_origin_secret_key(req: HttpRequest,
     };
 
     let xfilename = format!("{}-{}.sig.key", key.name, key.revision);
-    download_content_as_file(&key_body, xfilename)
+    download_content_as_file(key_body, xfilename)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -901,7 +899,7 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
     };
 
     let xfilename = format!("{}-{}.pub", key.name, key.revision);
-    download_content_as_file(&key.body, xfilename)
+    download_content_as_file(key.body, xfilename)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -1568,7 +1566,7 @@ fn get_origin_integration(req: HttpRequest,
 // Internal helpers
 //
 
-fn download_content_as_file(content: &[u8], filename: String) -> HttpResponse {
+fn download_content_as_file(content: String, filename: String) -> HttpResponse {
     HttpResponse::Ok()
         .header(
             http::header::CONTENT_DISPOSITION,
@@ -1586,7 +1584,7 @@ fn download_content_as_file(content: &[u8], filename: String) -> HttpResponse {
             filename,
         )
         .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-        .body(Bytes::copy_from_slice(content))
+        .body(content)
 }
 
 fn generate_origin_encryption_keys(origin: &str,
@@ -1602,7 +1600,7 @@ fn generate_origin_encryption_keys(origin: &str,
                                                 name:      public.named_revision().name(),
                                                 full_name: &public.named_revision().to_string(),
                                                 revision:  &public.named_revision().revision(),
-                                                body:      pk_body.as_ref(), };
+                                                body:      &pk_body, };
 
     let sk_body = secret.to_key_string();
     let new_sk = NewOriginPrivateEncryptionKey { owner_id:  session_id as i64,
@@ -1629,7 +1627,7 @@ fn save_public_origin_signing_key(account_id: u64,
                                              full_name: &key.named_revision().to_string(),
                                              name: key.named_revision().name(),
                                              revision: key.named_revision().revision(),
-                                             body: key_body.as_ref() };
+                                             body: &key_body };
 
     OriginPublicSigningKey::create(&new_pk, conn)?;
     Ok(())
@@ -1652,7 +1650,7 @@ fn save_secret_origin_signing_key(account_id: u64,
                                               full_name: &key.named_revision().to_string(),
                                               name: key.named_revision().name(),
                                               revision: key.named_revision().revision(),
-                                              body: sk_encrypted.as_ref(),
+                                              body: &sk_encrypted,
                                               encryption_key_rev: &bldr_key_rev };
 
     OriginPrivateSigningKey::create(&new_sk, &*conn)?;
