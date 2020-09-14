@@ -730,11 +730,13 @@ impl RunnerMgr {
 
                 match &op[..] {
                     WORK_START => {
+                        info!("Worker recieved WORK_START: {:?}", &job);
                         self.cancel.store(false, Ordering::SeqCst);
                         self.send_ack(&job)?;
                         self.spawn_job(job, tx.clone())?;
                     }
                     WORK_CANCEL => {
+                        info!("Worker recieved WORK_CANCEL: {:?}", &job);
                         self.cancel.store(true, Ordering::SeqCst);
                         job.set_state(jobsrv::JobState::CancelProcessing);
                         self.send_ack(&job)?;
