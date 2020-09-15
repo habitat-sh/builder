@@ -35,19 +35,6 @@ mod test {
             BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
     }
 
-    macro_rules! assert_match {
-        ($result:expr, $expected:pat) => {
-            match ($result) {
-                $expected => {}
-                x => {
-                    panic!("assertion failed: expected {:?}, received {:?}",
-                           stringify!($expected),
-                           x)
-                }
-            };
-        };
-    }
-
     lazy_static! {
         static ref TARGET_LINUX: PackageTarget = PackageTarget::from_str("x86_64-linux").unwrap();
         static ref TARGET_WINDOWS: PackageTarget =

@@ -386,21 +386,16 @@ mod test {
         // only failed dependencies?
         assert_eq!(count, 3);
 
-        let job_state_count = helpers::job_state_count_s(0, &conn);
-
-        // ex: assert_state_count!( group_id, State, count );
-        // assert_state_count!( 0, JobFailed, 1);
-        // assert_state_count!( 0, DependencyFailed, 3);
-        let expected_count = helpers::JobStateCounts { p:  0,
-                                                       wd: 0,
-                                                       rd: 0,
-                                                       rn: 0,
-                                                       c:  0,
-                                                       jf: 1,
-                                                       df: 3,
-                                                       cp: 0,
-                                                       cc: 0, };
-        assert_match!(job_state_count, expected_count);
+        assert_match!(helpers::job_state_count_s(0, &conn),
+                      helpers::JobStateCounts { p:  0,
+                                               wd: 0,
+                                               rd: 0,
+                                               rn: 0,
+                                               c:  0,
+                                               jf: 1,
+                                               df: 3,
+                                               cp: 0,
+                                               cc: 0, });
     }
 
     #[test]
@@ -417,17 +412,17 @@ mod test {
         // TODO: Should this reflect _all_ things marked failed or
         // only failed dependencies?
         assert_eq!(count, 1);
-        let job_state_count = helpers::job_state_count_s(0, &conn);
-        let expected_count = helpers::JobStateCounts { p:  0,
-                                                       wd: 0,
-                                                       rd: 0,
-                                                       rn: 0,
-                                                       c:  0,
-                                                       jf: 1,
-                                                       df: 1,
-                                                       cp: 0,
-                                                       cc: 0, };
-        assert_match!(job_state_count, expected_count);
+
+        assert_match!(helpers::job_state_count_s(0, &conn),
+                      helpers::JobStateCounts {p:  0,
+                                               wd: 1,  // Opposite side of the failed 
+                                               rd: 1,  // Root of the diamond
+                                               rn: 0,
+                                               c:  0,
+                                               jf: 1,
+                                               df: 1,
+                                               cp: 0,
+                                               cc: 0, });
     }
 
     #[test]
