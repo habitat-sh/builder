@@ -14,12 +14,10 @@
 
 use diesel::{r2d2::{ConnectionManager,
                     PooledConnection},
-             result::Error as Dre,
              PgConnection};
 
 use crate::{db::{config::DataStoreCfg,
-                 models::{jobs::{JobExecState,
-                                 JobGraphEntry},
+                 models::{jobs::JobGraphEntry,
                           package::BuilderPackageTarget}},
             error::{Error,
                     Result}};
@@ -27,6 +25,8 @@ use crate::{db::{config::DataStoreCfg,
 use crate::hab_core::package::PackageTarget;
 
 use crate::data_store::DataStore;
+
+#[cfg(feature="postgres_tests")]
 use habitat_builder_db::datastore_test;
 
 mod test;
@@ -91,7 +91,7 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
         JobGraphEntry::mark_job_complete(job.0, &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
     }
 
-    fn mark_job_failed(&mut self, job: JobId) -> Result<i32> { Ok(0) }
+    fn mark_job_failed(&mut self, _job: JobId) -> Result<i32> { Ok(0) }
 }
 
 // Test code
@@ -142,5 +142,5 @@ impl SchedulerDataStore for DummySchedulerDataStore {
         }
     }
 
-    fn mark_job_failed(&mut self, job: JobId) -> Result<i32> { Ok(0) }
+    fn mark_job_failed(&mut self, _job: JobId) -> Result<i32> { Ok(0) }
 }

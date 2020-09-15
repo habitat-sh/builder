@@ -508,7 +508,8 @@ pub struct UpdateJobGraphEntry<'a> {
 impl JobGraphEntry {
     pub fn create(req: &NewJobGraphEntry, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
         Counter::DBCall.increment();
-        let start = std::time::Instant::now();
+        // TODO: Cleanup before merged
+        let _start = std::time::Instant::now();
         let query = diesel::insert_into(job_graph::table).values(req);
 
         // let debug = diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query);

@@ -16,24 +16,19 @@ mod test {
                 scheduler_datastore::{DummySchedulerDataStore,
                                       DummySchedulerDataStoreCall,
                                       DummySchedulerDataStoreResult,
-                                      GroupId,
                                       JobId,
                                       SchedulerDataStore,
                                       SchedulerDataStoreDb,
                                       WorkerId}};
 
-    use crate::{data_store::DataStore,
-                hab_core::package::PackageTarget};
+    use crate::hab_core::package::PackageTarget;
 
-    use habitat_builder_protocol::message::jobsrv::*;
     use std::str::FromStr;
 
-    use chrono::{DateTime,
-                 Duration,
-                 TimeZone,
+    use chrono::{TimeZone,
                  Utc};
 
-    use lazy_static;
+    use lazy_static::lazy_static;
 
     lazy_static! {
         pub static ref TARGET_PLATFORM: BuilderPackageTarget =
@@ -124,7 +119,7 @@ mod test {
                      (DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_WINDOWS, },
                       DummySchedulerDataStoreResult::JobOption(Ok(None)))];
 
-            let dummy_store = Box::new(DummySchedulerDataStore::new(actions));
+            let _dummy_store = Box::new(DummySchedulerDataStore::new(actions));
             // stores.push(dummy_store);
         }
 

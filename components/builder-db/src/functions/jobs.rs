@@ -1,8 +1,5 @@
-use diesel::sql_types::{Array,
-                        BigInt,
+use diesel::sql_types::{ BigInt,
                         Integer};
-
-use crate::models::jobs;
 
 // Intended mostly for diagnostics and tests
 sql_function! {

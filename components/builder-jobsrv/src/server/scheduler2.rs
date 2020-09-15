@@ -66,6 +66,7 @@ pub enum SchedulerMessage {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)] 
 pub enum WorkerManagerMessage {
     NewWorkForTarget { target: PackageTarget },
     CancelJob { jobs: Vec<JobId> },
@@ -78,6 +79,7 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
+    #[allow(dead_code)] 
     pub fn new(data_store: Box<dyn SchedulerDataStore>,
                rx: mpsc::Receiver<SchedulerMessage>,
                _tx: mpsc::Sender<WorkerManagerMessage>)
@@ -170,6 +172,7 @@ impl fmt::Debug for dyn SchedulerDataStore {
 // TODO: Take a scheduler or the parameters to create one?
 // Possibly the former, since we will need to hand out the tx end of the scheduler mpsc
 // which would change our return type to (mpsc::Sender, JoinHandle)
+#[allow(dead_code)]
 pub fn start_scheduler(mut scheduler: Scheduler) -> JoinHandle<()> {
     let x: JoinHandle<()> = tokio::task::spawn(async move {
         scheduler.run().await;

@@ -22,8 +22,6 @@ extern crate features;
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate lazy_static;
 
 use builder_core as bldr_core;
 use habitat_builder_db as db;

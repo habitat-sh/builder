@@ -11,11 +11,11 @@ mod test {
     use habitat_builder_db::{datastore_test,
                              models::{jobs::{JobExecState,
                                              JobGraphEntry,
-                                             NewJobGraphEntry,
-                                             UpdateJobGraphEntry},
+                                             NewJobGraphEntry},
                                       package::BuilderPackageTarget}};
-    use habitat_builder_protocol::message::jobsrv::*;
     use std::str::FromStr;
+
+    use lazy_static::lazy_static;
 
     lazy_static! {
         pub static ref TARGET_PLATFORM: BuilderPackageTarget =
@@ -36,26 +36,24 @@ mod test {
     }
 
     mod helpers {
-        use crate::{data_store::DataStore,
-                    hab_core::package::PackageTarget};
+        use crate::{hab_core::package::PackageTarget};
         use chrono::{DateTime,
                      Duration,
                      Utc};
         use habitat_builder_db::models::{jobs::{JobExecState,
                                                 JobGraphEntry,
-                                                NewJobGraphEntry,
-                                                UpdateJobGraphEntry},
+                                                NewJobGraphEntry},
                                          package::BuilderPackageTarget};
-        use habitat_builder_protocol::message::{jobsrv::*,
-                                                originsrv::OriginProject};
         use std::{collections::HashMap,
                   str::FromStr};
 
+        #[allow(dead_code)]
         pub fn is_recent(time: Option<DateTime<Utc>>, tolerance: isize) -> bool {
             Utc::now() - time.unwrap() < Duration::seconds(tolerance as i64)
         }
 
         // We expect things to have the same time, but sometimes rounding bites us
+        #[allow(dead_code)]
         pub fn about_same_time(left: Option<DateTime<Utc>>, right: DateTime<Utc>) -> bool {
             (left.unwrap().timestamp_millis() - right.timestamp_millis()).abs() < 100
         }
@@ -167,6 +165,7 @@ mod test {
                       .unwrap_or_else(|| panic!("No entry for {}", name)))
             }
 
+            #[allow(dead_code)]
             pub fn name_by_id(&self, id: i64) -> String {
                 self.id_map
                     .get(&id)
@@ -230,7 +229,6 @@ mod test {
             BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
-        let slice: [i64; 3] = [1, 2, 3];
         let entry = NewJobGraphEntry { group_id:         0,
                                        job_state:        JobExecState::Pending,
                                        plan_ident:       "foo/bar",
@@ -302,7 +300,7 @@ mod test {
         let conn = ds.get_pool().get_conn().unwrap();
 
         let group_id = 1;
-        helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
+        let _ = helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
 
         assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Ready, &conn).unwrap(),
                    0);
@@ -330,7 +328,7 @@ mod test {
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
 
-        let mut h = helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
+        let _ = helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
 
         let rdeps = JobGraphEntry::transitive_rdeps_for_id(0, &conn).unwrap();
         assert_eq!(rdeps.len(), 0);
@@ -356,7 +354,7 @@ mod test {
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
 
-        let mut h = helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
+        let _ = helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
 
         let deps = JobGraphEntry::transitive_deps_for_id(0, &conn).unwrap();
         assert_eq!(deps.len(), 0);
@@ -386,7 +384,6 @@ mod test {
         let count = JobGraphEntry::mark_job_failed(1, &conn).unwrap();
         // TODO: Should this reflect _all_ things marked failed or
         // only failed dependencies?
-        dbg!(JobGraphEntry::list_group(0, &conn));
         assert_eq!(count, 3);
 
         let job_state_count = helpers::job_state_count_s(0, &conn);
