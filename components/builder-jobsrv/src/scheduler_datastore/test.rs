@@ -340,6 +340,30 @@ mod test {
     }
 
     #[test]
+    fn transitive_deps_for_id_diamond() {
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+
+        let mut h = helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
+
+        let deps = JobGraphEntry::transitive_deps_for_id(0, &conn).unwrap();
+        assert_eq!(deps.len(), 0);
+
+        let deps = JobGraphEntry::transitive_deps_for_id(1, &conn).unwrap();
+        assert_eq!(deps.len(), 0);
+
+        let deps = JobGraphEntry::transitive_deps_for_id(2, &conn).unwrap();
+        assert_eq!(deps, vec![1]);
+
+        let deps = JobGraphEntry::transitive_deps_for_id(3, &conn).unwrap();
+        assert_eq!(deps, vec![1]);
+
+        let mut deps = JobGraphEntry::transitive_deps_for_id(4, &conn).unwrap();
+        deps.sort();
+        assert_eq!(deps, vec![1, 2, 3]);
+    }
+
+    #[test]
     fn mark_job_complete() {
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
