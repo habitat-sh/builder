@@ -18,6 +18,8 @@ bytes = "*"
 base64 = "*"
 bitflags = "1"
 chrono = { version = "*", features = ["serde"] }
+cloudevents-sdk = "0.2.0"
+cloudevents-sdk-rdkafka = "*"
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 diesel-derive-enum = { version = "*", features = ["postgres"] }
 diesel_full_text_search = "*"
@@ -36,6 +38,7 @@ serde = "*"
 serde_derive = "*"
 serde_json = "*"
 sha2 = "*"
+tokio = "*"
 toml = { version = "*", default-features = false }
 futures = "*"
 rand = "*"
@@ -46,6 +49,10 @@ rusoto_s3 = "*"
 tempfile = "*"
 url = "*"
 uuid = { version = "*", features = ["v4"] }
+
+[dependencies.rdkafka]
+version = "*"
+features = ["ssl"]
 
 [dependencies.memcache]
 version = "*"

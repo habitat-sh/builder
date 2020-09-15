@@ -17,7 +17,8 @@ use std::{env,
                 SocketAddr,
                 ToSocketAddrs},
           option::IntoIter,
-          path::PathBuf};
+          path::PathBuf,
+          time::Duration};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.
@@ -31,7 +32,7 @@ pub trait GatewayCfg {
     fn listen_port(&self) -> u16;
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub api:         ApiCfg,
@@ -44,21 +45,7 @@ pub struct Config {
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config { api:         ApiCfg::default(),
-                 artifactory: ArtifactoryCfg::default(),
-                 github:      GitHubCfg::default(),
-                 http:        HttpCfg::default(),
-                 oauth:       OAuth2Cfg::default(),
-                 s3:          S3Cfg::default(),
-                 ui:          UiCfg::default(),
-                 memcache:    MemcacheCfg::default(),
-                 jobsrv:      JobsrvCfg::default(),
-                 datastore:   DataStoreCfg::default(), }
-    }
+    pub kafka:       KafkaCfg,
 }
 
 #[derive(Debug)]
@@ -207,6 +194,28 @@ impl ToSocketAddrs for HttpCfg {
             IpAddr::V4(ref a) => (*a, self.port).to_socket_addrs(),
             IpAddr::V6(ref a) => (*a, self.port).to_socket_addrs(),
         }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct KafkaCfg {
+    pub bootstrap_nodes:     Vec<String>,
+    pub client_id:           String,
+    pub connection_retry_ms: Duration,
+    pub message_timeout:     String,
+    pub api_key:             String,
+    pub api_secret_key:      String,
+}
+
+impl Default for KafkaCfg {
+    fn default() -> Self {
+        KafkaCfg { bootstrap_nodes:     vec![String::from("localhost:9092")],
+                   client_id:           String::from("http://localhost"),
+                   api_key:             String::from("CHANGEME"),
+                   api_secret_key:      String::from("CHANGEMETOO"),
+                   message_timeout:     String::from("3000"),
+                   connection_retry_ms: Duration::from_millis(300), }
     }
 }
 

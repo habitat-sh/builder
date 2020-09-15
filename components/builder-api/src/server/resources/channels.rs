@@ -23,10 +23,13 @@ use actix_web::{http::{self,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
+use cloudevents::{EventBuilder,
+                  EventBuilderV10};
 use diesel::{pg::PgConnection,
              result::{DatabaseErrorKind,
                       Error::{DatabaseError,
                               NotFound}}};
+use uuid::Uuid;
 
 use crate::{bldr_core::metrics::CounterMetric,
             hab_core::{package::{PackageIdent,
@@ -42,6 +45,7 @@ use crate::db::models::{channel::*,
 use crate::server::{authorize::authorize_session,
                     error::{Error,
                             Result},
+                    feat,
                     framework::headers,
                     helpers::{self,
                               req_state,
@@ -49,7 +53,9 @@ use crate::server::{authorize::authorize_session,
                               Pagination,
                               Target,
                               ToChannel},
-                    services::metrics::Counter,
+                    services::{events::{produce,
+                                        KAFKA_DEFAULT_TOPIC_NAME},
+                               metrics::Counter},
                     AppState};
 
 // Query param containers
@@ -381,11 +387,11 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn promote_package(req: HttpRequest,
-                   path: Path<(String, String, String, String, String)>,
-                   qtarget: Query<Target>,
-                   state: Data<AppState>)
-                   -> HttpResponse {
+async fn promote_package(req: HttpRequest,
+                         path: Path<(String, String, String, String, String)>,
+                         qtarget: Query<Target>,
+                         state: Data<AppState>)
+                         -> HttpResponse {
     let (origin, channel, pkg, version, release) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -416,6 +422,15 @@ fn promote_package(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
+    let auditevent = PackageChannelAudit { package_ident:  BuilderPackageIdent(ident.clone()),
+                                           channel:        channel.as_str(),
+                                           operation:      PackageChannelOperation::Promote,
+                                           trigger:
+                                               helpers::trigger_from_request_model(&req),
+                                           requester_id:   session.get_id() as i64,
+                                           requester_name: &session.get_name(),
+                                           origin:         &origin, };
+
     match OriginChannelPackage::promote(
         OriginChannelPromote {
             ident: BuilderPackageIdent(ident.clone()),
@@ -429,20 +444,31 @@ fn promote_package(req: HttpRequest,
     {
         Ok(_) => {
             match PackageChannelAudit::audit(
-                &PackageChannelAudit {
-                    package_ident: BuilderPackageIdent(ident.clone()),
-                    channel: channel.as_str(),
-                    operation: PackageChannelOperation::Promote,
-                    trigger: helpers::trigger_from_request_model(&req),
-                    requester_id: session.get_id() as i64,
-                    requester_name: &session.get_name(),
-                    origin: &origin,
-                },
+                &auditevent,
                 &*conn,
             ) {
                 Ok(_) => {}
                 Err(err) => debug!("Failed to save rank change to audit log: {}", err),
             };
+
+            if feat::is_enabled(feat::EventBus) {
+                let msgkey = session.get_id() as i64;
+                let kafkaconn = state.kafka.as_ref().expect("Failed to return kafka config from actix AppState");
+
+                match EventBuilderV10::new()
+                    .id(format!("{:?}", Uuid::new_v4()))
+                    .ty(format!("{:?}", PackageChannelOperation::Promote))
+                    .source(state.config.kafka.client_id.as_str())
+                    .data("application/json", json!(&auditevent))
+                    .build()
+                    {
+                        Ok(cloudevent) => {
+                            produce(msgkey, cloudevent, &kafkaconn.0, &KAFKA_DEFAULT_TOPIC_NAME).await
+                        },
+                        Err(err) => error!("Could not generate cloudevent from promotion event: {:?}", err)
+                    };
+            }
+
             state
                 .memcache
                 .borrow_mut()
