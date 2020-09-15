@@ -1,5 +1,5 @@
-use crate::{bldr_core::{self,
-                        access_token::{BUILDER_ACCOUNT_ID,
+use crate::{bldr_core::{access_token::{AccessToken,
+                                       BUILDER_ACCOUNT_ID,
                                        BUILDER_ACCOUNT_NAME},
                         metrics::CounterMetric,
                         privilege::FeatureFlags},
@@ -87,17 +87,13 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
         }
         None => {
             trace!("Session {} Cache Miss!", token);
-            if !bldr_core::access_token::is_access_token(token) {
-                // No token in cache and not a PAT - bail
-                return Err(error::Error::Authorization);
-            }
+
             // Pull the session out of the current token provided so we can validate
             // it against the db's tokens
-            let mut session =
-                bldr_core::access_token::validate_access_token(&state.config.api.key_path,
-                                                               token).map_err(|_| {
-                                                                         error::Error::Authorization
-                                                                     })?;
+            let mut session = AccessToken::validate_access_token(token, &state.config.api.key_path)
+                .map_err(|_| {
+                    error::Error::Authorization
+                })?;
 
             if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");
