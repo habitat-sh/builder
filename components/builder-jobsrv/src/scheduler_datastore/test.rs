@@ -376,6 +376,64 @@ mod test {
     }
 
     #[test]
+    fn mark_job_failed() {
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+
+        helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
+
+        // id starts at 1
+        let count = JobGraphEntry::mark_job_failed(1, &conn).unwrap();
+        // TODO: Should this reflect _all_ things marked failed or
+        // only failed dependencies?
+        dbg!(JobGraphEntry::list_group(0, &conn));
+        assert_eq!(count, 3);
+
+        let job_state_count = helpers::job_state_count_s(0, &conn);
+
+        // ex: assert_state_count!( group_id, State, count );
+        // assert_state_count!( 0, JobFailed, 1);
+        // assert_state_count!( 0, DependencyFailed, 3);
+        let expected_count = helpers::JobStateCounts { p:  0,
+                                                       wd: 0,
+                                                       rd: 0,
+                                                       rn: 0,
+                                                       c:  0,
+                                                       jf: 1,
+                                                       df: 3,
+                                                       cp: 0,
+                                                       cc: 0, };
+        assert_match!(job_state_count, expected_count);
+    }
+
+    #[test]
+    // TODO: Is it worth setting up the states to reflect jobs that would
+    // need to be completed and the target for failure would be running?
+    fn mark_job_failed_partial_group() {
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+
+        helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
+
+        let count = JobGraphEntry::mark_job_failed(2, &conn).unwrap();
+        println!("{}", count);
+        // TODO: Should this reflect _all_ things marked failed or
+        // only failed dependencies?
+        assert_eq!(count, 1);
+        let job_state_count = helpers::job_state_count_s(0, &conn);
+        let expected_count = helpers::JobStateCounts { p:  0,
+                                                       wd: 0,
+                                                       rd: 0,
+                                                       rn: 0,
+                                                       c:  0,
+                                                       jf: 1,
+                                                       df: 1,
+                                                       cp: 0,
+                                                       cc: 0, };
+        assert_match!(job_state_count, expected_count);
+    }
+
+    #[test]
     fn mark_job_complete() {
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
