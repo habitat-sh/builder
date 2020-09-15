@@ -22,14 +22,17 @@ use crate::{models::{package::BuilderPackageTarget,
                            job_graph,
                            jobs}};
 
-use crate::{bldr_core::{metrics::CounterMetric,
+use crate::{bldr_core::{metrics::{CounterMetric,
+                                  HistogramMetric},
                         Error as BuilderError},
             functions::jobs as job_functions,
             hab_core::package::PackageTarget,
-            metrics::Counter};
+            metrics::{Counter,
+                      Histogram}};
 
 use std::{fmt,
-          str::FromStr};
+          str::FromStr,
+          time::Instant};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "jobs"]
@@ -508,8 +511,7 @@ pub struct UpdateJobGraphEntry<'a> {
 impl JobGraphEntry {
     pub fn create(req: &NewJobGraphEntry, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
         Counter::DBCall.increment();
-        // TODO: Cleanup before merged
-        let _start = std::time::Instant::now();
+        let start_time = Instant::now();
         let query = diesel::insert_into(job_graph::table).values(req);
 
         // let debug = diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query);
@@ -519,7 +521,9 @@ impl JobGraphEntry {
 
         // let insert_one = (start.elapsed().as_micros() as f64) / 1_000_000.0;
         // println!("One insert took {} s, {}", insert_one, out);
-
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall JobGraphEntry::create time: {} ms", duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
         result
     }
 
@@ -527,17 +531,22 @@ impl JobGraphEntry {
                         conn: &PgConnection)
                         -> QueryResult<JobGraphEntry> {
         Counter::DBCall.increment();
-        let start = std::time::Instant::now();
-        let query = diesel::insert_into(job_graph::table).values(req);
+        let start_time = std::time::Instant::now();
 
+        let query = diesel::insert_into(job_graph::table).values(req);
         let debug = diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query);
         let out = format!("{:?}", debug);
 
         let result = query.get_result(conn);
 
-        let insert_one = (start.elapsed().as_micros() as f64) / 1_000_000.0;
+        // TODO REMOVE BEFORE MERGE
+        let insert_one = (start_time.elapsed().as_micros() as f64) / 1_000_000.0;
         println!("One insert took {} s, {}", insert_one, out);
 
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall JobGraphEntry::create_batch time: {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
         result
     }
 
