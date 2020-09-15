@@ -54,8 +54,9 @@ fn generate_access_token(key_cache: &KeyCache,
     token.set_expires(expires);
 
     let bytes = message::encode(&token).map_err(Error::Protocol)?;
-
     let (token_value, _) = crypto::encrypt(&key_cache, bytes)?;
+    let token_value = base64::encode(token_value);
+
     Ok(format!("{}{}", ACCESS_TOKEN_PREFIX, token_value))
 }
 
@@ -63,7 +64,8 @@ pub fn is_access_token(token: &str) -> bool { token.starts_with(ACCESS_TOKEN_PRE
 
 /// Decrypts a token to get a valid `Session`.
 pub fn validate_access_token(key_cache: &KeyCache, token: &str) -> Result<originsrv::Session> {
-    let bytes = crypto::decrypt(&key_cache, &token[ACCESS_TOKEN_PREFIX.len()..])?;
+    let encrypted = base64::decode(&token[ACCESS_TOKEN_PREFIX.len()..]).map(String::from_utf8)??;
+    let bytes = crypto::decrypt(&key_cache, &encrypted)?;
 
     let payload: originsrv::AccessToken = match message::decode(&bytes) {
         Ok(p) => p,

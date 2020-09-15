@@ -1619,7 +1619,6 @@ fn save_public_origin_signing_key(account_id: u64,
                                   key: &PublicOriginSigningKey,
                                   conn: &PgConnection)
                                   -> Result<()> {
-    // Note that this is *not* base64 encoded
     let key_body = key.to_key_string();
 
     let new_pk = NewOriginPublicSigningKey { owner_id: account_id as i64,
