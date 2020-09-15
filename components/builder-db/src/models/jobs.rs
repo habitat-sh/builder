@@ -506,12 +506,6 @@ pub struct UpdateJobGraphEntry<'a> {
 }
 
 impl JobGraphEntry {
-    pub fn get(id: i64, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
-        Counter::DBCall.increment();
-        job_graph::table.filter(job_graph::id.eq(id))
-                        .get_result(conn)
-    }
-
     pub fn create(req: &NewJobGraphEntry, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
         Counter::DBCall.increment();
         let start = std::time::Instant::now();
@@ -546,6 +540,28 @@ impl JobGraphEntry {
         result
     }
 
+    pub fn get(id: i64, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
+        Counter::DBCall.increment();
+        job_graph::table.filter(job_graph::id.eq(id))
+                        .get_result(conn)
+    }
+
+    pub fn list_group(group_id: i64, conn: &PgConnection) -> QueryResult<Vec<JobGraphEntry>> {
+        Counter::DBCall.increment();
+        job_graph::table.filter(job_graph::group_id.eq(group_id))
+                        .get_results(conn)
+    }
+
+    pub fn list_group_by_state(group_id: i64,
+                               state: JobExecState,
+                               conn: &PgConnection)
+                               -> QueryResult<Vec<JobGraphEntry>> {
+        Counter::DBCall.increment();
+        job_graph::table.filter(job_graph::group_id.eq(group_id))
+                        .filter(job_graph::job_state.eq(state))
+                        .get_results(conn)
+    }
+
     pub fn count_by_state(group_id: i64,
                           job_state: JobExecState,
                           conn: &PgConnection)
@@ -553,9 +569,20 @@ impl JobGraphEntry {
         Counter::DBCall.increment();
 
         job_graph::table.select(count_star())
-                        .filter(job_graph::job_state.eq(job_state))
                         .filter(job_graph::group_id.eq(group_id))
+                        .filter(job_graph::job_state.eq(job_state))
                         .first(conn)
+    }
+
+    pub fn bulk_update_state(group_id: i64,
+                             required_job_state: JobExecState,
+                             new_job_state: JobExecState,
+                             conn: &PgConnection)
+                             -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(job_graph::table.filter(job_graph::job_state.eq(required_job_state))
+                                        .filter(job_graph::group_id.eq(group_id)))
+                                        .set(job_graph::job_state.eq(new_job_state)).execute(conn)
     }
 
     // Consider making this a stored procedure or a transaction.
