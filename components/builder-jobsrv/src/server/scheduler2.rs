@@ -130,7 +130,7 @@ impl Scheduler {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
         // NOTE: Should check job group invariants;
-        // for each group (jobs in eligible + jobs in dispatched) states > 0
+        // for each group (jobs in WaitingOnDependency + jobs in Running) states > 0
         // Others?
         match state {
             JobExecState::Complete => {

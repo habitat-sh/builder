@@ -179,7 +179,7 @@ pub enum JobState {
     Complete = 2,
     Rejected = 3,
     Failed = 4,
-    Dispatched = 5,
+    Running = 5,
     CancelPending = 6,
     CancelProcessing = 7,
     CancelComplete = 8,

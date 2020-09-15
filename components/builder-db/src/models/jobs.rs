@@ -407,12 +407,12 @@ impl GroupProject {
 pub enum JobExecState {
     #[postgres(name = "pending")]
     Pending,
-    #[postgres(name = "schedulable")]
-    Schedulable,
-    #[postgres(name = "eligible")]
-    Eligible,
-    #[postgres(name = "dispatched")]
-    Dispatched,
+    #[postgres(name = "waiting_on_dependency")]
+    WaitingOnDependency,
+    #[postgres(name = "ready")]
+    Ready,
+    #[postgres(name = "running")]
+    Running,
     #[postgres(name = "complete")]
     Complete,
     #[postgres(name = "job_failed")]
@@ -429,9 +429,9 @@ impl fmt::Display for JobExecState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let value = match *self {
             JobExecState::Pending => "pending",
-            JobExecState::Schedulable => "schedulable",
-            JobExecState::Eligible => "eligible",
-            JobExecState::Dispatched => "dispatched",
+            JobExecState::WaitingOnDependency => "waiting_on_dependency",
+            JobExecState::Ready => "ready",
+            JobExecState::Running => "running",
             JobExecState::Complete => "complete",
             JobExecState::JobFailed => "job_failed",
             JobExecState::DependencyFailed => "dependency_failed",
@@ -448,9 +448,9 @@ impl FromStr for JobExecState {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.to_lowercase().as_ref() {
             "pending" => Ok(JobExecState::Pending),
-            "schedulable" => Ok(JobExecState::Schedulable),
-            "eligible" => Ok(JobExecState::Eligible),
-            "dispatched" => Ok(JobExecState::Dispatched),
+            "waiting_on_dependency" => Ok(JobExecState::WaitingOnDependency),
+            "ready" => Ok(JobExecState::Ready),
+            "running" => Ok(JobExecState::Running),
             "complete" => Ok(JobExecState::Complete),
             "job_failed" => Ok(JobExecState::JobFailed),
             "dependency_failed" => Ok(JobExecState::DependencyFailed),
@@ -592,12 +592,12 @@ impl JobGraphEntry {
         Counter::DBCall.increment();
         // TODO make this a transaction
         // Logically this is going to be a select over the target for job_graph entries that are in
-        // state Eligible sorted by some sort of priority.
+        // state Ready sorted by some sort of priority.
         // conn.transaction::(<_, Error, _>)|| {
         let next_job: QueryResult<JobGraphEntry> =
             job_graph::table
             .filter(job_graph::target_platform.eq(target.to_string()))
-            .filter(job_graph::job_state.eq(JobExecState::Eligible))
+            .filter(job_graph::job_state.eq(JobExecState::Ready))
             // This is the effective priority of a job; right now we select the oldest entry, but
             // in the future we may want to prioritize finishing one group before starting the next, or by
             // some precomputed metric (e.g. total number of transitive deps or some other parallelisim maximising
@@ -608,7 +608,7 @@ impl JobGraphEntry {
         match next_job {
             Ok(job) => {
                 // This should be done in a transaction
-                diesel::update(job_graph::table.find(job.id)).set(job_graph::job_state.eq(JobExecState::Dispatched)).execute(conn)?;
+                diesel::update(job_graph::table.find(job.id)).set(job_graph::job_state.eq(JobExecState::Running)).execute(conn)?;
                 diesel::QueryResult::Ok(Some(job))
             }
             diesel::QueryResult::Err(diesel::result::Error::NotFound) => {

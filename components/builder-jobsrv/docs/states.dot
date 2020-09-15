@@ -37,12 +37,12 @@ Cancelling -> Cancelled;
 ////////////////////////////////////////////////////////////////////////
 // Job states
 node[fontname="Courier", shape=box];
-Pending;
+Pending; // Holding? GroupHold 
 WaitingOnDependency;
-WaitingOnWorker;
-Working;
-JobComplete;
-JobFailed;
+Ready; 
+Running;
+JobComplete; // CompletedJob?
+JobFailed;   // FailedJob?
 DependencyFailed;
 CancelPending;
 CancelComplete;
@@ -50,18 +50,18 @@ CancelComplete;
 Pending -> WaitingOnDependency; 
 Pending -> CancelComplete;
 
-WaitingOnDependency -> WaitingOnWorker;
+WaitingOnDependency -> Ready;
 WaitingOnDependency -> DependencyFailed;
 WaitingOnDependency -> CancelComplete;
 
-WaitingOnWorker -> Working;
-WaitingOnWorker -> CancelComplete;
-WaitingOnWorker -> DependencyFailed;
+Ready -> Running;
+Ready -> CancelComplete;
+Ready -> DependencyFailed;
 
-Working -> JobComplete; // Complete
-Working -> JobFailed; // FatalError
-Working -> WaitingOnWorker; // NonFatalError
-Working -> CancelPending;
+Running -> JobComplete; // Complete
+Running -> JobFailed; // FatalError
+Running -> Ready; // NonFatalError
+Running -> CancelPending;
 
 CancelPending -> CancelComplete;
 
@@ -69,7 +69,7 @@ CancelPending -> CancelComplete;
 
 // Cross FSM relationships
 {rank=same; Created Pending}
-{rank=same; Dispatching WaitingOnWorker}
+{rank=same; Dispatching Ready}
 
 {rank=same; Cancelling FailureCleanup}
 

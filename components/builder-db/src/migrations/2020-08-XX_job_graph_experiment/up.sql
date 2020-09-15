@@ -1,8 +1,8 @@
 CREATE TYPE job_exec_state AS ENUM (
   'pending',
-  'schedulable',
-  'eligible',
-  'dispatched',
+  'waiting_on_dependency',
+  'ready',
+  'running',
   'complete',
   'job_failed',
   'dependency_failed',
@@ -155,7 +155,7 @@ $$ LANGUAGE PLPGSQL;
 
 
 -- Mark a job complete and update the jobs that depend on it
--- If a job has zero dependencies, mark it eligible to be scheduled
+-- If a job has zero dependencies, mark it ready to be run
 --
 -- We rely on this being atomic (like all functions in postgres)
 -- It might be better to write this as a diesel transaction, but it's kinda complex
@@ -165,7 +165,7 @@ DECLARE
   i_count integer;
 BEGIN
   -- Decrement count of the things that depend on us
-  -- TODO: Consider limiting this update to jobs 'Schedulable'
+  -- TODO: Consider limiting this update to jobs 'ready'
   UPDATE job_graph
     SET waiting_on_count = waiting_on_count - 1
     FROM (SELECT id
@@ -175,9 +175,9 @@ BEGIN
     WHERE job_graph.id = deps.id;
 
   UPDATE job_graph
-    SET job_state = 'eligible'
+    SET job_state = 'ready'
     WHERE waiting_on_count = 0
-    AND job_state = 'schedulable';
+    AND job_state = 'waiting_on_dependency';
 
   -- postgres magic to get number of altered rows in prior query
   GET DIAGNOSTICS i_count = ROW_COUNT;
@@ -212,7 +212,7 @@ BEGIN
     WHERE g.dependencies @> array[re.id]::bigint[])
   UPDATE job_graph SET job_state = 'dependency_failed'
     WHERE id IN (SELECT id from re)
-    AND (job_state = 'eligible' OR job_state = 'schedulable');
+    AND (job_state = 'waiting_on_dependency' OR job_state = 'ready');
 
   GET DIAGNOSTICS failed_count = ROW_COUNT;
 

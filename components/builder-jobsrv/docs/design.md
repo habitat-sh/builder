@@ -49,7 +49,7 @@ Notes: projects may become unbuildable at any time, and we will need to recogniz
 
 When we first receive a trigger event, we have a set of packages (base or kernel) that are modified
 (Triggered?). The graph is used to compute the rebuild manifest from the kernel (Created). We then expand the
-manifest into jobs (Queued). At some point it becomes eligible to be started, and its jobs now become
+manifest into jobs (Queued). At some point it becomes available to be started, and its jobs now become
 available to work on (Dispatching?  Dispatchable) . When all jobs are successfully completed it is marked
 Completed.
 
@@ -109,7 +109,7 @@ In the current system when a group is first created, the group and the group pro
 being built as part of the group (see job\_group\_create, jobsrv::server::handlers#302). The job entries are
 created when the group is scheduled (see schedule\_job,jobsrv::server::scheduler#533). The dependencies between
 the jobs aren’t represented in the job entries, but are instead looked up separately from the origin_packages
-table. Note: The Processing state doesn't seem to be used; things move from Pending to Dispatched directly.
+table. Note: The Processing state doesn't seem to be used; things move from Pending to Running directly.
 
 The new system will do things differently. First, the manifest contains the complete dependency
 relationships between the packages being rebuilt, and that information needs to be represented in the
@@ -120,18 +120,18 @@ the actual information is unique to the manifest in question.
 
 Jobs entries are created in the state Pending as a when a group moves
 from Created to Queued. When a group is moved to Dispatching, all of
-the jobs in the group are moved to Schedulable. When an Schedulable job has
-all of its dependencies built it is marked Eligible.  When a worker
-becomes available, we choose the highest priority Eligible job and
-mark it Dispatched.
+the jobs in the group are moved to WaitingOnDependency. When an WaitingOnDependency job has
+all of its dependencies built it is marked Ready.  When a worker
+becomes available, we choose the highest priority Ready job and
+mark it Running.
 
 There are a few outcomes as the worker builds the job. The job can
 complete successfully, look for jobs that now have all their
-dependencies complete, and mark those as Eligible and move to
-Built.
+dependencies complete, and mark those as Ready and move the job to
+Complete.
 
 The job can fail for some reason, mark dependent jobs as DependencyFailed and move to JobFailed. The
-worker can die/go silent, and move to JobLost. (We might want to retry JobLost). JobLost might not be a necessary state; we might just return it to Eligible. 
+worker can die/go silent, and move to JobLost. (We might want to retry JobLost). JobLost might not be a necessary state; we might just return it to Ready. 
 
 The group might be cancelled, and move to CancelPending. Once the worker actually verifies that it’s
 canceled, it is marked CancelComplete.
@@ -173,16 +173,16 @@ built_package_ident
 
 
 Selecting next job
-Must be Schedulable.
+Must be Ready.
 Worker capable: target of the worker (future might need an origin match as well)
 Pick highest priority (earliest created_at)
 
 Finding newly readied jobs from completed job:
 as transaction do both:
 UPDATE WHERE dependencies contains completed_job_id and decrement remaining_dependency_count by 1
-UPDATE job_state to schedulable if Eligible and remaining_dependency_count is 0
+UPDATE job_state to Ready if WaitingOnDependency and remaining_dependency_count is 0
 
-Do we have a check to find jobs that have Schedulable jobs but no Eligible (or schedulable with 0 remaining deps)
+Do we have a check to find job groups that have WaitingOnDependency jobs but no Ready (or Rea with 0 remaining deps)
 
 Refinements: matching worker by origin (for bring your own worker). Priority scheme for scheduling jobs.
 TODO: discuss splitting package builds from container builds, but not in this round of work, because that changes the worker contract. 

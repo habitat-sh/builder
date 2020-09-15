@@ -133,7 +133,7 @@ mod test {
             let database = SchedulerDataStoreDb::new_test();
             let conn = database.get_connection_for_test();
             let entry = NewJobGraphEntry { group_id:         0,
-                                           job_state:        JobExecState::Eligible,
+                                           job_state:        JobExecState::Ready,
                                            plan_ident:       "dummy_plan_ident",
                                            manifest_ident:   "dummy_manifest_ident",
                                            as_built_ident:   None,

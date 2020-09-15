@@ -74,9 +74,9 @@ mod test {
         #[derive(Default, Debug, Clone)]
         pub struct JobStateCounts {
             pub p:  i64,
-            pub s:  i64,
-            pub e:  i64,
-            pub d:  i64,
+            pub wd: i64,
+            pub rd: i64,
+            pub rn: i64,
             pub c:  i64,
             pub jf: i64,
             pub df: i64,
@@ -87,20 +87,22 @@ mod test {
         pub fn job_state_count_s(gid: i64, conn: &diesel::pg::PgConnection) -> JobStateCounts {
             let mut j = JobStateCounts::default();
             j.p = JobGraphEntry::count_by_state(gid, JobExecState::Pending, &conn).unwrap();
-            j.s = JobGraphEntry::count_by_state(gid, JobExecState::Schedulable, &conn).unwrap();
-            j.e = JobGraphEntry::count_by_state(gid, JobExecState::Eligible, &conn).unwrap();
-            j.d = JobGraphEntry::count_by_state(gid, JobExecState::Dispatched, &conn).unwrap();
+            j.wd = JobGraphEntry::count_by_state(gid, JobExecState::WaitingOnDependency, &conn).unwrap();
+            j.rd = JobGraphEntry::count_by_state(gid, JobExecState::Ready, &conn).unwrap();
+            j.rn = JobGraphEntry::count_by_state(gid, JobExecState::Running, &conn).unwrap();
             j.c = JobGraphEntry::count_by_state(gid, JobExecState::Complete, &conn).unwrap();
+            j.jf = JobGraphEntry::count_by_state(gid, JobExecState::JobFailed, &conn).unwrap();
+            j.df =
+                JobGraphEntry::count_by_state(gid, JobExecState::DependencyFailed, &conn).unwrap();
             j
         }
 
         pub fn job_state_count(gid: i64,
                                conn: &diesel::pg::PgConnection)
                                -> (i64, i64, i64, i64, i64) {
-            let schedulable =
-                JobGraphEntry::count_by_state(gid, JobExecState::Schedulable, &conn).unwrap();
-            let eligible =
-                JobGraphEntry::count_by_state(gid, JobExecState::Eligible, &conn).unwrap();
+            let ready = JobGraphEntry::count_by_state(gid, JobExecState::Ready, &conn).unwrap();
+            let waiting_on_dependency =
+                JobGraphEntry::count_by_state(gid, JobExecState::WaitingOnDependency, &conn).unwrap();
             let complete =
                 JobGraphEntry::count_by_state(gid, JobExecState::Complete, &conn).unwrap();
             let failed =
@@ -108,7 +110,7 @@ mod test {
             let dep_failed =
                 JobGraphEntry::count_by_state(gid, JobExecState::DependencyFailed, &conn).unwrap();
 
-            (schedulable, eligible, complete, failed, dep_failed)
+            (waiting_on_dependency, ready, complete, failed, dep_failed)
         }
 
         pub struct DbHelper {
@@ -179,19 +181,19 @@ mod test {
                                         -> DbHelper {
             let mut h = DbHelper::new(group_id, target_platform);
 
-            h.add(conn, "foo/bar/1.2.3/123", &[], JobExecState::Eligible);
+            h.add(conn, "foo/bar/1.2.3/123", &[], JobExecState::Ready);
             h.add(conn,
                   "foo/baz/1.2.3/123",
                   &["foo/bar/1.2.3/123"],
-                  JobExecState::Schedulable);
+                  JobExecState::WaitingOnDependency);
             h.add(conn,
                   "foo/ping/1.2.3/123",
                   &["foo/bar/1.2.3/123"],
-                  JobExecState::Schedulable);
+                  JobExecState::WaitingOnDependency);
             h.add(conn,
                   "foo/pong/1.2.3/123",
                   &["foo/baz/1.2.3/123", "foo/ping/1.2.3/123"],
-                  JobExecState::Schedulable);
+                  JobExecState::WaitingOnDependency);
 
             h
         }
@@ -254,11 +256,17 @@ mod test {
 
         let mut h = helpers::DbHelper::new(0, "x86_64-linux");
         h.add(&conn, "foo/bar/1.2.3/123", &[], JobExecState::Pending);
-        h.add(&conn, "foo/baz/1.2.3/123", &[], JobExecState::Schedulable);
-        h.add(&conn, "foo/ping/1.2.3/123", &[], JobExecState::Eligible);
+        h.add(&conn,
+              "foo/baz/1.2.3/123",
+              &[],
+              JobExecState::WaitingOnDependency);
+        h.add(&conn, "foo/ping/1.2.3/123", &[], JobExecState::Ready);
 
         let mut h_alt = helpers::DbHelper::new(1, "x86_64-windows");
-        h_alt.add(&conn, "foo/pong/1.2.3/123", &[], JobExecState::Eligible);
+        h_alt.add(&conn,
+                  "foo/pong/1.2.3/123",
+                  &[],
+                  JobExecState::WaitingOnDependency);
 
         let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
         assert!(job_next.is_some());
@@ -277,9 +285,9 @@ mod test {
         let conn = ds.get_pool().get_conn().unwrap();
 
         let manifest = helpers::manifest_data_from_file();
-        for i in 1..50 {
+        for i in 1..2 {
             helpers::make_job_graph_entries(i as i64,
-                                            JobExecState::Schedulable,
+                                            JobExecState::Ready,
                                             &target_platform,
                                             &manifest,
                                             &conn);
@@ -296,18 +304,22 @@ mod test {
         let group_id = 1;
         helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
 
-        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Schedulable, &conn).unwrap(),
-        0);
-        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Eligible, &conn).unwrap(),
+        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Ready, &conn).unwrap(),
+                   0);
+        assert_eq!(JobGraphEntry::count_by_state(group_id,
+                                                 JobExecState::WaitingOnDependency,
+                                                 &conn).unwrap(),
                    0);
         assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap(),
                    0);
 
         helpers::make_simple_graph_helper(group_id, &TARGET_PLATFORM, &conn);
 
-        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Schedulable, &conn).unwrap(),
+        assert_eq!(JobGraphEntry::count_by_state(group_id,
+                                                 JobExecState::WaitingOnDependency,
+                                                 &conn).unwrap(),
                    3);
-        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Eligible, &conn).unwrap(),
+        assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Ready, &conn).unwrap(),
                    1);
         assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap(),
                    0);
@@ -431,19 +443,19 @@ mod test {
         let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
         assert_eq!(ready.unwrap(), 2);
 
-        assert_eq!((1, 2, 1, 0, 0), helpers::job_state_count(1, &conn));
-
         assert_match!(helpers::job_state_count_s(1, &conn),
-                      helpers::JobStateCounts { p: 0, s: 1, e: 2, d: 0, c: 1, .. });
-
-        assert_eq!((3, 1, 0, 0, 0), helpers::job_state_count(2, &conn));
+                      helpers::JobStateCounts { p: 0, wd: 1, rd: 2, rn: 0, c: 1, .. });
+        assert_match!(helpers::job_state_count_s(2, &conn),
+                      helpers::JobStateCounts {p: 0, wd: 3, rd: 1, .. });
 
         // Get another job from group 1
         let job_a = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
                                                                                     .unwrap();
         assert_eq!(job_a.group_id, 1);
-        assert_eq!((1, 1, 1, 0, 0), helpers::job_state_count(1, &conn));
-        assert_eq!((3, 1, 0, 0, 0), helpers::job_state_count(2, &conn));
+        assert_match!(helpers::job_state_count_s(1, &conn),
+                      helpers::JobStateCounts { p: 0, wd: 1, rd: 1, rn: 1, c: 1, .. });
+        assert_match!(helpers::job_state_count_s(2, &conn),
+                      helpers::JobStateCounts {p: 0, wd: 3, rd: 1, .. });
 
         // Get another job, expect group 1
         let job_b = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
