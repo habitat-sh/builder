@@ -508,6 +508,20 @@ pub struct UpdateJobGraphEntry<'a> {
     pub as_built_ident: Option<&'a str>, //
 }
 
+#[derive(Default, Debug, Clone)]
+// Names are kept brief here , but we should revisit this
+pub struct JobStateCounts {
+    pub pd: i64, // Pending
+    pub wd: i64, // WaitingOnDependency
+    pub rd: i64, // Ready
+    pub rn: i64, // Running
+    pub ct: i64, // Complete
+    pub jf: i64, // JobFailed
+    pub df: i64, // DependencyFailed
+    pub cp: i64, // CancelPending
+    pub cc: i64, // CancelComplete
+}
+
 impl JobGraphEntry {
     pub fn create(req: &NewJobGraphEntry, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
         Counter::DBCall.increment();
@@ -582,6 +596,29 @@ impl JobGraphEntry {
                         .filter(job_graph::group_id.eq(group_id))
                         .filter(job_graph::job_state.eq(job_state))
                         .first(conn)
+    }
+
+    pub fn count_all_states(gid: i64,
+                            conn: &diesel::pg::PgConnection)
+                            -> QueryResult<JobStateCounts> {
+        Counter::DBCall.increment();
+        let start_time = std::time::Instant::now();
+
+        let mut j = JobStateCounts::default();
+        j.pd = JobGraphEntry::count_by_state(gid, JobExecState::Pending, &conn)?;
+        j.wd = JobGraphEntry::count_by_state(gid, JobExecState::WaitingOnDependency, &conn)?;
+        j.rd = JobGraphEntry::count_by_state(gid, JobExecState::Ready, &conn)?;
+        j.rn = JobGraphEntry::count_by_state(gid, JobExecState::Running, &conn)?;
+        j.ct = JobGraphEntry::count_by_state(gid, JobExecState::Complete, &conn)?;
+        j.jf = JobGraphEntry::count_by_state(gid, JobExecState::JobFailed, &conn)?;
+        j.df = JobGraphEntry::count_by_state(gid, JobExecState::DependencyFailed, &conn)?;
+        j.cp = JobGraphEntry::count_by_state(gid, JobExecState::CancelPending, &conn)?;
+        j.cc = JobGraphEntry::count_by_state(gid, JobExecState::CancelComplete, &conn)?;
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall JobGraphEntry::count_all_states time: {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Ok(j)
     }
 
     pub fn bulk_update_state(group_id: i64,

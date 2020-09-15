@@ -17,16 +17,18 @@ use diesel::{r2d2::{ConnectionManager,
              PgConnection};
 
 use crate::{db::{config::DataStoreCfg,
-                 models::{jobs::JobGraphEntry,
+                 models::{jobs::{JobGraphEntry,
+                                 JobStateCounts},
                           package::BuilderPackageTarget}},
             error::{Error,
-                    Result}};
+                    Result},
+            protocol::jobsrv};
 
 use crate::hab_core::package::PackageTarget;
 
 use crate::data_store::DataStore;
 
-#[cfg(feature="postgres_tests")]
+#[cfg(feature = "postgres_tests")]
 use habitat_builder_db::datastore_test;
 
 mod test;
@@ -43,6 +45,11 @@ pub trait SchedulerDataStore: Send + Sync {
     fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>>;
     fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32>;
     fn mark_job_failed(&mut self, job: JobId) -> Result<i32>;
+    fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts>;
+    fn set_job_group_state(&mut self,
+                           group: GroupId,
+                           group_state: jobsrv::JobGroupState)
+                           -> Result<()>;
 }
 
 //
@@ -88,10 +95,31 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
     }
 
     fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32> {
-        JobGraphEntry::mark_job_complete(job.0, &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
+        JobGraphEntry::mark_job_complete(job.0, &self.get_connection()).map_err(|e| {
+            Error::SchedulerDbError(e)
+        })
     }
 
-    fn mark_job_failed(&mut self, _job: JobId) -> Result<i32> { Ok(0) }
+    fn mark_job_failed(&mut self, job: JobId) -> Result<i32> {
+        JobGraphEntry::mark_job_failed(job.0, &self.get_connection()).map_err(|e| {
+                                                                         Error::SchedulerDbError(e)
+                                                                     })
+    }
+
+    fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts> {
+        JobGraphEntry::count_all_states(group.0,  &self.get_connection()).map_err(|e| {
+            Error::SchedulerDbError(e)
+        })
+    }
+
+    fn set_job_group_state(&mut self,
+                           group: GroupId,
+                           group_state: jobsrv::JobGroupState)
+                           -> Result<()> {
+        // TODO REVISIT the u64 cast; we cast it back in forth multiple times
+        self.data_store
+            .set_job_group_state(group.0 as u64, group_state)
+    }
 }
 
 // Test code
@@ -143,4 +171,15 @@ impl SchedulerDataStore for DummySchedulerDataStore {
     }
 
     fn mark_job_failed(&mut self, _job: JobId) -> Result<i32> { Ok(0) }
+
+    fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts> {
+        Ok(JobStateCounts::default())
+    }
+
+    fn set_job_group_state(&mut self,
+                           group: GroupId,
+                           group_state: jobsrv::JobGroupState)
+                           -> Result<()> {
+        Ok(())
+    }
 }

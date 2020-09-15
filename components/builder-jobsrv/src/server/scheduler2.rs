@@ -24,7 +24,9 @@ use crate::{error::Result,
                                   SchedulerDataStore,
                                   WorkerId}};
 
-use crate::db::models::jobs::JobExecState;
+use crate::{db::models::jobs::{JobExecState,
+                               JobStateCounts},
+            protocol::jobsrv};
 
 use crate::hab_core::package::PackageTarget;
 
@@ -66,7 +68,7 @@ pub enum SchedulerMessage {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)] 
+#[allow(dead_code)]
 pub enum WorkerManagerMessage {
     NewWorkForTarget { target: PackageTarget },
     CancelJob { jobs: Vec<JobId> },
@@ -79,7 +81,7 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    #[allow(dead_code)] 
+    #[allow(dead_code)]
     pub fn new(data_store: Box<dyn SchedulerDataStore>,
                rx: mpsc::Receiver<SchedulerMessage>,
                _tx: mpsc::Sender<WorkerManagerMessage>)
@@ -132,7 +134,7 @@ impl Scheduler {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
         // NOTE: Should check job group invariants;
-        // for each group (jobs in WaitingOnDependency + jobs in Running) states > 0
+        // for each group (jobs in WaitingOnDependency + Ready + Running) states > 0
         // Others?
         match state {
             JobExecState::Complete => {
@@ -161,6 +163,77 @@ impl Scheduler {
             // if the containing group is canceled for sanitys sake.
             state => panic!("Unexpected state {:?}", state),
         }
+
+        // Perhaps workers get the group id and pass it in here, perhaps we query the db
+        let group_id = GroupId(0); // TODO FIGURE OUT HOW THIS HAPPENS
+        self.check_group_completion(group_id, job_id);
+    }
+
+    // Check for the various ways a group might complete, and handle them
+    //
+    fn check_group_completion(&mut self, group_id: GroupId, job_id: JobId) {
+        let counts = self.data_store
+                         .count_all_states(group_id)
+                         .expect("Can't yet handle db error");
+
+        match counts {
+            JobStateCounts { wd: 0,
+                             rd: 0,
+                             rn: 0,
+                             jf: 0,
+                             df: 0,
+                             ct: complete,
+                             .. } => {
+                // No work in flight, no failures; assume success
+                // (Cancellation will require extension)
+                // INVARIANT: complete should be equal to size of group
+                self.group_finished_successfully(group_id, complete)
+            }
+            JobStateCounts { wd: 0,
+                             rd: 0,
+                             rn: 0,
+                             jf: job_fail,
+                             df: dep_failed,
+                             ct: complete,
+                             .. } => {
+                // No work in flight, failures, mark failed
+                // (Cancellation will require extension)
+                self.group_failed(group_id, counts)
+            }
+            JobStateCounts { wd: waiting,
+                             rd: 0,
+                             rn: 0,
+                             .. } => {
+                // No work in flight, none ready, we have a deadlock situation
+                // If this state happens, we have most likely botched a state transition
+                // or added an invalid graph entry
+                error!("Group {} deadlocked, last job updated {}",
+                       group_id.0, job_id.0);
+                self.group_failed(group_id, counts)
+            }
+            JobStateCounts { wd: waiting,
+                             rd: ready,
+                             rn: running,
+                             .. } => {
+                // Keep on trucking; log and continue
+            }
+            _ => panic!("Unexpected job state for group {} {:?}", group_id.0, counts),
+        }
+    }
+
+    fn group_finished_successfully(&mut self, group_id: GroupId, completed: i64) {
+        self.data_store
+            .set_job_group_state(group_id, jobsrv::JobGroupState::GroupComplete);
+        trace!("Group {} completed {} jobs", group_id.0, completed);
+
+        // What notifications/cleanups/protobuf calls etc need to happen here?
+    }
+
+    fn group_failed(&mut self, group_id: GroupId, counts: JobStateCounts) {
+        self.data_store
+            .set_job_group_state(group_id, jobsrv::JobGroupState::GroupFailed);
+        trace!("Group {} failed {:?}", group_id.0, counts);
+        // What notifications/cleanups/protobuf calls etc need to happen here?
     }
 }
 

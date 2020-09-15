@@ -36,7 +36,7 @@ mod test {
     }
 
     mod helpers {
-        use crate::{hab_core::package::PackageTarget};
+        use crate::hab_core::package::PackageTarget;
         use chrono::{DateTime,
                      Duration,
                      Utc};
@@ -81,7 +81,7 @@ mod test {
             pub cp: i64,
             pub cc: i64,
         }
-
+        // TODO REPLACE WITH Version in jobs
         pub fn job_state_count_s(gid: i64, conn: &diesel::pg::PgConnection) -> JobStateCounts {
             let mut j = JobStateCounts::default();
             j.p = JobGraphEntry::count_by_state(gid, JobExecState::Pending, &conn).unwrap();
@@ -388,14 +388,14 @@ mod test {
 
         assert_match!(helpers::job_state_count_s(0, &conn),
                       helpers::JobStateCounts { p:  0,
-                                               wd: 0,
-                                               rd: 0,
-                                               rn: 0,
-                                               c:  0,
-                                               jf: 1,
-                                               df: 3,
-                                               cp: 0,
-                                               cc: 0, });
+                                                wd: 0,
+                                                rd: 0,
+                                                rn: 0,
+                                                c:  0,
+                                                jf: 1,
+                                                df: 3,
+                                                cp: 0,
+                                                cc: 0, });
     }
 
     #[test]
@@ -414,15 +414,15 @@ mod test {
         assert_eq!(count, 1);
 
         assert_match!(helpers::job_state_count_s(0, &conn),
-                      helpers::JobStateCounts {p:  0,
-                                               wd: 1,  // Opposite side of the failed 
-                                               rd: 1,  // Root of the diamond
-                                               rn: 0,
-                                               c:  0,
-                                               jf: 1,
-                                               df: 1,
-                                               cp: 0,
-                                               cc: 0, });
+                      helpers::JobStateCounts { p:  0,
+                                                wd: 1, // Opposite side of the failed
+                                                rd: 1, // Root of the diamond
+                                                rn: 0,
+                                                c:  0,
+                                                jf: 1,
+                                                df: 1,
+                                                cp: 0,
+                                                cc: 0, });
     }
 
     #[test]
