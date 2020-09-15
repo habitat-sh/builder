@@ -558,8 +558,7 @@ impl JobGraphEntry {
                         .first(conn)
     }
 
-    // Right now we only return the job id, but as a efficiency measure we may want to
-    // join with other tables to fill out the
+    // Consider making this a stored procedure or a transaction.
     pub fn take_next_job_for_target(target: &BuilderPackageTarget,
                                     conn: &PgConnection)
                                     -> QueryResult<Option<JobGraphEntry>> {
@@ -590,6 +589,28 @@ impl JobGraphEntry {
             }
             diesel::QueryResult::Err(x) => diesel::QueryResult::<Option<JobGraphEntry>>::Err(x),
         }
+    }
+
+    pub fn transitive_rdeps_for_id(id: i64, conn: &PgConnection) -> QueryResult<Vec<i64>> {
+        Counter::DBCall.increment();
+        let result = diesel::select(job_functions::t_rdeps_for_id(id)).get_results::<i64>(conn)?;
+        Ok(result)
+    }
+
+    pub fn transitive_deps_for_id(id: i64, conn: &PgConnection) -> QueryResult<Vec<i64>> {
+        Counter::DBCall.increment();
+        let result = diesel::select(job_functions::t_deps_for_id(id)).get_results::<i64>(conn)?;
+        Ok(result)
+    }
+
+    pub fn transitive_deps_for_id_and_group(id: i64,
+                                            group_id: i64,
+                                            conn: &PgConnection)
+                                            -> QueryResult<Vec<i64>> {
+        Counter::DBCall.increment();
+        let result =
+            diesel::select(job_functions::t_deps_for_id_group(id, group_id)).get_results::<i64>(conn)?;
+        Ok(result)
     }
 
     pub fn mark_job_complete(id: i64, conn: &PgConnection) -> QueryResult<i32> {

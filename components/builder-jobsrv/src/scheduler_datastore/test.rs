@@ -36,7 +36,8 @@ mod test {
     }
 
     mod helpers {
-        use crate::data_store::DataStore;
+        use crate::{data_store::DataStore,
+                    hab_core::package::PackageTarget};
         use chrono::{DateTime,
                      Duration,
                      Utc};
@@ -47,7 +48,8 @@ mod test {
                                          package::BuilderPackageTarget};
         use habitat_builder_protocol::message::{jobsrv::*,
                                                 originsrv::OriginProject};
-        use std::collections::HashMap;
+        use std::{collections::HashMap,
+                  str::FromStr};
 
         pub fn is_recent(time: Option<DateTime<Utc>>, tolerance: isize) -> bool {
             Utc::now() - time.unwrap() < Duration::seconds(tolerance as i64)
@@ -109,53 +111,89 @@ mod test {
             (schedulable, eligible, complete, failed, dep_failed)
         }
 
+        pub struct DbHelper {
+            group_id: i64,
+            target:   BuilderPackageTarget,
+            name_map: HashMap<String, i64>,
+            id_map:   HashMap<i64, String>,
+        }
+
+        impl DbHelper {
+            pub fn new(group_id: i64, target: &str) -> Self {
+                DbHelper { group_id,
+                           target: BuilderPackageTarget(PackageTarget::from_str(target).unwrap()),
+                           name_map: HashMap::new(),
+                           id_map: HashMap::new() }
+            }
+
+            pub fn add(&mut self,
+                       conn: &diesel::pg::PgConnection,
+                       name: &str,
+                       deps: &[&str],
+                       job_state: JobExecState)
+                       -> i64 {
+                let dependencies: Vec<i64> =
+                    deps.iter()
+                        .map(|d| {
+                            *(self.name_map
+                                  .get(d.to_owned())
+                                  .unwrap_or_else(|| panic!("Dependency {} not found", d)))
+                        })
+                        .collect();
+
+                let plan_name = name.split('/').take(2).collect::<Vec<&str>>().join("/");
+
+                let entry = NewJobGraphEntry { group_id: self.group_id,
+                                               job_state,
+                                               plan_ident: &plan_name,
+                                               manifest_ident: name,
+                                               as_built_ident: None,
+                                               dependencies: &dependencies,
+                                               waiting_on_count: dependencies.len() as i32,
+                                               target_platform: &self.target };
+
+                let job_graph_entry = JobGraphEntry::create(&entry, &conn).unwrap();
+
+                self.name_map.insert(name.to_owned(), job_graph_entry.id);
+                self.id_map.insert(job_graph_entry.id, name.to_owned());
+                job_graph_entry.id
+            }
+
+            pub fn id_by_name(&self, name: &str) -> i64 {
+                *(self.name_map
+                      .get(name)
+                      .unwrap_or_else(|| panic!("No entry for {}", name)))
+            }
+
+            pub fn name_by_id(&self, id: i64) -> String {
+                self.id_map
+                    .get(&id)
+                    .unwrap_or_else(|| panic!("No entry for {}", id))
+                    .clone()
+            }
+        }
+
         pub fn make_simple_graph_helper(group_id: i64,
                                         target_platform: &BuilderPackageTarget,
-                                        conn: &diesel::pg::PgConnection) {
-            let entry = NewJobGraphEntry { group_id,
-                                           job_state: JobExecState::Eligible,
-                                           plan_ident: "foo/bar",
-                                           manifest_ident: "foo/bar/1.2.3/123",
-                                           as_built_ident: None,
-                                           dependencies: &[],
-                                           waiting_on_count: 0,
-                                           target_platform: &target_platform };
+                                        conn: &diesel::pg::PgConnection)
+                                        -> DbHelper {
+            let mut h = DbHelper::new(group_id, target_platform);
 
-            let job_graph_entry_1 = JobGraphEntry::create(&entry, &conn).unwrap();
+            h.add(conn, "foo/bar/1.2.3/123", &[], JobExecState::Eligible);
+            h.add(conn,
+                  "foo/baz/1.2.3/123",
+                  &["foo/bar/1.2.3/123"],
+                  JobExecState::Schedulable);
+            h.add(conn,
+                  "foo/ping/1.2.3/123",
+                  &["foo/bar/1.2.3/123"],
+                  JobExecState::Schedulable);
+            h.add(conn,
+                  "foo/pong/1.2.3/123",
+                  &["foo/baz/1.2.3/123", "foo/ping/1.2.3/123"],
+                  JobExecState::Schedulable);
 
-            let entry = NewJobGraphEntry { group_id,
-                                           job_state: JobExecState::Schedulable,
-                                           plan_ident: "foo/baz",
-                                           manifest_ident: "foo/baz/1.2.3/123",
-                                           as_built_ident: None,
-                                           dependencies: &[job_graph_entry_1.id],
-                                           waiting_on_count: 1,
-                                           target_platform: &target_platform };
-
-            let job_graph_entry_2 = JobGraphEntry::create(&entry, &conn).unwrap();
-
-            let entry = NewJobGraphEntry { group_id,
-                                           job_state: JobExecState::Schedulable,
-                                           plan_ident: "foo/ping",
-                                           manifest_ident: "foo/ping/1.2.3/123",
-                                           as_built_ident: None,
-                                           dependencies: &[job_graph_entry_1.id],
-                                           waiting_on_count: 1,
-                                           target_platform: &target_platform };
-
-            let job_graph_entry_3 = JobGraphEntry::create(&entry, &conn).unwrap();
-
-            let entry = NewJobGraphEntry { group_id,
-                                           job_state: JobExecState::Schedulable,
-                                           plan_ident: "foo/pong",
-                                           manifest_ident: "foo/pong/1.2.3/123",
-                                           as_built_ident: None,
-                                           dependencies: &[job_graph_entry_2.id,
-                                                           job_graph_entry_3.id],
-                                           waiting_on_count: 2,
-                                           target_platform: &target_platform };
-
-            let job_graph_entry_4 = JobGraphEntry::create(&entry, &conn).unwrap();
+            h
         }
 
         pub fn make_job_graph_entries(group_id: i64,
@@ -210,58 +248,21 @@ mod test {
     fn take_next_job_for_target() {
         let target_platform =
             BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
-        let other_platform =
-            BuilderPackageTarget(PackageTarget::from_str("x86_64-windows").unwrap());
+
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
-        let slice: [i64; 3] = [1, 2, 3];
-        let entry = NewJobGraphEntry { group_id:         0,
-                                       job_state:        JobExecState::Pending,
-                                       plan_ident:       "foo/bar",
-                                       manifest_ident:   "foo/bar/1.2.3/123",
-                                       as_built_ident:   None,
-                                       dependencies:     &[1, 2, 3],
-                                       waiting_on_count: 3,
-                                       target_platform:  &target_platform, };
 
-        let job_graph_entry_1 = JobGraphEntry::create(&entry, &conn).unwrap();
+        let mut h = helpers::DbHelper::new(0, "x86_64-linux");
+        h.add(&conn, "foo/bar/1.2.3/123", &[], JobExecState::Pending);
+        h.add(&conn, "foo/baz/1.2.3/123", &[], JobExecState::Schedulable);
+        h.add(&conn, "foo/ping/1.2.3/123", &[], JobExecState::Eligible);
 
-        let entry = NewJobGraphEntry { group_id:         0,
-                                       job_state:        JobExecState::Schedulable,
-                                       plan_ident:       "foo/baz",
-                                       manifest_ident:   "foo/baz/1.2.3/123",
-                                       as_built_ident:   None,
-                                       dependencies:     &[1, 2, 3],
-                                       waiting_on_count: 3,
-                                       target_platform:  &target_platform, };
-
-        let job_graph_entry_2 = JobGraphEntry::create(&entry, &conn).unwrap();
-
-        let entry = NewJobGraphEntry { group_id:         0,
-                                       job_state:        JobExecState::Eligible,
-                                       plan_ident:       "foo/ping",
-                                       manifest_ident:   "foo/ping/1.2.3/123",
-                                       as_built_ident:   None,
-                                       dependencies:     &[1, 2, 3],
-                                       waiting_on_count: 3,
-                                       target_platform:  &target_platform, };
-
-        let job_graph_entry_3 = JobGraphEntry::create(&entry, &conn).unwrap();
-
-        let entry = NewJobGraphEntry { group_id:         0,
-                                       job_state:        JobExecState::Eligible,
-                                       plan_ident:       "foo/pong",
-                                       manifest_ident:   "foo/pong/1.2.3/123",
-                                       as_built_ident:   None,
-                                       dependencies:     &[1, 2, 3],
-                                       waiting_on_count: 3,
-                                       target_platform:  &other_platform, };
-
-        let job_graph_entry_4 = JobGraphEntry::create(&entry, &conn).unwrap();
+        let mut h_alt = helpers::DbHelper::new(1, "x86_64-windows");
+        h_alt.add(&conn, "foo/pong/1.2.3/123", &[], JobExecState::Eligible);
 
         let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
         assert!(job_next.is_some());
-        assert_eq!(job_next.unwrap().id, job_graph_entry_3.id);
+        assert_eq!(job_next.unwrap().id, h.id_by_name("foo/ping/1.2.3/123"));
         // TODO verify we update the state to 'dispatched'
 
         let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
@@ -284,7 +285,7 @@ mod test {
                                             &conn);
         }
         // Test some stuff for real here
-        std::thread::sleep(std::time::Duration::from_secs(10000));
+        // std::thread::sleep(std::time::Duration::from_secs(10000));
     }
 
     #[test]
@@ -310,6 +311,32 @@ mod test {
                    1);
         assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap(),
                    0);
+    }
+
+    #[test]
+    fn transitive_rdeps_for_id_diamond() {
+        let ds = datastore_test!(DataStore);
+        let conn = ds.get_pool().get_conn().unwrap();
+
+        let mut h = helpers::make_simple_graph_helper(0, &TARGET_PLATFORM, &conn);
+
+        let rdeps = JobGraphEntry::transitive_rdeps_for_id(0, &conn).unwrap();
+        assert_eq!(rdeps.len(), 0);
+
+        let mut rdeps = JobGraphEntry::transitive_rdeps_for_id(1, &conn).unwrap();
+        rdeps.sort();
+
+        assert_eq!(rdeps.len(), 3);
+        assert_eq!(rdeps, vec![2, 3, 4]);
+
+        let rdeps = JobGraphEntry::transitive_rdeps_for_id(2, &conn).unwrap();
+        assert_eq!(rdeps, vec![4]);
+
+        let rdeps = JobGraphEntry::transitive_rdeps_for_id(3, &conn).unwrap();
+        assert_eq!(rdeps, vec![4]);
+
+        let rdeps = JobGraphEntry::transitive_rdeps_for_id(4, &conn).unwrap();
+        assert_eq!(rdeps.len(), 0);
     }
 
     #[test]
