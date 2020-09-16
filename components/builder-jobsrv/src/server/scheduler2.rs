@@ -20,7 +20,7 @@ use tokio::{sync::{mpsc,
 
 use crate::{error::Result,
             scheduler_datastore::{GroupId,
-                                  JobId,
+                                  JobGraphId,
                                   SchedulerDataStore,
                                   WorkerId}};
 
@@ -50,17 +50,17 @@ pub enum SchedulerMessage {
     WorkerNeedsWork {
         worker: WorkerId,
         target: BuilderPackageTarget,
-        reply:  Responder<Option<JobId>>,
+        reply:  Responder<Option<JobGraphId>>,
     },
     WorkerFinished {
         worker: WorkerId,
-        job:    JobId,
+        job:    JobGraphId,
         state:  JobExecState, /* do we distingush cancel from fail and sucess? Should this
                                * be a status? */
     },
     WorkerGone {
         worker: WorkerId,
-        job:    JobId,
+        job:    JobGraphId,
     },
     State {
         reply: Responder<StateBlob>,
@@ -73,7 +73,7 @@ pub enum SchedulerMessage {
 #[allow(dead_code)]
 pub enum WorkerManagerMessage {
     NewWorkForTarget { target: BuilderPackageTarget },
-    CancelJob { jobs: Vec<JobId> },
+    CancelJob { jobs: Vec<JobGraphId> },
 }
 
 #[derive(Debug)]
@@ -149,9 +149,9 @@ impl Scheduler {
     fn worker_needs_work(&mut self,
                          worker: &WorkerId,
                          target: BuilderPackageTarget,
-                         reply: Responder<Option<JobId>>) {
+                         reply: Responder<Option<JobGraphId>>) {
         let maybe_job_id = match self.data_store.take_next_job_for_target(target) {
-            Ok(Some(job)) => Some(JobId(job.id)),
+            Ok(Some(job)) => Some(JobGraphId(job.id)),
             Ok(None) => {
                 // TODO: queue up more work if available impl get next group for target
                 None
@@ -165,7 +165,7 @@ impl Scheduler {
     }
 
     #[tracing::instrument]
-    fn worker_finished(&mut self, worker: &WorkerId, job_id: JobId, state: JobExecState) {
+    fn worker_finished(&mut self, worker: &WorkerId, job_id: JobGraphId, state: JobExecState) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
         // NOTE: Should check job group invariants;
@@ -207,7 +207,7 @@ impl Scheduler {
     // This probably belongs in a job_group_lifecycle module, but not today
     // Check for the various ways a group might complete, and handle them
     //
-    fn check_group_completion(&mut self, group_id: GroupId, job_id: JobId) {
+    fn check_group_completion(&mut self, group_id: GroupId, job_id: JobGraphId) {
         let counts = self.data_store
                          .count_all_states(group_id)
                          .expect("Can't yet handle db error");

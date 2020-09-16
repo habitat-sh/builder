@@ -16,7 +16,7 @@ mod test {
                 scheduler_datastore::{DummySchedulerDataStore,
                                       DummySchedulerDataStoreCall,
                                       DummySchedulerDataStoreResult,
-                                      JobId,
+                                      JobGraphId,
                                       SchedulerDataStore,
                                       SchedulerDataStoreDb,
                                       WorkerId}};
@@ -68,7 +68,7 @@ mod test {
             let join = tokio::task::spawn(async move { scheduler.run().await });
 
             // expect a job for this target
-            let (o_tx, o_rx) = oneshot::channel::<Option<JobId>>();
+            let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
             let _ =
                 s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
                                                                   WorkerId("worker1".to_string()),
@@ -76,12 +76,12 @@ mod test {
                                                               reply:  o_tx, })
                     .await;
 
-            let reply: Option<JobId> = o_rx.await.unwrap();
+            let reply: Option<JobGraphId> = o_rx.await.unwrap();
             println!("Reply 1 {:?}", reply);
             assert_eq!(1, reply.unwrap().0);
 
             // No job for this target
-            let (o_tx, o_rx) = oneshot::channel::<Option<JobId>>();
+            let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
             let _ =
                 s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
                                                                   WorkerId("worker1".to_string()),
@@ -89,7 +89,7 @@ mod test {
                                                               reply:  o_tx, })
                     .await;
 
-            let reply: Option<JobId> = o_rx.await.unwrap();
+            let reply: Option<JobGraphId> = o_rx.await.unwrap();
             println!("Reply 2 {:?}", reply);
             assert_eq!(None, reply);
 

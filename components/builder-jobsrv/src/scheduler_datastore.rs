@@ -37,7 +37,7 @@ mod test;
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct WorkerId(pub String);
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-pub struct JobId(pub i64);
+pub struct JobGraphId(pub i64);
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct GroupId(pub i64);
 
@@ -46,8 +46,8 @@ pub trait SchedulerDataStore: Send + Sync {
     fn take_next_job_for_target(&mut self,
                                 target: BuilderPackageTarget)
                                 -> Result<Option<JobGraphEntry>>;
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32>;
-    fn mark_job_failed(&mut self, job: JobId) -> Result<i32>;
+    fn mark_job_complete_and_update_dependencies(&mut self, job: JobGraphId) -> Result<i32>;
+    fn mark_job_failed(&mut self, job: JobGraphId) -> Result<i32>;
     fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts>;
     fn set_job_group_state(&mut self,
                            group: GroupId,
@@ -102,13 +102,13 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
                                                 &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32> {
+    fn mark_job_complete_and_update_dependencies(&mut self, job: JobGraphId) -> Result<i32> {
         JobGraphEntry::mark_job_complete(job.0, &self.get_connection()).map_err(|e| {
             Error::SchedulerDbError(e)
         })
     }
 
-    fn mark_job_failed(&mut self, job: JobId) -> Result<i32> {
+    fn mark_job_failed(&mut self, job: JobGraphId) -> Result<i32> {
         JobGraphEntry::mark_job_failed(job.0, &self.get_connection()).map_err(|e| {
                                                                          Error::SchedulerDbError(e)
                                                                      })
@@ -157,7 +157,7 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum DummySchedulerDataStoreCall {
     TakeNextJobForTarget { target: BuilderPackageTarget },
-    MarkJobCompleteAndUpdateDependencies { job_id: JobId },
+    MarkJobCompleteAndUpdateDependencies { job_id: JobGraphId },
 }
 
 #[derive(Debug)]
@@ -191,7 +191,7 @@ impl SchedulerDataStore for DummySchedulerDataStore {
         }
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job_id: JobId) -> Result<i32> {
+    fn mark_job_complete_and_update_dependencies(&mut self, job_id: JobGraphId) -> Result<i32> {
         assert!(self.actions.len() > 0);
         assert_eq!(self.actions[0].0,
                    DummySchedulerDataStoreCall::MarkJobCompleteAndUpdateDependencies { job_id });
@@ -202,7 +202,7 @@ impl SchedulerDataStore for DummySchedulerDataStore {
         }
     }
 
-    fn mark_job_failed(&mut self, _job: JobId) -> Result<i32> { Ok(0) }
+    fn mark_job_failed(&mut self, _job: JobGraphId) -> Result<i32> { Ok(0) }
 
     fn count_all_states(&mut self, _group: GroupId) -> Result<JobStateCounts> {
         Ok(JobStateCounts::default())
