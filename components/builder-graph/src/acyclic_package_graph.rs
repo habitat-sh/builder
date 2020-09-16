@@ -371,12 +371,20 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                     }
                 }
             } else {
-                // Because of how we process things in the worklist algorithm above, we think this
-                // only can happen if the graph changed under us. That should never
-                // happen (we are taking a lock on the graph in the calling code)
-                // Alternatively we could return a result and cancel the job in the calling code.
-                panic!("Could not find package {} when computing build manifest",
-                       package)
+                // It's possible we've never seen this package because it's the first time it was
+                // built, and so never uploaded. That should only happen when we're explicitly
+                // rebuilding the package, e.g. it's in the touched set.
+                if touched.contains(&package) {
+                    unresolved_rebuild_graph.add_node(UnresolvedPackageIdent::InternalNode(package,1));
+                } else {
+                    // Because of how we process things in the worklist algorithm above, we think
+                    // this only can happen if the graph changed under us. That
+                    // should never happen (we are taking a lock on the graph in
+                    // the calling code) Alternatively we could return a result
+                    // and cancel the job in the calling code.
+                    panic!("Could not find package {} when computing build manifest",
+                           package);
+                }
             }
         }
 
