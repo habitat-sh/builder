@@ -1169,7 +1169,7 @@ mod test {
 
     // ////////////////////////////////////////////////////////////////////////
     //
-    // Disabling this test for now, as it represents a case we don't correctly
+    // Skipping this test for now, as it represents a case we don't correctly
     // handle, but is one which shouldn't exist given the current state of
     // StrongBuildDeps. When we look to expose that concept as a first class
     // part of our build language, this case will become important to handle
@@ -1191,47 +1191,48 @@ mod test {
     // ////////////////////////////////////////////////////////////////////////
     // Starting with a circular graph, extend with some complex build edges
     //
-    // #[test]
-    // fn simple_circular_with_strong_build_edges() {
-    //     let mut graph = make_circular_graph();
-    //
-    //     let extended = vec![mk_pkg("a/strong/c/d",
-    //                                &["a/libgcc", "a/glibc"],
-    //                                &["a/make"],
-    //                                &["a/make"]),
-    //                         mk_pkg("a/make/z/d", &["a/strong", "a/glibc"], &[], &[])];
-    //
-    //     graph.build(extended.into_iter(), true);
-    //     dbg!(&graph);
-    //     let touched: Vec<PackageIdentIntern> = ident_intern_vec!("a/gcc");
-    //     let unbuildable = UnbuildableMock { unbuildable_packages: Vec::new(), };
-    //
-    //     let manifest = graph.compute_build(&touched, &unbuildable);
-    //     println!("Manifest\n{:?}\n", manifest);
-    //
-    //     assert_eq!(manifest.input_set.len(), 1);
-    //
-    //     assert_eq!(manifest.unbuildable_reasons.len(), 0);
-    //
-    //     assert_eq!(manifest.graph.node_count(), 15); // 2 external, 4*3 (cycle) + 1 (non-cycle)
-    //     assert_eq!(manifest.graph.contains_node(mk_ELV("a/gcc")), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_ELV("a/make")), true);
-    //
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 1)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 1)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 1)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 1)), true);
-    //
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 2)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 2)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 2)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 2)), true);
-    //
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 3)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 3)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 3)), true);
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 3)), true);
-    //
-    //     assert_eq!(manifest.graph.contains_node(mk_IN("a/out", 1)), true);
-    // }
+    #[test]
+    #[ignore]
+    fn simple_circular_with_strong_build_edges() {
+        let mut graph = make_circular_graph();
+
+        let extended = vec![mk_pkg("a/strong/c/d",
+                                   &["a/libgcc", "a/glibc"],
+                                   &["a/make"],
+                                   &["a/make"]),
+                            mk_pkg("a/make/z/d", &["a/strong", "a/glibc"], &[], &[])];
+
+        graph.build(extended.into_iter(), true);
+
+        let touched: Vec<PackageIdentIntern> = ident_intern_vec!("a/gcc");
+        let unbuildable = UnbuildableMock { unbuildable_packages: Vec::new(), };
+
+        let manifest = graph.compute_build(&touched, &unbuildable);
+        println!("Manifest\n{:?}\n", manifest);
+
+        assert_eq!(manifest.input_set.len(), 1);
+
+        assert_eq!(manifest.unbuildable_reasons.len(), 0);
+
+        assert_eq!(manifest.graph.node_count(), 15); // 2 external, 4*3 (cycle) + 1 (non-cycle)
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/gcc")), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/make")), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 1)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 2)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 3)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/out", 1)), true);
+    }
 }
