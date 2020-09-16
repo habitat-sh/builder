@@ -36,9 +36,10 @@ mod test {
     }
 
     lazy_static! {
-        static ref TARGET_LINUX: PackageTarget = PackageTarget::from_str("x86_64-linux").unwrap();
-        static ref TARGET_WINDOWS: PackageTarget =
-            PackageTarget::from_str("x86_64-windows").unwrap();
+        static ref TARGET_LINUX: BuilderPackageTarget =
+            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
+        static ref TARGET_WINDOWS: BuilderPackageTarget =
+            BuilderPackageTarget(PackageTarget::from_str("x86_64-windows").unwrap());
     }
 
     fn make_job_graph_entry(id: i64) -> JobGraphEntry {
@@ -121,7 +122,7 @@ mod test {
                                            as_built_ident:   None,
                                            dependencies:     &[],
                                            waiting_on_count: 0,
-                                           target_platform:  &BuilderPackageTarget(*TARGET_LINUX), };
+                                           target_platform:  &TARGET_LINUX, };
             let e = JobGraphEntry::create(&entry, &conn).unwrap();
             assert_eq!(1, e.id);
             stores.push(Box::new(database));

@@ -24,8 +24,9 @@ use crate::{error::Result,
                                   SchedulerDataStore,
                                   WorkerId}};
 
-use crate::{db::models::jobs::{JobExecState,
-                               JobStateCounts},
+use crate::{db::models::{jobs::{JobExecState,
+                                JobStateCounts},
+                         package::BuilderPackageTarget},
             protocol::jobsrv};
 
 use crate::hab_core::package::PackageTarget;
@@ -40,14 +41,15 @@ type Responder<T> = oneshot::Sender<Result<T>>;
 #[non_exhaustive]
 pub enum SchedulerMessage {
     JobGroupAdded {
-        group: GroupId,
+        group:  GroupId,
+        target: BuilderPackageTarget,
     },
     JobGroupCanceled {
         group: GroupId,
     },
     WorkerNeedsWork {
         worker: WorkerId,
-        target: PackageTarget,
+        target: BuilderPackageTarget,
         reply:  Responder<Option<JobId>>,
     },
     WorkerFinished {
@@ -70,7 +72,7 @@ pub enum SchedulerMessage {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum WorkerManagerMessage {
-    NewWorkForTarget { target: PackageTarget },
+    NewWorkForTarget { target: BuilderPackageTarget },
     CancelJob { jobs: Vec<JobId> },
 }
 
@@ -95,6 +97,9 @@ impl Scheduler {
         while let Some(msg) = self.rx.recv().await {
             println!("Msg {:?}", msg);
             match msg {
+                SchedulerMessage::JobGroupAdded { group, target } => {
+                    self.job_group_added(group, target)
+                }
                 SchedulerMessage::WorkerNeedsWork { worker,
                                                     target,
                                                     reply, } => {
@@ -111,9 +116,39 @@ impl Scheduler {
     }
 
     #[tracing::instrument]
+    fn job_group_added(&mut self, group: GroupId, target: BuilderPackageTarget) {
+        // if there are no ready jobs for this target dispatch it
+
+        let ready = self.data_store
+                        .count_ready_for_target(target)
+                        .expect("Can't yet handle db error");
+        if ready == 0 {
+            // We assume there are no other queued jobs, because they'd be pulled in by now
+            // as part of worker_needs_work
+
+            self.dispatch_group_for_target(group, target);
+        }
+    }
+
+    #[tracing::instrument]
+    fn dispatch_group_for_target(&mut self, group_id: GroupId, _target: BuilderPackageTarget) {
+        // Move the group to dispatching,
+        self.data_store
+            .set_job_group_state(group_id, jobsrv::JobGroupState::GroupDispatching)
+            .expect("Can't yet handle db error");
+        // update jobs to WaitingOnDependency or Ready
+        let _ready = self.data_store
+                         .group_dispatched_update_jobs(group_id)
+                         .expect("Can't yet handle db error");
+
+        // Eventually 'kick' the worker manger with an alert saying we have work instead of polling
+        // Does something with ready/target
+    }
+
+    #[tracing::instrument]
     fn worker_needs_work(&mut self,
                          worker: &WorkerId,
-                         target: PackageTarget,
+                         target: BuilderPackageTarget,
                          reply: Responder<Option<JobId>>) {
         let maybe_job_id = match self.data_store.take_next_job_for_target(target) {
             Ok(Some(job)) => Ok(Some(JobId(job.id))),
@@ -169,6 +204,7 @@ impl Scheduler {
         self.check_group_completion(group_id, job_id);
     }
 
+    // This probably belongs in a job_group_lifecycle module, but not today
     // Check for the various ways a group might complete, and handle them
     //
     fn check_group_completion(&mut self, group_id: GroupId, job_id: JobId) {
@@ -194,8 +230,7 @@ impl Scheduler {
                              rn: 0,
                              jf: job_fail,
                              df: dep_failed,
-                             ct: complete,
-                             .. } => {
+                             .. } if job_fail + dep_failed > 0 => {
                 // No work in flight, failures, mark failed
                 // (Cancellation will require extension)
                 self.group_failed(group_id, counts)
@@ -203,7 +238,7 @@ impl Scheduler {
             JobStateCounts { wd: waiting,
                              rd: 0,
                              rn: 0,
-                             .. } => {
+                             .. } if waiting > 0 => {
                 // No work in flight, none ready, we have a deadlock situation
                 // If this state happens, we have most likely botched a state transition
                 // or added an invalid graph entry
@@ -214,7 +249,7 @@ impl Scheduler {
             JobStateCounts { wd: waiting,
                              rd: ready,
                              rn: running,
-                             .. } => {
+                             .. } if waiting + ready + running > 0 => {
                 // Keep on trucking; log and continue
             }
             _ => panic!("Unexpected job state for group {} {:?}", group_id.0, counts),
@@ -223,7 +258,8 @@ impl Scheduler {
 
     fn group_finished_successfully(&mut self, group_id: GroupId, completed: i64) {
         self.data_store
-            .set_job_group_state(group_id, jobsrv::JobGroupState::GroupComplete);
+            .set_job_group_state(group_id, jobsrv::JobGroupState::GroupComplete)
+            .expect("Can't yet handle db error");
         trace!("Group {} completed {} jobs", group_id.0, completed);
 
         // What notifications/cleanups/protobuf calls etc need to happen here?
@@ -231,7 +267,8 @@ impl Scheduler {
 
     fn group_failed(&mut self, group_id: GroupId, counts: JobStateCounts) {
         self.data_store
-            .set_job_group_state(group_id, jobsrv::JobGroupState::GroupFailed);
+            .set_job_group_state(group_id, jobsrv::JobGroupState::GroupFailed)
+            .expect("Can't yet handle db error");
         trace!("Group {} failed {:?}", group_id.0, counts);
         // What notifications/cleanups/protobuf calls etc need to happen here?
     }

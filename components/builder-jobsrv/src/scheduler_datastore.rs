@@ -42,7 +42,9 @@ pub struct GroupId(pub i64);
 
 // This wraps the datastore API; this should probably be thread safe so it can be shared.
 pub trait SchedulerDataStore: Send + Sync {
-    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>>;
+    fn take_next_job_for_target(&mut self,
+                                target: BuilderPackageTarget)
+                                -> Result<Option<JobGraphEntry>>;
     fn mark_job_complete_and_update_dependencies(&mut self, job: JobId) -> Result<i32>;
     fn mark_job_failed(&mut self, job: JobId) -> Result<i32>;
     fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts>;
@@ -50,6 +52,8 @@ pub trait SchedulerDataStore: Send + Sync {
                            group: GroupId,
                            group_state: jobsrv::JobGroupState)
                            -> Result<()>;
+    fn count_ready_for_target(&mut self, target: BuilderPackageTarget) -> Result<usize>;
+    fn group_dispatched_update_jobs(&mut self, group_id: GroupId) -> Result<usize>;
 }
 
 //
@@ -89,8 +93,10 @@ impl SchedulerDataStoreDb {
 }
 
 impl SchedulerDataStore for SchedulerDataStoreDb {
-    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>> {
-        JobGraphEntry::take_next_job_for_target(&BuilderPackageTarget(target),
+    fn take_next_job_for_target(&mut self,
+                                target: BuilderPackageTarget)
+                                -> Result<Option<JobGraphEntry>> {
+        JobGraphEntry::take_next_job_for_target(target,
                                                 &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
     }
 
@@ -120,13 +126,30 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
         self.data_store
             .set_job_group_state(group.0 as u64, group_state)
     }
+
+    fn count_ready_for_target(&mut self, target: BuilderPackageTarget) -> Result<usize> {
+        JobGraphEntry::count_ready_for_target(target,
+                 &self.get_connection())
+                 .map_err(|e| {
+                    Error::SchedulerDbError(e)
+                 })
+                 .map(|x| x as usize)
+    }
+
+    fn group_dispatched_update_jobs(&mut self, group_id: GroupId) -> Result<usize> {
+        JobGraphEntry::group_dispatched_update_jobs(group_id.0,
+            &self.get_connection())
+            .map_err(|e| {
+               Error::SchedulerDbError(e)
+            })
+    }
 }
 
 // Test code
 //
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum DummySchedulerDataStoreCall {
-    TakeNextJobForTarget { target: PackageTarget },
+    TakeNextJobForTarget { target: BuilderPackageTarget },
     MarkJobCompleteAndUpdateDependencies { job_id: JobId },
 }
 
@@ -148,7 +171,9 @@ impl DummySchedulerDataStore {
 }
 
 impl SchedulerDataStore for DummySchedulerDataStore {
-    fn take_next_job_for_target(&mut self, target: PackageTarget) -> Result<Option<JobGraphEntry>> {
+    fn take_next_job_for_target(&mut self,
+                                target: BuilderPackageTarget)
+                                -> Result<Option<JobGraphEntry>> {
         assert!(self.actions.len() > 0);
         assert_eq!(self.actions[0].0,
                    DummySchedulerDataStoreCall::TakeNextJobForTarget { target });
@@ -172,14 +197,18 @@ impl SchedulerDataStore for DummySchedulerDataStore {
 
     fn mark_job_failed(&mut self, _job: JobId) -> Result<i32> { Ok(0) }
 
-    fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts> {
+    fn count_all_states(&mut self, _group: GroupId) -> Result<JobStateCounts> {
         Ok(JobStateCounts::default())
     }
 
     fn set_job_group_state(&mut self,
-                           group: GroupId,
-                           group_state: jobsrv::JobGroupState)
+                           _group: GroupId,
+                           _group_state: jobsrv::JobGroupState)
                            -> Result<()> {
         Ok(())
     }
+
+    fn count_ready_for_target(&mut self, _target: BuilderPackageTarget) -> Result<usize> { Ok(0) }
+
+    fn group_dispatched_update_jobs(&mut self, _group: GroupId) -> Result<usize> { Ok(0) }
 }

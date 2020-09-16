@@ -621,6 +621,14 @@ impl JobGraphEntry {
         Ok(j)
     }
 
+    pub fn count_ready_for_target(target: BuilderPackageTarget,
+                                  conn: &PgConnection)
+                                  -> QueryResult<i64> {
+        job_graph::table.select(count_star())
+                        .filter(job_graph::target_platform.eq(target.0.to_string()))
+                        .first(conn)
+    }
+
     pub fn bulk_update_state(group_id: i64,
                              required_job_state: JobExecState,
                              new_job_state: JobExecState,
@@ -633,7 +641,7 @@ impl JobGraphEntry {
     }
 
     // Consider making this a stored procedure or a transaction.
-    pub fn take_next_job_for_target(target: &BuilderPackageTarget,
+    pub fn take_next_job_for_target(target: BuilderPackageTarget,
                                     conn: &PgConnection)
                                     -> QueryResult<Option<JobGraphEntry>> {
         Counter::DBCall.increment();
@@ -699,5 +707,22 @@ impl JobGraphEntry {
         let result =
             diesel::select(job_functions::job_graph_mark_failed(id)).get_result::<i32>(conn)?;
         Ok(result)
+    }
+
+    // Updates jobs when group is dispatched; jobs are moved from Pending to WaitingOnDependency, or
+    // if there are zero dependencies, moved to Ready
+    // Need an index to make this reasonably fast
+    // Returns number of ready jobs
+    pub fn group_dispatched_update_jobs(group_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        JobGraphEntry::bulk_update_state(group_id,
+                                         JobExecState::Pending,
+                                         JobExecState::WaitingOnDependency,
+                                         conn)?;
+        // See job_graph_mark_complete for another instance of this query pattern
+        // perhaps it should be abstracted out
+        diesel::update(job_graph::table.filter(job_graph::group_id.eq(group_id))
+        .filter(job_graph::job_state.eq(JobExecState::WaitingOnDependency))
+        .filter(job_graph::waiting_on_count.eq(0)))
+        .set(job_graph::job_state.eq(JobExecState::Ready)).execute(conn)
     }
 }

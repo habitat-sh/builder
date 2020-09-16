@@ -266,12 +266,12 @@ mod test {
                   &[],
                   JobExecState::WaitingOnDependency);
 
-        let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
+        let job_next = JobGraphEntry::take_next_job_for_target(target_platform, &conn).unwrap();
         assert!(job_next.is_some());
         assert_eq!(job_next.unwrap().id, h.id_by_name("foo/ping/1.2.3/123"));
         // TODO verify we update the state to 'dispatched'
 
-        let job_next = JobGraphEntry::take_next_job_for_target(&target_platform, &conn).unwrap();
+        let job_next = JobGraphEntry::take_next_job_for_target(target_platform, &conn).unwrap();
         assert!(job_next.is_none());
     }
 
@@ -434,7 +434,7 @@ mod test {
         helpers::make_simple_graph_helper(2, &TARGET_PLATFORM, &conn); // This group should not be scheduled
 
         // We prefer group 1 while there is work left; then group 2
-        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap();
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.plan_ident, "foo/bar");
@@ -444,7 +444,7 @@ mod test {
 
         assert_eq!((1, 2, 1, 0, 0), helpers::job_state_count(1, &conn));
 
-        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap();
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.group_id, 1);
@@ -453,7 +453,7 @@ mod test {
 
         assert_eq!((1, 1, 2, 0, 0), helpers::job_state_count(1, &conn));
 
-        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap();
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.group_id, 1);
@@ -462,7 +462,7 @@ mod test {
 
         assert_eq!((0, 1, 3, 0, 0), helpers::job_state_count(1, &conn));
 
-        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap();
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.group_id, 1);
@@ -471,7 +471,7 @@ mod test {
 
         assert_eq!((0, 0, 4, 0, 0), helpers::job_state_count(1, &conn));
 
-        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap();
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.group_id, 2);
@@ -485,7 +485,7 @@ mod test {
         helpers::make_simple_graph_helper(1, &TARGET_PLATFORM, &conn);
         helpers::make_simple_graph_helper(2, &TARGET_PLATFORM, &conn); // This group should not be scheduled
 
-        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap();
+        let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap();
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.plan_ident, "foo/bar");
@@ -499,7 +499,7 @@ mod test {
                       helpers::JobStateCounts {p: 0, wd: 3, rd: 1, .. });
 
         // Get another job from group 1
-        let job_a = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
+        let job_a = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()
                                                                                     .unwrap();
         assert_eq!(job_a.group_id, 1);
         assert_match!(helpers::job_state_count_s(1, &conn),
@@ -508,14 +508,14 @@ mod test {
                       helpers::JobStateCounts {p: 0, wd: 3, rd: 1, .. });
 
         // Get another job, expect group 1
-        let job_b = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
+        let job_b = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()
                                                                                     .unwrap();
         assert_eq!(job_b.group_id, 1);
         assert_eq!((1, 0, 1, 0, 0), helpers::job_state_count(1, &conn));
         assert_eq!((3, 1, 0, 0, 0), helpers::job_state_count(2, &conn));
 
         // There are no more group one jobs, so expect group 2
-        let job_c = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
+        let job_c = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()
                                                                                     .unwrap();
 
         assert_eq!(job_c.group_id, 2);
@@ -537,7 +537,7 @@ mod test {
         assert_eq!((0, 1, 3, 0, 0), helpers::job_state_count(1, &conn));
         assert_eq!((1, 2, 1, 0, 0), helpers::job_state_count(2, &conn));
 
-        let job_next = JobGraphEntry::take_next_job_for_target(&TARGET_PLATFORM, &conn).unwrap()
+        let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()
                                                                                        .unwrap();
         assert_eq!(job_next.group_id, 1);
         let ready = JobGraphEntry::mark_job_complete(job_next.id, &conn);
