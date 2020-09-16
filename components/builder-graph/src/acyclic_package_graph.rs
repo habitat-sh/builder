@@ -361,11 +361,11 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                             });
                     if rebuild_graph.contains_node(neighbor_short_ident) {
                         unresolved_rebuild_graph.add_edge(UnresolvedPackageIdent::InternalNode(package, 1),
-                                                          UnresolvedPackageIdent::InternalNode(neighbor_short_ident, 1), 
+                                                          UnresolvedPackageIdent::InternalNode(neighbor_short_ident, 1),
                                                           EdgeType::RuntimeDep);
                     } else {
                         unresolved_rebuild_graph.add_edge(UnresolvedPackageIdent::InternalNode(package, 1),
-                                                          UnresolvedPackageIdent::ExternalLatestVersion(neighbor_short_ident), 
+                                                          UnresolvedPackageIdent::ExternalLatestVersion(neighbor_short_ident),
                                                           EdgeType::RuntimeDep);
                         all_external_dependencies.insert(neighbor_short_ident);
                     }

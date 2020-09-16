@@ -153,13 +153,13 @@ impl PackageBuildManifest {
 
     pub fn list_base_deps() -> PackageIdent { unimplemented!() }
 
-    pub fn resolve_base_dep(_completed: PackageIdent, _package_name: FullyQualifiedPackageIdent) {
+    pub fn resolve_base_dep(_completed: &PackageIdent, _package_name: &FullyQualifiedPackageIdent) {
         unimplemented!()
     }
 
     // Resolved package build record (with all placeholders filled in)
-    pub fn mark_package_complete(_completed: PackageIdent,
-                                 _package_name: FullyQualifiedPackageIdent) {
+    pub fn mark_package_complete(_completed: &PackageIdent,
+                                 _package_name: &FullyQualifiedPackageIdent) {
         unimplemented!()
     }
 
@@ -205,5 +205,5 @@ impl PackageBuildManifest {
 
     pub fn serialize() -> Vec<PackageBuild> { unimplemented!() }
 
-    pub fn deserialze(_db: Vec<PackageBuild>) { unimplemented!() }
+    pub fn deserialze(_db: &[PackageBuild]) { unimplemented!() }
 }
