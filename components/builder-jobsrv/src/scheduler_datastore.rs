@@ -17,7 +17,8 @@ use diesel::{r2d2::{ConnectionManager,
              PgConnection};
 
 use crate::{db::{config::DataStoreCfg,
-                 models::{jobs::{JobGraphEntry,
+                 models::{jobs::{Group,
+                                 JobGraphEntry,
                                  JobStateCounts},
                           package::BuilderPackageTarget}},
             error::{Error,
@@ -54,6 +55,7 @@ pub trait SchedulerDataStore: Send + Sync {
                            -> Result<()>;
     fn count_ready_for_target(&mut self, target: BuilderPackageTarget) -> Result<usize>;
     fn group_dispatched_update_jobs(&mut self, group_id: GroupId) -> Result<usize>;
+    fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) -> Result<Group>;
 }
 
 //
@@ -143,6 +145,11 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
                Error::SchedulerDbError(e)
             })
     }
+
+    fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) -> Result<Group> {
+        Group::take_next_group_for_target(target.0,
+            &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
+    }
 }
 
 // Test code
@@ -211,4 +218,9 @@ impl SchedulerDataStore for DummySchedulerDataStore {
     fn count_ready_for_target(&mut self, _target: BuilderPackageTarget) -> Result<usize> { Ok(0) }
 
     fn group_dispatched_update_jobs(&mut self, _group: GroupId) -> Result<usize> { Ok(0) }
+
+    fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) -> Result<Group> {
+        // Todo make a better error here
+        Err(Error::System)
+    }
 }

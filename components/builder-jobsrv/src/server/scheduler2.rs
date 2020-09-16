@@ -34,7 +34,7 @@ use crate::hab_core::package::PackageTarget;
 #[derive(Debug)]
 pub struct StateBlob(String);
 
-type Responder<T> = oneshot::Sender<Result<T>>;
+type Responder<T> = oneshot::Sender<T>;
 
 #[derive(Debug)]
 #[allow(dead_code)] // TODO REMOVE
@@ -151,12 +151,12 @@ impl Scheduler {
                          target: BuilderPackageTarget,
                          reply: Responder<Option<JobId>>) {
         let maybe_job_id = match self.data_store.take_next_job_for_target(target) {
-            Ok(Some(job)) => Ok(Some(JobId(job.id))),
+            Ok(Some(job)) => Some(JobId(job.id)),
             Ok(None) => {
-                // TODO: queue up more work if available
-                Ok(None)
+                // TODO: queue up more work if available impl get next group for target
+                None
             }
-            _ => Ok(None), // TODO Process them errors!
+            _ => None, // TODO Process them errors!
         };
         // If the worker manager goes away, we're going to be restarting the server because
         // we have no recovery path. So panic is the right strategy.

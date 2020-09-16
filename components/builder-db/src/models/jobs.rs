@@ -255,6 +255,25 @@ impl Group {
                      .filter(groups::project_name.eq(project_name))
                      .get_result(conn)
     }
+
+    pub fn take_next_group_for_target(target: PackageTarget,
+                                      conn: &PgConnection)
+                                      -> QueryResult<Group> {
+        Counter::DBCall.increment();
+        // This might need to be a transaction if we wanted an async scheduler, but for now the
+        // scheduler is single threaded. There is a possible race condition if a cancellation
+        // message arrives just as the job is being dispatched. Alternately we can route all
+        // cancelation through the scheduler, which would serialize things.
+        let group: Group = groups::table.filter(groups::group_state.eq("Queued"))
+                     .filter(groups::target.eq(target.to_string()))
+                     // This would change if we want a more sophisticated priority scheme for jobs           
+                     .order(groups::created_at.asc())
+                     .limit(1)
+                     .get_result(conn)?;
+        diesel::update(groups::table.filter(groups::id.eq(group.id)))
+                      .set(groups::group_state.eq("Dispatching")).execute(conn)?;
+        Ok(group)
+    }
 }
 
 impl Into<jobsrv::JobGroup> for Group {
@@ -621,11 +640,14 @@ impl JobGraphEntry {
         Ok(j)
     }
 
+    // Do we want this for other states?
+    // This will require an index most likely or create a linear search
     pub fn count_ready_for_target(target: BuilderPackageTarget,
                                   conn: &PgConnection)
                                   -> QueryResult<i64> {
         job_graph::table.select(count_star())
                         .filter(job_graph::target_platform.eq(target.0.to_string()))
+                        .filter(job_graph::job_state.eq(JobExecState::Ready))
                         .first(conn)
     }
 
