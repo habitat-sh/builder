@@ -80,18 +80,47 @@ pub enum WorkerManagerMessage {
 }
 
 #[derive(Debug)]
-pub struct Scheduler {
+struct Scheduler {
+    tx: mpsc::Sender<SchedulerMessage>,
+}
+
+impl Scheduler {
+    pub fn new(tx: mpsc::Sender<SchedulerMessage>) -> Scheduler { Scheduler { tx } }
+
+    pub fn start(data_store: Box<dyn SchedulerDataStore>,
+                 s_rx: mpsc::Receiver<SchedulerMessage>,
+                 wrk_tx: mpsc::Sender<WorkerManagerMessage>)
+                 -> JoinHandle<()> {
+        // enforce once semantics
+        let mut scheduler = SchedulerInternal::new(data_store, s_rx, wrk_tx);
+        let join = dbg!(tokio::task::spawn(async move { scheduler.run().await }));
+        join
+    }
+
+    pub async fn state(&mut self) -> StateBlob {
+        let (o_tx, o_rx) = oneshot::channel::<StateBlob>();
+
+        let msg = SchedulerMessage::State { reply: o_tx };
+        let _ = self.tx.send(msg).await;
+
+        let reply1: StateBlob = o_rx.await.unwrap();
+        reply1
+    }
+}
+
+#[derive(Debug)]
+struct SchedulerInternal {
     rx:         mpsc::Receiver<SchedulerMessage>,
     data_store: Box<dyn SchedulerDataStore>,
 }
 
-impl Scheduler {
+impl SchedulerInternal {
     #[allow(dead_code)]
     pub fn new(data_store: Box<dyn SchedulerDataStore>,
                rx: mpsc::Receiver<SchedulerMessage>,
                _tx: mpsc::Sender<WorkerManagerMessage>)
-               -> Scheduler {
-        Scheduler { data_store, rx }
+               -> SchedulerInternal {
+        SchedulerInternal { data_store, rx }
     }
 
     #[tracing::instrument]
@@ -311,17 +340,6 @@ impl Scheduler {
 impl fmt::Debug for dyn SchedulerDataStore {
     // TODO: What should go here?
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "SchedulerDataStore{{}}") }
-}
-
-// TODO: Take a scheduler or the parameters to create one?
-// Possibly the former, since we will need to hand out the tx end of the scheduler mpsc
-// which would change our return type to (mpsc::Sender, JoinHandle)
-#[allow(dead_code)]
-pub fn start_scheduler(mut scheduler: Scheduler) -> JoinHandle<()> {
-    let x: JoinHandle<()> = tokio::task::spawn(async move {
-        scheduler.run().await;
-    });
-    x
 }
 
 #[cfg(test)]

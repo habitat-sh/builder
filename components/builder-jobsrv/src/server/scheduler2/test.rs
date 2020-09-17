@@ -24,35 +24,34 @@ mod test {
                 test_helpers::*};
 
     #[tokio::test]
-
     async fn test_state() {
         let store = Box::new(DummySchedulerDataStore::new(Vec::new()));
+        println!("Starting the party");
 
-        let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
+        let (s_tx, s_rx) = tokio::sync::mpsc::channel(1);
         let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
-        let mut scheduler = Scheduler::new(store, s_rx, wrk_tx);
-        let join = tokio::task::spawn(async move { scheduler.run().await });
 
-        let (o_tx, o_rx) = oneshot::channel::<StateBlob>();
+        let mut scheduler = Scheduler::new(s_tx);
+        let join = Scheduler::start(store, s_rx, wrk_tx);
 
-        let msg = SchedulerMessage::State { reply: o_tx };
-        let _ = s_tx.send(msg).await;
-
-        let reply1: StateBlob = o_rx.await.unwrap();
+        println!("Want the state 1");
+        let reply1 = scheduler.state().await;
         println!("Reply 1 {:?}", reply1);
         assert_eq!(1, reply1.message_count);
         assert_eq!("", reply1.last_message_debug);
 
-        let (o_tx, o_rx) = oneshot::channel::<StateBlob>();
-        let _ = s_tx.send(SchedulerMessage::State { reply: o_tx }).await;
-
-        let reply2: StateBlob = o_rx.await.unwrap();
+        println!("Want the state 2");
+        let reply2 = scheduler.state().await;
         println!("Reply 2 {:?}", reply2);
         assert_eq!(2, reply2.message_count);
 
         // We expect the scheduler loop to render exactly what we sent it, but we can't
         // see that because sending mutates it. (the oneshot  is_rx_task_set changes state)
         assert_ne!("", reply2.last_message_debug);
+
+        drop(scheduler);
+        println!("Joining the party");
+        join.await.unwrap();
     }
 
     #[tokio::test]
@@ -62,9 +61,8 @@ mod test {
         for store in datastores {
             let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
             let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
-            let mut scheduler = Scheduler::new(store, s_rx, wrk_tx);
+            let mut scheduler = SchedulerInternal::new(store, s_rx, wrk_tx);
             let join = tokio::task::spawn(async move { scheduler.run().await });
-
             // expect a job for this target
             let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
             let _ =
@@ -136,7 +134,7 @@ mod test {
         for store in datastores {
             let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
             let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
-            let mut scheduler = Scheduler::new(store, s_rx, wrk_tx);
+            let mut scheduler = SchedulerInternal::new(store, s_rx, wrk_tx);
             let join = tokio::task::spawn(async move { scheduler.run().await });
 
             // Nothing ready, but a group available
