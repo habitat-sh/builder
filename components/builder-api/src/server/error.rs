@@ -232,6 +232,12 @@ impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error { Error::Utf8(err) }
 }
 
-impl From<actix_web::error::BlockingError<std::io::Error>> for Error {
-    fn from(err: actix_web::error::BlockingError<std::io::Error>) -> Error { err.into() }
+impl<E> From<actix_web::error::BlockingError<E>> for Error where E: Into<Error> + fmt::Debug
+{
+    fn from(err: actix_web::error::BlockingError<E>) -> Error {
+        match err {
+            actix_web::error::BlockingError::Error(e) => e.into(),
+            actix_web::error::BlockingError::Canceled => Error::System,
+        }
+    }
 }
