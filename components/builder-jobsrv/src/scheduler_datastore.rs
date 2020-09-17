@@ -25,11 +25,10 @@ use crate::{db::{config::DataStoreCfg,
                     Result},
             protocol::jobsrv};
 
-use crate::hab_core::package::PackageTarget;
-
 use crate::data_store::DataStore;
 
 #[cfg(feature = "postgres_tests")]
+#[allow(unused_imports)]
 use habitat_builder_db::datastore_test;
 
 mod test;

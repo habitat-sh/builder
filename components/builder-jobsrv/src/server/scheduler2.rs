@@ -18,21 +18,24 @@ use tokio::{sync::{mpsc,
                    oneshot},
             task::JoinHandle};
 
-use crate::{error::Result,
-            scheduler_datastore::{GroupId,
-                                  JobGraphId,
-                                  SchedulerDataStore,
-                                  WorkerId}};
+use crate::scheduler_datastore::{GroupId,
+                                 JobGraphId,
+                                 SchedulerDataStore,
+                                 WorkerId};
 
 use crate::{db::models::{jobs::{JobExecState,
                                 JobStateCounts},
                          package::BuilderPackageTarget},
             protocol::jobsrv};
 
-use crate::hab_core::package::PackageTarget;
-
 #[derive(Debug)]
-pub struct StateBlob(String);
+pub struct StateBlob {
+    message_count:      usize,
+    last_message_debug: String, /* It would be cool to be able to do something like this:
+                                 * last_message:  Option<SchedulerMessage>,
+                                 * But the responders can't be copied so it's hard to keep the
+                                 * message around. */
+}
 
 type Responder<T> = oneshot::Sender<T>;
 
@@ -94,12 +97,20 @@ impl Scheduler {
     #[tracing::instrument]
     pub async fn run(&mut self) {
         println!("Loop started");
+        let mut message_count: usize = 0;
+        let mut last_message_debug = "".to_owned();
+
         while let Some(msg) = self.rx.recv().await {
             println!("Msg {:?}", msg);
+            message_count += 1;
+
+            let message_debug = format!("{:?}", msg);
+
             match msg {
                 SchedulerMessage::JobGroupAdded { group, target } => {
                     self.job_group_added(group, target)
                 }
+                SchedulerMessage::JobGroupCanceled { .. } => unimplemented!("No JobGroupCanceled"),
                 SchedulerMessage::WorkerNeedsWork { worker,
                                                     target,
                                                     reply, } => {
@@ -110,8 +121,16 @@ impl Scheduler {
                                                    state, } => {
                     self.worker_finished(&worker, job_id, state)
                 }
-                _ => (),
+                SchedulerMessage::WorkerGone { .. } => unimplemented!("No WorkerGone"),
+                SchedulerMessage::State { reply } => {
+                    let blob = StateBlob { message_count,
+                                           last_message_debug };
+                    // We ignore failure here, because this message could come from anywhere
+                    let _ = reply.send(blob);
+                }
             }
+
+            last_message_debug = message_debug;
         }
     }
 

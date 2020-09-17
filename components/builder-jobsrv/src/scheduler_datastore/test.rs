@@ -17,19 +17,7 @@ mod test {
                                       package::BuilderPackageTarget}};
     use std::str::FromStr;
 
-    use lazy_static::lazy_static;
-
     mod helpers {
-        use crate::hab_core::package::PackageTarget;
-        use chrono::{DateTime,
-                     Duration,
-                     Utc};
-        use habitat_builder_db::models::{jobs::{JobExecState,
-                                                JobGraphEntry,
-                                                NewJobGraphEntry},
-                                         package::BuilderPackageTarget};
-        use std::{collections::HashMap,
-                  str::FromStr};
 
         pub fn manifest_data_from_file() -> Vec<(String, String, Vec<String>)> {
             let manifest = include_str!("manifest_data.txt");

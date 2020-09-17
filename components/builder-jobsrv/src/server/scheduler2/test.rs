@@ -14,49 +14,45 @@ mod test {
                                     NewGroup,
                                     NewJobGraphEntry},
                              package::BuilderPackageTarget},
-                error::Result,
                 scheduler_datastore::{DummySchedulerDataStore,
                                       DummySchedulerDataStoreCall,
                                       DummySchedulerDataStoreResult,
                                       JobGraphId,
                                       SchedulerDataStore,
                                       SchedulerDataStoreDb,
-                                      WorkerId}};
+                                      WorkerId},
+                test_helpers::*};
 
-    use crate::hab_core::package::PackageTarget;
+    #[tokio::test]
 
-    use std::str::FromStr;
+    async fn test_state() {
+        let store = Box::new(DummySchedulerDataStore::new(Vec::new()));
 
-    use chrono::{TimeZone,
-                 Utc};
+        let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
+        let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
+        let mut scheduler = Scheduler::new(store, s_rx, wrk_tx);
+        let join = tokio::task::spawn(async move { scheduler.run().await });
 
-    use lazy_static::lazy_static;
+        let (o_tx, o_rx) = oneshot::channel::<StateBlob>();
 
-    lazy_static! {
-        pub static ref TARGET_PLATFORM: BuilderPackageTarget =
-            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
-    }
+        let msg = SchedulerMessage::State { reply: o_tx };
+        let _ = s_tx.send(msg).await;
 
-    lazy_static! {
-        static ref TARGET_LINUX: BuilderPackageTarget =
-            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
-        static ref TARGET_WINDOWS: BuilderPackageTarget =
-            BuilderPackageTarget(PackageTarget::from_str("x86_64-windows").unwrap());
-    }
+        let reply1: StateBlob = o_rx.await.unwrap();
+        println!("Reply 1 {:?}", reply1);
+        assert_eq!(1, reply1.message_count);
+        assert_eq!("", reply1.last_message_debug);
 
-    fn make_job_graph_entry(id: i64) -> JobGraphEntry {
-        JobGraphEntry { id,
-                        group_id: 0,
-                        job_state: JobExecState::Pending,
-                        plan_ident: "dummy_plan_ident".to_owned(),
-                        manifest_ident: "dummy_manifest_ident".to_owned(),
-                        as_built_ident: None,
-                        dependencies: vec![],
-                        waiting_on_count: 0,
-                        target_platform:
-                            BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap()),
-                        created_at: Utc.timestamp(1431648000, 0),
-                        updated_at: Utc.timestamp(1431648001, 0) }
+        let (o_tx, o_rx) = oneshot::channel::<StateBlob>();
+        let _ = s_tx.send(SchedulerMessage::State { reply: o_tx }).await;
+
+        let reply2: StateBlob = o_rx.await.unwrap();
+        println!("Reply 2 {:?}", reply2);
+        assert_eq!(2, reply2.message_count);
+
+        // We expect the scheduler loop to render exactly what we sent it, but we can't
+        // see that because sending mutates it. (the oneshot  is_rx_task_set changes state)
+        assert_ne!("", reply2.last_message_debug);
     }
 
     #[tokio::test]

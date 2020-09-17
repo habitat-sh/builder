@@ -523,7 +523,7 @@ pub struct NewJobGraphEntry<'a> {
     pub target_platform:  &'a BuilderPackageTarget, // PackageTarget?
 }
 
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "job_graph"]
 pub struct JobGraphEntry {
     pub id:               i64,

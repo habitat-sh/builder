@@ -1,14 +1,13 @@
-use crate::{data_store::DataStore,
-            hab_core::package::PackageTarget};
+use crate::hab_core::package::PackageTarget;
 
-use habitat_builder_db::{datastore_test,
-                         models::{jobs::{JobExecState,
-                                         JobGraphEntry,
-                                         NewJobGraphEntry},
-                                  package::BuilderPackageTarget}};
+use habitat_builder_db::models::{jobs::{JobExecState,
+                                        JobGraphEntry,
+                                        NewJobGraphEntry},
+                                 package::BuilderPackageTarget};
 
 use chrono::{DateTime,
              Duration,
+             TimeZone,
              Utc};
 
 use std::{collections::HashMap,
@@ -85,6 +84,21 @@ pub fn job_state_count(gid: i64, conn: &diesel::pg::PgConnection) -> (i64, i64, 
         JobGraphEntry::count_by_state(gid, JobExecState::DependencyFailed, &conn).unwrap();
 
     (waiting_on_dependency, ready, complete, failed, dep_failed)
+}
+
+pub fn make_job_graph_entry(id: i64) -> JobGraphEntry {
+    JobGraphEntry { id,
+                    group_id: 0,
+                    job_state: JobExecState::Pending,
+                    plan_ident: "dummy_plan_ident".to_owned(),
+                    manifest_ident: "dummy_manifest_ident".to_owned(),
+                    as_built_ident: None,
+                    dependencies: vec![],
+                    waiting_on_count: 0,
+                    target_platform:
+                        BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap()),
+                    created_at: Utc.timestamp(1431648000, 0),
+                    updated_at: Utc.timestamp(1431648001, 0) }
 }
 
 pub struct DbHelper {
