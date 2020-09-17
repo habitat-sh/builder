@@ -35,6 +35,13 @@ pub mod data_store;
 pub mod error;
 pub mod scheduler_datastore;
 pub mod server;
+#[cfg(test)]
+#[cfg(feature = "postgres_scheduler_tests")]
+// cargo test --features postgres_scheduler_tests to enable
+// from root
+// cargo test -p habitat_builder_jobsrv --features=postgres_scheduler_tests
+// --manifest-path=components/builder-jobsrv/Cargo.toml
+mod test_helpers;
 
 pub use crate::{config::Config,
                 error::{Error,
