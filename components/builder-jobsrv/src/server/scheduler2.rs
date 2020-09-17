@@ -68,6 +68,7 @@ pub enum SchedulerMessage {
     State {
         reply: Responder<StateBlob>,
     },
+    Halt,
     /* TODO maybe Watchdog, ProcessMetrics (or combine those two); what's a good periodic
      * message pump pattern? Could live alongside in separate thread */
 }
@@ -157,6 +158,7 @@ impl SchedulerInternal {
                     // We ignore failure here, because this message could come from anywhere
                     let _ = reply.send(blob);
                 }
+                SchedulerMessage::Halt => break,
             }
 
             last_message_debug = message_debug;
