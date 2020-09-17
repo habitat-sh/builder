@@ -206,7 +206,21 @@ pub struct Group {
     pub updated_at:   Option<DateTime<Utc>>,
 }
 
+#[derive(Insertable)]
+#[table_name = "groups"]
+pub struct NewGroup<'a> {
+    pub group_state:  &'a str,
+    pub project_name: &'a str,
+    pub target:       &'a str,
+}
+
 impl Group {
+    pub fn create(group: &NewGroup, conn: &PgConnection) -> QueryResult<Group> {
+        Counter::DBCall.increment();
+        diesel::insert_into(groups::table).values(group)
+                                          .get_result(conn)
+    }
+
     pub fn get(id: i64, conn: &PgConnection) -> QueryResult<Group> {
         Counter::DBCall.increment();
         groups::table.filter(groups::id.eq(id)).get_result(conn)
@@ -258,21 +272,30 @@ impl Group {
 
     pub fn take_next_group_for_target(target: PackageTarget,
                                       conn: &PgConnection)
-                                      -> QueryResult<Group> {
+                                      -> QueryResult<Option<Group>> {
         Counter::DBCall.increment();
         // This might need to be a transaction if we wanted an async scheduler, but for now the
         // scheduler is single threaded. There is a possible race condition if a cancellation
         // message arrives just as the job is being dispatched. Alternately we can route all
         // cancelation through the scheduler, which would serialize things.
-        let group: Group = groups::table.filter(groups::group_state.eq("Queued"))
+        let next_group: diesel::QueryResult<Group> =
+            groups::table.filter(groups::group_state.eq("Queued"))
                      .filter(groups::target.eq(target.to_string()))
                      // This would change if we want a more sophisticated priority scheme for jobs           
                      .order(groups::created_at.asc())
                      .limit(1)
-                     .get_result(conn)?;
-        diesel::update(groups::table.filter(groups::id.eq(group.id)))
-                      .set(groups::group_state.eq("Dispatching")).execute(conn)?;
-        Ok(group)
+                     .get_result(conn);
+        match next_group {
+            Ok(group) => {
+                diesel::update(groups::table.filter(groups::id.eq(group.id)))
+    .set(groups::group_state.eq("Dispatching")).execute(conn)?;
+                diesel::QueryResult::Ok(Some(group))
+            }
+            diesel::QueryResult::Err(diesel::result::Error::NotFound) => {
+                diesel::QueryResult::Ok(None)
+            }
+            diesel::QueryResult::Err(x) => diesel::QueryResult::<Option<Group>>::Err(x),
+        }
     }
 }
 

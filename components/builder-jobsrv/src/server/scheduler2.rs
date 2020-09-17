@@ -131,6 +131,16 @@ impl Scheduler {
     }
 
     #[tracing::instrument]
+    fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) {
+        if let Some(group) = self.data_store
+                                 .take_next_group_for_target(target)
+                                 .expect("Can't yet handle db error")
+        {
+            self.dispatch_group_for_target(GroupId(group.id), target)
+        }
+    }
+
+    #[tracing::instrument]
     fn dispatch_group_for_target(&mut self, group_id: GroupId, _target: BuilderPackageTarget) {
         // Move the group to dispatching,
         self.data_store
@@ -150,12 +160,17 @@ impl Scheduler {
                          worker: &WorkerId,
                          target: BuilderPackageTarget,
                          reply: Responder<Option<JobGraphId>>) {
+        // If there's no work, try and get a new group
+        let ready = self.data_store
+                        .count_ready_for_target(target)
+                        .expect("Can't yet handle db error");
+        if ready == 0 {
+            self.take_next_group_for_target(target);
+        }
+
         let maybe_job_id = match self.data_store.take_next_job_for_target(target) {
             Ok(Some(job)) => Some(JobGraphId(job.id)),
-            Ok(None) => {
-                // TODO: queue up more work if available impl get next group for target
-                None
-            }
+            Ok(None) => None,
             _ => None, // TODO Process them errors!
         };
         // If the worker manager goes away, we're going to be restarting the server because

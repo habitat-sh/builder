@@ -39,6 +39,10 @@ CREATE INDEX ON job_graph USING GIN(dependencies);
 -- This index might be combined with another field (maybe group_id?)
 CREATE INDEX state ON job_graph (job_state);
 
+-- TODO Possible index
+-- target, job_exec_state for count_ready_by_target
+-- group_id, job_exec_state?
+
 ----------------------------------------------
 --
 -- Compute transitively expanded rdeps for id

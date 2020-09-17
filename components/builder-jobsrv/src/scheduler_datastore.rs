@@ -55,7 +55,8 @@ pub trait SchedulerDataStore: Send + Sync {
                            -> Result<()>;
     fn count_ready_for_target(&mut self, target: BuilderPackageTarget) -> Result<usize>;
     fn group_dispatched_update_jobs(&mut self, group_id: GroupId) -> Result<usize>;
-    fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) -> Result<Group>;
+    fn take_next_group_for_target(&mut self, target: BuilderPackageTarget)
+                                  -> Result<Option<Group>>;
 }
 
 //
@@ -146,7 +147,9 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
             })
     }
 
-    fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) -> Result<Group> {
+    fn take_next_group_for_target(&mut self,
+                                  target: BuilderPackageTarget)
+                                  -> Result<Option<Group>> {
         Group::take_next_group_for_target(target.0,
             &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
     }
@@ -219,7 +222,9 @@ impl SchedulerDataStore for DummySchedulerDataStore {
 
     fn group_dispatched_update_jobs(&mut self, _group: GroupId) -> Result<usize> { Ok(0) }
 
-    fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) -> Result<Group> {
+    fn take_next_group_for_target(&mut self,
+                                  target: BuilderPackageTarget)
+                                  -> Result<Option<Group>> {
         // Todo make a better error here
         Err(Error::System)
     }
