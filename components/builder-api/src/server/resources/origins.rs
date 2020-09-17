@@ -37,6 +37,7 @@ use actix_web::{body::Body,
                                 ExtendedValue},
                        StatusCode},
                 web::{self,
+                      block,
                       Bytes as ActixBytes,
                       Data,
                       Json,
@@ -44,7 +45,8 @@ use actix_web::{body::Body,
                       Query,
                       ServiceConfig},
                 HttpRequest,
-                HttpResponse};
+                HttpResponse,
+                Responder};
 use builder_core::Error::OriginDeleteError;
 use diesel::{pg::PgConnection,
              result::Error::NotFound};
@@ -150,26 +152,12 @@ impl Origins {
 
 // Route handlers - these functions can return any Responder trait
 //
-#[allow(clippy::needless_pass_by_value)]
-fn get_origin(path: Path<String>, state: Data<AppState>) -> HttpResponse {
-    let origin_name = path.into_inner();
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    match Origin::get(&origin_name, &*conn) {
-        Ok(origin) => {
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
-                              .json(origin)
-        }
-        Err(NotFound) => HttpResponse::NotFound().into(),
-        Err(err) => {
-            debug!("{}", err);
-            Error::DieselError(err).into()
-        }
-    }
+async fn get_origin(origin_name: Path<String>, state: Data<AppState>) -> Result<impl Responder> {
+    let conn = state.db.get_conn()?;
+    let origin = block(move || Origin::get(&origin_name, &*conn)).await?;
+    Ok(HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                         .json(origin))
 }
 
 #[allow(clippy::needless_pass_by_value)]
