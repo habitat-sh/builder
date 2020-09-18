@@ -144,16 +144,27 @@ mod test {
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
         assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 0, rn : 0, ct: 0, jf: 1, df: 1, ..});
 
-        // TODO: We don't handle group transition yet. Maybe this should be a seperate test?
-        // let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-        // assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 0, rn
-        // : 0, ct: 2, ..});
-
-        // let group = Group::get(gid.0, &conn).unwrap();
-        // assert_eq!(group.group_state, "Complete");
+        let group = Group::get(gid.0, &conn).unwrap();
+        assert_eq!(group.group_state, "Failed");
 
         drop(scheduler);
         join.await.unwrap();
+    }
+
+    async fn advance_job_state(job_id: i64,
+                               desired_state: JobExecState,
+                               scheduler: &mut Scheduler,
+                               conn: &diesel::PgConnection)
+                               -> crate::db::models::jobs::JobStateCounts {
+        let worker = WorkerId("test-worker".to_string());
+        let mut entry = JobGraphEntry::get(job_id, &conn).unwrap();
+        let gid = GroupId(entry.group_id);
+
+        entry.job_state = desired_state;
+        scheduler.worker_finished(worker, entry).await;
+        scheduler.state().await; // make sure scheduler has finished work
+
+        JobGraphEntry::count_all_states(gid.0, &conn).unwrap()
     }
 
     #[tokio::test]
@@ -173,20 +184,71 @@ mod test {
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
         assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 1, rd :0, rn : 1, ..});
 
+        // entry.job_state = JobExecState::Complete;
+        // scheduler.worker_finished(worker.clone(), entry).await;
+        // scheduler.state().await; // make sure scheduler has finished work
+
+        // let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
+        let states = advance_job_state(1, JobExecState::Complete, &mut scheduler, &conn).await;
+        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 1, rn : 0, ct: 1, ..});
+
+        // TODO: This is not a valid state transition Ready -> Complete
+        // will need to clean up later.
+        let mut entry = JobGraphEntry::get(2, &conn).unwrap();
         entry.job_state = JobExecState::Complete;
         scheduler.worker_finished(worker.clone(), entry).await;
         scheduler.state().await; // make sure scheduler has finished work
 
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 1, rn : 0, ct: 1, ..});
+        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 0, rn
+        : 0, ct: 2, ..});
 
-        // TODO: We don't handle group transition yet. Maybe this should be a seperate test?
-        // let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-        // assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 0, rn
-        // : 0, ct: 2, ..});
+        let group = Group::get(gid.0, &conn).unwrap();
+        assert_eq!(group.group_state, "Complete");
 
-        // let group = Group::get(gid.0, &conn).unwrap();
-        // assert_eq!(group.group_state, "Complete");
+        drop(scheduler);
+        join.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn diamond_job_failure() {
+        let datastore = setup_diamond_job_complete();
+        let conn = &datastore.get_connection_for_test();
+        let store = Box::new(datastore);
+        let worker = WorkerId("test-worker".to_string());
+
+        let (mut scheduler, join) = setup_scheduler(store);
+
+        // for reasons, we can deterministically generate JobGraphEntry ids but not group ids, so we
+        // fetch it
+        let mut entry = JobGraphEntry::get(1, &conn).unwrap();
+        let gid = GroupId(entry.group_id);
+
+        let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
+        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd: 0, wd: 3, rd: 0, rn: 1, ..});
+
+        // Complete the top job
+        let states = advance_job_state(1, JobExecState::Complete, &mut scheduler, &conn).await;
+        assert_match!(states,
+                      crate::db::models::jobs::JobStateCounts { wd: 1,
+                                                                rd: 2,
+                                                                ct: 1,
+                                                                .. });
+
+        // Fail the left job
+        let states = advance_job_state(2, JobExecState::JobFailed, &mut scheduler, &conn).await;
+        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd: 0, wd: 0, rd: 1, rn: 0, ct: 1, jf: 1, df: 1, ..});
+
+        // Complete the right job
+        let states = advance_job_state(3, JobExecState::Complete, &mut scheduler, &conn).await;
+        let expected = crate::db::models::jobs::JobStateCounts { ct: 2,
+                                                                 jf: 1,
+                                                                 df: 1,
+                                                                 ..Default::default() };
+        assert_eq!(states, expected);
+
+        let group = Group::get(gid.0, &conn).unwrap();
+        assert_eq!(group.group_state, "Failed");
 
         drop(scheduler);
         join.await.unwrap();
@@ -224,6 +286,64 @@ mod test {
                                        target_platform:  &TARGET_LINUX, };
         let e2 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(2, e2.id);
+
+        database
+    }
+
+    fn setup_diamond_job_complete() -> SchedulerDataStoreDb {
+        let database = SchedulerDataStoreDb::new_test();
+        let conn = database.get_connection_for_test();
+
+        let target = TARGET_LINUX.0.to_string();
+
+        let new_group = NewGroup { group_state:  "Dispatching",
+                                   project_name: "monkeypants",
+                                   target:       &target, };
+        let group = Group::create(&new_group, &conn).unwrap();
+
+        let entry = NewJobGraphEntry { group_id:         group.id,
+                                       job_state:        JobExecState::Running,
+                                       plan_ident:       "dummy_plan_top",
+                                       manifest_ident:   "dummy_manifest_top",
+                                       as_built_ident:   None,
+                                       dependencies:     &[],
+                                       waiting_on_count: 0,
+                                       target_platform:  &TARGET_LINUX, };
+        let e1 = JobGraphEntry::create(&entry, &conn).unwrap();
+        assert_eq!(1, e1.id);
+
+        let entry = NewJobGraphEntry { group_id:         group.id,
+                                       job_state:        JobExecState::WaitingOnDependency,
+                                       plan_ident:       "dummy_plan_left",
+                                       manifest_ident:   "dummy_manifest_left",
+                                       as_built_ident:   None,
+                                       dependencies:     &[e1.id],
+                                       waiting_on_count: 1,
+                                       target_platform:  &TARGET_LINUX, };
+        let e2 = JobGraphEntry::create(&entry, &conn).unwrap();
+        assert_eq!(2, e2.id);
+
+        let entry = NewJobGraphEntry { group_id:         group.id,
+                                       job_state:        JobExecState::WaitingOnDependency,
+                                       plan_ident:       "dummy_plan_right",
+                                       manifest_ident:   "dummy_manifest_right",
+                                       as_built_ident:   None,
+                                       dependencies:     &[e1.id],
+                                       waiting_on_count: 1,
+                                       target_platform:  &TARGET_LINUX, };
+        let e3 = JobGraphEntry::create(&entry, &conn).unwrap();
+        assert_eq!(3, e3.id);
+
+        let entry = NewJobGraphEntry { group_id:         group.id,
+                                       job_state:        JobExecState::WaitingOnDependency,
+                                       plan_ident:       "dummy_plan_bottom",
+                                       manifest_ident:   "dummy_manifest_bottom",
+                                       as_built_ident:   None,
+                                       dependencies:     &[e2.id, e3.id],
+                                       waiting_on_count: 1,
+                                       target_platform:  &TARGET_LINUX, };
+        let e4 = JobGraphEntry::create(&entry, &conn).unwrap();
+        assert_eq!(4, e4.id);
 
         database
     }

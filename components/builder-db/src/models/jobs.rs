@@ -550,7 +550,7 @@ pub struct UpdateJobGraphEntry<'a> {
     pub as_built_ident: Option<&'a str>, //
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 // Names are kept brief here , but we should revisit this
 pub struct JobStateCounts {
     pub pd: i64, // Pending
