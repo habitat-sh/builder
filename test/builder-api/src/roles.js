@@ -116,7 +116,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -127,7 +127,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -138,7 +138,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -238,7 +238,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.body.length).to.be.empty;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -373,7 +373,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -384,7 +384,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -446,7 +446,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.body.length).to.be.empty;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -494,7 +494,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -505,7 +505,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -579,7 +579,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.length).to.be.empty;
+          expect(res.text).to.equal('[]');
           done(err);
         });
     });
@@ -636,7 +636,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -647,7 +647,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -658,7 +658,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.txt).to.be.emtpy;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
@@ -706,7 +706,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.text).to.be.some;
+          expect(res.text).to.not.be.empty;
           done(err);
         });
     });
@@ -735,7 +735,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.body.length).to.be.empty;
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
