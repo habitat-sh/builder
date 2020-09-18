@@ -476,6 +476,8 @@ describe('Working with packages', function () {
           expect(res.body.data[1].name).to.equal('neurosis');
           expect(res.body.data[2].origin).to.equal('neurosis');
           expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].name).to.equal('testapp2');
           done(err);
         });
     });
