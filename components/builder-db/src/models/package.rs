@@ -341,6 +341,7 @@ pub struct OriginPackageVersions {
          Deserialize,
          PartialEq,
          Clone,
+         Copy,
          ToSql,
          FromSql)]
 #[PgType = "origin_package_visibility"]
@@ -355,6 +356,10 @@ pub enum PackageVisibility {
     #[postgres(name = "hidden")]
     #[serde(rename = "hidden")]
     Hidden,
+}
+
+impl Default for PackageVisibility {
+    fn default() -> Self { PackageVisibility::Public }
 }
 
 impl fmt::Display for PackageVisibility {
