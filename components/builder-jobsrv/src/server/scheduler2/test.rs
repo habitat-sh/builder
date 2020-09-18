@@ -121,6 +121,114 @@ mod test {
     }
 
     #[tokio::test]
+    async fn simple_job_failed() {
+        let datastore = setup_simple_job_complete();
+        let conn = &datastore.get_connection_for_test();
+        let store = Box::new(datastore);
+        let worker = WorkerId("test-worker".to_string());
+
+        let (mut scheduler, join) = setup_scheduler(store);
+
+        // for reasons, we can deterministically generate JobGraphEntry ids but not group ids, so we
+        // fetch it
+        let entry = JobGraphEntry::get(1, &conn).unwrap();
+        let gid = GroupId(entry.group_id);
+
+        let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
+        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 1, rd :0, rn : 1, ..});
+
+        scheduler.worker_finished(worker.clone(), JobGraphId(1), JobExecState::JobFailed)
+                 .await;
+        scheduler.state().await; // make sure scheduler has finished work
+
+        let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
+        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 0, rn : 0, ct: 0, jf: 1, df: 1, ..});
+
+        // TODO: We don't handle group transition yet. Maybe this should be a seperate test?
+        // let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
+        // assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 0, rn
+        // : 0, ct: 2, ..});
+
+        // let group = Group::get(gid.0, &conn).unwrap();
+        // assert_eq!(group.group_state, "Complete");
+
+        drop(scheduler);
+        join.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn simple_job_complete() {
+        let datastore = setup_simple_job_complete();
+        let conn = &datastore.get_connection_for_test();
+        let store = Box::new(datastore);
+        let worker = WorkerId("test-worker".to_string());
+
+        let (mut scheduler, join) = setup_scheduler(store);
+
+        // for reasons, we can deterministically generate JobGraphEntry ids but not group ids, so we
+        // fetch it
+        let entry = JobGraphEntry::get(1, &conn).unwrap();
+        let gid = GroupId(entry.group_id);
+
+        let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
+        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 1, rd :0, rn : 1, ..});
+
+        scheduler.worker_finished(worker.clone(), JobGraphId(1), JobExecState::Complete)
+                 .await;
+        scheduler.state().await; // make sure scheduler has finished work
+
+        let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
+        assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 1, rn : 0, ct: 1, ..});
+
+        // TODO: We don't handle group transition yet. Maybe this should be a seperate test?
+        // let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
+        // assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 0, rd : 0, rn
+        // : 0, ct: 2, ..});
+
+        // let group = Group::get(gid.0, &conn).unwrap();
+        // assert_eq!(group.group_state, "Complete");
+
+        drop(scheduler);
+        join.await.unwrap();
+    }
+
+    fn setup_simple_job_complete() -> SchedulerDataStoreDb {
+        let database = SchedulerDataStoreDb::new_test();
+        let conn = database.get_connection_for_test();
+
+        let target = TARGET_LINUX.0.to_string();
+
+        let new_group = NewGroup { group_state:  "Dispatching",
+                                   project_name: "monkeypants",
+                                   target:       &target, };
+        let group = Group::create(&new_group, &conn).unwrap();
+
+        let entry = NewJobGraphEntry { group_id:         group.id,
+                                       job_state:        JobExecState::Running,
+                                       plan_ident:       "dummy_plan_ident",
+                                       manifest_ident:   "dummy_manifest_ident",
+                                       as_built_ident:   None,
+                                       dependencies:     &[],
+                                       waiting_on_count: 0,
+                                       target_platform:  &TARGET_LINUX, };
+        let e1 = JobGraphEntry::create(&entry, &conn).unwrap();
+        assert_eq!(1, e1.id);
+
+        let entry = NewJobGraphEntry { group_id:         group.id,
+                                       job_state:        JobExecState::WaitingOnDependency,
+                                       plan_ident:       "dummy_plan_ident2",
+                                       manifest_ident:   "dummy_manifest_ident2",
+                                       as_built_ident:   None,
+                                       dependencies:     &[e1.id],
+                                       waiting_on_count: 1,
+                                       target_platform:  &TARGET_LINUX, };
+        let e2 = JobGraphEntry::create(&entry, &conn).unwrap();
+        assert_eq!(2, e2.id);
+
+        database
+    }
+
+    #[tokio::test]
     async fn simple_job_fetch() {
         let datastores = setup_simple_job_fetch();
 

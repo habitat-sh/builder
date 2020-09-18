@@ -126,6 +126,17 @@ impl Scheduler {
         let reply1: StateBlob = o_rx.await.unwrap();
         reply1
     }
+
+    pub async fn worker_finished(&mut self,
+                                 worker: WorkerId,
+                                 job: JobGraphId,
+                                 state: JobExecState) {
+        let msg = SchedulerMessage::WorkerFinished { worker, job, state };
+        let _ = self.tx
+                    .send(msg)
+                    .await
+                    .expect("Unable to send worker finished message");
+    }
 }
 
 #[derive(Debug)]
