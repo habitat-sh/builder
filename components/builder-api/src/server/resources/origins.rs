@@ -160,49 +160,33 @@ async fn get_origin(origin_name: Path<String>, state: Data<AppState>) -> Result<
                          .json(origin))
 }
 
-#[allow(clippy::needless_pass_by_value)]
-fn create_origin(req: HttpRequest,
-                 body: Json<CreateOriginHandlerReq>,
-                 state: Data<AppState>)
-                 -> HttpResponse {
-    let session = match authorize_session(&req, None, None) {
-        Ok(session) => session,
-        Err(err) => return err.into(),
-    };
-
-    let dpv = match body.clone().default_package_visibility {
-        Some(viz) => viz,
-        None => PackageVisibility::Public,
-    };
+async fn create_origin(req: HttpRequest,
+                       body: Json<CreateOriginHandlerReq>,
+                       state: Data<AppState>)
+                       -> Result<impl Responder> {
+    let session = authorize_session(&req, None, None)?;
+    let dpv = body.default_package_visibility.unwrap_or_default();
 
     if !ident::is_valid_origin_name(&body.name) {
-        return HttpResponse::ExpectationFailed().into();
+        // TODO (CM): make this an error
+        // TODO (CM): Use body.name.parse::<Origin>()? instead
+        return Ok(HttpResponse::ExpectationFailed().into());
     }
-
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    let new_origin = NewOrigin { name: &body.0.name,
-                                 owner_id: session.get_id() as i64,
-                                 default_package_visibility: &dpv, };
-
-    match Origin::create(&new_origin, &*conn).map_err(Error::DieselError) {
-        Ok(origin) => {
-            origin_audit(&body.0.name,
-                         OriginOperation::OriginCreate,
-                         &body.0.name,
-                         session.get_id() as i64,
-                         session.get_name(),
-                         &*conn);
-            HttpResponse::Created().json(origin)
-        }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
+    let conn = state.db.get_conn()?;
+    let origin = block::<_, _, Error>(move || {
+                     let new_origin = NewOrigin { name: &body.0.name,
+                                                  owner_id: session.get_id() as i64,
+                                                  default_package_visibility: &dpv, };
+                     let origin = Origin::create(&new_origin, &*conn)?;
+                     origin_audit(&body.0.name,
+                                  OriginOperation::OriginCreate,
+                                  &body.0.name,
+                                  session.get_id() as i64,
+                                  session.get_name(),
+                                  &*conn);
+                     Ok(origin)
+                 }).await?;
+    Ok(HttpResponse::Created().json(origin))
 }
 
 #[allow(clippy::needless_pass_by_value)]
