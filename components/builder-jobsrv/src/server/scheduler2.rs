@@ -24,6 +24,7 @@ use crate::scheduler_datastore::{GroupId,
                                  WorkerId};
 
 use crate::{db::models::{jobs::{JobExecState,
+                                JobGraphEntry,
                                 JobStateCounts},
                          package::BuilderPackageTarget},
             protocol::jobsrv};
@@ -53,17 +54,15 @@ pub enum SchedulerMessage {
     WorkerNeedsWork {
         worker: WorkerId,
         target: BuilderPackageTarget,
-        reply:  Responder<Option<JobGraphId>>,
+        reply:  Responder<Option<JobGraphEntry>>,
     },
     WorkerFinished {
         worker: WorkerId,
-        job:    JobGraphId,
-        state:  JobExecState, /* do we distingush cancel from fail and sucess? Should this
-                               * be a status? */
+        job:    JobGraphEntry,
     },
     WorkerGone {
         worker: WorkerId,
-        job:    JobGraphId,
+        job:    JobGraphEntry,
     },
     State {
         reply: Responder<StateBlob>,
@@ -105,15 +104,15 @@ impl Scheduler {
     pub async fn worker_needs_work(&mut self,
                                    worker: WorkerId,
                                    target: BuilderPackageTarget)
-                                   -> Option<JobGraphId> {
-        let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
+                                   -> Option<JobGraphEntry> {
+        let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphEntry>>();
 
         let msg = SchedulerMessage::WorkerNeedsWork { worker,
                                                       target,
                                                       reply: o_tx };
         let _ = self.tx.send(msg).await;
 
-        let reply: Option<JobGraphId> = o_rx.await.unwrap();
+        let reply: Option<JobGraphEntry> = o_rx.await.unwrap();
         reply
     }
 
@@ -127,11 +126,8 @@ impl Scheduler {
         reply1
     }
 
-    pub async fn worker_finished(&mut self,
-                                 worker: WorkerId,
-                                 job: JobGraphId,
-                                 state: JobExecState) {
-        let msg = SchedulerMessage::WorkerFinished { worker, job, state };
+    pub async fn worker_finished(&mut self, worker: WorkerId, job: JobGraphEntry) {
+        let msg = SchedulerMessage::WorkerFinished { worker, job };
         let _ = self.tx
                     .send(msg)
                     .await
@@ -177,10 +173,8 @@ impl SchedulerInternal {
                                                     reply, } => {
                     self.worker_needs_work(&worker, target, reply)
                 }
-                SchedulerMessage::WorkerFinished { worker,
-                                                   job: job_id,
-                                                   state, } => {
-                    self.worker_finished(&worker, job_id, state)
+                SchedulerMessage::WorkerFinished { worker, job } => {
+                    self.worker_finished(&worker, job)
                 }
                 SchedulerMessage::WorkerGone { .. } => unimplemented!("No WorkerGone"),
                 SchedulerMessage::State { reply } => {
@@ -240,7 +234,7 @@ impl SchedulerInternal {
     fn worker_needs_work(&mut self,
                          worker: &WorkerId,
                          target: BuilderPackageTarget,
-                         reply: Responder<Option<JobGraphId>>) {
+                         reply: Responder<Option<JobGraphEntry>>) {
         // If there's no work, try and get a new group
         let ready = self.data_store
                         .count_ready_for_target(target)
@@ -249,33 +243,32 @@ impl SchedulerInternal {
             self.take_next_group_for_target(target);
         }
 
-        let maybe_job_id = match self.data_store.take_next_job_for_target(target) {
-            Ok(Some(job)) => Some(JobGraphId(job.id)),
+        let maybe_job = match self.data_store.take_next_job_for_target(target) {
+            Ok(Some(job)) => Some(job),
             Ok(None) => None,
             _ => None, // TODO Process them errors!
         };
         // If the worker manager goes away, we're going to be restarting the server because
         // we have no recovery path. So panic is the right strategy.
-        reply.send(maybe_job_id)
+        reply.send(maybe_job)
              .expect("Reply failed: Worker manager appears to have died")
     }
 
     #[tracing::instrument]
-    fn worker_finished(&mut self, worker: &WorkerId, job_id: JobGraphId, state: JobExecState) {
+    fn worker_finished(&mut self, worker: &WorkerId, job_entry: JobGraphEntry) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
         // NOTE: Should check job group invariants;
         // for each group (jobs in WaitingOnDependency + Ready + Running) states > 0
         // Others?
-        match state {
+        let job_id = JobGraphId(job_entry.id);
+        match job_entry.job_state {
             JobExecState::Complete => {
                 // If it successful, we will mark it done, and update the available jobs to run
-                // TODO detect if job group is done (
                 let new_avail = self.data_store
                                     .mark_job_complete_and_update_dependencies(job_id)
                                     .expect("Can't yet handle db error");
 
-                // TODO Detect when group is complete
                 debug!("Job {} completed, {} now avail to run", job_id.0, new_avail);
             }
             JobExecState::JobFailed => {
@@ -286,7 +279,6 @@ impl SchedulerInternal {
                                         .expect("Can't yet handle db error");
                 debug!("Job {} failed, {} total not runnable",
                        job_id.0, marked_failed);
-                // TODO Detect when group is complete (failed)
             }
             // TODO: Handle cancel complete, and worker going AWOL
 
@@ -296,14 +288,16 @@ impl SchedulerInternal {
         }
 
         // Perhaps workers get the group id and pass it in here, perhaps we query the db
-        let group_id = GroupId(0); // TODO FIGURE OUT HOW THIS HAPPENS
-        self.check_group_completion(group_id, job_id);
+
+        self.check_group_completion(job_entry);
     }
 
     // This probably belongs in a job_group_lifecycle module, but not today
     // Check for the various ways a group might complete, and handle them
     //
-    fn check_group_completion(&mut self, group_id: GroupId, job_id: JobGraphId) {
+    fn check_group_completion(&mut self, job_entry: JobGraphEntry) {
+        let group_id = GroupId(job_entry.group_id);
+
         let counts = self.data_store
                          .count_all_states(group_id)
                          .expect("Can't yet handle db error");
@@ -338,8 +332,8 @@ impl SchedulerInternal {
                 // No work in flight, none ready, we have a deadlock situation
                 // If this state happens, we have most likely botched a state transition
                 // or added an invalid graph entry
-                error!("Group {} deadlocked, last job updated {}",
-                       group_id.0, job_id.0);
+                error!("Group {} deadlocked, last job updated {} {}",
+                       group_id.0, job_entry.plan_ident, job_entry.id);
                 self.group_failed(group_id, counts)
             }
             JobStateCounts { wd: waiting,

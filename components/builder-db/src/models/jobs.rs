@@ -532,7 +532,7 @@ pub struct JobGraphEntry {
     pub job_state:        JobExecState,   // Should be enum
     pub plan_ident:       String,         // BuilderPackageIdent
     pub manifest_ident:   String,         //
-    pub as_built_ident:   Option<String>, //
+    pub as_built_ident:   Option<String>, // TODO revisit if needed
     pub dependencies:     Vec<i64>,
     pub waiting_on_count: i32,
     pub target_platform:  BuilderPackageTarget, // PackageTarget?

@@ -131,14 +131,14 @@ mod test {
 
         // for reasons, we can deterministically generate JobGraphEntry ids but not group ids, so we
         // fetch it
-        let entry = JobGraphEntry::get(1, &conn).unwrap();
+        let mut entry = JobGraphEntry::get(1, &conn).unwrap();
         let gid = GroupId(entry.group_id);
 
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
         assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 1, rd :0, rn : 1, ..});
 
-        scheduler.worker_finished(worker.clone(), JobGraphId(1), JobExecState::JobFailed)
-                 .await;
+        entry.job_state = JobExecState::JobFailed;
+        scheduler.worker_finished(worker.clone(), entry).await;
         scheduler.state().await; // make sure scheduler has finished work
 
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
@@ -167,14 +167,14 @@ mod test {
 
         // for reasons, we can deterministically generate JobGraphEntry ids but not group ids, so we
         // fetch it
-        let entry = JobGraphEntry::get(1, &conn).unwrap();
+        let mut entry = JobGraphEntry::get(1, &conn).unwrap();
         let gid = GroupId(entry.group_id);
 
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
         assert_match!(states, crate::db::models::jobs::JobStateCounts{ pd : 0, wd : 1, rd :0, rn : 1, ..});
 
-        scheduler.worker_finished(worker.clone(), JobGraphId(1), JobExecState::Complete)
-                 .await;
+        entry.job_state = JobExecState::Complete;
+        scheduler.worker_finished(worker.clone(), entry).await;
         scheduler.state().await; // make sure scheduler has finished work
 
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
@@ -233,37 +233,25 @@ mod test {
         let datastores = setup_simple_job_fetch();
 
         for store in datastores {
-            let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
-            let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
-            let mut scheduler = SchedulerInternal::new(store, s_rx, wrk_tx);
-            let join = tokio::task::spawn(async move { scheduler.run().await });
-            // expect a job for this target
-            let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
-            let _ =
-                s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
-                                                                  WorkerId("worker1".to_string()),
-                                                              target: *TARGET_LINUX,
-                                                              reply:  o_tx, })
-                    .await;
+            let (mut scheduler, join) = setup_scheduler(store);
 
-            let reply: Option<JobGraphId> = o_rx.await.unwrap();
-            println!("Reply 1 {:?}", reply);
-            assert_eq!(1, reply.unwrap().0);
+            // expect a job for this target
+            let reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()), *TARGET_LINUX)
+                                 .await
+                                 .unwrap();
+
+            println!("Reply 1 {:?}", reply.id);
+            assert_eq!(1, reply.id);
 
             // No job for this target
-            let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
-            let _ =
-                s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
-                                                                  WorkerId("worker1".to_string()),
-                                                              target: *TARGET_WINDOWS,
-                                                              reply:  o_tx, })
-                    .await;
+            let maybe_reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()),
+                                                          *TARGET_WINDOWS)
+                                       .await;
 
-            let reply: Option<JobGraphId> = o_rx.await.unwrap();
-            println!("Reply 2 {:?}", reply);
-            assert_eq!(None, reply);
+            println!("Reply 2 {:?}", maybe_reply);
+            assert!(maybe_reply.is_none());
 
-            drop(s_tx);
+            drop(scheduler);
             join.await.unwrap();
         }
     }
@@ -306,43 +294,28 @@ mod test {
         let datastores = setup_dispatching_job_fetch();
 
         for store in datastores {
-            let (mut s_tx, s_rx) = tokio::sync::mpsc::channel(1);
-            let (wrk_tx, _wrk_rx) = tokio::sync::mpsc::channel(1);
-            let mut scheduler = SchedulerInternal::new(store, s_rx, wrk_tx);
-            let join = tokio::task::spawn(async move { scheduler.run().await });
+            let (mut scheduler, join) = setup_scheduler(store);
 
             // Nothing ready, but a group available
 
             // expect a job for this target
-            let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
-            let _ =
-                s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
-                                                                  WorkerId("worker1".to_string()),
-                                                              target: *TARGET_LINUX,
-                                                              reply:  o_tx, })
-                    .await;
-
-            let reply: Option<JobGraphId> = o_rx.await.unwrap();
-            println!("Reply 1 {:?}", reply);
-            assert_eq!(1, reply.unwrap().0);
+            let reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()), *TARGET_LINUX)
+                                 .await
+                                 .unwrap();
+            println!("Reply 1 {:?}", reply.id);
+            assert_eq!(1, reply.id);
 
             // expect the group to be moved to Dispatching here
             // TODO write api to let us test that...
 
             // No job and no group available for this target
-            let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
-            let _ =
-                s_tx.send(SchedulerMessage::WorkerNeedsWork { worker:
-                                                                  WorkerId("worker1".to_string()),
-                                                              target: *TARGET_WINDOWS,
-                                                              reply:  o_tx, })
-                    .await;
+            let maybe_reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()),
+                                                          *TARGET_WINDOWS)
+                                       .await;
+            println!("Reply 2 {:?}", maybe_reply);
+            assert!(maybe_reply.is_none());
 
-            let reply: Option<JobGraphId> = o_rx.await.unwrap();
-            println!("Reply 2 {:?}", reply);
-            assert_eq!(None, reply);
-
-            drop(s_tx);
+            drop(scheduler);
             join.await.unwrap();
         }
     }
