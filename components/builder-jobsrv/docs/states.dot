@@ -5,14 +5,14 @@ digraph STATES {
 ////////////////////////////////////////////////////////////////////////
 // Group states
 node[fontname="Courier", shape=oval];
-Triggered;
-Created;
+Triggered; 
+Created; // combine with triggered? Pending
 Queued;
 Dispatching;
 Complete;
-FailureCleanup;
+FailureCleanup; // Needed?
 Failed;
-Cancelling;
+Cancelling; // Needed?
 Cancelled;
 
 Triggered -> Created;

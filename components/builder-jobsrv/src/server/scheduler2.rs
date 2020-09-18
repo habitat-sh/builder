@@ -94,8 +94,27 @@ impl Scheduler {
                  -> JoinHandle<()> {
         // enforce once semantics
         let mut scheduler = SchedulerInternal::new(data_store, s_rx, wrk_tx);
-        let join = dbg!(tokio::task::spawn(async move { scheduler.run().await }));
-        join
+        tokio::task::spawn(async move { scheduler.run().await })
+    }
+
+    pub async fn job_group_added(&mut self, group: GroupId, target: BuilderPackageTarget) -> () {
+        let msg = SchedulerMessage::JobGroupAdded { group, target };
+        let _ = self.tx.send(msg).await;
+    }
+
+    pub async fn worker_needs_work(&mut self,
+                                   worker: WorkerId,
+                                   target: BuilderPackageTarget)
+                                   -> Option<JobGraphId> {
+        let (o_tx, o_rx) = oneshot::channel::<Option<JobGraphId>>();
+
+        let msg = SchedulerMessage::WorkerNeedsWork { worker,
+                                                      target,
+                                                      reply: o_tx };
+        let _ = self.tx.send(msg).await;
+
+        let reply: Option<JobGraphId> = o_rx.await.unwrap();
+        reply
     }
 
     pub async fn state(&mut self) -> StateBlob {
@@ -135,6 +154,7 @@ impl SchedulerInternal {
             message_count += 1;
 
             let message_debug = format!("{:?}", msg);
+            println!("Handling {}: {}", message_count, message_debug);
 
             match msg {
                 SchedulerMessage::JobGroupAdded { group, target } => {
