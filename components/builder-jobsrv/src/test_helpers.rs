@@ -132,7 +132,8 @@ impl DbHelper {
                 })
                 .collect();
 
-        let plan_name = name.split('/').take(2).collect::<Vec<&str>>().join("/");
+        // let plan_name = name.split('/').take(2).collect::<Vec<&str>>().join("/");
+        // TODO lookup/create project_id based on plan_name
 
         let entry = NewJobGraphEntry { group_id: self.group_id,
                                        job_state,
@@ -196,7 +197,7 @@ pub fn make_job_graph_entries(group_id: i64,
                               conn: &diesel::pg::PgConnection)
                               -> HashMap<String, JobGraphEntry> {
     let mut jobs: HashMap<String, JobGraphEntry> = HashMap::new();
-    for (plan_ident, manifest_ident, deps) in data {
+    for (_plan_ident, manifest_ident, deps) in data {
         let dependencies: Vec<i64> = deps.iter()
                                          .filter_map(|d| jobs.get(d).map(|x| x.id))
                                          .collect();

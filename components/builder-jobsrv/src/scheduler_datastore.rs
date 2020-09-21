@@ -222,7 +222,7 @@ impl SchedulerDataStore for DummySchedulerDataStore {
     fn group_dispatched_update_jobs(&mut self, _group: GroupId) -> Result<usize> { Ok(0) }
 
     fn take_next_group_for_target(&mut self,
-                                  target: BuilderPackageTarget)
+                                  _target: BuilderPackageTarget)
                                   -> Result<Option<Group>> {
         // Todo make a better error here
         Err(Error::System)

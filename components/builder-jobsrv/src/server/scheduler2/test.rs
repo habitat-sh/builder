@@ -9,17 +9,14 @@ mod test {
     use super::super::*;
 
     use crate::{assert_match,
-                db::models::{jobs::{Group,
-                                    JobExecState,
-                                    JobGraphEntry,
-                                    JobStateCounts,
-                                    NewGroup,
-                                    NewJobGraphEntry},
-                             package::BuilderPackageTarget},
+                db::models::jobs::{Group,
+                                   JobExecState,
+                                   JobGraphEntry,
+                                   NewGroup,
+                                   NewJobGraphEntry},
                 scheduler_datastore::{DummySchedulerDataStore,
                                       DummySchedulerDataStoreCall,
                                       DummySchedulerDataStoreResult,
-                                      JobGraphId,
                                       SchedulerDataStore,
                                       SchedulerDataStoreDb,
                                       WorkerId},
@@ -298,7 +295,7 @@ mod test {
 
         // for reasons, we can deterministically generate JobGraphEntry ids but not group ids, so we
         // fetch it
-        let mut entry = JobGraphEntry::get(1, &conn).unwrap();
+        let entry = JobGraphEntry::get(1, &conn).unwrap();
         let gid = GroupId(entry.group_id);
 
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
@@ -335,13 +332,12 @@ mod test {
         let datastore = setup_diamond_job_complete();
         let conn = &datastore.get_connection_for_test();
         let store = Box::new(datastore);
-        let worker = WorkerId("test-worker".to_string());
 
         let (mut scheduler, join) = setup_scheduler(store);
 
         // for reasons, we can deterministically generate JobGraphEntry ids but not group ids, so we
         // fetch it
-        let mut entry = JobGraphEntry::get(1, &conn).unwrap();
+        let entry = JobGraphEntry::get(1, &conn).unwrap();
         let gid = GroupId(entry.group_id);
 
         let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();

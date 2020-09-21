@@ -84,6 +84,7 @@ struct Scheduler {
     tx: mpsc::Sender<SchedulerMessage>,
 }
 
+#[allow(dead_code)] // because we don't use this yet, TODO remove once we have code using it
 impl Scheduler {
     pub fn new(tx: mpsc::Sender<SchedulerMessage>) -> Scheduler { Scheduler { tx } }
 
