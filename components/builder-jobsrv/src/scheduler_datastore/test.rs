@@ -39,7 +39,8 @@ mod test {
         let conn = ds.get_pool().get_conn().unwrap();
         let entry = NewJobGraphEntry { group_id:         0,
                                        job_state:        JobExecState::Pending,
-                                       plan_ident:       "foo/bar",
+                                       project_id:       0,
+                                       job_id:           None,
                                        manifest_ident:   "foo/bar/1.2.3/123",
                                        as_built_ident:   None,
                                        dependencies:     &[1, 2, 3],
@@ -245,7 +246,7 @@ mod test {
         let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap();
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
-        assert_eq!(job_data.plan_ident, "foo/bar");
+        assert_eq!(job_data.manifest_ident, "foo/bar/1.2.3/123");
         assert_eq!(job_data.group_id, 1);
         let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
         assert_eq!(ready.unwrap(), 2);
@@ -296,7 +297,7 @@ mod test {
         let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap();
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
-        assert_eq!(job_data.plan_ident, "foo/bar");
+        assert_eq!(job_data.manifest_ident, "foo/bar/1.2.3/123");
         assert_eq!(job_data.group_id, 1);
         let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
         assert_eq!(ready.unwrap(), 2);

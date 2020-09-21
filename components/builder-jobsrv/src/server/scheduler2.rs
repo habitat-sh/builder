@@ -333,7 +333,7 @@ impl SchedulerInternal {
                 // If this state happens, we have most likely botched a state transition
                 // or added an invalid graph entry
                 error!("Group {} deadlocked, last job updated {} {}",
-                       group_id.0, job_entry.plan_ident, job_entry.id);
+                       group_id.0, job_entry.manifest_ident, job_entry.id);
                 self.group_failed(group_id, counts)
             }
             JobStateCounts { wd: waiting,

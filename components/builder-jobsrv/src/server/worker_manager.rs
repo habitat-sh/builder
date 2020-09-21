@@ -42,6 +42,9 @@ pub struct WorkerMgrClient {
     socket: zmq::Socket,
 }
 
+// This is used as a one way channel to 'kick' the WorkerManager when new things arrive
+// You'll see the basic pattern 'WorkerMgrClient::default().notify_work()?;'
+
 impl WorkerMgrClient {
     pub fn connect(&mut self) -> Result<()> {
         self.socket.connect(WORKER_MGR_ADDR)?;
@@ -322,6 +325,7 @@ impl WorkerMgr {
         Ok(())
     }
 
+    // TODO This will need to communicate with scheduler to update job on it's side.
     fn requeue_jobs(&mut self) -> Result<()> {
         let jobs = self.datastore.get_dispatched_jobs()?;
 
@@ -436,6 +440,7 @@ impl WorkerMgr {
                 };
 
             // Take one job from the pending list
+            // TODO This will need to communicate with scheduler to update job on it's side.
             let job_opt = self.datastore
                               .next_pending_job(&worker_ident, &target.to_string())?;
             if job_opt.is_none() {
@@ -458,7 +463,7 @@ impl WorkerMgr {
                 Err(err) => {
                     warn!("Failed to dispatch job to worker {}, err={:?}",
                           worker_ident, err);
-                    job.set_state(jobsrv::JobState::Pending);
+                    job.set_state(jobsrv::JobState::Pending); // TODO sched2 needs to update job_graph_entry/scheduler with state
                     self.datastore.update_job(&job)?;
                     return Ok(()); // Exit instead of re-trying immediately
                 }
@@ -631,6 +636,7 @@ impl WorkerMgr {
         Ok(())
     }
 
+    // This will need to communicate with scheduler to update job on it's side.
     fn requeue_job(&mut self, job_id: u64) -> Result<()> {
         let mut req = jobsrv::JobGet::new();
         req.set_id(job_id);
@@ -663,6 +669,7 @@ impl WorkerMgr {
         Ok(())
     }
 
+    // This will need to communicate with scheduler to update job on it's side. TBI
     fn cancel_job(&mut self, job_id: u64, worker_ident: &str) -> Result<()> {
         let mut req = jobsrv::JobGet::new();
         req.set_id(job_id);

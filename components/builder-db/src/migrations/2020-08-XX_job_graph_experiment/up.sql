@@ -14,9 +14,10 @@ CREATE SEQUENCE IF NOT EXISTS job_graph_id_seq;
 
 CREATE TABLE IF NOT EXISTS job_graph (
     id BIGINT DEFAULT nextval('job_graph_id_seq') PRIMARY KEY NOT NULL,
-    group_id BIGINT NOT NULL,
+    group_id BIGINT NOT NULL, -- want FK
+    project_id BIGINT NOT NULL, -- want FK
+    job_id BIGINT, -- want FK
     job_state job_exec_state,
-    plan_ident TEXT,
     manifest_ident TEXT,
     as_built_ident TEXT,
     dependencies BIGINT[] NOT NULL,
@@ -26,6 +27,12 @@ CREATE TABLE IF NOT EXISTS job_graph (
     created_at timestamp WITH time zone DEFAULT now() NOT NULL,
     updated_at timestamp WITH time zone DEFAULT now() NOT NULL
 );
+
+-- Notes on FK constraints
+-- We have an ordering problem because the jobsrv migrations happen after this, and so the groups and jobs tables don't exist yet
+-- group_id should be FK on the groups table
+-- job_id should be FK on the jobs table
+-- Probably should set up cascading delete here
 
 -- diesel trigger to manage update
 SELECT diesel_manage_updated_at('job_graph');

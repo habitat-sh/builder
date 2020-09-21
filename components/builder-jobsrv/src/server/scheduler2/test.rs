@@ -73,7 +73,8 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::Pending,
-                                       plan_ident:       "dummy_plan_ident",
+                                       project_id:       0,
+                                       job_id:           None,
                                        manifest_ident:   "dummy_manifest_ident",
                                        as_built_ident:   None,
                                        dependencies:     &[],
@@ -84,7 +85,8 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::Pending,
-                                       plan_ident:       "dummy_plan_ident2",
+                                       project_id:       0,
+                                       job_id:           None,
                                        manifest_ident:   "dummy_manifest_ident2",
                                        as_built_ident:   None,
                                        dependencies:     &[e1.id],
@@ -146,7 +148,8 @@ mod test {
             let conn = database.get_connection_for_test();
             let entry = NewJobGraphEntry { group_id:         0,
                                            job_state:        JobExecState::Ready,
-                                           plan_ident:       "dummy_plan_ident",
+                                           project_id:       0,
+                                           job_id:           None,
                                            manifest_ident:   "dummy_manifest_ident",
                                            as_built_ident:   None,
                                            dependencies:     &[],
@@ -220,7 +223,8 @@ mod test {
 
             let entry = NewJobGraphEntry { group_id:         group.id,
                                            job_state:        JobExecState::Ready,
-                                           plan_ident:       "dummy_plan_ident",
+                                           project_id:       0,
+                                           job_id:           None,
                                            manifest_ident:   "dummy_manifest_ident",
                                            as_built_ident:   None,
                                            dependencies:     &[],
@@ -384,7 +388,8 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::Running,
-                                       plan_ident:       "dummy_plan_ident",
+                                       project_id:       0,
+                                       job_id:           None,
                                        manifest_ident:   "dummy_manifest_ident",
                                        as_built_ident:   None,
                                        dependencies:     &[],
@@ -395,7 +400,8 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::WaitingOnDependency,
-                                       plan_ident:       "dummy_plan_ident2",
+                                       project_id:       1,
+                                       job_id:           None,
                                        manifest_ident:   "dummy_manifest_ident2",
                                        as_built_ident:   None,
                                        dependencies:     &[e1.id],
@@ -420,7 +426,8 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::Running,
-                                       plan_ident:       "dummy_plan_top",
+                                       project_id:       0,
+                                       job_id:           None,
                                        manifest_ident:   "dummy_manifest_top",
                                        as_built_ident:   None,
                                        dependencies:     &[],
@@ -431,7 +438,8 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::WaitingOnDependency,
-                                       plan_ident:       "dummy_plan_left",
+                                       project_id:       1,
+                                       job_id:           None,
                                        manifest_ident:   "dummy_manifest_left",
                                        as_built_ident:   None,
                                        dependencies:     &[e1.id],
@@ -442,7 +450,8 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::WaitingOnDependency,
-                                       plan_ident:       "dummy_plan_right",
+                                       project_id:       2,
+                                       job_id:           None,
                                        manifest_ident:   "dummy_manifest_right",
                                        as_built_ident:   None,
                                        dependencies:     &[e1.id],
@@ -453,7 +462,8 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::WaitingOnDependency,
-                                       plan_ident:       "dummy_plan_bottom",
+                                       project_id:       3,
+                                       job_id:           None,
                                        manifest_ident:   "dummy_manifest_bottom",
                                        as_built_ident:   None,
                                        dependencies:     &[e2.id, e3.id],

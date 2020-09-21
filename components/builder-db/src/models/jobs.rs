@@ -514,8 +514,9 @@ impl FromStr for JobExecState {
 #[table_name = "job_graph"]
 pub struct NewJobGraphEntry<'a> {
     pub group_id:         i64,
-    pub job_state:        JobExecState,    // Should be enum
-    pub plan_ident:       &'a str,         // BuilderPackageIdent
+    pub job_state:        JobExecState, // Should be enum
+    pub project_id:       i64,          // projects table
+    pub job_id:           Option<i64>,
     pub manifest_ident:   &'a str,         //
     pub as_built_ident:   Option<&'a str>, //
     pub dependencies:     &'a [i64],
@@ -529,8 +530,9 @@ pub struct JobGraphEntry {
     pub id:               i64,
     pub group_id:         i64, /* This is the id of the associated group (should have been
                                 * group_id) */
+    pub project_id:       i64, // projects table
+    pub job_id:           Option<i64>,
     pub job_state:        JobExecState,   // Should be enum
-    pub plan_ident:       String,         // BuilderPackageIdent
     pub manifest_ident:   String,         //
     pub as_built_ident:   Option<String>, // TODO revisit if needed
     pub dependencies:     Vec<i64>,
@@ -544,9 +546,8 @@ pub struct JobGraphEntry {
 #[table_name = "job_graph"]
 pub struct UpdateJobGraphEntry<'a> {
     pub id:             i64,
-    pub job_state:      JobExecState,    // Should be enum
-    pub plan_ident:     &'a str,         // BuilderPackageIdent
-    pub manifest_ident: &'a str,         //
+    pub job_state:      JobExecState, // Should be enum
+    pub job_id:         i64,
     pub as_built_ident: Option<&'a str>, //
 }
 

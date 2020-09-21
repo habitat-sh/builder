@@ -90,7 +90,8 @@ pub fn make_job_graph_entry(id: i64) -> JobGraphEntry {
     JobGraphEntry { id,
                     group_id: 0,
                     job_state: JobExecState::Pending,
-                    plan_ident: "dummy_plan_ident".to_owned(),
+                    project_id: 0,
+                    job_id: None,
                     manifest_ident: "dummy_manifest_ident".to_owned(),
                     as_built_ident: None,
                     dependencies: vec![],
@@ -135,7 +136,8 @@ impl DbHelper {
 
         let entry = NewJobGraphEntry { group_id: self.group_id,
                                        job_state,
-                                       plan_ident: &plan_name,
+                                       project_id: 0,
+                                       job_id: None,
                                        manifest_ident: name,
                                        as_built_ident: None,
                                        dependencies: &dependencies,
@@ -200,7 +202,10 @@ pub fn make_job_graph_entries(group_id: i64,
                                          .collect();
         let entry = NewJobGraphEntry { group_id,
                                        job_state,
-                                       plan_ident: &plan_ident,
+                                       project_id: 0, /* TODO maybe lookup project based on
+                                                       * plan ident, and substitute right
+                                                       * value */
+                                       job_id: None,
                                        manifest_ident: &manifest_ident,
                                        as_built_ident: None,
                                        dependencies: &dependencies,
