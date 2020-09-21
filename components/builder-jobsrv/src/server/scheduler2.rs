@@ -88,11 +88,10 @@ impl Scheduler {
     pub fn new(tx: mpsc::Sender<SchedulerMessage>) -> Scheduler { Scheduler { tx } }
 
     pub fn start(data_store: Box<dyn SchedulerDataStore>,
-                 s_rx: mpsc::Receiver<SchedulerMessage>,
-                 wrk_tx: mpsc::Sender<WorkerManagerMessage>)
+                 s_rx: mpsc::Receiver<SchedulerMessage>)
                  -> JoinHandle<()> {
         // enforce once semantics
-        let mut scheduler = SchedulerInternal::new(data_store, s_rx, wrk_tx);
+        let mut scheduler = SchedulerInternal::new(data_store, s_rx);
         tokio::task::spawn(async move { scheduler.run().await })
     }
 
@@ -144,8 +143,7 @@ struct SchedulerInternal {
 impl SchedulerInternal {
     #[allow(dead_code)]
     pub fn new(data_store: Box<dyn SchedulerDataStore>,
-               rx: mpsc::Receiver<SchedulerMessage>,
-               _tx: mpsc::Sender<WorkerManagerMessage>)
+               rx: mpsc::Receiver<SchedulerMessage>)
                -> SchedulerInternal {
         SchedulerInternal { data_store, rx }
     }
