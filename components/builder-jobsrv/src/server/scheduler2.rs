@@ -116,6 +116,14 @@ impl Scheduler {
         reply
     }
 
+    pub async fn worker_finished(&mut self, worker: WorkerId, job: JobGraphEntry) {
+        let msg = SchedulerMessage::WorkerFinished { worker, job };
+        let _ = self.tx
+                    .send(msg)
+                    .await
+                    .expect("Unable to send worker finished message");
+    }
+
     pub async fn state(&mut self) -> StateBlob {
         let (o_tx, o_rx) = oneshot::channel::<StateBlob>();
 
@@ -124,14 +132,6 @@ impl Scheduler {
 
         let reply1: StateBlob = o_rx.await.unwrap();
         reply1
-    }
-
-    pub async fn worker_finished(&mut self, worker: WorkerId, job: JobGraphEntry) {
-        let msg = SchedulerMessage::WorkerFinished { worker, job };
-        let _ = self.tx
-                    .send(msg)
-                    .await
-                    .expect("Unable to send worker finished message");
     }
 }
 

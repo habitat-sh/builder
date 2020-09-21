@@ -35,30 +35,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_state() {
-        let store = Box::new(DummySchedulerDataStore::new(Vec::new()));
-        let (mut scheduler, join) = setup_scheduler(store);
-
-        println!("Want the state 1");
-        let reply1 = scheduler.state().await;
-        println!("Reply 1 {:?}", reply1);
-        assert_eq!(1, reply1.message_count);
-        assert_eq!("", reply1.last_message_debug);
-
-        println!("Want the state 2");
-        let reply2 = scheduler.state().await;
-        println!("Reply 2 {:?}", reply2);
-        assert_eq!(2, reply2.message_count);
-
-        // We expect the scheduler loop to render exactly what we sent it, but we can't
-        // see that because sending mutates it. (the oneshot  is_rx_task_set changes state)
-        assert_ne!("", reply2.last_message_debug);
-
-        drop(scheduler);
-        join.await.unwrap();
-    }
-
-    #[tokio::test]
     async fn simple_job_group_added() {
         let datastore = setup_simple_job_group_added();
         let conn = &datastore.get_connection_for_test();
@@ -119,6 +95,147 @@ mod test {
 
         database
     }
+
+    // WorkerNeedsWork messages
+    //
+
+    #[tokio::test]
+    async fn simple_job_fetch() {
+        let datastores = setup_simple_job_fetch();
+
+        for store in datastores {
+            let (mut scheduler, join) = setup_scheduler(store);
+
+            // expect a job for this target
+            let reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()), *TARGET_LINUX)
+                                 .await
+                                 .unwrap();
+
+            println!("Reply 1 {:?}", reply.id);
+            assert_eq!(1, reply.id);
+
+            // No job for this target
+            let maybe_reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()),
+                                                          *TARGET_WINDOWS)
+                                       .await;
+
+            println!("Reply 2 {:?}", maybe_reply);
+            assert!(maybe_reply.is_none());
+
+            drop(scheduler);
+            join.await.unwrap();
+        }
+    }
+
+    fn setup_simple_job_fetch() -> Vec<Box<dyn SchedulerDataStore>> {
+        let mut stores: Vec<Box<dyn SchedulerDataStore>> = Vec::new();
+        {
+            let actions =
+                vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_LINUX, },
+                      DummySchedulerDataStoreResult::JobOption(Ok(Some(make_job_graph_entry(0))))),
+                     (DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_WINDOWS, },
+                      DummySchedulerDataStoreResult::JobOption(Ok(None)))];
+
+            let _dummy_store = Box::new(DummySchedulerDataStore::new(actions));
+            // stores.push(dummy_store);
+        }
+
+        #[cfg(feature = "postgres_scheduler_tests")]
+        {
+            let database = SchedulerDataStoreDb::new_test();
+            let conn = database.get_connection_for_test();
+            let entry = NewJobGraphEntry { group_id:         0,
+                                           job_state:        JobExecState::Ready,
+                                           plan_ident:       "dummy_plan_ident",
+                                           manifest_ident:   "dummy_manifest_ident",
+                                           as_built_ident:   None,
+                                           dependencies:     &[],
+                                           waiting_on_count: 0,
+                                           target_platform:  &TARGET_LINUX, };
+            let e = JobGraphEntry::create(&entry, &conn).unwrap();
+            assert_eq!(1, e.id);
+            stores.push(Box::new(database));
+        }
+
+        stores
+    }
+
+    #[tokio::test]
+    async fn dispatching_job_fetch() {
+        let datastores = setup_dispatching_job_fetch();
+
+        for store in datastores {
+            let (mut scheduler, join) = setup_scheduler(store);
+
+            // Nothing ready, but a group available
+
+            // expect a job for this target
+            let reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()), *TARGET_LINUX)
+                                 .await
+                                 .unwrap();
+            println!("Reply 1 {:?}", reply.id);
+            assert_eq!(1, reply.id);
+
+            // expect the group to be moved to Dispatching here
+            // TODO write api to let us test that...
+
+            // No job and no group available for this target
+            let maybe_reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()),
+                                                          *TARGET_WINDOWS)
+                                       .await;
+            println!("Reply 2 {:?}", maybe_reply);
+            assert!(maybe_reply.is_none());
+
+            drop(scheduler);
+            join.await.unwrap();
+        }
+    }
+
+    fn setup_dispatching_job_fetch() -> Vec<Box<dyn SchedulerDataStore>> {
+        let mut stores: Vec<Box<dyn SchedulerDataStore>> = Vec::new();
+
+        #[cfg(feature = "to_be_implemented")] // TODO write the Dummy impl.
+        {
+            let actions =
+                vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_LINUX, },
+                      DummySchedulerDataStoreResult::JobOption(Ok(Some(make_job_graph_entry(0))))),
+                     (DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_WINDOWS, },
+                      DummySchedulerDataStoreResult::JobOption(Ok(None)))];
+
+            let _dummy_store = Box::new(DummySchedulerDataStore::new(actions));
+            // stores.push(dummy_store);
+        }
+
+        #[cfg(feature = "postgres_scheduler_tests")]
+        {
+            let database = SchedulerDataStoreDb::new_test();
+            let conn = database.get_connection_for_test();
+
+            let target = TARGET_LINUX.0.to_string();
+
+            let new_group = NewGroup { group_state:  "Queued",
+                                       project_name: "monkeypants",
+                                       target:       &target, };
+            let group = Group::create(&new_group, &conn).unwrap();
+
+            let entry = NewJobGraphEntry { group_id:         group.id,
+                                           job_state:        JobExecState::Ready,
+                                           plan_ident:       "dummy_plan_ident",
+                                           manifest_ident:   "dummy_manifest_ident",
+                                           as_built_ident:   None,
+                                           dependencies:     &[],
+                                           waiting_on_count: 0,
+                                           target_platform:  &TARGET_LINUX, };
+            let e = JobGraphEntry::create(&entry, &conn).unwrap();
+            assert_eq!(1, e.id);
+            stores.push(Box::new(database));
+        }
+
+        stores
+    }
+
+    // WorkerFinished messages
+    //
 
     #[tokio::test]
     async fn simple_job_failed() {
@@ -349,137 +466,26 @@ mod test {
     }
 
     #[tokio::test]
-    async fn simple_job_fetch() {
-        let datastores = setup_simple_job_fetch();
+    async fn test_state() {
+        let store = Box::new(DummySchedulerDataStore::new(Vec::new()));
+        let (mut scheduler, join) = setup_scheduler(store);
 
-        for store in datastores {
-            let (mut scheduler, join) = setup_scheduler(store);
+        println!("Want the state 1");
+        let reply1 = scheduler.state().await;
+        println!("Reply 1 {:?}", reply1);
+        assert_eq!(1, reply1.message_count);
+        assert_eq!("", reply1.last_message_debug);
 
-            // expect a job for this target
-            let reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()), *TARGET_LINUX)
-                                 .await
-                                 .unwrap();
+        println!("Want the state 2");
+        let reply2 = scheduler.state().await;
+        println!("Reply 2 {:?}", reply2);
+        assert_eq!(2, reply2.message_count);
 
-            println!("Reply 1 {:?}", reply.id);
-            assert_eq!(1, reply.id);
+        // We expect the scheduler loop to render exactly what we sent it, but we can't
+        // see that because sending mutates it. (the oneshot  is_rx_task_set changes state)
+        assert_ne!("", reply2.last_message_debug);
 
-            // No job for this target
-            let maybe_reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()),
-                                                          *TARGET_WINDOWS)
-                                       .await;
-
-            println!("Reply 2 {:?}", maybe_reply);
-            assert!(maybe_reply.is_none());
-
-            drop(scheduler);
-            join.await.unwrap();
-        }
-    }
-
-    fn setup_simple_job_fetch() -> Vec<Box<dyn SchedulerDataStore>> {
-        let mut stores: Vec<Box<dyn SchedulerDataStore>> = Vec::new();
-        {
-            let actions =
-                vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_LINUX, },
-                      DummySchedulerDataStoreResult::JobOption(Ok(Some(make_job_graph_entry(0))))),
-                     (DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_WINDOWS, },
-                      DummySchedulerDataStoreResult::JobOption(Ok(None)))];
-
-            let _dummy_store = Box::new(DummySchedulerDataStore::new(actions));
-            // stores.push(dummy_store);
-        }
-
-        #[cfg(feature = "postgres_scheduler_tests")]
-        {
-            let database = SchedulerDataStoreDb::new_test();
-            let conn = database.get_connection_for_test();
-            let entry = NewJobGraphEntry { group_id:         0,
-                                           job_state:        JobExecState::Ready,
-                                           plan_ident:       "dummy_plan_ident",
-                                           manifest_ident:   "dummy_manifest_ident",
-                                           as_built_ident:   None,
-                                           dependencies:     &[],
-                                           waiting_on_count: 0,
-                                           target_platform:  &TARGET_LINUX, };
-            let e = JobGraphEntry::create(&entry, &conn).unwrap();
-            assert_eq!(1, e.id);
-            stores.push(Box::new(database));
-        }
-
-        stores
-    }
-
-    #[tokio::test]
-    async fn dispatching_job_fetch() {
-        let datastores = setup_dispatching_job_fetch();
-
-        for store in datastores {
-            let (mut scheduler, join) = setup_scheduler(store);
-
-            // Nothing ready, but a group available
-
-            // expect a job for this target
-            let reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()), *TARGET_LINUX)
-                                 .await
-                                 .unwrap();
-            println!("Reply 1 {:?}", reply.id);
-            assert_eq!(1, reply.id);
-
-            // expect the group to be moved to Dispatching here
-            // TODO write api to let us test that...
-
-            // No job and no group available for this target
-            let maybe_reply = scheduler.worker_needs_work(WorkerId("worker1".to_string()),
-                                                          *TARGET_WINDOWS)
-                                       .await;
-            println!("Reply 2 {:?}", maybe_reply);
-            assert!(maybe_reply.is_none());
-
-            drop(scheduler);
-            join.await.unwrap();
-        }
-    }
-
-    fn setup_dispatching_job_fetch() -> Vec<Box<dyn SchedulerDataStore>> {
-        let mut stores: Vec<Box<dyn SchedulerDataStore>> = Vec::new();
-
-        #[cfg(feature = "to_be_implemented")] // TODO write the Dummy impl.
-        {
-            let actions =
-                vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_LINUX, },
-                      DummySchedulerDataStoreResult::JobOption(Ok(Some(make_job_graph_entry(0))))),
-                     (DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_WINDOWS, },
-                      DummySchedulerDataStoreResult::JobOption(Ok(None)))];
-
-            let _dummy_store = Box::new(DummySchedulerDataStore::new(actions));
-            // stores.push(dummy_store);
-        }
-
-        #[cfg(feature = "postgres_scheduler_tests")]
-        {
-            let database = SchedulerDataStoreDb::new_test();
-            let conn = database.get_connection_for_test();
-
-            let target = TARGET_LINUX.0.to_string();
-
-            let new_group = NewGroup { group_state:  "Queued",
-                                       project_name: "monkeypants",
-                                       target:       &target, };
-            let group = Group::create(&new_group, &conn).unwrap();
-
-            let entry = NewJobGraphEntry { group_id:         group.id,
-                                           job_state:        JobExecState::Ready,
-                                           plan_ident:       "dummy_plan_ident",
-                                           manifest_ident:   "dummy_manifest_ident",
-                                           as_built_ident:   None,
-                                           dependencies:     &[],
-                                           waiting_on_count: 0,
-                                           target_platform:  &TARGET_LINUX, };
-            let e = JobGraphEntry::create(&entry, &conn).unwrap();
-            assert_eq!(1, e.id);
-            stores.push(Box::new(database));
-        }
-
-        stores
+        drop(scheduler);
+        join.await.unwrap();
     }
 }
