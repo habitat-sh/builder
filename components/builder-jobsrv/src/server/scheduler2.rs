@@ -80,7 +80,7 @@ pub enum WorkerManagerMessage {
 }
 
 #[derive(Debug)]
-struct Scheduler {
+pub(crate) struct Scheduler {
     tx: mpsc::Sender<SchedulerMessage>,
 }
 

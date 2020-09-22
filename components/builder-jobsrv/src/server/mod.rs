@@ -25,6 +25,7 @@ use self::{log_archiver::LogArchiver,
            log_directory::LogDirectory,
            log_ingester::LogIngester,
            scheduler::ScheduleMgr,
+           scheduler2::Scheduler,
            worker_manager::WorkerMgr};
 use crate::{bldr_core::rpc::RpcMessage,
             builder_graph::target_graph::TargetGraph,
@@ -36,6 +37,7 @@ use crate::{bldr_core::rpc::RpcMessage,
             error::Result,
             hab_core::package::PackageTarget,
             protocol::originsrv::OriginPackage,
+            scheduler_datastore::SchedulerDataStoreDb,
             Error};
 use actix_web::{dev::Body,
                 http::StatusCode,
@@ -47,6 +49,7 @@ use actix_web::{dev::Body,
                 App,
                 HttpResponse,
                 HttpServer};
+
 use std::{collections::{HashMap,
                         HashSet},
           iter::{FromIterator,
@@ -189,34 +192,63 @@ pub async fn run(config: Config) -> Result<()> {
               stat.target, stat.node_count, stat.edge_count,);
     }
 
+    info!("builder-jobsrv listening on {}:{}",
+          cfg.listen_addr(),
+          cfg.listen_port());
+
     let graph_arc = Arc::new(RwLock::new(graph));
     LogDirectory::validate(&config.log_dir)?;
     let log_dir = LogDirectory::new(&config.log_dir);
     LogIngester::start(&config, log_dir, datastore.clone())?;
 
-    WorkerMgr::start(&config, &datastore, db_pool.clone())?;
-    ScheduleMgr::start(&config, &datastore, db_pool.clone())?;
+    if feat::is_enabled(feat::NewScheduler) {
+        let scheduler_datastore = SchedulerDataStoreDb::new(datastore.clone());
+        let (scheduler, scheduler_handle) = Scheduler::start(Box::new(scheduler_datastore), 1);
+        WorkerMgr::start(&config, &datastore, db_pool.clone())?;
 
-    info!("builder-jobsrv listening on {}:{}",
-          cfg.listen_addr(),
-          cfg.listen_port());
+        let http_serv = HttpServer::new(move || {
+                            let app_state =
+                                AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
 
-    HttpServer::new(move || {
-        let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
+                            App::new().data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
+                    .data(app_state)
+                    .wrap(Logger::default().exclude("/status"))
+                    .service(web::resource("/status").route(web::get().to(status))
+                                                    .route(web::head().to(status)))
+                    .route("/rpc", web::post().to(handle_rpc))
+                        }).workers(cfg.handler_count())
+                          .keep_alive(cfg.http.keep_alive)
+                          .bind(cfg.http.clone())
+                          .unwrap()
+                          .run();
 
-        App::new().data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
-                  .data(app_state)
-                  .wrap(Logger::default().exclude("/status"))
-                  .service(web::resource("/status").route(web::get().to(status))
-                                                   .route(web::head().to(status)))
-                  .route("/rpc", web::post().to(handle_rpc))
-    }).workers(cfg.handler_count())
-      .keep_alive(cfg.http.keep_alive)
-      .bind(cfg.http.clone())
-      .unwrap()
-      .run()
-      .await
-      .map_err(Error::from)
+        // This is not what we want.  try_join! would be more appropriate so that we shut down if
+        // any of the things we're joining returns an error. However, the http_serv and
+        // scheduler_handle have different error types and I can't figure out how to resolve
+        // that scenario. We also need to handle any errors on the scheduler
+        let (http_res, _sched_res) = tokio::join!(http_serv, scheduler_handle);
+
+        http_res.map_err(Error::from)
+    } else {
+        WorkerMgr::start(&config, &datastore, db_pool.clone())?;
+        ScheduleMgr::start(&config, &datastore, db_pool.clone())?;
+        HttpServer::new(move || {
+            let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
+
+            App::new().data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
+                      .data(app_state)
+                      .wrap(Logger::default().exclude("/status"))
+                      .service(web::resource("/status").route(web::get().to(status))
+                                                       .route(web::head().to(status)))
+                      .route("/rpc", web::post().to(handle_rpc))
+        }).workers(cfg.handler_count())
+          .keep_alive(cfg.http.keep_alive)
+          .bind(cfg.http.clone())
+          .unwrap()
+          .run()
+          .await
+          .map_err(Error::from)
+    }
 }
 
 pub fn migrate(config: &Config) -> Result<()> {
