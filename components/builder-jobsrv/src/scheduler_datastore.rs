@@ -16,11 +16,10 @@ use diesel::{r2d2::{ConnectionManager,
                     PooledConnection},
              PgConnection};
 
-use crate::{db::{config::DataStoreCfg,
-                 models::{jobs::{Group,
-                                 JobGraphEntry,
-                                 JobStateCounts},
-                          package::BuilderPackageTarget}},
+use crate::{db::models::{jobs::{Group,
+                                JobGraphEntry,
+                                JobStateCounts},
+                         package::BuilderPackageTarget},
             error::{Error,
                     Result},
             protocol::jobsrv};
@@ -67,10 +66,7 @@ impl SchedulerDataStoreDb {
     ///
     /// * Can fail if the pool cannot be created
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
-    pub fn new(cfg: &DataStoreCfg) -> Self {
-        let data_store = DataStore::new(cfg);
-        SchedulerDataStoreDb { data_store }
-    }
+    pub fn new(data_store: DataStore) -> Self { SchedulerDataStoreDb { data_store } }
 
     // This works because there's a Deref to  PgConnection implemented
     // https://docs.diesel.rs/1.4.x/src/r2d2/lib.rs.html#620-629
