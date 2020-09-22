@@ -89,11 +89,12 @@ impl Scheduler {
     pub fn new(tx: mpsc::Sender<SchedulerMessage>) -> Scheduler { Scheduler { tx } }
 
     pub fn start(data_store: Box<dyn SchedulerDataStore>,
-                 s_rx: mpsc::Receiver<SchedulerMessage>)
-                 -> JoinHandle<()> {
+                 queue_depth: usize)
+                 -> (Scheduler, JoinHandle<()>) {
         // enforce once semantics
+        let (s_tx, s_rx) = mpsc::channel(queue_depth);
         let mut scheduler = SchedulerInternal::new(data_store, s_rx);
-        tokio::task::spawn(async move { scheduler.run().await })
+        (Scheduler::new(s_tx), tokio::task::spawn(async move { scheduler.run().await }))
     }
 
     pub async fn job_group_added(&mut self, group: GroupId, target: BuilderPackageTarget) -> () {

@@ -23,11 +23,7 @@ mod test {
                 test_helpers::*};
 
     fn setup_scheduler(data_store: Box<dyn SchedulerDataStore>) -> (Scheduler, JoinHandle<()>) {
-        let (s_tx, s_rx) = tokio::sync::mpsc::channel(1);
-
-        let scheduler = Scheduler::new(s_tx);
-        let join = Scheduler::start(data_store, s_rx);
-        (scheduler, join)
+        Scheduler::start(data_store, 1)
     }
 
     #[tokio::test]
