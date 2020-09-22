@@ -13,6 +13,7 @@ mod test {
     use habitat_builder_db::{datastore_test,
                              models::{jobs::{JobExecState,
                                              JobGraphEntry,
+                                             JobStateCounts,
                                              NewJobGraphEntry},
                                       package::BuilderPackageTarget}};
     use std::str::FromStr;
@@ -195,12 +196,12 @@ mod test {
         // only failed dependencies?
         assert_eq!(count, 3);
 
-        assert_match!(job_state_count_s(0, &conn),
-                      JobStateCounts { p:  0,
+        assert_match!(JobGraphEntry::count_all_states(0, &conn).unwrap(),
+                      JobStateCounts { pd: 0,
                                        wd: 0,
                                        rd: 0,
                                        rn: 0,
-                                       c:  0,
+                                       ct: 0,
                                        jf: 1,
                                        df: 3,
                                        cp: 0,
@@ -222,12 +223,12 @@ mod test {
         // only failed dependencies?
         assert_eq!(count, 1);
 
-        assert_match!(job_state_count_s(0, &conn),
-                      JobStateCounts { p:  0,
+        assert_match!(JobGraphEntry::count_all_states(0, &conn).unwrap(),
+                      JobStateCounts { pd: 0,
                                        wd: 1, // Opposite side of the failed
                                        rd: 1, // Root of the diamond
                                        rn: 0,
-                                       c:  0,
+                                       ct: 0,
                                        jf: 1,
                                        df: 1,
                                        cp: 0,
@@ -302,19 +303,19 @@ mod test {
         let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
         assert_eq!(ready.unwrap(), 2);
 
-        assert_match!(job_state_count_s(1, &conn),
-                      JobStateCounts { p: 0, wd: 1, rd: 2, rn: 0, c: 1, .. });
-        assert_match!(job_state_count_s(2, &conn),
-                      JobStateCounts {p: 0, wd: 3, rd: 1, .. });
+        assert_match!(JobGraphEntry::count_all_states(1, &conn).unwrap(),
+                      JobStateCounts { pd: 0, wd: 1, rd: 2, rn: 0, ct: 1, .. });
+        assert_match!(JobGraphEntry::count_all_states(2, &conn).unwrap(),
+                      JobStateCounts {pd: 0, wd: 3, rd: 1, .. });
 
         // Get another job from group 1
         let job_a = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()
                                                                                     .unwrap();
         assert_eq!(job_a.group_id, 1);
-        assert_match!(job_state_count_s(1, &conn),
-                      JobStateCounts { p: 0, wd: 1, rd: 1, rn: 1, c: 1, .. });
-        assert_match!(job_state_count_s(2, &conn),
-                      JobStateCounts {p: 0, wd: 3, rd: 1, .. });
+        assert_match!(JobGraphEntry::count_all_states(1, &conn).unwrap(),
+                      JobStateCounts { pd: 0, wd: 1, rd: 1, rn: 1, ct: 1, .. });
+        assert_match!(JobGraphEntry::count_all_states(2, &conn).unwrap(),
+                      JobStateCounts {pd: 0, wd: 3, rd: 1, .. });
 
         // Get another job, expect group 1
         let job_b = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()

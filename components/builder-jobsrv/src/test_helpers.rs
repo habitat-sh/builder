@@ -49,31 +49,6 @@ pub fn about_same_time(left: Option<DateTime<Utc>>, right: DateTime<Utc>) -> boo
     (left.unwrap().timestamp_millis() - right.timestamp_millis()).abs() < 100
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct JobStateCounts {
-    pub p:  i64,
-    pub wd: i64,
-    pub rd: i64,
-    pub rn: i64,
-    pub c:  i64,
-    pub jf: i64,
-    pub df: i64,
-    pub cp: i64,
-    pub cc: i64,
-}
-// TODO REPLACE WITH Version in jobs
-pub fn job_state_count_s(gid: i64, conn: &diesel::pg::PgConnection) -> JobStateCounts {
-    let mut j = JobStateCounts::default();
-    j.p = JobGraphEntry::count_by_state(gid, JobExecState::Pending, &conn).unwrap();
-    j.wd = JobGraphEntry::count_by_state(gid, JobExecState::WaitingOnDependency, &conn).unwrap();
-    j.rd = JobGraphEntry::count_by_state(gid, JobExecState::Ready, &conn).unwrap();
-    j.rn = JobGraphEntry::count_by_state(gid, JobExecState::Running, &conn).unwrap();
-    j.c = JobGraphEntry::count_by_state(gid, JobExecState::Complete, &conn).unwrap();
-    j.jf = JobGraphEntry::count_by_state(gid, JobExecState::JobFailed, &conn).unwrap();
-    j.df = JobGraphEntry::count_by_state(gid, JobExecState::DependencyFailed, &conn).unwrap();
-    j
-}
-
 pub fn job_state_count(gid: i64, conn: &diesel::pg::PgConnection) -> (i64, i64, i64, i64, i64) {
     let ready = JobGraphEntry::count_by_state(gid, JobExecState::Ready, &conn).unwrap();
     let waiting_on_dependency =
