@@ -62,7 +62,9 @@ const MAX_JSON_PAYLOAD: usize = 262_144;
 features! {
     pub mod feat {
         const BuildDeps = 0b0000_0001,
-        const LegacyProject = 0b0000_0010
+        const LegacyProject = 0b0000_0010,
+        const UseCyclicGraph = 0b0000_0100,
+        const NewScheduler = 0b0000_1000
     }
 }
 
@@ -132,7 +134,10 @@ fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
 
 fn enable_features_from_config(cfg: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("BUILDDEPS", feat::BuildDeps),
-                                                          ("LEGACYPROJECT", feat::LegacyProject),]);
+                                                          ("LEGACYPROJECT", feat::LegacyProject),
+                                                          ("USECYCLICGRAPH",
+                                                           feat::UseCyclicGraph),
+                                                          ("NEWSCHEDULER", feat::NewScheduler)]);
     let features_enabled = cfg.features_enabled
                               .split(',')
                               .map(|f| f.trim().to_uppercase());
@@ -168,7 +173,7 @@ pub async fn run(config: Config) -> Result<()> {
 
     let datastore = DataStore::new(&config.datastore);
     let db_pool = DbPool::new(&config.datastore.clone());
-    let mut graph = TargetGraph::new(config.use_cyclic_graph);
+    let mut graph = TargetGraph::new(feat::is_enabled(feat::UseCyclicGraph));
     let pkg_conn = &db_pool.get_conn()?;
     let packages = Package::get_all_latest(&pkg_conn)?;
     let origin_packages: Vec<OriginPackage> = packages.iter().map(|p| p.clone().into()).collect();

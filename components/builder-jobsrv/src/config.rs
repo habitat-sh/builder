@@ -38,7 +38,6 @@ pub struct Config {
     pub job_timeout:      u64,
     /// Supported build targets
     pub build_targets:    HashSet<PackageTarget>,
-    pub use_cyclic_graph: bool,
     /// Feature flag toggles
     pub features_enabled: String,
 }
@@ -57,7 +56,6 @@ impl Default for Config {
                  job_timeout: 60,
                  build_targets: HashSet::from_iter(vec![target::X86_64_LINUX,
                                                         target::X86_64_WINDOWS]),
-                 use_cyclic_graph: false,
                  features_enabled: String::from("builddeps") }
     }
 }
