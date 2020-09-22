@@ -1,5 +1,6 @@
 use super::{metrics::Gauge,
-            scheduler::ScheduleClient};
+            scheduler::ScheduleClient,
+            scheduler2::Scheduler};
 use crate::{bldr_core::{self,
                         job::Job,
                         metrics::GaugeMetric,
@@ -143,10 +144,15 @@ pub struct WorkerMgr {
     schedule_cli:     ScheduleClient,
     job_timeout:      u64,
     build_targets:    HashSet<PackageTarget>,
+    scheduler:        Option<Scheduler>,
 }
 
 impl WorkerMgr {
-    pub fn new(cfg: &Config, datastore: &DataStore, db: DbPool) -> Self {
+    pub fn new(cfg: &Config,
+               datastore: &DataStore,
+               db: DbPool,
+               scheduler: Option<Scheduler>)
+               -> Self {
         let hb_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::SUB).unwrap();
         let rq_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER).unwrap();
         let work_mgr_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
@@ -173,11 +179,16 @@ impl WorkerMgr {
                     worker_heartbeat: cfg.net.worker_heartbeat_addr(),
                     schedule_cli,
                     job_timeout: cfg.job_timeout,
-                    build_targets: cfg.build_targets.clone() }
+                    build_targets: cfg.build_targets.clone(),
+                    scheduler }
     }
 
-    pub fn start(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<JoinHandle<()>> {
-        let mut manager = Self::new(cfg, datastore, db);
+    pub fn start(cfg: &Config,
+                 datastore: &DataStore,
+                 db: DbPool,
+                 scheduler: Option<Scheduler>)
+                 -> Result<JoinHandle<()>> {
+        let mut manager = Self::new(cfg, datastore, db, scheduler);
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new().name("worker-manager".to_string())
                                            .spawn(move || {

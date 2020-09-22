@@ -204,7 +204,7 @@ pub async fn run(config: Config) -> Result<()> {
     if feat::is_enabled(feat::NewScheduler) {
         let scheduler_datastore = SchedulerDataStoreDb::new(datastore.clone());
         let (scheduler, scheduler_handle) = Scheduler::start(Box::new(scheduler_datastore), 1);
-        WorkerMgr::start(&config, &datastore, db_pool.clone())?;
+        WorkerMgr::start(&config, &datastore, db_pool.clone(), Some(scheduler))?;
 
         let http_serv = HttpServer::new(move || {
                             let app_state =
@@ -230,7 +230,7 @@ pub async fn run(config: Config) -> Result<()> {
 
         http_res.map_err(Error::from)
     } else {
-        WorkerMgr::start(&config, &datastore, db_pool.clone())?;
+        WorkerMgr::start(&config, &datastore, db_pool.clone(), None)?;
         ScheduleMgr::start(&config, &datastore, db_pool.clone())?;
         HttpServer::new(move || {
             let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
