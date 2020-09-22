@@ -195,7 +195,7 @@ mod test {
 
         #[cfg(feature = "to_be_implemented")] // TODO write the Dummy impl.
         {
-            let actions = 
+            let actions =
                 vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget {target: *TARGET_LINUX,},
                       DummySchedulerDataStoreResult::JobOption(Ok(Some(make_job_graph_entry(0))))),
                      (DummySchedulerDataStoreCall::TakeNextJobForTarget {target: *TARGET_WINDOWS,},

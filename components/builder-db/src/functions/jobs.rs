@@ -1,4 +1,4 @@
-use diesel::sql_types::{ BigInt,
+use diesel::sql_types::{BigInt,
                         Integer};
 
 // Intended mostly for diagnostics and tests
