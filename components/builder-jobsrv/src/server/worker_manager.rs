@@ -10,13 +10,15 @@ use crate::{bldr_core::{self,
             db::{models::{integration::*,
                           jobs::*,
                           keys::*,
+                          package::BuilderPackageTarget,
                           project_integration::*,
                           secrets::*},
                  DbPool},
             error::{Error,
                     Result},
             protocol::{jobsrv,
-                       originsrv}};
+                       originsrv},
+            scheduler_datastore::WorkerId};
 use habitat_core::{crypto::keys::{AnonymousBox,
                                   KeyCache,
                                   OriginSecretEncryptionKey},
@@ -452,13 +454,25 @@ impl WorkerMgr {
 
             // Take one job from the pending list
             // TODO This will need to communicate with scheduler to update job on it's side.
-            let job_opt = self.datastore
-                              .next_pending_job(&worker_ident, &target.to_string())?;
-            if job_opt.is_none() {
-                break;
-            }
+            let mut job = if let Some(scheduler) = self.scheduler {
+                // Runtime::new().unwrap().block_on(|| worker_needs_work.await )
+                if let Some(job_entry) = scheduler.worker_needs_work(WorkerId(worker_ident),
+                                                                     BuilderPackageTarget(target))
+                                                  .await
+                {
+                    job_entry.into()
+                } else {
+                    break;
+                }
+            } else {
+                let job_opt = self.datastore
+                                  .next_pending_job(&worker_ident, &target.to_string())?;
+                if job_opt.is_none() {
+                    break;
+                }
 
-            let mut job = Job::new(job_opt.unwrap()); // unwrap Ok
+                Job::new(job_opt.unwrap()); // unwrap Ok
+            };
 
             self.add_integrations_to_job(&mut job);
             self.add_project_integrations_to_job(&mut job);
