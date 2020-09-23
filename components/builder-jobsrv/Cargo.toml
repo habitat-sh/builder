@@ -27,6 +27,7 @@ diesel-derive-enum = { version = "*", features = ["postgres"] }
 diesel_migrations = "*"
 features = "*"
 futures = "0.1"
+futures03 = { package = "futures", version = "0.3"}
 rusoto_core = "0.42"
 rusoto_s3 = "0.42"
 env_logger = "*"

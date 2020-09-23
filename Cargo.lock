@@ -1675,6 +1675,7 @@ dependencies = [
  "env_logger",
  "features",
  "futures 0.1.29",
+ "futures 0.3.5",
  "habitat-builder-protocol",
  "habitat_builder_db",
  "habitat_builder_graph",
