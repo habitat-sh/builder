@@ -849,7 +849,7 @@ impl WorkerMgr {
                 jobsrv::JobState::Complete => {
                     // Tell the scheduler
                     job_graph_entry.job_state = JobExecState::Complete;
-                    scheduler.worker_finished(WorkerId(worker_id), job_graph_entry);
+                    block_on(scheduler.worker_finished(WorkerId(worker_id), job_graph_entry))
                 }
                 jobsrv::JobState::Failed => {
                     // Tell the scheduler
