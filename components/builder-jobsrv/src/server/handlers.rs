@@ -42,6 +42,8 @@ use crate::server::{feat,
                     scheduler::ScheduleClient,
                     worker_manager::WorkerMgrClient};
 
+use crate::data_store::DataStore;
+
 use crate::error::{Error,
                    Result};
 
@@ -317,6 +319,15 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         return Err(Error::NotFound);
     }
 
+    let group = job_group_create_old(&msg, target, &state)?;
+
+    RpcMessage::make(&group).map_err(Error::BuilderCore)
+}
+
+fn job_group_create_old(msg: &jobsrv::JobGroupSpec,
+                        target: PackageTarget,
+                        state: &AppState)
+                        -> Result<jobsrv::JobGroup> {
     let project_name = format!("{}/{}", msg.get_origin(), msg.get_package());
     let mut projects = Vec::new();
 
@@ -385,7 +396,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         }
     }
 
-    let group = if projects.is_empty() {
+    if projects.is_empty() {
         debug!("No projects need building - group is complete");
 
         let mut new_group = jobsrv::JobGroup::new();
@@ -394,7 +405,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         new_group.set_state(jobsrv::JobGroupState::GroupComplete);
         new_group.set_projects(projects);
         new_group.set_target(msg.get_target().to_string());
-        new_group
+        Ok(new_group)
     } else {
         // If already have a queued job group (queue length: 1 per project and target),
         // then return that group, else create a new job group
@@ -414,25 +425,27 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         };
         ScheduleClient::default().notify()?;
 
-        // Add audit entry
-        let mut jga = jobsrv::JobGroupAudit::new();
-        jga.set_group_id(new_group.get_id());
-        jga.set_operation(jobsrv::JobGroupOperation::JobGroupOpCreate);
-        jga.set_trigger(msg.get_trigger());
-        jga.set_requester_id(msg.get_requester_id());
-        jga.set_requester_name(msg.get_requester_name().to_string());
+        add_job_group_audit_entry(new_group.get_id(), &msg, &state.datastore);
 
-        match state.datastore.create_audit_entry(&jga) {
-            Ok(_) => (),
-            Err(err) => {
-                warn!("Failed to create audit entry, err={:?}", err);
-            }
-        };
+        Ok(new_group)
+    }
+}
 
-        new_group
+fn add_job_group_audit_entry(group_id: u64, msg: &jobsrv::JobGroupSpec, datastore: &DataStore) {
+    // Add audit entry
+    let mut jga = jobsrv::JobGroupAudit::new();
+    jga.set_group_id(group_id);
+    jga.set_operation(jobsrv::JobGroupOperation::JobGroupOpCreate);
+    jga.set_trigger(msg.get_trigger());
+    jga.set_requester_id(msg.get_requester_id());
+    jga.set_requester_name(msg.get_requester_name().to_string());
+
+    match datastore.create_audit_entry(&jga) {
+        Ok(_) => (),
+        Err(err) => {
+            warn!("Failed to create audit entry, err={:?}", err);
+        }
     };
-
-    RpcMessage::make(&group).map_err(Error::BuilderCore)
 }
 
 pub fn job_graph_package_reverse_dependencies_get(req: &RpcMessage,
