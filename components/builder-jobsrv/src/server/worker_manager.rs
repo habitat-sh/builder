@@ -12,6 +12,7 @@ use crate::{bldr_core::{self,
                           keys::*,
                           package::BuilderPackageTarget,
                           project_integration::*,
+                          projects::Project,
                           secrets::*},
                  DbPool},
             error::{Error,
@@ -455,13 +456,27 @@ impl WorkerMgr {
 
             // Take one job from the pending list
             // TODO This will need to communicate with scheduler to update job on it's side.
+            // TODO refactor this to return an Option<Job> and only land at break once
             let mut job = if let Some(scheduler) = &mut self.scheduler {
                 // Runtime::new().unwrap().block_on(|| worker_needs_work.await )
                 if let Some(job_entry) =
-                    block_on(scheduler.worker_needs_work(WorkerId(worker_ident),
+                    block_on(scheduler.worker_needs_work(WorkerId(worker_ident.clone()),
                                                          BuilderPackageTarget(target)))
                 {
-                    job_entry.into()
+                    let conn = self.datastore.get_pool().get_conn()?;
+                    let project = Project::get_by_id(job_entry.project_id, &conn)?;
+                    let maybe_job =
+                        self.datastore
+                            .create_job_for_project(job_entry.group_id as u64,
+                                                    project,
+                                                    &job_entry.target_platform.to_string())?;
+                    match maybe_job {
+                        None => break,
+                        Some(job) => {
+                            JobGraphEntry::set_job_id(job_entry.id, job.get_id() as i64, &conn)?;
+                            Job::new(job)
+                        }
+                    }
                 } else {
                     break;
                 }
@@ -816,13 +831,69 @@ impl WorkerMgr {
 
     fn process_job_status(&mut self) -> Result<()> {
         self.rq_sock.recv(&mut self.msg, 0)?;
+        // TODO get worker id here from msg
+        let worker_id = "Unknown".to_owned();
+
         self.rq_sock.recv(&mut self.msg, 0)?;
 
         let job = Job::new(parse_from_bytes::<jobsrv::Job>(&self.msg)?);
         debug!("Got job status: {:?}", job);
         self.datastore.update_job(&job)?;
-        self.schedule_cli.notify()?;
 
+        if let Some(scheduler) = &self.scheduler {
+            let mut scheduler = scheduler.clone();
+            let mut job_graph_entry = self.job_graph_entry(&job)?;
+            let state = job.get_state();
+            // TODO: handle Successful completion, Failure, CancelComplete?
+            match state {
+                jobsrv::JobState::Complete => {
+                    // Tell the scheduler
+                    job_graph_entry.job_state = JobExecState::Complete;
+                    scheduler.worker_finished(WorkerId(worker_id), job_graph_entry);
+                }
+                jobsrv::JobState::Failed => {
+                    // Tell the scheduler
+
+                    unimplemented!("JobState::Failed");
+                }
+                jobsrv::JobState::CancelComplete => {
+                    // Tell the scheduler
+                    unimplemented!("JobState::CancelComplete");
+                }
+                jobsrv::JobState::Rejected => {
+                    // Tell the scheduler
+                    unimplemented!("JobState::Rejected");
+                }
+                jobsrv::JobState::Dispatched
+                | jobsrv::JobState::CancelPending
+                | jobsrv::JobState::CancelProcessing => {
+                    // Ok do nothing
+                }
+                jobsrv::JobState::Pending | jobsrv::JobState::Processing => {
+                    let id = job.get_id();
+                    // Should never see these from the runner EXPLODE!
+                    error!("process_job_status: Did not expect to get state {} for job {}",
+                           state, id);
+                    unreachable!("process_job_status: Did not expect to get state {} for job {}",
+                                 state, id)
+                }
+            }
+        } else {
+            // How does the scheduler understand
+            self.schedule_cli.notify()?;
+        }
         Ok(())
+    }
+
+    fn job_graph_entry(&self, job: &jobsrv::Job) -> Result<JobGraphEntry> {
+        let conn = self.datastore.get_pool().get_conn()?;
+        JobGraphEntry::get_by_job_id(job.get_id() as i64, &conn).map_err(Error::WorkerMgrDbError)
+    }
+
+    fn job(&self, entry: JobGraphEntry) -> Result<jobsrv::Job> {
+        let conn = self.datastore.get_pool().get_conn()?;
+        let job =
+            crate::db::models::jobs::Job::get(entry.id, &conn).map_err(Error::WorkerMgrDbError)?;
+        Ok(job.into())
     }
 }

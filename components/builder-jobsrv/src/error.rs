@@ -83,6 +83,7 @@ pub enum Error {
     UnknownJobGroupProjectState,
     UnknownJobState(protocol::ProtocolError),
     Utf8(std::str::Utf8Error),
+    WorkerMgrDbError(diesel::result::Error),
     Zmq(zmq::Error),
 }
 
@@ -183,6 +184,7 @@ impl fmt::Display for Error {
             Error::UnknownVCS => "Unknown VCS".to_string(),
             Error::UnknownJobState(ref e) => format!("{}", e),
             Error::Utf8(ref e) => format!("{}", e),
+            Error::WorkerMgrDbError(ref e) => format!("{}", e),
             Error::Zmq(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)

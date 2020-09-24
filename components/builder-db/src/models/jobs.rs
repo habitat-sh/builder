@@ -613,6 +613,12 @@ impl JobGraphEntry {
                         .get_result(conn)
     }
 
+    pub fn get_by_job_id(job_id: i64, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
+        Counter::DBCall.increment();
+        job_graph::table.filter(job_graph::job_id.eq(job_id))
+                        .first(conn)
+    }
+
     pub fn list_group(group_id: i64, conn: &PgConnection) -> QueryResult<Vec<JobGraphEntry>> {
         Counter::DBCall.increment();
         job_graph::table.filter(job_graph::group_id.eq(group_id))
@@ -684,6 +690,12 @@ impl JobGraphEntry {
         diesel::update(job_graph::table.filter(job_graph::job_state.eq(required_job_state))
                                         .filter(job_graph::group_id.eq(group_id)))
                                         .set(job_graph::job_state.eq(new_job_state)).execute(conn)
+    }
+
+    pub fn set_job_id(id: i64, job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(job_graph::table.find(id)).set(job_graph::job_id.eq(job_id))
+                                                 .execute(conn)
     }
 
     // Consider making this a stored procedure or a transaction.

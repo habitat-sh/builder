@@ -79,7 +79,7 @@ pub enum WorkerManagerMessage {
     CancelJob { jobs: Vec<JobGraphId> },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Scheduler {
     tx: mpsc::Sender<SchedulerMessage>,
 }
@@ -221,7 +221,8 @@ impl SchedulerInternal {
         self.data_store
             .set_job_group_state(group_id, jobsrv::JobGroupState::GroupDispatching)
             .expect("Can't yet handle db error");
-        // update jobs to WaitingOnDependency or Ready
+        // update job graph entries to WaitingOnDependency or Ready
+        // TODO: Need to CREATE jobs here, not
         let _ready = self.data_store
                          .group_dispatched_update_jobs(group_id)
                          .expect("Can't yet handle db error");

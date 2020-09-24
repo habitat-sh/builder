@@ -88,6 +88,9 @@ pub struct ListAllChannelPackagesForTarget<'a> {
 }
 
 impl Channel {
+    // Here because it keeps it near the filter in Channel::list
+    pub fn channel_for_group(group_id: u64) -> String { format!("bldr-{}", group_id) }
+
     pub fn list(origin: &str,
                 include_sandbox_channels: bool,
                 conn: &PgConnection)
