@@ -81,20 +81,23 @@ pub struct AppState {
     graph:         Arc<RwLock<TargetGraph>>,
     log_dir:       LogDirectory,
     build_targets: HashSet<PackageTarget>,
+    scheduler:     Option<Scheduler>,
 }
 
 impl AppState {
     pub fn new(cfg: &Config,
                datastore: &DataStore,
                db: DbPool,
-               graph: &Arc<RwLock<TargetGraph>>)
+               graph: &Arc<RwLock<TargetGraph>>,
+               scheduler: Option<&Scheduler>)
                -> Self {
         AppState { archiver: log_archiver::from_config(&cfg.archive).unwrap(),
                    datastore: datastore.clone(),
                    db,
                    graph: graph.clone(),
                    log_dir: LogDirectory::new(&cfg.log_dir),
-                   build_targets: cfg.build_targets.clone() }
+                   build_targets: cfg.build_targets.clone(),
+                   scheduler: scheduler.map(|s| s.clone()) }
     }
 }
 
@@ -206,11 +209,16 @@ pub async fn run(config: Config) -> Result<()> {
     if feat::is_enabled(feat::NewScheduler) {
         let scheduler_datastore = SchedulerDataStoreDb::new(datastore.clone());
         let (scheduler, scheduler_handle) = Scheduler::start(Box::new(scheduler_datastore), 1);
+        let scheduler_for_http = scheduler.clone();
+
         WorkerMgr::start(&config, &datastore, db_pool.clone(), Some(scheduler))?;
 
         let http_serv = HttpServer::new(move || {
-                            let app_state =
-                                AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
+                            let app_state = AppState::new(&config,
+                                                          &datastore,
+                                                          db_pool.clone(),
+                                                          &graph_arc,
+                                                          Some(&scheduler_for_http));
 
                             App::new().data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
                     .data(app_state)
@@ -235,7 +243,7 @@ pub async fn run(config: Config) -> Result<()> {
         WorkerMgr::start(&config, &datastore, db_pool.clone(), None)?;
         ScheduleMgr::start(&config, &datastore, db_pool.clone())?;
         HttpServer::new(move || {
-            let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
+            let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc, None);
 
             App::new().data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
                       .data(app_state)
