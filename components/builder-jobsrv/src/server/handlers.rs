@@ -14,7 +14,8 @@
 
 //! A collection of handlers for the JobSrv dispatcher
 
-use std::{collections::HashSet,
+use std::{collections::{HashMap,
+                        HashSet},
           fs::OpenOptions,
           io::{BufRead,
                BufReader},
@@ -27,6 +28,8 @@ use diesel::{self,
              PgConnection};
 
 use protobuf::RepeatedField;
+
+use futures03::executor::block_on;
 
 use crate::{bldr_core::rpc::RpcMessage,
             db::models::{jobs::*,
@@ -41,14 +44,16 @@ use crate::protocol::{jobsrv,
                       originsrv};
 
 use crate::builder_graph::{data_store::DataStore as GraphDataStore,
-                           package_build_manifest_graph::PackageBuildManifest,
+                           package_build_manifest_graph::{PackageBuildManifest,
+                                                          UnresolvedPackageIdent},
                            package_ident_intern::PackageIdentIntern};
 
 use crate::server::{feat,
                     scheduler::ScheduleClient,
                     worker_manager::WorkerMgrClient};
 
-use crate::data_store::DataStore;
+use crate::{data_store::DataStore,
+            scheduler_datastore::GroupId};
 
 use crate::error::{Error,
                    Result};
@@ -476,34 +481,68 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
                                target:       &target.to_string(), };
     let group = Group::create(&new_group, &conn)?;
 
-    // TODO MAKE manifest, (possibly async)
-    let manifest = if msg.get_package_only() {
-        // we only build the package itself.
-        PackageBuildManifest::new()
-    } else {
-        // !(!msg.get_deps_only() || msg.get_package_only())
-        let _exclude_root = msg.get_deps_only() && !msg.get_package_only();
+    {
+        // the code in this block might be best moved to some sort of asynchronous task, maybe
+        // even another thread.
 
-        // TODO FIGURE OUT EXCLUDE ROOT
-        let target_graph = state.graph.read().unwrap();
-        let graph = target_graph.graph_for_target(target).unwrap();
-        let package = PackageIdentIntern::from_str(&project_name).unwrap(); // We created this, so it should never fail
+        let manifest = if msg.get_package_only() {
+            // we only build the package itself.
+            PackageBuildManifest::new()
+        } else {
+            // !(!msg.get_deps_only() || msg.get_package_only())
+            let _exclude_root = msg.get_deps_only() && !msg.get_package_only();
 
-        let unbuildable = GraphDataStore::from_pool(state.db.clone())?;
+            // TODO FIGURE OUT EXCLUDE ROOT
+            let target_graph = state.graph.read().unwrap();
+            let graph = target_graph.graph_for_target(target).unwrap();
+            let package = PackageIdentIntern::from_str(&project_name).unwrap(); // We created this, so it should never fail
 
-        graph.compute_build(&[package], &unbuildable, target) // this should be a result but that
-                                                              // wasn't implmented in compute_build
-    };
+            let unbuildable = GraphDataStore::from_pool(state.db.clone())?;
 
-    // TODO insert manifest in db (possibly async)
-    insert_job_graph_entries(&manifest, &conn)?;
-    // TODO NOTIFY SCHEDULER
+            graph.compute_build(&[package], &unbuildable, target) // this should be a result but
+                                                                  // that
+                                                                  // wasn't implmented in
+                                                                  // compute_build
+        };
+
+        insert_job_graph_entries(&manifest,
+                                 group.id as i64,
+                                 BuilderPackageTarget(target),
+                                 &conn)?;
+
+        // Notify the scheduler of new work available
+        let mut scheduler = state.scheduler.as_ref().unwrap().clone();
+        block_on(scheduler.job_group_added(GroupId(group.id), BuilderPackageTarget(target)));
+    }
 
     add_job_group_audit_entry(group.id as u64, &msg, &state.datastore);
     Ok(group.into())
 }
 
-fn insert_job_graph_entries(_manifest: &PackageBuildManifest, _conn: &PgConnection) -> Result<()> {
+fn insert_job_graph_entries(manifest: &PackageBuildManifest,
+                            group_id: i64,
+                            target: BuilderPackageTarget,
+                            _conn: &PgConnection)
+                            -> Result<()> {
+    let order = manifest.build_order();
+    let mut lookup: HashMap<UnresolvedPackageIdent, i64> = HashMap::new();
+
+    for package in order {
+        let project_name = package.name.ident().unwrap();
+        let manifest_ident = "foo".to_owned();
+
+        let mut dependencies: Vec<i64> = Vec::new();
+
+        let entry = NewJobGraphEntry { group_id,
+                                       project_name: &project_name.to_string(),
+                                       job_id: None,
+                                       job_state: JobExecState::Pending,
+                                       manifest_ident: &manifest_ident,
+                                       as_built_ident: None,
+                                       dependencies: &dependencies,
+                                       waiting_on_count: dependencies.len() as i32,
+                                       target_platform: target };
+    }
     Ok(())
 }
 

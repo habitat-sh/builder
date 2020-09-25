@@ -184,6 +184,25 @@ impl PackageBuildManifest {
         order
     }
 
+    // pub fn insert_entries<F>(&self, insert: F)
+    //     where F: FnMut(String, &[i64]) -> i64
+    // {
+    //     let mut lookup: HashMap<UnresolvedPackageIdent, i64> = HashMap::new();
+
+    //     for component in petgraph::algo::tarjan_scc(&self.graph) {
+    //         assert_eq!(component.len(), 1);
+
+    //         match component.first().unwrap() {
+    //             ident @ UnresolvedPackageIdent::InternalNode(..)
+    //             | ident @ UnresolvedPackageIdent::InternalVersionedNode(..) => {
+    //                 let package_build = self.package_build_from_unresolved_ident(*ident);
+    //                 order.push(package_build);
+    //             }
+    //             _ => (),
+    //         }
+    //     }
+    // }
+
     fn package_build_from_unresolved_ident(&self, name: UnresolvedPackageIdent) -> PackageBuild {
         let mut runtime_deps = Vec::new();
         let mut build_deps = Vec::new();
