@@ -62,6 +62,10 @@ impl TargetGraph {
         }
     }
 
+    pub fn graph_for_target(&self, target: PackageTarget) -> Option<&dyn PackageGraphTrait> {
+        self.graphs.get(&target).map(|x| x.as_ref())
+    }
+
     pub fn graph_mut(&mut self,
                      target_str: &str)
                      -> Option<&mut (dyn PackageGraphTrait + 'static)> {

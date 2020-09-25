@@ -18,8 +18,7 @@ use std::{collections::HashSet,
                Write},
           iter::FromIterator,
           path::Path,
-          str::FromStr,
-          sync::Arc};
+          str::FromStr};
 
 use crate::hab_core::package::{PackageIdent,
                                PackageTarget};
@@ -220,7 +219,7 @@ impl DataStore {
     }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
-    pub fn from_pool(pool: DbPool, _: Arc<String>) -> Result<DataStore> { Ok(DataStore { pool }) }
+    pub fn from_pool(pool: DbPool) -> Result<DataStore> { Ok(DataStore { pool }) }
 
     /// Setup the datastore.
     ///

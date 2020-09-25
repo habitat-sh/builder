@@ -166,6 +166,8 @@ impl PackageBuildManifest {
     pub fn build_order(&self) -> Vec<PackageBuild> {
         let mut order: Vec<PackageBuild> = Vec::new();
 
+        // doing this for the free topological sort, not for any SCC data
+        // This had better be a DAG by now or we in very deep trouble
         for component in petgraph::algo::tarjan_scc(&self.graph) {
             assert_eq!(component.len(), 1);
 
