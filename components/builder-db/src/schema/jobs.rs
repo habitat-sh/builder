@@ -87,7 +87,7 @@ table! {
     job_graph(id) {
         id -> BigInt,
         group_id -> BigInt,
-        project_id -> BigInt,
+        project_name -> Text,
         job_id -> Nullable<BigInt>,
         job_state -> JobExecStateMapping,
         manifest_ident -> Text,

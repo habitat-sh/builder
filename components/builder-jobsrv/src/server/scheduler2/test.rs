@@ -65,25 +65,25 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::Pending,
-                                       project_id:       0,
+                                       project_name:     "dummy_project_ident",
                                        job_id:           None,
                                        manifest_ident:   "dummy_manifest_ident",
                                        as_built_ident:   None,
                                        dependencies:     &[],
                                        waiting_on_count: 0,
-                                       target_platform:  &TARGET_LINUX, };
+                                       target_platform:  *TARGET_LINUX, };
         let e1 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(1, e1.id);
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::Pending,
-                                       project_id:       0,
+                                       project_name:     "dummy_project_ident",
                                        job_id:           None,
                                        manifest_ident:   "dummy_manifest_ident2",
                                        as_built_ident:   None,
                                        dependencies:     &[e1.id],
                                        waiting_on_count: 1,
-                                       target_platform:  &TARGET_LINUX, };
+                                       target_platform:  *TARGET_LINUX, };
         let e2 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(2, e2.id);
 
@@ -140,13 +140,13 @@ mod test {
             let conn = database.get_connection_for_test();
             let entry = NewJobGraphEntry { group_id:         0,
                                            job_state:        JobExecState::Ready,
-                                           project_id:       0,
+                                           project_name:     "dummy_project_ident",
                                            job_id:           None,
                                            manifest_ident:   "dummy_manifest_ident",
                                            as_built_ident:   None,
                                            dependencies:     &[],
                                            waiting_on_count: 0,
-                                           target_platform:  &TARGET_LINUX, };
+                                           target_platform:  *TARGET_LINUX, };
             let e = JobGraphEntry::create(&entry, &conn).unwrap();
             assert_eq!(1, e.id);
             stores.push(Box::new(database));
@@ -216,13 +216,13 @@ mod test {
 
             let entry = NewJobGraphEntry { group_id:         group.id,
                                            job_state:        JobExecState::Ready,
-                                           project_id:       0,
+                                           project_name:     "dummy_project_id",
                                            job_id:           None,
                                            manifest_ident:   "dummy_manifest_ident",
                                            as_built_ident:   None,
                                            dependencies:     &[],
                                            waiting_on_count: 0,
-                                           target_platform:  &TARGET_LINUX, };
+                                           target_platform:  *TARGET_LINUX, };
             let e = JobGraphEntry::create(&entry, &conn).unwrap();
             assert_eq!(1, e.id);
             stores.push(Box::new(database));
@@ -380,25 +380,25 @@ mod test {
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::Running,
-                                       project_id:       0,
+                                       project_name:     "dummy_project_id",
                                        job_id:           None,
                                        manifest_ident:   "dummy_manifest_ident",
                                        as_built_ident:   None,
                                        dependencies:     &[],
                                        waiting_on_count: 0,
-                                       target_platform:  &TARGET_LINUX, };
+                                       target_platform:  *TARGET_LINUX, };
         let e1 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(1, e1.id);
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::WaitingOnDependency,
-                                       project_id:       1,
+                                       project_name:     "dummy_project_id2",
                                        job_id:           None,
                                        manifest_ident:   "dummy_manifest_ident2",
                                        as_built_ident:   None,
                                        dependencies:     &[e1.id],
                                        waiting_on_count: 1,
-                                       target_platform:  &TARGET_LINUX, };
+                                       target_platform:  *TARGET_LINUX, };
         let e2 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(2, e2.id);
 
@@ -416,51 +416,53 @@ mod test {
                                    target:       &target, };
         let group = Group::create(&new_group, &conn).unwrap();
 
-        let entry = NewJobGraphEntry { group_id:         group.id,
-                                       job_state:        JobExecState::Running,
-                                       project_id:       0,
+        let entry = NewJobGraphEntry { group_id:     group.id,
+                                       job_state:    JobExecState::Running,
+                                       project_name: "dummy_project_id_top",
+
                                        job_id:           None,
                                        manifest_ident:   "dummy_manifest_top",
                                        as_built_ident:   None,
                                        dependencies:     &[],
                                        waiting_on_count: 0,
-                                       target_platform:  &TARGET_LINUX, };
+                                       target_platform:  *TARGET_LINUX, };
         let e1 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(1, e1.id);
 
-        let entry = NewJobGraphEntry { group_id:         group.id,
-                                       job_state:        JobExecState::WaitingOnDependency,
-                                       project_id:       1,
+        let entry = NewJobGraphEntry { group_id:     group.id,
+                                       job_state:    JobExecState::WaitingOnDependency,
+                                       project_name: "dummy_project_id_left",
+
                                        job_id:           None,
                                        manifest_ident:   "dummy_manifest_left",
                                        as_built_ident:   None,
                                        dependencies:     &[e1.id],
                                        waiting_on_count: 1,
-                                       target_platform:  &TARGET_LINUX, };
+                                       target_platform:  *TARGET_LINUX, };
         let e2 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(2, e2.id);
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::WaitingOnDependency,
-                                       project_id:       2,
+                                       project_name:     "dummy_project_right",
                                        job_id:           None,
                                        manifest_ident:   "dummy_manifest_right",
                                        as_built_ident:   None,
                                        dependencies:     &[e1.id],
                                        waiting_on_count: 1,
-                                       target_platform:  &TARGET_LINUX, };
+                                       target_platform:  *TARGET_LINUX, };
         let e3 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(3, e3.id);
 
         let entry = NewJobGraphEntry { group_id:         group.id,
                                        job_state:        JobExecState::WaitingOnDependency,
-                                       project_id:       3,
+                                       project_name:     "dummy_project_bottom",
                                        job_id:           None,
                                        manifest_ident:   "dummy_manifest_bottom",
                                        as_built_ident:   None,
                                        dependencies:     &[e2.id, e3.id],
                                        waiting_on_count: 1,
-                                       target_platform:  &TARGET_LINUX, };
+                                       target_platform:  *TARGET_LINUX, };
         let e4 = JobGraphEntry::create(&entry, &conn).unwrap();
         assert_eq!(4, e4.id);
 

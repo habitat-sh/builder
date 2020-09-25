@@ -514,14 +514,14 @@ impl FromStr for JobExecState {
 #[table_name = "job_graph"]
 pub struct NewJobGraphEntry<'a> {
     pub group_id:         i64,
-    pub job_state:        JobExecState, // Should be enum
-    pub project_id:       i64,          // projects table
+    pub project_name:     &'a str, // ideally this would be an id in projects table
     pub job_id:           Option<i64>,
+    pub job_state:        JobExecState,    // Should be enum
     pub manifest_ident:   &'a str,         //
     pub as_built_ident:   Option<&'a str>, //
     pub dependencies:     &'a [i64],
     pub waiting_on_count: i32,
-    pub target_platform:  &'a BuilderPackageTarget, // PackageTarget?
+    pub target_platform:  BuilderPackageTarget, // PackageTarget?
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
@@ -530,7 +530,7 @@ pub struct JobGraphEntry {
     pub id:               i64,
     pub group_id:         i64, /* This is the id of the associated group (should have been
                                 * group_id) */
-    pub project_id:       i64, // projects table
+    pub project_name:     String, // ideally this would be an id in projects table
     pub job_id:           Option<i64>,
     pub job_state:        JobExecState,   // Should be enum
     pub manifest_ident:   String,         //

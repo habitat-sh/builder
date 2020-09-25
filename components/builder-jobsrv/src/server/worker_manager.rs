@@ -464,7 +464,8 @@ impl WorkerMgr {
                                                          BuilderPackageTarget(target)))
                 {
                     let conn = self.datastore.get_pool().get_conn()?;
-                    let project = Project::get_by_id(job_entry.project_id, &conn)?;
+                    let project =
+                        Project::get(&job_entry.project_name, &target.to_string(), &conn)?;
                     let maybe_job =
                         self.datastore
                             .create_job_for_project(job_entry.group_id as u64,

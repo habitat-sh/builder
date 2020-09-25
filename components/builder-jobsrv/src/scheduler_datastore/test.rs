@@ -38,15 +38,15 @@ mod test {
             BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
         let ds = datastore_test!(DataStore);
         let conn = ds.get_pool().get_conn().unwrap();
-        let entry = NewJobGraphEntry { group_id:         0,
-                                       job_state:        JobExecState::Pending,
-                                       project_id:       0,
-                                       job_id:           None,
-                                       manifest_ident:   "foo/bar/1.2.3/123",
-                                       as_built_ident:   None,
-                                       dependencies:     &[1, 2, 3],
+        let entry = NewJobGraphEntry { group_id: 0,
+                                       job_state: JobExecState::Pending,
+                                       project_name: "foo/bar",
+                                       job_id: None,
+                                       manifest_ident: "foo/bar/1.2.3/123",
+                                       as_built_ident: None,
+                                       dependencies: &[1, 2, 3],
                                        waiting_on_count: 3,
-                                       target_platform:  &target_platform, };
+                                       target_platform };
 
         let job_graph_entry = JobGraphEntry::create(&entry, &conn).unwrap();
 
@@ -96,7 +96,7 @@ mod test {
         for i in 1..2 {
             make_job_graph_entries(i as i64,
                                    JobExecState::Ready,
-                                   &target_platform,
+                                   target_platform,
                                    &manifest,
                                    &conn);
         }

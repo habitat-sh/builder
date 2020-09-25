@@ -15,7 +15,7 @@ CREATE SEQUENCE IF NOT EXISTS job_graph_id_seq;
 CREATE TABLE IF NOT EXISTS job_graph (
     id BIGINT DEFAULT nextval('job_graph_id_seq') PRIMARY KEY NOT NULL,
     group_id BIGINT NOT NULL, -- want FK
-    project_id BIGINT NOT NULL, -- want FK
+    project_name TEXT, --  BIGINT NOT NULL, -- want FK
     job_id BIGINT, -- want FK
     job_state job_exec_state,
     manifest_ident TEXT,

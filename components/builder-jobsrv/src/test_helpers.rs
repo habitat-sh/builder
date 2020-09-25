@@ -65,7 +65,7 @@ pub fn make_job_graph_entry(id: i64) -> JobGraphEntry {
     JobGraphEntry { id,
                     group_id: 0,
                     job_state: JobExecState::Pending,
-                    project_id: 0,
+                    project_name: "dummy_project_id".to_owned(),
                     job_id: None,
                     manifest_ident: "dummy_manifest_ident".to_owned(),
                     as_built_ident: None,
@@ -112,13 +112,13 @@ impl DbHelper {
 
         let entry = NewJobGraphEntry { group_id: self.group_id,
                                        job_state,
-                                       project_id: 0,
+                                       project_name: "dummy_project_id",
                                        job_id: None,
                                        manifest_ident: name,
                                        as_built_ident: None,
                                        dependencies: &dependencies,
                                        waiting_on_count: dependencies.len() as i32,
-                                       target_platform: &self.target };
+                                       target_platform: self.target };
 
         let job_graph_entry = JobGraphEntry::create(&entry, &conn).unwrap();
 
@@ -167,7 +167,7 @@ pub fn make_simple_graph_helper(group_id: i64,
 
 pub fn make_job_graph_entries(group_id: i64,
                               job_state: JobExecState,
-                              target_platform: &BuilderPackageTarget,
+                              target_platform: BuilderPackageTarget,
                               data: &Vec<(String, String, Vec<String>)>,
                               conn: &diesel::pg::PgConnection)
                               -> HashMap<String, JobGraphEntry> {
@@ -178,9 +178,7 @@ pub fn make_job_graph_entries(group_id: i64,
                                          .collect();
         let entry = NewJobGraphEntry { group_id,
                                        job_state,
-                                       project_id: 0, /* TODO maybe lookup project based on
-                                                       * plan ident, and substitute right
-                                                       * value */
+                                       project_name: "dummy_project_id",
                                        job_id: None,
                                        manifest_ident: &manifest_ident,
                                        as_built_ident: None,
