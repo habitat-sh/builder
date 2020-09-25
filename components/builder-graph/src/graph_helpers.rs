@@ -16,6 +16,8 @@ use petgraph::{algo::tarjan_scc,
                graphmap::DiGraphMap,
                Direction};
 
+use itertools::Itertools; // 0.8.0
+
 use std::{collections::{HashMap,
                         HashSet,
                         VecDeque},
@@ -204,7 +206,7 @@ pub fn dump_graph_raw(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
     let mut file = File::create(&path).unwrap();
 
     // iterate through nodes
-    for node in graph.nodes() {
+    for node in graph.nodes().sorted() {
         let (in_count, out_count) = count_edges(&graph, node);
         let orphaned = (in_count == 0) && (out_count == 0);
 
@@ -219,8 +221,15 @@ pub fn dump_graph_raw(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                     EdgeType::BuildDep => bdeps.push(succ),
                     EdgeType::RuntimeDep => rdeps.push(succ),
                     EdgeType::StrongBuildDep => sdeps.push(succ),
+                    EdgeType::ExternalConstraint => {
+                        warn!("External Constraints should not appear here {:?}",
+                              edge_weight)
+                    }
                 }
             }
+            bdeps.sort();
+            rdeps.sort();
+            sdeps.sort();
             let bdeps_join = join_idents(",", &bdeps);
             let rdeps_join = join_idents(",", &rdeps);
             let sdeps_join = join_idents(",", &sdeps);
@@ -304,6 +313,7 @@ fn edgetype_to_abbv(edge: EdgeType) -> &'static str {
         EdgeType::RuntimeDep => "R",
         EdgeType::BuildDep => "B",
         EdgeType::StrongBuildDep => "S",
+        EdgeType::ExternalConstraint => "X",
     }
 }
 
@@ -428,6 +438,9 @@ pub fn transitive_deps(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                 EdgeType::RuntimeDep => true,
                 EdgeType::BuildDep => include_build_deps,
                 EdgeType::StrongBuildDep => include_build_deps,
+                EdgeType::ExternalConstraint => {
+                    panic!("transitive_deps: External Constraints should not appear here")
+                }
             };
 
             if edge_ok && !seen.contains(&succ_ident) && filter_match(&succ_ident, origin) {
