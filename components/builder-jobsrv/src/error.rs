@@ -23,6 +23,7 @@ use actix_web::{http::StatusCode,
                 HttpResponse};
 
 use crate::{bldr_core,
+            builder_graph,
             db,
             hab_core,
             protocol};
@@ -30,6 +31,7 @@ use crate::{bldr_core,
 #[derive(Debug)]
 pub enum Error {
     BuilderCore(bldr_core::Error),
+    BuilderGraph(builder_graph::Error),
     BusyWorkerUpsert(postgres::error::Error),
     BusyWorkerDelete(postgres::error::Error),
     BusyWorkersGet(postgres::error::Error),
@@ -93,6 +95,8 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             Error::BuilderCore(ref e) => format!("{}", e),
+            Error::BuilderGraph(ref e) => format!("{}", e),
+
             Error::BusyWorkerUpsert(ref e) => {
                 format!("Database error creating or updating a busy worker, {}", e)
             }
@@ -228,6 +232,11 @@ fn diesel_err_to_http(err: &diesel::result::Error) -> StatusCode {
 
 impl From<bldr_core::Error> for Error {
     fn from(err: bldr_core::Error) -> Error { Error::BuilderCore(err) }
+}
+
+// Note: might be worth flattening out builder db errors into our db error types.
+impl From<builder_graph::Error> for Error {
+    fn from(err: builder_graph::Error) -> Error { Error::BuilderGraph(err) }
 }
 
 impl From<chrono::format::ParseError> for Error {

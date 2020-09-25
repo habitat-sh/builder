@@ -23,7 +23,9 @@ use std::{collections::HashSet,
           time::Instant};
 
 use diesel::{self,
-             result::Error::NotFound};
+             result::Error::NotFound,
+             PgConnection};
+
 use protobuf::RepeatedField;
 
 use crate::{bldr_core::rpc::RpcMessage,
@@ -37,6 +39,10 @@ use super::AppState;
 use crate::protocol::{jobsrv,
                       net,
                       originsrv};
+
+use crate::builder_graph::{data_store::DataStore as GraphDataStore,
+                           package_build_manifest_graph::PackageBuildManifest,
+                           package_ident_intern::PackageIdentIntern};
 
 use crate::server::{feat,
                     scheduler::ScheduleClient,
@@ -319,8 +325,11 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         return Err(Error::NotFound);
     }
 
-    let group = job_group_create_old(&msg, target, &state)?;
-
+    let group = if false {
+        job_group_create_new(&msg, target, &state)?
+    } else {
+        job_group_create_old(&msg, target, &state)?
+    };
     RpcMessage::make(&group).map_err(Error::BuilderCore)
 }
 
@@ -429,6 +438,73 @@ fn job_group_create_old(msg: &jobsrv::JobGroupSpec,
 
         Ok(new_group)
     }
+}
+
+fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
+                        target: PackageTarget,
+                        state: &AppState)
+                        -> Result<jobsrv::JobGroup> {
+    let project_name = format!("{}/{}", msg.get_origin(), msg.get_package());
+
+    // This may be slightly redundant with the work done building the manifest, but
+    // leaving this for now.
+    // Bail if auto-build is false, and the project has not been manually kicked off
+    if !is_project_buildable(state, &project_name, &target) {
+        match msg.get_trigger() {
+            jobsrv::JobGroupTrigger::HabClient | jobsrv::JobGroupTrigger::BuilderUI => (),
+            _ => {
+                return Err(Error::NotFound);
+            }
+        }
+    }
+
+    // Find/create the group
+    // There are several options around what we do if there is already a group for this package
+    // 1) just return the existing queued build group (previous behavior)
+    // 2) cancel the old group and replace it with a new one
+    // 3) do nothing and notify the user to cancel if they want to
+    // 4) create a new group and have possibly redundant builds
+    //
+    // This doesn't really take into account possible changes in the deps_only and package_only
+    // flags but probably should.
+    // For now we will do 4) and create the group no matter what.
+
+    let conn = state.db.get_conn().map_err(Error::Db)?;
+
+    let new_group = NewGroup { group_state:  "Queued",
+                               project_name: &project_name,
+                               target:       &target.to_string(), };
+    let group = Group::create(&new_group, &conn)?;
+
+    // TODO MAKE manifest, (possibly async)
+    let manifest = if msg.get_package_only() {
+        // we only build the package itself.
+        PackageBuildManifest::new()
+    } else {
+        // !(!msg.get_deps_only() || msg.get_package_only())
+        let _exclude_root = msg.get_deps_only() && !msg.get_package_only();
+
+        // TODO FIGURE OUT EXCLUDE ROOT
+        let target_graph = state.graph.read().unwrap();
+        let graph = target_graph.graph_for_target(target).unwrap();
+        let package = PackageIdentIntern::from_str(&project_name).unwrap(); // We created this, so it should never fail
+
+        let unbuildable = GraphDataStore::from_pool(state.db.clone())?;
+
+        graph.compute_build(&[package], &unbuildable, target) // this should be a result but that
+                                                              // wasn't implmented in compute_build
+    };
+
+    // TODO insert manifest in db (possibly async)
+    insert_job_graph_entries(&manifest, &conn)?;
+    // TODO NOTIFY SCHEDULER
+
+    add_job_group_audit_entry(group.id as u64, &msg, &state.datastore);
+    Ok(group.into())
+}
+
+fn insert_job_graph_entries(_manifest: &PackageBuildManifest, _conn: &PgConnection) -> Result<()> {
+    Ok(())
 }
 
 fn add_job_group_audit_entry(group_id: u64, msg: &jobsrv::JobGroupSpec, datastore: &DataStore) {
