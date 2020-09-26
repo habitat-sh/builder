@@ -866,11 +866,12 @@ impl WorkerMgr {
                     unimplemented!("JobState::Rejected");
                 }
                 jobsrv::JobState::Dispatched
+                | jobsrv::JobState::Pending
                 | jobsrv::JobState::CancelPending
                 | jobsrv::JobState::CancelProcessing => {
                     // Ok do nothing
                 }
-                jobsrv::JobState::Pending | jobsrv::JobState::Processing => {
+                jobsrv::JobState::Processing => {
                     let id = job.get_id();
                     // Should never see these from the runner EXPLODE!
                     error!("process_job_status: Did not expect to get state {} for job {}",

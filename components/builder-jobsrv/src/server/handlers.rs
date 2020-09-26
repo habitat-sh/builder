@@ -330,7 +330,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         return Err(Error::NotFound);
     }
 
-    let group = if false {
+    let group = if feat::is_enabled(feat::NewScheduler) {
         job_group_create_new(&msg, target, &state)?
     } else {
         job_group_create_old(&msg, target, &state)?
@@ -484,11 +484,13 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
     {
         // the code in this block might be best moved to some sort of asynchronous task, maybe
         // even another thread.
-
+        info!("Generating Manifest");
         let manifest = if msg.get_package_only() {
             // we only build the package itself.
+            info!("Emtpy Manifest");
             PackageBuildManifest::new()
         } else {
+            info!("Including deps in Manifest");
             // !(!msg.get_deps_only() || msg.get_package_only())
             let _exclude_root = msg.get_deps_only() && !msg.get_package_only();
 
@@ -505,6 +507,7 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
                                                                   // compute_build
         };
 
+        dbg!(&manifest);
         insert_job_graph_entries(&manifest,
                                  group.id as i64,
                                  BuilderPackageTarget(target),
@@ -522,16 +525,23 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
 fn insert_job_graph_entries(manifest: &PackageBuildManifest,
                             group_id: i64,
                             target: BuilderPackageTarget,
-                            _conn: &PgConnection)
+                            conn: &PgConnection)
                             -> Result<()> {
+    info!("Inserting entries");
     let order = manifest.build_order();
+    info!("Got {} entries", order.len());
     let mut lookup: HashMap<UnresolvedPackageIdent, i64> = HashMap::new();
 
     for package in order {
-        let project_name = package.name.ident().unwrap();
+        let project_name = dbg!(package.name.ident().unwrap());
         let manifest_ident = "foo".to_owned();
 
         let mut dependencies: Vec<i64> = Vec::new();
+        for dependency in package.build_deps.iter().chain(package.runtime_deps.iter()) {
+            // Unwrap should be safe,but lets fix this to handle nicely
+            let dep_id = *lookup.get(dependency).unwrap();
+            dependencies.push(dep_id);
+        }
 
         let entry = NewJobGraphEntry { group_id,
                                        project_name: &project_name.to_string(),
@@ -542,6 +552,10 @@ fn insert_job_graph_entries(manifest: &PackageBuildManifest,
                                        dependencies: &dependencies,
                                        waiting_on_count: dependencies.len() as i32,
                                        target_platform: target };
+        let entry = JobGraphEntry::create(&entry, &conn)?;
+
+        lookup.insert(package.name.clone(), entry.id);
+        // TODO: Should we error if we get Some(id) back?
     }
     Ok(())
 }
