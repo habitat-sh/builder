@@ -150,18 +150,18 @@ impl SchedulerInternal {
         SchedulerInternal { data_store, rx }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     pub async fn run(&mut self) {
         println!("Loop started");
         let mut message_count: usize = 0;
         let mut last_message_debug = "".to_owned();
 
         while let Some(msg) = self.rx.recv().await {
-            println!("Msg {:?}", msg);
+            // trace!("Msg {:?}", msg);
             message_count += 1;
 
             let message_debug = format!("{:?}", msg);
-            println!("Handling {}: {}", message_count, message_debug);
+            // trace!("Handling {}: {}", message_count, message_debug);
 
             match msg {
                 SchedulerMessage::JobGroupAdded { group, target } => {
@@ -190,7 +190,7 @@ impl SchedulerInternal {
         }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn job_group_added(&mut self, group: GroupId, target: BuilderPackageTarget) {
         // if there are no ready jobs for this target dispatch it
 
@@ -205,7 +205,7 @@ impl SchedulerInternal {
         }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) {
         if let Some(group) = self.data_store
                                  .take_next_group_for_target(target)
@@ -215,7 +215,7 @@ impl SchedulerInternal {
         }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn dispatch_group_for_target(&mut self, group_id: GroupId, _target: BuilderPackageTarget) {
         // Move the group to dispatching,
         self.data_store
@@ -231,7 +231,7 @@ impl SchedulerInternal {
         // Does something with ready/target
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, reply))]
     fn worker_needs_work(&mut self,
                          worker: &WorkerId,
                          target: BuilderPackageTarget,
@@ -255,7 +255,7 @@ impl SchedulerInternal {
              .expect("Reply failed: Worker manager appears to have died")
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn worker_finished(&mut self, worker: &WorkerId, job_entry: JobGraphEntry) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
