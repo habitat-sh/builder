@@ -72,6 +72,14 @@ impl<'a> Studio<'a> {
     /// * If the calling thread can't wait on the child process
     /// * If the `LogPipe` fails to pipe output
     pub fn build(&self, streamer: &mut JobStreamer) -> Result<Child> {
+        let dev_mode = if let Some(_val) = env::var_os(DEV_MODE) {
+            debug!("RUNNER_DEBUG_ENVVAR ({}) is set - using non-Docker studio",
+                   DEV_MODE);
+            true
+        } else {
+            false
+        };
+
         let channel = if self.workspace.job.has_channel() {
             ChannelIdent::from(self.workspace.job.get_channel())
         } else {
@@ -80,6 +88,10 @@ impl<'a> Studio<'a> {
 
         let mut cmd = self.studio_command()?;
         cmd.current_dir(self.workspace.src());
+        if dev_mode && cfg!(not(windows)) {
+            cmd.env("HOME", "/hab/svc/builder-worker/data");
+        }
+
         if let Some(val) = env::var_os(RUNNER_DEBUG_ENVVAR) {
             debug!("RUNNER_DEBUG_ENVVAR ({}) is set - turning on runner debug",
                    RUNNER_DEBUG_ENVVAR);
@@ -136,13 +148,6 @@ impl<'a> Studio<'a> {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        let dev_mode = if let Some(_val) = env::var_os(DEV_MODE) {
-            debug!("RUNNER_DEBUG_ENVVAR ({}) is set - using non-Docker studio",
-                   DEV_MODE);
-            true
-        } else {
-            false
-        };
 
         cmd.arg("studio");
         cmd.arg("build");
