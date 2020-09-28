@@ -16,6 +16,7 @@ use actix_web::{http::{self,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
+use bldr_core::access_token::AccessToken as CoreAccessToken;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {
@@ -121,9 +122,13 @@ fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpRespons
         session.get_flags()
     };
 
-    let token = bldr_core::access_token::generate_user_token(&state.config.api.key_path,
-                                                             account_id,
-                                                             flags).unwrap();
+    let token = match CoreAccessToken::user_token(&state.config.api.key_path, account_id, flags) {
+        Ok(token) => token.to_string(),
+        Err(err) => {
+            debug!("{}", err);
+            return Error::from(err).into();
+        }
+    };
 
     let new_token = NewAccountToken { account_id: account_id as i64,
                                       token:      &token, };
