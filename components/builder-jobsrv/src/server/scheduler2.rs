@@ -40,7 +40,6 @@ pub struct StateBlob {
 
 type Responder<T> = oneshot::Sender<T>;
 
-#[derive(Debug)]
 #[allow(dead_code)] // TODO REMOVE
 #[non_exhaustive]
 pub enum SchedulerMessage {
@@ -70,6 +69,54 @@ pub enum SchedulerMessage {
     Halt,
     /* TODO maybe Watchdog, ProcessMetrics (or combine those two); what's a good periodic
      * message pump pattern? Could live alongside in separate thread */
+}
+
+impl fmt::Debug for SchedulerMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SchedulerMessage::JobGroupAdded { group, target } => {
+                f.debug_struct("SchedulerMessage::JobGroupAdded")
+                 .field("group", group)
+                 .field("target", target)
+                 .finish()
+            }
+            SchedulerMessage::JobGroupCanceled { group } => {
+                f.debug_struct("SchedulerMessage::JobGroupCanceled")
+                 .field("group", group)
+                 .finish()
+            }
+            SchedulerMessage::WorkerNeedsWork { worker,
+                                                target,
+                                                reply: _, } => {
+                f.debug_struct("SchedulerMessage::WorkerNeedsWork")
+                 .field("worker", worker)
+                 .field("target", target)
+                 .finish()
+            }
+            SchedulerMessage::WorkerFinished { worker, job } => {
+                f.debug_struct("SchedulerMessage::WorkerFinished")
+                 .field("worker", worker)
+                 .field("job", job)
+                 .finish()
+            }
+            SchedulerMessage::WorkerGone { worker, job } => {
+                f.debug_struct("SchedulerMessage::WorkerGone")
+                 .field("worker", worker)
+                 .field("job", job)
+                 .finish()
+            }
+            SchedulerMessage::State { reply: _ } => {
+                f.debug_struct("SchedulerMessage::State")
+                 .field("Unknown", &"omitted".to_owned())
+                 .finish() //  rework when finish_non_exhaustive is on main
+            }
+            _ => {
+                f.debug_struct("SchedulerMessage:: UNIMPLEMENTED")
+                 .field("Unknown", &"omitted".to_owned())
+                 .finish()
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
