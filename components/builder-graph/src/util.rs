@@ -35,6 +35,7 @@ pub enum EdgeType {
     RuntimeDep,
     BuildDep,
     StrongBuildDep,
+    ExternalConstraint, // This comes from non dependency graph issues such as worker build limits
 }
 
 impl Default for EdgeType {

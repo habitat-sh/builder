@@ -219,6 +219,9 @@ pub fn dump_graph_raw(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                     EdgeType::BuildDep => bdeps.push(succ),
                     EdgeType::RuntimeDep => rdeps.push(succ),
                     EdgeType::StrongBuildDep => sdeps.push(succ),
+                    EdgeType::ExternalConstraint => {
+                        unimplemented!("External Constraints should not appear here")
+                    }
                 }
             }
             let bdeps_join = join_idents(",", &bdeps);
@@ -304,6 +307,7 @@ fn edgetype_to_abbv(edge: EdgeType) -> &'static str {
         EdgeType::RuntimeDep => "R",
         EdgeType::BuildDep => "B",
         EdgeType::StrongBuildDep => "S",
+        EdgeType::ExternalConstraint => "X",
     }
 }
 
@@ -428,6 +432,9 @@ pub fn transitive_deps(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                 EdgeType::RuntimeDep => true,
                 EdgeType::BuildDep => include_build_deps,
                 EdgeType::StrongBuildDep => include_build_deps,
+                EdgeType::ExternalConstraint => {
+                    unimplemented!("External Constraints should not appear here")
+                }
             };
 
             if edge_ok && !seen.contains(&succ_ident) && filter_match(&succ_ident, origin) {

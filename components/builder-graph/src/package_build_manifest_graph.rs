@@ -109,10 +109,11 @@ impl fmt::Display for UnresolvedPackageIdent {
 }
 
 pub struct PackageBuild {
-    pub name:         UnresolvedPackageIdent,
-    pub runtime_deps: Vec<UnresolvedPackageIdent>,
-    pub build_deps:   Vec<UnresolvedPackageIdent>,
-    pub strong_deps:  Vec<UnresolvedPackageIdent>,
+    pub name:                 UnresolvedPackageIdent,
+    pub runtime_deps:         Vec<UnresolvedPackageIdent>,
+    pub build_deps:           Vec<UnresolvedPackageIdent>,
+    pub strong_deps:          Vec<UnresolvedPackageIdent>,
+    pub external_constraints: Vec<UnresolvedPackageIdent>,
 }
 
 impl PackageBuild {
@@ -121,7 +122,9 @@ impl PackageBuild {
         let deps: Vec<UnresolvedPackageIdent> =
             self.runtime_deps
                 .iter()
-                .chain(self.build_deps.iter().chain(self.strong_deps.iter()))
+                .chain(self.build_deps.iter().chain(self.strong_deps
+                                                        .iter()
+                                                        .chain(self.external_constraints.iter())))
                 .cloned()
                 .collect();
         format!("{}\t{}\t{}\n",
@@ -184,29 +187,59 @@ impl PackageBuildManifest {
         order
     }
 
-    // pub fn insert_entries<F>(&self, insert: F)
-    //     where F: FnMut(String, &[i64]) -> i64
-    // {
-    //     let mut lookup: HashMap<UnresolvedPackageIdent, i64> = HashMap::new();
+    /// Fixup for strict package build ordering.
+    // The execution ordering of the base graph is specified only by the direct dependencies of the
+    // package. However, our build workers don't use the dependencies to select what package to use,
+    // instead taking the latest package in the channel. This creates an antidependency (read
+    // before write) as it is possible that we build the next iteration of a package before all
+    // of the consumers of the last iteration have started; if that happens those packages might
+    // pick up the wrong iteration. This is likely harmless, except it makes the process
+    // nondeterministic and hard to debug. Constraining this will protect against this
+    // nondeterminism at the cost of some parallelism.
+    //
+    // To counter this, we will add extra dependencies to the graph. A package iteration n
+    // (InternalVersionedNode) will now have dependencies on all of the consumers of iteration n-1,
+    // guaranteeing they complete before it starts
+    //
+    // This fixup will not be necessary once we have build workers that can take exact dependencies.
+    //
+    fn constrain_package_cycles(&mut self) {
+        // Phase one: Identify all of the nodes needing constraint. This will be all
+        // InternalVersionedNode with version > 1
+        let mut fixup_targets = Vec::new();
+        for node in self.graph.nodes() {
+            match node {
+                UnresolvedPackageIdent::InternalVersionedNode(_, n) if n > 1 => {
+                    fixup_targets.push(node);
+                }
+                _ => (),
+            }
+        }
 
-    //     for component in petgraph::algo::tarjan_scc(&self.graph) {
-    //         assert_eq!(component.len(), 1);
-
-    //         match component.first().unwrap() {
-    //             ident @ UnresolvedPackageIdent::InternalNode(..)
-    //             | ident @ UnresolvedPackageIdent::InternalVersionedNode(..) => {
-    //                 let package_build = self.package_build_from_unresolved_ident(*ident);
-    //                 order.push(package_build);
-    //             }
-    //             _ => (),
-    //         }
-    //     }
-    // }
+        // Phase two: For each identified node, find the n-1 th version and make each package that
+        // depends on the n-1th node a dependency of the nth node.
+        for node in fixup_targets.iter() {
+            if let UnresolvedPackageIdent::InternalVersionedNode(ident, n) = node {
+                // always matches...
+                let prev_node = UnresolvedPackageIdent::InternalVersionedNode(*ident, n - 1);
+                // Modifying the graph while iterating over edges isn't ok.
+                let consumers: Vec<UnresolvedPackageIdent> =
+                    self.graph
+                        .neighbors_directed(prev_node, petgraph::EdgeDirection::Incoming)
+                        .collect();
+                for consumer in consumers {
+                    self.graph
+                        .add_edge(*node, consumer, EdgeType::ExternalConstraint);
+                }
+            }
+        }
+    }
 
     fn package_build_from_unresolved_ident(&self, name: UnresolvedPackageIdent) -> PackageBuild {
         let mut runtime_deps = Vec::new();
         let mut build_deps = Vec::new();
         let mut strong_deps = Vec::new();
+        let mut external_constraints = Vec::new();
 
         for dep in self.graph
                        .neighbors_directed(name, petgraph::EdgeDirection::Outgoing)
@@ -215,13 +248,15 @@ impl PackageBuildManifest {
                 EdgeType::RuntimeDep => runtime_deps.push(dep),
                 EdgeType::BuildDep => build_deps.push(dep),
                 EdgeType::StrongBuildDep => strong_deps.push(dep),
+                EdgeType::ExternalConstraint => external_constraints.push(dep),
             }
         }
 
         PackageBuild { name,
                        runtime_deps,
                        build_deps,
-                       strong_deps }
+                       strong_deps,
+                       external_constraints }
     }
 
     pub fn serialize() -> Vec<PackageBuild> { unimplemented!() }
