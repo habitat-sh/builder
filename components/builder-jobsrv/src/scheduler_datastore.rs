@@ -19,7 +19,8 @@ use diesel::{r2d2::{ConnectionManager,
 use crate::{db::models::{jobs::{Group,
                                 JobGraphEntry,
                                 JobStateCounts},
-                         package::BuilderPackageTarget},
+                         package::{BuilderPackageIdent,
+                                   BuilderPackageTarget}},
             error::{Error,
                     Result},
             protocol::jobsrv};
@@ -44,7 +45,10 @@ pub trait SchedulerDataStore: Send + Sync {
     fn take_next_job_for_target(&mut self,
                                 target: BuilderPackageTarget)
                                 -> Result<Option<JobGraphEntry>>;
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobGraphId) -> Result<i32>;
+    fn mark_job_complete_and_update_dependencies(&mut self,
+                                                 job: JobGraphId,
+                                                 as_built: &BuilderPackageIdent)
+                                                 -> Result<i32>;
     fn mark_job_failed(&mut self, job: JobGraphId) -> Result<i32>;
     fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts>;
     fn set_job_group_state(&mut self,
@@ -98,8 +102,11 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
                                                 &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobGraphId) -> Result<i32> {
-        JobGraphEntry::mark_job_complete(job.0, &self.get_connection()).map_err(|e| {
+    fn mark_job_complete_and_update_dependencies(&mut self,
+                                                 job: JobGraphId,
+                                                 as_built: &BuilderPackageIdent)
+                                                 -> Result<i32> {
+        JobGraphEntry::mark_job_complete(job.0, as_built, &self.get_connection()).map_err(|e| {
             Error::SchedulerDbError(e)
         })
     }
@@ -189,7 +196,10 @@ impl SchedulerDataStore for DummySchedulerDataStore {
         }
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job_id: JobGraphId) -> Result<i32> {
+    fn mark_job_complete_and_update_dependencies(&mut self,
+                                                 job_id: JobGraphId,
+                                                 _as_built: &BuilderPackageIdent)
+                                                 -> Result<i32> {
         assert!(self.actions.len() > 0);
         assert_eq!(self.actions[0].0,
                    DummySchedulerDataStoreCall::MarkJobCompleteAndUpdateDependencies { job_id });

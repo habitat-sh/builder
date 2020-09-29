@@ -32,6 +32,7 @@ pub enum Error {
     MigrationTable(postgres::error::Error),
     MigrationTracking(postgres::error::Error),
     MigrationLock(postgres::error::Error),
+    ParseError(String),
     PostgresConnect(postgres::Error),
     SchemaCreate(postgres::error::Error),
     SchemaDrop(postgres::error::Error),
@@ -74,6 +75,7 @@ impl fmt::Display for Error {
                 format!("Error updating migration tracking table: {}", e)
             }
             Error::MigrationLock(ref e) => format!("Error getting migration lock: {}", e),
+            Error::ParseError(ref e) => format!("Error parsing: {}", e),
             Error::PostgresConnect(ref e) => format!("Postgres connection error: {}", e),
             Error::SchemaCreate(ref e) => format!("Error creating schema: {}", e),
             Error::SchemaDrop(ref e) => format!("Error dropping schema: {}", e),

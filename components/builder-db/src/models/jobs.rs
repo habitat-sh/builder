@@ -13,7 +13,8 @@ use crate::protocol::{jobsrv,
                       net,
                       originsrv};
 
-use crate::{models::{package::BuilderPackageTarget,
+use crate::{models::{package::{BuilderPackageIdent,
+                               BuilderPackageTarget},
                      pagination::Paginate},
             schema::jobs::{audit_jobs,
                            busy_workers,
@@ -753,10 +754,13 @@ impl JobGraphEntry {
         Ok(result)
     }
 
-    pub fn mark_job_complete(id: i64, conn: &PgConnection) -> QueryResult<i32> {
+    pub fn mark_job_complete(id: i64,
+                             as_built: &BuilderPackageIdent,
+                             conn: &PgConnection)
+                             -> QueryResult<i32> {
         Counter::DBCall.increment();
         let result =
-            diesel::select(job_functions::job_graph_mark_complete(id)).get_result::<i32>(conn)?;
+            diesel::select(job_functions::job_graph_mark_complete(id, &as_built.to_string())).get_result::<i32>(conn)?;
         Ok(result)
     }
 

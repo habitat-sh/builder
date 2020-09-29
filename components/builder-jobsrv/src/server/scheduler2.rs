@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
+use std::{fmt,
+          str::FromStr};
 
 use tokio::{sync::{mpsc,
                    oneshot},
@@ -26,8 +27,11 @@ use crate::scheduler_datastore::{GroupId,
 use crate::{db::models::{jobs::{JobExecState,
                                 JobGraphEntry,
                                 JobStateCounts},
-                         package::BuilderPackageTarget},
+                         package::{BuilderPackageIdent,
+                                   BuilderPackageTarget}},
             protocol::jobsrv};
+
+use crate::hab_core::package::PackageIdent;
 
 #[derive(Debug)]
 pub struct StateBlob {
@@ -312,10 +316,20 @@ impl SchedulerInternal {
         let job_id = JobGraphId(job_entry.id);
         match job_entry.job_state {
             JobExecState::Complete => {
+                // Short term while we convert JobGraphEntry to use BuilderPackageIdents...
+                let as_built = job_entry.as_built_ident
+                                        .as_ref()
+                                        .expect("Package build completed but had no name")
+                                        .clone();
+                let as_built_ident =
+                    BuilderPackageIdent::from_str(&as_built).expect("Ill formed ident from \
+                                                                     package build");
+
                 // If it successful, we will mark it done, and update the available jobs to run
-                let new_avail = self.data_store
-                                    .mark_job_complete_and_update_dependencies(job_id)
-                                    .expect("Can't yet handle db error");
+                let new_avail =
+                    self.data_store
+                        .mark_job_complete_and_update_dependencies(job_id, &as_built_ident)
+                        .expect("Can't yet handle db error");
 
                 debug!("Job {} completed, {} now avail to run", job_id.0, new_avail);
             }

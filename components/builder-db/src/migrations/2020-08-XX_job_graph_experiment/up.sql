@@ -171,7 +171,7 @@ $$ LANGUAGE PLPGSQL;
 -- We rely on this being atomic (like all functions in postgres)
 -- It might be better to write this as a diesel transaction, but it's kinda complex
 --
-CREATE OR REPLACE FUNCTION job_graph_mark_complete(job_graph_id BIGINT) RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION job_graph_mark_complete(job_graph_id BIGINT, as_built TEXT) RETURNS integer AS $$
 DECLARE
   i_count integer;
 BEGIN
@@ -195,8 +195,9 @@ BEGIN
 
   -- Mark this job complete
   -- TODO: Consider limiting this update to jobs 'Pending'
-  UPDATE job_graph SET job_state = 'complete'
-  WHERE id = job_graph_id;
+  UPDATE job_graph
+    SET job_state = 'complete', as_built_ident = as_built
+    WHERE id = job_graph_id;
 
   RETURN i_count;
 END
