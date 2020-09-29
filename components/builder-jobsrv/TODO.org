@@ -1,0 +1,27 @@
+* TODO code changes/cleanup
+** DONE Fix as_built_ident:
+   CLOSED: [2020-09-28 Mon 17:45]
+** DONE figure out why worker is having trouble with removing the studio
+   CLOSED: [2020-09-28 Mon 17:45]
+** DONE figure out tokio trace log syntax to exclude fields
+   CLOSED: [2020-09-28 Mon 17:46]
+** TODO figure out how to add barrier to cycles (NEEDS TEST)
+** TODO fix job failed path
+** TODO make job_graph_entry idents actually BuilderPackageIdents instead of strings
+** TODO figure out how to get worker to start immediately NEXT
+** TODO manifest_ident should be rendered
+** TODO better debug format for manifest entries
+** TODO better logging in general
+* TODO features
+** TODO we should have a way to mandate that touched set is built even if it’s not autobuild (may require change to Unbuildable contract)
+** TODO implement worker kick
+** TODO implement cancel
+** TODO implement recovery
+** TODO figure out more about the worker to support dummy worker
+** TODO Fix worker disconnection issue
+https://github.com/habitat-sh/builder/issues/1530
+* TODO Systems work
+** TODO get new test system in AWS
+** TODO datadog worker logs (WRITE ISSUE)
+
+
