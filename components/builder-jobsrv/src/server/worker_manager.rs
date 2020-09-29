@@ -857,8 +857,8 @@ impl WorkerMgr {
                 }
                 jobsrv::JobState::Failed => {
                     // Tell the scheduler
-
-                    unimplemented!("JobState::Failed");
+                    job_graph_entry.job_state = JobExecState::JobFailed;
+                    block_on(scheduler.worker_finished(WorkerId(worker_id), job_graph_entry))
                 }
                 jobsrv::JobState::CancelComplete => {
                     // Tell the scheduler
