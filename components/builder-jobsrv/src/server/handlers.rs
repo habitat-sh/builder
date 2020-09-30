@@ -539,8 +539,14 @@ fn insert_job_graph_entries(manifest: &PackageBuildManifest,
         let mut dependencies: Vec<i64> = Vec::new();
         for dependency in package.build_deps.iter().chain(package.runtime_deps.iter()) {
             // Unwrap should be safe,but lets fix this to handle nicely
-            let dep_id = *lookup.get(dependency).unwrap();
-            dependencies.push(dep_id);
+            match &dependency {
+                UnresolvedPackageIdent::InternalNode(..)
+                | UnresolvedPackageIdent::InternalVersionedNode(..) => {
+                    let dep_id = *lookup.get(dependency).unwrap();
+                    dependencies.push(dep_id);
+                }
+                _ => (),
+            }
         }
 
         let entry = NewJobGraphEntry { group_id,
