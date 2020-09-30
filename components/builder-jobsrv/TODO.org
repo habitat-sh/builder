@@ -5,23 +5,42 @@
    CLOSED: [2020-09-28 Mon 17:45]
 ** DONE figure out tokio trace log syntax to exclude fields
    CLOSED: [2020-09-28 Mon 17:46]
+** DONE figure out delay between job runs
+   CLOSED: [2020-09-30 Wed 10:07]
+** DONE figure out how to get worker to start immediately 
+   CLOSED: [2020-09-30 Wed 10:58]
 ** TODO figure out how to add barrier to cycles (NEEDS TEST)
-** TODO fix job failed path
 ** TODO make job_graph_entry idents actually BuilderPackageIdents instead of strings
-** TODO figure out how to get worker to start immediately NEXT
+** TODO fix job failed path
+** TODO log scheduler state transitions
+** TODO Hab builder job status (might crash jobsrv, also just broken)
 ** TODO manifest_ident should be rendered
 ** TODO better debug format for manifest entries
 ** TODO better logging in general
-* TODO features
-** TODO we should have a way to mandate that touched set is built even if it’s not autobuild (may require change to Unbuildable contract)
-** TODO implement worker kick
-** TODO implement cancel
-** TODO implement recovery
-** TODO figure out more about the worker to support dummy worker
-** TODO Fix worker disconnection issue
+** TODO poll timeout config for worker
+
+* TODO Next phase
+
+** TODO Bugs
+*** TODO Visibility from UI (does it work? Only when finished, not in flight) (maybe defer)
+
+** TODO features
+*** DONE implement worker kick
+   CLOSED: [2020-09-30 Wed 10:07]
+*** TODO we should have a way to mandate that touched set is built even if it’s not autobuild (may require change to Unbuildable contract)
+*** TODO implement cancel
+*** TODO implement recovery
+*** TODO figure out more about the worker to support dummy worker
+*** TODO Fix worker disconnection issue
 https://github.com/habitat-sh/builder/issues/1530
-* TODO Systems work
-** TODO get new test system in AWS
-** TODO datadog worker logs (WRITE ISSUE)
+** TODO Systems work
+*** TODO get new test system in AWS
+*** TODO datadog worker logs (WRITE ISSUE)
+** TODO Testing
+*** Multiple workers
+*** Non linux workers
+*** Do we wire up a foo origin with dependencies but empty package builds
+   Automated from core?
+
 
 
