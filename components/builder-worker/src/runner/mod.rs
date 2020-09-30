@@ -363,6 +363,7 @@ impl Runner {
 
         self.cleanup();
         self.complete();
+
         tx.send(self.workspace.job)
           .await
           .map_err(Error::MpscAsync)?;
@@ -713,11 +714,12 @@ impl RunnerMgr {
 
         let mut srv_msg = false;
         let (tx, mut rx): (_, async_mpsc::UnboundedReceiver<Job>) = async_mpsc::unbounded();
+        let work_poll_interval = (self.config.work_poll_interval * 1000) as i64;
 
         loop {
             {
                 let mut items = [self.sock.as_poll_item(1)];
-                zmq::poll(&mut items, 60000)?;
+                zmq::poll(&mut items, work_poll_interval)?;
                 if items[0].get_revents() & zmq::POLLIN > 0 {
                     srv_msg = true;
                 }

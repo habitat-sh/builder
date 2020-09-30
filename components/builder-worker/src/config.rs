@@ -18,25 +18,27 @@ pub type JobSrvCfg = Vec<JobSrvAddr>;
 #[serde(default)]
 pub struct Config {
     /// Enable automatic publishing for all builds by default
-    pub auto_publish:     bool,
+    pub auto_publish:       bool,
     /// Filepath where persistent application data is stored
-    pub data_path:        PathBuf,
+    pub data_path:          PathBuf,
     /// Location of Builder encryption keys
-    pub key_dir:          KeyCache,
+    pub key_dir:            KeyCache,
     /// Path to worker event logs
-    pub log_path:         PathBuf,
+    pub log_path:           PathBuf,
     /// Default channel name for Publish post-processor to use to determine which channel to
     /// publish artifacts to
-    pub bldr_channel:     ChannelIdent,
+    pub bldr_channel:       ChannelIdent,
     /// Default URL for Publish post-processor to use to determine which Builder to use
     /// for retrieving signing keys and publishing artifacts
-    pub bldr_url:         String,
+    pub bldr_url:           String,
     /// List of Job Servers to connect to
-    pub jobsrv:           JobSrvCfg,
-    pub features_enabled: String,
+    pub jobsrv:             JobSrvCfg,
+    pub features_enabled:   String,
     /// Github application id to use for private repo access
-    pub github:           GitHubCfg,
-    pub target:           PackageTarget,
+    pub github:             GitHubCfg,
+    pub target:             PackageTarget,
+    /// The frequency to poll the zmq socket for messages from jobsrv, in seconds
+    pub work_poll_interval: usize,
 }
 
 impl Config {
@@ -54,16 +56,17 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Config { auto_publish:     true,
-                 data_path:        PathBuf::from("/tmp"),
-                 log_path:         PathBuf::from("/tmp"),
-                 key_dir:          KeyCache::new("/hab/svc/builder-worker/files"),
-                 bldr_channel:     ChannelIdent::unstable(),
-                 bldr_url:         url::default_bldr_url(),
-                 jobsrv:           vec![JobSrvAddr::default()],
-                 features_enabled: "".to_string(),
-                 github:           GitHubCfg::default(),
-                 target:           PackageTarget::from_str("x86_64-linux").unwrap(), }
+        Config { auto_publish:       true,
+                 data_path:          PathBuf::from("/tmp"),
+                 log_path:           PathBuf::from("/tmp"),
+                 key_dir:            KeyCache::new("/hab/svc/builder-worker/files"),
+                 bldr_channel:       ChannelIdent::unstable(),
+                 bldr_url:           url::default_bldr_url(),
+                 jobsrv:             vec![JobSrvAddr::default()],
+                 features_enabled:   "".to_string(),
+                 github:             GitHubCfg::default(),
+                 target:             PackageTarget::from_str("x86_64-linux").unwrap(),
+                 work_poll_interval: 60, }
     }
 }
 
@@ -101,6 +104,7 @@ mod tests {
         key_dir = "/path/to/key"
         features_enabled = "FOO,BAR"
         target = "x86_64-linux-kernel2"
+        work_poll_interval = 10
 
         [[jobsrv]]
         host = "1:1:1:1:1:1:1:1"
@@ -127,5 +131,6 @@ mod tests {
         assert_eq!(&config.features_enabled, "FOO,BAR");
         assert_eq!(config.target,
                    PackageTarget::from_str("x86_64-linux-kernel2").unwrap());
+        assert_eq!(config.work_poll_interval, 10);
     }
 }
