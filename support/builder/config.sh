@@ -20,14 +20,14 @@ else
   exit 1
 fi
 
-mkdir -p /hab/svc/builder-minio
-cat <<EOT > /hab/svc/builder-minio/user.toml
+mkdir -p /hab/user/builder-minio/config
+cat <<EOT > /hab/user/builder-minio/config/user.toml
 key_id = "depot"
 secret_key = "password"
 EOT
 
-mkdir -p /hab/svc/builder-api
-cat <<EOT > /hab/svc/builder-api/user.toml
+mkdir -p /hab/user/builder-api/config
+cat <<EOT > /hab/user/builder-api/config/user.toml
 log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error,hyper=error"
 
 [http]
@@ -50,8 +50,8 @@ password = "$PGPASSWORD"
 port = 5433
 EOT
 
-mkdir -p /hab/svc/builder-api-proxy
-cat <<EOT > /hab/svc/builder-api-proxy/user.toml
+mkdir -p /hab/user/builder-api-proxy/config
+cat <<EOT > /hab/user/builder-api-proxy/config/user.toml
 log_level = "info"
 enable_builder = true
 enable_publisher_docker = true
@@ -79,8 +79,8 @@ proxy_read_timeout = 180
 keepalive_timeout = "180s"
 EOT
 
-mkdir -p /hab/svc/builder-jobsrv
-cat <<EOT > /hab/svc/builder-jobsrv/user.toml
+mkdir -p /hab/user/builder-jobsrv/config/
+cat <<EOT > /hab/user/builder-jobsrv/config/user.toml
 log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error,postgres=error"
 
 [http]
@@ -94,8 +94,8 @@ port = 5433
 backend = "local"
 EOT
 
-mkdir -p /hab/svc/builder-worker
-cat <<EOT > /hab/svc/builder-worker/user.toml
+mkdir -p /hab/user/builder-worker/config
+cat <<EOT > /hab/user/builder-worker/config/user.toml
 log_level = "info"
 
 key_dir = "/hab/svc/builder-worker/files"
@@ -103,6 +103,7 @@ auto_publish = true
 airlock_enabled = false
 data_path = "/hab/svc/builder-worker/data"
 bldr_url = "http://localhost:9636"
+work_poll_interval = 5
 
 [github]
 api_url = "$GITHUB_API_URL"
