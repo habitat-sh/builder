@@ -148,7 +148,6 @@ impl<'a> Studio<'a> {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-
         cmd.arg("studio");
         cmd.arg("build");
 
