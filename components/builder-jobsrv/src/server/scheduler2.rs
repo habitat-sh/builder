@@ -29,6 +29,7 @@ use crate::{db::models::{jobs::{JobExecState,
                                 JobStateCounts},
                          package::{BuilderPackageIdent,
                                    BuilderPackageTarget}},
+            error::Error,
             protocol::jobsrv};
 
 use crate::hab_core::package::PackageIdent;
@@ -216,7 +217,8 @@ impl SchedulerInternal {
 
             match msg {
                 SchedulerMessage::JobGroupAdded { group, target } => {
-                    self.job_group_added(group, target)
+                    self.job_group_added(group, target);
+                    self.notify_worker();
                 }
                 SchedulerMessage::JobGroupCanceled { .. } => unimplemented!("No JobGroupCanceled"),
                 SchedulerMessage::WorkerNeedsWork { worker,
@@ -225,7 +227,8 @@ impl SchedulerInternal {
                     self.worker_needs_work(&worker, target, reply)
                 }
                 SchedulerMessage::WorkerFinished { worker, job } => {
-                    self.worker_finished(&worker, job)
+                    self.worker_finished(&worker, job);
+                    self.notify_worker();
                 }
                 SchedulerMessage::WorkerGone { .. } => unimplemented!("No WorkerGone"),
                 SchedulerMessage::State { reply } => {
@@ -423,6 +426,15 @@ impl SchedulerInternal {
             .expect("Can't yet handle db error");
         trace!("Group {} failed {:?}", group_id.0, counts);
         // What notifications/cleanups/protobuf calls etc need to happen here?
+    }
+
+    // This function is not well named. We aren't notifying the worker of anything. This
+    // places a message on the workers zmq socket, causing it to wake up and process its run loop.
+    fn notify_worker(&self) {
+        let response = crate::server::worker_manager::WorkerMgrClient::default().notify_work();
+        if response.is_err() {
+            error!("Unable to notify worker: {:?}", response);
+        }
     }
 }
 
