@@ -9,6 +9,9 @@
    CLOSED: [2020-09-30 Wed 10:07]
 ** DONE figure out how to get worker to start immediately 
    CLOSED: [2020-09-30 Wed 10:58]
+** DONE poll timeout config for worker
+   CLOSED: [2020-09-30 Wed 13:34]
+
 ** TODO figure out how to add barrier to cycles (NEEDS TEST)
 ** TODO make job_graph_entry idents actually BuilderPackageIdents instead of strings
 ** TODO fix job failed path
@@ -17,7 +20,6 @@
 ** TODO manifest_ident should be rendered
 ** TODO better debug format for manifest entries
 ** TODO better logging in general
-** TODO poll timeout config for worker
 
 * TODO Next phase
 
