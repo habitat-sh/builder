@@ -291,7 +291,7 @@ mod test {
         let gid = GroupId(entry.group_id);
 
         entry.job_state = JobExecState::Complete;
-        entry.as_built_ident = Some(as_built.to_string());
+        entry.as_built_ident = Some(as_built.to_owned());
         scheduler.worker_finished(worker, entry).await;
         scheduler.state().await; // make sure scheduler has finished work
 
@@ -328,14 +328,13 @@ mod test {
         let committed_entry = JobGraphEntry::get(1, &conn).unwrap();
         assert_eq!(committed_entry.job_state, JobExecState::Complete);
         assert!(committed_entry.as_built_ident.is_some());
-        assert_eq!(committed_entry.as_built_ident.unwrap(),
-                   as_built.to_string());
+        assert_eq!(committed_entry.as_built_ident.unwrap(), as_built);
 
         // TODO: This is not a valid state transition Ready -> Complete
         // will need to clean up later.
         let mut entry = JobGraphEntry::get(2, &conn).unwrap();
         entry.job_state = JobExecState::Complete;
-        entry.as_built_ident = Some(as_built.to_string());
+        entry.as_built_ident = Some(as_built);
         scheduler.worker_finished(worker.clone(), entry).await;
         scheduler.state().await; // make sure scheduler has finished work
 

@@ -535,7 +535,7 @@ pub struct JobGraphEntry {
     pub job_id:           Option<i64>,
     pub job_state:        JobExecState,   // Should be enum
     pub manifest_ident:   String,         //
-    pub as_built_ident:   Option<String>, // TODO revisit if needed
+    pub as_built_ident:   Option<BuilderPackageIdent>, // TODO revisit if needed
     pub dependencies:     Vec<i64>,
     pub waiting_on_count: i32,
     pub target_platform:  BuilderPackageTarget, // PackageTarget?
@@ -808,7 +808,12 @@ impl Into<jobsrv::JobGroupProject> for JobGraphEntry {
         let mut project = jobsrv::JobGroupProject::new();
 
         project.set_name(self.project_name);
-        project.set_ident(self.as_built_ident.unwrap_or("Not yet built".to_owned()));
+        let as_built_ident = if let Some(ident) = self.as_built_ident {
+            ident.to_string()
+        } else {
+            "Not yet built".to_string()
+        };
+        project.set_ident(as_built_ident);
         project.set_state(project_state);
         project.set_target(self.target_platform.to_string());
         if let Some(id) = self.job_id {

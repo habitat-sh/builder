@@ -320,13 +320,10 @@ impl SchedulerInternal {
         match job_entry.job_state {
             JobExecState::Complete => {
                 // Short term while we convert JobGraphEntry to use BuilderPackageIdents...
-                let as_built = job_entry.as_built_ident
-                                        .as_ref()
-                                        .expect("Package build completed but had no name")
-                                        .clone();
-                let as_built_ident =
-                    BuilderPackageIdent::from_str(&as_built).expect("Ill formed ident from \
-                                                                     package build");
+                let as_built_ident = job_entry.as_built_ident
+                                              .as_ref()
+                                              .expect("Package build completed but had no name")
+                                              .clone();
 
                 // If it successful, we will mark it done, and update the available jobs to run
                 let new_avail =

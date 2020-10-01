@@ -10,7 +10,8 @@ use crate::{bldr_core::{self,
             db::{models::{integration::*,
                           jobs::*,
                           keys::*,
-                          package::BuilderPackageTarget,
+                          package::{BuilderPackageIdent,
+                                    BuilderPackageTarget},
                           project_integration::*,
                           projects::Project,
                           secrets::*},
@@ -850,9 +851,8 @@ impl WorkerMgr {
                 jobsrv::JobState::Complete => {
                     // Tell the scheduler
                     job_graph_entry.job_state = JobExecState::Complete;
-                    // This really should be a PackageIdent, but as_built_ident is a String right
-                    // now.
-                    job_graph_entry.as_built_ident = Some(job.get_package_ident().to_string());
+                    job_graph_entry.as_built_ident =
+                        Some(BuilderPackageIdent(job.get_package_ident().into()));
                     block_on(scheduler.worker_finished(WorkerId(worker_id), job_graph_entry))
                 }
                 jobsrv::JobState::Failed => {
