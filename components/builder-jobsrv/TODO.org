@@ -13,7 +13,8 @@
    CLOSED: [2020-09-30 Wed 13:34]
 ** DONE fix job failed path
    CLOSED: [2020-09-30 Wed 16:02]
-** TODO Hab builder job status (might crash jobsrv, also just broken)
+** DONE Hab builder job status (might crash jobsrv, also just broken)
+   CLOSED: [2020-10-01 Thu 10:38]
 
 builder-jobsrv.default(O):    3: habitat_builder_jobsrv::data_store::DataStore::get_job_group
 builder-jobsrv.default(O):              at src/components/builder-jobsrv/src/data_store.rs:420
@@ -21,14 +22,16 @@ builder-jobsrv.default(O):    4: habitat_builder_jobsrv::server::handlers::job_g
 builder-jobsrv.default(O):              at src/components/builder-jobsrv/src/server/handlers.rs:754
 builder-jobsrv.default(O):    5: habitat_builder_jobsrv::server::handle_rpc
 builder-jobsrv.default(O):              at src/components/builder-jobsrv/src/server/mod.rs:118
+** DONE make job_graph_entry idents actually BuilderPackageIdents instead of strings
+   CLOSED: [2020-10-01 Thu 10:50]
+** TODO manifest_ident should be rendered
 
 ** TODO figure out how to add barrier to cycles (NEEDS TEST)
-** TODO make job_graph_entry idents actually BuilderPackageIdents instead of strings
 ** TODO make Group group_state typed?
 ** TODO log scheduler state transitions
-** TODO manifest_ident should be rendered
 ** TODO better debug format for manifest entries
 ** TODO better logging in general
+** TODO Look at take_next_job_for_target; should it be a stored proc?
 ** TODO webui will dispatch to unavail architectures on first package build:
 select * from groups
          id          | group_state |       project_name       |          created_at           |          updated_at           |        target        
@@ -41,7 +44,11 @@ select * from groups
  1612618211545595904 | Dispatching | smacfarlane/empty-plan   | 2020-09-30 22:34:22.313668+00 | 2020-09-30 22:34:22.335672+00 | x86_64-linux-kernel2
 
 And they will linger forever
-** TODO Error handling SchedulerDb error is bad, ok?
+See https://github.com/habitat-sh/builder/issues/1420
+Looks like prior bug; maybe we should cancel them automagically
+
+
+** TODO Error handling SchedulerDb error is bad, m'kay?
 
 * TODO Next phase
 

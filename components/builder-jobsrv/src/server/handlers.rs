@@ -534,8 +534,11 @@ fn insert_job_graph_entries(manifest: &PackageBuildManifest,
     let mut lookup: HashMap<UnresolvedPackageIdent, i64> = HashMap::new();
 
     for package in order {
-        let project_name = dbg!(package.name.ident().unwrap());
-        let manifest_ident = "foo".to_owned();
+        let project_name = package.name.ident();
+        let manifest_ident = package.name.to_unbuilt_ident();
+
+        info!("Rendered job_graph_entry for project {} package {} for group {}",
+              project_name, manifest_ident, group_id);
 
         let mut dependencies: Vec<i64> = Vec::new();
         for dependency in package.build_deps.iter().chain(package.runtime_deps.iter()) {
@@ -554,7 +557,7 @@ fn insert_job_graph_entries(manifest: &PackageBuildManifest,
                                        project_name: &project_name.to_string(),
                                        job_id: None,
                                        job_state: JobExecState::Pending,
-                                       manifest_ident: &manifest_ident,
+                                       manifest_ident: &manifest_ident.to_string(),
                                        as_built_ident: None,
                                        dependencies: &dependencies,
                                        waiting_on_count: dependencies.len() as i32,
