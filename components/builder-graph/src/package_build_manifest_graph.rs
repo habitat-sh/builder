@@ -81,13 +81,13 @@ pub enum UnresolvedPackageIdent {
 }
 
 impl UnresolvedPackageIdent {
-    pub fn ident(&self) -> Option<PackageIdentIntern> {
+    pub fn ident(&self) -> PackageIdentIntern {
         match self {
             UnresolvedPackageIdent::ExternalLatestVersion(ident)
             | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
-            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => Some(*ident),
+            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => *ident,
             UnresolvedPackageIdent::InternalNode(ident, _)
-            | UnresolvedPackageIdent::InternalVersionedNode(ident, _) => Some(*ident),
+            | UnresolvedPackageIdent::InternalVersionedNode(ident, _) => *ident,
         }
     }
 
@@ -136,7 +136,7 @@ pub struct PackageBuild {
 
 impl PackageBuild {
     pub fn format_for_shell(&self) -> String {
-        let short_ident = &self.name.ident().unwrap().short_ident().to_string();
+        let short_ident = &self.name.ident().short_ident().to_string();
         let deps: Vec<UnresolvedPackageIdent> =
             self.runtime_deps
                 .iter()
