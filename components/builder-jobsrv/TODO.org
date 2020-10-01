@@ -24,14 +24,16 @@ builder-jobsrv.default(O):    5: habitat_builder_jobsrv::server::handle_rpc
 builder-jobsrv.default(O):              at src/components/builder-jobsrv/src/server/mod.rs:118
 ** DONE make job_graph_entry idents actually BuilderPackageIdents instead of strings
    CLOSED: [2020-10-01 Thu 10:50]
-** TODO manifest_ident should be rendered
+** DONE manifest_ident should be rendered
+   CLOSED: [2020-10-01 Thu 15:08]
 
 ** TODO figure out how to add barrier to cycles (NEEDS TEST)
-** TODO make Group group_state typed?
+
 ** TODO log scheduler state transitions
 ** TODO better debug format for manifest entries
 ** TODO better logging in general
 ** TODO Look at take_next_job_for_target; should it be a stored proc?
+
 ** TODO webui will dispatch to unavail architectures on first package build:
 select * from groups
          id          | group_state |       project_name       |          created_at           |          updated_at           |        target        
@@ -67,6 +69,10 @@ Looks like prior bug; maybe we should cancel them automagically
 https://github.com/habitat-sh/builder/issues/1530
 ** TODO Janitorial
 *** TODO unify jobserv and db migrations
+*** TODO make Group group_state typed?
+   This may be difficult because the diesel annotations can't easily be put on a protobuf defined structure
+   https://spectrum.chat/rust/general/storing-rust-enums-in-postgres-with-diesel~be6a432e-57b6-4313-b82d-367fbf89312d
+*** TODO Look at introducing foreign key constraints
 
 ** TODO Systems work
 *** TODO get new test system in AWS
