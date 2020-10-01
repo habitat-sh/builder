@@ -200,7 +200,7 @@ impl Into<jobsrv::Job> for Job {
 pub struct Group {
     #[serde(with = "db_id_format")]
     pub id:           i64,
-    pub group_state:  String,
+    pub group_state:  String, // This should be jobsrv::JobGroupState
     pub project_name: String,
     pub target:       String,
     pub created_at:   Option<DateTime<Utc>>,
