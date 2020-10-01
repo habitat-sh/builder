@@ -48,9 +48,10 @@ use crate::builder_graph::{data_store::DataStore as GraphDataStore,
                                                           UnresolvedPackageIdent},
                            package_ident_intern::PackageIdentIntern};
 
-use crate::server::{feat,
-                    scheduler::ScheduleClient,
-                    worker_manager::WorkerMgrClient};
+use crate::{scheduler_datastore::SchedulerDataStoreDb,
+            server::{feat,
+                     scheduler::ScheduleClient,
+                     worker_manager::WorkerMgrClient}};
 
 use crate::{data_store::DataStore,
             scheduler_datastore::GroupId};
@@ -751,7 +752,16 @@ pub fn job_group_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupGet>()?;
     debug!("group_get message: {:?}", msg);
 
-    let group_opt = match state.datastore.get_job_group(&msg) {
+    let maybe_group = if state.scheduler.is_some() {
+        // We might want to fall back to the old code if we're in an env migrated from the old
+        // scheduler
+        let scheduler_datastore = SchedulerDataStoreDb::new(state.datastore.clone());
+        scheduler_datastore.get_job_group(msg.get_group_id() as i64, msg.get_include_projects())
+    } else {
+        state.datastore.get_job_group(&msg)
+    };
+
+    let group_opt = match maybe_group {
         Ok(group_opt) => group_opt,
         Err(err) => {
             warn!("Unable to retrieve group {}, err: {:?}",
