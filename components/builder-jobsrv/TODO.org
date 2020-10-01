@@ -32,6 +32,9 @@ builder-jobsrv.default(O):              at src/components/builder-jobsrv/src/ser
 ** TODO log scheduler state transitions
 ** TODO better debug format for manifest entries
 ** TODO better logging in general
+
+** TODO build/record a demo video
+
 ** TODO Look at take_next_job_for_target; should it be a stored proc?
 
 ** TODO webui will dispatch to unavail architectures on first package build:
