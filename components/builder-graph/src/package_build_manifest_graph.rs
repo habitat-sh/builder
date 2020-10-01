@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::hab_core::package::{FullyQualifiedPackageIdent,
+                               Identifiable,
                                PackageIdent};
 
 use crate::{package_ident_intern::PackageIdentIntern,
@@ -60,7 +61,6 @@ pub enum UnbuildableReason {
 // This is how nodes in the rebuild graph refer to each other
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, PartialOrd, Ord)]
 pub enum UnresolvedPackageIdent {
-    Undefined,
     // External nodes (nodes not being rebuilt)
     // These might need some sort of resolution from the latest info to compute the FQPI
 
@@ -83,7 +83,6 @@ pub enum UnresolvedPackageIdent {
 impl UnresolvedPackageIdent {
     pub fn ident(&self) -> Option<PackageIdentIntern> {
         match self {
-            UnresolvedPackageIdent::Undefined => None,
             UnresolvedPackageIdent::ExternalLatestVersion(ident)
             | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
             | UnresolvedPackageIdent::ExternalFullyQualified(ident) => Some(*ident),
@@ -91,12 +90,31 @@ impl UnresolvedPackageIdent {
             | UnresolvedPackageIdent::InternalVersionedNode(ident, _) => Some(*ident),
         }
     }
+
+    pub fn to_unbuilt_ident(&self) -> PackageIdentIntern {
+        match self {
+            UnresolvedPackageIdent::ExternalLatestVersion(ident)
+            | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
+            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => ident.clone(),
+            UnresolvedPackageIdent::InternalNode(ident, n) => {
+                PackageIdentIntern::new(ident.origin(),
+                                        ident.name(),
+                                        Some("(LATEST)"),
+                                        Some(&format!("(UNBUILT_INSTANCE)-{}", n)))
+            }
+            UnresolvedPackageIdent::InternalVersionedNode(ident, n) => {
+                PackageIdentIntern::new(ident.origin(),
+                                        ident.name(),
+                                        ident.version(),
+                                        Some(&format!("(UNBUILT_INSTANCE)-{}", n)))
+            }
+        }
+    }
 }
 
 impl fmt::Display for UnresolvedPackageIdent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UnresolvedPackageIdent::Undefined => write!(f, "Undef"),
             UnresolvedPackageIdent::ExternalLatestVersion(ident)
             | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
             | UnresolvedPackageIdent::ExternalFullyQualified(ident) => write!(f, "Ext:{}", ident),
