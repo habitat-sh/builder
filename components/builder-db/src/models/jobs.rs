@@ -788,3 +788,32 @@ impl JobGraphEntry {
         .set(job_graph::job_state.eq(JobExecState::Ready)).execute(conn)
     }
 }
+
+impl Into<jobsrv::JobGroupProject> for JobGraphEntry {
+    fn into(self) -> jobsrv::JobGroupProject {
+        let project_state = match self.job_state {
+            JobExecState::Pending | JobExecState::WaitingOnDependency | JobExecState::Ready => {
+                jobsrv::JobGroupProjectState::NotStarted
+            }
+
+            JobExecState::Running => jobsrv::JobGroupProjectState::InProgress,
+            JobExecState::Complete => jobsrv::JobGroupProjectState::Success,
+            JobExecState::JobFailed => jobsrv::JobGroupProjectState::Failure,
+            JobExecState::DependencyFailed => jobsrv::JobGroupProjectState::Skipped,
+            JobExecState::CancelPending | JobExecState::CancelComplete => {
+                jobsrv::JobGroupProjectState::Canceled
+            }
+        };
+
+        let mut project = jobsrv::JobGroupProject::new();
+
+        project.set_name(self.project_name);
+        project.set_ident(self.as_built_ident.unwrap_or("Not yet built".to_owned()));
+        project.set_state(project_state);
+        project.set_target(self.target_platform.to_string());
+        if let Some(id) = self.job_id {
+            project.set_job_id(id as u64)
+        };
+        project
+    }
+}

@@ -129,32 +129,7 @@ impl SchedulerDataStoreDb {
 
                 let mut projects = RepeatedField::new();
                 for entry in entries {
-                    // todo extract this as convert routine
-                    // JobGraphEntry -> jobsrv::JobGroupProject
-
-                    let project_state = match entry.job_state {
-                        JobExecState::Pending
-                        | JobExecState::WaitingOnDependency
-                        | JobExecState::Ready => jobsrv::JobGroupProjectState::NotStarted,
-
-                        JobExecState::Running => jobsrv::JobGroupProjectState::InProgress,
-                        JobExecState::Complete => jobsrv::JobGroupProjectState::Success,
-                        JobExecState::JobFailed => jobsrv::JobGroupProjectState::Failure,
-                        JobExecState::DependencyFailed => jobsrv::JobGroupProjectState::Skipped,
-                        JobExecState::CancelPending | JobExecState::CancelComplete => {
-                            jobsrv::JobGroupProjectState::Canceled
-                        }
-                    };
-
-                    let mut project = jobsrv::JobGroupProject::new();
-
-                    project.set_name(entry.project_name);
-                    project.set_ident(entry.as_built_ident.unwrap_or("Not yet built".to_owned()));
-                    project.set_state(project_state);
-                    project.set_target(entry.target_platform.to_string());
-                    if let Some(id) = entry.job_id {
-                        project.set_job_id(id as u64)
-                    };
+                    let project: jobsrv::JobGroupProject = entry.into();
                     projects.push(project);
                 }
 
