@@ -221,7 +221,7 @@ impl PackageBuildManifest {
     //
     // This fixup will not be necessary once we have build workers that can take exact dependencies.
     //
-    fn constrain_package_cycles(&mut self) {
+    pub fn constrain_package_cycles(&mut self) {
         // Phase one: Identify all of the nodes needing constraint. This will be all
         // InternalVersionedNode with version > 1
         let mut fixup_targets = Vec::new();

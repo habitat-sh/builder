@@ -486,7 +486,7 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
         // the code in this block might be best moved to some sort of asynchronous task, maybe
         // even another thread.
         info!("Generating Manifest");
-        let manifest = if msg.get_package_only() {
+        let mut manifest = if msg.get_package_only() {
             // we only build the package itself.
             info!("Emtpy Manifest");
             PackageBuildManifest::new()
@@ -507,6 +507,11 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
                                                                   // wasn't implmented in
                                                                   // compute_build
         };
+
+        // This can be removed once we get a worker API that lets us exactly specify the
+        // dependencies. Without that the worker takes whatever is latest in the channel,
+        // which under a loose ordering might be newer than what we want.
+        manifest.constrain_package_cycles();
 
         dbg!(&manifest);
         insert_job_graph_entries(&manifest,
