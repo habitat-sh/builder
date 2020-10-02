@@ -19,7 +19,6 @@ use diesel::{r2d2::{ConnectionManager,
 use protobuf::RepeatedField;
 
 use crate::{db::models::{jobs::{Group,
-                                JobExecState,
                                 JobGraphEntry,
                                 JobStateCounts},
                          package::{BuilderPackageIdent,

@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fmt,
-          str::FromStr};
+use std::fmt;
 
 use tokio::{sync::{mpsc,
                    oneshot},
@@ -27,12 +26,8 @@ use crate::scheduler_datastore::{GroupId,
 use crate::{db::models::{jobs::{JobExecState,
                                 JobGraphEntry,
                                 JobStateCounts},
-                         package::{BuilderPackageIdent,
-                                   BuilderPackageTarget}},
-            error::Error,
+                         package::BuilderPackageTarget},
             protocol::jobsrv};
-
-use crate::hab_core::package::PackageIdent;
 
 #[derive(Debug)]
 pub struct StateBlob {

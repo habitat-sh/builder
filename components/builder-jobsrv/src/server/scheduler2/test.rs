@@ -8,12 +8,16 @@ mod test {
 
     use super::super::*;
 
+    use std::str::FromStr;
+
     use crate::{assert_match,
-                db::models::jobs::{Group,
-                                   JobExecState,
-                                   JobGraphEntry,
-                                   NewGroup,
-                                   NewJobGraphEntry},
+                db::models::{jobs::{Group,
+                                    JobExecState,
+                                    JobGraphEntry,
+                                    JobStateCounts,
+                                    NewGroup,
+                                    NewJobGraphEntry},
+                             package::BuilderPackageIdent},
                 scheduler_datastore::{DummySchedulerDataStore,
                                       DummySchedulerDataStoreCall,
                                       DummySchedulerDataStoreResult,

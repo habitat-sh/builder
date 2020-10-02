@@ -895,6 +895,8 @@ impl WorkerMgr {
         JobGraphEntry::get_by_job_id(job.get_id() as i64, &conn).map_err(Error::WorkerMgrDbError)
     }
 
+    // This will be used when we implement cancel
+    #[allow(dead_code)]
     fn job(&self, entry: JobGraphEntry) -> Result<jobsrv::Job> {
         let conn = self.datastore.get_pool().get_conn()?;
         let job =
