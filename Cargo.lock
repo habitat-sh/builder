@@ -1719,6 +1719,7 @@ dependencies = [
  "habitat_core",
  "log",
  "num_cpus",
+ "paste",
  "percent-encoding",
  "postgres",
  "postgres-derive",
