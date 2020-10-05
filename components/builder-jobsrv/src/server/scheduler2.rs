@@ -352,6 +352,7 @@ impl SchedulerInternal {
     // This probably belongs in a job_group_lifecycle module, but not today
     // Check for the various ways a group might complete, and handle them
     //
+    #[tracing::instrument(skip(self))]
     fn check_group_completion(&mut self, job_entry: JobGraphEntry) {
         let group_id = GroupId(job_entry.group_id);
 
@@ -359,6 +360,10 @@ impl SchedulerInternal {
                          .count_all_states(group_id)
                          .expect("Can't yet handle db error");
 
+        trace!("Job {} complete, group {} counts {:?}",
+               job_entry.id,
+               group_id.0,
+               counts);
         match counts {
             JobStateCounts { wd: 0,
                              rd: 0,
@@ -403,6 +408,7 @@ impl SchedulerInternal {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn group_finished_successfully(&mut self, group_id: GroupId, completed: i64) {
         self.data_store
             .set_job_group_state(group_id, jobsrv::JobGroupState::GroupComplete)
@@ -412,6 +418,7 @@ impl SchedulerInternal {
         // What notifications/cleanups/protobuf calls etc need to happen here?
     }
 
+    #[tracing::instrument(skip(self))]
     fn group_failed(&mut self, group_id: GroupId, counts: JobStateCounts) {
         self.data_store
             .set_job_group_state(group_id, jobsrv::JobGroupState::GroupFailed)
@@ -422,6 +429,7 @@ impl SchedulerInternal {
 
     // This function is not well named. We aren't notifying the worker of anything. This
     // places a message on the workers zmq socket, causing it to wake up and process its run loop.
+    #[tracing::instrument(skip(self))]
     fn notify_worker(&self) {
         let response = crate::server::worker_manager::WorkerMgrClient::default().notify_work();
         if response.is_err() {
