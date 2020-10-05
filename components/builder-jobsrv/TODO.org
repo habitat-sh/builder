@@ -26,16 +26,14 @@ builder-jobsrv.default(O):              at src/components/builder-jobsrv/src/ser
    CLOSED: [2020-10-01 Thu 10:50]
 ** DONE manifest_ident should be rendered
    CLOSED: [2020-10-01 Thu 15:08]
+** DONE log scheduler state transitions
+   CLOSED: [2020-10-02 Fri 10:46]
 
 ** TODO figure out how to add barrier to cycles (NEEDS TEST)
 
-** TODO log scheduler state transitions
-** TODO better debug format for manifest entries
+** TODO Metrics for new DB calls (mechanical)
 ** TODO better logging in general
-
 ** TODO build/record a demo video
-
-** TODO Look at take_next_job_for_target; should it be a stored proc?
 
 ** TODO webui will dispatch to unavail architectures on first package build:
 select * from groups
@@ -52,17 +50,15 @@ And they will linger forever
 See https://github.com/habitat-sh/builder/issues/1420
 Looks like prior bug; maybe we should cancel them automagically
 
-
-** TODO Error handling SchedulerDb error is bad, m'kay?
-
 * TODO Next phase
 
 ** TODO Bugs
 *** TODO Visibility from UI (does it work? Only when finished, not in flight) (maybe defer)
 
-** TODO features
+** TODO features/bigger items
 *** DONE implement worker kick
    CLOSED: [2020-09-30 Wed 10:07]
+*** TODO move package_ident_intern to habitat::core
 *** TODO we should have a way to mandate that touched set is built even if it’s not autobuild (may require change to Unbuildable contract)
 *** TODO implement cancel
 *** TODO implement worker gone
@@ -70,7 +66,14 @@ Looks like prior bug; maybe we should cancel them automagically
 *** TODO figure out more about the worker to support dummy worker
 *** TODO Fix worker disconnection issue
 https://github.com/habitat-sh/builder/issues/1530
+*** TODO Optimize SQL indices, possibly tweak calls (group_id may be valueable to work in)
+*** TODO Look at take_next_job_for_target; should it be a stored proc?
+    This is safe as long as we only have one thread modifying things; may be an issue with multithreaded
+    scheduler, or cancel. 
+
 ** TODO Janitorial
+*** TODO better debug format for manifest entries (let's see what we actually want/use)
+*** TODO Error handling SchedulerDb error is bad, m'kay? (more general error cleanup needed)
 *** TODO unify jobserv and db migrations
 *** TODO make Group group_state typed?
    This may be difficult because the diesel annotations can't easily be put on a protobuf defined structure

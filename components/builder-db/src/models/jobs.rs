@@ -29,7 +29,8 @@ use crate::{bldr_core::{metrics::{CounterMetric,
             functions::jobs as job_functions,
             hab_core::package::PackageTarget,
             metrics::{Counter,
-                      Histogram}};
+                      Histogram},
+            metrics_instrument_block};
 
 use std::{fmt,
           str::FromStr,
@@ -275,6 +276,8 @@ impl Group {
                                       conn: &PgConnection)
                                       -> QueryResult<Option<Group>> {
         Counter::DBCall.increment();
+        let start_time = Instant::now();
+
         // This might need to be a transaction if we wanted an async scheduler, but for now the
         // scheduler is single threaded. There is a possible race condition if a cancellation
         // message arrives just as the job is being dispatched. Alternately we can route all
@@ -286,17 +289,23 @@ impl Group {
                      .order(groups::created_at.asc())
                      .limit(1)
                      .get_result(conn);
-        match next_group {
+        let result = match next_group {
             Ok(group) => {
-                diesel::update(groups::table.filter(groups::id.eq(group.id)))
-    .set(groups::group_state.eq("Dispatching")).execute(conn)?;
+                diesel::update(groups::table.filter(groups::id.eq(group.id))) .set(groups::group_state.eq("Dispatching")).execute(conn)?;
                 diesel::QueryResult::Ok(Some(group))
             }
             diesel::QueryResult::Err(diesel::result::Error::NotFound) => {
                 diesel::QueryResult::Ok(None)
             }
             diesel::QueryResult::Err(x) => diesel::QueryResult::<Option<Group>>::Err(x),
-        }
+        };
+
+        let duration_millis = (start_time.elapsed().as_micros() as f64) / 1_000.0;
+        trace!("DBCall Group ::take_next_group_for_target call time {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis);
+        Histogram::GroupTakeNextGroupForTargetCallTime.set(duration_millis);
+        result
     }
 }
 
@@ -533,8 +542,8 @@ pub struct JobGraphEntry {
                                 * group_id) */
     pub project_name:     String, // ideally this would be an id in projects table
     pub job_id:           Option<i64>,
-    pub job_state:        JobExecState,   // Should be enum
-    pub manifest_ident:   String,         //
+    pub job_state:        JobExecState, // Should be enum
+    pub manifest_ident:   String,       //
     pub as_built_ident:   Option<BuilderPackageIdent>, // TODO revisit if needed
     pub dependencies:     Vec<i64>,
     pub waiting_on_count: i32,
@@ -577,11 +586,10 @@ impl JobGraphEntry {
 
         let result = query.get_result(conn);
 
-        // let insert_one = (start.elapsed().as_micros() as f64) / 1_000_000.0;
-        // println!("One insert took {} s, {}", insert_one, out);
-        let duration_millis = start_time.elapsed().as_millis();
+        let duration_millis = (start_time.elapsed().as_micros() as f64) / 1_000.0;
         trace!("DBCall JobGraphEntry::create time: {} ms", duration_millis);
-        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::DbCallTime.set(duration_millis);
+        Histogram::JobGraphEntryCreateCallTime.set(duration_millis);
         result
     }
 
@@ -597,21 +605,19 @@ impl JobGraphEntry {
 
         let result = query.get_result(conn);
 
-        // TODO REMOVE BEFORE MERGE
-        let insert_one = (start_time.elapsed().as_micros() as f64) / 1_000_000.0;
-        println!("One insert took {} s, {}", insert_one, out);
-
-        let duration_millis = start_time.elapsed().as_millis();
+        let duration_millis = (start_time.elapsed().as_micros() as f64) / 1_000.0;
         trace!("DBCall JobGraphEntry::create_batch time: {} ms",
                duration_millis);
-        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::JobGraphEntryCreateBatchCallTime.set(duration_millis);
+        Histogram::DbCallTime.set(duration_millis);
         result
     }
 
     pub fn get(id: i64, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
-        Counter::DBCall.increment();
-        job_graph::table.filter(job_graph::id.eq(id))
-                        .get_result(conn)
+        metrics_instrument_block!(JobGraphEntry, get, {
+            job_graph::table.filter(job_graph::id.eq(id))
+                            .get_result(conn)
+        })
     }
 
     pub fn get_by_job_id(job_id: i64, conn: &PgConnection) -> QueryResult<JobGraphEntry> {
