@@ -204,7 +204,7 @@ pub struct KafkaCfg {
     pub client_id:              String,
     #[serde(with = "deserialize_into_duration")]
     pub connection_retry_delay: Duration,
-    pub message_timeout:        String,
+    pub message_timeout_ms:     u64,
     pub api_key:                String,
     pub api_secret_key:         String,
 }
@@ -215,7 +215,7 @@ impl Default for KafkaCfg {
                    client_id:              String::from("http://localhost"),
                    api_key:                String::from("CHANGEME"),
                    api_secret_key:         String::from("CHANGEMETOO"),
-                   message_timeout:        String::from("3000"),
+                   message_timeout_ms:     3000,
                    connection_retry_delay: Duration::from_secs(3), }
     }
 }
