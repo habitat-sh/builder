@@ -451,9 +451,9 @@ async fn promote_package(req: HttpRequest,
                 Err(err) => debug!("Failed to save rank change to audit log: {}", err),
             };
 
-            if feat::is_enabled(feat::EventBus) {
+            if feat::is_enabled(feat::EventBus) && state.kafka.as_ref().is_some() {
                 let msgkey = session.get_id() as i64;
-                let kafkaconn = state.kafka.as_ref().expect("Failed to return kafka config from actix AppState");
+                let kafkaconn = state.kafka.as_ref().unwrap(); // safe, we check .is_some() above
 
                 match EventBuilderV10::new()
                     .id(format!("{:?}", Uuid::new_v4()))

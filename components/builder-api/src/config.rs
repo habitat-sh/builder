@@ -200,22 +200,36 @@ impl ToSocketAddrs for HttpCfg {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct KafkaCfg {
-    pub bootstrap_nodes:     Vec<String>,
-    pub client_id:           String,
-    pub connection_retry_ms: Duration,
-    pub message_timeout:     String,
-    pub api_key:             String,
-    pub api_secret_key:      String,
+    pub bootstrap_nodes:        Vec<String>,
+    pub client_id:              String,
+    #[serde(with = "deserialize_into_duration")]
+    pub connection_retry_delay: Duration,
+    pub message_timeout:        String,
+    pub api_key:                String,
+    pub api_secret_key:         String,
 }
 
 impl Default for KafkaCfg {
     fn default() -> Self {
-        KafkaCfg { bootstrap_nodes:     vec![String::from("localhost:9092")],
-                   client_id:           String::from("http://localhost"),
-                   api_key:             String::from("CHANGEME"),
-                   api_secret_key:      String::from("CHANGEMETOO"),
-                   message_timeout:     String::from("3000"),
-                   connection_retry_ms: Duration::from_millis(300), }
+        KafkaCfg { bootstrap_nodes:        vec![String::from("localhost:9092")],
+                   client_id:              String::from("http://localhost"),
+                   api_key:                String::from("CHANGEME"),
+                   api_secret_key:         String::from("CHANGEMETOO"),
+                   message_timeout:        String::from("3000"),
+                   connection_retry_delay: Duration::from_secs(3), }
+    }
+}
+
+mod deserialize_into_duration {
+    use serde::{self,
+                Deserialize,
+                Deserializer};
+    use std::time::Duration;
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+        where D: Deserializer<'de>
+    {
+        let s = u64::deserialize(deserializer)?;
+        Ok(Duration::from_secs(s))
     }
 }
 

@@ -107,7 +107,7 @@ impl AppState {
                         break;
                     }
                     Err(_) => {
-                        thread::sleep(config.kafka.connection_retry_ms);
+                        thread::sleep(config.kafka.connection_retry_delay);
                         continue;
                     }
                 }

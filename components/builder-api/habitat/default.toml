@@ -49,6 +49,6 @@ host = "127.0.0.1"
 port = 5432
 
 [kafka]
-bootstrap_nodes = "localhost:9092"
+bootstrap_nodes = ["localhost:9092"]
 client_id = "http://localhost"
 connection_retry_ms = 300
