@@ -69,7 +69,7 @@ features! {
         const LegacyProject = 0b0000_0011,
         const Artifactory = 0b0000_0100,
         const BuildDeps = 0b0000_1000,
-        const EventBus = 0b0000_0110
+        const EventBus = 0b0001_0000
     }
 }
 
