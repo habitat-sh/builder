@@ -72,13 +72,11 @@ impl<'a> Studio<'a> {
     /// * If the calling thread can't wait on the child process
     /// * If the `LogPipe` fails to pipe output
     pub fn build(&self, streamer: &mut JobStreamer) -> Result<Child> {
-        let dev_mode = if let Some(_val) = env::var_os(DEV_MODE) {
+        let dev_mode = env::var_os(DEV_MODE).is_some();
+        if dev_mode {
             debug!("RUNNER_DEBUG_ENVVAR ({}) is set - using non-Docker studio",
                    DEV_MODE);
-            true
-        } else {
-            false
-        };
+        }
 
         let channel = if self.workspace.job.has_channel() {
             ChannelIdent::from(self.workspace.job.get_channel())
@@ -88,6 +86,11 @@ impl<'a> Studio<'a> {
 
         let mut cmd = self.studio_command()?;
         cmd.current_dir(self.workspace.src());
+        // The above studio_command() call calls env_clear() to provide the spawned
+        // studio with a pristine environment. When developing builder, we switch
+        // from using the default Docker based studio to the chroot studio for workers.
+        // The chroot studio has an expectation that $HOME is set, so we provide it with
+        // a sane default when dev_mode is enabled on non-windows platforms.
         if dev_mode && cfg!(not(windows)) {
             cmd.env("HOME", "/hab/svc/builder-worker/data");
         }
