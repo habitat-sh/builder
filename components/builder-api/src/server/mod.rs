@@ -104,9 +104,11 @@ impl AppState {
                 match KafkaProducer::try_from(&config.kafka.clone()) {
                     Ok(producer) => {
                         app_state.kafka = Some(producer);
+                        info!("EventBus ready to go.");
                         break;
                     }
-                    Err(_) => {
+                    Err(e) => {
+                        warn!("Unable to load EventBus: {}", e);
                         thread::sleep(config.kafka.connection_retry_delay);
                         continue;
                     }
