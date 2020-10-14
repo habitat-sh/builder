@@ -116,9 +116,7 @@ mod deserialize_into_vec {
         where D: Deserializer<'de>
     {
         let list = String::deserialize(deserializer)?;
-        let features = list.split(',')
-                           .map(|f| f.trim().to_uppercase().to_owned())
-                           .collect();
+        let features = list.split(',').map(|f| f.trim().to_uppercase()).collect();
         Ok(features)
     }
 }
@@ -440,7 +438,8 @@ mod tests {
         assert_eq!(config.api.build_targets.len(), 1);
         assert_eq!(config.api.build_targets[0], target::X86_64_LINUX);
 
-        assert_eq!(&config.api.features_enabled, "foo, bar");
+        assert_eq!(&config.api.features_enabled,
+                   &["foo".to_string(), "bar".to_string()]);
         assert_eq!(config.api.build_on_upload, false);
         assert_eq!(config.api.private_max_age, 400);
 
