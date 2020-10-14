@@ -5,6 +5,7 @@ log_path = '{{pkg.svc_path}}/logs'
 bldr_channel = "{{cfg.bldr_channel}}"
 features_enabled = "{{cfg.features_enabled}}"
 target = "{{cfg.target}}"
+work_poll_interval_secs = {{cfg.work_poll_interval_secs}}
 
 {{~#eachAlive bind.depot.members as |member|}}
 {{~#if @first}}
