@@ -102,9 +102,25 @@ pub struct ApiCfg {
     pub key_path:         KeyCache,
     pub targets:          Vec<PackageTarget>,
     pub build_targets:    Vec<PackageTarget>,
-    pub features_enabled: String,
+    #[serde(with = "deserialize_into_vec")]
+    pub features_enabled: Vec<String>,
     pub build_on_upload:  bool,
     pub private_max_age:  usize,
+}
+
+mod deserialize_into_vec {
+    use serde::{self,
+                Deserialize,
+                Deserializer};
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+        where D: Deserializer<'de>
+    {
+        let list = String::deserialize(deserializer)?;
+        let features = list.split(',')
+                           .map(|f| f.trim().to_uppercase().to_owned())
+                           .collect();
+        Ok(features)
+    }
 }
 
 impl Default for ApiCfg {
@@ -116,7 +132,7 @@ impl Default for ApiCfg {
                                         target::X86_64_LINUX_KERNEL2,
                                         target::X86_64_WINDOWS,],
                  build_targets:    vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
-                 features_enabled: String::from("jobsrv"),
+                 features_enabled: vec!["jobsrv".to_string()],
                  build_on_upload:  true,
                  private_max_age:  300, }
     }

@@ -127,11 +127,7 @@ fn enable_features(config: &Config) {
                                                           ("ARTIFACTORY", feat::Artifactory),
                                                           ("BUILDDEPS", feat::BuildDeps),
                                                           ("EVENTBUS", feat::EventBus)]);
-    let features_enabled = config.api
-                                 .features_enabled
-                                 .split(',')
-                                 .map(|f| f.trim().to_uppercase());
-    for key in features_enabled {
+    for key in &config.api.features_enabled {
         if features.contains_key(key.as_str()) {
             info!("Enabling feature: {}", key);
             feat::enable(features[key.as_str()]);
