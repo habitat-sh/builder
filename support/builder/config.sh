@@ -103,7 +103,7 @@ auto_publish = true
 airlock_enabled = false
 data_path = "/hab/svc/builder-worker/data"
 bldr_url = "http://localhost:9636"
-work_poll_interval = 5
+work_poll_interval_secs = 5
 
 [github]
 api_url = "$GITHUB_API_URL"

@@ -714,7 +714,7 @@ impl RunnerMgr {
 
         let mut srv_msg = false;
         let (tx, mut rx): (_, async_mpsc::UnboundedReceiver<Job>) = async_mpsc::unbounded();
-        let work_poll_interval = (self.config.work_poll_interval * 1000) as i64;
+        let work_poll_interval = self.config.work_poll_interval_secs.as_millis() as i64;
 
         loop {
             {
