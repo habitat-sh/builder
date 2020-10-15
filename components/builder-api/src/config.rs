@@ -439,7 +439,7 @@ mod tests {
         assert_eq!(config.api.build_targets[0], target::X86_64_LINUX);
 
         assert_eq!(&config.api.features_enabled,
-                   &["foo".to_string(), "bar".to_string()]);
+                   &["FOO".to_string(), "BAR".to_string()]);
         assert_eq!(config.api.build_on_upload, false);
         assert_eq!(config.api.private_max_age, 400);
 
