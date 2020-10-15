@@ -103,16 +103,19 @@ impl Default for JobSrvAddr {
 fn deserialize_work_poll_interval<'de, D>(duration: D) -> Result<Duration, D::Error>
     where D: Deserializer<'de>
 {
-    let duration: u64 = serde::Deserialize::deserialize(duration)?;
-
-    if duration == 0 {
-        warn!("WorkerPollInterval is 0 seconds; zmq::poll will return immediately");
-    }
-
-    if duration > 60 {
-        warn!("WorkerPollInterval is {} seconds; This may adversely impact job throughput",
-              duration);
-    }
+    let duration: u64 = match serde::Deserialize::deserialize(duration)? {
+        0 => {
+            warn!("WorkerPollInterval is 0 seconds; zmq::poll will return immediately");
+            warn!("Setting to 1 second. Trust us, your cpu fans will thank you.");
+            1
+        }
+        d @ 1..=60 => d,
+        d @ _ => {
+            warn!("WorkerPollInterval is {} seconds; This may adversely impact job throughput",
+                  d);
+            d
+        }
+    };
 
     Ok(Duration::from_secs(duration))
 }
