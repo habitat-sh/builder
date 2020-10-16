@@ -33,6 +33,8 @@ pub enum Error {
     EncryptError(String),
     FromUtf8Error(string::FromUtf8Error),
     HabitatCore(hab_core::Error),
+    JobExecStateConversionError(String), /* Arguably we need to hoist this and the following
+                                          * errors elsewhere */
     OriginDeleteError(String),
     OriginMemberRoleError(String),
     PackageSettingDeleteError(String),
@@ -62,6 +64,7 @@ impl fmt::Display for Error {
             Error::EncryptError(ref e) => e.to_string(),
             Error::FromUtf8Error(ref e) => format!("{}", e),
             Error::HabitatCore(ref e) => format!("{}", e),
+            Error::JobExecStateConversionError(ref e) => e.to_string(),
             Error::OriginDeleteError(ref e) => e.to_string(),
             Error::OriginMemberRoleError(ref e) => e.to_string(),
             Error::PackageSettingDeleteError(ref e) => e.to_string(),
