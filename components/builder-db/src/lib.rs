@@ -34,6 +34,7 @@ use habitat_core as hab_core;
 pub mod config;
 pub mod diesel_pool;
 pub mod error;
+pub mod functions;
 pub mod metrics;
 pub mod migration;
 pub mod models;

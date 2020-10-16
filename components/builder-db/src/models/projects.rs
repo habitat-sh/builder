@@ -103,6 +103,11 @@ impl Project {
                               .filter(origin_projects::origin.eq(&origin))
                               .first(conn)
     }
+
+    pub fn get_by_id(project_id: i64, conn: &PgConnection) -> QueryResult<Project> {
+        Counter::DBCall.increment();
+        origin_projects::table.find(project_id).get_result(conn)
+    }
 }
 
 impl Into<originsrv::OriginProject> for Project {

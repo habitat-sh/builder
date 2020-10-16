@@ -181,6 +181,7 @@ impl FromStr for JobState {
     }
 }
 
+// Why does not share with Serialize above?
 impl fmt::Display for JobState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let value = match *self {

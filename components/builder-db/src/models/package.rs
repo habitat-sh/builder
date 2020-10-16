@@ -954,7 +954,10 @@ impl Deref for BuilderPackageIdent {
          Clone,
          FromSqlRow,
          AsExpression,
-         PartialEq)]
+         PartialEq,
+         Hash,
+         Eq,
+         Copy)]
 #[sql_type = "Text"]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
