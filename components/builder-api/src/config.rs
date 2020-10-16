@@ -17,7 +17,8 @@ use std::{env,
                 SocketAddr,
                 ToSocketAddrs},
           option::IntoIter,
-          path::PathBuf};
+          path::PathBuf,
+          time::Duration};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.
@@ -31,7 +32,7 @@ pub trait GatewayCfg {
     fn listen_port(&self) -> u16;
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub api:         ApiCfg,
@@ -44,21 +45,7 @@ pub struct Config {
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config { api:         ApiCfg::default(),
-                 artifactory: ArtifactoryCfg::default(),
-                 github:      GitHubCfg::default(),
-                 http:        HttpCfg::default(),
-                 oauth:       OAuth2Cfg::default(),
-                 s3:          S3Cfg::default(),
-                 ui:          UiCfg::default(),
-                 memcache:    MemcacheCfg::default(),
-                 jobsrv:      JobsrvCfg::default(),
-                 datastore:   DataStoreCfg::default(), }
-    }
+    pub kafka:       KafkaCfg,
 }
 
 #[derive(Debug)]
@@ -115,9 +102,23 @@ pub struct ApiCfg {
     pub key_path:         KeyCache,
     pub targets:          Vec<PackageTarget>,
     pub build_targets:    Vec<PackageTarget>,
-    pub features_enabled: String,
+    #[serde(with = "deserialize_into_vec")]
+    pub features_enabled: Vec<String>,
     pub build_on_upload:  bool,
     pub private_max_age:  usize,
+}
+
+mod deserialize_into_vec {
+    use serde::{self,
+                Deserialize,
+                Deserializer};
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+        where D: Deserializer<'de>
+    {
+        let list = String::deserialize(deserializer)?;
+        let features = list.split(',').map(|f| f.trim().to_uppercase()).collect();
+        Ok(features)
+    }
 }
 
 impl Default for ApiCfg {
@@ -129,7 +130,7 @@ impl Default for ApiCfg {
                                         target::X86_64_LINUX_KERNEL2,
                                         target::X86_64_WINDOWS,],
                  build_targets:    vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
-                 features_enabled: String::from("jobsrv"),
+                 features_enabled: vec!["jobsrv".to_string()],
                  build_on_upload:  true,
                  private_max_age:  300, }
     }
@@ -207,6 +208,42 @@ impl ToSocketAddrs for HttpCfg {
             IpAddr::V4(ref a) => (*a, self.port).to_socket_addrs(),
             IpAddr::V6(ref a) => (*a, self.port).to_socket_addrs(),
         }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct KafkaCfg {
+    pub bootstrap_nodes:        Vec<String>,
+    pub client_id:              String,
+    #[serde(with = "deserialize_into_duration")]
+    pub connection_retry_delay: Duration,
+    pub message_timeout_ms:     u64,
+    pub api_key:                String,
+    pub api_secret_key:         String,
+}
+
+impl Default for KafkaCfg {
+    fn default() -> Self {
+        KafkaCfg { bootstrap_nodes:        vec![String::from("localhost:9092")],
+                   client_id:              String::from("http://localhost"),
+                   api_key:                String::from("CHANGEME"),
+                   api_secret_key:         String::from("CHANGEMETOO"),
+                   message_timeout_ms:     3000,
+                   connection_retry_delay: Duration::from_secs(3), }
+    }
+}
+
+mod deserialize_into_duration {
+    use serde::{self,
+                Deserialize,
+                Deserializer};
+    use std::time::Duration;
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+        where D: Deserializer<'de>
+    {
+        let s = u64::deserialize(deserializer)?;
+        Ok(Duration::from_secs(s))
     }
 }
 
@@ -401,7 +438,8 @@ mod tests {
         assert_eq!(config.api.build_targets.len(), 1);
         assert_eq!(config.api.build_targets[0], target::X86_64_LINUX);
 
-        assert_eq!(&config.api.features_enabled, "foo, bar");
+        assert_eq!(&config.api.features_enabled,
+                   &["FOO".to_string(), "BAR".to_string()]);
         assert_eq!(config.api.build_on_upload, false);
         assert_eq!(config.api.private_max_age, 400);
 

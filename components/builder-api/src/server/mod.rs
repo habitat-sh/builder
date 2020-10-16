@@ -18,7 +18,8 @@ use self::{framework::middleware::authentication_middleware,
                        projects::Projects,
                        settings::Settings,
                        user::User},
-           services::{memcache::MemcacheClient,
+           services::{events::KafkaProducer,
+                      memcache::MemcacheClient,
                       s3::S3Handler}};
 use crate::{bldr_core::rpc::RpcClient,
             config::{Config,
@@ -42,8 +43,10 @@ use rand::{self,
            Rng};
 use std::{cell::RefCell,
           collections::HashMap,
+          convert::TryFrom,
           iter::FromIterator,
-          sync::Arc};
+          sync::Arc,
+          thread};
 
 // This cipher list corresponds to the "intermediate" configuration
 // recommended by Mozilla:
@@ -65,7 +68,8 @@ features! {
         const Jobsrv = 0b0000_0010,
         const LegacyProject = 0b0000_0011,
         const Artifactory = 0b0000_0100,
-        const BuildDeps = 0b0000_1000
+        const BuildDeps = 0b0000_1000,
+        const EventBus = 0b0001_0000
     }
 }
 
@@ -79,18 +83,40 @@ pub struct AppState {
     memcache:    RefCell<MemcacheClient>,
     artifactory: ArtifactoryClient,
     db:          DbPool,
+    kafka:       Option<KafkaProducer>,
 }
 
 impl AppState {
     pub fn new(config: &Config, db: DbPool) -> error::Result<AppState> {
-        Ok(AppState { config: config.clone(),
-                      packages: S3Handler::new(config.s3.clone()),
-                      github: GitHubClient::new(config.github.clone())?,
-                      jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
-                      oauth: OAuth2Client::new(config.oauth.clone())?,
-                      memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
-                      artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
-                      db })
+        let mut app_state =
+            AppState { config: config.clone(),
+                       packages: S3Handler::new(config.s3.clone()),
+                       github: GitHubClient::new(config.github.clone())?,
+                       jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
+                       oauth: OAuth2Client::new(config.oauth.clone())?,
+                       memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
+                       artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
+                       db,
+                       kafka: None };
+
+        if feat::is_enabled(feat::EventBus) {
+            loop {
+                match KafkaProducer::try_from(&config.kafka.clone()) {
+                    Ok(producer) => {
+                        app_state.kafka = Some(producer);
+                        info!("EventBus ready to go.");
+                        break;
+                    }
+                    Err(e) => {
+                        warn!("Unable to load EventBus: {}", e);
+                        thread::sleep(config.kafka.connection_retry_delay);
+                        continue;
+                    }
+                }
+            }
+        };
+
+        Ok(app_state)
     }
 }
 
@@ -99,12 +125,9 @@ fn enable_features(config: &Config) {
                                                           ("JOBSRV", feat::Jobsrv),
                                                           ("LEGACYPROJECT", feat::LegacyProject),
                                                           ("ARTIFACTORY", feat::Artifactory),
-                                                          ("BUILDDEPS", feat::BuildDeps)]);
-    let features_enabled = config.api
-                                 .features_enabled
-                                 .split(',')
-                                 .map(|f| f.trim().to_uppercase());
-    for key in features_enabled {
+                                                          ("BUILDDEPS", feat::BuildDeps),
+                                                          ("EVENTBUS", feat::EventBus)]);
+    for key in &config.api.features_enabled {
         if features.contains_key(key.as_str()) {
             info!("Enabling feature: {}", key);
             feat::enable(features[key.as_str()]);

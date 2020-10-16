@@ -65,4 +65,13 @@ do_builder_prepare() {
   # Used to set the active package target for the binaries at build time
   export PLAN_PACKAGE_TARGET="$pkg_target"
   build_line "Setting PLAN_PACKAGE_TARGET=$PLAN_PACKAGE_TARGET"
+
+  # Used to allow librdkafka build scripts to execute successfully
+
+  if test -f /usr/bin/env; then
+    build_line "/usr/bin/env exists skipping symlink"
+  else
+    ln -s "$(hab pkg path core/coreutils)/bin/env" /usr/bin/env
+    build_line "Setting symlink to binary env for librdkafka"
+  fi
 }

@@ -7,7 +7,7 @@ pkg_bin_dirs=(bin)
 pkg_deps=(core/glibc core/openssl core/coreutils core/gcc-libs core/zeromq core/libsodium
 core/libarchive core/curl core/postgresql)
 pkg_build_deps=(core/protobuf-cpp core/protobuf-rust core/coreutils core/cacerts
-core/rust core/gcc core/git core/pkg-config)
+core/rust core/gcc core/git core/pkg-config core/bash core/make)
 pkg_exports=(
   [port]=http.port
 )
