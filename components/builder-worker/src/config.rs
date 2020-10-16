@@ -110,7 +110,7 @@ fn deserialize_work_poll_interval<'de, D>(duration: D) -> Result<Duration, D::Er
             1
         }
         d @ 1..=60 => d,
-        d @ _ => {
+        d => {
             warn!("WorkerPollInterval is {} seconds; This may adversely impact job throughput",
                   d);
             d
