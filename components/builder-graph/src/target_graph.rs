@@ -43,7 +43,7 @@ impl TargetGraph {
             let graph: Box<dyn PackageGraphTrait> = if use_cyclic_graph {
                 Box::new(CyclicPackageGraph::new(target))
             } else {
-                Box::new(AcyclicPackageGraph::new())
+                Box::new(AcyclicPackageGraph::new(target))
             };
             graphs.insert(target, graph);
         }

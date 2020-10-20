@@ -117,7 +117,7 @@ pub fn read_packages_json(filename: &str) -> Vec<PackageWithVersionArray> {
         let u: Vec<PackageWithVersionArray> = serde_json::from_reader(reader).unwrap();
         u
     } else {
-        println!("Unable to open file: {:?}", path);
+        warn!("Unable to open file: {:?}", path);
         Vec::new()
     }
 }

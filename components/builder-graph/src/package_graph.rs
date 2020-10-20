@@ -18,7 +18,7 @@ use std::{cell::RefCell,
 use crate::{data_store::Unbuildable,
             hab_core::package::{PackageIdent,
                                 PackageTarget},
-            package_build_manifest_graph::PackageBuild,
+            package_build_manifest_graph::PackageBuildManifest,
             package_graph_target::PackageGraphForTarget,
             package_graph_trait::Stats,
             package_ident_intern::PackageIdentIntern,
@@ -191,17 +191,12 @@ impl PackageGraph {
 
     pub fn dump_build_ordering(&mut self,
                                unbuildable: &dyn Unbuildable,
-                               filename: &str,
-                               filter: &str,
-                               base_set: &[PackageIdent],
-                               touched: &[PackageIdent])
-                               -> Vec<PackageBuild> {
+                               _filename: &str,
+                               _filter: &str,
+                               touched: &[PackageIdentIntern])
+                               -> PackageBuildManifest {
         self.graphs[&self.current_target].borrow_mut()
-                                         .dump_build_ordering(unbuildable,
-                                                              filename,
-                                                              filter,
-                                                              base_set,
-                                                              touched)
+                                         .dump_build_ordering(unbuildable, touched)
     }
 
     pub fn compute_attributed_deps(&self,
@@ -210,6 +205,14 @@ impl PackageGraph {
                                    -> HashMap<PackageIdentIntern, Vec<PackageIdentIntern>> {
         self.graphs[&self.current_target].borrow_mut()
                                          .compute_attributed_deps(idents, include_build_deps)
+    }
+
+    pub fn compute_build(&self,
+                         touched: &[PackageIdentIntern],
+                         unbuildable: &dyn Unbuildable)
+                         -> PackageBuildManifest {
+        self.graphs[&self.current_target].borrow()
+                                         .compute_build(touched, unbuildable)
     }
 }
 

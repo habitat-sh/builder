@@ -15,8 +15,7 @@
 use std::{collections::{HashMap,
                         HashSet},
           fmt,
-          fs::File,
-          io::prelude::*};
+          iter::FromIterator};
 
 use petgraph::{algo::{connected_components,
                       is_cyclic_directed},
@@ -31,13 +30,24 @@ use crate::hab_core::package::{ident::Identifiable,
 
 use crate::{data_store::Unbuildable,
             graph_helpers,
-            package_build_manifest_graph::PackageBuild,
+            package_build_manifest_graph::{PackageBuildManifest,
+                                           UnresolvedPackageIdent},
             package_graph_trait::Stats,
             package_ident_intern::{display_ordering_cmp,
                                    PackageIdentIntern},
             package_info::PackageInfo,
             util::*};
 
+// How many times we cycle around the loop in a cycle before declaring it converged
+// This is based on cultural lore from compiler bootstrapping, where generally
+// you rebuild a compiler three times on itself to wring out bugs. You need more than once, so that
+// your new build tools are used to build what you ship. So it should be at least two. The third
+// round is to catch subtle bugs that only manifest when you you build with yourself. Very
+// occasionally bugs of this sort do manifest. More is probably pointless, as a bug subtle enough to
+// only manifest past the third iteration is *extremely* low probability.
+const CYCLIC_BUILD_CONVERGE_COUNT: usize = 3;
+
+#[derive(Debug)]
 pub struct PackageGraphForTarget {
     target: PackageTarget,
 
@@ -133,10 +143,10 @@ impl PackageGraphForTarget {
             // We also *could* skip partially qualified idents here. There are two cases to
             // consider: deps on a version that's not latest, which again won't be rebuilt. There's
             // a special case with some packages that bump versions in lockstep (gcc, gcc-libs) They
-            // are version pinned, but always on latest. We should treat those as if they we're
+            // are version pinned, but always on latest. We should treat those as if they're
             // unqualified. However at this time we don't have the proper information to know if
             // they are pointing at latest version or not.  For now we are building the graph
-            // optimisically, and will need to check later if that is sane.
+            // optimistically, and will need to check later if that is sane.
             let plan_deps = filter_out_fully_qualified(&package_info.plan_deps);
 
             let (added, deleted) = graph_helpers::changed_edges_for_type(&self.latest_graph,
@@ -391,7 +401,7 @@ impl PackageGraphForTarget {
 
         match maybe_package {
             Some(pkg) => pkg.write(),
-            None => println!("Couldn't find match for {}", ident),
+            None => warn!("Couldn't find match for {}", ident),
         }
     }
 
@@ -432,12 +442,9 @@ impl PackageGraphForTarget {
 
     pub fn dump_build_ordering(&mut self,
                                unbuildable: &dyn Unbuildable,
-                               _filename: &str,
-                               origin: &str,
-                               base_set: &[PackageIdent],
-                               touched: &[PackageIdent])
-                               -> Vec<PackageBuild> {
-        self.compute_build(unbuildable, origin, base_set, touched, 3)
+                               touched: &[PackageIdentIntern])
+                               -> PackageBuildManifest {
+        self.compute_build(touched, unbuildable)
     }
 
     // Compute a build ordering
@@ -464,36 +471,52 @@ impl PackageGraphForTarget {
     //
     // 5) Take new latest table, walk graph to find actually used packages.
 
-    pub fn compute_build(&mut self,
-                         unbuildable: &dyn Unbuildable,
-                         origin: &str,
-                         base_set: &[PackageIdent],
-                         touched: &[PackageIdent],
-                         converge_count: usize)
-                         -> Vec<PackageBuild> {
-        // debug!("Using base: {} {}\n",
-        // base_set.len(),
-        // join_idents(", ", &base_set));
+    // Thoughts on refining this for future work
+    // Maybe we return a smarter structure (PackageBuildManifest) than Vec<PackageBuild>
+    // It may be worth making it a graph internally.
+    // Then unbuildable could be factor out of the function and make something that gets applied to
+    // the PackageBuildManifest Base set could be computed on the fly and returned in that
+    // structure We may not want to filter by origin yet.
+    // Remaining signature would be (touched, unbuildable) -> PackageBuildManifest
+    //
+    pub fn compute_build(&self,
+                         touched: &[PackageIdentIntern],
+                         unbuildable: &dyn Unbuildable)
+                         -> PackageBuildManifest {
+        // In the future we will filter the graph to a rebuild a single origin, but that's a
+        // potentially breaking change, so we're not filtering by origin today.
+        let origin = None;
 
-        debug!("Using touched: {} {}\n",
-               touched.len(),
-               join_idents(", ", &touched));
+        info!("Compute Build, using touched: {} {}\n",
+              touched.len(),
+              join_idents(", ", &touched));
 
-        let preconditioned_graph = self.precondition_graph(origin);
+        // When we start restricting the builds to a single origin, we may need to rethink how we
+        // compute/filter the graph. For example if we use touched to indicate things in core that
+        // have been promoted, we want to propagate the updates fully before filtering the
+        // graph to a single origin
+        let mut preconditioned_graph = self.precondition_graph();
 
-        let touched: Vec<PackageIdentIntern> = touched.iter().map(|x| x.into()).collect();
-        let rebuild_set = graph_helpers::compute_rebuild_set(&preconditioned_graph,
-                                                             unbuildable,
-                                                             &touched,
-                                                             origin,
-                                                             self.target);
+        // Some things in the touched set might be missing from the graph, but still buildable
+        // (e.g first time build of a new plan) So we insert them here. Unbuildable will help us
+        // determine which things lack a plan linkage and should be dropped.
+        for &package in touched.iter() {
+            preconditioned_graph.add_node(package);
+        }
+
+        let (rebuild_set, unbuildable_reasons) =
+            graph_helpers::compute_rebuild_set(&preconditioned_graph,
+                                               unbuildable,
+                                               &touched,
+                                               origin,
+                                               self.target);
 
         // TODO DO check of rebuild set to make sure that it includes the pinned versions that had
         // edges added in the precondition_graph phase above.
-
-        debug!("Rebuild: {} {}\n",
-               rebuild_set.len(),
-               join_idents(", ", &rebuild_set));
+        info!("Rebuild: {} {}\n",
+              rebuild_set.len(),
+              join_idents(", ", &rebuild_set));
+        debug!("PRECOND GRAPH:\n{:#?}", preconditioned_graph);
 
         let build_order = graph_helpers::compute_build_order(&preconditioned_graph, &rebuild_set);
         // Rework this later
@@ -501,46 +524,77 @@ impl PackageGraphForTarget {
         for component in &build_order {
             debug!("CB: #{} {}", component.len(), join_idents(", ", component));
         }
+        debug!("BUILD ORDER:\n{:#?}", build_order);
 
-        let mut latest = HashMap::<PackageIdent, PackageIdent>::new();
-        for ident in base_set {
-            latest.insert(short_ident(&ident, false), ident.clone());
-        }
+        let mut latest = HashMap::<PackageIdentIntern, UnresolvedPackageIdent>::new();
 
-        let mut file = File::create("latest_from_base.txt").expect("Failed to initialize file");
-        for (k, v) in &latest {
-            file.write_all(format!("{}: {}\n", &k, &v).as_bytes())
-                .unwrap();
-        }
+        let mut build_graph: DiGraphMap<UnresolvedPackageIdent, EdgeType> = DiGraphMap::new();
 
-        let mut built: Vec<PackageBuild> = Vec::new();
         for component in build_order.iter() {
             // If there is only one element in component, don't need to converge, can just run
             // once
             let component_converge_count = if component.len() > 1 {
-                converge_count
+                CYCLIC_BUILD_CONVERGE_COUNT
             } else {
                 1
             };
 
-            for _i in 1..=component_converge_count {
+            for i in 1..=component_converge_count {
                 for &ident in component {
                     let ident: PackageIdentIntern = ident;
-                    let ident_latest = self.latest_map[&ident];
-                    let package =
+
+                    let package_name = UnresolvedPackageIdent::InternalNode(ident, i as _);
+
+                    let empty_package = &PackageInfo { ident:   ident.into(),
+                                                       target:  self.target,
+                                                       package: None,
+
+                                                       no_deps:      false,
+                                                       plan_deps:    Vec::new(),
+                                                       plan_bdeps:   Vec::new(),
+                                                       strong_bdeps: Vec::new(), };
+
+                    let package = if self.latest_map.contains_key(&ident) {
+                        let ident_latest = self.latest_map[&ident];
                         self.packages.get(&ident_latest).unwrap_or_else(|| {
                                                             panic!("Expected to find package for \
                                                                     {} {} iter {}",
-                                                                   ident_latest, ident, _i)
-                                                        });
-                    let build = build_package(package, &mut latest);
-                    latest.insert(short_ident(&build.ident, false), build.ident.clone());
-                    built.push(build);
+                                                                   ident_latest, ident, i)
+                                                        })
+                    } else {
+                        // We may have a package unseen previously, so construct a dummy PackageInfo
+                        &empty_package
+                    };
+
+                    build_package(&mut build_graph, package, package_name, &mut latest);
                 }
             }
         }
 
-        built
+        let mut external_dependencies: HashSet<PackageIdentIntern> = HashSet::new();
+        for package in build_graph.nodes() {
+            match package {
+                UnresolvedPackageIdent::ExternalLatestVersion(ident) => {
+                    external_dependencies.insert(ident);
+                }
+                // pinned_verson/latest_release (cyclic graph might know enough to resolve)
+                UnresolvedPackageIdent::ExternalPinnedVersion(ident) => {
+                    external_dependencies.insert(ident);
+                }
+                //  pinned_version/pinned_release (cyclic graph might know enough to resolve)
+                UnresolvedPackageIdent::ExternalFullyQualified(ident) => {
+                    external_dependencies.insert(ident);
+                }
+                _ => (),
+            }
+        }
+
+        // Forensics
+        PackageBuildManifest { graph: build_graph,
+                               external_dependencies,
+
+                               input_set: HashSet::from_iter(touched.iter().copied()),
+                               unbuildable_reasons }
     }
 
     // Precondition Graph
@@ -552,14 +606,17 @@ impl PackageGraphForTarget {
     // if the package rebuilds. If we depend on an older version, we will not rebuild it unless
     // a new release of that version is uploaded (or if we modify builder to build old versions)
     // So we fixup the graph here to represent that
-    pub fn precondition_graph(&self, origin: &str) -> DiGraphMap<PackageIdentIntern, EdgeType> {
+    // This was originally written to filter the nodes to a single origin. But when we moved
+    // resolution of external (not rebuilt) packages later, we needed to retain knowledge about
+    // the full dependencies of a package, even if those dependencies weren't being rebuilt or
+    // in the same origin.
+    pub fn precondition_graph(&self) -> DiGraphMap<PackageIdentIntern, EdgeType> {
         let mut graph: DiGraphMap<PackageIdentIntern, EdgeType> = DiGraphMap::new();
         for node in self.latest_graph.nodes() {
-            if self.node_filter_helper(Some(origin), node) {
-                graph.add_node(node);
-            }
+            graph.add_node(node);
         }
         for (src, dst, edge) in self.latest_graph.all_edges() {
+            // Both nodes have to be in the filtered graph to be relevant
             if graph.contains_node(src) && graph.contains_node(dst) {
                 if dst.version().is_some() {
                     let short_dst = dst.short_ident();
@@ -615,43 +672,35 @@ impl PackageGraphForTarget {
 // and we won't be using anything beyond the standard PackageIdent hasher here.
 // https://rust-lang.github.io/rust-clippy/master/index.html#implicit_hasher
 #[allow(clippy::implicit_hasher)]
-pub fn build_package(package: &PackageInfo,
-                     latest: &mut HashMap<PackageIdent, PackageIdent>)
-                     -> PackageBuild {
-    // Create our package name
-    let ident = make_temp_ident(&package.ident);
-
-    // resolve our runtime and build deps
-    let mut bt_deps = Vec::new();
-    let mut rt_deps = Vec::new();
-
+pub fn build_package(graph: &mut DiGraphMap<UnresolvedPackageIdent, EdgeType>,
+                     package: &PackageInfo,
+                     package_name: UnresolvedPackageIdent,
+                     latest: &mut HashMap<PackageIdentIntern, UnresolvedPackageIdent>) {
+    graph.add_node(package_name);
     for dep in &package.plan_bdeps {
-        // Horrible hack to get around our own pinning
-        let sdep = short_ident(dep, false);
-        bt_deps.push(latest.get(&sdep)
-                           .unwrap_or_else(|| {
-                               panic!("{} Unable to find bt dep {} ({})", &ident, &dep, &sdep)
-                           })
-                           .clone())
+        let sdep_resolved = resolve_package(latest, dep.into());
+        graph.add_edge(package_name, sdep_resolved, EdgeType::BuildDep);
     }
     for dep in &package.plan_deps {
-        // Horrible hack to get around our own pinning
-        let sdep = short_ident(dep, false);
-        rt_deps.push(latest.get(&sdep)
-                           .unwrap_or_else(|| {
-                               panic!("{} Unable to find rt dep {} ({})", &ident, &dep, &sdep)
-                           })
-                           .clone())
+        let sdep_resolved = resolve_package(latest, dep.into());
+        graph.add_edge(package_name, sdep_resolved, EdgeType::RuntimeDep);
     }
 
     // update latest
-    latest.insert(short_ident(&ident, false), ident.clone());
-    latest.insert(short_ident(&ident, true), ident.clone());
+    let short_name: PackageIdentIntern = (&package.ident).into();
+    latest.insert(short_name.short_ident(), package_name);
+}
 
-    // Make the package
-    PackageBuild { ident,
-                   bt_deps,
-                   rt_deps }
+pub fn resolve_package(latest: &mut HashMap<PackageIdentIntern, UnresolvedPackageIdent>,
+                       dep: PackageIdentIntern)
+                       -> UnresolvedPackageIdent {
+    let sdep = dep.short_ident();
+
+    let resolved_sdep = latest.entry(sdep).or_insert_with(|| {
+                                              // TODO Does not handle pins yet
+                                              UnresolvedPackageIdent::ExternalLatestVersion(sdep)
+                                          });
+    *resolved_sdep
 }
 
 #[cfg(test)]
@@ -659,8 +708,15 @@ mod test {
     use super::*;
     use std::str::FromStr;
 
+    use crate::package_build_manifest_graph::UnbuildableReason;
+
     const TGT: &str = "x86_64-linux";
     const EMPTY: [&str; 0] = [];
+
+    fn mk_pkg(ident: &str, deps: &[&str], bdeps: &[&str], sdeps: &[&str]) -> PackageInfo {
+        PackageInfo::mk(ident, TGT, deps, bdeps, sdeps)
+    }
+
     #[test]
     #[ignore] //  This is probably broken by the changes to serialization
     fn write_restore_packages() {
@@ -891,6 +947,291 @@ mod test {
         extend_variant_helper(&mut graph, &packages[3], true, 1, 0);
     }
     // TODO:
+    // ghost nodes? (nodes that we've not seen package/plan info for) (plan connection, but no pkg
+    // upload)
 
-    // ghost nodes? (nodes that we've not seen package/plan info for)
+    ///////////////////////////////////////////////////////////////////////////
+    // Test build graph
+    //
+    // TODO: Missing coverage around connectivity of graph; we are verifing presence/absence of
+    // nodes but not order.
+    //
+    fn make_diamond_graph() -> PackageGraphForTarget {
+        let packages = vec![mk_pkg("a/top/c/d", &[], &[], &[]),
+                            mk_pkg("a/left/c/d", &["a/top"], &[], &[]),
+                            mk_pkg("a/right/c/d", &["a/top"], &[], &[]),
+                            mk_pkg("a/bottom/c/d", &["a/left", "a/right"], &[], &[])];
+        let mut graph = PackageGraphForTarget::new(PackageTarget::from_str(TGT).unwrap());
+        graph.build(packages.into_iter(), true);
+        graph
+    }
+
+    // maybe move to data_store.rs
+    struct UnbuildableMock {
+        pub unbuildable_packages: Vec<PackageIdentIntern>,
+    }
+    use crate::error::Result;
+    impl Unbuildable for UnbuildableMock {
+        fn filter_unbuildable(&self,
+                              _: &[PackageIdentIntern],
+                              _: PackageTarget)
+                              -> Result<Vec<PackageIdentIntern>> {
+            Ok(self.unbuildable_packages.clone())
+        }
+    }
+
+    #[allow(non_snake_case)]
+    fn mk_IN(ident: &str, rev: u8) -> UnresolvedPackageIdent {
+        UnresolvedPackageIdent::InternalNode(ident_intern!(ident), rev)
+    }
+
+    #[allow(non_snake_case)]
+    fn mk_ELV(ident: &str) -> UnresolvedPackageIdent {
+        UnresolvedPackageIdent::ExternalLatestVersion(ident_intern!(ident))
+    }
+
+    #[test]
+    // Starting with a diamond graph, if we touch the root, all things are rebuilt
+    fn all_packages_are_rebuilt() {
+        let graph = make_diamond_graph();
+
+        let stats = graph.stats();
+        assert_eq!(stats.node_count, 4);
+        assert_eq!(stats.edge_count, 4);
+
+        let touched: Vec<PackageIdentIntern> = vec![ident_intern!("a/top")];
+        let unbuildable = UnbuildableMock { unbuildable_packages: Vec::new(), };
+
+        let manifest = graph.compute_build(&touched, &unbuildable);
+
+        println!("Manifest\n{:?}\n", manifest);
+
+        assert_eq!(manifest.input_set.len(), 1);
+        assert_eq!(manifest.unbuildable_reasons.len(), 0);
+        assert_eq!(manifest.graph.node_count(), 4);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/top", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/left", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("zz/top", 1)), false);
+    }
+
+    #[test]
+    // Starting with a diamond graph, if we touch the root and one corner is not buildable,
+    // the corner and bottom are not rebuilt and are correctly listed as unbuildable
+    fn most_packages_are_rebuilt() {
+        let graph = make_diamond_graph();
+
+        let touched: Vec<PackageIdentIntern> = ident_intern_vec!("a/top");
+        let unbuildable = UnbuildableMock { unbuildable_packages: ident_intern_vec!("a/left"), };
+
+        let manifest = graph.compute_build(&touched, &unbuildable);
+        assert_eq!(manifest.input_set.len(), 1);
+        assert_eq!(manifest.unbuildable_reasons.len(), 2);
+        assert_eq!(manifest.unbuildable_reasons[&ident_intern!("a/left")],
+                   UnbuildableReason::Direct);
+        assert_eq!(manifest.unbuildable_reasons[&ident_intern!("a/bottom")],
+                   UnbuildableReason::Indirect);
+
+        assert_eq!(manifest.graph.node_count(), 2);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/top", 1)), true);
+    }
+    #[test]
+    // Starting with a diamond graph, if we touch one corner, the corner and bottom are rebuilt.
+    fn some_packages_are_rebuilt() {
+        let graph = make_diamond_graph();
+
+        let touched: Vec<PackageIdentIntern> = ident_intern_vec!("a/right");
+        let unbuildable = UnbuildableMock { unbuildable_packages: Vec::new(), };
+
+        let manifest = graph.compute_build(&touched, &unbuildable);
+        assert_eq!(manifest.input_set.len(), 1);
+        assert_eq!(manifest.unbuildable_reasons.len(), 0);
+
+        assert_eq!(manifest.graph.node_count(), 4);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/left")), true);
+    }
+
+    // Starting with a diamond graph that has dependencies, if we touch the root, all dependencies
+    // are listed.
+    #[test]
+    fn dependencies_are_represented() {
+        let packages = vec![mk_pkg("a/top/c/d", &["core/apple"], &[], &[]),
+                            mk_pkg("a/left/c/d", &["a/top", "core/frob"], &[], &[]),
+                            mk_pkg("a/right/c/d", &["a/top"], &[], &[]),
+                            mk_pkg("a/bottom/c/d", &["a/left", "a/right"], &[], &[]),];
+        let mut graph =
+            PackageGraphForTarget::new(PackageTarget::from_str("x86_64-linux").unwrap());
+        graph.build(packages.into_iter(), true);
+
+        let touched: Vec<PackageIdentIntern> = ident_intern_vec!("a/left");
+        let unbuildable = UnbuildableMock { unbuildable_packages: Vec::new(), };
+
+        let manifest = graph.compute_build(&touched, &unbuildable);
+        assert_eq!(manifest.input_set.len(), 1);
+        assert_eq!(manifest.unbuildable_reasons.len(), 0);
+
+        assert_eq!(manifest.graph.node_count(), 5);
+
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("core/frob")), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("core/apple")), false);
+
+        assert_eq!(manifest.external_dependencies.len(), 3);
+        assert_eq!(manifest.external_dependencies
+                           .contains(&ident_intern!("a/top")),
+                   true);
+        assert_eq!(manifest.external_dependencies
+                           .contains(&ident_intern!("a/right")),
+                   true);
+        assert_eq!(manifest.external_dependencies
+                           .contains(&ident_intern!("core/frob")),
+                   true);
+    }
+
+    // Starting with a diamond graph, if our touched set includes things not in the graph,
+    // they are correctly listed as missing.
+    #[test]
+    fn missing_packages() {
+        let graph = make_diamond_graph();
+
+        let touched: Vec<PackageIdentIntern> = ident_intern_vec!("a/right", "zz/top");
+        let unbuildable = UnbuildableMock { unbuildable_packages: Vec::new(), };
+
+        let manifest = graph.compute_build(&touched, &unbuildable);
+
+        assert_eq!(manifest.input_set.len(), 2);
+
+        assert_eq!(manifest.unbuildable_reasons.len(), 0);
+
+        assert_eq!(manifest.graph.node_count(), 5);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
+        // we should check the dependencies of ZZ top; it should stand alone
+        assert_eq!(manifest.graph.contains_node(mk_IN("zz/top", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/left")), true);
+    }
+
+    fn make_circular_graph() -> PackageGraphForTarget {
+        let packages = vec![mk_pkg("a/gcc/1/d", &["a/libgcc/1", "a/glibc"], &["a/make"], &[]),
+                            mk_pkg("a/libgcc/1/d", &[], &["a/gcc/1", "a/make"], &[]),
+                            mk_pkg("a/glibc/c/d", &[], &["a/gcc", "a/make"], &[]),
+                            mk_pkg("a/make/c/d", &["a/glibc"], &[], &[]),
+                            mk_pkg("a/out/c/d", &["a/glibc"], &["a/make", "a/gcc"], &[])];
+        let mut graph = PackageGraphForTarget::new(PackageTarget::from_str(TGT).unwrap());
+        graph.build(packages.into_iter(), true);
+        graph
+    }
+
+    // Starting with a circular graph,
+    //
+    #[test]
+    fn simple_circular() {
+        let graph = make_circular_graph();
+
+        let touched: Vec<PackageIdentIntern> = ident_intern_vec!("a/gcc");
+        let unbuildable = UnbuildableMock { unbuildable_packages: Vec::new(), };
+
+        let manifest = graph.compute_build(&touched, &unbuildable);
+        println!("Manifest\n{:?}\n", manifest);
+
+        assert_eq!(manifest.input_set.len(), 1);
+
+        assert_eq!(manifest.unbuildable_reasons.len(), 0);
+
+        assert_eq!(manifest.graph.node_count(), 15); // 2 external, 4*3 (cycle) + 1 (non-cycle)
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/gcc")), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/make")), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 1)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 2)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 3)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/out", 1)), true);
+    }
+
+    // ////////////////////////////////////////////////////////////////////////
+    //
+    // Skipping this test for now, as it represents a case we don't correctly
+    // handle, but is one which shouldn't exist given the current state of
+    // StrongBuildDeps. When we look to expose that concept as a first class
+    // part of our build language, this case will become important to handle
+    // correctly.
+    //
+    // The issue with this test is that we declare a/make has a runtime
+    // dependency on a/strong, and a/strong has a Strong build dependency
+    // on a/make. This ends up looking like a runtime cycle to our build
+    // ordering algorithms causing the tsort_subgraph function to fail on the
+    // assert, as a/strong and a/make are never able to build.
+    //
+    // To the user, a failure here would be confusing as Strong build edges
+    // were intended to be a mechanism to force some ordering, but because we
+    // treat them as Run edges in the graph. We don't actually expose this as a
+    // concept yet, and its use is limited to a well known subset of core
+    // packages, so for now we'll leave this comment and test in place for when
+    // we loop back around to this topic.
+    //
+    // ////////////////////////////////////////////////////////////////////////
+    // Starting with a circular graph, extend with some complex build edges
+    //
+    #[test]
+    #[ignore]
+    fn simple_circular_with_strong_build_edges() {
+        let mut graph = make_circular_graph();
+
+        let extended = vec![mk_pkg("a/strong/c/d",
+                                   &["a/libgcc", "a/glibc"],
+                                   &["a/make"],
+                                   &["a/make"]),
+                            mk_pkg("a/make/z/d", &["a/strong", "a/glibc"], &[], &[])];
+
+        graph.build(extended.into_iter(), true);
+
+        let touched: Vec<PackageIdentIntern> = ident_intern_vec!("a/gcc");
+        let unbuildable = UnbuildableMock { unbuildable_packages: Vec::new(), };
+
+        let manifest = graph.compute_build(&touched, &unbuildable);
+        println!("Manifest\n{:?}\n", manifest);
+
+        assert_eq!(manifest.input_set.len(), 1);
+
+        assert_eq!(manifest.unbuildable_reasons.len(), 0);
+
+        assert_eq!(manifest.graph.node_count(), 15); // 2 external, 4*3 (cycle) + 1 (non-cycle)
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/gcc")), true);
+        assert_eq!(manifest.graph.contains_node(mk_ELV("a/make")), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 1)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 1)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 2)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 2)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 3)), true);
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 3)), true);
+
+        assert_eq!(manifest.graph.contains_node(mk_IN("a/out", 1)), true);
+    }
 }

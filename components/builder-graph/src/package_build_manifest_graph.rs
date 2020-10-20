@@ -12,27 +12,207 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::hab_core::package::PackageIdent;
+use crate::hab_core::package::{FullyQualifiedPackageIdent,
+                               PackageIdent};
 
-use crate::util::*;
+use crate::{package_ident_intern::PackageIdentIntern,
+            util::*};
+
+use petgraph::graphmap::DiGraphMap;
+
+use std::{collections::{HashMap,
+                        HashSet},
+          fmt};
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum UnbuildableReason {
+    // Plan not buildable because it is marked as unbuildable in the db
+    Direct,
+    // Plan depends on something that isn't buildable, but otherwise should be rebuilt
+    Indirect,
+    // Plan not found in the graph. We quite possibly should *never* mark unbuildable for this
+    // reason, but instead forge ahead and treat it as an independent 'treelet' in the graph.
+    // This can happen for legitimate reasons, for example a new plan linked to a repo that
+    // has never been built and uploaded will never have created a package and so jobsrv will
+    // never have included it in its view of the graph. We should still make a best effort build.
+    // It may have dependencies, and there is a posibility that the graph isn't technically
+    // correct, but still a best effort build will provide dependency info for later builds.
+    // It shouldn't have anyone depending on it, unless the graph is outdated, as all
+    // dependencies in the graph will create nodes even if their packages haven't been seen.
+    // For now, we're only marking missing if it wasn't in the touched set; that covers the above
+    // case, but might never happen otherwise.
+    Missing,
+}
+
+// database entry
+// package_build_table {
+//     build_ident:      serial,
+//     package_ident:    serial,
+//     placeholder_name: &str, // or something more strcture
+//     actual_name:      &str, // known once built
+//     dependencies:     [serial)], /* these may be a mix of placeholders and
+//                              * resolved or placeholder only */
+//     build_status:     &str, /* external_package, unbuilt_package, in_flight, built_successfully,
+//                              * failed */
+//     priority: int32,
+// }
+
+// This is how nodes in the rebuild graph refer to each other
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, PartialOrd, Ord)]
+pub enum UnresolvedPackageIdent {
+    Undefined,
+    // External nodes (nodes not being rebuilt)
+    // These might need some sort of resolution from the latest info to compute the FQPI
+
+    // latest version/latest_release (we may have enough info in the graph to resolve this
+    // exactly, but pins complicate)
+    ExternalLatestVersion(PackageIdentIntern),
+    // pinned_verson/latest_release (cyclic graph might know enough to resolve)
+    ExternalPinnedVersion(PackageIdentIntern),
+    //  pinned_version/pinned_release (cyclic graph might know enough to resolve)
+    ExternalFullyQualified(PackageIdentIntern),
+    // Internal nodes (nodes being rebuilt)
+    // latest_version/placeholder_release (we won't necessarily know the version, might be updated
+    // in plan)
+    // The second field refers to the generation; this starts with one, and the max value is
+    // likely 3
+    InternalNode(PackageIdentIntern, u8),
+    InternalVersionedNode(PackageIdentIntern, u8),
+}
+
+impl UnresolvedPackageIdent {
+    pub fn ident(&self) -> Option<PackageIdentIntern> {
+        match self {
+            UnresolvedPackageIdent::Undefined => None,
+            UnresolvedPackageIdent::ExternalLatestVersion(ident)
+            | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
+            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => Some(*ident),
+            UnresolvedPackageIdent::InternalNode(ident, _)
+            | UnresolvedPackageIdent::InternalVersionedNode(ident, _) => Some(*ident),
+        }
+    }
+}
+
+impl fmt::Display for UnresolvedPackageIdent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UnresolvedPackageIdent::Undefined => write!(f, "Undef"),
+            UnresolvedPackageIdent::ExternalLatestVersion(ident)
+            | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
+            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => write!(f, "Ext:{}", ident),
+            UnresolvedPackageIdent::InternalNode(ident, version)
+            | UnresolvedPackageIdent::InternalVersionedNode(ident, version) => {
+                write!(f, "Int:{}:{}", ident, version)
+            }
+        }
+    }
+}
 
 pub struct PackageBuild {
-    pub ident:   PackageIdent,
-    pub bt_deps: Vec<PackageIdent>,
-    pub rt_deps: Vec<PackageIdent>,
+    pub name:         UnresolvedPackageIdent,
+    pub runtime_deps: Vec<UnresolvedPackageIdent>,
+    pub build_deps:   Vec<UnresolvedPackageIdent>,
+    pub strong_deps:  Vec<UnresolvedPackageIdent>,
 }
 
 impl PackageBuild {
     pub fn format_for_shell(&self) -> String {
-        let short_ident = short_ident(&self.ident, false).to_string();
-        let deps: Vec<PackageIdent> = self.bt_deps
-                                          .iter()
-                                          .chain(self.rt_deps.iter())
-                                          .cloned()
-                                          .collect();
+        let short_ident = &self.name.ident().unwrap().short_ident().to_string();
+        let deps: Vec<UnresolvedPackageIdent> =
+            self.runtime_deps
+                .iter()
+                .chain(self.build_deps.iter().chain(self.strong_deps.iter()))
+                .cloned()
+                .collect();
         format!("{}\t{}\t{}\n",
                 short_ident,
-                self.ident,
+                self.name,
                 join_idents(",", &deps))
     }
+}
+
+/// Represents the transformed graph of packages
+///
+/// In the presence of cycles we need to transform the graph to make it buildable. At this point
+/// we've unrolled the loops and otherwise fixed up any hidden dependencies. A topological sort
+/// of the runtime dependency edges will yield a correct build order.
+///
+/// This is the main output of our build order resolution phase, and is consumed by the
+/// scheduler.
+
+#[derive(Debug)]
+pub struct PackageBuildManifest {
+    pub graph: DiGraphMap<UnresolvedPackageIdent, EdgeType>,
+
+    // These amounts to materialized views of the graph above; in that they can be
+    // extracted, at a O(n) cost from the graph
+    pub external_dependencies: HashSet<PackageIdentIntern>, /* maybe unneeded? New model can
+                                                             * find by walking graph */
+    // Forensics
+    pub input_set:             HashSet<PackageIdentIntern>,
+    pub unbuildable_reasons:   HashMap<PackageIdentIntern, UnbuildableReason>,
+}
+
+impl PackageBuildManifest {
+    pub fn new() -> Self {
+        unimplemented!();
+    }
+
+    pub fn add_ident(&self, _ident: UnresolvedPackageIdent) { unimplemented!() }
+
+    pub fn list_base_deps() -> PackageIdent { unimplemented!() }
+
+    pub fn resolve_base_dep(_completed: &PackageIdent, _package_name: &FullyQualifiedPackageIdent) {
+        unimplemented!()
+    }
+
+    // Resolved package build record (with all placeholders filled in)
+    pub fn mark_package_complete(_completed: &PackageIdent,
+                                 _package_name: &FullyQualifiedPackageIdent) {
+        unimplemented!()
+    }
+
+    pub fn build_order(&self) -> Vec<PackageBuild> {
+        let mut order: Vec<PackageBuild> = Vec::new();
+
+        for component in petgraph::algo::tarjan_scc(&self.graph) {
+            assert_eq!(component.len(), 1);
+
+            match component.first().unwrap() {
+                ident @ UnresolvedPackageIdent::InternalNode(..)
+                | ident @ UnresolvedPackageIdent::InternalVersionedNode(..) => {
+                    let package_build = self.package_build_from_unresolved_ident(*ident);
+                    order.push(package_build);
+                }
+                _ => (),
+            }
+        }
+
+        order
+    }
+
+    fn package_build_from_unresolved_ident(&self, name: UnresolvedPackageIdent) -> PackageBuild {
+        let mut runtime_deps = Vec::new();
+        let mut build_deps = Vec::new();
+        let mut strong_deps = Vec::new();
+
+        for dep in self.graph
+                       .neighbors_directed(name, petgraph::EdgeDirection::Outgoing)
+        {
+            match self.graph.edge_weight(name, dep).unwrap() {
+                EdgeType::RuntimeDep => runtime_deps.push(dep),
+                EdgeType::BuildDep => build_deps.push(dep),
+                EdgeType::StrongBuildDep => strong_deps.push(dep),
+            }
+        }
+
+        PackageBuild { name,
+                       runtime_deps,
+                       build_deps,
+                       strong_deps }
+    }
+
+    pub fn serialize() -> Vec<PackageBuild> { unimplemented!() }
+
+    pub fn deserialze(_db: &[PackageBuild]) { unimplemented!() }
 }

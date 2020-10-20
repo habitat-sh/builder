@@ -28,7 +28,7 @@ use crate::db::models::package::BuilderPackageIdent;
 
 use internment::Intern;
 
-#[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Default, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct PackageIdentIntern {
     origin:  Intern<String>,
     name:    Intern<String>,
@@ -51,12 +51,8 @@ macro_rules! ident_intern {
 
 #[macro_export]
 macro_rules! ident_intern_vec {
-    ( $( $x:expr ),* ) => {
-        {
-            $(
-                let v: Vec<PackageIdentIntern> = $x.iter().map(|x| ident_intern!(x)).collect()
-            )*
-        }
+    ( $( $x:expr ),* $(,)? ) => {
+        <[PackageIdentIntern]>::into_vec(Box::new([$(PackageIdentIntern::from_str($x).expect(format!("Unable to make ident from {}", $x).as_str())),+]))
     }
 }
 
@@ -101,6 +97,27 @@ impl Identifiable for PackageIdentIntern {
 
 impl fmt::Display for PackageIdentIntern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.version.is_some() && self.release.is_some() {
+            write!(f,
+                   "{}/{}/{}/{}",
+                   self.origin,
+                   self.name,
+                   self.version.as_ref().unwrap(),
+                   self.release.as_ref().unwrap())
+        } else if self.version.is_some() {
+            write!(f,
+                   "{}/{}/{}",
+                   self.origin,
+                   self.name,
+                   self.version.as_ref().unwrap())
+        } else {
+            write!(f, "{}/{}", self.origin, self.name)
+        }
+    }
+}
+
+impl fmt::Debug for PackageIdentIntern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.version.is_some() && self.release.is_some() {
             write!(f,
                    "{}/{}/{}/{}",
