@@ -15,13 +15,16 @@ use std::{collections::HashMap,
 
 use lazy_static::lazy_static;
 
+pub const TARGET_LINUX_STR: &str = "x86_64-linux";
+pub const TARGET_WINDOWS_STR: &str = "x86_64-linux";
+
 lazy_static! {
     pub static ref TARGET_PLATFORM: BuilderPackageTarget =
-        BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
+        BuilderPackageTarget(PackageTarget::from_str(TARGET_LINUX_STR).unwrap());
     pub static ref TARGET_LINUX: BuilderPackageTarget =
-        BuilderPackageTarget(PackageTarget::from_str("x86_64-linux").unwrap());
+        BuilderPackageTarget(PackageTarget::from_str(TARGET_LINUX_STR).unwrap());
     pub static ref TARGET_WINDOWS: BuilderPackageTarget =
-        BuilderPackageTarget(PackageTarget::from_str("x86_64-windows").unwrap());
+        BuilderPackageTarget(PackageTarget::from_str(TARGET_WINDOWS_STR).unwrap());
 }
 
 #[macro_export]
@@ -110,15 +113,12 @@ impl DbHelper {
         // let plan_name = name.split('/').take(2).collect::<Vec<&str>>().join("/");
         // TODO lookup/create project_id based on plan_name
 
-        let entry = NewJobGraphEntry { group_id: self.group_id,
-                                       job_state,
-                                       project_name: "dummy_project_id",
-                                       job_id: None,
-                                       manifest_ident: name,
-                                       as_built_ident: None,
-                                       dependencies: &dependencies,
-                                       waiting_on_count: dependencies.len() as i32,
-                                       target_platform: self.target };
+        let entry = NewJobGraphEntry::new(self.group_id,
+                                          "dummy_project_id",
+                                          name,
+                                          job_state,
+                                          &dependencies,
+                                          self.target);
 
         let job_graph_entry = JobGraphEntry::create(&entry, &conn).unwrap();
 
@@ -176,15 +176,14 @@ pub fn make_job_graph_entries(group_id: i64,
         let dependencies: Vec<i64> = deps.iter()
                                          .filter_map(|d| jobs.get(d).map(|x| x.id))
                                          .collect();
-        let entry = NewJobGraphEntry { group_id,
-                                       job_state,
-                                       project_name: "dummy_project_id",
-                                       job_id: None,
-                                       manifest_ident: &manifest_ident,
-                                       as_built_ident: None,
-                                       dependencies: &dependencies,
-                                       waiting_on_count: dependencies.len() as i32,
-                                       target_platform };
+        let manifest_ident = manifest_ident.to_string();
+        let entry = NewJobGraphEntry::new(group_id,
+                                          "dummy_project_id",
+                                          &manifest_ident,
+                                          job_state,
+                                          &dependencies,
+                                          target_platform);
+
         let job = JobGraphEntry::create(&entry, &conn).unwrap();
         jobs.insert(manifest_ident.clone(), job);
     }
