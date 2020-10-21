@@ -13,7 +13,8 @@ use crate::protocol::{jobsrv,
                       net,
                       originsrv};
 
-use crate::{models::{package::BuilderPackageTarget,
+use crate::{models::{package::{BuilderPackageIdent,
+                               BuilderPackageTarget},
                      pagination::Paginate},
             schema::jobs::{audit_jobs,
                            busy_workers,
@@ -199,7 +200,7 @@ impl Into<jobsrv::Job> for Job {
 pub struct Group {
     #[serde(with = "db_id_format")]
     pub id:           i64,
-    pub group_state:  String,
+    pub group_state:  String, // This should be jobsrv::JobGroupState
     pub project_name: String,
     pub target:       String,
     pub created_at:   Option<DateTime<Utc>>,
@@ -753,10 +754,13 @@ impl JobGraphEntry {
         Ok(result)
     }
 
-    pub fn mark_job_complete(id: i64, conn: &PgConnection) -> QueryResult<i32> {
+    pub fn mark_job_complete(id: i64,
+                             as_built: &BuilderPackageIdent,
+                             conn: &PgConnection)
+                             -> QueryResult<i32> {
         Counter::DBCall.increment();
         let result =
-            diesel::select(job_functions::job_graph_mark_complete(id)).get_result::<i32>(conn)?;
+            diesel::select(job_functions::job_graph_mark_complete(id, &as_built.to_string())).get_result::<i32>(conn)?;
         Ok(result)
     }
 
@@ -782,5 +786,34 @@ impl JobGraphEntry {
         .filter(job_graph::job_state.eq(JobExecState::WaitingOnDependency))
         .filter(job_graph::waiting_on_count.eq(0)))
         .set(job_graph::job_state.eq(JobExecState::Ready)).execute(conn)
+    }
+}
+
+impl Into<jobsrv::JobGroupProject> for JobGraphEntry {
+    fn into(self) -> jobsrv::JobGroupProject {
+        let project_state = match self.job_state {
+            JobExecState::Pending | JobExecState::WaitingOnDependency | JobExecState::Ready => {
+                jobsrv::JobGroupProjectState::NotStarted
+            }
+
+            JobExecState::Running => jobsrv::JobGroupProjectState::InProgress,
+            JobExecState::Complete => jobsrv::JobGroupProjectState::Success,
+            JobExecState::JobFailed => jobsrv::JobGroupProjectState::Failure,
+            JobExecState::DependencyFailed => jobsrv::JobGroupProjectState::Skipped,
+            JobExecState::CancelPending | JobExecState::CancelComplete => {
+                jobsrv::JobGroupProjectState::Canceled
+            }
+        };
+
+        let mut project = jobsrv::JobGroupProject::new();
+
+        project.set_name(self.project_name);
+        project.set_ident(self.as_built_ident.unwrap_or("Not yet built".to_owned()));
+        project.set_state(project_state);
+        project.set_target(self.target_platform.to_string());
+        if let Some(id) = self.job_id {
+            project.set_job_id(id as u64)
+        };
+        project
     }
 }

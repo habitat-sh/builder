@@ -1,5 +1,6 @@
 use diesel::sql_types::{BigInt,
-                        Integer};
+                        Integer,
+                        Text};
 
 // Intended mostly for diagnostics and tests
 sql_function! {
@@ -18,7 +19,7 @@ sql_function! {
 no_arg_sql_function!(job_graph_fixup_waiting_on_count, Integer);
 
 sql_function! {
-  fn job_graph_mark_complete(in_id: BigInt) -> Integer
+  fn job_graph_mark_complete(in_id: BigInt, as_built: Text) -> Integer
 }
 
 sql_function! {
