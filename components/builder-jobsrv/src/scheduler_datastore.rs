@@ -16,10 +16,13 @@ use diesel::{r2d2::{ConnectionManager,
                     PooledConnection},
              PgConnection};
 
+use protobuf::RepeatedField;
+
 use crate::{db::models::{jobs::{Group,
                                 JobGraphEntry,
                                 JobStateCounts},
-                         package::BuilderPackageTarget},
+                         package::{BuilderPackageIdent,
+                                   BuilderPackageTarget}},
             error::{Error,
                     Result},
             protocol::jobsrv};
@@ -43,7 +46,10 @@ pub trait SchedulerDataStore: Send + Sync {
     fn take_next_job_for_target(&mut self,
                                 target: BuilderPackageTarget)
                                 -> Result<Option<JobGraphEntry>>;
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobGraphId) -> Result<i32>;
+    fn mark_job_complete_and_update_dependencies(&mut self,
+                                                 job: JobGraphId,
+                                                 as_built: &BuilderPackageIdent)
+                                                 -> Result<i32>;
     fn mark_job_failed(&mut self, job: JobGraphId) -> Result<i32>;
     fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts>;
     fn set_job_group_state(&mut self,
@@ -87,6 +93,51 @@ impl SchedulerDataStoreDb {
     pub fn get_connection_for_test(&self) -> PooledConnection<ConnectionManager<PgConnection>> {
         self.get_connection()
     }
+
+    pub fn get_job_group(&self,
+                         group_id: i64,
+                         include_projects: bool)
+                         -> Result<Option<jobsrv::JobGroup>> {
+        let maybe_group = match Group::get(group_id, &self.get_connection()) {
+            Err(diesel::result::Error::NotFound) => {
+                warn!("JobGroup id {} not found", group_id);
+                Ok(None)
+            }
+            Err(e) => Err(Error::SchedulerDbError(e)),
+            Ok(g) => Ok(Some(g)),
+        }?;
+
+        if let Some(group) = maybe_group {
+            let mut job_group = jobsrv::JobGroup::new();
+
+            job_group.set_id(group.id as u64);
+
+            let group_state = group.group_state.parse::<jobsrv::JobGroupState>()?;
+            job_group.set_state(group_state);
+            if let Some(date) = group.created_at {
+                job_group.set_created_at(date.to_rfc3339().to_string())
+            }
+            job_group.set_project_name(group.project_name);
+            job_group.set_target(group.target);
+
+            if include_projects {
+                // Need to remap job_graph_entries in to group_project like entries
+                let entries = JobGraphEntry::list_group(group_id, &self.get_connection())
+                                           .map_err(|e| Error::SchedulerDbError(e))?;
+
+                let mut projects = RepeatedField::new();
+                for entry in entries {
+                    let project: jobsrv::JobGroupProject = entry.into();
+                    projects.push(project);
+                }
+
+                job_group.set_projects(projects);
+            }
+            Ok(Some(job_group))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 impl SchedulerDataStore for SchedulerDataStoreDb {
@@ -97,8 +148,11 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
                                                 &self.get_connection()).map_err(|e| Error::SchedulerDbError(e))
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job: JobGraphId) -> Result<i32> {
-        JobGraphEntry::mark_job_complete(job.0, &self.get_connection()).map_err(|e| {
+    fn mark_job_complete_and_update_dependencies(&mut self,
+                                                 job: JobGraphId,
+                                                 as_built: &BuilderPackageIdent)
+                                                 -> Result<i32> {
+        JobGraphEntry::mark_job_complete(job.0, as_built, &self.get_connection()).map_err(|e| {
             Error::SchedulerDbError(e)
         })
     }
@@ -188,7 +242,10 @@ impl SchedulerDataStore for DummySchedulerDataStore {
         }
     }
 
-    fn mark_job_complete_and_update_dependencies(&mut self, job_id: JobGraphId) -> Result<i32> {
+    fn mark_job_complete_and_update_dependencies(&mut self,
+                                                 job_id: JobGraphId,
+                                                 _as_built: &BuilderPackageIdent)
+                                                 -> Result<i32> {
         assert!(self.actions.len() > 0);
         assert_eq!(self.actions[0].0,
                    DummySchedulerDataStoreCall::MarkJobCompleteAndUpdateDependencies { job_id });

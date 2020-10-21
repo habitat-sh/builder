@@ -1,5 +1,7 @@
 use super::{metrics::Gauge,
-            scheduler::ScheduleClient};
+            scheduler::ScheduleClient,
+            scheduler2::Scheduler};
+
 use crate::{bldr_core::{self,
                         job::Job,
                         metrics::GaugeMetric,
@@ -9,15 +11,22 @@ use crate::{bldr_core::{self,
             db::{models::{integration::*,
                           jobs::*,
                           keys::*,
+                          package::{BuilderPackageIdent,
+                                    BuilderPackageTarget},
                           project_integration::*,
+                          projects::Project,
                           secrets::*},
                  DbPool},
             error::{Error,
                     Result},
             protocol::{jobsrv,
-                       originsrv}};
+                       originsrv},
+            scheduler_datastore::WorkerId};
 use builder_core::crypto;
+
 use diesel::pg::PgConnection;
+use futures03::executor::block_on;
+
 use habitat_core::{crypto::keys::{AnonymousBox,
                                   KeyCache,
                                   OriginSecretEncryptionKey},
@@ -44,6 +53,9 @@ const JOB_TIMEOUT_CONVERT_MS: u64 = 60_000; // Conversion from mins to milli-sec
 pub struct WorkerMgrClient {
     socket: zmq::Socket,
 }
+
+// This is used as a one way channel to 'kick' the WorkerManager when new things arrive
+// You'll see the basic pattern 'WorkerMgrClient::default().notify_work()?;'
 
 impl WorkerMgrClient {
     pub fn connect(&mut self) -> Result<()> {
@@ -143,10 +155,15 @@ pub struct WorkerMgr {
     schedule_cli:     ScheduleClient,
     job_timeout:      u64,
     build_targets:    HashSet<PackageTarget>,
+    scheduler:        Option<Scheduler>,
 }
 
 impl WorkerMgr {
-    pub fn new(cfg: &Config, datastore: &DataStore, db: DbPool) -> Self {
+    pub fn new(cfg: &Config,
+               datastore: &DataStore,
+               db: DbPool,
+               scheduler: Option<Scheduler>)
+               -> Self {
         let hb_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::SUB).unwrap();
         let rq_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER).unwrap();
         let work_mgr_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
@@ -173,11 +190,16 @@ impl WorkerMgr {
                     worker_heartbeat: cfg.net.worker_heartbeat_addr(),
                     schedule_cli,
                     job_timeout: cfg.job_timeout,
-                    build_targets: cfg.build_targets.clone() }
+                    build_targets: cfg.build_targets.clone(),
+                    scheduler }
     }
 
-    pub fn start(cfg: &Config, datastore: &DataStore, db: DbPool) -> Result<JoinHandle<()>> {
-        let mut manager = Self::new(cfg, datastore, db);
+    pub fn start(cfg: &Config,
+                 datastore: &DataStore,
+                 db: DbPool,
+                 scheduler: Option<Scheduler>)
+                 -> Result<JoinHandle<()>> {
+        let mut manager = Self::new(cfg, datastore, db, scheduler);
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new().name("worker-manager".to_string())
                                            .spawn(move || {
@@ -325,6 +347,7 @@ impl WorkerMgr {
         Ok(())
     }
 
+    // TODO This will need to communicate with scheduler to update job on it's side.
     fn requeue_jobs(&mut self) -> Result<()> {
         let jobs = self.datastore.get_dispatched_jobs()?;
 
@@ -439,13 +462,41 @@ impl WorkerMgr {
                 };
 
             // Take one job from the pending list
-            let job_opt = self.datastore
-                              .next_pending_job(&worker_ident, &target.to_string())?;
-            if job_opt.is_none() {
-                break;
-            }
+            // TODO This will need to communicate with scheduler to update job on it's side.
+            // TODO refactor this to return an Option<Job> and only land at break once
+            let mut job = if let Some(scheduler) = &mut self.scheduler {
+                // Runtime::new().unwrap().block_on(|| worker_needs_work.await )
+                if let Some(job_entry) =
+                    block_on(scheduler.worker_needs_work(WorkerId(worker_ident.clone()),
+                                                         BuilderPackageTarget(target)))
+                {
+                    let conn = self.datastore.get_pool().get_conn()?;
+                    let project =
+                        Project::get(&job_entry.project_name, &target.to_string(), &conn)?;
+                    let maybe_job =
+                        self.datastore
+                            .create_job_for_project(job_entry.group_id as u64,
+                                                    project,
+                                                    &job_entry.target_platform.to_string())?;
+                    match maybe_job {
+                        None => break,
+                        Some(job) => {
+                            JobGraphEntry::set_job_id(job_entry.id, job.get_id() as i64, &conn)?;
+                            Job::new(job)
+                        }
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                let job_opt = self.datastore
+                                  .next_pending_job(&worker_ident, &target.to_string())?;
+                if job_opt.is_none() {
+                    break;
+                }
 
-            let mut job = Job::new(job_opt.unwrap()); // unwrap Ok
+                Job::new(job_opt.unwrap()) // unwrap Ok
+            };
 
             self.add_integrations_to_job(&mut job);
             self.add_project_integrations_to_job(&mut job);
@@ -461,7 +512,7 @@ impl WorkerMgr {
                 Err(err) => {
                     warn!("Failed to dispatch job to worker {}, err={:?}",
                           worker_ident, err);
-                    job.set_state(jobsrv::JobState::Pending);
+                    job.set_state(jobsrv::JobState::Pending); // TODO sched2 needs to update job_graph_entry/scheduler with state
                     self.datastore.update_job(&job)?;
                     return Ok(()); // Exit instead of re-trying immediately
                 }
@@ -663,6 +714,7 @@ impl WorkerMgr {
         Ok(())
     }
 
+    // This will need to communicate with scheduler to update job on it's side.
     fn requeue_job(&mut self, job_id: u64) -> Result<()> {
         let mut req = jobsrv::JobGet::new();
         req.set_id(job_id);
@@ -695,6 +747,7 @@ impl WorkerMgr {
         Ok(())
     }
 
+    // This will need to communicate with scheduler to update job on it's side. TBI
     fn cancel_job(&mut self, job_id: u64, worker_ident: &str) -> Result<()> {
         let mut req = jobsrv::JobGet::new();
         req.set_id(job_id);
@@ -815,13 +868,74 @@ impl WorkerMgr {
 
     fn process_job_status(&mut self) -> Result<()> {
         self.rq_sock.recv(&mut self.msg, 0)?;
+        // TODO get worker id here from msg
+        let worker_id = "Unknown".to_owned();
+
         self.rq_sock.recv(&mut self.msg, 0)?;
 
         let job = Job::new(parse_from_bytes::<jobsrv::Job>(&self.msg)?);
         debug!("Got job status: {:?}", job);
         self.datastore.update_job(&job)?;
-        self.schedule_cli.notify()?;
 
+        if let Some(scheduler) = &self.scheduler {
+            let mut scheduler = scheduler.clone();
+            let mut job_graph_entry = self.job_graph_entry(&job)?;
+            let state = job.get_state();
+            // TODO: handle Successful completion, Failure, CancelComplete?
+            match state {
+                jobsrv::JobState::Complete => {
+                    // Tell the scheduler
+                    job_graph_entry.job_state = JobExecState::Complete;
+                    job_graph_entry.as_built_ident =
+                        Some(BuilderPackageIdent(job.get_package_ident().into()));
+                    block_on(scheduler.worker_finished(WorkerId(worker_id), job_graph_entry))
+                }
+                jobsrv::JobState::Failed => {
+                    // Tell the scheduler
+                    job_graph_entry.job_state = JobExecState::JobFailed;
+                    block_on(scheduler.worker_finished(WorkerId(worker_id), job_graph_entry))
+                }
+                jobsrv::JobState::CancelComplete => {
+                    // Tell the scheduler
+                    unimplemented!("JobState::CancelComplete");
+                }
+                jobsrv::JobState::Rejected => {
+                    // Tell the scheduler
+                    unimplemented!("JobState::Rejected");
+                }
+                jobsrv::JobState::Dispatched
+                | jobsrv::JobState::Pending
+                | jobsrv::JobState::CancelPending
+                | jobsrv::JobState::CancelProcessing => {
+                    // Ok do nothing
+                }
+                jobsrv::JobState::Processing => {
+                    let id = job.get_id();
+                    // Should never see these from the runner EXPLODE!
+                    error!("process_job_status: Did not expect to get state {} for job {}",
+                           state, id);
+                    unreachable!("process_job_status: Did not expect to get state {} for job {}",
+                                 state, id)
+                }
+            }
+        } else {
+            // How does the scheduler understand
+            self.schedule_cli.notify()?;
+        }
         Ok(())
+    }
+
+    fn job_graph_entry(&self, job: &jobsrv::Job) -> Result<JobGraphEntry> {
+        let conn = self.datastore.get_pool().get_conn()?;
+        JobGraphEntry::get_by_job_id(job.get_id() as i64, &conn).map_err(Error::WorkerMgrDbError)
+    }
+
+    // This will be used when we implement cancel
+    #[allow(dead_code)]
+    fn job(&self, entry: JobGraphEntry) -> Result<jobsrv::Job> {
+        let conn = self.datastore.get_pool().get_conn()?;
+        let job =
+            crate::db::models::jobs::Job::get(entry.id, &conn).map_err(Error::WorkerMgrDbError)?;
+        Ok(job.into())
     }
 }

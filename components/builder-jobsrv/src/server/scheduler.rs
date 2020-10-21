@@ -559,24 +559,12 @@ impl ScheduleMgr {
             }
         };
 
-        let mut job_spec = jobsrv::JobSpec::new();
-        job_spec.set_owner_id(group_id);
-        job_spec.set_project(project.into());
-        job_spec.set_target(target.to_string());
-        job_spec.set_channel(format!("bldr-{}", group_id));
-
-        let job: jobsrv::Job = job_spec.into();
-        match self.datastore.create_job(&job) {
-            Ok(job) => {
-                debug!("Job created: {:?}", job);
-                self.worker_mgr.notify_work()?;
-                Ok(Some(job))
-            }
-            Err(err) => {
-                warn!("Unable to create job, err: {:?}", err);
-                Err(err)
-            }
+        let created = self.datastore
+                          .create_job_for_project(group_id, project, target);
+        if created.is_ok() {
+            self.worker_mgr.notify_work()?;
         }
+        created
     }
 
     fn get_group(&mut self, group_id: u64) -> Result<jobsrv::JobGroup> {

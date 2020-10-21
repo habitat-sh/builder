@@ -15,7 +15,8 @@ mod test {
                                              JobGraphEntry,
                                              JobStateCounts,
                                              NewJobGraphEntry},
-                                      package::BuilderPackageTarget}};
+                                      package::{BuilderPackageIdent,
+                                                BuilderPackageTarget}}};
     use std::str::FromStr;
 
     mod helpers {
@@ -249,7 +250,9 @@ mod test {
         let job_data = job_next.unwrap();
         assert_eq!(job_data.manifest_ident, "foo/bar/1.2.3/123");
         assert_eq!(job_data.group_id, 1);
-        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+
+        let as_built = BuilderPackageIdent::from_str("foo/bar/1.2.3/123").unwrap();
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 2);
 
         assert_eq!((1, 2, 1, 0, 0), job_state_count(1, &conn));
@@ -258,7 +261,9 @@ mod test {
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.group_id, 1);
-        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 0);
 
         assert_eq!((1, 1, 2, 0, 0), job_state_count(1, &conn));
@@ -267,7 +272,9 @@ mod test {
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.group_id, 1);
-        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 1);
 
         assert_eq!((0, 1, 3, 0, 0), job_state_count(1, &conn));
@@ -276,7 +283,9 @@ mod test {
         assert!(job_next.is_some());
         let job_data = job_next.unwrap();
         assert_eq!(job_data.group_id, 1);
-        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 0);
 
         assert_eq!((0, 0, 4, 0, 0), job_state_count(1, &conn));
@@ -300,7 +309,9 @@ mod test {
         let job_data = job_next.unwrap();
         assert_eq!(job_data.manifest_ident, "foo/bar/1.2.3/123");
         assert_eq!(job_data.group_id, 1);
-        let ready = JobGraphEntry::mark_job_complete(job_data.id, &conn);
+
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let ready = JobGraphEntry::mark_job_complete(job_data.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 2);
 
         assert_match!(JobGraphEntry::count_all_states(1, &conn).unwrap(),
@@ -332,17 +343,20 @@ mod test {
         assert_eq!((1, 0, 1, 0, 0), job_state_count(1, &conn));
         assert_eq!((3, 0, 0, 0, 0), job_state_count(2, &conn));
 
-        let ready = JobGraphEntry::mark_job_complete(job_a.id, &conn);
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let ready = JobGraphEntry::mark_job_complete(job_a.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 0);
         assert_eq!((1, 0, 2, 0, 0), job_state_count(1, &conn));
         assert_eq!((3, 0, 0, 0, 0), job_state_count(2, &conn));
 
-        let ready = JobGraphEntry::mark_job_complete(job_b.id, &conn);
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let ready = JobGraphEntry::mark_job_complete(job_b.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 1);
         assert_eq!((0, 1, 3, 0, 0), job_state_count(1, &conn));
         assert_eq!((3, 0, 0, 0, 0), job_state_count(2, &conn));
 
-        let ready = JobGraphEntry::mark_job_complete(job_c.id, &conn);
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let ready = JobGraphEntry::mark_job_complete(job_c.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 2);
         assert_eq!((0, 1, 3, 0, 0), job_state_count(1, &conn));
         assert_eq!((1, 2, 1, 0, 0), job_state_count(2, &conn));
@@ -350,7 +364,9 @@ mod test {
         let job_next = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()
                                                                                        .unwrap();
         assert_eq!(job_next.group_id, 1);
-        let ready = JobGraphEntry::mark_job_complete(job_next.id, &conn);
+
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let ready = JobGraphEntry::mark_job_complete(job_next.id, &as_built, &conn);
         assert_eq!(ready.unwrap(), 0);
         assert_eq!((0, 0, 4, 0, 0), job_state_count(1, &conn));
         assert_eq!((1, 2, 1, 0, 0), job_state_count(2, &conn));

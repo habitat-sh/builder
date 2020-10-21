@@ -8,12 +8,16 @@ mod test {
 
     use super::super::*;
 
+    use std::str::FromStr;
+
     use crate::{assert_match,
-                db::models::jobs::{Group,
-                                   JobExecState,
-                                   JobGraphEntry,
-                                   NewGroup,
-                                   NewJobGraphEntry},
+                db::models::{jobs::{Group,
+                                    JobExecState,
+                                    JobGraphEntry,
+                                    JobStateCounts,
+                                    NewGroup,
+                                    NewJobGraphEntry},
+                             package::BuilderPackageIdent},
                 scheduler_datastore::{DummySchedulerDataStore,
                                       DummySchedulerDataStoreCall,
                                       DummySchedulerDataStoreResult,
@@ -281,6 +285,23 @@ mod test {
         JobGraphEntry::count_all_states(gid.0, &conn).unwrap()
     }
 
+    async fn advance_job_state_to_complete(job_id: i64,
+                                           as_built: &BuilderPackageIdent,
+                                           scheduler: &mut Scheduler,
+                                           conn: &diesel::PgConnection)
+                                           -> JobStateCounts {
+        let worker = WorkerId("test-worker".to_string());
+        let mut entry = JobGraphEntry::get(job_id, &conn).unwrap();
+        let gid = GroupId(entry.group_id);
+
+        entry.job_state = JobExecState::Complete;
+        entry.as_built_ident = Some(as_built.to_owned());
+        scheduler.worker_finished(worker, entry).await;
+        scheduler.state().await; // make sure scheduler has finished work
+
+        JobGraphEntry::count_all_states(gid.0, &conn).unwrap()
+    }
+
     #[tokio::test]
     async fn simple_job_complete() {
         let datastore = setup_simple_job_complete();
@@ -303,13 +324,21 @@ mod test {
         // scheduler.state().await; // make sure scheduler has finished work
 
         // let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-        let states = advance_job_state(1, JobExecState::Complete, &mut scheduler, &conn).await;
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let states = advance_job_state_to_complete(1, &as_built, &mut scheduler, &conn).await;
         assert_match!(states, JobStateCounts{ pd : 0, wd : 0, rd : 1, rn : 0, ct: 1, ..});
+
+        // Verify we have commited this to db
+        let committed_entry = JobGraphEntry::get(1, &conn).unwrap();
+        assert_eq!(committed_entry.job_state, JobExecState::Complete);
+        assert!(committed_entry.as_built_ident.is_some());
+        assert_eq!(committed_entry.as_built_ident.unwrap(), as_built);
 
         // TODO: This is not a valid state transition Ready -> Complete
         // will need to clean up later.
         let mut entry = JobGraphEntry::get(2, &conn).unwrap();
         entry.job_state = JobExecState::Complete;
+        entry.as_built_ident = Some(as_built);
         scheduler.worker_finished(worker.clone(), entry).await;
         scheduler.state().await; // make sure scheduler has finished work
 
@@ -341,7 +370,8 @@ mod test {
         assert_match!(states, JobStateCounts{ pd: 0, wd: 3, rd: 0, rn: 1, ..});
 
         // Complete the top job
-        let states = advance_job_state(1, JobExecState::Complete, &mut scheduler, &conn).await;
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let states = advance_job_state_to_complete(1, &as_built, &mut scheduler, &conn).await;
         assert_match!(states,
                       JobStateCounts { wd: 1,
                                                                 rd: 2,
@@ -353,7 +383,8 @@ mod test {
         assert_match!(states, JobStateCounts{ pd: 0, wd: 0, rd: 1, rn: 0, ct: 1, jf: 1, df: 1, ..});
 
         // Complete the right job
-        let states = advance_job_state(3, JobExecState::Complete, &mut scheduler, &conn).await;
+        let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
+        let states = advance_job_state_to_complete(3, &as_built, &mut scheduler, &conn).await;
         let expected = JobStateCounts { ct: 2,
                                         jf: 1,
                                         df: 1,

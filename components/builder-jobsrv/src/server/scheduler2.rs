@@ -40,7 +40,6 @@ pub struct StateBlob {
 
 type Responder<T> = oneshot::Sender<T>;
 
-#[derive(Debug)]
 #[allow(dead_code)] // TODO REMOVE
 #[non_exhaustive]
 pub enum SchedulerMessage {
@@ -72,6 +71,54 @@ pub enum SchedulerMessage {
      * message pump pattern? Could live alongside in separate thread */
 }
 
+impl fmt::Debug for SchedulerMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SchedulerMessage::JobGroupAdded { group, target } => {
+                f.debug_struct("SchedulerMessage::JobGroupAdded")
+                 .field("group", group)
+                 .field("target", target)
+                 .finish()
+            }
+            SchedulerMessage::JobGroupCanceled { group } => {
+                f.debug_struct("SchedulerMessage::JobGroupCanceled")
+                 .field("group", group)
+                 .finish()
+            }
+            SchedulerMessage::WorkerNeedsWork { worker,
+                                                target,
+                                                reply: _, } => {
+                f.debug_struct("SchedulerMessage::WorkerNeedsWork")
+                 .field("worker", worker)
+                 .field("target", target)
+                 .finish()
+            }
+            SchedulerMessage::WorkerFinished { worker, job } => {
+                f.debug_struct("SchedulerMessage::WorkerFinished")
+                 .field("worker", worker)
+                 .field("job", job)
+                 .finish()
+            }
+            SchedulerMessage::WorkerGone { worker, job } => {
+                f.debug_struct("SchedulerMessage::WorkerGone")
+                 .field("worker", worker)
+                 .field("job", job)
+                 .finish()
+            }
+            SchedulerMessage::State { reply: _ } => {
+                f.debug_struct("SchedulerMessage::State")
+                 .field("Unknown", &"omitted".to_owned())
+                 .finish() //  rework when finish_non_exhaustive is on main
+            }
+            _ => {
+                f.debug_struct("SchedulerMessage:: UNIMPLEMENTED")
+                 .field("Unknown", &"omitted".to_owned())
+                 .finish()
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum WorkerManagerMessage {
@@ -79,8 +126,8 @@ pub enum WorkerManagerMessage {
     CancelJob { jobs: Vec<JobGraphId> },
 }
 
-#[derive(Debug)]
-pub(crate) struct Scheduler {
+#[derive(Clone, Debug)]
+pub struct Scheduler {
     tx: mpsc::Sender<SchedulerMessage>,
 }
 
@@ -150,22 +197,23 @@ impl SchedulerInternal {
         SchedulerInternal { data_store, rx }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     pub async fn run(&mut self) {
         println!("Loop started");
         let mut message_count: usize = 0;
         let mut last_message_debug = "".to_owned();
 
         while let Some(msg) = self.rx.recv().await {
-            println!("Msg {:?}", msg);
+            // trace!("Msg {:?}", msg);
             message_count += 1;
 
             let message_debug = format!("{:?}", msg);
-            println!("Handling {}: {}", message_count, message_debug);
+            // trace!("Handling {}: {}", message_count, message_debug);
 
             match msg {
                 SchedulerMessage::JobGroupAdded { group, target } => {
-                    self.job_group_added(group, target)
+                    self.job_group_added(group, target);
+                    self.notify_worker();
                 }
                 SchedulerMessage::JobGroupCanceled { .. } => unimplemented!("No JobGroupCanceled"),
                 SchedulerMessage::WorkerNeedsWork { worker,
@@ -174,7 +222,8 @@ impl SchedulerInternal {
                     self.worker_needs_work(&worker, target, reply)
                 }
                 SchedulerMessage::WorkerFinished { worker, job } => {
-                    self.worker_finished(&worker, job)
+                    self.worker_finished(&worker, job);
+                    self.notify_worker();
                 }
                 SchedulerMessage::WorkerGone { .. } => unimplemented!("No WorkerGone"),
                 SchedulerMessage::State { reply } => {
@@ -190,7 +239,7 @@ impl SchedulerInternal {
         }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn job_group_added(&mut self, group: GroupId, target: BuilderPackageTarget) {
         // if there are no ready jobs for this target dispatch it
 
@@ -205,7 +254,7 @@ impl SchedulerInternal {
         }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn take_next_group_for_target(&mut self, target: BuilderPackageTarget) {
         if let Some(group) = self.data_store
                                  .take_next_group_for_target(target)
@@ -215,13 +264,14 @@ impl SchedulerInternal {
         }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn dispatch_group_for_target(&mut self, group_id: GroupId, _target: BuilderPackageTarget) {
         // Move the group to dispatching,
         self.data_store
             .set_job_group_state(group_id, jobsrv::JobGroupState::GroupDispatching)
             .expect("Can't yet handle db error");
-        // update jobs to WaitingOnDependency or Ready
+        // update job graph entries to WaitingOnDependency or Ready
+        // TODO: Need to CREATE jobs here, not
         let _ready = self.data_store
                          .group_dispatched_update_jobs(group_id)
                          .expect("Can't yet handle db error");
@@ -230,7 +280,7 @@ impl SchedulerInternal {
         // Does something with ready/target
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, reply))]
     fn worker_needs_work(&mut self,
                          worker: &WorkerId,
                          target: BuilderPackageTarget,
@@ -254,7 +304,7 @@ impl SchedulerInternal {
              .expect("Reply failed: Worker manager appears to have died")
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn worker_finished(&mut self, worker: &WorkerId, job_entry: JobGraphEntry) {
         // Mark the job complete, depending on the result. These need to be atomic as, to avoid
         // losing work in flight
@@ -264,10 +314,17 @@ impl SchedulerInternal {
         let job_id = JobGraphId(job_entry.id);
         match job_entry.job_state {
             JobExecState::Complete => {
+                // Short term while we convert JobGraphEntry to use BuilderPackageIdents...
+                let as_built_ident = job_entry.as_built_ident
+                                              .as_ref()
+                                              .expect("Package build completed but had no name")
+                                              .clone();
+
                 // If it successful, we will mark it done, and update the available jobs to run
-                let new_avail = self.data_store
-                                    .mark_job_complete_and_update_dependencies(job_id)
-                                    .expect("Can't yet handle db error");
+                let new_avail =
+                    self.data_store
+                        .mark_job_complete_and_update_dependencies(job_id, &as_built_ident)
+                        .expect("Can't yet handle db error");
 
                 debug!("Job {} completed, {} now avail to run", job_id.0, new_avail);
             }
@@ -295,6 +352,7 @@ impl SchedulerInternal {
     // This probably belongs in a job_group_lifecycle module, but not today
     // Check for the various ways a group might complete, and handle them
     //
+    #[tracing::instrument(skip(self))]
     fn check_group_completion(&mut self, job_entry: JobGraphEntry) {
         let group_id = GroupId(job_entry.group_id);
 
@@ -302,6 +360,10 @@ impl SchedulerInternal {
                          .count_all_states(group_id)
                          .expect("Can't yet handle db error");
 
+        trace!("Job {} complete, group {} counts {:?}",
+               job_entry.id,
+               group_id.0,
+               counts);
         match counts {
             JobStateCounts { wd: 0,
                              rd: 0,
@@ -346,6 +408,7 @@ impl SchedulerInternal {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn group_finished_successfully(&mut self, group_id: GroupId, completed: i64) {
         self.data_store
             .set_job_group_state(group_id, jobsrv::JobGroupState::GroupComplete)
@@ -355,12 +418,23 @@ impl SchedulerInternal {
         // What notifications/cleanups/protobuf calls etc need to happen here?
     }
 
+    #[tracing::instrument(skip(self))]
     fn group_failed(&mut self, group_id: GroupId, counts: JobStateCounts) {
         self.data_store
             .set_job_group_state(group_id, jobsrv::JobGroupState::GroupFailed)
             .expect("Can't yet handle db error");
         trace!("Group {} failed {:?}", group_id.0, counts);
         // What notifications/cleanups/protobuf calls etc need to happen here?
+    }
+
+    // This function is not well named. We aren't notifying the worker of anything. This
+    // places a message on the workers zmq socket, causing it to wake up and process its run loop.
+    #[tracing::instrument(skip(self))]
+    fn notify_worker(&self) {
+        let response = crate::server::worker_manager::WorkerMgrClient::default().notify_work();
+        if response.is_err() {
+            error!("Unable to notify worker: {:?}", response);
+        }
     }
 }
 
