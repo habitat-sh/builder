@@ -906,6 +906,18 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
 #[sql_type = "Text"]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
+impl FromStr for BuilderPackageIdent {
+    type Err = crate::error::Error;
+
+    fn from_str(s: &str) -> Result<Self, crate::error::Error> {
+        Ok(BuilderPackageIdent(PackageIdent::from_str(s).map_err(|_| {
+                                   crate::error::Error::ParseError(format!("BuilderPackageIdent \
+                                                                            {}",
+                                                                           s))
+                               })?))
+    }
+}
+
 impl FromSql<Text, Pg> for BuilderPackageIdent {
     fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
         match bytes {
@@ -960,6 +972,18 @@ impl Deref for BuilderPackageIdent {
          Copy)]
 #[sql_type = "Text"]
 pub struct BuilderPackageTarget(pub PackageTarget);
+
+impl FromStr for BuilderPackageTarget {
+    type Err = crate::error::Error;
+
+    fn from_str(s: &str) -> Result<Self, crate::error::Error> {
+        Ok(BuilderPackageTarget(PackageTarget::from_str(s).map_err(|_| {
+                                    crate::error::Error::ParseError(format!("BuilderPackageTarget \
+                                                                            {}",
+                                                                           s))
+                                })?))
+    }
+}
 
 impl FromSql<Text, Pg> for BuilderPackageTarget {
     fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {

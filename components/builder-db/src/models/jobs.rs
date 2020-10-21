@@ -13,7 +13,8 @@ use crate::protocol::{jobsrv,
                       net,
                       originsrv};
 
-use crate::{models::{package::BuilderPackageTarget,
+use crate::{models::{package::{BuilderPackageIdent,
+                               BuilderPackageTarget},
                      pagination::Paginate},
             schema::jobs::{audit_jobs,
                            busy_workers,
@@ -199,7 +200,7 @@ impl Into<jobsrv::Job> for Job {
 pub struct Group {
     #[serde(with = "db_id_format")]
     pub id:           i64,
-    pub group_state:  String,
+    pub group_state:  String, // This should be jobsrv::JobGroupState
     pub project_name: String,
     pub target:       String,
     pub created_at:   Option<DateTime<Utc>>,
@@ -524,6 +525,26 @@ pub struct NewJobGraphEntry<'a> {
     pub target_platform:  BuilderPackageTarget, // PackageTarget?
 }
 
+impl<'a> NewJobGraphEntry<'a> {
+    pub fn new(group_id: i64,
+               project_name: &'a str,
+               manifest_ident: &'a str,
+               job_state: JobExecState,
+               dependency_ids: &'a [i64],
+               target_platform: BuilderPackageTarget)
+               -> Self {
+        NewJobGraphEntry { group_id,
+                           project_name,
+                           job_id: None,
+                           job_state,
+                           manifest_ident,
+                           as_built_ident: None,
+                           dependencies: dependency_ids,
+                           waiting_on_count: dependency_ids.len() as i32,
+                           target_platform }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "job_graph"]
 pub struct JobGraphEntry {
@@ -532,9 +553,9 @@ pub struct JobGraphEntry {
                                 * group_id) */
     pub project_name:     String, // ideally this would be an id in projects table
     pub job_id:           Option<i64>,
-    pub job_state:        JobExecState,   // Should be enum
-    pub manifest_ident:   String,         //
-    pub as_built_ident:   Option<String>, // TODO revisit if needed
+    pub job_state:        JobExecState, // Should be enum
+    pub manifest_ident:   String,       //
+    pub as_built_ident:   Option<BuilderPackageIdent>, // TODO revisit if needed
     pub dependencies:     Vec<i64>,
     pub waiting_on_count: i32,
     pub target_platform:  BuilderPackageTarget, // PackageTarget?
@@ -591,14 +612,9 @@ impl JobGraphEntry {
         let start_time = std::time::Instant::now();
 
         let query = diesel::insert_into(job_graph::table).values(req);
-        let debug = diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query);
-        let out = format!("{:?}", debug);
+        // let debug = diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query);
 
         let result = query.get_result(conn);
-
-        // TODO REMOVE BEFORE MERGE
-        let insert_one = (start_time.elapsed().as_micros() as f64) / 1_000_000.0;
-        println!("One insert took {} s, {}", insert_one, out);
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall JobGraphEntry::create_batch time: {} ms",
@@ -676,7 +692,7 @@ impl JobGraphEntry {
                                   conn: &PgConnection)
                                   -> QueryResult<i64> {
         job_graph::table.select(count_star())
-                        .filter(job_graph::target_platform.eq(target.0.to_string()))
+                        .filter(job_graph::target_platform.eq(target.to_string()))
                         .filter(job_graph::job_state.eq(JobExecState::Ready))
                         .first(conn)
     }
@@ -713,8 +729,8 @@ impl JobGraphEntry {
             .filter(job_graph::job_state.eq(JobExecState::Ready))
             // This is the effective priority of a job; right now we select the oldest entry, but
             // in the future we may want to prioritize finishing one group before starting the next, or by
-            // some precomputed metric (e.g. total number of transitive deps or some other parallelisim maximising
-                // heuristic
+            // some precomputed metric (e.g. total number of transitive deps or some other parallelisim maximizing
+            // heuristic
             .order((job_graph::group_id, job_graph::created_at.asc(), job_graph::id))
             .limit(1)
             .get_result(conn);
@@ -722,25 +738,21 @@ impl JobGraphEntry {
             Ok(job) => {
                 // This should be done in a transaction
                 diesel::update(job_graph::table.find(job.id)).set(job_graph::job_state.eq(JobExecState::Running)).execute(conn)?;
-                diesel::QueryResult::Ok(Some(job))
+                Ok(Some(job))
             }
-            diesel::QueryResult::Err(diesel::result::Error::NotFound) => {
-                diesel::QueryResult::Ok(None)
-            }
-            diesel::QueryResult::Err(x) => diesel::QueryResult::<Option<JobGraphEntry>>::Err(x),
+            diesel::QueryResult::Err(diesel::result::Error::NotFound) => Ok(None),
+            diesel::QueryResult::Err(x) => diesel::QueryResult::Err(x), /* this turns QueryResult<X> into QueryResult<Option<X>> */
         }
     }
 
     pub fn transitive_rdeps_for_id(id: i64, conn: &PgConnection) -> QueryResult<Vec<i64>> {
         Counter::DBCall.increment();
-        let result = diesel::select(job_functions::t_rdeps_for_id(id)).get_results::<i64>(conn)?;
-        Ok(result)
+        diesel::select(job_functions::t_rdeps_for_id(id)).get_results(conn)
     }
 
     pub fn transitive_deps_for_id(id: i64, conn: &PgConnection) -> QueryResult<Vec<i64>> {
         Counter::DBCall.increment();
-        let result = diesel::select(job_functions::t_deps_for_id(id)).get_results::<i64>(conn)?;
-        Ok(result)
+        diesel::select(job_functions::t_deps_for_id(id)).get_results(conn)
     }
 
     pub fn transitive_deps_for_id_and_group(id: i64,
@@ -753,18 +765,17 @@ impl JobGraphEntry {
         Ok(result)
     }
 
-    pub fn mark_job_complete(id: i64, conn: &PgConnection) -> QueryResult<i32> {
+    pub fn mark_job_complete(id: i64,
+                             as_built: &BuilderPackageIdent,
+                             conn: &PgConnection)
+                             -> QueryResult<i32> {
         Counter::DBCall.increment();
-        let result =
-            diesel::select(job_functions::job_graph_mark_complete(id)).get_result::<i32>(conn)?;
-        Ok(result)
+        diesel::select(job_functions::job_graph_mark_complete(id, &as_built.to_string())).get_result::<i32>(conn)
     }
 
     pub fn mark_job_failed(id: i64, conn: &PgConnection) -> QueryResult<i32> {
         Counter::DBCall.increment();
-        let result =
-            diesel::select(job_functions::job_graph_mark_failed(id)).get_result::<i32>(conn)?;
-        Ok(result)
+        diesel::select(job_functions::job_graph_mark_failed(id)).get_result::<i32>(conn)
     }
 
     // Updates jobs when group is dispatched; jobs are moved from Pending to WaitingOnDependency, or
@@ -782,5 +793,39 @@ impl JobGraphEntry {
         .filter(job_graph::job_state.eq(JobExecState::WaitingOnDependency))
         .filter(job_graph::waiting_on_count.eq(0)))
         .set(job_graph::job_state.eq(JobExecState::Ready)).execute(conn)
+    }
+}
+
+impl Into<jobsrv::JobGroupProject> for JobGraphEntry {
+    fn into(self) -> jobsrv::JobGroupProject {
+        let project_state = match self.job_state {
+            JobExecState::Pending | JobExecState::WaitingOnDependency | JobExecState::Ready => {
+                jobsrv::JobGroupProjectState::NotStarted
+            }
+
+            JobExecState::Running => jobsrv::JobGroupProjectState::InProgress,
+            JobExecState::Complete => jobsrv::JobGroupProjectState::Success,
+            JobExecState::JobFailed => jobsrv::JobGroupProjectState::Failure,
+            JobExecState::DependencyFailed => jobsrv::JobGroupProjectState::Skipped,
+            JobExecState::CancelPending | JobExecState::CancelComplete => {
+                jobsrv::JobGroupProjectState::Canceled
+            }
+        };
+
+        let mut project = jobsrv::JobGroupProject::new();
+
+        project.set_name(self.project_name);
+        let as_built_ident = if let Some(ident) = self.as_built_ident {
+            ident.to_string()
+        } else {
+            "Not yet built".to_string()
+        };
+        project.set_ident(as_built_ident);
+        project.set_state(project_state);
+        project.set_target(self.target_platform.to_string());
+        if let Some(id) = self.job_id {
+            project.set_job_id(id as u64)
+        };
+        project
     }
 }
