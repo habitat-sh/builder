@@ -6,6 +6,7 @@ features_enabled = ""
 airlock_enabled = false
 recreate_ns_dir = false
 target = "x86_64-linux"
+work_poll_interval_secs = 60
 
 [github]
 api_url = "https://api.github.com"
