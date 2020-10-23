@@ -161,7 +161,7 @@ impl OriginPublicEncryptionKey {
 }
 
 impl OriginPrivateEncryptionKey {
-    pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateEncryptionKey> {
+    pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateEncryptionKey> {
         Counter::DBCall.increment();
         // This is really latest because you're not allowed to get old keys
         origin_private_encryption_keys::table

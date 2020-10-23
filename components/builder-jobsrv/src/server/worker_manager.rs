@@ -16,6 +16,8 @@ use crate::{bldr_core::{self,
                     Result},
             protocol::{jobsrv,
                        originsrv}};
+use builder_core::crypto;
+use diesel::pg::PgConnection;
 use habitat_core::{crypto::keys::{AnonymousBox,
                                   KeyCache,
                                   OriginSecretEncryptionKey},
@@ -26,6 +28,7 @@ use protobuf::{parse_from_bytes,
                Message,
                RepeatedField};
 use std::{collections::HashSet,
+          convert::TryInto,
           str::FromStr,
           sync::mpsc,
           thread::{self,
@@ -548,6 +551,23 @@ impl WorkerMgr {
         }
     }
 
+    // TODO (CM): This is a duplicate of the same function from
+    // habitat_builder_api::server::resources::origins. We need to
+    // consolidate these functions a bit better. It probably amounts
+    // to creating some kind of "repository" abstraction in the db
+    // crate.
+    //
+    // For now, it's more straightforward to copy the function
+    // implementation :/
+    fn get_secret_origin_encryption_key(origin: &str,
+                                        key_cache: &KeyCache,
+                                        conn: &PgConnection)
+                                        -> Result<OriginSecretEncryptionKey> {
+        let db_record = OriginPrivateEncryptionKey::latest(origin, conn)?;
+        let decrypted = crypto::decrypt(key_cache, &db_record.body)?;
+        Ok(AsRef::<[u8]>::as_ref(&decrypted).try_into()?)
+    }
+
     fn add_secrets_to_job(&mut self, job: &mut Job) -> Result<()> {
         let origin = job.get_project().get_origin_name().to_string();
         let conn = self.db.get_conn().map_err(Error::Db)?;
@@ -557,15 +577,27 @@ impl WorkerMgr {
         match OriginSecret::list(&origin, &*conn).map_err(Error::DieselError) {
             Ok(secrets_list) => {
                 if !secrets_list.is_empty() {
-                    // fetch the private origin encryption key from the database
-                    let priv_key = match OriginPrivateEncryptionKey::get(&origin, &*conn)
-                        .map_err(Error::DieselError)
-                    {
-                        Ok(key) => {
-                            key.body.parse::<OriginSecretEncryptionKey>()?
-                        }
-                        Err(err) => return Err(err),
-                    };
+                    // fetch the private origin encryption key from
+                    // the database
+
+                    // NOTE: This retrieves the *latest* origin
+                    // encryption key from the database and assumes
+                    // that it is the one that each secret can be
+                    // decrypted by. In practice, this is currently
+                    // correct, as there is no way to update the
+                    // encryption key. However, this is not currently
+                    // very clearly conveyed in the overall code of
+                    // Builder.
+                    //
+                    // Strictly speaking, we should first parse the
+                    // secret as an AnonymousBox, ask it what key
+                    // revision is needed to decrypt, and *then* fetch
+                    // that revision from the database. That would
+                    // result in an additional database round trip for
+                    // each secret.
+
+                    let priv_key =
+                        Self::get_secret_origin_encryption_key(&origin, &self.key_cache, &conn)?;
 
                     for secret in secrets_list {
                         debug!("Adding secret to job: {:?}", secret);
