@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::hab_core::package::{FullyQualifiedPackageIdent,
-                               PackageIdent};
+use crate::hab_core::package::Identifiable;
 
 use crate::{package_ident_intern::PackageIdentIntern,
             util::*};
@@ -60,7 +59,6 @@ pub enum UnbuildableReason {
 // This is how nodes in the rebuild graph refer to each other
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, PartialOrd, Ord)]
 pub enum UnresolvedPackageIdent {
-    Undefined,
     // External nodes (nodes not being rebuilt)
     // These might need some sort of resolution from the latest info to compute the FQPI
 
@@ -81,14 +79,33 @@ pub enum UnresolvedPackageIdent {
 }
 
 impl UnresolvedPackageIdent {
-    pub fn ident(&self) -> Option<PackageIdentIntern> {
+    pub fn ident(&self) -> PackageIdentIntern {
         match self {
-            UnresolvedPackageIdent::Undefined => None,
             UnresolvedPackageIdent::ExternalLatestVersion(ident)
             | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
-            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => Some(*ident),
+            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => *ident,
             UnresolvedPackageIdent::InternalNode(ident, _)
-            | UnresolvedPackageIdent::InternalVersionedNode(ident, _) => Some(*ident),
+            | UnresolvedPackageIdent::InternalVersionedNode(ident, _) => *ident,
+        }
+    }
+
+    pub fn to_unbuilt_ident(&self) -> PackageIdentIntern {
+        match self {
+            UnresolvedPackageIdent::ExternalLatestVersion(ident)
+            | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
+            | UnresolvedPackageIdent::ExternalFullyQualified(ident) => *ident,
+            UnresolvedPackageIdent::InternalNode(ident, n) => {
+                PackageIdentIntern::new(ident.origin(),
+                                        ident.name(),
+                                        Some("(LATEST)"),
+                                        Some(&format!("(UNBUILT_INSTANCE)-{}", n)))
+            }
+            UnresolvedPackageIdent::InternalVersionedNode(ident, n) => {
+                PackageIdentIntern::new(ident.origin(),
+                                        ident.name(),
+                                        ident.version(),
+                                        Some(&format!("(UNBUILT_INSTANCE)-{}", n)))
+            }
         }
     }
 }
@@ -96,7 +113,6 @@ impl UnresolvedPackageIdent {
 impl fmt::Display for UnresolvedPackageIdent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UnresolvedPackageIdent::Undefined => write!(f, "Undef"),
             UnresolvedPackageIdent::ExternalLatestVersion(ident)
             | UnresolvedPackageIdent::ExternalPinnedVersion(ident)
             | UnresolvedPackageIdent::ExternalFullyQualified(ident) => write!(f, "Ext:{}", ident),
@@ -109,19 +125,22 @@ impl fmt::Display for UnresolvedPackageIdent {
 }
 
 pub struct PackageBuild {
-    pub name:         UnresolvedPackageIdent,
-    pub runtime_deps: Vec<UnresolvedPackageIdent>,
-    pub build_deps:   Vec<UnresolvedPackageIdent>,
-    pub strong_deps:  Vec<UnresolvedPackageIdent>,
+    pub name:                 UnresolvedPackageIdent,
+    pub runtime_deps:         Vec<UnresolvedPackageIdent>,
+    pub build_deps:           Vec<UnresolvedPackageIdent>,
+    pub strong_deps:          Vec<UnresolvedPackageIdent>,
+    pub external_constraints: Vec<UnresolvedPackageIdent>,
 }
 
 impl PackageBuild {
     pub fn format_for_shell(&self) -> String {
-        let short_ident = &self.name.ident().unwrap().short_ident().to_string();
+        let short_ident = &self.name.ident().short_ident().to_string();
         let deps: Vec<UnresolvedPackageIdent> =
             self.runtime_deps
                 .iter()
-                .chain(self.build_deps.iter().chain(self.strong_deps.iter()))
+                .chain(self.build_deps.iter().chain(self.strong_deps
+                                                        .iter()
+                                                        .chain(self.external_constraints.iter())))
                 .cloned()
                 .collect();
         format!("{}\t{}\t{}\n",
@@ -155,26 +174,17 @@ pub struct PackageBuildManifest {
 
 impl PackageBuildManifest {
     pub fn new() -> Self {
-        unimplemented!();
-    }
-
-    pub fn add_ident(&self, _ident: UnresolvedPackageIdent) { unimplemented!() }
-
-    pub fn list_base_deps() -> PackageIdent { unimplemented!() }
-
-    pub fn resolve_base_dep(_completed: &PackageIdent, _package_name: &FullyQualifiedPackageIdent) {
-        unimplemented!()
-    }
-
-    // Resolved package build record (with all placeholders filled in)
-    pub fn mark_package_complete(_completed: &PackageIdent,
-                                 _package_name: &FullyQualifiedPackageIdent) {
-        unimplemented!()
+        PackageBuildManifest { graph:                 DiGraphMap::new(),
+                               external_dependencies: HashSet::new(),
+                               input_set:             HashSet::new(),
+                               unbuildable_reasons:   HashMap::new(), }
     }
 
     pub fn build_order(&self) -> Vec<PackageBuild> {
         let mut order: Vec<PackageBuild> = Vec::new();
 
+        // doing this for the free topological sort, not for any SCC data
+        // This had better be a DAG by now or we in very deep trouble
         for component in petgraph::algo::tarjan_scc(&self.graph) {
             assert_eq!(component.len(), 1);
 
@@ -191,10 +201,63 @@ impl PackageBuildManifest {
         order
     }
 
+    /// Fixup for strict package build ordering.
+    // The execution ordering of the base graph is specified only by the direct dependencies of the
+    // package. However, our build workers don't use the dependencies to select what package to use,
+    // instead taking the latest package in the channel. This creates an antidependency (read
+    // before write) as it is possible that we build the next iteration of a package before all
+    // of the consumers of the last iteration have started; if that happens those packages might
+    // pick up the wrong iteration. This is likely harmless, except it makes the process
+    // nondeterministic and hard to debug. Constraining this will protect against this
+    // nondeterminism at the cost of some parallelism.
+    //
+    // To counter this, we will add extra dependencies to the graph. A package iteration n
+    // (InternalVersionedNode) will now have dependencies on all of the consumers of iteration n-1,
+    // guaranteeing they complete before it starts
+    //
+    // This fixup will not be necessary once we have build workers that can take exact dependencies.
+    //
+    pub fn constrain_package_cycles(&mut self) {
+        // Phase one: Identify all of the nodes needing constraint. This will be all
+        // InternalVersionedNode with version > 1
+        let mut fixup_targets = Vec::new();
+        for node in self.graph.nodes() {
+            match node {
+                UnresolvedPackageIdent::InternalVersionedNode(_, n) if n > 1 => {
+                    fixup_targets.push(node);
+                }
+                _ => (),
+            }
+        }
+
+        let mut edges_added = 0;
+        // Phase two: For each identified node, find the n-1 th version and make each package that
+        // depends on the n-1th node a dependency of the nth node.
+        for node in fixup_targets.iter() {
+            if let UnresolvedPackageIdent::InternalVersionedNode(ident, n) = node {
+                // always matches...
+                let prev_node = UnresolvedPackageIdent::InternalVersionedNode(*ident, n - 1);
+                // Modifying the graph while iterating over edges isn't ok.
+                let consumers: Vec<UnresolvedPackageIdent> =
+                    self.graph
+                        .neighbors_directed(prev_node, petgraph::EdgeDirection::Incoming)
+                        .collect();
+                for consumer in consumers {
+                    self.graph
+                        .add_edge(*node, consumer, EdgeType::ExternalConstraint);
+                    edges_added += 1;
+                }
+            }
+        }
+
+        info!("constrain_package_cycles added {} fixup edges", edges_added)
+    }
+
     fn package_build_from_unresolved_ident(&self, name: UnresolvedPackageIdent) -> PackageBuild {
         let mut runtime_deps = Vec::new();
         let mut build_deps = Vec::new();
         let mut strong_deps = Vec::new();
+        let mut external_constraints = Vec::new();
 
         for dep in self.graph
                        .neighbors_directed(name, petgraph::EdgeDirection::Outgoing)
@@ -203,16 +266,14 @@ impl PackageBuildManifest {
                 EdgeType::RuntimeDep => runtime_deps.push(dep),
                 EdgeType::BuildDep => build_deps.push(dep),
                 EdgeType::StrongBuildDep => strong_deps.push(dep),
+                EdgeType::ExternalConstraint => external_constraints.push(dep),
             }
         }
 
         PackageBuild { name,
                        runtime_deps,
                        build_deps,
-                       strong_deps }
+                       strong_deps,
+                       external_constraints }
     }
-
-    pub fn serialize() -> Vec<PackageBuild> { unimplemented!() }
-
-    pub fn deserialze(_db: &[PackageBuild]) { unimplemented!() }
 }
