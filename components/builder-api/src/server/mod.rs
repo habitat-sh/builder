@@ -18,10 +18,12 @@ use self::{framework::middleware::authentication_middleware,
                        projects::Projects,
                        settings::Settings,
                        user::User},
-           services::{events::KafkaProducer,
-                      memcache::MemcacheClient,
+           services::{memcache::MemcacheClient,
                       s3::S3Handler}};
 use crate::{bldr_core::rpc::RpcClient,
+            bldr_events::{connection::{EventBusConn,
+                                       Provider},
+                          kafka::KafkaProducer},
             config::{Config,
                      GatewayCfg},
             db::{migration,
@@ -83,7 +85,7 @@ pub struct AppState {
     memcache:    RefCell<MemcacheClient>,
     artifactory: ArtifactoryClient,
     db:          DbPool,
-    kafka:       Option<KafkaProducer>,
+    eventbus:    Option<EventBusConn>,
 }
 
 impl AppState {
@@ -97,22 +99,28 @@ impl AppState {
                        memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
                        artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
                        db,
-                       kafka: None };
+                       eventbus: None };
 
         if feat::is_enabled(feat::EventBus) {
-            loop {
-                match KafkaProducer::try_from(&config.kafka.clone()) {
-                    Ok(producer) => {
-                        app_state.kafka = Some(producer);
-                        info!("EventBus ready to go.");
-                        break;
-                    }
-                    Err(e) => {
-                        warn!("Unable to load EventBus: {}", e);
-                        thread::sleep(config.kafka.connection_retry_delay);
-                        continue;
+            match config.eventbus.provider {
+                Provider::Kafka => {
+                    loop {
+                        match KafkaProducer::try_from(&config.eventbus.clone()) {
+                            Ok(producer) => {
+                                app_state.eventbus = Some(producer.into());
+                                info!("EventBus Producer ready to go.");
+                                break;
+                            }
+                            Err(e) => {
+                                warn!("Unable to load EventBus Producer: {}", e);
+                                thread::sleep(config.eventbus.connection_retry_delay);
+                                continue;
+                            }
+                        }
                     }
                 }
+                // other messaging busses
+                _ => unimplemented!(),
             }
         };
 

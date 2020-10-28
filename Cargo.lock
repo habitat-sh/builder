@@ -51,12 +51,15 @@ dependencies = [
  "actix-utils",
  "base64 0.11.0",
  "bitflags 1.2.1",
+ "brotli2",
  "bytes 0.5.6",
  "chrono",
  "copyless",
  "derive_more",
  "either",
  "encoding_rs",
+ "failure",
+ "flate2",
  "futures-channel",
  "futures-core",
  "futures-util",
@@ -497,6 +500,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa79dedbb091f449f1f39e53edf88d5dbe95f895dae6135a8d7b881fb5af73f5"
 dependencies = [
  "byte-tools 0.3.1",
+]
+
+[[package]]
+name = "brotli-sys"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4445dea95f4c2b41cde57cc9fee236ae4dbae88d8fcbdb4750fc1bb5d86aaecd"
+dependencies = [
+ "cc",
+ "libc 0.2.76",
+]
+
+[[package]]
+name = "brotli2"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0cb036c3eade309815c15ddbacec5b22c4d1f3983a774ab2eac2e3e9ea85568e"
+dependencies = [
+ "brotli-sys",
+ "libc 0.2.76",
 ]
 
 [[package]]
@@ -1280,6 +1303,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37ab347416e802de484e4d03c7316c48f1ecb56574dfd4a46a80f173ce1de04d"
 
 [[package]]
+name = "flate2"
+version = "1.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da80be589a72651dcda34d8b35bcdc9b7254ad06325611074d9cc0fbb19f60ee"
+dependencies = [
+ "cfg-if",
+ "crc32fast",
+ "libc 0.2.76",
+ "miniz_oxide",
+]
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1612,8 +1647,6 @@ dependencies = [
  "bytes 0.5.6",
  "chrono",
  "clap",
- "cloudevents-sdk",
- "cloudevents-sdk-rdkafka",
  "diesel",
  "diesel-derive-enum",
  "diesel_full_text_search",
@@ -1623,6 +1656,7 @@ dependencies = [
  "github-api-client",
  "habitat-builder-protocol",
  "habitat_builder_db",
+ "habitat_builder_events",
  "habitat_core",
  "hex 0.4.2",
  "lazy_static",
@@ -1635,7 +1669,6 @@ dependencies = [
  "protobuf",
  "r2d2",
  "rand 0.7.3",
- "rdkafka",
  "regex",
  "reqwest",
  "rusoto_core 0.45.0",
@@ -1645,7 +1678,6 @@ dependencies = [
  "serde_json",
  "sha2 0.9.1",
  "tempfile",
- "tokio 0.1.22",
  "toml 0.5.6",
  "url",
  "uuid",
@@ -1680,6 +1712,25 @@ dependencies = [
  "serde_derive",
  "threadpool",
  "url",
+]
+
+[[package]]
+name = "habitat_builder_events"
+version = "0.0.0"
+dependencies = [
+ "actix-web",
+ "cloudevents-sdk",
+ "cloudevents-sdk-rdkafka",
+ "features",
+ "habitat_core",
+ "log",
+ "rdkafka",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tokio 0.1.22",
+ "url",
+ "uuid",
 ]
 
 [[package]]

@@ -1,0 +1,32 @@
+[package]
+name = "habitat_builder_events"
+version = "0.0.0"
+authors = ["The Habitat Maintainers <humans@habitat.sh>"]
+description = "Habitat-Builder EventBus library"
+build = "../build-builder.rs"
+workspace = "../../"
+edition = "2018"
+
+[dependencies]
+cloudevents-sdk = "0.2.0"
+cloudevents-sdk-rdkafka = "*"
+features = "*"
+log = "*"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+tokio = "*"
+url = "*"
+uuid = { version = "*", features = ["v4"] }
+
+
+[dependencies.actix-web]
+version = "*"
+default-features = true
+
+[dependencies.rdkafka]
+version = "*"
+features = ["ssl"]
+
+[dependencies.habitat_core]
+git = "https://github.com/habitat-sh/habitat.git"

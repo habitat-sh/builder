@@ -1,4 +1,3 @@
-pub mod events;
 pub mod github;
 pub mod memcache;
 pub mod metrics;

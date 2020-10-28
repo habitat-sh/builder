@@ -23,15 +23,14 @@ use actix_web::{http::{self,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
-use cloudevents::{EventBuilder,
-                  EventBuilderV10};
 use diesel::{pg::PgConnection,
              result::{DatabaseErrorKind,
                       Error::{DatabaseError,
                               NotFound}}};
-use uuid::Uuid;
 
 use crate::{bldr_core::metrics::CounterMetric,
+            bldr_events::cloud_events::{CloudEvent,
+                                        EventType},
             hab_core::{package::{PackageIdent,
                                  PackageTarget},
                        ChannelIdent}};
@@ -45,7 +44,6 @@ use crate::db::models::{channel::*,
 use crate::server::{authorize::authorize_session,
                     error::{Error,
                             Result},
-                    feat,
                     framework::headers,
                     helpers::{self,
                               req_state,
@@ -53,9 +51,7 @@ use crate::server::{authorize::authorize_session,
                               Pagination,
                               Target,
                               ToChannel},
-                    services::{events::{produce,
-                                        KAFKA_DEFAULT_TOPIC_NAME},
-                               metrics::Counter},
+                    services::metrics::Counter,
                     AppState};
 
 // Query param containers
@@ -438,7 +434,7 @@ async fn promote_package(req: HttpRequest,
             origin: origin.clone(),
             channel: channel.clone(),
         },
-        &*conn,
+        &*conn
     )
     .map_err(Error::DieselError)
     {
@@ -450,24 +446,8 @@ async fn promote_package(req: HttpRequest,
                 Ok(_) => {}
                 Err(err) => debug!("Failed to save rank change to audit log: {}", err),
             };
-
-            if feat::is_enabled(feat::EventBus) && state.kafka.as_ref().is_some() {
-                let msgkey = session.get_id() as i64;
-                let kafkaconn = state.kafka.as_ref().unwrap(); // safe, we check .is_some() above
-
-                match EventBuilderV10::new()
-                    .id(format!("{:?}", Uuid::new_v4()))
-                    .ty(format!("{:?}", PackageChannelOperation::Promote))
-                    .source(state.config.kafka.client_id.as_str())
-                    .data("application/json", json!(&auditevent))
-                    .build()
-                    {
-                        Ok(cloudevent) => {
-                            produce(msgkey, cloudevent, &kafkaconn.0, &KAFKA_DEFAULT_TOPIC_NAME).await
-                        },
-                        Err(err) => error!("Could not generate cloudevent from promotion event: {:?}", err)
-                    };
-            }
+            let event_key = session.get_id() as i64;
+            CloudEvent::maybe_emit(&state.eventbus, event_key, EventType::PackageChannelMotion, json!(&auditevent)).await;
 
             state
                 .memcache
