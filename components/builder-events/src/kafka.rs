@@ -43,11 +43,11 @@ impl TryFrom<&EventBusCfg> for KafkaProducer {
 
 #[allow(clippy::wildcard_in_or_patterns)]
 pub async fn produce(msgkey: i64, event: CloudEvent, conn: &EventBusConn) {
-    let topic = match event.0.get_type() {
+    let topic = match event.inner.get_type() {
         "PackageChannelMotion" | _ => KAFKA_DEFAULT_TOPIC_NAME,
     };
     let message_record =
-        MessageRecord::from_event(event.0).expect("error while serializing the event");
+        MessageRecord::from_event(event.inner).expect("error while serializing the event");
 
     match conn.kafka.as_ref() {
         Some(c) => {

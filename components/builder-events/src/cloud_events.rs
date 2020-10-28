@@ -10,7 +10,9 @@ use std::fmt;
 use url::Url;
 use uuid::Uuid;
 
-pub struct CloudEvent(pub Event);
+pub struct CloudEvent {
+    pub inner: Event,
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[non_exhaustive]
@@ -41,7 +43,7 @@ impl CloudEvent {
                                           .source(source_url)
                                           .data("application/json", json_data)
                                           .build()?;
-        Ok(CloudEvent(event))
+        Ok(CloudEvent { inner: event })
     }
 
     pub async fn maybe_emit(event_bus: &Option<EventBusConn>,
