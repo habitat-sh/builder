@@ -19,11 +19,6 @@ tokio = "*"
 url = "*"
 uuid = { version = "*", features = ["v4"] }
 
-
-[dependencies.actix-web]
-version = "*"
-default-features = true
-
 [dependencies.rdkafka]
 version = "*"
 features = ["ssl"]
