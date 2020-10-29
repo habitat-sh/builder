@@ -393,7 +393,7 @@ mod tests {
         provider = "kafka"
         bootstrap_nodes = ["localhost:9092"]
         client_id = "http://localhost"
-        connection_retry_ms = 300
+        connection_retry_delay = 3
         "#;
 
         let config = Config::from_raw(&content).unwrap();
