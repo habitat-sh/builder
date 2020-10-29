@@ -6,7 +6,9 @@ use std::{convert::From,
           str::FromStr,
           time::Duration};
 
-#[derive(Clone, Debug, Deserialize)]
+use habitat_core::util;
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[non_exhaustive]
 pub enum Provider {
     Kafka,
@@ -45,6 +47,7 @@ pub struct EventBusCfg {
     #[serde(with = "deserialize_into_duration")]
     pub connection_retry_delay: Duration,
     pub message_timeout_ms:     u64,
+    #[serde(with = "util::serde::string")]
     pub provider:               Provider,
 }
 

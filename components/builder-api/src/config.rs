@@ -320,6 +320,9 @@ impl fmt::Display for JobsrvCfg {
 mod tests {
     use super::*;
 
+    use crate::bldr_events::connection::Provider;
+    use std::time::Duration;
+
     #[test]
     #[allow(clippy::cognitive_complexity)]
     fn config_from_file() {
@@ -385,6 +388,12 @@ mod tests {
         ssl_root_cert = "/root_ca.crt"
         ssl_key = "/ssl.key"
         ssl_cert = "/ssl.crt"
+
+        [eventbus]
+        provider = "kafka"
+        bootstrap_nodes = ["localhost:9092"]
+        client_id = "http://localhost"
+        connection_retry_ms = 300
         "#;
 
         let config = Config::from_raw(&content).unwrap();
@@ -451,6 +460,13 @@ mod tests {
                    Some("/root_ca.crt".to_string()));
         assert_eq!(config.datastore.ssl_key, Some("/ssl.key".to_string()));
         assert_eq!(config.datastore.ssl_cert, Some("/ssl.crt".to_string()));
+
+        assert_eq!(config.eventbus.provider, Provider::Kafka);
+        assert_eq!(config.eventbus.bootstrap_nodes,
+                   ["localhost:9092".to_string()]);
+        assert_eq!(config.eventbus.client_id, "http://localhost".to_string());
+        assert_eq!(config.eventbus.connection_retry_delay,
+                   Duration::from_secs(3));
     }
 
     #[test]

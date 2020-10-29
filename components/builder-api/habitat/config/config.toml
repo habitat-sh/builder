@@ -42,5 +42,5 @@ port = {{member.cfg.rpc_port}}
 [datastore]
 {{toToml cfg.datastore}}
 
-[kafka]
-{{toToml cfg.kafka}}
+[eventbus]
+{{toToml cfg.eventbus}}

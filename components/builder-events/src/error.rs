@@ -1,5 +1,6 @@
 use cloudevents::event::EventBuilderError;
-use std::{fmt,
+use std::{error,
+          fmt,
           result};
 
 #[derive(Debug)]
@@ -21,6 +22,8 @@ impl fmt::Display for Error {
         write!(f, "{}", msg)
     }
 }
+
+impl error::Error for Error {}
 
 impl From<EventBuilderError> for Error {
     fn from(err: EventBuilderError) -> Error { Error::CloudEventBuilderError(err) }
