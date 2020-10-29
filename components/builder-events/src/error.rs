@@ -4,6 +4,7 @@ use std::{fmt,
 
 #[derive(Debug)]
 pub enum Error {
+    BadProvider(String),
     CloudEventBuilderError(EventBuilderError),
     UrlParseError(url::ParseError),
 }
@@ -13,6 +14,7 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::BadProvider(ref e) => e.to_string(),
             Error::CloudEventBuilderError(ref e) => format!("{}", e),
             Error::UrlParseError(ref e) => format!("{}", e),
         };

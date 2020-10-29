@@ -1,11 +1,38 @@
-use crate::kafka::KafkaProducer;
+use crate::{error::Error,
+            kafka::KafkaProducer};
 use std::{convert::From,
+          fmt,
+          result,
+          str::FromStr,
           time::Duration};
 
 #[derive(Clone, Debug, Deserialize)]
 #[non_exhaustive]
 pub enum Provider {
     Kafka,
+}
+
+impl Provider {
+    pub const KAFKA: &'static str = "kafka";
+}
+
+impl FromStr for Provider {
+    type Err = Error;
+
+    fn from_str(value: &str) -> result::Result<Self, Self::Err> {
+        match value.to_lowercase().as_ref() {
+            Provider::KAFKA => Ok(Provider::Kafka),
+            _ => Err(Error::BadProvider(value.to_string())),
+        }
+    }
+}
+
+impl fmt::Display for Provider {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", self) }
+}
+
+impl Default for Provider {
+    fn default() -> Provider { Provider::Kafka }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -23,13 +50,13 @@ pub struct EventBusCfg {
 
 impl Default for EventBusCfg {
     fn default() -> Self {
-        EventBusCfg { api_key:                String::from("CHANGEME"),
-                      api_secret_key:         String::from("CHANGEMETOO"),
-                      bootstrap_nodes:        vec![String::from("localhost:9092")],
-                      client_id:              String::from("http://localhost"),
+        EventBusCfg { api_key:                "CHANGEME".to_string(),
+                      api_secret_key:         "CHANGEMETOO".to_string(),
+                      bootstrap_nodes:        vec!["localhost:9092".to_string()],
+                      client_id:              "http://localhost".to_string(),
                       connection_retry_delay: Duration::from_secs(3),
                       message_timeout_ms:     3000,
-                      provider:               Provider::Kafka, }
+                      provider:               Provider::default(), }
     }
 }
 
