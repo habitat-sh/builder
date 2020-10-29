@@ -50,8 +50,8 @@ impl CloudEvent {
                             event_key: i64,
                             event_type: EventType,
                             event_body: serde_json::Value) {
-        // We check if the EventBus feature is enabled and a Some variant
-        // If so, we use the underlying connection to emit an event. No-op otherwise.
+        // We check if the EventBus feature is enabled and is initialized.
+        // If so, we use the underlying connection to emit an event. Otherwise, no-op.
         if event_bus.as_ref().is_some() {
             let bus_conn = event_bus.as_ref().expect("EventBus Connection");
             match bus_conn.provider_in_use {
