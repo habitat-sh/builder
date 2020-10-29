@@ -12,7 +12,7 @@ use rdkafka::{config::ClientConfig,
               producer::{FutureProducer,
                          FutureRecord}};
 
-pub const KAFKA_DEFAULT_TOPIC_NAME: &str = "bldr_events";
+pub const KAFKA_DEFAULT_TOPIC_NAME: &str = "builder_events";
 
 pub struct KafkaProducer {
     pub inner: FutureProducer,
