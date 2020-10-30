@@ -1,7 +1,7 @@
 use crate::{connection::{EventBusConn,
                          Provider},
             error::Error,
-            kafka::produce};
+            kafka};
 use cloudevents::{event::Event,
                   EventBuilder,
                   EventBuilderV10};
@@ -57,7 +57,7 @@ impl CloudEvent {
             match bus_conn.provider_in_use {
                 Provider::Kafka => {
                     match CloudEvent::new(event_type, event_body) {
-                        Ok(cloudevent) => produce(event_key, cloudevent, bus_conn).await,
+                        Ok(cloudevent) => kafka::produce(event_key, cloudevent, bus_conn).await,
                         Err(err) => {
                             error!("Could not generate cloudevent from promotion event: {:?}",
                                    err)
