@@ -47,8 +47,8 @@ impl FromStr for GitHubEvent {
         match event {
             "ping" => Ok(GitHubEvent::Ping),
             "push" => Ok(GitHubEvent::Push),
-            _ => {
-                warn!("Received an unknown GitHub event type");
+            unknown => {
+                warn!("Received an unknown GitHub event type: {:?}", unknown);
                 Err(Error::BadRequest)
             }
         }
