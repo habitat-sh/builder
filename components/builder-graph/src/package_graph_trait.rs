@@ -62,4 +62,7 @@ pub trait PackageGraphTrait: Send + Sync {
                      touched: &[PackageIdentIntern],
                      unbuildable: &dyn Unbuildable)
                      -> Result<PackageBuildManifest>;
+
+    //  maybe look to implement this as part of serialization
+    fn as_json(&self) -> String;
 }

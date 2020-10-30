@@ -55,6 +55,7 @@ use std::{collections::{HashMap,
           iter::{FromIterator,
                  Iterator},
           panic,
+          str::FromStr,
           sync::{Arc,
                  RwLock},
           time::Instant};
@@ -136,6 +137,26 @@ fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
         Ok(m) => HttpResponse::Ok().json(m),
         Err(e) => e.into(),
     }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn handle_graph(state: Data<AppState>) -> HttpResponse {
+    match fetch_graph_for_target(state, "x86_64-linux") {
+        Ok(body) => HttpResponse::with_body(StatusCode::OK, Body::from(body)),
+        Err(err) => {
+            HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR,
+                                    Body::from_message(err.to_string()))
+        } // maybe we do 401 ill formed instead?
+    }
+}
+
+#[tracing::instrument(skip(state))]
+fn fetch_graph_for_target(state: Data<AppState>, target_string: &str) -> Result<String> {
+    let target = PackageTarget::from_str(target_string).unwrap(); // fix when we no longer hardcode this value above
+    let target_graph = state.graph.read().map_err(|_| Error::System)?; // Should rethink this error
+    let graph = target_graph.graph_for_target(target).ok_or(Error::System)?;
+    let body = graph.as_json();
+    Ok(body)
 }
 
 fn enable_features_from_config(cfg: &Config) {
@@ -224,6 +245,7 @@ pub async fn run(config: Config) -> Result<()> {
                     .service(web::resource("/status").route(web::get().to(status))
                                                     .route(web::head().to(status)))
                     .route("/rpc", web::post().to(handle_rpc))
+                    .route("/graph", web::get().to(handle_graph))
                         }).workers(cfg.handler_count())
                           .keep_alive(cfg.http.keep_alive)
                           .bind(cfg.http.clone())

@@ -87,4 +87,7 @@ impl PackageGraphTrait for CyclicPackageGraph {
                      -> Result<PackageBuildManifest> {
         Ok(self.graph.compute_build(touched, unbuildable))
     }
+
+    //  maybe look to implement this as part of serialization
+    fn as_json(&self) -> String { self.graph.as_json() }
 }

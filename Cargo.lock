@@ -1720,6 +1720,9 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tempfile",
+ "tracing",
+ "tracing-futures",
+ "tracing-subscriber",
  "walkdir",
 ]
 
