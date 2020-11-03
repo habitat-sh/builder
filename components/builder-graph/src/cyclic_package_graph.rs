@@ -89,5 +89,5 @@ impl PackageGraphTrait for CyclicPackageGraph {
     }
 
     //  maybe look to implement this as part of serialization
-    fn as_json(&self) -> String { self.graph.as_json() }
+    fn as_json(&self, origin_filter: Option<&str>) -> String { self.graph.as_json(origin_filter) }
 }

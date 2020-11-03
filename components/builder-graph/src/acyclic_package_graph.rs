@@ -397,7 +397,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
     }
 
     //  maybe look to implement this as part of serialization
-    fn as_json(&self) -> String {
+    fn as_json(&self, _origin_filter: Option<&str>) -> String {
         unimplemented!() // we expect that we will rip this code out rather than need to implement
                          // this..
     }

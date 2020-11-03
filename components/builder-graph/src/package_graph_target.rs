@@ -274,8 +274,8 @@ impl PackageGraphForTarget {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn as_json(&self) -> String {
-        let graph = graph_helpers::dump_graph_structured(&self.latest_graph, None, false);
+    pub fn as_json(&self, origin_filter: Option<&str>) -> String {
+        let graph = graph_helpers::dump_graph_structured(&self.latest_graph, origin_filter, false);
         debug!("Dump Graph Structured for (N:{} E:{} {}) {} elements",
                self.latest_graph.node_count(),
                self.latest_graph.edge_count(),

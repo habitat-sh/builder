@@ -64,5 +64,5 @@ pub trait PackageGraphTrait: Send + Sync {
                      -> Result<PackageBuildManifest>;
 
     //  maybe look to implement this as part of serialization
-    fn as_json(&self) -> String;
+    fn as_json(&self, origin_filter: Option<&str>) -> String;
 }

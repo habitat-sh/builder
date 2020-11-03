@@ -171,7 +171,7 @@ fn fetch_graph_for_target(state: Data<AppState>,
     let target = PackageTarget::from_str(target_string).unwrap(); // fix when we no longer hardcode this value above
     let target_graph = state.graph.read().map_err(|_| Error::System)?; // Should rethink this error
     let graph = target_graph.graph_for_target(target).ok_or(Error::System)?;
-    let body = graph.as_json();
+    let body = graph.as_json(origin_filter);
     Ok(body)
 }
 
