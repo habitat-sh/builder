@@ -45,7 +45,8 @@ use actix_web::{dev::Body,
                 web::{self,
                       Data,
                       Json,
-                      JsonConfig},
+                      JsonConfig,
+                      Query},
                 App,
                 HttpResponse,
                 HttpServer};
@@ -100,6 +101,15 @@ impl AppState {
     }
 }
 
+// Patterned after helpers in the api
+#[derive(Deserialize)]
+pub struct OriginTarget {
+    #[serde(default)]
+    pub origin: Option<String>,
+    #[serde(default)]
+    pub target: Option<String>,
+}
+
 /// Endpoint for determining availability of builder-jobsrv components.
 ///
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
@@ -140,8 +150,11 @@ fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn handle_graph(state: Data<AppState>) -> HttpResponse {
-    match fetch_graph_for_target(state, "x86_64-linux") {
+fn handle_graph(state: Data<AppState>, query: Query<OriginTarget>) -> HttpResponse {
+    let origin_filter = query.origin.as_deref(); //
+    let target = query.target.as_deref().unwrap_or("x86_64-linux");
+
+    match fetch_graph_for_target(state, &target, origin_filter) {
         Ok(body) => HttpResponse::with_body(StatusCode::OK, Body::from(body)),
         Err(err) => {
             HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR,
@@ -151,7 +164,10 @@ fn handle_graph(state: Data<AppState>) -> HttpResponse {
 }
 
 #[tracing::instrument(skip(state))]
-fn fetch_graph_for_target(state: Data<AppState>, target_string: &str) -> Result<String> {
+fn fetch_graph_for_target(state: Data<AppState>,
+                          target_string: &str,
+                          origin_filter: Option<&str>)
+                          -> Result<String> {
     let target = PackageTarget::from_str(target_string).unwrap(); // fix when we no longer hardcode this value above
     let target_graph = state.graph.read().map_err(|_| Error::System)?; // Should rethink this error
     let graph = target_graph.graph_for_target(target).ok_or(Error::System)?;
