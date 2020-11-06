@@ -198,7 +198,7 @@ pub async fn run(config: Config) -> Result<()> {
     HttpServer::new(move || {
         let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc);
 
-        App::new().data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
+        App::new().app_data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
                   .data(app_state)
                   .wrap(Logger::default().exclude("/status"))
                   .service(web::resource("/status").route(web::get().to(status))
