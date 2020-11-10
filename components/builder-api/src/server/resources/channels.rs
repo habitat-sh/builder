@@ -29,8 +29,8 @@ use diesel::{pg::PgConnection,
                               NotFound}}};
 
 use crate::{bldr_core::metrics::CounterMetric,
-            bldr_events::cloud_events::{CloudEvent,
-                                        EventType},
+            bldr_events::event::{BuilderEvent,
+                                 EventType},
             hab_core::{package::{PackageIdent,
                                  PackageTarget},
                        ChannelIdent}};
@@ -443,11 +443,18 @@ async fn promote_package(req: HttpRequest,
                 &auditevent,
                 &*conn,
             ) {
-                Ok(_) => {}
+                Ok(_) => {
+                    if let Some(bus) = &state.eventbus.as_ref() {
+                        let event_type = EventType::PackageChannelMotion;
+                        match BuilderEvent::new(event_type, None, json!(&auditevent)) {
+                             Ok(event) => bus.inner.publish(event).await,
+                             Err(err) => debug!("Failed to create EventBus event for {}: {}", event_type, err)
+                        }
+                    }
+                }
                 Err(err) => debug!("Failed to save rank change to audit log: {}", err),
             };
-            let event_key = session.get_id() as i64;
-            CloudEvent::maybe_emit(&state.eventbus, event_key, EventType::PackageChannelMotion, json!(&auditevent)).await;
+
 
             state
                 .memcache

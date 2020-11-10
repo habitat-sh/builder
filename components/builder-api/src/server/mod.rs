@@ -21,9 +21,7 @@ use self::{framework::middleware::authentication_middleware,
            services::{memcache::MemcacheClient,
                       s3::S3Handler}};
 use crate::{bldr_core::rpc::RpcClient,
-            bldr_events::{connection::{EventBusConn,
-                                       Provider},
-                          kafka::KafkaProducer},
+            bldr_events::connection::EventBusClient,
             config::{Config,
                      GatewayCfg},
             db::{migration,
@@ -45,10 +43,8 @@ use rand::{self,
            Rng};
 use std::{cell::RefCell,
           collections::HashMap,
-          convert::TryFrom,
           iter::FromIterator,
-          sync::Arc,
-          thread};
+          sync::Arc};
 
 // This cipher list corresponds to the "intermediate" configuration
 // recommended by Mozilla:
@@ -85,7 +81,7 @@ pub struct AppState {
     memcache:    RefCell<MemcacheClient>,
     artifactory: ArtifactoryClient,
     db:          DbPool,
-    eventbus:    Option<EventBusConn>,
+    eventbus:    Option<EventBusClient>,
 }
 
 impl AppState {
@@ -102,26 +98,7 @@ impl AppState {
                        eventbus: None };
 
         if feat::is_enabled(feat::EventBus) {
-            match config.eventbus.provider {
-                Provider::Kafka => {
-                    loop {
-                        match KafkaProducer::try_from(&config.eventbus.clone()) {
-                            Ok(producer) => {
-                                app_state.eventbus = Some(producer.into());
-                                info!("EventBus Producer ready to go.");
-                                break;
-                            }
-                            Err(e) => {
-                                warn!("Unable to load EventBus Producer: {}", e);
-                                thread::sleep(config.eventbus.connection_retry_delay);
-                                continue;
-                            }
-                        }
-                    }
-                }
-                // other messaging busses
-                _ => unimplemented!(),
-            }
+            app_state.eventbus = EventBusClient::new(&config.eventbus).ok();
         };
 
         Ok(app_state)

@@ -1,6 +1,8 @@
 use crate::{error::Error,
+            event::BuilderEvent,
             kafka::KafkaProducer};
-use std::{convert::From,
+use async_trait::async_trait;
+use std::{convert::TryFrom,
           fmt,
           result,
           str::FromStr,
@@ -76,14 +78,34 @@ mod deserialize_into_duration {
     }
 }
 
-pub struct EventBusConn {
-    pub kafka:           Option<KafkaProducer>,
-    pub provider_in_use: Provider,
+pub struct EventBusClient {
+    pub inner:  Box<dyn EventBusProvider>,
+    pub config: EventBusCfg,
 }
 
-impl From<KafkaProducer> for EventBusConn {
-    fn from(producer: KafkaProducer) -> Self {
-        EventBusConn { kafka:           Some(producer),
-                       provider_in_use: Provider::Kafka, }
+impl EventBusClient {
+    pub fn new(config: &EventBusCfg) -> Result<Self, Error> {
+        match config.provider {
+            Provider::Kafka => {
+                match KafkaProducer::try_from(&config.clone()) {
+                    Ok(client) => {
+                        info!("EventBusClient (Kafka) ready to go.");
+                        Ok(EventBusClient { inner:  Box::new(client),
+                                            config: config.clone(), })
+                    }
+                    Err(e) => {
+                        warn!("Unable to load EventBusClient (Kafka): {}", e);
+                        Err(e.into())
+                    }
+                }
+            }
+        }
     }
+
+    pub async fn publish(&self, event: BuilderEvent) { self.inner.publish(event).await; }
+}
+
+#[async_trait]
+pub trait EventBusProvider: Send {
+    async fn publish(&self, event: BuilderEvent);
 }

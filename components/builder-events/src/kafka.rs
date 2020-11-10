@@ -1,11 +1,12 @@
-use std::convert::TryFrom;
-
-use crate::{cloud_events::CloudEvent,
-            connection::{EventBusCfg,
-                         EventBusConn}};
+use crate::{connection::{EventBusCfg,
+                         EventBusProvider},
+            event::{BuilderEvent,
+                    EventType}};
+use async_trait::async_trait;
 use cloudevents::AttributesReader;
 use cloudevents_sdk_rdkafka::{FutureRecordExt,
                               MessageRecord};
+use std::convert::TryFrom;
 
 use rdkafka::{config::ClientConfig,
               error::KafkaError,
@@ -15,7 +16,11 @@ use rdkafka::{config::ClientConfig,
 pub const KAFKA_DEFAULT_TOPIC_NAME: &str = "builder_events";
 
 pub struct KafkaProducer {
-    pub inner: FutureProducer,
+    inner: FutureProducer,
+}
+
+impl KafkaProducer {
+    pub fn into_inner(self) -> FutureProducer { self.inner }
 }
 
 impl TryFrom<&EventBusCfg> for KafkaProducer {
@@ -41,28 +46,28 @@ impl TryFrom<&EventBusCfg> for KafkaProducer {
     }
 }
 
+#[async_trait]
 #[allow(clippy::wildcard_in_or_patterns)]
-pub async fn produce(msgkey: i64, event: CloudEvent, conn: &EventBusConn) {
-    let topic = match event.inner.get_type() {
-        "PackageChannelMotion" | _ => KAFKA_DEFAULT_TOPIC_NAME,
-    };
-    let message_record =
-        MessageRecord::from_event(event.inner).expect("error while serializing the event");
+impl EventBusProvider for KafkaProducer {
+    async fn publish(&self, event: BuilderEvent) {
+        let topic = match event.clone().into_inner().get_type() {
+            EventType::PACKAGECHANNELMOTION | _ => KAFKA_DEFAULT_TOPIC_NAME,
+        };
+        let routing_key = event.clone().routing_key();
+        let message_record = MessageRecord::from_event(event.into_inner()).expect("error while \
+                                                                                   serializing \
+                                                                                   the event");
 
-    match conn.kafka.as_ref() {
-        Some(c) => {
-            if let Err(err) = c.inner
-                               .send(FutureRecord::to(topic).message_record(&message_record)
-                                                            .key(&format!("Key {}", msgkey)),
-                                     0)
-                               .await
-            {
-                error!("Event producer failed to send message to event bus: {:?}",
-                       err)
-            };
-        }
-        None => {
-            error!("Uninitialized eventbus producer connection handle!");
-        }
+        if let Err(err) = self.inner
+                              .send(FutureRecord::to(topic).message_record(&message_record)
+                                                           .key(&format!("Key {}",
+                                                                         routing_key
+                                                                           .unwrap_or_default())),
+                                    0)
+                              .await
+        {
+            error!("Event producer failed to send message to event bus: {:?}",
+                   err)
+        };
     }
 }
