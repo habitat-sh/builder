@@ -21,7 +21,8 @@ use self::{framework::middleware::authentication_middleware,
            services::{memcache::MemcacheClient,
                       s3::S3Handler}};
 use crate::{bldr_core::rpc::RpcClient,
-            bldr_events::connection::EventBusClient,
+            bldr_events::connection::{event_producer,
+                                      EventBusProducer},
             config::{Config,
                      GatewayCfg},
             db::{migration,
@@ -74,15 +75,15 @@ features! {
 
 // Application state
 pub struct AppState {
-    config:      Config,
-    packages:    S3Handler,
-    github:      GitHubClient,
-    jobsrv:      RpcClient,
-    oauth:       OAuth2Client,
-    memcache:    RefCell<MemcacheClient>,
-    artifactory: ArtifactoryClient,
-    db:          DbPool,
-    eventbus:    Option<EventBusClient>,
+    config:        Config,
+    packages:      S3Handler,
+    github:        GitHubClient,
+    jobsrv:        RpcClient,
+    oauth:         OAuth2Client,
+    memcache:      RefCell<MemcacheClient>,
+    artifactory:   ArtifactoryClient,
+    db:            DbPool,
+    eventproducer: Option<Box<dyn EventBusProducer>>,
 }
 
 impl AppState {
@@ -96,10 +97,10 @@ impl AppState {
                        memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
                        artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
                        db,
-                       eventbus: None };
+                       eventproducer: None };
 
         if feat::is_enabled(feat::EventBus) {
-            app_state.eventbus = ok_warn!(EventBusClient::new(&config.eventbus));
+            app_state.eventproducer = ok_warn!(event_producer(&config.eventbus));
         };
 
         Ok(app_state)

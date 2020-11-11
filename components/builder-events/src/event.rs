@@ -56,13 +56,13 @@ impl BuilderEvent {
 
 #[macro_export]
 macro_rules! publish_event {
-    ($state:expr, $event_type:expr, $json:expr) => {
-        publish_event!($state, $event_type, $json, None)
+    ($opt_bus:expr, $event_type:expr, $json:expr) => {
+        publish_event!($opt_bus, $event_type, $json, with_routing_key: None)
     };
-    ($state:expr, $event_type:expr, $json:expr, $routing_key:expr) => {
-        if let Some(bus) = $state.eventbus.as_ref() {
+    ($opt_bus:expr, $event_type:expr, $json:expr,with_routing_key: $routing_key:expr) => {
+        if let Some(bus) = $opt_bus.as_ref() {
             match BuilderEvent::new($event_type, $routing_key, $json) {
-                Ok(event) => bus.inner.send(event).await,
+                Ok(event) => bus.send(event).await,
                 Err(err) => {
                     debug!("Failed to create EventBus event for {}: {}",
                            $event_type, err)

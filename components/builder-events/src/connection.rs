@@ -55,8 +55,8 @@ pub struct EventBusCfg {
 
 impl Default for EventBusCfg {
     fn default() -> Self {
-        EventBusCfg { api_key:                "".to_string(),
-                      api_secret_key:         "".to_string(),
+        EventBusCfg { api_key:                "API_KEY".to_string(),
+                      api_secret_key:         "API_SECRET_KEY".to_string(),
                       bootstrap_nodes:        vec!["localhost:9092".to_string()],
                       client_id:              "http://localhost".parse().expect("CLIENT_ID URL"),
                       connection_retry_delay: Duration::from_secs(3),
@@ -78,32 +78,24 @@ mod deserialize_into_duration {
     }
 }
 
-pub struct EventBusClient {
-    pub inner: Box<dyn EventBusProvider>,
-}
-
-impl EventBusClient {
-    pub fn new(config: &EventBusCfg) -> Result<Self, Error> {
-        match config.provider {
-            Provider::Kafka => {
-                match KafkaProducer::try_from(&config.clone()) {
-                    Ok(client) => {
-                        info!("EventBusClient (Kafka) ready to go.");
-                        Ok(EventBusClient { inner: Box::new(client), })
-                    }
-                    Err(e) => {
-                        warn!("Unable to load EventBusClient (Kafka): {}", e);
-                        Err(e.into())
-                    }
+pub fn event_producer(config: &EventBusCfg) -> Result<Box<dyn EventBusProducer>, Error> {
+    match config.provider {
+        Provider::Kafka => {
+            match KafkaProducer::try_from(&config.clone()) {
+                Ok(client) => {
+                    info!("EventBusClient (Kafka) ready to go.");
+                    Ok(Box::new(client))
+                }
+                Err(e) => {
+                    warn!("Unable to load EventBusClient (Kafka): {}", e);
+                    Err(e.into())
                 }
             }
         }
     }
-
-    pub async fn send(&self, event: BuilderEvent) { self.inner.send(event).await; }
 }
 
 #[async_trait]
-pub trait EventBusProvider {
+pub trait EventBusProducer {
     async fn send(&self, event: BuilderEvent);
 }
