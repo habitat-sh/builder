@@ -79,8 +79,7 @@ mod deserialize_into_duration {
 }
 
 pub struct EventBusClient {
-    pub inner:  Box<dyn EventBusProvider>,
-    pub config: EventBusCfg,
+    pub inner: Box<dyn EventBusProvider>,
 }
 
 impl EventBusClient {
@@ -90,8 +89,7 @@ impl EventBusClient {
                 match KafkaProducer::try_from(&config.clone()) {
                     Ok(client) => {
                         info!("EventBusClient (Kafka) ready to go.");
-                        Ok(EventBusClient { inner:  Box::new(client),
-                                            config: config.clone(), })
+                        Ok(EventBusClient { inner: Box::new(client), })
                     }
                     Err(e) => {
                         warn!("Unable to load EventBusClient (Kafka): {}", e);
@@ -106,6 +104,6 @@ impl EventBusClient {
 }
 
 #[async_trait]
-pub trait EventBusProvider: Send {
+pub trait EventBusProvider {
     async fn send(&self, event: BuilderEvent);
 }

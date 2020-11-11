@@ -62,7 +62,7 @@ macro_rules! publish_event {
     ($state:expr, $event_type:expr, $json:expr, $routing_key:expr) => {
         if let Some(bus) = $state.eventbus.as_ref() {
             match BuilderEvent::new($event_type, $routing_key, $json) {
-                Ok(event) => bus.producer.send(event).await,
+                Ok(event) => bus.inner.send(event).await,
                 Err(err) => {
                     debug!("Failed to create EventBus event for {}: {}",
                            $event_type, err)
