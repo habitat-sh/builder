@@ -55,8 +55,8 @@ pub struct EventBusCfg {
 
 impl Default for EventBusCfg {
     fn default() -> Self {
-        EventBusCfg { api_key:                "CHANGEME".to_string(),
-                      api_secret_key:         "CHANGEMETOO".to_string(),
+        EventBusCfg { api_key:                "".to_string(),
+                      api_secret_key:         "".to_string(),
                       bootstrap_nodes:        vec!["localhost:9092".to_string()],
                       client_id:              "http://localhost".to_string(),
                       connection_retry_delay: Duration::from_secs(3),
