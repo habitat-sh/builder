@@ -25,7 +25,8 @@ use crate::{bldr_core::rpc::RpcClient,
             config::{Config,
                      GatewayCfg},
             db::{migration,
-                 DbPool}};
+                 DbPool},
+            hab_core::ok_warn};
 use actix_web::{http::StatusCode,
                 middleware::Logger,
                 web,
@@ -98,7 +99,7 @@ impl AppState {
                        eventbus: None };
 
         if feat::is_enabled(feat::EventBus) {
-            app_state.eventbus = EventBusClient::new(&config.eventbus).ok();
+            app_state.eventbus = ok_warn!(EventBusClient::new(&config.eventbus));
         };
 
         Ok(app_state)
