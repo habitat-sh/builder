@@ -30,7 +30,7 @@ impl TryFrom<&EventBusCfg> for KafkaProducer {
         let bootstrap_list = config.bootstrap_nodes.join(",");
         match ClientConfig::new().set("bootstrap.servers", &bootstrap_list)
                                  .set("message.timeout.ms", &config.message_timeout_ms.to_string())
-                                 .set("client.id", &config.client_id)
+                                 .set("client.id", &config.client_id.as_str())
                                  .set("sasl.username", &config.api_key)
                                  .set("sasl.password", &config.api_secret_key)
                                  .set("security.protocol", "SASL_SSL")

@@ -2,13 +2,13 @@ use crate::{error::Error,
             event::BuilderEvent,
             kafka::KafkaProducer};
 use async_trait::async_trait;
+use habitat_core::util;
 use std::{convert::TryFrom,
           fmt,
           result,
           str::FromStr,
           time::Duration};
-
-use habitat_core::util;
+use url::Url;
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[non_exhaustive]
@@ -45,7 +45,7 @@ pub struct EventBusCfg {
     pub api_key:                String,
     pub api_secret_key:         String,
     pub bootstrap_nodes:        Vec<String>,
-    pub client_id:              String,
+    pub client_id:              Url,
     #[serde(with = "deserialize_into_duration")]
     pub connection_retry_delay: Duration,
     pub message_timeout_ms:     u64,
@@ -58,7 +58,7 @@ impl Default for EventBusCfg {
         EventBusCfg { api_key:                "".to_string(),
                       api_secret_key:         "".to_string(),
                       bootstrap_nodes:        vec!["localhost:9092".to_string()],
-                      client_id:              "http://localhost".to_string(),
+                      client_id:              "http://localhost".parse().expect("CLIENT_ID URL"),
                       connection_retry_delay: Duration::from_secs(3),
                       message_timeout_ms:     3000,
                       provider:               Provider::default(), }

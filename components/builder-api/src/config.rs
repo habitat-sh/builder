@@ -464,7 +464,8 @@ mod tests {
         assert_eq!(config.eventbus.provider, Provider::Kafka);
         assert_eq!(config.eventbus.bootstrap_nodes,
                    ["localhost:9092".to_string()]);
-        assert_eq!(config.eventbus.client_id, "http://localhost".to_string());
+        assert_eq!(config.eventbus.client_id,
+                   "http://localhost".parse().unwrap());
         assert_eq!(config.eventbus.connection_retry_delay,
                    Duration::from_secs(3));
     }
