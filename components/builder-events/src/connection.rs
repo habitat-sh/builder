@@ -102,10 +102,10 @@ impl EventBusClient {
         }
     }
 
-    pub async fn publish(&self, event: BuilderEvent) { self.inner.publish(event).await; }
+    pub async fn send(&self, event: BuilderEvent) { self.inner.send(event).await; }
 }
 
 #[async_trait]
 pub trait EventBusProvider: Send {
-    async fn publish(&self, event: BuilderEvent);
+    async fn send(&self, event: BuilderEvent);
 }

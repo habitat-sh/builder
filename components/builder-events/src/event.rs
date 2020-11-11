@@ -53,3 +53,22 @@ impl BuilderEvent {
 
     pub fn routing_key(self) -> Option<String> { self.routing_key }
 }
+
+#[macro_export]
+macro_rules! publish_event {
+    ($state:expr, $type:expr, $json:expr) => {
+        publish_event!($state, $type, $json, None)
+    };
+    ($state:expr, $type:expr, $json:expr, $routing_key:expr) => {
+        if let Some(bus) = $state.eventbus.as_ref() {
+            let event_type = $type;
+            match BuilderEvent::new(event_type, $routing_key, $json) {
+                Ok(event) => bus.inner.send(event).await,
+                Err(err) => {
+                    debug!("Failed to create EventBus event for {}: {}",
+                           event_type, err)
+                }
+            }
+        }
+    };
+}

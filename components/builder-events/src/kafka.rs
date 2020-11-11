@@ -49,7 +49,7 @@ impl TryFrom<&EventBusCfg> for KafkaProducer {
 #[async_trait]
 #[allow(clippy::wildcard_in_or_patterns)]
 impl EventBusProvider for KafkaProducer {
-    async fn publish(&self, event: BuilderEvent) {
+    async fn send(&self, event: BuilderEvent) {
         let topic = match event.clone().into_inner().get_type() {
             EventType::PACKAGECHANNELMOTION | _ => KAFKA_DEFAULT_TOPIC_NAME,
         };
