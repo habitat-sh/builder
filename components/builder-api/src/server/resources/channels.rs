@@ -448,7 +448,7 @@ async fn promote_package(req: HttpRequest,
                 Err(err) => debug!("Failed to save rank change to audit log: {}", err),
             };
 
-            publish_event!(&state.eventproducer, EventType::PackageChannelMotion, json!(&auditevent));
+            publish_event!(&state.eventproducer, EventType::PackageChannelMotion, &auditevent);
 
             state
                 .memcache
