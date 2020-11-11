@@ -324,7 +324,7 @@ impl Origin {
         origin_members::table.filter(origin_members::origin.eq(origin))
                              .filter(origin_members::account_id.eq(account_id))
                              .execute(conn)
-                             .and_then(|s| Ok(s > 0))
+                             .map(|s| (s > 0))
     }
 }
 

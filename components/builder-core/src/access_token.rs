@@ -199,9 +199,8 @@ impl FromStr for AccessToken {
     /// decrypting of its inner payload, nor any checking to see if the token
     /// has already expired.
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if s.starts_with(ACCESS_TOKEN_PREFIX) {
-            let encrypted =
-                base64::decode(&s[ACCESS_TOKEN_PREFIX.len()..]).map(String::from_utf8)??;
+        if let Some(payload) = s.strip_prefix(ACCESS_TOKEN_PREFIX) {
+            let encrypted = base64::decode(payload).map(String::from_utf8)??;
 
             // Though the fact that we're encrypting as a `SignedBox` for this
             // application is not terribly important, the fact that the string

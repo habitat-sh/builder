@@ -312,10 +312,10 @@ fn channel_package_path<I>(channel: &ChannelIdent, package: &I) -> String
                            channel,
                            package.name());
     if let Some(version) = package.version() {
-        path.push_str("/");
+        path.push('/');
         path.push_str(version);
         if let Some(release) = package.release() {
-            path.push_str("/");
+            path.push('/');
             path.push_str(release);
         }
     }
