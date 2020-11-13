@@ -1,8 +1,10 @@
 //! Configuration for a Habitat Builder-API service
 
-use crate::db::config::DataStoreCfg;
+use crate::{bldr_events::connection::EventBusConfig,
+            db::config::DataStoreCfg};
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
+
 use habitat_core::{config::ConfigFile,
                    crypto::keys::KeyCache,
                    package::target::{self,
@@ -17,8 +19,7 @@ use std::{env,
                 SocketAddr,
                 ToSocketAddrs},
           option::IntoIter,
-          path::PathBuf,
-          time::Duration};
+          path::PathBuf};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.
@@ -45,7 +46,7 @@ pub struct Config {
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
-    pub kafka:       KafkaCfg,
+    pub eventbus:    EventBusConfig,
 }
 
 #[derive(Debug)]
@@ -211,42 +212,6 @@ impl ToSocketAddrs for HttpCfg {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(default)]
-pub struct KafkaCfg {
-    pub bootstrap_nodes:        Vec<String>,
-    pub client_id:              String,
-    #[serde(with = "deserialize_into_duration")]
-    pub connection_retry_delay: Duration,
-    pub message_timeout_ms:     u64,
-    pub api_key:                String,
-    pub api_secret_key:         String,
-}
-
-impl Default for KafkaCfg {
-    fn default() -> Self {
-        KafkaCfg { bootstrap_nodes:        vec![String::from("localhost:9092")],
-                   client_id:              String::from("http://localhost"),
-                   api_key:                String::from("CHANGEME"),
-                   api_secret_key:         String::from("CHANGEMETOO"),
-                   message_timeout_ms:     3000,
-                   connection_retry_delay: Duration::from_secs(3), }
-    }
-}
-
-mod deserialize_into_duration {
-    use serde::{self,
-                Deserialize,
-                Deserializer};
-    use std::time::Duration;
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-        where D: Deserializer<'de>
-    {
-        let s = u64::deserialize(deserializer)?;
-        Ok(Duration::from_secs(s))
-    }
-}
-
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct UiCfg {
@@ -355,6 +320,8 @@ impl fmt::Display for JobsrvCfg {
 mod tests {
     use super::*;
 
+    use crate::bldr_events::connection::Provider;
+
     #[test]
     #[allow(clippy::cognitive_complexity)]
     fn config_from_file() {
@@ -420,6 +387,11 @@ mod tests {
         ssl_root_cert = "/root_ca.crt"
         ssl_key = "/ssl.key"
         ssl_cert = "/ssl.crt"
+
+        [eventbus]
+        provider = "kafka"
+        bootstrap_nodes = ["myhost:9092"]
+        client_id = "http://myhost"
         "#;
 
         let config = Config::from_raw(&content).unwrap();
@@ -486,6 +458,12 @@ mod tests {
                    Some("/root_ca.crt".to_string()));
         assert_eq!(config.datastore.ssl_key, Some("/ssl.key".to_string()));
         assert_eq!(config.datastore.ssl_cert, Some("/ssl.crt".to_string()));
+
+        assert_eq!(config.eventbus.provider, Provider::Kafka);
+        assert_eq!(config.eventbus.kafka.bootstrap_nodes,
+                   ["myhost:9092".to_string()]);
+        assert_eq!(config.eventbus.kafka.client_id,
+                   "http://myhost".parse().unwrap());
     }
 
     #[test]

@@ -1612,8 +1612,6 @@ dependencies = [
  "bytes 0.5.6",
  "chrono",
  "clap",
- "cloudevents-sdk",
- "cloudevents-sdk-rdkafka",
  "diesel",
  "diesel-derive-enum",
  "diesel_full_text_search",
@@ -1623,6 +1621,7 @@ dependencies = [
  "github-api-client",
  "habitat-builder-protocol",
  "habitat_builder_db",
+ "habitat_builder_events",
  "habitat_core",
  "hex 0.4.2",
  "lazy_static",
@@ -1635,7 +1634,6 @@ dependencies = [
  "protobuf",
  "r2d2",
  "rand 0.7.3",
- "rdkafka",
  "regex",
  "reqwest",
  "rusoto_core 0.45.0",
@@ -1645,7 +1643,6 @@ dependencies = [
  "serde_json",
  "sha2 0.9.1",
  "tempfile",
- "tokio 0.1.22",
  "toml 0.5.6",
  "url",
  "uuid",
@@ -1680,6 +1677,26 @@ dependencies = [
  "serde_derive",
  "threadpool",
  "url",
+]
+
+[[package]]
+name = "habitat_builder_events"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "cloudevents-sdk",
+ "cloudevents-sdk-rdkafka",
+ "features",
+ "habitat_core",
+ "lazy_static",
+ "log",
+ "rdkafka",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tokio 0.2.22",
+ "url",
+ "uuid",
 ]
 
 [[package]]

@@ -27,6 +27,7 @@ extern crate serde_json;
 
 use builder_core as bldr_core;
 use habitat_builder_db as db;
+use habitat_builder_events as bldr_events;
 use habitat_builder_protocol as protocol;
 use habitat_core as hab_core;
 use rusoto_core as rusoto;
