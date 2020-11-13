@@ -440,12 +440,8 @@ async fn promote_package(req: HttpRequest,
     .map_err(Error::DieselError)
     {
         Ok(_) => {
-            match PackageChannelAudit::audit(
-                &auditevent,
-                &*conn,
-            ) {
-                Ok(_) => {}
-                Err(err) => debug!("Failed to save rank change to audit log: {}", err),
+            if let Err(e) = PackageChannelAudit::audit(&auditevent, &*conn) {
+                 debug!("Failed to save rank change to audit log: {}", e);
             };
 
             BuilderEvent::new(EventType::PackageChannelMotion, NoKey, &auditevent)
