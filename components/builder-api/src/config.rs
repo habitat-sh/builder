@@ -391,6 +391,7 @@ mod tests {
 
         [eventbus]
         provider = "kafka"
+        [[eventbus.kafka]]
         bootstrap_nodes = ["localhost:9092"]
         client_id = "http://localhost"
         connection_retry_delay = 3
