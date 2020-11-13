@@ -4,6 +4,8 @@ use crate::{error::Error,
                     KafkaProducer}};
 use async_trait::async_trait;
 use habitat_core::util;
+use serde::{Deserialize,
+            Serialize};
 use std::{convert::TryFrom,
           fmt,
           result,
@@ -43,11 +45,12 @@ impl Default for Provider {
 
 /// Holds the configuration defining the EventBus provider bindings to load as well
 /// as the specific configuration required for each message bus binding type.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct EventBusConfig {
     #[serde(with = "util::serde::string")]
     pub provider: Provider,
+    #[serde(flatten)]
     pub kafka:    KafkaConfig,
 }
 

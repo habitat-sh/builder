@@ -6,8 +6,9 @@ use async_trait::async_trait;
 use cloudevents::AttributesReader;
 use cloudevents_sdk_rdkafka::{FutureRecordExt,
                               MessageRecord};
-use std::{convert::TryFrom,
-          time::Duration};
+use serde::{Deserialize,
+            Serialize};
+use std::convert::TryFrom;
 use url::Url;
 
 use rdkafka::{config::ClientConfig,
@@ -21,29 +22,14 @@ pub struct KafkaProducer {
     inner: FutureProducer,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct KafkaConfig {
-    pub api_key:                String,
-    pub api_secret_key:         String,
-    pub bootstrap_nodes:        Vec<String>,
-    pub client_id:              Url,
-    #[serde(with = "deserialize_into_duration")]
-    pub connection_retry_delay: Duration,
-    pub message_timeout_ms:     u64,
-}
-
-mod deserialize_into_duration {
-    use serde::{self,
-                Deserialize,
-                Deserializer};
-    use std::time::Duration;
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-        where D: Deserializer<'de>
-    {
-        let s = u64::deserialize(deserializer)?;
-        Ok(Duration::from_secs(s))
-    }
+    pub api_key:            String,
+    pub api_secret_key:     String,
+    pub bootstrap_nodes:    Vec<String>,
+    pub client_id:          Url,
+    pub message_timeout_ms: u64,
 }
 
 impl Default for KafkaConfig {
@@ -51,12 +37,11 @@ impl Default for KafkaConfig {
     // We need to implement Default due to the Deserialize trait on the struct in order to read
     // from the toml config.
     fn default() -> Self {
-        KafkaConfig { api_key:                "api key".to_string(),
-                      api_secret_key:         "secret key".to_string(),
-                      bootstrap_nodes:        vec!["localhost:9092".to_string()],
-                      client_id:              "http://localhost".parse().expect("CLIENT_ID URL"),
-                      connection_retry_delay: Duration::from_secs(3),
-                      message_timeout_ms:     3000, }
+        KafkaConfig { api_key:            "api key".to_string(),
+                      api_secret_key:     "secret key".to_string(),
+                      bootstrap_nodes:    vec!["localhost:9092".to_string()],
+                      client_id:          "http://localhost".parse().expect("CLIENT_ID URL"),
+                      message_timeout_ms: 3000, }
     }
 }
 

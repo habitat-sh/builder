@@ -321,7 +321,6 @@ mod tests {
     use super::*;
 
     use crate::bldr_events::connection::Provider;
-    use std::time::Duration;
 
     #[test]
     #[allow(clippy::cognitive_complexity)]
@@ -391,10 +390,8 @@ mod tests {
 
         [eventbus]
         provider = "kafka"
-        [[eventbus.kafka]]
-        bootstrap_nodes = ["localhost:9092"]
-        client_id = "http://localhost"
-        connection_retry_delay = 3
+        bootstrap_nodes = ["myhost:9092"]
+        client_id = "http://myhost"
         "#;
 
         let config = Config::from_raw(&content).unwrap();
@@ -464,11 +461,9 @@ mod tests {
 
         assert_eq!(config.eventbus.provider, Provider::Kafka);
         assert_eq!(config.eventbus.kafka.bootstrap_nodes,
-                   ["localhost:9092".to_string()]);
+                   ["myhost:9092".to_string()]);
         assert_eq!(config.eventbus.kafka.client_id,
-                   "http://localhost".parse().unwrap());
-        assert_eq!(config.eventbus.kafka.connection_retry_delay,
-                   Duration::from_secs(3));
+                   "http://myhost".parse().unwrap());
     }
 
     #[test]
