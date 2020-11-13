@@ -1688,6 +1688,7 @@ dependencies = [
  "cloudevents-sdk-rdkafka",
  "features",
  "habitat_core",
+ "lazy_static",
  "log",
  "rdkafka",
  "serde",

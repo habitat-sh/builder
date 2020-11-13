@@ -21,7 +21,7 @@ use self::{framework::middleware::authentication_middleware,
            services::{memcache::MemcacheClient,
                       s3::S3Handler}};
 use crate::{bldr_core::rpc::RpcClient,
-            bldr_events::connection::{event_producer,
+            bldr_events::connection::{create_producer,
                                       EventBusProducer},
             config::{Config,
                      GatewayCfg},
@@ -100,7 +100,7 @@ impl AppState {
                        eventproducer: None };
 
         if feat::is_enabled(feat::EventBus) {
-            app_state.eventproducer = ok_warn!(event_producer(&config.eventbus));
+            app_state.eventproducer = ok_warn!(create_producer(&config.eventbus));
         };
 
         Ok(app_state)

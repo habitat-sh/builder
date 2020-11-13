@@ -1,6 +1,6 @@
 //! Configuration for a Habitat Builder-API service
 
-use crate::{bldr_events::connection::EventBusCfg,
+use crate::{bldr_events::connection::EventBusConfig,
             db::config::DataStoreCfg};
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
@@ -46,7 +46,7 @@ pub struct Config {
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
-    pub eventbus:    EventBusCfg,
+    pub eventbus:    EventBusConfig,
 }
 
 #[derive(Debug)]
@@ -462,11 +462,11 @@ mod tests {
         assert_eq!(config.datastore.ssl_cert, Some("/ssl.crt".to_string()));
 
         assert_eq!(config.eventbus.provider, Provider::Kafka);
-        assert_eq!(config.eventbus.bootstrap_nodes,
+        assert_eq!(config.eventbus.kafka.bootstrap_nodes,
                    ["localhost:9092".to_string()]);
-        assert_eq!(config.eventbus.client_id,
+        assert_eq!(config.eventbus.kafka.client_id,
                    "http://localhost".parse().unwrap());
-        assert_eq!(config.eventbus.connection_retry_delay,
+        assert_eq!(config.eventbus.kafka.connection_retry_delay,
                    Duration::from_secs(3));
     }
 

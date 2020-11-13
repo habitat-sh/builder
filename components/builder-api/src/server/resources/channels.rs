@@ -29,9 +29,9 @@ use diesel::{pg::PgConnection,
                               NotFound}}};
 
 use crate::{bldr_core::metrics::CounterMetric,
-            bldr_events::{event::{BuilderEvent,
-                                  EventType},
-                          publish_event},
+            bldr_events::event::{BuilderEvent,
+                                 EventType,
+                                 RoutingKey::*},
             hab_core::{package::{PackageIdent,
                                  PackageTarget},
                        ChannelIdent}};
@@ -448,7 +448,8 @@ async fn promote_package(req: HttpRequest,
                 Err(err) => debug!("Failed to save rank change to audit log: {}", err),
             };
 
-            publish_event!(&state.eventproducer, EventType::PackageChannelMotion, &auditevent);
+            BuilderEvent::new(EventType::PackageChannelMotion, NoKey, &auditevent)
+                .publish(&state.eventproducer).await;
 
             state
                 .memcache
