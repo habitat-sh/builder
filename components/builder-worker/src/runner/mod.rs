@@ -674,6 +674,7 @@ impl RunnerCli {
 
 /// Receives work notifications from a `RunnerCli` and performs long-running tasks in a
 /// separate thread.
+#[allow(clippy::rc_buffer)] // #1548 tracks fixing this
 pub struct RunnerMgr {
     config:    Arc<Config>,
     net_ident: Arc<String>,
@@ -684,6 +685,7 @@ pub struct RunnerMgr {
 
 impl RunnerMgr {
     /// Start the Job Runner
+    #[allow(clippy::rc_buffer)] // #1548 tracks fixing this
     pub fn start(config: Arc<Config>, net_ident: Arc<String>) -> Result<JoinHandle<()>> {
         let (tx, rx) = mpsc::sync_channel(0);
         let mut runner = Self::new(config, net_ident);
@@ -698,6 +700,7 @@ impl RunnerMgr {
         }
     }
 
+    #[allow(clippy::rc_buffer)] // #1548 tracks fixing this
     fn new(config: Arc<Config>, net_ident: Arc<String>) -> Self {
         let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         RunnerMgr { config,
