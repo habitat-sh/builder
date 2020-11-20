@@ -17,8 +17,7 @@ use url::Url;
 use rdkafka::{config::ClientConfig,
               consumer::{BaseConsumer,
                          Consumer},
-              message::{Message,
-                        OwnedMessage},
+              message::Message,
               producer::{FutureProducer,
                          FutureRecord}};
 
@@ -28,7 +27,7 @@ pub struct KafkaConsumer {
     inner: BaseConsumer,
 }
 
-pub struct KafkaProducer {
+pub struct KafkaPublisher {
     inner: FutureProducer,
 }
 
@@ -86,7 +85,7 @@ impl TryFrom<&KafkaConfig> for KafkaConsumer {
     }
 }
 
-impl TryFrom<&KafkaConfig> for KafkaProducer {
+impl TryFrom<&KafkaConfig> for KafkaPublisher {
     type Error = Error;
 
     fn try_from(config: &KafkaConfig) -> Result<Self, Error> {
@@ -100,24 +99,12 @@ impl TryFrom<&KafkaConfig> for KafkaProducer {
                                  .set("security.protocol", "SASL_SSL")
                                  .create()
         {
-            Ok(p) => Ok(KafkaProducer { inner: p }),
+            Ok(p) => Ok(KafkaPublisher { inner: p }),
             Err(err) => {
                 error!("Error initializing kafka producer: {:?}", err);
                 Err(Error::EventError(Box::new(err)))
             }
         }
-    }
-}
-
-fn extract_message_payload(msg: &OwnedMessage) -> String {
-    match msg.payload_view::<str>() {
-        Some(Ok(payload)) => payload.to_string(),
-        Some(Err(e)) => {
-            let msg = "Message payload is not a string".to_owned();
-            error!("{}: {}", msg, e);
-            msg
-        }
-        None => "No payload".to_owned(),
     }
 }
 
@@ -133,16 +120,24 @@ impl EventConsumer for KafkaConsumer {
     }
 
     /// Poll for a new message
-    fn poll(&self) -> Option<String> {
+    fn poll(&self) -> Option<Result<String, Error>> {
         if let Some(polled) = self.inner.poll(Duration::from_secs(0)) {
             match polled {
                 Ok(borrowed_message) => {
                     let owned_message = borrowed_message.detach();
-                    Some(extract_message_payload(&owned_message))
+                    match owned_message.payload_view::<str>() {
+                        Some(Ok(payload)) => Some(Ok(payload.to_string())),
+                        Some(Err(err)) => Some(Err(Error::EventError(Box::new(err)))),
+                        None => {
+                            let err: Box<dyn std::error::Error> = "No Payload".to_owned().into();
+                            Some(Err(Error::EventError(err)))
+                        }
+                    }
                 }
                 Err(err) => {
-                    error!("Unable to extract borrowed message: {}", err);
-                    None
+                    let err_ext: Box<dyn std::error::Error> =
+                        format!("Unable to extract borrowed message: {}", err).into();
+                    Some(Err(Error::EventError(err_ext)))
                 }
             }
         } else {
@@ -154,10 +149,10 @@ impl EventConsumer for KafkaConsumer {
 // The EventPublisher trait object binding for Kafka
 #[async_trait]
 #[allow(clippy::wildcard_in_or_patterns)]
-impl EventPublisher for KafkaProducer {
+impl EventPublisher for KafkaPublisher {
     /// Publish messages onto the topic
     async fn publish(&self, builder_event: BuilderEvent) {
-        trace!("KafkaProducer publishing event {:?}", builder_event);
+        trace!("KafkaPublisher publishing event {:?}", builder_event);
         let (event, routing_key) = builder_event.fields();
         let topic = match event.get_type() {
             EventType::PACKAGECHANNELMOTION | _ => KAFKA_DEFAULT_TOPIC_NAME,

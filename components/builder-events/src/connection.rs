@@ -2,7 +2,7 @@ use crate::{error::Error,
             event::BuilderEvent,
             kafka::{KafkaConfig,
                     KafkaConsumer,
-                    KafkaProducer}};
+                    KafkaPublisher}};
 use async_trait::async_trait;
 use habitat_core::util;
 use serde::{Deserialize,
@@ -91,7 +91,7 @@ pub fn create_consumer(config: &EventConfig) -> Result<Box<dyn EventConsumer>, E
 pub fn create_producer(config: &EventConfig) -> Result<Box<dyn EventPublisher>, Error> {
     match config.provider {
         Provider::Kafka => {
-            match KafkaProducer::try_from(&config.kafka.clone()) {
+            match KafkaPublisher::try_from(&config.kafka.clone()) {
                 Ok(producer) => {
                     info!("Kafka EventPublisher ready to go.");
                     Ok(Box::new(producer))
@@ -117,7 +117,7 @@ pub trait EventConsumer {
     fn subscribe(&self, queues: &[&str]) -> Result<(), Error>;
     /// Poll the topic(s) for new messages. When a message exists, its payload will returned. This
     /// is a synchronous call.
-    fn poll(&self) -> Option<String>;
+    fn poll(&self) -> Option<Result<String, Error>>;
 
     // TODO (JM): Add an async stream consumer method, perhaps `consume_stream` or some such.
     // An example of a Kafka implementation of this is implemented via `StreamConsumer` [1].

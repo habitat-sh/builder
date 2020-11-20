@@ -42,9 +42,13 @@ pub fn run(path: Option<PathBuf>) -> Result<(), Error> {
 
                 loop {
                     if let Some(msg) = bus.poll() {
-                        debug!("received msg {:?}", msg);
-                        thread::sleep(Duration::from_millis(100));
-                    }
+                        match msg {
+                            Ok(valid_message) => debug!("received msg {:?}", valid_message),
+
+                            Err(err) => error!("{}", err),
+                        }
+                    };
+                    thread::sleep(Duration::from_millis(100));
                 }
             }
         }
