@@ -48,38 +48,38 @@ impl Default for Provider {
 /// as the specific configuration required for each message bus binding type.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
-pub struct EventBusConfig {
+pub struct EventConfig {
     #[serde(with = "util::serde::string")]
     pub provider: Provider,
     #[serde(flatten)]
     pub kafka:    KafkaConfig,
 }
 
-impl Default for EventBusConfig {
+impl Default for EventConfig {
     fn default() -> Self {
-        EventBusConfig { provider: Provider::default(),
-                         kafka:    KafkaConfig::default(), }
+        EventConfig { provider: Provider::default(),
+                      kafka:    KafkaConfig::default(), }
     }
 }
 
 /// Creates a new Consumer instance of a trait object for the selected message bus provider.
 /// The Consumer consumes messages from the bus.
-pub fn create_consumer(config: &EventBusConfig) -> Result<Box<dyn EventBusConsumer>, Error> {
+pub fn create_consumer(config: &EventConfig) -> Result<Box<dyn EventConsumer>, Error> {
     match config.provider {
         Provider::Kafka => {
             match KafkaConsumer::try_from(&config.kafka.clone()) {
                 Ok(consumer) => {
-                    info!("Kafka EventBusConsumer ready to go.");
+                    info!("Kafka EventConsumer ready to go.");
                     Ok(Box::new(consumer))
                 }
                 Err(err) => {
-                    error!("Unable to load Kafka EventBusConsumer: {}", err);
-                    Err(Error::EventBusError(Box::new(err)))
+                    error!("Unable to load Kafka EventConsumer: {}", err);
+                    Err(Error::EventError(Box::new(err)))
                 }
             }
         }
         Provider::None => {
-            let msg = "No EventBus provider specified!";
+            let msg = "No EventBus Provider specified!";
             error!("{}", msg);
             Err(Error::BadProvider(msg.to_string()))
         }
@@ -88,40 +88,46 @@ pub fn create_consumer(config: &EventBusConfig) -> Result<Box<dyn EventBusConsum
 
 /// Creates a new Producer instance of a trait object for the selected message bus provider.
 /// The Producer publishes messages onto the bus.
-pub fn create_producer(config: &EventBusConfig) -> Result<Box<dyn EventBusProducer>, Error> {
+pub fn create_producer(config: &EventConfig) -> Result<Box<dyn EventPublisher>, Error> {
     match config.provider {
         Provider::Kafka => {
             match KafkaProducer::try_from(&config.kafka.clone()) {
                 Ok(producer) => {
-                    info!("Kafka EventBusProducer ready to go.");
+                    info!("Kafka EventPublisher ready to go.");
                     Ok(Box::new(producer))
                 }
                 Err(err) => {
-                    error!("Unable to load Kafka EventBusProducer: {}", err);
-                    Err(Error::EventBusError(Box::new(err)))
+                    error!("Unable to load Kafka EventPublisher: {}", err);
+                    Err(Error::EventError(Box::new(err)))
                 }
             }
         }
         Provider::None => {
-            let msg = "No EventBus provider specified!";
+            let msg = "No EventBus Provider specified!";
             error!("{}", msg);
             Err(Error::BadProvider(msg.to_string()))
         }
     }
 }
 
-/// Trait object abstraction representing the configured EventBus Consumer. The Consumer is
+/// Trait abstraction representing the configured Event Consumer. The Consumer is
 /// responsible for reading messages off of the message bus.
-pub trait EventBusConsumer {
+pub trait EventConsumer {
     /// Subscribe to list of queues or topics
-    fn subscribe(&self, queues: Vec<&str>) -> Result<(), Error>;
-    /// Poll the topic(s) for new messages and pull any off
+    fn subscribe(&self, queues: &[&str]) -> Result<(), Error>;
+    /// Poll the topic(s) for new messages. When a message exists, its payload will returned. This
+    /// is a synchronous call.
     fn poll(&self) -> Option<String>;
+
+    // TODO (JM): Add an async stream consumer method, perhaps `consume_stream` or some such.
+    // An example of a Kafka implementation of this is implemented via `StreamConsumer` [1].
+    // [1] https://github.com/fede1024/rust-rdkafka/blob/master/src/consumer/stream_consumer.rs
 }
 
-/// Trait object abstraction representing the configured EventBus Consumer. The Consumer is
+/// Trait abstraction representing the configured Event Publisher. The Publisher is
 /// responsible for publishing messages onto the message bus.
 #[async_trait]
-pub trait EventBusProducer {
+pub trait EventPublisher {
+    /// Send events onto the configured message bus
     async fn publish(&self, event: BuilderEvent);
 }

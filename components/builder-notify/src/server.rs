@@ -1,5 +1,5 @@
 use crate::{bldr_events::connection::{create_consumer,
-                                      EventBusConsumer},
+                                      EventConsumer},
             config::Config,
             error::Error,
             hab_core::{config::ConfigFile,
@@ -12,16 +12,14 @@ const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-notify/config/config.toml";
 const DEFAULT_QUEUE_NAME: &str = "builder_events";
 
 pub struct AppState {
-    eventconsumer: Option<Box<dyn EventBusConsumer>>,
+    event_consumer: Option<Box<dyn EventConsumer>>,
 }
 
 impl AppState {
     pub fn new(config: &Config) -> Result<AppState, Error> {
-        let mut app_state = AppState { eventconsumer: None, };
+        let event_consumer = ok_warn!(create_consumer(&config.eventbus));
 
-        app_state.eventconsumer = ok_warn!(create_consumer(&config.eventbus));
-
-        Ok(app_state)
+        Ok(AppState { event_consumer })
     }
 }
 
@@ -31,15 +29,15 @@ pub fn run(path: Option<PathBuf>) -> Result<(), Error> {
     let config = if config_path.is_file() {
         Config::from_file(config_path).map_err(|e| Error::NotificationsError(Box::new(e)))?
     } else {
-        warn!("EventBusConsumer config file not found at {:?}. Using defaults..",
+        warn!("EventConsumer config file not found at {:?}. Using defaults..",
               config_path);
         Config::default()
     };
     match AppState::new(&config) {
         Ok(state) => {
-            if let Some(bus) = state.eventconsumer {
-                info!("EventBusConsumer started.");
-                bus.subscribe([DEFAULT_QUEUE_NAME].to_vec())
+            if let Some(bus) = state.event_consumer {
+                info!("EventConsumer started.");
+                bus.subscribe(&[DEFAULT_QUEUE_NAME].to_vec())
                    .map_err(|e| Error::NotificationsError(Box::new(e)))?;
 
                 loop {
@@ -50,7 +48,7 @@ pub fn run(path: Option<PathBuf>) -> Result<(), Error> {
                 }
             }
         }
-        Err(e) => error!("EventBusConsumer failed to start: {}", e),
+        Err(e) => error!("EventConsumer failed to start: {}", e),
     }
     Ok(())
 }

@@ -1,5 +1,5 @@
-use crate::{connection::{EventBusConsumer,
-                         EventBusProducer},
+use crate::{connection::{EventConsumer,
+                         EventPublisher},
             error::Error,
             event::{BuilderEvent,
                     EventType,
@@ -80,7 +80,7 @@ impl TryFrom<&KafkaConfig> for KafkaConsumer {
             Ok(c) => Ok(KafkaConsumer { inner: c }),
             Err(err) => {
                 error!("Error initializing kafka consumer: {:?}", err);
-                Err(Error::EventBusError(Box::new(err)))
+                Err(Error::EventError(Box::new(err)))
             }
         }
     }
@@ -103,7 +103,7 @@ impl TryFrom<&KafkaConfig> for KafkaProducer {
             Ok(p) => Ok(KafkaProducer { inner: p }),
             Err(err) => {
                 error!("Error initializing kafka producer: {:?}", err);
-                Err(Error::EventBusError(Box::new(err)))
+                Err(Error::EventError(Box::new(err)))
             }
         }
     }
@@ -112,20 +112,24 @@ impl TryFrom<&KafkaConfig> for KafkaProducer {
 fn extract_message_payload(msg: &OwnedMessage) -> String {
     match msg.payload_view::<str>() {
         Some(Ok(payload)) => payload.to_string(),
-        Some(Err(_)) => "Message payload is not a string".to_owned(),
+        Some(Err(e)) => {
+            let msg = "Message payload is not a string".to_owned();
+            error!("{}: {}", msg, e);
+            msg
+        }
         None => "No payload".to_owned(),
     }
 }
 
-// The EventBusConsumer trait object binding for Kafka
+// The EventConsumer trait object binding for Kafka
 #[allow(clippy::wildcard_in_or_patterns)]
-impl EventBusConsumer for KafkaConsumer {
+impl EventConsumer for KafkaConsumer {
     /// Subscribe to a vec of topics
-    fn subscribe(&self, topic_names: Vec<&str>) -> Result<(), Error> {
+    fn subscribe(&self, topic_names: &[&str]) -> Result<(), Error> {
         info!("KafkaConsumer subscribing to {:?}", topic_names);
         self.inner
             .subscribe(&topic_names)
-            .map_err(|e| Error::EventBusError(Box::new(e)))
+            .map_err(|e| Error::EventError(Box::new(e)))
     }
 
     /// Poll for a new message
@@ -147,10 +151,10 @@ impl EventBusConsumer for KafkaConsumer {
     }
 }
 
-// The EventBusProducer trait object binding for Kafka
+// The EventPublisher trait object binding for Kafka
 #[async_trait]
 #[allow(clippy::wildcard_in_or_patterns)]
-impl EventBusProducer for KafkaProducer {
+impl EventPublisher for KafkaProducer {
     /// Publish messages onto the topic
     async fn publish(&self, builder_event: BuilderEvent) {
         trace!("KafkaProducer publishing event {:?}", builder_event);

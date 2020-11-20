@@ -1,4 +1,4 @@
-use crate::{bldr_events::connection::EventBusConfig,
+use crate::{bldr_events::connection::EventConfig,
             hab_core::config::ConfigFile};
 use std::{error,
           fmt};
@@ -6,7 +6,7 @@ use std::{error,
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub eventbus: EventBusConfig,
+    pub eventbus: EventConfig,
 }
 
 #[derive(Debug)]

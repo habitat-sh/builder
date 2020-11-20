@@ -445,7 +445,7 @@ async fn promote_package(req: HttpRequest,
             };
 
             BuilderEvent::new(EventType::PackageChannelMotion, NoKey, &auditevent)
-                .publish(&state.eventproducer).await;
+                .publish(&state.event_producer).await;
 
             state
                 .memcache

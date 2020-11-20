@@ -1,4 +1,4 @@
-use crate::connection::EventBusProducer;
+use crate::connection::EventPublisher;
 use cloudevents::{event::Event,
                   EventBuilder,
                   EventBuilderV10};
@@ -88,7 +88,7 @@ impl BuilderEvent {
     pub fn fields(self) -> (Event, RoutingKey) { (self.inner, self.routing_key) }
 
     // Tells the configured EventBus to send the BuilderEvent message
-    pub async fn publish(self, bus: &Option<Box<dyn EventBusProducer>>) {
+    pub async fn publish(self, bus: &Option<Box<dyn EventPublisher>>) {
         // If the EventBus feature is enabled, we send the message, otherwise it is a no-op.
         if let Some(b) = bus.as_ref() {
             b.publish(self).await;
