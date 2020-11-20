@@ -128,7 +128,7 @@ impl EventConsumer for KafkaConsumer {
     fn subscribe(&self, topic_names: &[&str]) -> Result<(), Error> {
         info!("KafkaConsumer subscribing to {:?}", topic_names);
         self.inner
-            .subscribe(&topic_names)
+            .subscribe(topic_names)
             .map_err(|e| Error::EventError(Box::new(e)))
     }
 

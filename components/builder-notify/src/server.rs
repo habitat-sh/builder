@@ -1,9 +1,9 @@
-use crate::{bldr_events::connection::{create_consumer,
-                                      EventConsumer},
-            config::Config,
-            error::Error,
-            hab_core::{config::ConfigFile,
-                       ok_warn}};
+use crate::{config::Config,
+            error::Error};
+use habitat_builder_events::connection::{create_consumer,
+                                         EventConsumer};
+use habitat_core::{config::ConfigFile,
+                   ok_warn};
 use std::{path::PathBuf,
           thread::{self},
           time::Duration};

@@ -1,7 +1,6 @@
-use crate::bldr_notify::{cli::Notify,
-                         error::Error,
-                         server};
-use habitat_builder_notify as bldr_notify;
+use habitat_builder_notify::{cli::Notify,
+                             error::Error,
+                             server};
 use structopt::StructOpt;
 
 #[macro_use]
