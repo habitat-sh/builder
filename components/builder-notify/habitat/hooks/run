@@ -1,0 +1,35 @@
+#!/bin/bash
+
+export HOME="{{pkg.svc_data_path}}"
+export RUST_LOG="{{cfg.log_level}}"
+export RUST_BACKTRACE=1
+
+title="Service Start"
+text="builder-api starting"
+# shellcheck disable=2039
+echo "_e{${#title},${#text}}:$title|$text|#api"  >/dev/udp/localhost/8125
+
+# Wait for the .pem file before starting the service, otherwise the service
+# continually panics in a tight loop, blocking the supervisor from writing
+# out the file. This only occurs if "jobsrv" is an enabled feature.
+#
+# We should handle the unwrap to account for the Err condition gracefully.
+# TODO: https://github.com/habitat-sh/builder/issues/1406
+#
+# shellcheck disable=SC2050
+if [[ "{{cfg.api.features_enabled}}" =~ "jobsrv" ]]; then
+  while ! [ -f "{{pkg.svc_files_path}}/builder-github-app.pem" ];
+  do
+    echo "Waiting for builder github app private key at: {{pkg.svc_files_path}}/builder-github-app.pem"
+    sleep 10
+  done
+fi
+
+if [ "$(whoami)" = "root" ]; then
+  exec chpst \
+    -U "{{pkg.svc_user}}:{{pkg.svc_group}}" \
+    -u "{{pkg.svc_user}}:{{pkg.svc_group}}" \
+    bldr-api start -c "{{pkg.svc_config_path}}/config.toml" 2>&1
+else
+  exec bldr-api start -c "{{pkg.svc_config_path}}/config.toml" 2>&1
+fi

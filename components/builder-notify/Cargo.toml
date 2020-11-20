@@ -1,0 +1,43 @@
+[package]
+name = "habitat_builder_notify"
+version = "0.0.0"
+authors = ["The Habitat Maintainers <humans@habitat.sh>"]
+description = "Habitat-Builder Notifications Service"
+build = "../build-builder.rs"
+workspace = "../../"
+edition = "2018"
+
+[[bin]]
+name = "bldr-notify"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+async-trait = "*"
+cloudevents-sdk = "0.2.0"
+cloudevents-sdk-rdkafka = "*"
+configopt = { git = "https://github.com/davidMcneil/configopt.git" }
+env_logger = "*"
+features = "*"
+lazy_static = "*"
+log = "*"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+structopt = "*"
+tokio = "*"
+url = "*"
+uuid = { version = "*", features = ["v4"] }
+
+[dependencies.rdkafka]
+version = "*"
+features = ["ssl"]
+
+[dependencies.builder_core]
+path = "../builder-core"
+
+[dependencies.habitat_core]
+git = "https://github.com/habitat-sh/habitat.git"
+
+[dependencies.habitat_builder_events]
+path = "../builder-events"

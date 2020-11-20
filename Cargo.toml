@@ -10,6 +10,7 @@ members = [
   "components/builder-events",
   "components/builder-graph",
   "components/builder-jobsrv",
+  "components/builder-notify",
   "components/builder-protocol",
   "components/builder-worker",
   "components/github-api-client",
