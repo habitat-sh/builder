@@ -14,10 +14,13 @@ const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "bldr-notify", version = VERSION, about = "Builder Notifications Service")]
-struct Notify {
-    /// Read config.toml at this path
-    #[structopt(short, long, parse(from_os_str))]
-    config: Option<PathBuf>,
+enum Notify {
+    /// Run the service
+    Run {
+        /// Read config.toml at this path
+        #[structopt(short, long, parse(from_os_str))]
+        config: Option<PathBuf>,
+    },
 }
 
 fn main() {
@@ -30,6 +33,8 @@ fn main() {
 
 fn start() -> Result<(), Error> {
     let opt = Notify::from_args();
-    server::run(opt.config)?;
+    match opt {
+        Notify::Run { config } => server::run(config)?,
+    }
     Ok(())
 }

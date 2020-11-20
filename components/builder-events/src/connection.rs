@@ -110,10 +110,12 @@ pub fn create_producer(config: &EventBusConfig) -> Result<Box<dyn EventBusProduc
     }
 }
 
-/// Trait object abstraction representing the configured EventBus Producer. The Producer is
-/// responsible for publishing messages onto the message bus.
+/// Trait object abstraction representing the configured EventBus Consumer. The Consumer is
+/// responsible for reading messages off of the message bus.
 pub trait EventBusConsumer {
+    /// Subscribe to list of queues or topics
     fn subscribe(&self, queues: Vec<&str>) -> Result<(), Error>;
+    /// Poll the topic(s) for new messages and pull any off
     fn poll(&self) -> Option<String>;
 }
 
