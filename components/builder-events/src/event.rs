@@ -1,4 +1,4 @@
-use crate::connection::EventBusProducer;
+use crate::connection::EventPublisher;
 use cloudevents::{event::Event,
                   EventBuilder,
                   EventBuilderV10};
@@ -35,7 +35,7 @@ pub enum RoutingKey {
 /// the Occurrence. Additionally, BuilderEvent contains a `routing_key` field used to tell the
 /// message bus how to route the message internally for scenarios that require guaranteed ordering
 /// (message affinity).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BuilderEvent {
     inner:       Event,
     routing_key: RoutingKey,
@@ -88,10 +88,10 @@ impl BuilderEvent {
     pub fn fields(self) -> (Event, RoutingKey) { (self.inner, self.routing_key) }
 
     // Tells the configured EventBus to send the BuilderEvent message
-    pub async fn publish(self, bus: &Option<Box<dyn EventBusProducer>>) {
+    pub async fn publish(self, bus: &Option<Box<dyn EventPublisher>>) {
         // If the EventBus feature is enabled, we send the message, otherwise it is a no-op.
         if let Some(b) = bus.as_ref() {
-            b.send(self).await;
+            b.publish(self).await;
         }
     }
 }

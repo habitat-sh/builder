@@ -1,6 +1,6 @@
 //! Configuration for a Habitat Builder-API service
 
-use crate::{bldr_events::connection::EventBusConfig,
+use crate::{bldr_events::connection::EventConfig,
             db::config::DataStoreCfg};
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
@@ -46,7 +46,7 @@ pub struct Config {
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
-    pub eventbus:    EventBusConfig,
+    pub eventbus:    EventConfig,
 }
 
 #[derive(Debug)]
