@@ -44,7 +44,6 @@ pub fn run(path: Option<PathBuf>) -> Result<(), Error> {
                     if let Some(msg) = bus.poll() {
                         match msg {
                             Ok(valid_message) => debug!("received msg {:?}", valid_message),
-
                             Err(err) => error!("{}", err),
                         }
                     };

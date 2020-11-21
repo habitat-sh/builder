@@ -115,11 +115,11 @@ pub fn create_producer(config: &EventConfig) -> Result<Box<dyn EventPublisher>, 
 pub trait EventConsumer {
     /// Subscribe to list of queues or topics
     fn subscribe(&self, queues: &[&str]) -> Result<(), Error>;
-    /// Poll the topic(s) for new messages. When a message exists, its payload will returned. This
-    /// is a synchronous call.
+    /// Poll the topic(s) for new messages. When a message exists, its payload will be returned.
+    /// This is a synchronous call.
     fn poll(&self) -> Option<Result<String, Error>>;
 
-    // TODO (JM): Add an async stream consumer method, perhaps `consume_stream` or some such.
+    // TODO (JM): Add an async stream consumer method, perhaps `consume_stream` or similar.
     // An example of a Kafka implementation of this is implemented via `StreamConsumer` [1].
     // [1] https://github.com/fede1024/rust-rdkafka/blob/master/src/consumer/stream_consumer.rs
 }

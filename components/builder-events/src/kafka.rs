@@ -124,8 +124,7 @@ impl EventConsumer for KafkaConsumer {
         if let Some(polled) = self.inner.poll(Duration::from_secs(0)) {
             match polled {
                 Ok(borrowed_message) => {
-                    let owned_message = borrowed_message.detach();
-                    match owned_message.payload_view::<str>() {
+                    match borrowed_message.payload_view::<str>() {
                         Some(Ok(payload)) => Some(Ok(payload.to_string())),
                         Some(Err(err)) => Some(Err(Error::EventError(Box::new(err)))),
                         None => {
