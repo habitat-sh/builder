@@ -95,3 +95,10 @@ impl BuilderEvent {
         }
     }
 }
+
+impl From<Event> for BuilderEvent {
+    fn from(event: Event) -> Self {
+        BuilderEvent { inner:       event,
+                       routing_key: RoutingKey::NoKey, }
+    }
+}

@@ -117,7 +117,7 @@ pub trait EventConsumer {
     fn subscribe(&self, queues: &[&str]) -> Result<(), Error>;
     /// Poll the topic(s) for new messages. When a message exists, its payload will be returned.
     /// This is a synchronous call.
-    fn poll(&self) -> Option<Result<String, Error>>;
+    fn poll(&self) -> Option<Result<BuilderEvent, Error>>;
 
     // TODO (JM): Add an async stream consumer method, perhaps `consume_stream` or similar.
     // An example of a Kafka implementation of this is implemented via `StreamConsumer` [1].

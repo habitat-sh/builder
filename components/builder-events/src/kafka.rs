@@ -7,6 +7,7 @@ use crate::{connection::{EventConsumer,
 use async_trait::async_trait;
 use cloudevents::AttributesReader;
 use cloudevents_sdk_rdkafka::{FutureRecordExt,
+                              MessageExt,
                               MessageRecord};
 use serde::{Deserialize,
             Serialize};
@@ -17,7 +18,6 @@ use url::Url;
 use rdkafka::{config::ClientConfig,
               consumer::{BaseConsumer,
                          Consumer},
-              message::Message,
               producer::{FutureProducer,
                          FutureRecord}};
 
@@ -120,22 +120,18 @@ impl EventConsumer for KafkaConsumer {
     }
 
     /// Poll for a new message
-    fn poll(&self) -> Option<Result<String, Error>> {
+    fn poll(&self) -> Option<Result<BuilderEvent, Error>> {
         if let Some(polled) = self.inner.poll(Duration::from_secs(0)) {
             match polled {
-                Ok(borrowed_message) => {
-                    match borrowed_message.payload_view::<str>() {
-                        Some(Ok(payload)) => Some(Ok(payload.to_string())),
-                        Some(Err(err)) => Some(Err(Error::EventError(Box::new(err)))),
-                        None => {
-                            let err: Box<dyn std::error::Error> = "No Payload".to_owned().into();
-                            Some(Err(Error::EventError(err)))
-                        }
+                Ok(message) => {
+                    match message.to_event() {
+                        Ok(event) => Some(Ok(event.into())),
+                        Err(err) => Some(Err(Error::EventError(Box::new(err)))),
                     }
                 }
                 Err(err) => {
                     let err_ext: Box<dyn std::error::Error> =
-                        format!("Unable to extract borrowed message: {}", err).into();
+                        format!("Unable to extract message: {}", err).into();
                     Some(Err(Error::EventError(err_ext)))
                 }
             }
