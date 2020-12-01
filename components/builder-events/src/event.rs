@@ -29,6 +29,7 @@ pub enum AffinityKey {
 
 #[derive(Debug)]
 pub struct EventEnvelope {
+    // topic or queue name
     pub destination:  String,
     pub affinity_key: AffinityKey,
 }
