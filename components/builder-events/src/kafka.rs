@@ -150,11 +150,10 @@ impl EventPublisher for KafkaPublisher {
         let message_record =
             MessageRecord::from_event(event).expect("error while serializing the event");
         match tracking {
-            Undelivered(ticket) => {
-                let topic = ticket.destination;
+            Undelivered(tag) => {
                 let future_record = {
-                    let r = FutureRecord::to(&topic).message_record(&message_record);
-                    if let AffinityKey::Key(key) = &ticket.affinity_key {
+                    let r = FutureRecord::to(&tag.destination).message_record(&message_record);
+                    if let AffinityKey::Key(key) = &tag.affinity_key {
                         r.key(key)
                     } else {
                         r
@@ -165,7 +164,10 @@ impl EventPublisher for KafkaPublisher {
                         error!("KafkaPublisher failed to send message to a Broker: {:?}",
                                err)
                     }
-                    Ok(_) => trace!("KafkaPublisher published event to topic: {}", topic),
+                    Ok(_) => {
+                        trace!("KafkaPublisher published event to topic: {}",
+                               tag.destination)
+                    }
                 };
             }
             Delivered => error!("KafkaPublisher will not publish an already delivered Event."),

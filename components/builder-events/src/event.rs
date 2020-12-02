@@ -29,10 +29,10 @@ pub enum AffinityKey {
     Key(String),
 }
 
-/// DeliveryTicket contains routing information about how to deliver the message such as the
+/// DeliveryTag contains routing information about how to deliver the message such as the
 /// destination and message affinity key.
 #[derive(Debug)]
-pub struct DeliveryTicket {
+pub struct DeliveryTag {
     // the Topic or Queue name
     pub destination:  String,
     pub affinity_key: AffinityKey,
@@ -42,7 +42,7 @@ pub struct DeliveryTicket {
 #[derive(Debug)]
 pub enum DispatchStatus {
     Delivered,
-    Undelivered(DeliveryTicket),
+    Undelivered(DeliveryTag),
 }
 
 /// An "event" expressing an action occurrence and its context in Builder. BuilderEvents are routed
@@ -100,8 +100,8 @@ impl BuilderEvent {
                                   .expect("This should always work because we control all the \
                                            inputs");
         BuilderEvent { inner:    event,
-                       tracking: Undelivered(DeliveryTicket { destination,
-                                                              affinity_key }), }
+                       tracking: Undelivered(DeliveryTag { destination,
+                                                           affinity_key }), }
     }
 
     // Function to return owned tuple consisting of the private fields in BuilderEvent
