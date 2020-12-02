@@ -160,11 +160,12 @@ impl EventPublisher for KafkaPublisher {
                         r
                     }
                 };
-                if let Err(err) = self.inner.send(future_record, 0).await {
-                    error!("KafkaPublisher failed to send message to a Broker: {:?}",
-                           err)
-                } else {
-                    trace!("KafkaPublisher published event to topic: {}", topic);
+                match self.inner.send(future_record, 0).await {
+                    Err(err) => {
+                        error!("KafkaPublisher failed to send message to a Broker: {:?}",
+                               err)
+                    }
+                    Ok(_) => trace!("KafkaPublisher published event to topic: {}", topic),
                 };
             }
             Delivered => error!("KafkaPublisher will not publish an already delivered Event."),
