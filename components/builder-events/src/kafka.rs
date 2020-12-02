@@ -2,7 +2,8 @@ use crate::{connection::{EventConsumer,
                          EventPublisher},
             error::Error,
             event::{AffinityKey,
-                    BuilderEvent}};
+                    BuilderEvent,
+                    DispatchStatus::*}};
 use async_trait::async_trait;
 use cloudevents_sdk_rdkafka::{FutureRecordExt,
                               MessageExt,
@@ -145,27 +146,28 @@ impl EventConsumer for KafkaConsumer {
 impl EventPublisher for KafkaPublisher {
     /// Publish messages onto the topic
     async fn publish(&self, builder_event: BuilderEvent) {
-        let (event, opt_envelope) = builder_event.fields();
+        let (event, tracking) = builder_event.fields();
         let message_record =
             MessageRecord::from_event(event).expect("error while serializing the event");
-        if let Some(envelope) = opt_envelope {
-            let topic = envelope.destination;
-            let future_record = {
-                let r = FutureRecord::to(&topic).message_record(&message_record);
-                if let AffinityKey::Key(key) = &envelope.affinity_key {
-                    r.key(key)
+        match tracking {
+            Undelivered(ticket) => {
+                let topic = ticket.destination;
+                let future_record = {
+                    let r = FutureRecord::to(&topic).message_record(&message_record);
+                    if let AffinityKey::Key(key) = &ticket.affinity_key {
+                        r.key(key)
+                    } else {
+                        r
+                    }
+                };
+                if let Err(err) = self.inner.send(future_record, 0).await {
+                    error!("KafkaPublisher failed to send message to a Broker: {:?}",
+                           err)
                 } else {
-                    r
-                }
-            };
-            if let Err(err) = self.inner.send(future_record, 0).await {
-                error!("Event producer failed to send message to event bus: {:?}",
-                       err)
-            } else {
-                trace!("KafkaPublisher publishing event to topic: {}", topic);
-            };
-        } else {
-            error!("Cannot publish event without an envelope!");
+                    trace!("KafkaPublisher published event to topic: {}", topic);
+                };
+            }
+            Delivered => error!("KafkaPublisher will not publish an already delivered Event."),
         }
     }
 }

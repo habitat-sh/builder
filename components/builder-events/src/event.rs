@@ -1,3 +1,4 @@
+use self::DispatchStatus::*;
 use crate::connection::EventPublisher;
 use cloudevents::{event::Event,
                   EventBuilder,
@@ -23,15 +24,25 @@ fn localhost_url() -> Result<Url, url::ParseError> {
 /// route all messages with the same key to the same topic partition.
 #[derive(Debug, Deserialize)]
 pub enum AffinityKey {
+    // message affinity is not needed (potentially random delivery order)
     NoAffinity,
     Key(String),
 }
 
+/// DeliveryTicket contains routing information about how to deliver the message such as the
+/// destination and message affinity key.
 #[derive(Debug)]
-pub struct EventEnvelope {
-    // topic or queue name
+pub struct DeliveryTicket {
+    // the Topic or Queue name
     pub destination:  String,
     pub affinity_key: AffinityKey,
+}
+
+/// DispatchStatus tracks the delivery status of the Event.
+#[derive(Debug)]
+pub enum DispatchStatus {
+    Delivered,
+    Undelivered(DeliveryTicket),
 }
 
 /// An "event" expressing an action occurrence and its context in Builder. BuilderEvents are routed
@@ -39,14 +50,12 @@ pub struct EventEnvelope {
 ///
 /// BuilderEvents will contain two types of information: the Event Data (the `inner` field)
 /// representing the Occurrence along with Context metadata providing contextual information about
-/// the Occurrence. Additionally, BuilderEvent contains an `envelope` field used to tell the
-/// message bus how to route the message internally. The `envelope` is optional since it is only
-/// necessary when composing a new event that is to be published. A consumed event already has the
-/// routing information detached from the event.
+/// the Occurrence. Additionally, BuilderEvent contains an `tracking` field used to track the
+/// delivery status and/or routing information for delivery of the Event message.
 #[derive(Debug)]
 pub struct BuilderEvent {
     inner:    Event,
-    envelope: Option<EventEnvelope>,
+    tracking: DispatchStatus,
 }
 
 /// The type of "event" Occurrence representing a BuilderEvent action that occurred and can be
@@ -91,14 +100,14 @@ impl BuilderEvent {
                                   .expect("This should always work because we control all the \
                                            inputs");
         BuilderEvent { inner:    event,
-                       envelope: Some(EventEnvelope { destination,
-                                                      affinity_key }), }
+                       tracking: Undelivered(DeliveryTicket { destination,
+                                                              affinity_key }), }
     }
 
     // Function to return owned tuple consisting of the private fields in BuilderEvent
     // This allows us to keep the fields private in case we want to change their
     // types.
-    pub fn fields(self) -> (Event, Option<EventEnvelope>) { (self.inner, self.envelope) }
+    pub fn fields(self) -> (Event, DispatchStatus) { (self.inner, self.tracking) }
 
     // Tells the configured EventBus to send the BuilderEvent message
     pub async fn publish(self, bus: &Option<Box<dyn EventPublisher>>) {
@@ -110,11 +119,9 @@ impl BuilderEvent {
 }
 
 impl From<Event> for BuilderEvent {
+    // Return a BuilderEvent from a consumed Event
     fn from(event: Event) -> Self {
-        // When creating a BuilderEvent from an Event, it implies the Event was already delivered
-        // and received. The EventEnvelope has therefore already been detached from the Event
-        // itself and so we return a None variant for the envelope field.
         BuilderEvent { inner:    event,
-                       envelope: None, }
+                       tracking: Delivered, }
     }
 }
