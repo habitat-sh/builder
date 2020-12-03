@@ -1,12 +1,12 @@
 use crate::{connection::{EventConsumer,
                          EventPublisher},
             error::Error,
-            event::{BuilderEvent,
-                    EventType,
-                    RoutingKey}};
+            event::{AffinityKey,
+                    BuilderEvent,
+                    DispatchStatus::*}};
 use async_trait::async_trait;
-use cloudevents::AttributesReader;
 use cloudevents_sdk_rdkafka::{FutureRecordExt,
+                              MessageExt,
                               MessageRecord};
 use serde::{Deserialize,
             Serialize};
@@ -17,7 +17,6 @@ use url::Url;
 use rdkafka::{config::ClientConfig,
               consumer::{BaseConsumer,
                          Consumer},
-              message::Message,
               producer::{FutureProducer,
                          FutureRecord}};
 
@@ -120,22 +119,18 @@ impl EventConsumer for KafkaConsumer {
     }
 
     /// Poll for a new message
-    fn poll(&self) -> Option<Result<String, Error>> {
+    fn poll(&self) -> Option<Result<BuilderEvent, Error>> {
         if let Some(polled) = self.inner.poll(Duration::from_secs(0)) {
             match polled {
-                Ok(borrowed_message) => {
-                    match borrowed_message.payload_view::<str>() {
-                        Some(Ok(payload)) => Some(Ok(payload.to_string())),
-                        Some(Err(err)) => Some(Err(Error::EventError(Box::new(err)))),
-                        None => {
-                            let err: Box<dyn std::error::Error> = "No Payload".to_owned().into();
-                            Some(Err(Error::EventError(err)))
-                        }
+                Ok(message) => {
+                    match message.to_event() {
+                        Ok(event) => Some(Ok(event.into())),
+                        Err(err) => Some(Err(Error::EventError(Box::new(err)))),
                     }
                 }
                 Err(err) => {
                     let err_ext: Box<dyn std::error::Error> =
-                        format!("Unable to extract borrowed message: {}", err).into();
+                        format!("Unable to extract message: {}", err).into();
                     Some(Err(Error::EventError(err_ext)))
                 }
             }
@@ -151,24 +146,31 @@ impl EventConsumer for KafkaConsumer {
 impl EventPublisher for KafkaPublisher {
     /// Publish messages onto the topic
     async fn publish(&self, builder_event: BuilderEvent) {
-        trace!("KafkaPublisher publishing event {:?}", builder_event);
-        let (event, routing_key) = builder_event.fields();
-        let topic = match event.get_type() {
-            EventType::PACKAGECHANNELMOTION | _ => KAFKA_DEFAULT_TOPIC_NAME,
-        };
+        let (event, tracking) = builder_event.fields();
         let message_record =
             MessageRecord::from_event(event).expect("error while serializing the event");
-        let future_record = {
-            let r = FutureRecord::to(topic).message_record(&message_record);
-            if let RoutingKey::Key(key) = &routing_key {
-                r.key(key)
-            } else {
-                r
+        match tracking {
+            Undelivered(tag) => {
+                let future_record = {
+                    let r = FutureRecord::to(&tag.destination).message_record(&message_record);
+                    if let AffinityKey::Key(key) = &tag.affinity_key {
+                        r.key(key)
+                    } else {
+                        r
+                    }
+                };
+                match self.inner.send(future_record, 0).await {
+                    Err(err) => {
+                        error!("KafkaPublisher failed to send message to a Broker: {:?}",
+                               err)
+                    }
+                    Ok(_) => {
+                        trace!("KafkaPublisher published event to topic: {}",
+                               tag.destination)
+                    }
+                };
             }
-        };
-        if let Err(err) = self.inner.send(future_record, 0).await {
-            error!("Event producer failed to send message to event bus: {:?}",
-                   err)
-        };
+            Delivered => error!("KafkaPublisher will not publish an already delivered Event."),
+        }
     }
 }

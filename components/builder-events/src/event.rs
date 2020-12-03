@@ -1,3 +1,4 @@
+use self::DispatchStatus::*;
 use crate::connection::EventPublisher;
 use cloudevents::{event::Event,
                   EventBuilder,
@@ -18,13 +19,30 @@ fn localhost_url() -> Result<Url, url::ParseError> {
     Url::parse(&format!("https://{}", host))
 }
 
-/// Used to influence where a message is routed on the message bus.
-/// In Kafka producer, RoutingKey becomes the partition key to indicate the destination partition of
-/// the message. This is useful to guarantee message ordering also known as message affinity.
-#[derive(Clone, Debug, Deserialize)]
-pub enum RoutingKey {
-    NoKey,
+/// AffinityKey allows for guaranteed message ordering or "message affinity" when the underlying
+/// message bus type supports this. For instance, with Kafka, the AffinityKey is a hash used to
+/// route all messages with the same key to the same topic partition.
+#[derive(Debug, Deserialize)]
+pub enum AffinityKey {
+    // message affinity is not needed (potentially random delivery order)
+    NoAffinity,
     Key(String),
+}
+
+/// DeliveryTag contains routing information about how to deliver the message such as the
+/// destination and message affinity key.
+#[derive(Debug)]
+pub struct DeliveryTag {
+    // the Topic or Queue name
+    pub destination:  String,
+    pub affinity_key: AffinityKey,
+}
+
+/// DispatchStatus tracks the delivery status of the Event.
+#[derive(Debug)]
+pub enum DispatchStatus {
+    Delivered,
+    Undelivered(DeliveryTag),
 }
 
 /// An "event" expressing an action occurrence and its context in Builder. BuilderEvents are routed
@@ -32,13 +50,12 @@ pub enum RoutingKey {
 ///
 /// BuilderEvents will contain two types of information: the Event Data (the `inner` field)
 /// representing the Occurrence along with Context metadata providing contextual information about
-/// the Occurrence. Additionally, BuilderEvent contains a `routing_key` field used to tell the
-/// message bus how to route the message internally for scenarios that require guaranteed ordering
-/// (message affinity).
-#[derive(Clone, Debug)]
+/// the Occurrence. Additionally, BuilderEvent contains an `tracking` field used to track the
+/// delivery status and/or routing information for delivery of the Event message.
+#[derive(Debug)]
 pub struct BuilderEvent {
-    inner:       Event,
-    routing_key: RoutingKey,
+    inner:    Event,
+    tracking: DispatchStatus,
 }
 
 /// The type of "event" Occurrence representing a BuilderEvent action that occurred and can be
@@ -64,7 +81,11 @@ impl fmt::Display for EventType {
 }
 
 impl BuilderEvent {
-    pub fn new<D>(event_type: EventType, routing_key: RoutingKey, payload: D) -> Self
+    pub fn new<D>(event_type: EventType,
+                  affinity_key: AffinityKey,
+                  destination: String,
+                  payload: D)
+                  -> Self
         where D: Serialize
     {
         let data = json!(payload);
@@ -78,14 +99,15 @@ impl BuilderEvent {
                                   .build()
                                   .expect("This should always work because we control all the \
                                            inputs");
-        BuilderEvent { inner: event,
-                       routing_key }
+        BuilderEvent { inner:    event,
+                       tracking: Undelivered(DeliveryTag { destination,
+                                                           affinity_key }), }
     }
 
     // Function to return owned tuple consisting of the private fields in BuilderEvent
     // This allows us to keep the fields private in case we want to change their
     // types.
-    pub fn fields(self) -> (Event, RoutingKey) { (self.inner, self.routing_key) }
+    pub fn fields(self) -> (Event, DispatchStatus) { (self.inner, self.tracking) }
 
     // Tells the configured EventBus to send the BuilderEvent message
     pub async fn publish(self, bus: &Option<Box<dyn EventPublisher>>) {
@@ -93,5 +115,13 @@ impl BuilderEvent {
         if let Some(b) = bus.as_ref() {
             b.publish(self).await;
         }
+    }
+}
+
+impl From<Event> for BuilderEvent {
+    // Return a BuilderEvent from a consumed Event
+    fn from(event: Event) -> Self {
+        BuilderEvent { inner:    event,
+                       tracking: Delivered, }
     }
 }
