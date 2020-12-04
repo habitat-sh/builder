@@ -108,6 +108,14 @@ impl UnresolvedPackageIdent {
             }
         }
     }
+
+    pub fn is_internal_node(&self) -> bool {
+        match self {
+            UnresolvedPackageIdent::InternalNode(..)
+            | UnresolvedPackageIdent::InternalVersionedNode(..) => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for UnresolvedPackageIdent {
@@ -133,16 +141,22 @@ pub struct PackageBuild {
 }
 
 impl PackageBuild {
+    pub fn all_deps(&self) -> impl Iterator<Item = &UnresolvedPackageIdent> {
+        self.runtime_deps.iter().chain(self.build_deps
+                                           .iter()
+                                           .chain(self.strong_deps
+                                                      .iter()
+                                                      .chain(self.external_constraints.iter())))
+    }
+
+    // Excludes various types of synthetic deps
+    pub fn natural_deps(&self) -> impl Iterator<Item = &UnresolvedPackageIdent> {
+        self.runtime_deps.iter().chain(self.build_deps.iter())
+    }
+
     pub fn format_for_shell(&self) -> String {
         let short_ident = &self.name.ident().short_ident().to_string();
-        let deps: Vec<UnresolvedPackageIdent> =
-            self.runtime_deps
-                .iter()
-                .chain(self.build_deps.iter().chain(self.strong_deps
-                                                        .iter()
-                                                        .chain(self.external_constraints.iter())))
-                .cloned()
-                .collect();
+        let deps: Vec<UnresolvedPackageIdent> = self.all_deps().cloned().collect();
         format!("{}\t{}\t{}\n",
                 short_ident,
                 self.name,
@@ -159,7 +173,7 @@ impl PackageBuild {
 /// This is the main output of our build order resolution phase, and is consumed by the
 /// scheduler.
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PackageBuildManifest {
     pub graph: DiGraphMap<UnresolvedPackageIdent, EdgeType>,
 
@@ -173,12 +187,7 @@ pub struct PackageBuildManifest {
 }
 
 impl PackageBuildManifest {
-    pub fn new() -> Self {
-        PackageBuildManifest { graph:                 DiGraphMap::new(),
-                               external_dependencies: HashSet::new(),
-                               input_set:             HashSet::new(),
-                               unbuildable_reasons:   HashMap::new(), }
-    }
+    pub fn new() -> Self { PackageBuildManifest::default() }
 
     pub fn build_order(&self) -> Vec<PackageBuild> {
         let mut order: Vec<PackageBuild> = Vec::new();

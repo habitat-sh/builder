@@ -23,6 +23,7 @@ use actix_web::{http::StatusCode,
                 HttpResponse};
 
 use crate::{bldr_core,
+            builder_graph,
             db,
             hab_core,
             protocol};
@@ -30,6 +31,7 @@ use crate::{bldr_core,
 #[derive(Debug)]
 pub enum Error {
     BuilderCore(bldr_core::Error),
+    BuilderGraph(builder_graph::Error),
     BusyWorkerUpsert(postgres::error::Error),
     BusyWorkerDelete(postgres::error::Error),
     BusyWorkersGet(postgres::error::Error),
@@ -65,6 +67,7 @@ pub enum Error {
     JobReset(postgres::error::Error),
     JobSetLogUrl(postgres::error::Error),
     JobSetState(postgres::error::Error),
+    SchedulerDbError(diesel::result::Error),
     SyncJobs(postgres::error::Error),
     LogDirDoesNotExist(PathBuf, io::Error),
     LogDirIsNotDir(PathBuf),
@@ -82,6 +85,7 @@ pub enum Error {
     UnknownJobGroupProjectState,
     UnknownJobState(protocol::ProtocolError),
     Utf8(std::str::Utf8Error),
+    WorkerMgrDbError(diesel::result::Error),
     Zmq(zmq::Error),
 }
 
@@ -91,6 +95,8 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             Error::BuilderCore(ref e) => format!("{}", e),
+            Error::BuilderGraph(ref e) => format!("{}", e),
+
             Error::BusyWorkerUpsert(ref e) => {
                 format!("Database error creating or updating a busy worker, {}", e)
             }
@@ -156,6 +162,7 @@ impl fmt::Display for Error {
             Error::JobReset(ref e) => format!("Database error reseting jobs, {}", e),
             Error::JobSetLogUrl(ref e) => format!("Database error setting job log URL, {}", e),
             Error::JobSetState(ref e) => format!("Database error setting job state, {}", e),
+            Error::SchedulerDbError(ref e) => format!("Database error setting in scheduler, {}", e),
             Error::SyncJobs(ref e) => format!("Database error retrieving sync jobs, {}", e),
             Error::LogDirDoesNotExist(ref path, ref e) => {
                 format!("Build log directory {:?} doesn't exist!: {:?}", path, e)
@@ -181,6 +188,7 @@ impl fmt::Display for Error {
             Error::UnknownVCS => "Unknown VCS".to_string(),
             Error::UnknownJobState(ref e) => format!("{}", e),
             Error::Utf8(ref e) => format!("{}", e),
+            Error::WorkerMgrDbError(ref e) => format!("{}", e),
             Error::Zmq(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
@@ -224,6 +232,11 @@ fn diesel_err_to_http(err: &diesel::result::Error) -> StatusCode {
 
 impl From<bldr_core::Error> for Error {
     fn from(err: bldr_core::Error) -> Error { Error::BuilderCore(err) }
+}
+
+// Note: might be worth flattening out builder db errors into our db error types.
+impl From<builder_graph::Error> for Error {
+    fn from(err: builder_graph::Error) -> Error { Error::BuilderGraph(err) }
 }
 
 impl From<chrono::format::ParseError> for Error {

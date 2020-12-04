@@ -28,6 +28,8 @@ use protobuf::{self,
 
 use crate::db::{config::DataStoreCfg,
                 migration::setup_ids,
+                models::{channel::Channel,
+                         projects::Project},
                 pool::Pool,
                 DbPool};
 
@@ -59,7 +61,6 @@ impl DataStore {
         DataStore { pool, diesel_pool }
     }
 
-    #[cfg(test)]
     pub fn get_pool(&self) -> habitat_builder_db::diesel_pool::DbPool { self.diesel_pool.clone() }
 
     /// Create a new DataStore from a pre-existing pool; useful for testing the database.
@@ -121,6 +122,30 @@ impl DataStore {
             Ok(job)
         } else {
             Err(Error::UnknownVCS)
+        }
+    }
+
+    pub fn create_job_for_project(&self,
+                                  group_id: u64,
+                                  project: Project,
+                                  target: &str)
+                                  -> Result<Option<jobsrv::Job>> {
+        let mut job_spec = jobsrv::JobSpec::new();
+        job_spec.set_owner_id(group_id);
+        job_spec.set_project(project.into());
+        job_spec.set_target(target.to_owned());
+        job_spec.set_channel(Channel::channel_for_group(group_id));
+
+        let job: jobsrv::Job = job_spec.into();
+        match self.create_job(&job) {
+            Ok(job) => {
+                debug!("Job created: {:?}", job);
+                Ok(Some(job))
+            }
+            Err(err) => {
+                warn!("Unable to create job, err: {:?}", err);
+                Err(err)
+            }
         }
     }
 

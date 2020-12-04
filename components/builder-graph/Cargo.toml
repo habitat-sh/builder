@@ -39,6 +39,9 @@ lazy_static = "*"
 itertools = "*"
 tempfile = "*"
 internment = "*"
+tracing = "*"
+tracing-subscriber = "*"
+tracing-futures = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

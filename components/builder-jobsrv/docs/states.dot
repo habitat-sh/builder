@@ -1,0 +1,82 @@
+digraph STATES {
+
+  ranksep=0.2;
+
+////////////////////////////////////////////////////////////////////////
+// Group states
+node[fontname="Courier", shape=oval];
+Triggered; 
+Created; // combine with triggered? Pending
+Queued;
+Dispatching;
+Complete;
+FailureCleanup; // Needed?
+Failed;
+Cancelling; // Needed?
+Cancelled;
+
+Triggered -> Created;
+Triggered -> Failed;
+Triggered -> Cancelled;
+
+Created -> Queued;
+Created -> Failed;
+Created -> Cancelled;
+
+Queued -> Dispatching;
+Queued -> Cancelled;
+
+Dispatching -> Complete;
+Dispatching -> FailureCleanup;
+Dispatching -> Cancelling;
+
+FailureCleanup -> Failed;
+
+Cancelling -> Cancelled;
+
+////////////////////////////////////////////////////////////////////////
+// Job states
+node[fontname="Courier", shape=box];
+Pending; // Holding? GroupHold 
+WaitingOnDependency;
+Ready; 
+Running;
+JobComplete; // CompletedJob?
+JobFailed;   // FailedJob?
+DependencyFailed;
+CancelPending;
+CancelComplete;
+
+Pending -> WaitingOnDependency; 
+Pending -> CancelComplete;
+
+WaitingOnDependency -> Ready;
+WaitingOnDependency -> DependencyFailed;
+WaitingOnDependency -> CancelComplete;
+
+Ready -> Running;
+Ready -> CancelComplete;
+Ready -> DependencyFailed;
+
+Running -> JobComplete; // Complete
+Running -> JobFailed; // FatalError
+Running -> Ready; // NonFatalError
+Running -> CancelPending;
+
+CancelPending -> CancelComplete;
+
+{rank=same; JobFailed JobComplete DependencyFailed CancelComplete}
+
+// Cross FSM relationships
+{rank=same; Created Pending}
+{rank=same; Dispatching Ready}
+
+{rank=same; Cancelling FailureCleanup}
+
+{rank=same; Complete Failed Cancelled }
+
+{rank=same; Complete JobComplete}
+}
+
+
+

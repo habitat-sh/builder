@@ -1,0 +1,61 @@
+// Components of JobSRV and who they talk to
+// 
+digraph COMPONENTS {
+
+  ranksep=0.2;
+
+////////////////////////////////////////////////////////////////////////
+// Components
+
+node[fontname="Courier", shape=oval];
+API
+
+node[fontname="Courier", shape=oval];
+
+Postgres;
+Workers;
+
+// Internal connections
+// TODO FIGURE out why subgraph isn't forcing a grouping relationship
+  subgraph cluster_jobsrv {
+    style=filled;
+    color=lightgrey;
+
+    node[fontname="Courier", shape=box];
+
+    Actix;
+    Scheduler;
+    WorkerMgr;
+    LogMgr;
+
+    Actix -> Scheduler; // Currently ZMQ, future probably channel
+    Scheduler -> WorkerMgr; // Currently ZMQ, future probably channel
+    WorkerMgr -> Scheduler; // Currently ZMQ, future probably channel
+
+    LogMgr -> WorkerMgr; // Is this true? right now prob ZMQ
+
+    label = "JobSrv";
+  }
+
+
+// Connections
+
+// Talk over HTTP/Protobuf 
+API -> Actix  [style=dashed, color=black];
+// Verify; is this a reply to a API call or does it init the conn?
+Actix -> API  [style=dashed, color=grey];
+
+WorkerMgr -> Workers [style=dotted, color=black]; // ZMQ
+Workers -> WorkerMgr [style=dotted, color=black]; // ZMQ
+Workers -> LogMgr [style=dotted, color=black]; // ZMQ
+
+// database
+Actix -> Postgres;
+Scheduler -> Postgres;
+WorkerMgr -> Postgres;
+
+
+// Cross FSM relationships
+{rank=same; API Actix Scheduler WorkerMgr, Workers}
+
+}

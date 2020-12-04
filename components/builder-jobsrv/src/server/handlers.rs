@@ -14,7 +14,8 @@
 
 //! A collection of handlers for the JobSrv dispatcher
 
-use std::{collections::HashSet,
+use std::{collections::{HashMap,
+                        HashSet},
           fs::OpenOptions,
           io::{BufRead,
                BufReader},
@@ -23,8 +24,12 @@ use std::{collections::HashSet,
           time::Instant};
 
 use diesel::{self,
-             result::Error::NotFound};
+             result::Error::NotFound,
+             PgConnection};
+
 use protobuf::RepeatedField;
+
+use futures03::executor::block_on;
 
 use crate::{bldr_core::rpc::RpcMessage,
             db::models::{jobs::*,
@@ -38,9 +43,17 @@ use crate::protocol::{jobsrv,
                       net,
                       originsrv};
 
-use crate::server::{feat,
-                    scheduler::ScheduleClient,
-                    worker_manager::WorkerMgrClient};
+use crate::builder_graph::{data_store::DataStore as GraphDataStore,
+                           package_build_manifest_graph::PackageBuildManifest,
+                           package_ident_intern::PackageIdentIntern};
+
+use crate::{scheduler_datastore::SchedulerDataStoreDb,
+            server::{feat,
+                     scheduler::ScheduleClient,
+                     worker_manager::WorkerMgrClient}};
+
+use crate::{data_store::DataStore,
+            scheduler_datastore::GroupId};
 
 use crate::error::{Error,
                    Result};
@@ -317,6 +330,18 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         return Err(Error::NotFound);
     }
 
+    let group = if feat::is_enabled(feat::NewScheduler) {
+        job_group_create_new(&msg, target, &state)?
+    } else {
+        job_group_create_old(&msg, target, &state)?
+    };
+    RpcMessage::make(&group).map_err(Error::BuilderCore)
+}
+
+fn job_group_create_old(msg: &jobsrv::JobGroupSpec,
+                        target: PackageTarget,
+                        state: &AppState)
+                        -> Result<jobsrv::JobGroup> {
     let project_name = format!("{}/{}", msg.get_origin(), msg.get_package());
     let mut projects = Vec::new();
 
@@ -385,7 +410,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         }
     }
 
-    let group = if projects.is_empty() {
+    if projects.is_empty() {
         debug!("No projects need building - group is complete");
 
         let mut new_group = jobsrv::JobGroup::new();
@@ -394,7 +419,7 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         new_group.set_state(jobsrv::JobGroupState::GroupComplete);
         new_group.set_projects(projects);
         new_group.set_target(msg.get_target().to_string());
-        new_group
+        Ok(new_group)
     } else {
         // If already have a queued job group (queue length: 1 per project and target),
         // then return that group, else create a new job group
@@ -414,25 +439,161 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
         };
         ScheduleClient::default().notify()?;
 
-        // Add audit entry
-        let mut jga = jobsrv::JobGroupAudit::new();
-        jga.set_group_id(new_group.get_id());
-        jga.set_operation(jobsrv::JobGroupOperation::JobGroupOpCreate);
-        jga.set_trigger(msg.get_trigger());
-        jga.set_requester_id(msg.get_requester_id());
-        jga.set_requester_name(msg.get_requester_name().to_string());
+        add_job_group_audit_entry(new_group.get_id(), &msg, &state.datastore);
 
-        match state.datastore.create_audit_entry(&jga) {
-            Ok(_) => (),
-            Err(err) => {
-                warn!("Failed to create audit entry, err={:?}", err);
+        Ok(new_group)
+    }
+}
+
+fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
+                        target: PackageTarget,
+                        state: &AppState)
+                        -> Result<jobsrv::JobGroup> {
+    let project_name = format!("{}/{}", msg.get_origin(), msg.get_package());
+
+    // This may be slightly redundant with the work done building the manifest, but
+    // leaving this for now.
+    // Bail if auto-build is false, and the project has not been manually kicked off
+    if !is_project_buildable(state, &project_name, &target) {
+        match msg.get_trigger() {
+            jobsrv::JobGroupTrigger::HabClient | jobsrv::JobGroupTrigger::BuilderUI => (),
+            _ => {
+                return Err(Error::NotFound);
             }
+        }
+    }
+
+    // Find/create the group
+    // There are several options around what we do if there is already a group for this package
+    // 1) just return the existing queued build group (previous behavior)
+    // 2) cancel the old group and replace it with a new one
+    // 3) do nothing and notify the user to cancel if they want to
+    // 4) create a new group and have possibly redundant builds
+    //
+    // This doesn't really take into account possible changes in the deps_only and package_only
+    // flags but probably should.
+    // For now we will do 4) and create the group no matter what.
+
+    let conn = state.db.get_conn().map_err(Error::Db)?;
+
+    let new_group = NewGroup { group_state:  "Queued",
+                               project_name: &project_name,
+                               target:       &target.to_string(), };
+    let group = Group::create(&new_group, &conn)?;
+
+    {
+        // the code in this block might be best moved to some sort of asynchronous task, maybe
+        // even another thread.
+        info!("Generating Manifest");
+        let mut manifest = if msg.get_package_only() {
+            // we only build the package itself.
+            info!("Empty Manifest");
+            PackageBuildManifest::new()
+        } else {
+            info!("Including deps in Manifest");
+            // !(!msg.get_deps_only() || msg.get_package_only())
+            let _exclude_root = msg.get_deps_only() && !msg.get_package_only();
+
+            // The exclude root feature is currently unimplemented, because we don't believe it's
+            // used.
+            let target_graph =
+                state.graph
+                     .read()
+                     .expect("Graph lock could not be acquired because it was poisoned");
+            let graph = target_graph.graph_for_target(target)
+                                    .expect("No graph for target");
+            let package =
+                PackageIdentIntern::from_str(&project_name).expect("Could not parse \
+                                                                    project_name, which is odd \
+                                                                    because we control the format");
+            let graph_datastore = GraphDataStore::from_pool(state.db.clone())?;
+            // NOTE: We only use the  Unbuildable trait from graph_datastore. This partitioning of
+            // the trait is an artifact of how we managed the transition from the old code to new.
+            // Once we get to the point where we can get rid of the old scheduler and
+            // clean up the datastore layer, we can eliminate this.
+            graph.compute_build(&[package], &graph_datastore)?
         };
 
-        new_group
-    };
+        // This can be removed once we get a worker API that lets us exactly specify the
+        // dependencies. Without that the worker takes whatever is latest in the channel,
+        // which under a loose ordering might be newer than what we want.
+        manifest.constrain_package_cycles();
 
-    RpcMessage::make(&group).map_err(Error::BuilderCore)
+        // We would like to have dbg!(&manifest) here but it is very verbose for normal operation.
+        // Perhaps we should make a separate API/path to allow this to be discovered
+        insert_job_graph_entries(&manifest,
+                                 group.id as i64,
+                                 BuilderPackageTarget(target),
+                                 &conn)?;
+
+        // Notify the scheduler of new work available
+        let mut scheduler = state.scheduler
+                                 .clone()
+                                 .expect("Unable to get valid scheduler to talk to");
+        block_on(scheduler.job_group_added(GroupId(group.id), BuilderPackageTarget(target)));
+    }
+
+    add_job_group_audit_entry(group.id as u64, &msg, &state.datastore);
+    Ok(group.into())
+}
+
+fn insert_job_graph_entries(manifest: &PackageBuildManifest,
+                            group_id: i64,
+                            target: BuilderPackageTarget,
+                            conn: &PgConnection)
+                            -> Result<()> {
+    info!("Inserting entries");
+    let order = manifest.build_order();
+    info!("Got {} entries", order.len());
+    let mut lookup = HashMap::new();
+
+    for package in order {
+        let project_name = package.name.ident();
+        let manifest_ident = package.name.to_unbuilt_ident();
+
+        info!("Rendered job_graph_entry for project {} package {} for group {}",
+              project_name, manifest_ident, group_id);
+
+        let mut dependency_ids: Vec<i64> = Vec::new();
+        // TODO: figure out if we should be using natural_deps or all_deps
+        for dependency in package.natural_deps() {
+            if dependency.is_internal_node() {
+                let dep_id = lookup[dependency];
+                dependency_ids.push(dep_id);
+            }
+        }
+
+        let project_name = project_name.to_string();
+        let manifest_name = manifest_ident.to_string();
+        let entry = NewJobGraphEntry::new(group_id,
+                                          &project_name,
+                                          &manifest_name,
+                                          JobExecState::Pending,
+                                          &dependency_ids,
+                                          target);
+        let entry = JobGraphEntry::create(&entry, &conn)?;
+
+        lookup.insert(package.name, entry.id);
+        // TODO: Should we error if we get Some(id) back?
+    }
+    Ok(())
+}
+
+fn add_job_group_audit_entry(group_id: u64, msg: &jobsrv::JobGroupSpec, datastore: &DataStore) {
+    // Add audit entry
+    let mut jga = jobsrv::JobGroupAudit::new();
+    jga.set_group_id(group_id);
+    jga.set_operation(jobsrv::JobGroupOperation::JobGroupOpCreate);
+    jga.set_trigger(msg.get_trigger());
+    jga.set_requester_id(msg.get_requester_id());
+    jga.set_requester_name(msg.get_requester_name().to_string());
+
+    match datastore.create_audit_entry(&jga) {
+        Ok(_) => (),
+        Err(err) => {
+            warn!("Failed to create audit entry, err={:?}", err);
+        }
+    };
 }
 
 pub fn job_graph_package_reverse_dependencies_get(req: &RpcMessage,
@@ -603,7 +764,16 @@ pub fn job_group_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobGroupGet>()?;
     debug!("group_get message: {:?}", msg);
 
-    let group_opt = match state.datastore.get_job_group(&msg) {
+    let maybe_group = if state.scheduler.is_some() {
+        // We might want to fall back to the old code if we're in an env migrated from the old
+        // scheduler
+        let scheduler_datastore = SchedulerDataStoreDb::new(state.datastore.clone());
+        scheduler_datastore.get_job_group(msg.get_group_id() as i64, msg.get_include_projects())
+    } else {
+        state.datastore.get_job_group(&msg)
+    };
+
+    let group_opt = match maybe_group {
         Ok(group_opt) => group_opt,
         Err(err) => {
             warn!("Unable to retrieve group {}, err: {:?}",
