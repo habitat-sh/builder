@@ -84,6 +84,7 @@ pub enum Error {
     UnknownJobGraphPackage,
     UnknownJobGroupProjectState,
     UnknownJobState(protocol::ProtocolError),
+    UnsupportedFeature(String),
     Utf8(std::str::Utf8Error),
     WorkerMgrDbError(diesel::result::Error),
     Zmq(zmq::Error),
