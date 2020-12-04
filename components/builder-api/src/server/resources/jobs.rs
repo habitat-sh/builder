@@ -414,7 +414,7 @@ fn do_group_promotion_or_demotion(req: &HttpRequest,
         let op = Package::get(
             GetPackage {
                 ident: BuilderPackageIdent(PackageIdent::from_str(project.get_ident()).unwrap()),
-                visibility: helpers::all_visibilities(),
+                visibility: PackageVisibility::all() ,
                 target: BuilderPackageTarget(target),
             },
             &*conn,

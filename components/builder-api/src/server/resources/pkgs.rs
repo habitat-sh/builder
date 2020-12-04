@@ -330,7 +330,7 @@ async fn delete_package(req: HttpRequest,
     // Check whether package is in stable channel
     match Package::list_package_channels(&BuilderPackageIdent(ident.clone()),
                                          target,
-                                         helpers::all_visibilities(),
+                                         PackageVisibility::all(),
                                          &*conn)
     {
         Ok(channels) => {
@@ -373,7 +373,7 @@ async fn delete_package(req: HttpRequest,
     // TODO (SA): Wrap in transaction, or better yet, eliminate need to do
     // channel package deletion
     let pkg = match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
-                                              visibility: helpers::all_visibilities(),
+                                              visibility: PackageVisibility::all(),
                                               target:     BuilderPackageTarget(target), },
                                  &*conn).map_err(Error::DieselError)
     {
@@ -987,7 +987,7 @@ fn do_upload_package_start(req: &HttpRequest,
         match Package::get(
             GetPackage {
                 ident: BuilderPackageIdent(ident.clone()),
-                visibility: helpers::all_visibilities(),
+                visibility: PackageVisibility::all() ,
                 target: BuilderPackageTarget(PackageTarget::from_str(&target).unwrap()), // Unwrap OK
             },
             &*conn,
@@ -1074,7 +1074,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
         match Package::get(
             GetPackage {
                 ident: BuilderPackageIdent(ident.clone()),
-                visibility: helpers::all_visibilities(),
+                visibility: PackageVisibility::all(),
                 target: BuilderPackageTarget(PackageTarget::from_str(&target_from_artifact).unwrap()), // Unwrap OK
             },
             &*conn,
