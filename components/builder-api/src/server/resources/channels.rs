@@ -40,7 +40,8 @@ use crate::db::models::{channel::*,
                         origin::*,
                         package::{BuilderPackageIdent,
                                   GetPackageGroup,
-                                  Package}};
+                                  Package,
+                                  PackageVisibility}};
 
 use crate::server::{authorize::authorize_session,
                     error::{Error,

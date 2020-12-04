@@ -285,6 +285,30 @@ impl Channel {
         result
     }
 
+    pub fn list_all_packages_by_channel_id(channel_id: i64,
+                                           visibility: &[PackageVisibility],
+                                           conn: &PgConnection)
+                                           -> QueryResult<Vec<i64>> {
+        Counter::DBCall.increment();
+        let start_time = Instant::now();
+
+        // TODO check that this join is using an appropriate index
+        let result =
+            origin_packages::table.inner_join(origin_channel_packages::table)
+                                  .filter(origin_packages::visibility.eq(any(visibility)))
+                                  .filter(origin_channel_packages::channel_id.eq(channel_id))
+                                  .select(origin_packages::id)
+                                  .order(origin_packages::id)
+                                  .get_results(conn);
+
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall channel::list_all_packages_by_channel_id time: {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::ChannelListAllPackagesCallTime.set(duration_millis as f64);
+        result
+    }
+
     pub fn count_origin_channels(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_channels::table.select(count(origin_channels::id))
@@ -319,6 +343,25 @@ impl Channel {
                 .filter(origin_channel_packages::package_id.eq(any(package_ids))),
         )
         .execute(conn)
+    }
+
+    //
+    pub fn do_promote_or_demote_packages_cross_channels(ch_source: i64,
+                                                        ch_target: i64,
+                                                        promote: bool,
+                                                        conn: &PgConnection)
+                                                        -> QueryResult<Vec<i64>> {
+        let pkg_ids: Vec<i64> =
+            Channel::list_all_packages_by_channel_id(ch_source, &PackageVisibility::all(), &*conn)?;
+
+        if promote {
+            debug!("Bulk promoting Pkg IDs: {:?}", &pkg_ids);
+            Channel::promote_packages(ch_target, &pkg_ids, &*conn)?;
+        } else {
+            debug!("Bulk demoting Pkg IDs: {:?}", &pkg_ids);
+            Channel::demote_packages(ch_target, &pkg_ids, &*conn)?;
+        }
+        Ok(pkg_ids)
     }
 }
 
