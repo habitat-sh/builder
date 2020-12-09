@@ -129,8 +129,8 @@ impl PackageGraphForTarget {
         if !self.latest_map.contains_key(&short_ident)
            || self.latest_map[&short_ident] <= package_ident
         {
-            let msg = format!("Updating plan ident {} with {}", short_ident, package_ident);
-            tracing::info!("{}", msg);
+            // This should be event, but hitting https://github.com/tokio-rs/tracing/issues/792
+            tracing::info!("Updating plan ident {} with {}", short_ident, package_ident);
             // we will need to be checking for cycles here...
             // List current node in graph outgoing runtime (rt) deps
             // Compare to new package rt deps
