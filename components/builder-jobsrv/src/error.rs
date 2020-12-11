@@ -188,6 +188,7 @@ impl fmt::Display for Error {
             Error::UnknownJobGroupProjectState => "Unknown Project State".to_string(),
             Error::UnknownVCS => "Unknown VCS".to_string(),
             Error::UnknownJobState(ref e) => format!("{}", e),
+            Error::UnsupportedFeature(ref e) => format!("Unsupported feature {}", e),
             Error::Utf8(ref e) => format!("{}", e),
             Error::WorkerMgrDbError(ref e) => format!("{}", e),
             Error::Zmq(ref e) => format!("{}", e),

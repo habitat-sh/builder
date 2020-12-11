@@ -313,8 +313,8 @@ impl SchedulerInternal {
             Err(error) => {
                 // Maybe we should consider reworking this returning a result instead
                 let msg = format!("Unexpected error getting next job {:?}", error);
-                // disabled because clippy is giving deref-addrof
-                // tracing::event!(tracing::Level::ERROR, "{}", msg);
+                // This should be event, but lint is giving deref-addrof hitting https://github.com/tokio-rs/tracing/issues/792
+                tracing::error!("{}", msg);
                 error!("{}", msg);
                 None
             }

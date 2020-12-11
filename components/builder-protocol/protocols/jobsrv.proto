@@ -147,10 +147,11 @@ message JobGroupSpec {
 // 
 message JobGroupRebuildFromSpec {
   optional uint64 job_group_id = 1;
-  repeated string packages = 2;
-  optional bool add_failed_packages = 3;
-  optional uint64 requester_id = 4;
-  optional string requester_name = 5;
+  optional string origin = 2;
+  repeated string packages = 3;
+  optional bool add_failed_packages = 4;
+  optional uint64 requester_id = 5;
+  optional string requester_name = 6;
 }
 
 enum JobGroupProjectState {

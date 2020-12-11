@@ -584,20 +584,29 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
     // TODO: Figure out how to clone old channel into new channel...
     let new_channel = Channel::channel_for_group(group.id as u64);
     let new_channel_data = Channel::create(&CreateChannel { name:     &new_channel.to_string(),
-                                                            owner_id: msg.get_owner(),
-                                                            origin:   old_group.(), },
-                                           conn)?;
+                                                            owner_id: msg.get_requester_id() as i64,
+                                                            origin:   msg.get_origin(), },
+                                           &conn)?;
 
     // Expand any provided plans
-    let mut plans: Vec<PackageIdentIntern> = msg.get_packages()
-                                                .iter()
-                                                .map(|plan| PackageIdentIntern::from_str(plan))
-                                                .collect();
+    let plans: std::result::Result<Vec<PackageIdentIntern>, habitat_core::error::Error> =
+        msg.get_packages()
+           .iter()
+           .map(|plan| PackageIdentIntern::from_str(plan))
+           .collect();
+
+    let mut plans: Vec<PackageIdentIntern> = plans?;
 
     // Fetch failed plans from previous group
     // Maybe we also want to include cancelled jobs here. DependencyFailed will be found by
-    // transitive property
+    // transitive property during manifest expansion.
     let entries = JobGraphEntry::list_group_by_state(old_group.id, JobExecState::JobFailed, &conn)?;
+    let mut failed_plans: Vec<PackageIdentIntern> =
+        entries.iter()
+               .map(|e| PackageIdentIntern::from_str(&e.project_name))
+               .collect::<std::result::Result<Vec<PackageIdentIntern>, habitat_core::error::Error>>()?;
+
+    plans.append(&mut failed_plans);
 
     let manifest = make_manifest_from_plans(&plans, target, state)?;
 
