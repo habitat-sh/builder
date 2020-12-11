@@ -16,7 +16,6 @@
 
 use std::{collections::{HashMap,
                         HashSet},
-          convert::TryInto,
           fs::OpenOptions,
           io::{BufRead,
                BufReader},
@@ -38,8 +37,9 @@ use crate::{bldr_core::rpc::RpcMessage,
                          jobs::*,
                          package::*,
                          projects::*},
-            hab_core::package::{PackageIdent,
-                                PackageTarget}};
+            hab_core::{package::{PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent}};
 
 use super::AppState;
 use crate::protocol::{jobsrv,
@@ -567,26 +567,33 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
                          -> Result<jobsrv::JobGroup> {
     let conn = state.db.get_conn().map_err(Error::Db)?;
     // Get previous group
-    let old_group = Group::get(msg.get_job_group_id() as i64, &conn)?;
+    let old_group_data = Group::get(msg.get_job_group_id() as i64, &conn)?;
 
     // TODO safety checks; job should be complete/canceled etc
 
-    let target = PackageTarget::from_str(&old_group.target)?;
+    let target = PackageTarget::from_str(&old_group_data.target)?;
     // Create new group from it
     let new_group = NewGroup { group_state:  "Queued",
-                               project_name: &old_group.project_name.clone(), /* should this be
-                                                                               * somehow different
-                                                                               * or carry more
-                                                                               * info? */
-                               target:       &old_group.target, };
-    let group = Group::create(&new_group, &conn)?;
+                               project_name: &old_group_data.project_name.clone(), /* should this be
+                                                                                    * somehow different
+                                                                                    * or carry more
+                                                                                    * info? */
+                               target:       &old_group_data.target, };
+    let new_group_data = Group::create(&new_group, &conn)?;
 
-    // TODO: Figure out how to clone old channel into new channel...
-    let new_channel = Channel::channel_for_group(group.id as u64);
+    let old_channel = Channel::channel_for_group(old_group_data.id as u64);
+    let old_channel_data =
+        Channel::get(&msg.get_origin(), &ChannelIdent::from(old_channel), &conn)?;
+
+    let new_channel = Channel::channel_for_group(new_group_data.id as u64);
     let new_channel_data = Channel::create(&CreateChannel { name:     &new_channel.to_string(),
                                                             owner_id: msg.get_requester_id() as i64,
                                                             origin:   msg.get_origin(), },
                                            &conn)?;
+    Channel::do_promote_or_demote_packages_cross_channels(old_channel_data.id,
+                                                          new_channel_data.id,
+                                                          true,
+                                                          &conn)?;
 
     // Expand any provided plans
     let plans: std::result::Result<Vec<PackageIdentIntern>, habitat_core::error::Error> =
@@ -600,7 +607,8 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
     // Fetch failed plans from previous group
     // Maybe we also want to include cancelled jobs here. DependencyFailed will be found by
     // transitive property during manifest expansion.
-    let entries = JobGraphEntry::list_group_by_state(old_group.id, JobExecState::JobFailed, &conn)?;
+    let entries =
+        JobGraphEntry::list_group_by_state(old_group_data.id, JobExecState::JobFailed, &conn)?;
     let mut failed_plans: Vec<PackageIdentIntern> =
         entries.iter()
                .map(|e| PackageIdentIntern::from_str(&e.project_name))
@@ -613,7 +621,7 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
     // We would like to have dbg!(&manifest) here but it is very verbose for normal operation.
     // Perhaps we should make a separate API/path to allow this to be discovered
     insert_job_graph_entries(&manifest,
-                             group.id as i64,
+                             new_group_data.id as i64,
                              BuilderPackageTarget(target),
                              &conn)?;
 
@@ -621,9 +629,9 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
     let mut scheduler = state.scheduler
                              .clone()
                              .expect("Unable to get valid scheduler to talk to");
-    block_on(scheduler.job_group_added(GroupId(group.id), BuilderPackageTarget(target)));
+    block_on(scheduler.job_group_added(GroupId(new_group_data.id), BuilderPackageTarget(target)));
 
-    Ok(group.into())
+    Ok(new_group_data.into())
 }
 
 /// Make a full manifest of plans to build
