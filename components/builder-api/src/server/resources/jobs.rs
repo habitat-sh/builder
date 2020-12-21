@@ -76,6 +76,12 @@ pub struct JobLogPagination {
     color: bool,
 }
 
+#[derive(Deserialize)]
+pub struct JobRestartOptions {
+    #[serde(default)]
+    pub idents: Vec<String>,
+}
+
 pub struct Jobs;
 
 impl Jobs {
@@ -87,6 +93,8 @@ impl Jobs {
            .route("/jobs/group/{id}/demote/{channel}",
                   web::post().to(demote_job_group))
            .route("/jobs/group/{id}/cancel", web::post().to(cancel_job_group))
+           .route("/jobs/group/{id}/rebuild",
+                  web::post().to(rebuild_job_group))
            .route("/rdeps/{origin}/{name}", web::get().to(get_rdeps))
            .route("/rdeps/{origin}/{name}/group",
                   web::get().to(get_rdeps_group))
@@ -359,6 +367,30 @@ async fn cancel_job_group(req: HttpRequest, path: Path<String>) -> HttpResponse 
     };
 
     match do_cancel_job_group(&req, group_id).await {
+        Ok(_) => HttpResponse::NoContent().finish(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+async fn rebuild_job_group(req: HttpRequest,
+                           path: Path<String>,
+                           qOptions: Query<JobRestartOptions>)
+                           -> HttpResponse {
+    let id_str = path.into_inner();
+
+    let group_id = match id_str.parse::<u64>() {
+        Ok(id) => id,
+        Err(e) => {
+            debug!("Error finding id. e = {:?}", e);
+            return HttpResponse::new(StatusCode::BAD_REQUEST);
+        }
+    };
+
+    match do_rebuild_job_group(&req, group_id, qOptions).await {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -642,4 +674,29 @@ async fn do_cancel_job_group(req: &HttpRequest, group_id: u64) -> Result<NetOk> 
     jgc.set_requester_name(session.get_name().to_string());
 
     route_message::<jobsrv::JobGroupCancel, NetOk>(req, &jgc).await
+}
+
+async fn do_rebuild_job_group(req: &HttpRequest,
+                              group_id: u64,
+                              options: Query<JobRestartOptions>)
+                              -> Result<NetOk> {
+    let mut jgg = jobsrv::JobGroupGet::new();
+    jgg.set_group_id(group_id);
+    jgg.set_include_projects(true);
+
+    let group = route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(req, &jgg).await?;
+
+    let name_split: Vec<&str> = group.get_project_name().split('/').collect();
+    assert!(name_split.len() == 2);
+
+    let session = authorize_session(req, Some(&name_split[0]), Some(OriginMemberRole::Member))?;
+
+    let mut jgr = jobsrv::JobGroupRebuildFromSpec::new();
+    jgr.set_job_group_id(group_id);
+    jgr.set_origin(name_split[0].to_owned());
+    jgr.set_packages(options.idents);
+    jgr.set_requester_id(session.get_id());
+    jgr.set_requester_name(session.get_name().to_string());
+
+    route_message::<jobsrv::JobGroupRebuildFromSpec, NetOk>(req, &jgr).await
 }

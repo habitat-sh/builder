@@ -544,7 +544,7 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
 /// The message specifies:
 /// * the id of a previous build group
 /// * a list of plans to use as a seed (can be empty)
-/// * if add_failed_packages is true includes any failed packages from the previous build
+/// * if add_failed_packages is false excludes any failed packages from the previous build
 ///
 /// Takes information on origin, target, and build scope from previous build.
 pub fn job_group_rebuild(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
@@ -604,17 +604,19 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
 
     let mut plans: Vec<PackageIdentIntern> = plans?;
 
-    // Fetch failed plans from previous group
-    // Maybe we also want to include cancelled jobs here. DependencyFailed will be found by
-    // transitive property during manifest expansion.
-    let entries =
-        JobGraphEntry::list_group_by_state(old_group_data.id, JobExecState::JobFailed, &conn)?;
-    let mut failed_plans: Vec<PackageIdentIntern> =
+    if msg.get_add_failed_packages() {
+        // Fetch failed plans from previous group
+        // Maybe we also want to include cancelled jobs here. DependencyFailed will be found by
+        // transitive property during manifest expansion.
+        let entries =
+            JobGraphEntry::list_group_by_state(old_group_data.id, JobExecState::JobFailed, &conn)?;
+        let mut failed_plans: Vec<PackageIdentIntern> =
         entries.iter()
                .map(|e| PackageIdentIntern::from_str(&e.project_name))
                .collect::<std::result::Result<Vec<PackageIdentIntern>, habitat_core::error::Error>>()?;
 
-    plans.append(&mut failed_plans);
+        plans.append(&mut failed_plans);
+    }
 
     let manifest = make_manifest_from_plans(&plans, target, state)?;
 
