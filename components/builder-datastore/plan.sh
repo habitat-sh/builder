@@ -12,7 +12,6 @@ pkg_dirname="postgresql-${pkg_internal_version}"
 pkg_deps=(
   core/bash
   core/glibc
-  core/openssl
   core/perl
   core/readline
   core/zlib

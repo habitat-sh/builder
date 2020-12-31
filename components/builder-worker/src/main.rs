@@ -19,14 +19,13 @@ extern crate log;
 
 use std::process;
 
+use builder_core::config::ConfigFile;
 use habitat_builder_worker as worker;
-use habitat_core as hab_core;
 
-use crate::{hab_core::config::ConfigFile,
-            worker::{server,
-                     Config,
-                     Error,
-                     Result}};
+use crate::worker::{server,
+                    Config,
+                    Error,
+                    Result};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-worker/config/config.toml";

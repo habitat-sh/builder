@@ -15,6 +15,7 @@
 use std::{error,
           fmt,
           io,
+          path::PathBuf,
           result,
           string};
 
@@ -29,6 +30,8 @@ pub enum Error {
     IO(io::Error),
     Base64Error(base64::DecodeError),
     ChronoError(chrono::format::ParseError),
+    ConfigFileIO(PathBuf, io::Error),
+    ConfigFileSyntax(toml::de::Error),
     DecryptError(String),
     EncryptError(String),
     FromUtf8Error(string::FromUtf8Error),
@@ -60,6 +63,13 @@ impl fmt::Display for Error {
             Error::IO(ref e) => format!("{}", e),
             Error::Base64Error(ref e) => format!("{}", e),
             Error::ChronoError(ref e) => format!("{}", e),
+            Error::ConfigFileIO(ref f, ref e) => {
+                format!("Error reading configuration file, {}, {}", f.display(), e)
+            }
+            Error::ConfigFileSyntax(ref e) => {
+                format!("Syntax errors while parsing TOML configuration file:\n\n{}",
+                        e)
+            }
             Error::DecryptError(ref e) => e.to_string(),
             Error::EncryptError(ref e) => e.to_string(),
             Error::FromUtf8Error(ref e) => format!("{}", e),
