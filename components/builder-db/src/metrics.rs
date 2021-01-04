@@ -18,6 +18,31 @@
 use crate::bldr_core::metrics;
 use std::borrow::Cow;
 
+#[macro_export]
+macro_rules! metrics_instrument_block {
+    ($module:ident, $func:ident, $x:block) => {{
+        {
+            Counter::DBCall.increment();
+            let start_time = Instant::now();
+
+            let result = $x;
+
+            let duration_millis = (start_time.elapsed().as_micros() as f64) / 1_000.0;
+            trace!("DBCall {}:{} time: {} ms",
+                   stringify!($module),
+                   stringify!($func),
+                   duration_millis);
+
+                   //  procedural macros cannot be expanded to expressions
+            // let _ = paste! {  Histogram::[< $module:camel $func:camel CallTime >] .set(duration_millis) };
+            paste! { let _ =  Histogram::[< $module:camel $func:camel CallTime >].set(duration_millis);  }
+
+            Histogram::DbCallTime.set(duration_millis);
+            result
+        }
+    }};
+}
+
 pub enum Counter {
     DBCall,
 }
@@ -41,6 +66,11 @@ pub enum Histogram {
     ChannelListPackagesCallTime,
     ChannelListPackagesOriginNameCallTime,
     ChannelListPackagesOriginOnlyCallTime,
+    GroupTakeNextGroupForTargetCallTime,
+    JobGraphEntryCreateCallTime,
+    JobGraphEntryCreateBatchCallTime,
+    JobGraphEntryGetCallTime,
+
     PackageCountOriginPackages,
     PackageGetAllCallTime,
     PackageGetAllLatestCallTime,
@@ -87,6 +117,17 @@ impl metrics::Metric for Histogram {
             Histogram::ChannelListPackagesOriginOnlyCallTime => {
                 "db-call.channel-list-packages-origin-only-call-time".into()
             }
+
+            Histogram::GroupTakeNextGroupForTargetCallTime => {
+                "db-call.group-take-next-group-for-target-call-time".into()
+            }
+            Histogram::JobGraphEntryCreateCallTime => {
+                "db-call.job-graph-entry-create-call-time".into()
+            }
+            Histogram::JobGraphEntryCreateBatchCallTime => {
+                "db-call.job-graph-entry-create-batch-call-time".into()
+            }
+            Histogram::JobGraphEntryGetCallTime => "db-call.job-graph-entry-get-call-time".into(),
 
             Histogram::PackageCountOriginPackages => {
                 "db-call.package-count-origin-packages-call-time".into()

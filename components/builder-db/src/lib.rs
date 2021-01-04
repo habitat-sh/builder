@@ -26,6 +26,8 @@ extern crate postgres;
 extern crate postgres_derive;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate paste;
 
 use builder_core as bldr_core;
 use habitat_builder_protocol as protocol;
