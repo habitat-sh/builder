@@ -35,6 +35,7 @@ use habitat_core::{env,
                    package::{archive::PackageArchive,
                              target::{self,
                                       PackageTarget}}};
+use remove_dir_all::remove_dir_all;
 use retry::delay;
 use std::{fs,
           process::Command,
@@ -574,13 +575,19 @@ impl Runner {
                       self.workspace.studio().display(),
                       err);
             }
-            if let Some(err) = fs::remove_dir_all(self.workspace.src()).err() {
-                warn!("Failed to remove studio dir {}, err: {:?}",
-                      self.workspace.src().display(),
+            if let Some(err) = fs::remove_dir_all(self.workspace.key_path()).err() {
+                warn!("Failed to remove keys {}, err: {:?}",
+                      self.workspace.key_path().display(),
                       err);
             }
-            if let Some(err) = fs::remove_dir_all(self.workspace.key_path()).err() {
-                warn!("Failed to remove studio dir {}, err: {:?}",
+
+            // use the remove_dir_all crate here because the cloned source
+            // directory is marked read-only on Windows and fs::remove_dir_all
+            // cannot delete directories with read-only items. The remove_dir_all
+            // crate removes the read-only permission recursively on Windows and
+            // delegates to fs::remove_dir_all on linux.
+            if let Some(err) = remove_dir_all(self.workspace.src()).err() {
+                warn!("Failed to remove src {}, err: {:?}",
                       self.workspace.src().display(),
                       err);
             }

@@ -25,6 +25,7 @@ habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 log = "*"
 protobuf = "*"
+remove_dir_all = "*"
 retry = { git = "https://github.com/habitat-sh/retry", features = ["asynchronous"] }
 serde = "*"
 serde_derive = "*"
