@@ -110,11 +110,9 @@ impl UnresolvedPackageIdent {
     }
 
     pub fn is_internal_node(&self) -> bool {
-        match self {
-            UnresolvedPackageIdent::InternalNode(..)
-            | UnresolvedPackageIdent::InternalVersionedNode(..) => true,
-            _ => false,
-        }
+        matches!(self,
+                 UnresolvedPackageIdent::InternalNode(..)
+                 | UnresolvedPackageIdent::InternalVersionedNode(..))
     }
 }
 

@@ -742,8 +742,6 @@ impl ScheduleMgr {
 }
 
 fn buildable(project: &jobsrv::JobGroupProject) -> bool {
-    match project.get_state() {
-        jobsrv::JobGroupProjectState::NotStarted | jobsrv::JobGroupProjectState::InProgress => true,
-        _ => false,
-    }
+    matches!(project.get_state(),
+             jobsrv::JobGroupProjectState::NotStarted | jobsrv::JobGroupProjectState::InProgress)
 }

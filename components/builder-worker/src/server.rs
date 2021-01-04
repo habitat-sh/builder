@@ -45,6 +45,7 @@ impl Default for State {
     fn default() -> State { State::Ready }
 }
 
+#[allow(clippy::rc_buffer)] // #1548 tracks fixing this
 pub struct Server {
     config:     Arc<Config>,
     /// Dealer Socket connected to JobSrv
