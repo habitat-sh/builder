@@ -55,6 +55,9 @@ limit_ua_unknown_target   = "$http_x_forwarded_for"
 enable_caching            = false
 enable_gzip               = false
 enable_ipv6               = true
+depot_limit_rate_enable   = false
+depot_limit_rate_after    = "5k"
+depot_limit_rate          = "50k"
 
 [http]
 keepalive_connections     = 16
