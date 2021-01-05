@@ -136,6 +136,7 @@ impl Into<HttpResponse> for Error {
             Error::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),
             Error::Conflict => HttpResponse::new(StatusCode::CONFLICT),
             Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
+            Error::HabitatCore(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Error::NotFound => HttpResponse::new(StatusCode::NOT_FOUND),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::BuilderCore(ref e) => HttpResponse::new(bldr_core_err_to_http(e)),

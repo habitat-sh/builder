@@ -17,8 +17,9 @@ use std::path::Path;
 use super::publisher::Publisher;
 use crate::{config::Config,
             error::Error,
-            hab_core::{config::ConfigFile,
-                       ChannelIdent}};
+            hab_core::ChannelIdent};
+
+use builder_core::config::ConfigFile;
 
 // TODO (SA) - Toml-based publishing has been removed, and is not hooked up to
 // the post-processor currently. Keeping the code around to re-enable
@@ -68,7 +69,6 @@ impl ConfigFile for TomlPublishBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hab_core::config::ConfigFile;
 
     #[test]
     fn test_publish_config_from_toml() {
