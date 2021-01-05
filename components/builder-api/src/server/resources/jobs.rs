@@ -378,7 +378,7 @@ async fn cancel_job_group(req: HttpRequest, path: Path<String>) -> HttpResponse 
 #[allow(clippy::needless_pass_by_value)]
 async fn rebuild_job_group(req: HttpRequest,
                            path: Path<String>,
-                           qOptions: Query<JobRestartOptions>)
+                           q_options: Query<JobRestartOptions>)
                            -> HttpResponse {
     let id_str = path.into_inner();
 
@@ -390,7 +390,7 @@ async fn rebuild_job_group(req: HttpRequest,
         }
     };
 
-    match do_rebuild_job_group(&req, group_id, qOptions).await {
+    match do_rebuild_job_group(&req, group_id, q_options).await {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -694,7 +694,7 @@ async fn do_rebuild_job_group(req: &HttpRequest,
     let mut jgr = jobsrv::JobGroupRebuildFromSpec::new();
     jgr.set_job_group_id(group_id);
     jgr.set_origin(name_split[0].to_owned());
-    jgr.set_packages(options.idents);
+    jgr.set_packages(RepeatedField::from_vec(options.idents.clone()));
     jgr.set_requester_id(session.get_id());
     jgr.set_requester_name(session.get_name().to_string());
 

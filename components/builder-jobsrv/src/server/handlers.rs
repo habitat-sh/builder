@@ -554,9 +554,9 @@ pub fn job_group_rebuild(req: &RpcMessage, state: &AppState) -> Result<RpcMessag
     let group = if feat::is_enabled(feat::NewScheduler) {
         job_group_rebuild_new(&msg, state)?
     } else {
-        Err(Error::UnsupportedFeature("Rebuild not supported on \
-                                       legacy scheduler"
-                                                        .to_owned()))?
+        return Err(Error::UnsupportedFeature("Rebuild not supported on \
+                                              legacy scheduler"
+                                                               .to_owned()));
     };
 
     RpcMessage::make(&group).map_err(Error::BuilderCore)
@@ -586,7 +586,7 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
         Channel::get(&msg.get_origin(), &ChannelIdent::from(old_channel), &conn)?;
 
     let new_channel = Channel::channel_for_group(new_group_data.id as u64);
-    let new_channel_data = Channel::create(&CreateChannel { name:     &new_channel.to_string(),
+    let new_channel_data = Channel::create(&CreateChannel { name:     &new_channel,
                                                             owner_id: msg.get_requester_id() as i64,
                                                             origin:   msg.get_origin(), },
                                            &conn)?;
@@ -637,7 +637,7 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
 }
 
 /// Make a full manifest of plans to build
-fn make_manifest_from_plans(plans: &Vec<PackageIdentIntern>,
+fn make_manifest_from_plans(plans: &[PackageIdentIntern],
                             target: PackageTarget,
                             state: &AppState)
                             -> Result<PackageBuildManifest> {
