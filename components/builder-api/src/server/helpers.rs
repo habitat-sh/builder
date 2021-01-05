@@ -172,12 +172,6 @@ pub fn visibility_for_optional_session(req: &HttpRequest,
     v
 }
 
-pub fn all_visibilities() -> Vec<PackageVisibility> {
-    vec![PackageVisibility::Public,
-         PackageVisibility::Private,
-         PackageVisibility::Hidden,]
-}
-
 pub fn trigger_from_request(req: &HttpRequest) -> jobsrv::JobGroupTrigger {
     // TODO: the search strings should be configurable.
     if let Some(ref agent) = req.headers().get(header::USER_AGENT) {

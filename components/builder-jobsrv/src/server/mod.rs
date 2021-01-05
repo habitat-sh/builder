@@ -123,6 +123,7 @@ fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
         "JobGet" => handlers::job_get(&msg, &state),
         "JobLogGet" => handlers::job_log_get(&msg, &state),
         "JobGroupSpec" => handlers::job_group_create(&msg, &state),
+        "JobGroupRebuildFromSpec" => handlers::job_group_rebuild(&msg, &state),
         "JobGroupCancel" => handlers::job_group_cancel(&msg, &state),
         "JobGroupGet" => handlers::job_group_get(&msg, &state),
         "JobGroupOriginGet" => handlers::job_group_origin_get(&msg, &state),

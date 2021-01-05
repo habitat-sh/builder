@@ -40,7 +40,8 @@ use crate::db::models::{channel::*,
                         origin::*,
                         package::{BuilderPackageIdent,
                                   GetPackageGroup,
-                                  Package}};
+                                  Package,
+                                  PackageVisibility}};
 
 use crate::server::{authorize::authorize_session,
                     error::{Error,
@@ -365,7 +366,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
     let op = Package::get_group(
         GetPackageGroup {
             pkgs,
-            visibility: helpers::all_visibilities()
+            visibility: PackageVisibility::all()
         },
     &*conn)?;
 
@@ -781,7 +782,7 @@ fn do_get_all_channel_packages(req: &HttpRequest,
                                -> Result<Vec<BuilderPackageIdent>> {
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
-    Channel::list_all_packages(&ListAllChannelPackages { visibility: &helpers::all_visibilities(),
+    Channel::list_all_packages(&ListAllChannelPackages { visibility: &PackageVisibility::all(),
                                                          origin: &origin,
                                                          channel },
                                &*conn).map_err(Error::DieselError)

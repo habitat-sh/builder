@@ -136,6 +136,24 @@ message JobGroupSpec {
   optional string requester_name = 9;
 }
 
+// Start a build based on the results of a previous build. 
+// Takes information on origin, target, and build scope from previous build.
+// 
+// Takes any specified `packages` and if add_failed_packages is true adds any packages 
+// that failed to build in previous build and uses that to form the kernel to expand to a full build set.
+//
+// Open questions to resolve:
+// We use 'optional' field types everywhere here; why? Most of these aren't optional
+// 
+message JobGroupRebuildFromSpec {
+  optional uint64 job_group_id = 1;
+  optional string origin = 2;
+  repeated string packages = 3;
+  optional bool add_failed_packages = 4;
+  optional uint64 requester_id = 5;
+  optional string requester_name = 6;
+}
+
 enum JobGroupProjectState {
   NotStarted = 0;
   InProgress = 1;

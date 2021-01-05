@@ -32,11 +32,14 @@ use protobuf::RepeatedField;
 use futures03::executor::block_on;
 
 use crate::{bldr_core::rpc::RpcMessage,
-            db::models::{jobs::*,
+            db::models::{channel::{Channel,
+                                   CreateChannel},
+                         jobs::*,
                          package::*,
                          projects::*},
-            hab_core::package::{PackageIdent,
-                                PackageTarget}};
+            hab_core::{package::{PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent}};
 
 use super::AppState;
 use crate::protocol::{jobsrv,
@@ -535,6 +538,131 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
 
     add_job_group_audit_entry(group.id as u64, &msg, &state.datastore);
     Ok(group.into())
+}
+
+/// Start a build based on the results of a previous build group.
+/// The message specifies:
+/// * the id of a previous build group
+/// * a list of plans to use as a seed (can be empty)
+/// * if add_failed_packages is false excludes any failed packages from the previous build
+///
+/// Takes information on origin, target, and build scope from previous build.
+pub fn job_group_rebuild(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
+    let msg = req.parse::<jobsrv::JobGroupRebuildFromSpec>()?;
+    debug!("job_group_rebuild message: {:?}", msg);
+
+    let group = if feat::is_enabled(feat::NewScheduler) {
+        job_group_rebuild_new(&msg, state)?
+    } else {
+        return Err(Error::UnsupportedFeature("Rebuild not supported on \
+                                              legacy scheduler"
+                                                               .to_owned()));
+    };
+
+    RpcMessage::make(&group).map_err(Error::BuilderCore)
+}
+
+fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
+                         state: &AppState)
+                         -> Result<jobsrv::JobGroup> {
+    let conn = state.db.get_conn().map_err(Error::Db)?;
+    // Get previous group
+    let old_group_data = Group::get(msg.get_job_group_id() as i64, &conn)?;
+
+    // TODO safety checks; job should be complete/canceled etc
+
+    let target = PackageTarget::from_str(&old_group_data.target)?;
+    // Create new group from it
+    let new_group = NewGroup { group_state:  "Queued",
+                               project_name: &old_group_data.project_name.clone(), /* should this be
+                                                                                    * somehow different
+                                                                                    * or carry more
+                                                                                    * info? */
+                               target:       &old_group_data.target, };
+    let new_group_data = Group::create(&new_group, &conn)?;
+
+    let old_channel = Channel::channel_for_group(old_group_data.id as u64);
+    let old_channel_data =
+        Channel::get(&msg.get_origin(), &ChannelIdent::from(old_channel), &conn)?;
+
+    let new_channel = Channel::channel_for_group(new_group_data.id as u64);
+    let new_channel_data = Channel::create(&CreateChannel { name:     &new_channel,
+                                                            owner_id: msg.get_requester_id() as i64,
+                                                            origin:   msg.get_origin(), },
+                                           &conn)?;
+    Channel::do_promote_or_demote_packages_cross_channels(old_channel_data.id,
+                                                          new_channel_data.id,
+                                                          true,
+                                                          &conn)?;
+
+    // Expand any provided plans
+    let plans: std::result::Result<Vec<PackageIdentIntern>, habitat_core::error::Error> =
+        msg.get_packages()
+           .iter()
+           .map(|plan| PackageIdentIntern::from_str(plan))
+           .collect();
+
+    let mut plans: Vec<PackageIdentIntern> = plans?;
+
+    if msg.get_add_failed_packages() {
+        // Fetch failed plans from previous group
+        // Maybe we also want to include cancelled jobs here. DependencyFailed will be found by
+        // transitive property during manifest expansion.
+        let entries =
+            JobGraphEntry::list_group_by_state(old_group_data.id, JobExecState::JobFailed, &conn)?;
+        let mut failed_plans: Vec<PackageIdentIntern> =
+        entries.iter()
+               .map(|e| PackageIdentIntern::from_str(&e.project_name))
+               .collect::<std::result::Result<Vec<PackageIdentIntern>, habitat_core::error::Error>>()?;
+
+        plans.append(&mut failed_plans);
+    }
+
+    let manifest = make_manifest_from_plans(&plans, target, state)?;
+
+    // We would like to have dbg!(&manifest) here but it is very verbose for normal operation.
+    // Perhaps we should make a separate API/path to allow this to be discovered
+    insert_job_graph_entries(&manifest,
+                             new_group_data.id as i64,
+                             BuilderPackageTarget(target),
+                             &conn)?;
+
+    // Notify the scheduler of new work available
+    let mut scheduler = state.scheduler
+                             .clone()
+                             .expect("Unable to get valid scheduler to talk to");
+    block_on(scheduler.job_group_added(GroupId(new_group_data.id), BuilderPackageTarget(target)));
+
+    Ok(new_group_data.into())
+}
+
+/// Make a full manifest of plans to build
+fn make_manifest_from_plans(plans: &[PackageIdentIntern],
+                            target: PackageTarget,
+                            state: &AppState)
+                            -> Result<PackageBuildManifest> {
+    // Compute plans to build using this set
+    // This might be a slow process and need to be async/threaded
+
+    let target_graph = state.graph
+                            .read()
+                            .expect("Graph lock could not be acquired because it was poisoned");
+    let graph = target_graph.graph_for_target(target)
+                            .expect("No graph for target");
+
+    let graph_datastore = GraphDataStore::from_pool(state.db.clone())?;
+    // NOTE: We only use the  Unbuildable trait from graph_datastore. This partitioning of
+    // the trait is an artifact of how we managed the transition from the old code to new.
+    // Once we get to the point where we can get rid of the old scheduler and
+    // clean up the datastore layer, we can eliminate this.
+    let mut manifest = graph.compute_build(&plans, &graph_datastore)?;
+
+    // This can be removed once we get a worker API that lets us exactly specify the
+    // dependencies. Without that the worker takes whatever is latest in the channel,
+    // which under a loose ordering might be newer than what we want.
+    manifest.constrain_package_cycles();
+
+    Ok(manifest)
 }
 
 fn insert_job_graph_entries(manifest: &PackageBuildManifest,
