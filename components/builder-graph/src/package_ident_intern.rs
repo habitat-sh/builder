@@ -19,6 +19,9 @@ use std::{cmp::{Ordering,
           result,
           str::FromStr};
 
+use serde::ser::{Serialize,
+                 Serializer};
+
 use crate::hab_core::{error as herror,
                       package::{ident::{version_sort,
                                         Identifiable},
@@ -134,6 +137,14 @@ impl fmt::Debug for PackageIdentIntern {
         } else {
             write!(f, "{}/{}", self.origin, self.name)
         }
+    }
+}
+
+impl Serialize for PackageIdentIntern {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 
