@@ -46,7 +46,7 @@ SELECT diesel_manage_updated_at('job_graph');
 -- It might get large, maybe we should create partial index
 -- either filtered on job state or a separate active/archived flag
 CREATE EXTENSION IF NOT EXISTS intarray;
-CREATE INDEX IF NOT EXISTS ON job_graph USING GIN(dependencies);
+CREATE INDEX IF NOT EXISTS job_graph_dependencies_idx ON job_graph USING GIN(dependencies);
 
 -- This index might be combined with another field (maybe group_id?)
 CREATE INDEX IF NOT EXISTS state ON job_graph (job_state);
