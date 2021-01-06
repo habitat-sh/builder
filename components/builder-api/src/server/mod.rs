@@ -154,7 +154,7 @@ pub async fn run(config: Config) -> error::Result<()> {
                       };
 
                       App::new()
-            .app_data(web::Data::new(app_state))
+            .data(app_state)
             .wrap_fn(authentication_middleware)
             .wrap(Logger::default().exclude("/v1/status"))
             .service(

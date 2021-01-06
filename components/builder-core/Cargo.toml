@@ -39,7 +39,7 @@ features = ["stream"]
 
 [dependencies.tokio]
 version = "*"
-features = ["fs", "io-util"]
+features = ["fs"]
 
 [dev-dependencies]
 tempfile = "*"

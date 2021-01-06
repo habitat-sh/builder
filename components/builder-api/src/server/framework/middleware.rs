@@ -15,7 +15,6 @@ use actix_web::{dev::{Body,
                       ServiceRequest,
                       ServiceResponse},
                 http,
-                web::Data,
                 Error,
                 HttpRequest,
                 HttpResponse};
@@ -59,9 +58,7 @@ pub fn authentication_middleware<S>(mut req: ServiceRequest,
     }
     let token = hdr_components[1];
 
-    let session = match authenticate(&token,
-                                     &req.app_data::<Data<AppState>>().expect("request state"))
-    {
+    let session = match authenticate(&token, &req.app_data().expect("request state")) {
         Ok(session) => session,
         Err(_) => {
             return Either::Right(ok(req.into_response(HttpResponse::Unauthorized().finish())))
