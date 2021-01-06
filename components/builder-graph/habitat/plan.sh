@@ -7,7 +7,9 @@ pkg_license=('Apache-2.0')
 pkg_bin_dirs=(bin)
 pkg_deps=(
   core/glibc 
+  core/openssl 
   core/gcc-libs 
+  core/libsodium
   core/libarchive
   core/postgresql
   core/zeromq #TODO: This can probably be removed if we removed the crate dep on builder-protocol

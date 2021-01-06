@@ -411,10 +411,7 @@ fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> H
     // For Builder, we actually don't want to go through the KeyCache
     // to create a pair, because we don't want to store anything to
     // disk. That's why we have a database.
-    let (public, secret) = match origin.parse().map_err(Error::HabitatCore) {
-        Ok(o) => generate_signing_key_pair(&o),
-        Err(err) => return err.into(),
-    };
+    let (public, secret) = generate_signing_key_pair(&origin);
 
     if let Err(e) = save_public_origin_signing_key(account_id, &origin, &public, &*conn) {
         error!("Failed to save public signing key for origin '{}', err={}",
@@ -1576,7 +1573,7 @@ fn generate_origin_encryption_keys(origin: &str,
                                    conn: &PgConnection)
                                    -> Result<core_keys::OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
-    let (public, secret) = generate_origin_encryption_key_pair(&origin.parse()?);
+    let (public, secret) = generate_origin_encryption_key_pair(origin);
 
     let pk_body = public.to_key_string();
     let new_pk =
