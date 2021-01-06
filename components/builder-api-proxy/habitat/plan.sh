@@ -31,7 +31,7 @@ pkg_exposes=(port ssl-port)
 pkg_version() {
   # TED: After migrating the builder repo we needed to add to
   # the rev-count to keep version sorting working
-  echo "$(($(git rev-list master --count) + 5000))"
+  echo "$(($(git rev-list HEAD --count) + 5000))"
 }
 
 do_before() {
