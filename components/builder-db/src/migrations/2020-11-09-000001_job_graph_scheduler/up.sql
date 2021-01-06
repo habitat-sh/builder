@@ -1,14 +1,19 @@
-CREATE TYPE job_exec_state AS ENUM (
-  'pending',
-  'waiting_on_dependency',
-  'ready',
-  'running',
-  'complete',
-  'job_failed',
-  'dependency_failed',
-  'cancel_pending',
-  'cancel_complete'
-);
+DO $$ BEGIN
+  CREATE TYPE job_exec_state AS ENUM (
+    'pending',
+    'waiting_on_dependency',
+    'ready',
+    'running',
+    'complete',
+    'job_failed',
+    'dependency_failed',
+    'cancel_pending',
+    'cancel_complete'
+  );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 
 CREATE SEQUENCE IF NOT EXISTS job_graph_id_seq;
 
