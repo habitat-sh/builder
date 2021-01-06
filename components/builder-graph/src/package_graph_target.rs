@@ -108,7 +108,6 @@ impl PackageGraphForTarget {
     // Incrementally adds a node to the graph, rejecting it and doing nothing
     // if it returns a cycle.
     // Returns current node, edge count of graph.
-    #[tracing::instrument(skip(self))]
     pub fn extend(&mut self, package_info: &PackageInfo, use_build_deps: bool) -> (usize, usize) {
         debug!("Extend: {} {} N:{} E:{} P:{}",
                package_info.ident,
@@ -129,8 +128,6 @@ impl PackageGraphForTarget {
         if !self.latest_map.contains_key(&short_ident)
            || self.latest_map[&short_ident] <= package_ident
         {
-            // This should be event, but hitting https://github.com/tokio-rs/tracing/issues/792
-            tracing::info!("Updating plan ident {} with {}", short_ident, package_ident);
             // we will need to be checking for cycles here...
             // List current node in graph outgoing runtime (rt) deps
             // Compare to new package rt deps
@@ -222,7 +219,6 @@ impl PackageGraphForTarget {
     // The embarassing levels of parallel construction between the two should be cleaned up and
     // unified
     // Returns true if we can add this w/o a cycle
-    #[tracing::instrument(skip(self))]
     pub fn check_extend(&self, package_info: &PackageInfo, _use_build_deps: bool) -> bool {
         // TODO make plan for removing package_info structs from package table when they are no
         // longer part of graph Right now we keep them forever, which is unnecessary.
@@ -269,17 +265,6 @@ impl PackageGraphForTarget {
         }
 
         true
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn as_json(&self, origin_filter: Option<&str>) -> String {
-        let graph = graph_helpers::dump_graph_structured(&self.latest_graph, origin_filter, false);
-        debug!("Dump Graph Structured for (N:{} E:{} {}) {} elements",
-               self.latest_graph.node_count(),
-               self.latest_graph.edge_count(),
-               self.target,
-               graph.len());
-        serde_json::to_string(&graph).unwrap()
     }
 
     pub fn write_packages_json(&self, filename: &str, filter: Option<&str>) {

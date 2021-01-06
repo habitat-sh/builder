@@ -111,7 +111,6 @@ pub fn count_edges_filtered(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
     (in_count, out_count)
 }
 
-#[tracing::instrument(skip(graph))]
 pub fn changed_edges_for_type(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                               node: PackageIdentIntern,
                               deps: &[PackageIdentIntern],
@@ -130,7 +129,6 @@ pub fn changed_edges_for_type(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
     (added, removed)
 }
 
-#[tracing::instrument(skip(graph))]
 pub fn update_edges_for_type(graph: &mut DiGraphMap<PackageIdentIntern, EdgeType>,
                              node: PackageIdentIntern,
                              added: &[PackageIdentIntern],
@@ -144,7 +142,6 @@ pub fn update_edges_for_type(graph: &mut DiGraphMap<PackageIdentIntern, EdgeType
     }
 }
 
-#[tracing::instrument(skip(graph))]
 pub fn revise_edges_for_type(graph: &mut DiGraphMap<PackageIdentIntern, EdgeType>,
                              node: PackageIdentIntern,
                              deps: &[PackageIdentIntern],
@@ -241,59 +238,6 @@ pub fn dump_graph_raw(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                      node_name, in_count, out_count, rdeps_join, bdeps_join, sdeps_join).unwrap();
         }
     }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Tooling around emitting the graph as JSON/serializing it
-// This resembles the PackageBuild structure and probably has room for consolidation
-// Also look at consolidation with dump_graph_raw above
-#[derive(Debug, Default, Serialize)]
-pub struct GraphNodeWithEdges {
-    pub name:         PackageIdentIntern,
-    pub runtime_deps: Vec<PackageIdentIntern>,
-    pub build_deps:   Vec<PackageIdentIntern>,
-    pub strong_deps:  Vec<PackageIdentIntern>,
-}
-
-pub fn dump_graph_structured(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
-                             origin_filter: Option<&str>,
-                             drop_orphaned: bool)
-                             -> Vec<GraphNodeWithEdges> {
-    let mut result = Vec::new();
-
-    // iterate through nodes
-    for node in graph.nodes().sorted() {
-        let (in_count, out_count) = count_edges(&graph, node);
-        let orphaned = (in_count == 0) && (out_count == 0);
-        let keep = !orphaned || !drop_orphaned;
-        if filter_match(&node, origin_filter) && keep {
-            let mut bdeps = Vec::new();
-            let mut rdeps = Vec::new();
-            let mut sdeps = Vec::new();
-            for succ in graph.neighbors_directed(node, Direction::Outgoing) {
-                let edge_weight = graph.edge_weight(node, succ).unwrap();
-                match edge_weight {
-                    EdgeType::BuildDep => bdeps.push(succ),
-                    EdgeType::RuntimeDep => rdeps.push(succ),
-                    EdgeType::StrongBuildDep => sdeps.push(succ),
-                    EdgeType::ExternalConstraint => {
-                        warn!("External Constraints should not appear here {:?}",
-                              edge_weight)
-                    }
-                }
-            }
-            bdeps.sort();
-            rdeps.sort();
-            sdeps.sort();
-
-            let element = GraphNodeWithEdges { name:         node,
-                                               runtime_deps: rdeps,
-                                               build_deps:   bdeps,
-                                               strong_deps:  sdeps, };
-            result.push(element)
-        }
-    }
-    result
 }
 
 pub fn emit_graph_as_dot(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
