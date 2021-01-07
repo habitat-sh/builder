@@ -1,19 +1,14 @@
-DO $$ BEGIN
-  CREATE TYPE job_exec_state AS ENUM (
-    'pending',
-    'waiting_on_dependency',
-    'ready',
-    'running',
-    'complete',
-    'job_failed',
-    'dependency_failed',
-    'cancel_pending',
-    'cancel_complete'
-  );
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
+CREATE TYPE job_exec_state AS ENUM (
+  'pending',
+  'waiting_on_dependency',
+  'ready',
+  'running',
+  'complete',
+  'job_failed',
+  'dependency_failed',
+  'cancel_pending',
+  'cancel_complete'
+);
 
 CREATE SEQUENCE IF NOT EXISTS job_graph_id_seq;
 
@@ -45,11 +40,11 @@ SELECT diesel_manage_updated_at('job_graph');
 -- This is required for fast search inside the array
 -- It might get large, maybe we should create partial index
 -- either filtered on job state or a separate active/archived flag
-CREATE EXTENSION IF NOT EXISTS intarray;
-CREATE INDEX IF NOT EXISTS job_graph_dependencies_idx ON job_graph USING GIN(dependencies);
+CREATE EXTENSION intarray;
+CREATE INDEX ON job_graph USING GIN(dependencies);
 
 -- This index might be combined with another field (maybe group_id?)
-CREATE INDEX IF NOT EXISTS state ON job_graph (job_state);
+CREATE INDEX state ON job_graph (job_state);
 
 -- TODO Possible index
 -- target, job_exec_state for count_ready_by_target
@@ -64,7 +59,7 @@ CREATE INDEX IF NOT EXISTS state ON job_graph (job_state);
 -- the gin index doesn't supprt that function, and is hella slow.
 -- Using @> is vastly faster. (e.g. 30k entries, 7000 ms becomes 15ms)
 --
--- needs gin index on dependencies
+-- needs gin index on dependencies 
 CREATE OR REPLACE FUNCTION t_rdeps_for_id(job_graph_id BIGINT)
 RETURNS SETOF BIGINT
 AS $$
