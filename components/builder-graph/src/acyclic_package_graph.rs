@@ -395,6 +395,12 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                                   external_dependencies: all_external_dependencies,
                                   unbuildable_reasons:   unbuildable_map, })
     }
+
+    //  maybe look to implement this as part of serialization
+    fn as_json(&self, _origin_filter: Option<&str>) -> String {
+        unimplemented!() // we expect that we will rip this code out rather than need to implement
+                         // this..
+    }
 }
 
 impl AcyclicPackageGraph {
