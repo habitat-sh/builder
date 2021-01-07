@@ -16,17 +16,10 @@
 --
 -- SELECT diesel_manage_updated_at('users');
 -- ```
-CREATE OR REPLACE FUNCTION diesel_manage_updated_at(_tbl information_schema.sql_identifier) RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION diesel_manage_updated_at(_tbl regclass) RETURNS VOID AS $$
 BEGIN
-  IF NOT EXISTS (SELECT *
-    FROM information_schema.triggers
-    WHERE event_object_table = _tbl
-    AND trigger_name = 'set_updated_at'
-  )
-  THEN
     EXECUTE format('CREATE TRIGGER set_updated_at BEFORE UPDATE ON %s
                     FOR EACH ROW EXECUTE PROCEDURE diesel_set_updated_at()', _tbl);
-  END IF;
 END;
 $$ LANGUAGE plpgsql;
 
