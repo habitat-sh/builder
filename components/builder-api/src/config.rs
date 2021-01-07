@@ -1,13 +1,12 @@
 //! Configuration for a Habitat Builder-API service
 
-use crate::{bldr_core::{self,
-                        config::ConfigFile},
-            bldr_events::connection::EventConfig,
+use crate::{bldr_events::connection::EventConfig,
             db::config::DataStoreCfg};
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
 
-use habitat_core::{crypto::keys::KeyCache,
+use habitat_core::{config::ConfigFile,
+                   crypto::keys::KeyCache,
                    package::target::{self,
                                      PackageTarget}};
 use oauth_client::config::OAuth2Cfg;
@@ -63,8 +62,8 @@ impl ConfigFile for Config {
     type Error = ConfigError;
 }
 
-impl From<bldr_core::Error> for ConfigError {
-    fn from(err: bldr_core::Error) -> ConfigError { ConfigError(format!("{:?}", err)) }
+impl From<habitat_core::Error> for ConfigError {
+    fn from(err: habitat_core::Error) -> ConfigError { ConfigError(format!("{:?}", err)) }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]

@@ -3,9 +3,11 @@ $pkg_origin = "habitat"
 $pkg_maintainer = "The Habitat Maintainers <humans@habitat.sh>"
 $pkg_license = @("Apache-2.0")
 $pkg_deps = @(
+    "core/openssl",
     "core/zeromq",
     "core/zlib",
     "core/libarchive",
+    "core/libsodium",
     "core/hab",
     "core/hab-studio",
     "core/hab-pkg-export-container",
@@ -17,8 +19,7 @@ $pkg_build_deps = @(
     "core/protobuf",
     "core/rust",
     "core/cacerts",
-    "core/git",
-    "core/perl"
+    "core/git"
 )
 $pkg_binds = @{
     jobsrv = "worker_port worker_heartbeat log_port"
@@ -38,19 +39,22 @@ function Invoke-Before {
 }
 
 function Invoke-Prepare {
-    . "$(Get-HabPackagePath visual-cpp-build-tools-2015)\setenv.ps1"
     if ($env:HAB_CARGO_TARGET_DIR) {
         $env:CARGO_TARGET_DIR = "$env:HAB_CARGO_TARGET_DIR"
     }
     else {
-        $env:CARGO_TARGET_DIR = "$HAB_CACHE_SRC_PATH\$pkg_dirname"
+        $env:CARGO_TARGET_DIR = "$env:HAB_CACHE_SRC_PATH/$pkg_dirname"
     }
 
     $env:SSL_CERT_FILE = "$(Get-HabPackagePath "cacerts")/ssl/certs/cacert.pem"
     $env:LIB += ";$HAB_CACHE_SRC_PATH/$pkg_dirname/lib"
     $env:INCLUDE += ";$HAB_CACHE_SRC_PATH/$pkg_dirname/include"
+    $env:SODIUM_LIB_DIR = "$(Get-HabPackagePath "libsodium")/lib"
     $env:LIBARCHIVE_INCLUDE_DIR = "$(Get-HabPackagePath "libarchive")/include"
     $env:LIBARCHIVE_LIB_DIR = "$(Get-HabPackagePath "libarchive")/lib"
+    $env:OPENSSL_LIBS = 'ssleay32:libeay32'
+    $env:OPENSSL_LIB_DIR = "$(Get-HabPackagePath "openssl")/lib"
+    $env:OPENSSL_INCLUDE_DIR = "$(Get-HabPackagePath "openssl")/include"
     $env:LIBZMQ_PREFIX = "$(Get-HabPackagePath "zeromq")"
 
     # Used by the `build.rs` program to set the version of the binaries
@@ -101,9 +105,10 @@ function Invoke-Build {
 function Invoke-Install {
     Write-BuildLine "$HAB_CACHE_SRC_PATH/$pkg_dirname"
     Copy-Item "$env:CARGO_TARGET_DIR/release/bldr-worker.exe" "$pkg_prefix/bin/bldr-worker.exe"
-    Copy-Item "$env:CARGO_TARGET_DIR/release\build\openssl-sys-*\out\openssl-build\install\bin\*.dll" "$pkg_prefix/bin"
+    Copy-Item "$(Get-HabPackagePath "openssl")/bin/*.dll" "$pkg_prefix/bin"
     Copy-Item "$(Get-HabPackagePath "zlib")/bin/*.dll" "$pkg_prefix/bin"
     Copy-Item "$(Get-HabPackagePath "libarchive")/bin/*.dll" "$pkg_prefix/bin"
+    Copy-Item "$(Get-HabPackagePath "libsodium")/bin/*.dll" "$pkg_prefix/bin"
     Copy-Item "$(Get-HabPackagePath "zeromq")/bin/*.dll" "$pkg_prefix/bin"
     Copy-Item "$(Get-HabPackagePath "visual-cpp-build-tools-2015")/Program Files/Microsoft Visual Studio 14.0/VC/redist/x64/Microsoft.VC140.CRT/*.dll" "$pkg_prefix/bin"
 }
