@@ -22,4 +22,4 @@ path = "../builder-core"
 
 [dependencies.tokio]
 version = "*"
-features = ["macros","rt-multi-thread"]
+features = ["macros"]
