@@ -40,11 +40,6 @@ do_builder_install() {
     "$pkg_prefix/bin/$bin"
 }
 
-do_setup_environment() {
-  set_buildtime_env SODIUM_USE_PKG_CONFIG "true"
-  build_line "Setting SODIUM_USE_PKG_CONFIG=$SODIUM_USE_PKG_CONFIG"
-}
-
 # shellcheck disable=2154
 do_builder_prepare() {
   export builder_build_type="${builder_build_type:---release}"

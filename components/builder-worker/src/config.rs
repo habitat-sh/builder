@@ -1,9 +1,9 @@
 //! Configuration for a Habitat JobSrv Worker
 
 use crate::error::Error;
+use builder_core::config::ConfigFile;
 use github_api_client::config::GitHubCfg;
-use habitat_core::{config::ConfigFile,
-                   crypto::keys::KeyCache,
+use habitat_core::{crypto::keys::KeyCache,
                    package::PackageTarget,
                    url,
                    ChannelIdent};

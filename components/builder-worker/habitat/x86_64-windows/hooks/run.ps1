@@ -12,3 +12,4 @@ Write-Host "Starting builder-worker, parent process environment:"
 gci env:
 
 bldr-worker start -c "{{pkg.svc_config_path}}/config.toml"
+exit $LASTEXITCODE
