@@ -22,6 +22,7 @@ use crate::{db,
 
 #[derive(Debug)]
 pub enum Error {
+    BuilderCore(builder_core::Error),
     Db(db::error::Error),
     DbPoolTimeout(r2d2::Error),
     DieselError(diesel::result::Error),
@@ -40,6 +41,7 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::BuilderCore(ref e) => format!("{}", e),
             Error::Db(ref e) => format!("{}", e),
             Error::DbPoolTimeout(ref e) => {
                 format!("Timeout getting connection from the database pool, {}", e)
@@ -61,6 +63,10 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {}
+
+impl From<builder_core::Error> for Error {
+    fn from(err: builder_core::Error) -> Error { Error::BuilderCore(err) }
+}
 
 impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }

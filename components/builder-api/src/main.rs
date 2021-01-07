@@ -22,12 +22,11 @@ use std::{fmt,
           process,
           str::FromStr};
 
+use builder_core::config::ConfigFile;
 use habitat_builder_api as bldr_api;
-use habitat_core as hab_core;
 
-use crate::{bldr_api::{config::Config,
-                       server},
-            hab_core::config::ConfigFile};
+use crate::bldr_api::{config::Config,
+                      server};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-api/config/config.toml";

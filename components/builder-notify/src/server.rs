@@ -1,9 +1,9 @@
 use crate::{config::Config,
             error::Error};
+use builder_core::config::ConfigFile;
 use habitat_builder_events::connection::{create_consumer,
                                          EventConsumer};
-use habitat_core::{config::ConfigFile,
-                   ok_warn};
+use habitat_core::ok_warn;
 use std::{path::PathBuf,
           thread::{self},
           time::Duration};
