@@ -56,11 +56,11 @@ pub mod postgres {
 #[macro_export]
 macro_rules! datastore_test {
     ($datastore:ident) => {{
+        use diesel;
         use std::sync::{atomic::Ordering,
                         Arc};
         use $crate::{config::DataStoreCfg,
                      diesel_pool::DbPool,
-                     pool::Pool,
                      test::{postgres,
                             INIT_TEMPLATE,
                             TEST_COUNT}};
@@ -75,35 +75,33 @@ macro_rules! datastore_test {
         let mut passwd = std::fs::read_to_string("/hab/svc/postgresql/config/pwfile").ok();
 
         INIT_TEMPLATE.call_once(|| {
-                         // Use template1 to create our pool and recreate our test database
-                         config.database = "template1".to_string();
-                         config.user = "admin".to_string();
-                         config.password = passwd.clone();
-                         config.pool_size = 1;
-                         config.connection_timeout_sec = 5;
-                         let pool = Pool::new(&config);
-                         let conn = pool.get().expect("Failed to get connection");
+            // Use template1 to create our pool and recreate our test database
+            config.database = "template1".to_string();
+            config.user = "admin".to_string();
+            config.password = passwd.clone();
+            config.pool_size = 1;
+            config.connection_timeout_sec = 5;
+            let pool = DbPool::new(&config);
+            let conn = pool.get_conn().expect("Failed to get connection");
 
-                         conn.execute(format!("DROP DATABASE IF EXISTS {}", db_template).as_str(),
-                                      &[])
-                             .expect("Failed to drop existing template database");
-                         conn.execute(format!("CREATE DATABASE {}", db_template).as_str(), &[])
-                             .expect("Failed to create template database");
+            diesel::sql_query(format!("DROP DATABASE IF EXISTS {}", db_template).as_str())
+                                            .execute(&conn)
+                                            .expect("Failed to drop existing template database");
 
-                         // Now that the database is recreated, set config to use that database
-                         config.database = db_template.to_string();
+            diesel::sql_query(format!("CREATE DATABASE {}", db_template).as_str())
+                                            .execute(&conn)
+                                            .expect("Failed to create template database");
 
-                         let diesel_pool = DbPool::new(&config);
-                         let template_pool = Pool::new(&config);
+            // Now that the database is recreated, set config to use that database
+            config.database = db_template.to_string();
 
-                         // Run any builder-db migrations
-                         let _ =
-                             habitat_builder_db::migration::setup(&diesel_pool.get_conn().unwrap());
+            // Run any builder-db migrations
+            let _ = habitat_builder_db::migration::setup(&conn);
 
-                         // Run jobsrv migrations
-                         let ds = $datastore::from_pool(template_pool, diesel_pool.clone());
-                         ds.setup().expect("Failed to migrate data");
-                     });
+            // Run jobsrv migrations
+            let ds = $datastore::from_pool(pool);
+            ds.setup().expect("Failed to migrate data");
+        });
 
         println!("Finished db migrations");
 
@@ -116,20 +114,19 @@ macro_rules! datastore_test {
         config.password = passwd.clone();
         config.pool_size = 1;
         config.connection_timeout_sec = 5;
-        let create_pool = Pool::new(&config);
-        let conn = create_pool.get().expect("Failed to get connection");
+        let create_pool = DbPool::new(&config);
+        let conn = create_pool.get_conn().expect("Failed to get connection");
         let drop_db = format!("DROP DATABASE IF EXISTS {}", db_name);
         let create_db = format!("CREATE DATABASE {} TEMPLATE {}", db_name, db_template);
-        conn.execute(&drop_db, &[])
-            .expect("Failed to drop test database");
-        conn.execute(&create_db, &[])
-            .expect("Failed to create test database from template");
+        diesel::sql_query(drop_db).execute(&conn)
+                                  .expect("Failed to drop test database");
+        diesel::sql_query(create_db).execute(&conn)
+                                    .expect("Failed to create test database from template");
 
         config.database = db_name;
         config.pool_size = 5;
         let diesel_pool = DbPool::new(&config);
-        let pool = Pool::new(&config);
 
-        $datastore::from_pool(pool, diesel_pool)
+        $datastore::from_pool(diesel_pool)
     }};
 }

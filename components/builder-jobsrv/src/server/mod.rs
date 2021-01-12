@@ -247,7 +247,7 @@ pub async fn run(config: Config) -> Result<()> {
         let (scheduler, scheduler_handle) = Scheduler::start(Box::new(scheduler_datastore), 1);
         let scheduler_for_http = scheduler.clone();
 
-        WorkerMgr::start(&config, &datastore, db_pool.clone(), Some(scheduler))?;
+        WorkerMgr::start(&config, &datastore, Some(scheduler))?;
 
         let http_serv = HttpServer::new(move || {
                             let app_state = AppState::new(&config,
@@ -277,7 +277,7 @@ pub async fn run(config: Config) -> Result<()> {
 
         http_res.map_err(Error::from)
     } else {
-        WorkerMgr::start(&config, &datastore, db_pool.clone(), None)?;
+        WorkerMgr::start(&config, &datastore, None)?;
         ScheduleMgr::start(&config, &datastore, db_pool.clone())?;
         HttpServer::new(move || {
             let app_state = AppState::new(&config, &datastore, db_pool.clone(), &graph_arc, None);
