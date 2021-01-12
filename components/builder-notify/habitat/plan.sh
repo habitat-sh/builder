@@ -9,7 +9,6 @@ pkg_deps=(core/glibc
           core/coreutils
           core/gcc-libs
           core/zeromq
-          core/libsodium
           core/libarchive
           core/curl
           core/postgresql)
