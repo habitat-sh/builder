@@ -1,10 +1,10 @@
 //! Configuration for a Habitat JobSrv service
 
-use crate::{db::config::DataStoreCfg,
+use crate::{bldr_core::config::ConfigFile,
+            db::config::DataStoreCfg,
             error::Error,
             server::log_archiver::ArchiveBackend};
-use habitat_core::{config::ConfigFile,
-                   crypto::keys::KeyCache,
+use habitat_core::{crypto::keys::KeyCache,
                    package::target::{self,
                                      PackageTarget}};
 use std::{collections::HashSet,

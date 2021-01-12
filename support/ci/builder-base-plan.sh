@@ -40,13 +40,15 @@ do_builder_install() {
     "$pkg_prefix/bin/$bin"
 }
 
-do_setup_environment() {
-  set_buildtime_env SODIUM_USE_PKG_CONFIG "true"
-  build_line "Setting SODIUM_USE_PKG_CONFIG=$SODIUM_USE_PKG_CONFIG"
-}
-
 # shellcheck disable=2154
 do_builder_prepare() {
+  # It is important NOT to use a vendored openssl from openssl-sys
+  # pg-sys does not use openssl-sys. So for components that use
+  # diesel's postgres feature, you wil end up with 2 versions of openssl
+  # which can lead to segmentation faults when connecting to postgres
+  export OPENSSL_NO_VENDOR=1
+  build_line "Setting OPENSSL_NO_VENDOR=$OPENSSL_NO_VENDOR"
+
   export builder_build_type="${builder_build_type:---release}"
   # Can be either `--release` or `--debug` to determine cargo build strategy
   build_line "Building artifacts with \`${builder_build_type#--}' mode"
