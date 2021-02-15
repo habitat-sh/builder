@@ -769,6 +769,10 @@ fn search_packages(req: HttpRequest,
     // search across all origins, similar to how the "distinct" search works now, but returning all
     // the details instead of just names.
     let decoded_query = match percent_encoding::percent_decode(query.as_bytes()).decode_utf8() {
+        // TODO There might be a case where there is a package with the same name as the origin.
+        // And the search with the query 'origin/' could end up finding the matches in 'origin' and
+        // the package names. Ideally, it should filter the matches to match the 'origin'
+        // only in this case.
         Ok(q) => q.to_string().trim_end_matches('/').replace("/", " & "),
         Err(err) => {
             debug!("{}", err);

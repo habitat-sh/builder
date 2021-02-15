@@ -348,15 +348,37 @@ describe('Working with packages', function () {
 
   describe('Finding packages', function () {
     it('allows me to search for packages', function (done) {
-      request.get('/depot/pkgs/search/testapp')
+      request.get('/depot/pkgs/search/testapp2')
         .type('application/json')
         .accept('application/json')
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(6);
-          expect(res.body.total_count).to.equal(7);
-          expect(res.body.data.length).to.equal(7);
+          expect(res.body.range_end).to.equal(1);
+          expect(res.body.total_count).to.equal(2);
+          expect(res.body.data.length).to.equal(2);
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].name).to.equal('testapp2');
+          expect(res.body.data[0].version).to.equal('v1.2.3-aaster');
+          expect(res.body.data[0].release).to.equal(release6);
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('testapp2');
+          expect(res.body.data[1].version).to.equal('v1.2.3-master');
+          expect(res.body.data[1].release).to.equal(release5);
+          done(err);
+        });
+    });
+
+    it('allows me to search for packages by partial name', function (done) {
+      request.get('/depot/pkgs/search/testa')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(8);
+          expect(res.body.total_count).to.equal(9);
+          expect(res.body.data.length).to.equal(9);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('testapp');
           expect(res.body.data[0].version).to.equal('0.1.13');
@@ -371,16 +393,84 @@ describe('Working with packages', function () {
           expect(res.body.data[3].name).to.equal('testapp');
           expect(res.body.data[3].version).to.equal('0.1.3');
           expect(res.body.data[3].release).to.equal(release8);
-          expect(res.body.data[6].origin).to.equal('xmen');
-          expect(res.body.data[6].name).to.equal('testapp');
-          expect(res.body.data[6].version).to.equal('0.1.4');
-          expect(res.body.data[6].release).to.equal(release4);
+          expect(res.body.data[8].origin).to.equal('xmen');
+          expect(res.body.data[8].name).to.equal('testapp');
+          expect(res.body.data[8].version).to.equal('0.1.4');
+          expect(res.body.data[8].release).to.equal(release4);
+          done(err);
+        });
+    });
+
+    it('allows me to search for packages by origin/name', function (done) {
+      request.get('/depot/pkgs/search/neurosis%2Ftestapp')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(7);
+          expect(res.body.total_count).to.equal(8);
+          expect(res.body.data.length).to.equal(8);
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[0].version).to.equal('0.1.13');
+          expect(res.body.data[0].release).to.equal(release10);
+          expect(res.body.data[1].version).to.equal('0.1.3');
+          expect(res.body.data[1].release).to.equal(release1);
+          expect(res.body.data[2].origin).to.equal('neurosis');
+          expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[2].version).to.equal('0.1.3');
+          expect(res.body.data[2].release).to.equal(release2);
+          expect(res.body.data[6].origin).to.equal('neurosis');
+          expect(res.body.data[6].name).to.equal('testapp2');
+          expect(res.body.data[6].version).to.equal('v1.2.3-aaster');
+          expect(res.body.data[6].release).to.equal(release6);
+          expect(res.body.data[7].origin).to.equal('neurosis');
+          expect(res.body.data[7].name).to.equal('testapp2');
+          expect(res.body.data[7].version).to.equal('v1.2.3-master');
+          expect(res.body.data[7].release).to.equal(release5);
           done(err);
         });
     });
 
     it('allows me to search for distinct packages', function (done) {
-      request.get('/depot/pkgs/search/testapp?distinct=true')
+      request.get('/depot/pkgs/search/testapp2?distinct=true')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(1);
+          expect(res.body.data.length).to.equal(1);
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].name).to.equal('testapp2');
+          done(err);
+        });
+    });
+
+    it('allows me to search for distinct packages by partial name', function (done) {
+      request.get('/depot/pkgs/search/testa?distinct=true')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(2);
+          expect(res.body.total_count).to.equal(3);
+          expect(res.body.data.length).to.equal(3);
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[1].origin).to.equal('xmen');
+          expect(res.body.data[1].name).to.equal('testapp');
+          expect(res.body.data[2].origin).to.equal('neurosis');
+          expect(res.body.data[2].name).to.equal('testapp2');
+          done(err);
+        });
+    });
+
+    it('allows me to search for distinct packages by origin/name', function (done) {
+      request.get('/depot/pkgs/search/neurosis%2Ftestapp?distinct=true')
         .type('application/json')
         .accept('application/json')
         .expect(200)
@@ -391,8 +481,8 @@ describe('Working with packages', function () {
           expect(res.body.data.length).to.equal(2);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('testapp');
-          expect(res.body.data[1].origin).to.equal('xmen');
-          expect(res.body.data[1].name).to.equal('testapp');
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('testapp2');
           done(err);
         });
     });

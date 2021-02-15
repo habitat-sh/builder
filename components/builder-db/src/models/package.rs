@@ -773,7 +773,7 @@ impl Package {
 
         let mut query = origin_packages::table
             .select(origin_packages::ident)
-            .filter(to_tsquery(sp.query).matches(origin_packages::ident_vector))
+            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
             .order(origin_packages::ident.asc())
             .into_boxed();
 
@@ -811,7 +811,7 @@ impl Package {
         let mut query = origin_packages::table
             .inner_join(origins::table)
             .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
-            .filter(to_tsquery(sp.query).matches(origin_packages::ident_vector))
+            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
             .order(origin_packages::name.asc())
             .into_boxed();
 
