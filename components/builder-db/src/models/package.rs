@@ -765,7 +765,7 @@ impl Package {
         result
     }
 
-    pub fn search(sp: SearchPackages,
+    pub fn search(sp: &SearchPackages,
                   conn: &PgConnection)
                   -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
@@ -802,7 +802,7 @@ impl Package {
     }
 
     // This is me giving up on fighting the typechecker and just duplicating a bunch of code
-    pub fn search_distinct(sp: SearchPackages,
+    pub fn search_distinct(sp: &SearchPackages,
                            conn: &PgConnection)
                            -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
