@@ -769,6 +769,10 @@ fn search_packages(req: HttpRequest,
     // search across all origins, similar to how the "distinct" search works now, but returning all
     // the details instead of just names.
     let decoded_query = match percent_encoding::percent_decode(query.as_bytes()).decode_utf8() {
+        // TODO There might be a case where there is a package with the same name as the origin.
+        // And the search with the query 'origin/' could end up finding the matches in 'origin' and
+        // the package names. Ideally, it should filter the matches to match the 'origin'
+        // only in this case.
         Ok(q) => q.to_string().trim_end_matches('/').replace("/", " & "),
         Err(err) => {
             debug!("{}", err);
@@ -778,13 +782,13 @@ fn search_packages(req: HttpRequest,
 
     debug!("search_packages called with: {}", decoded_query);
 
+    let search_packages = SearchPackages { query:      decoded_query,
+                                           page:       page as i64,
+                                           limit:      per_page as i64,
+                                           account_id: opt_session_id, };
+
     if pagination.distinct {
-        return match Package::search_distinct(SearchPackages { query:      decoded_query,
-                                                               page:       page as i64,
-                                                               limit:      per_page as i64,
-                                                               account_id: opt_session_id, },
-                                              &*conn)
-        {
+        return match Package::search_distinct(&search_packages, &*conn) {
             Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
             Err(err) => {
                 debug!("{}", err);
@@ -793,12 +797,7 @@ fn search_packages(req: HttpRequest,
         };
     }
 
-    match Package::search(SearchPackages { query:      decoded_query,
-                                           page:       page as i64,
-                                           limit:      per_page as i64,
-                                           account_id: opt_session_id, },
-                          &*conn)
-    {
+    match Package::search(&search_packages, &*conn) {
         Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
         Err(err) => {
             debug!("{}", err);
