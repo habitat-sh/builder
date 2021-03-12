@@ -100,6 +100,32 @@ _build-builder-component() {
 }
 build-builder-component() { stop-on-failure _build-builder-component "$@"; }
 
+_build-notify-component() {
+  stop-notify
+
+  NO_INSTALL_DEPS=$(no_install_deps "builder-notify") \
+    build "/src/components/builder-notify"
+  echo "builder-notify build succeeded"
+
+  start-notify
+}
+build-notify() { stop-on-failure _build-notify-component; }
+
+_build-kafka-component() {
+  stop-kafka
+
+  # NO_INSTALL_DEPS=$(no_install_deps "builder-zookeeper") \
+  #   build "/src/components/builder-zookeeper"
+  # echo "builder-zookeeper build succeeded"
+
+  NO_INSTALL_DEPS=$(no_install_deps "builder-kafka") \
+    build "/src/components/builder-kafka"
+  echo "builder-kafka build succeeded"
+
+  start-kafka
+}
+build-kafka() { stop-on-failure _build-kafka-component; }
+
 alias bb=build-builder
 _build-builder() {
   if ! hab sup status > /dev/null 2>&1; then
@@ -120,6 +146,12 @@ _build-builder() {
   for component in "$@"; do
     build-builder-component "$component"
   done
+
+  # Build kafka
+  build-kafka
+  sleep 10
+  # Build notify
+  build-notify
 }
 build-builder() { stop-on-failure _build-builder "$@"; }
 
@@ -149,6 +181,10 @@ _start-builder() {
     start-builder jobsrv
     start-builder worker
     start-builder minio
+
+    # start-kafka
+    # sleep 5
+    # start-notify
     # Provide enough time for minio's reconfigure hook to create the bucket.
     # Otherwise, the configure operation will error and abend this function.
     sleep 8
@@ -200,6 +236,67 @@ start-datastore() {
   fi
 }
 
+stop-notify() {
+  echo "Stopping notify"
+  if hab sup status habitat/builder-notify > /dev/null 2>&1; then
+    echo "Unloading builder-notify"
+    hab svc unload habitat/builder-notify
+  fi
+}
+
+stop-kafka() {
+  echo "Stopping kafka"
+    if hab sup status habitat/builder-kafka > /dev/null 2>&1; then
+    hab pkg exec habitat/builder-kafka kafka-server-stop.sh > /dev/null 2>&1
+  fi
+  
+  sleep 2
+
+  if hab sup status habitat/builder-kafka > /dev/null 2>&1; then
+    hab svc unload habitat/builder-kafka
+  fi
+
+  sleep 2
+
+  echo "Stopping Zookeeper"
+  # if hab sup status habitat/builder-zookeeper > /dev/null 2>&1; then
+  #   hab svc unload habitat/builder-zookeeper
+  # fi
+
+  if hab sup status core/zookeeper > /dev/null 2>&1; then
+    hab svc unload core/zookeeper
+  fi
+}
+
+start-notify() {
+  echo "Starting notify"
+  if hab sup status habitat/builder-notify > /dev/null 2>&1; then
+    echo "habitat/builder-notify is already loaded"
+  else
+    hab svc load habitat/builder-notify
+  fi
+}
+
+start-kafka() {
+  echo "Starting Zookeeper"
+  if hab sup status core/zookeeper > /dev/null 2>&1; then
+    echo "Zookeeper is already loaded"
+  else
+    hab svc load core/zookeeper
+  fi
+
+  sleep 10
+  
+  # Kafka listens on port 9092 by default
+  echo "Starting Kafka"
+  if netstat -tulpn | grep 9092 &>/dev/null; then
+    echo "Kafka is already loaded"
+  else
+    # No package yet
+    hab svc load habitat/builder-kafka &>/dev/null
+  fi
+}
+
 configure-minio() {
    export AWS_ACCESS_KEY_ID="depot"
    export AWS_SECRET_ACCESS_KEY="password"
@@ -238,6 +335,9 @@ _stop-builder() {
       hab svc unload habitat/builder-$component
     fi
   done
+
+  # stop-kafka
+  # stop-notify
 }
 stop-builder() { stop-on-failure _stop-builder "$@"; }
 

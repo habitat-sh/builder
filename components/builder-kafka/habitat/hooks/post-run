@@ -1,0 +1,10 @@
+#!/bin/sh
+
+exec 2>&1
+
+export JAVA_HOME="{{pkgPathFor "core/corretto11"}}"
+
+# Kafka listens on port 9092 by default
+if netstat -tulpn | grep 9092 &>/dev/null; then
+    exec {{pkg.path}}/bin/kafka-topics.sh --create --topic builder-events --bootstrap-server localhost:9092
+fi 

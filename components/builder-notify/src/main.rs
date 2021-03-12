@@ -1,21 +1,27 @@
 use habitat_builder_notify::{cli::Notify,
-                             error::Error,
                              server};
+use std::{fmt,
+          process};
 use structopt::StructOpt;
 
-#[macro_use]
-extern crate log;
 extern crate env_logger;
 
-fn main() -> Result<(), Error> {
+#[actix_rt::main]
+async fn main() {
     env_logger::init();
     match Notify::from_args() {
         Notify::Run { config } => {
-            if let Err(e) = server::run(config) {
-                error!("{}", e);
-                std::process::exit(1)
+            match server::run(config).await {
+                Ok(_) => std::process::exit(0),
+                Err(e) => exit_with(e, 1),
             }
         }
     }
-    Ok(())
+}
+
+fn exit_with<T>(err: T, code: i32)
+    where T: fmt::Display
+{
+    println!("Error in 'builder-notify' service {}", err);
+    process::exit(code)
 }
