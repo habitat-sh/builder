@@ -8,22 +8,21 @@ use async_trait::async_trait;
 use cloudevents_sdk_rdkafka::{FutureRecordExt,
                               MessageExt,
                               MessageRecord};
-use serde::{Deserialize,
-            Serialize};
-use std::{convert::TryFrom,
-          time::Duration};
-use url::Url;
-
 use rdkafka::{config::ClientConfig,
-              consumer::{BaseConsumer,
-                         Consumer},
+              consumer::{Consumer,
+                         StreamConsumer},
               producer::{FutureProducer,
                          FutureRecord}};
+use serde::{Deserialize,
+            Serialize};
+use std::convert::TryFrom;
+use tokio::stream::StreamExt;
+use url::Url;
 
-pub const KAFKA_DEFAULT_TOPIC_NAME: &str = "builder_events";
+pub const KAFKA_DEFAULT_TOPIC_NAME: &str = "builder-events";
 
 pub struct KafkaConsumer {
-    inner: BaseConsumer,
+    inner: StreamConsumer,
 }
 
 pub struct KafkaPublisher {
@@ -66,10 +65,10 @@ impl TryFrom<&KafkaConfig> for KafkaConsumer {
         match ClientConfig::new().set("group.id", &config.group_id)
                                  .set("bootstrap.servers", &bootstrap_list)
                                  .set("enable.partition.eof", &config.partition_eof.to_string())
-                                 .set("sasl.username", &config.api_key)
-                                 .set("sasl.password", &config.api_secret_key)
-                                 .set("sasl.mechanisms", "PLAIN")
-                                 .set("security.protocol", "SASL_SSL")
+                                //  .set("sasl.username", &config.api_key)
+                                //  .set("sasl.password", &config.api_secret_key)
+                                //  .set("sasl.mechanisms", "PLAIN")
+                                //  .set("security.protocol", "PLAINTEXT")
                                  .set("session.timeout.ms", &config.session_timeout_ms.to_string())
                                  .set("enable.auto.commit", "true")
                                  .set("auto.offset.reset", "earliest")
@@ -92,10 +91,10 @@ impl TryFrom<&KafkaConfig> for KafkaPublisher {
         match ClientConfig::new().set("bootstrap.servers", &bootstrap_list)
                                  .set("message.timeout.ms", &config.message_timeout_ms.to_string())
                                  .set("client.id", &config.client_id.as_str())
-                                 .set("sasl.username", &config.api_key)
-                                 .set("sasl.password", &config.api_secret_key)
-                                 .set("sasl.mechanisms", "PLAIN")
-                                 .set("security.protocol", "SASL_SSL")
+                                //  .set("sasl.username", &config.api_key)
+                                //  .set("sasl.password", &config.api_secret_key)
+                                //  .set("sasl.mechanisms", "PLAIN")
+                                //  .set("security.protocol", "PLAINTEXT")
                                  .create()
         {
             Ok(p) => Ok(KafkaPublisher { inner: p }),
@@ -108,6 +107,7 @@ impl TryFrom<&KafkaConfig> for KafkaPublisher {
 }
 
 // The EventConsumer trait object binding for Kafka
+#[async_trait]
 #[allow(clippy::wildcard_in_or_patterns)]
 impl EventConsumer for KafkaConsumer {
     /// Subscribe to a vec of topics
@@ -119,23 +119,28 @@ impl EventConsumer for KafkaConsumer {
     }
 
     /// Poll for a new message
-    fn poll(&self) -> Option<Result<BuilderEvent, Error>> {
-        if let Some(polled) = self.inner.poll(Duration::from_secs(0)) {
-            match polled {
-                Ok(message) => {
-                    match message.to_event() {
-                        Ok(event) => Some(Ok(event.into())),
-                        Err(err) => Some(Err(Error::EventError(Box::new(err)))),
+    async fn stream(&self) {
+        let mut msg_stream = self.inner.start();
+        while let Some(message) = msg_stream.next().await {
+            match message {
+                Ok(m) => {
+                    match m.to_event() {
+                        Ok(event) => {
+                            debug!("Event {:?}", event);
+                            let data: serde_json::Value = event.try_get_data().unwrap().unwrap();
+                            debug!("EventData {:?}", data);
+                        }
+                        Err(err) => {
+                            debug!("Error in EventData: {:?}", err);
+                        }
                     }
                 }
                 Err(err) => {
                     let err_ext: Box<dyn std::error::Error> =
                         format!("Unable to extract message: {}", err).into();
-                    Some(Err(Error::EventError(err_ext)))
+                    debug!("Error in EventData: {:?}", err_ext);
                 }
-            }
-        } else {
-            None
+            };
         }
     }
 }

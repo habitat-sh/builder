@@ -4,12 +4,10 @@ use builder_core::config::ConfigFile;
 use habitat_builder_events::connection::{create_consumer,
                                          EventConsumer};
 use habitat_core::ok_warn;
-use std::{path::PathBuf,
-          thread::{self},
-          time::Duration};
+use std::path::PathBuf;
 
 const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-notify/config/config.toml";
-const DEFAULT_QUEUE_NAME: &str = "builder_events";
+const DEFAULT_QUEUE_NAME: &str = "builder-events";
 
 pub struct AppState {
     event_consumer: Option<Box<dyn EventConsumer>>,
@@ -23,7 +21,7 @@ impl AppState {
     }
 }
 
-pub fn run(path: Option<PathBuf>) -> Result<(), Error> {
+pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
     info!("Launching builder-notify service.");
     let config_path = path.unwrap_or_else(|| PathBuf::from(CFG_DEFAULT_PATH));
     let config = if config_path.is_file() {
@@ -40,15 +38,7 @@ pub fn run(path: Option<PathBuf>) -> Result<(), Error> {
                 bus.subscribe(&[DEFAULT_QUEUE_NAME].to_vec())
                    .map_err(|e| Error::NotificationsError(Box::new(e)))?;
 
-                loop {
-                    if let Some(msg) = bus.poll() {
-                        match msg {
-                            Ok(valid_message) => debug!("received msg {:?}", valid_message),
-                            Err(err) => error!("{}", err),
-                        }
-                    };
-                    thread::sleep(Duration::from_millis(100));
-                }
+                bus.stream().await
             }
         }
         Err(e) => error!("EventConsumer failed to start: {}", e),
