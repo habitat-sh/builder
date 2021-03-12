@@ -279,7 +279,7 @@ start-notify() {
 
 start-kafka() {
   echo "Starting Zookeeper"
-  if hab sup status core/zookeeper > /dev/null 2>&1; then
+  if hab sup status core/zookeeper >/dev/null 2>&1; then
     echo "Zookeeper is already loaded"
   else
     hab svc load core/zookeeper
@@ -289,11 +289,11 @@ start-kafka() {
   
   # Kafka listens on port 9092 by default
   echo "Starting Kafka"
-  if netstat -tulpn | grep 9092 &>/dev/null; then
+  if netstat -tulpn | grep 9092 >/dev/null 2>&1; then
     echo "Kafka is already loaded"
   else
     # No package yet
-    hab svc load habitat/builder-kafka &>/dev/null
+    hab svc load habitat/builder-kafka >/dev/null 2>&1
   fi
 }
 
