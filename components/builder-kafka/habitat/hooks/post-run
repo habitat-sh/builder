@@ -2,7 +2,8 @@
 
 exec 2>&1
 
-export JAVA_HOME="{{pkgPathFor \"core/corretto11\"}}"
+# shellcheck disable=SC2140
+export JAVA_HOME="{{pkgPathFor "core/corretto11"}}"
 
 # Kafka listens on port 9092 by default
 if netstat -tulpn | grep 9092 >/dev/null 2>&1; then
