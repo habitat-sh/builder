@@ -118,30 +118,30 @@ impl EventConsumer for KafkaConsumer {
             .map_err(|e| Error::EventError(Box::new(e)))
     }
 
-    /// Poll for a new message
-    async fn stream(&self) {
+    /// Wait for and receive the next available message
+    async fn recv(&self) -> Option<Result<BuilderEvent, Error>> {
         let mut msg_stream = self.inner.start();
-        while let Some(message) = msg_stream.next().await {
+        let result = if let Some(message) = msg_stream.next().await {
             match message {
                 Ok(m) => {
                     match m.to_event() {
-                        Ok(event) => {
-                            debug!("Event {:?}", event);
-                            let data: serde_json::Value = event.try_get_data().unwrap().unwrap();
-                            debug!("EventData {:?}", data);
-                        }
-                        Err(err) => {
-                            debug!("Error in EventData: {:?}", err);
-                        }
+                        Ok(event) => Some(Ok(event.into())),
+                        Err(err) => Some(Err(Error::EventError(Box::new(err)))),
                     }
                 }
                 Err(err) => {
                     let err_ext: Box<dyn std::error::Error> =
                         format!("Unable to extract message: {}", err).into();
-                    debug!("Error in EventData: {:?}", err_ext);
+                    Some(Err(Error::EventError(err_ext)))
                 }
-            };
-        }
+            }
+        } else {
+            let err_ext: Box<dyn std::error::Error> =
+                format!("Error in EventConsumer::recv").into();
+            Some(Err(Error::EventError(err_ext)))
+        };
+
+        result
     }
 }
 

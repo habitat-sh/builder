@@ -116,9 +116,9 @@ pub fn create_producer(config: &EventConfig) -> Result<Box<dyn EventPublisher>, 
 pub trait EventConsumer {
     /// Subscribe to list of queues or topics
     fn subscribe(&self, queues: &[&str]) -> Result<(), Error>;
-    /// Stream the topic(s) for new messages. When a message exists, its payload will be returned.
-    /// This is a synchronous call.
-    async fn stream(&self);
+    /// Receive the topics' next available message. As soon as a new message available, its payload
+    /// will be returned. This is an asynchronous call.
+    async fn recv(&self) -> Option<Result<BuilderEvent, Error>>;
 }
 
 /// Trait abstraction representing the configured Event Publisher. The Publisher is

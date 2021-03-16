@@ -38,7 +38,19 @@ pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
                 bus.subscribe(&[DEFAULT_QUEUE_NAME].to_vec())
                    .map_err(|e| Error::NotificationsError(Box::new(e)))?;
 
-                bus.stream().await
+                loop {
+                    if let Some(msg) = bus.recv().await {
+                        match msg {
+                            Ok(builder_event) => {
+                                let (event, _) = builder_event.fields();
+                                let data: serde_json::Value =
+                                    event.try_get_data().unwrap().unwrap();
+                                debug!("EventData {:?}", data);
+                            }
+                            Err(err) => error!("{}", err),
+                        }
+                    };
+                }
             }
         }
         Err(e) => error!("EventConsumer failed to start: {}", e),
