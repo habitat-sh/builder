@@ -137,7 +137,7 @@ impl EventConsumer for KafkaConsumer {
             }
         } else {
             let err_ext: Box<dyn std::error::Error> =
-                "Error in EventConsumer::recv".to_string();
+                "Error in EventConsumer::recv".to_string().into();
             Some(Err(Error::EventError(err_ext)))
         };
 
