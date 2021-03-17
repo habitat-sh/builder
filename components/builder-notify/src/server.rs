@@ -31,6 +31,7 @@ pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
               config_path);
         Config::default()
     };
+    info!("NotificationConfig: {:?}", &config);
     match AppState::new(&config) {
         Ok(state) => {
             if let Some(bus) = state.event_consumer {
@@ -46,7 +47,7 @@ pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
                                 let data: serde_json::Value =
                                     event.try_get_data().unwrap().unwrap();
                                 debug!("EventData {:?}", data);
-                                    let _hub = crate::get_hub(&config);
+                                let _hub = crate::get_hub(&config);
                             }
                             Err(err) => error!("{}", err),
                         }

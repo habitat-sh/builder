@@ -16,8 +16,9 @@ use crate::hub::Hub;
 
 pub fn get_hub(config: &Config) -> Hub {
     debug!("NotifyConfig {:?}", config);
-    let hub = Hub::new();
-    // Add the hooks
+    Hub::new()
+    // let hub = Hub::new();
+    // // Add the hooks
 
-    hub
+    // hub
 }
