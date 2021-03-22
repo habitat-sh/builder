@@ -46,8 +46,10 @@ pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
                                 let (event, _) = builder_event.fields();
                                 let data: serde_json::Value =
                                     event.try_get_data().unwrap().unwrap();
-                                debug!("EventData {:?}", data);
-                                let _hub = crate::get_hub(&config);
+                                let json_string = serde_json::to_string(&data).unwrap();
+                                debug!("EventData {:?}", json_string);
+                                let hub = crate::get_hub(&config);
+                                hub.handle(&json_string).await;
                             }
                             Err(err) => error!("{}", err),
                         }

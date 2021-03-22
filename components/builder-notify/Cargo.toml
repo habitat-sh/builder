@@ -20,13 +20,15 @@ cloudevents-sdk-rdkafka = "*"
 configopt = { git = "https://github.com/davidMcneil/configopt.git" }
 env_logger = "*"
 features = "*"
+futures = "*"
 lazy_static = "*"
 log = "*"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
 structopt = "*"
-tokio = "*"
+tokio = { version = "*", features = ["macros"] }
 url = "*"
 uuid = { version = "*", features = ["v4"] }
 

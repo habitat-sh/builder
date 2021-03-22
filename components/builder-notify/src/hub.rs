@@ -1,8 +1,7 @@
 use crate::hook::Hook;
-use cloudevents::event::Event;
 
 /// A hub is a registry of hooks
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Hub {
     hooks: Vec<Box<dyn Hook>>,
 }
@@ -18,10 +17,13 @@ impl Hub {
     }
 
     /// handle hook delivery
-    pub fn handle(&self, event: &Event) {
-        debug!("Hub:: Delivering Event {:?}", event);
+    pub async fn handle(&self, event_data: &str) {
         for hook in &self.hooks {
-            hook.deliver(&event);
+            let result = hook.deliver(&event_data).await;
+            match result {
+                Ok(_) => debug!("Successfully delivered event!"),
+                Err(err) => debug!("Error {:?}", err),
+            }
         }
     }
 }

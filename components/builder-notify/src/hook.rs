@@ -1,24 +1,32 @@
-use cloudevents::event::Event;
-use std::fmt::Debug;
+use crate::client::WebhookClient;
+use async_trait::async_trait;
+use std::result::Result;
 
 /// Handles hook deliveries
-pub trait Hook: Debug {
+#[async_trait]
+pub trait Hook: Sync + Send {
     /// Implementations are expected to deliver
-    fn deliver(&self, event: &Event);
+    async fn deliver(&self, event_data: &str) -> Result<(), Box<dyn std::error::Error + 'static>>;
 }
 
 /// A Webhook
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Webhook {
     pub endpoint: String,
+    pub client:   WebhookClient,
 }
 
 impl Webhook {
-    pub fn new(endpoint: String) -> Webhook { Webhook { endpoint } }
+    pub fn new(endpoint: String, client: WebhookClient) -> Webhook { Webhook { endpoint, client } }
 }
 
+#[async_trait]
 impl Hook for Webhook {
-    fn deliver(&self, event: &Event) {
-        debug!("Hook:: Delivering Event {:?}", event);
+    async fn deliver(&self, event_data: &str) -> Result<(), Box<dyn std::error::Error + 'static>> {
+        let response = self.client.push(&self.endpoint, event_data).await;
+        match response {
+            Ok(_) => Ok(()),
+            Err(err) => Err(Box::new(err)),
+        }
     }
 }
