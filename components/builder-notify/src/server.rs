@@ -31,13 +31,13 @@ pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
               config_path);
         Config::default()
     };
-    info!("NotificationConfig: {:?}", &config);
     match AppState::new(&config) {
         Ok(state) => {
             if let Some(bus) = state.event_consumer {
                 info!("EventConsumer started.");
                 bus.subscribe(&[DEFAULT_QUEUE_NAME].to_vec())
                    .map_err(|e| Error::NotificationsError(Box::new(e)))?;
+                let hub = crate::get_hub(&config);
 
                 loop {
                     if let Some(msg) = bus.recv().await {
@@ -48,7 +48,6 @@ pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
                                     event.try_get_data().unwrap().unwrap();
                                 let json_string = serde_json::to_string(&data).unwrap();
                                 debug!("EventData {:?}", json_string);
-                                let hub = crate::get_hub(&config);
                                 hub.handle(&json_string).await;
                             }
                             Err(err) => error!("{}", err),
