@@ -14,16 +14,14 @@ pub mod webhook_client;
 
 use crate::{config::Config,
             hook::Webhook,
-            hub::Hub,
-            webhook_client::WebhookClient};
+            hub::Hub};
 
 pub fn get_hub(config: &Config) -> Hub {
     debug!("NotifyConfig {:?}", config);
     let mut hub = Hub::new();
     let webhooks = &config.hub.webhooks;
     for webhook in webhooks {
-        hub.add(Webhook { endpoint: webhook.endpoint.clone(),
-                          client:   WebhookClient::new().unwrap(), });
+        hub.add(Webhook::new(&webhook.endpoint));
     }
 
     hub

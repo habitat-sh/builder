@@ -17,13 +17,17 @@ pub struct Webhook {
 }
 
 impl Webhook {
-    pub fn new(endpoint: String, client: WebhookClient) -> Webhook { Webhook { endpoint, client } }
+    pub fn new(endpoint: &str) -> Webhook {
+        let client = WebhookClient::new(endpoint).unwrap();
+        Webhook { endpoint: endpoint.to_owned(),
+                  client }
+    }
 }
 
 #[async_trait]
 impl Hook for Webhook {
     async fn deliver(&self, event_data: &str) -> Result<(), Box<dyn std::error::Error + 'static>> {
-        let response = self.client.push(&self.endpoint, event_data).await;
+        let response = self.client.push(event_data).await;
         match response {
             Ok(_) => Ok(()),
             Err(err) => Err(Box::new(err)),

@@ -11,26 +11,28 @@ use std::iter::FromIterator;
 #[derive(Clone, Default)]
 pub struct WebhookClient {
     inner: Client,
+    url:   String,
 }
 
 impl WebhookClient {
-    pub fn new() -> Result<Self> {
+    pub fn new(url: &str) -> Result<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(), ACCEPT_APPLICATION_JSON.clone()];
         let headers = HeaderMap::from_iter(header_values.into_iter());
 
         let client = reqwest::Client::builder().default_headers(headers)
                                                .build()?;
 
-        Ok(WebhookClient { inner: client })
+        Ok(WebhookClient { inner: client,
+                           url:   url.to_owned(), })
     }
 
-    pub async fn push(&self, url: &str, payload: &str) -> Result<Response> {
-        debug!("WebhookClient push url = {}", url);
+    pub async fn push(&self, payload: &str) -> Result<Response> {
+        debug!("WebhookClient push url = {}", self.url);
 
         let body: Body = payload.to_string().into();
 
         let resp = self.inner
-                       .post(url)
+                       .post(&self.url)
                        .body(body)
                        .send()
                        .await
