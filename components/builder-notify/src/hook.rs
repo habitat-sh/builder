@@ -1,4 +1,4 @@
-use crate::client::WebhookClient;
+use crate::webhook_client::WebhookClient;
 use async_trait::async_trait;
 use std::result::Result;
 
