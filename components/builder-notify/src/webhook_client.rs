@@ -6,8 +6,7 @@ use reqwest::{header::HeaderMap,
               Body,
               Client,
               Response};
-use std::{collections::HashMap,
-          iter::FromIterator};
+use std::iter::FromIterator;
 
 #[derive(Clone, Default)]
 pub struct WebhookClient {
@@ -30,27 +29,19 @@ impl WebhookClient {
 
         let body: Body = payload.to_string().into();
 
-        let resp = match self.inner
-                             .post(url)
-                             .body(body)
-                             .send()
-                             .await
-                             .map_err(Error::HttpClient)
-        {
-            Ok(resp) => resp,
-            Err(err) => {
-                error!("WebhookClient upload failed, err={}", err);
-                return Err(err);
-            }
-        };
+        let resp = self.inner
+                       .post(url)
+                       .body(body)
+                       .send()
+                       .await
+                       .map_err(Error::WebhookClientUpload)?;
 
         debug!("WebhookClient response status: {:?}", resp.status());
 
         if resp.status().is_success() {
             Ok(resp)
         } else {
-            error!("WebhookClient push non-success status: {:?}", resp.status());
-            Err(Error::ApiError(resp.status(), HashMap::new()))
+            Err(Error::WebhookPushError(resp.status(), resp.text().await?))
         }
     }
 }

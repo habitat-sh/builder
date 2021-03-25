@@ -1,5 +1,4 @@
-use std::{collections::HashMap,
-          error,
+use std::{error,
           fmt,
           result};
 
@@ -7,8 +6,8 @@ use std::{collections::HashMap,
 pub enum Error {
     BuilderCore(builder_core::Error),
     NotificationsError(Box<dyn std::error::Error>),
-    HttpClient(reqwest::Error),
-    ApiError(reqwest::StatusCode, HashMap<String, String>),
+    WebhookClientUpload(reqwest::Error),
+    WebhookPushError(reqwest::StatusCode, String),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -18,10 +17,10 @@ impl fmt::Display for Error {
         let msg = match *self {
             Error::BuilderCore(ref e) => format!("{}", e),
             Error::NotificationsError(ref e) => e.to_string(),
-            Error::HttpClient(ref e) => format!("{}", e),
-            Error::ApiError(ref code, ref response) => {
-                format!("Received a non-200 response, status={}, response={:?}",
-                        code, response)
+            Error::WebhookClientUpload(ref e) => format!("{}", e),
+            Error::WebhookPushError(ref code, ref msg) => {
+                format!("Received a non-200 response, status={}, response={}",
+                        code, msg)
             }
         };
         write!(f, "{}", msg)
@@ -35,5 +34,5 @@ impl From<builder_core::Error> for Error {
 }
 
 impl From<reqwest::Error> for Error {
-    fn from(err: reqwest::Error) -> Self { Error::HttpClient(err) }
+    fn from(err: reqwest::Error) -> Self { Error::WebhookClientUpload(err) }
 }
