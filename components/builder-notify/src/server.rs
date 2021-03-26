@@ -1,6 +1,7 @@
 use crate::{config::Config,
             error::Error};
 use builder_core::config::ConfigFile;
+use cloudevents::event::Data;
 use habitat_builder_events::connection::{create_consumer,
                                          EventConsumer};
 use habitat_core::ok_warn;
@@ -44,11 +45,15 @@ pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
                         match msg {
                             Ok(builder_event) => {
                                 let (event, _) = builder_event.fields();
-                                let data: serde_json::Value =
-                                    event.try_get_data().unwrap().unwrap();
-                                let json_string = serde_json::to_string(&data).unwrap();
-                                debug!("EventData {:?}", json_string);
-                                hub.handle(&json_string).await;
+                                if let Ok(result) = event.try_get_data::<serde_json::Value>() {
+                                    if result.is_some() {
+                                        let data: serde_json::Value = result.unwrap();
+                                        if let Ok(json_string) = serde_json::to_string(&data) {
+                                            debug!("EventData {:?}", json_string);
+                                            hub.handle(&json_string).await;
+                                        }
+                                    }
+                                }
                             }
                             Err(err) => error!("{}", err),
                         }
