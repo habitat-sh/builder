@@ -1,7 +1,6 @@
 use crate::{config::Config,
             error::Error};
 use builder_core::config::ConfigFile;
-use cloudevents::event::Data;
 use habitat_builder_events::connection::{create_consumer,
                                          EventConsumer};
 use habitat_core::ok_warn;
