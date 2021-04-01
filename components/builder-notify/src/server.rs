@@ -49,7 +49,7 @@ pub async fn run(path: Option<PathBuf>) -> Result<(), Error> {
                                         let data: serde_json::Value = result.unwrap();
                                         if let Ok(json_string) = serde_json::to_string(&data) {
                                             debug!("EventData {:?}", json_string);
-                                            hub.handle(&json_string).await;
+                                            hub.handle(json_string).await;
                                         }
                                     }
                                 }

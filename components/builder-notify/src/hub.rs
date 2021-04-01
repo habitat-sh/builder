@@ -13,7 +13,7 @@ impl Hub {
     pub fn add(&mut self, hook: Webhook) { self.hooks.push(hook); }
 
     /// handle hook delivery
-    pub async fn handle(&self, event_data: &str) {
+    pub async fn handle(&self, event_data:String) {
         for hook in &self.hooks {
             let result = hook.deliver(&event_data).await;
             match result {
