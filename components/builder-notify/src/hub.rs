@@ -1,7 +1,9 @@
 use crate::webhook::Webhook;
+use futures::{prelude::*,
+              stream::FuturesUnordered};
 
 /// A hub is a registry of hooks
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Hub {
     hooks: Vec<Webhook>,
 }
@@ -14,11 +16,19 @@ impl Hub {
 
     /// handle hook delivery
     pub async fn handle(&self, event_data: String) {
-        for hook in &self.hooks {
-            let result = hook.deliver(&event_data).await;
+        let hooks = self.hooks.clone();
+        let futures = hooks.iter()
+                           .map(move |hook| {
+                               let data = event_data.clone();
+                               hook.deliver(data)
+                           })
+                           .collect::<FuturesUnordered<_>>();
+
+        let results = futures.collect::<Vec<_>>().await;
+        for result in results {
             match result {
-                Ok(_) => debug!("Successfully delivered event!"),
-                Err(err) => debug!("Error {:?}", err),
+                Ok(_) => debug!("Delivery Success"),
+                Err(e) => debug!("Delivery Error: {}", e),
             }
         }
     }
