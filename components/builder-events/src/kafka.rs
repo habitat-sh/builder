@@ -125,7 +125,13 @@ impl EventConsumer for KafkaConsumer {
             match message {
                 Ok(m) => {
                     match m.to_event() {
-                        Ok(event) => Some(Ok(event.into())),
+                        Ok(event) => {
+                            if let Err(e) = self.inner.store_offset(&m) {
+                                error!("Could not store message offset: {} ", e);
+                            }
+
+                            Some(Ok(event.into()))
+                        }
                         Err(err) => Some(Err(Error::EventError(Box::new(err)))),
                     }
                 }
