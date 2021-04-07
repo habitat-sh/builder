@@ -2,7 +2,8 @@ use crate::error::{Error,
                    Result};
 use builder_core::http_client::{ACCEPT_APPLICATION_JSON,
                                 USER_AGENT_BLDR};
-use reqwest::{header::HeaderMap,
+use reqwest::{header::{self,
+                       HeaderMap},
               Body,
               Client,
               Response};
@@ -15,9 +16,13 @@ pub struct WebhookClient {
 }
 
 impl WebhookClient {
-    pub fn new(url: &str) -> Result<Self> {
+    pub fn new(url: &str, auth_header: &str) -> Result<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(), ACCEPT_APPLICATION_JSON.clone()];
-        let headers = HeaderMap::from_iter(header_values.into_iter());
+        let mut headers = HeaderMap::from_iter(header_values.into_iter());
+        if !auth_header.is_empty() {
+            headers.insert(header::AUTHORIZATION,
+                           header::HeaderValue::from_str(auth_header).unwrap());
+        }
 
         let client = reqwest::Client::builder().default_headers(headers)
                                                .build()?;

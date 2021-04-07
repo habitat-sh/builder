@@ -22,5 +22,6 @@ pub struct HubCfg {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct WebhookCfg {
-    pub endpoint: String,
+    pub endpoint:    String,
+    pub auth_header: String,
 }

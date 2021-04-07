@@ -21,7 +21,7 @@ pub fn get_hub(config: &Config) -> Hub {
     let mut hub = Hub::new();
     let webhooks = &config.hub.webhooks;
     for webhook in webhooks {
-        hub.add(Webhook::new(&webhook.endpoint));
+        hub.add(Webhook::new(&webhook.endpoint, &webhook.auth_header));
     }
 
     hub

@@ -9,8 +9,8 @@ pub struct Webhook {
 }
 
 impl Webhook {
-    pub fn new(endpoint: &str) -> Webhook {
-        let client = WebhookClient::new(endpoint).unwrap();
+    pub fn new(endpoint: &str, auth_header: &str) -> Webhook {
+        let client = WebhookClient::new(endpoint, auth_header).unwrap();
         Webhook { endpoint: endpoint.to_owned(),
                   client }
     }
