@@ -1,2 +1,4 @@
+log_level = "info"
+
 [eventbus]
 provider = "kafka"

@@ -13,19 +13,21 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
+actix-rt = "*"
 async-trait = "*"
 cloudevents-sdk = "0.2.0"
 cloudevents-sdk-rdkafka = "*"
 configopt = { git = "https://github.com/davidMcneil/configopt.git" }
 env_logger = "*"
 features = "*"
+futures = "0.3.8"
 lazy_static = "*"
 log = "*"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
 structopt = "*"
-tokio = "*"
 url = "*"
 uuid = { version = "*", features = ["v4"] }
 

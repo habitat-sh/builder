@@ -1,2 +1,10 @@
 [eventbus]
 {{toToml cfg.eventbus}}
+{{~#if cfg.webhooks}}
+[hub]
+{{~#each cfg.webhooks as |webhook|}}
+
+[[hub.webhooks]]
+endpoint = "{{webhook.endpoint}}"
+{{~/each}}
+{{~/if}}

@@ -48,6 +48,9 @@ app_id = $GITHUB_APP_ID
 [datastore]
 password = "$PGPASSWORD"
 port = 5433
+
+[api]
+features_enabled = "jobsrv,eventbus"
 EOT
 
 mkdir -p /hab/user/builder-api-proxy/config
@@ -108,4 +111,9 @@ work_poll_interval_secs = 5
 [github]
 api_url = "$GITHUB_API_URL"
 app_id = $GITHUB_APP_ID
+EOT
+
+mkdir -p /hab/user/builder-notify/config/
+cat <<EOT > /hab/user/builder-notify/config/user.toml
+log_level = "debug,tokio_core=error,tokio_reactor=error"
 EOT

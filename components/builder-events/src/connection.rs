@@ -112,16 +112,13 @@ pub fn create_producer(config: &EventConfig) -> Result<Box<dyn EventPublisher>, 
 
 /// Trait abstraction representing the configured Event Consumer. The Consumer is
 /// responsible for reading messages off of the message bus.
+#[async_trait]
 pub trait EventConsumer {
     /// Subscribe to list of queues or topics
     fn subscribe(&self, queues: &[&str]) -> Result<(), Error>;
-    /// Poll the topic(s) for new messages. When a message exists, its payload will be returned.
-    /// This is a synchronous call.
-    fn poll(&self) -> Option<Result<BuilderEvent, Error>>;
-
-    // TODO (JM): Add an async stream consumer method, perhaps `consume_stream` or similar.
-    // An example of a Kafka implementation of this is implemented via `StreamConsumer` [1].
-    // [1] https://github.com/fede1024/rust-rdkafka/blob/master/src/consumer/stream_consumer.rs
+    /// Receive the topics' next available message. As soon as a new message available, its payload
+    /// will be returned. This is an asynchronous call.
+    async fn recv(&self) -> Option<Result<BuilderEvent, Error>>;
 }
 
 /// Trait abstraction representing the configured Event Publisher. The Publisher is
