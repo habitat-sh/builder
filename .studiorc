@@ -132,12 +132,12 @@ _build-builder() {
     return $?
   fi
 
+  # Build kafka
+  build-kafka
+
   for component in "$@"; do
     build-builder-component "$component"
   done
-
-  # Build kafka
-  build-kafka
 }
 build-builder() { stop-on-failure _build-builder "$@"; }
 
