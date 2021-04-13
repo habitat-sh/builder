@@ -445,7 +445,7 @@ async fn promote_package(req: HttpRequest,
                  debug!("Failed to save rank change to audit log: {}", e);
             };
 
-            BuilderEvent::new(EventType::PackageChannelMotion, NoAffinity, "builder-events".to_string(), &auditevent)
+            BuilderEvent::new(EventType::PackageChannelMotion, NoAffinity, &auditevent)
                 .publish(&state.event_producer).await;
 
             state

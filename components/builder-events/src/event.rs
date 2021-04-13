@@ -10,6 +10,8 @@ use std::fmt;
 use url::Url;
 use uuid::Uuid;
 
+const EVENT_DESTINATION: &str = "builder-events";
+
 lazy_static! {
     pub static ref SOURCE_URL: Url = localhost_url().expect("URL from hostname");
 }
@@ -81,11 +83,7 @@ impl fmt::Display for EventType {
 }
 
 impl BuilderEvent {
-    pub fn new<D>(event_type: EventType,
-                  affinity_key: AffinityKey,
-                  destination: String,
-                  payload: D)
-                  -> Self
+    pub fn new<D>(event_type: EventType, affinity_key: AffinityKey, payload: D) -> Self
         where D: Serialize
     {
         let data = json!(payload);
@@ -99,6 +97,7 @@ impl BuilderEvent {
                                   .build()
                                   .expect("This should always work because we control all the \
                                            inputs");
+        let destination = EVENT_DESTINATION.to_owned();
         BuilderEvent { inner:    event,
                        tracking: Undelivered(DeliveryTag { destination,
                                                            affinity_key }), }
