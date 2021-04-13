@@ -100,17 +100,6 @@ _build-builder-component() {
 }
 build-builder-component() { stop-on-failure _build-builder-component "$@"; }
 
-_build-notify-component() {
-  stop-notify
-
-  NO_INSTALL_DEPS=$(no_install_deps "builder-notify") \
-    build "/src/components/builder-notify"
-  echo "builder-notify build succeeded"
-
-  start-notify
-}
-build-notify() { stop-on-failure _build-notify-component; }
-
 _build-kafka-component() {
   stop-kafka
 
@@ -139,7 +128,7 @@ _build-builder() {
   fi
 
   if [[ "$#" -eq 0 ]]; then
-    build-builder api jobsrv worker
+    build-builder api jobsrv worker notify
     return $?
   fi
 
@@ -149,9 +138,6 @@ _build-builder() {
 
   # Build kafka
   build-kafka
-  sleep 10
-  # Build notify
-  build-notify
 }
 build-builder() { stop-on-failure _build-builder "$@"; }
 
@@ -184,7 +170,8 @@ _start-builder() {
 
     # start-kafka
     # sleep 5
-    # start-notify
+    start-builder notify
+
     # Provide enough time for minio's reconfigure hook to create the bucket.
     # Otherwise, the configure operation will error and abend this function.
     sleep 8
@@ -236,14 +223,6 @@ start-datastore() {
   fi
 }
 
-stop-notify() {
-  echo "Stopping notify"
-  if hab sup status habitat/builder-notify > /dev/null 2>&1; then
-    echo "Unloading builder-notify"
-    hab svc unload habitat/builder-notify
-  fi
-}
-
 stop-kafka() {
   echo "Stopping kafka"
     if hab sup status habitat/builder-kafka > /dev/null 2>&1; then
@@ -265,15 +244,6 @@ stop-kafka() {
 
   if hab sup status core/zookeeper > /dev/null 2>&1; then
     hab svc unload core/zookeeper
-  fi
-}
-
-start-notify() {
-  echo "Starting notify"
-  if hab sup status habitat/builder-notify > /dev/null 2>&1; then
-    echo "habitat/builder-notify is already loaded"
-  else
-    hab svc load habitat/builder-notify
   fi
 }
 
@@ -319,11 +289,12 @@ declare -A svc_params=(
   [worker]="     -s at-once --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default"
   [minio]="      -s at-once"
   [memcached]="  -s at-once"
+  [notify]="     -s at-once"
 )
 
 _stop-builder() {
   if [[ "$#" -eq 0 ]]; then
-    stop-builder cache api api-proxy datastore jobsrv worker minio memcached
+    stop-builder cache api api-proxy datastore jobsrv worker minio memcached notify
     return $?
   fi
 

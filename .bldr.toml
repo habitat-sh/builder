@@ -55,3 +55,9 @@ plan_path = "components/builder-memcached"
 paths = [
   "components/builder-memcached/*"
 ]
+
+[builder-notify]
+plan_path = "components/builder-notify"
+paths = [
+  "components/builder-notify/*"
+]

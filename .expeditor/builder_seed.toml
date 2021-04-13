@@ -15,6 +15,7 @@ packages = [
   "habitat/builder-jobsrv",
   "habitat/builder-worker",
   "habitat/builder-memcached",
+  "habitat/builder-notify",
 
   # Utilities
   "core/sumologic",
