@@ -32,8 +32,8 @@ pub struct KafkaPublisher {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct KafkaConfig {
-    pub api_key:            String,
-    pub api_secret_key:     String,
+    pub username:           String,
+    pub password:           String,
     pub auto_commit:        bool,
     pub bootstrap_nodes:    Vec<String>,
     pub client_id:          Url,
@@ -41,19 +41,21 @@ pub struct KafkaConfig {
     pub message_timeout_ms: u64,
     pub partition_eof:      bool,
     pub session_timeout_ms: u64,
+    pub use_sasl_ssl:       bool,
 }
 
 impl Default for KafkaConfig {
     fn default() -> Self {
-        KafkaConfig { api_key:            "api key".to_string(),
-                      api_secret_key:     "secret key".to_string(),
+        KafkaConfig { username:           "admin".to_string(),
+                      password:           "admin@123".to_string(),
                       auto_commit:        true,
                       bootstrap_nodes:    vec!["localhost:9092".to_string()],
                       client_id:          "http://localhost".parse().expect("CLIENT_ID URL"),
                       group_id:           "bldr_consumer group".to_string(),
                       message_timeout_ms: 6000,
                       partition_eof:      false,
-                      session_timeout_ms: 6000, }
+                      session_timeout_ms: 6000,
+                      use_sasl_ssl:       false, }
     }
 }
 
@@ -62,18 +64,22 @@ impl TryFrom<&KafkaConfig> for KafkaConsumer {
 
     fn try_from(config: &KafkaConfig) -> Result<Self, Error> {
         let bootstrap_list = config.bootstrap_nodes.join(",");
-        match ClientConfig::new().set("group.id", &config.group_id)
-                                 .set("bootstrap.servers", &bootstrap_list)
-                                 .set("enable.partition.eof", &config.partition_eof.to_string())
-                                //  .set("sasl.username", &config.api_key)
-                                //  .set("sasl.password", &config.api_secret_key)
-                                //  .set("sasl.mechanisms", "PLAIN")
-                                //  .set("security.protocol", "PLAINTEXT")
-                                 .set("session.timeout.ms", &config.session_timeout_ms.to_string())
-                                 .set("enable.auto.commit", "true")
-                                 .set("auto.offset.reset", "earliest")
-                                 .create()
-        {
+        let mut client_config = ClientConfig::new();
+        client_config.set("group.id", &config.group_id);
+        client_config.set("bootstrap.servers", &bootstrap_list);
+        client_config.set("enable.partition.eof", &config.partition_eof.to_string());
+        client_config.set("session.timeout.ms", &config.session_timeout_ms.to_string());
+        client_config.set("enable.auto.commit", "false");
+        client_config.set("auto.offset.reset", "earliest");
+
+        if config.use_sasl_ssl {
+            client_config.set("sasl.username", &config.username);
+            client_config.set("sasl.password", &config.password);
+            client_config.set("sasl.mechanisms", "PLAIN");
+            client_config.set("security.protocol", "SASL_SSL");
+        }
+
+        match client_config.create() {
             Ok(c) => Ok(KafkaConsumer { inner: c }),
             Err(err) => {
                 error!("Error initializing kafka consumer: {:?}", err);
@@ -88,15 +94,19 @@ impl TryFrom<&KafkaConfig> for KafkaPublisher {
 
     fn try_from(config: &KafkaConfig) -> Result<Self, Error> {
         let bootstrap_list = config.bootstrap_nodes.join(",");
-        match ClientConfig::new().set("bootstrap.servers", &bootstrap_list)
-                                 .set("message.timeout.ms", &config.message_timeout_ms.to_string())
-                                 .set("client.id", &config.client_id.as_str())
-                                //  .set("sasl.username", &config.api_key)
-                                //  .set("sasl.password", &config.api_secret_key)
-                                //  .set("sasl.mechanisms", "PLAIN")
-                                //  .set("security.protocol", "PLAINTEXT")
-                                 .create()
-        {
+        let mut client_config = ClientConfig::new();
+        client_config.set("bootstrap.servers", &bootstrap_list);
+        client_config.set("message.timeout.ms", &config.message_timeout_ms.to_string());
+        client_config.set("client.id", &config.client_id.as_str());
+
+        if config.use_sasl_ssl {
+            client_config.set("sasl.username", &config.username);
+            client_config.set("sasl.password", &config.password);
+            client_config.set("sasl.mechanisms", "PLAIN");
+            client_config.set("security.protocol", "SASL_SSL");
+        }
+
+        match client_config.create() {
             Ok(p) => Ok(KafkaPublisher { inner: p }),
             Err(err) => {
                 error!("Error initializing kafka producer: {:?}", err);
