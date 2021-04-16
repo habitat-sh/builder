@@ -1,4 +1,5 @@
-use crate::webhook_client::WebhookClient;
+use crate::{error::Error,
+            webhook_client::WebhookClient};
 use std::result::Result;
 
 /// A Webhook
@@ -15,13 +16,14 @@ impl Webhook {
                   client }
     }
 
-    pub async fn deliver(&self,
-                         event_data: String)
-                         -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pub async fn deliver(&self, event_data: String) -> Result<(), Error> {
         let response = self.client.push(&event_data).await;
         match response {
             Ok(_) => Ok(()),
-            Err(_err) => Err("Could not deliver!".into()),
+            Err(err) => {
+                debug!("Error in webhook delivery, err={}", err);
+                Err(Error::WebhookDeliveryError(Box::new(err)))
+            }
         }
     }
 }

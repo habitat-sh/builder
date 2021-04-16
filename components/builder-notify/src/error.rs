@@ -8,6 +8,7 @@ pub enum Error {
     NotificationsError(Box<dyn std::error::Error>),
     WebhookClientUpload(reqwest::Error),
     WebhookPushError(reqwest::StatusCode, String),
+    WebhookDeliveryError(Box<dyn std::error::Error>),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -22,6 +23,7 @@ impl fmt::Display for Error {
                 format!("Received a non-200 response, status={}, response={}",
                         code, msg)
             }
+            Error::WebhookDeliveryError(ref e) => e.to_string(),
         };
         write!(f, "{}", msg)
     }
