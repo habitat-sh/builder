@@ -164,7 +164,6 @@ _start-builder() {
     start-builder minio
 
     start-kafka
-    sleep 8
     start-builder notify
 
     # Provide enough time for minio's reconfigure hook to create the bucket.
@@ -224,13 +223,13 @@ stop-kafka() {
     hab pkg exec habitat/builder-kafka kafka-server-stop.sh > /dev/null 2>&1
   fi
 
-  sleep 5
+  sleep 2
 
   if hab sup status habitat/builder-kafka > /dev/null 2>&1; then
     hab svc unload habitat/builder-kafka
   fi
 
-  sleep 5
+  sleep 2
 
   if hab sup status core/zookeeper > /dev/null 2>&1; then
     hab svc unload core/zookeeper
