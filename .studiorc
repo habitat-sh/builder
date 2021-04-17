@@ -103,10 +103,6 @@ build-builder-component() { stop-on-failure _build-builder-component "$@"; }
 _build-kafka-component() {
   stop-kafka
 
-  # NO_INSTALL_DEPS=$(no_install_deps "builder-zookeeper") \
-  #   build "/src/components/builder-zookeeper"
-  # echo "builder-zookeeper build succeeded"
-
   NO_INSTALL_DEPS=$(no_install_deps "builder-kafka") \
     build "/src/components/builder-kafka"
   echo "builder-kafka build succeeded"
@@ -132,7 +128,6 @@ _build-builder() {
     return $?
   fi
 
-  # Build kafka
   build-kafka
 
   for component in "$@"; do
@@ -168,8 +163,8 @@ _start-builder() {
     start-builder worker
     start-builder minio
 
-    # start-kafka
-    # sleep 5
+    start-kafka
+    sleep 8
     start-builder notify
 
     # Provide enough time for minio's reconfigure hook to create the bucket.
@@ -225,22 +220,17 @@ start-datastore() {
 
 stop-kafka() {
   echo "Stopping kafka"
-    if hab sup status habitat/builder-kafka > /dev/null 2>&1; then
+  if hab sup status habitat/builder-kafka > /dev/null 2>&1; then
     hab pkg exec habitat/builder-kafka kafka-server-stop.sh > /dev/null 2>&1
   fi
-  
-  sleep 2
+
+  sleep 5
 
   if hab sup status habitat/builder-kafka > /dev/null 2>&1; then
     hab svc unload habitat/builder-kafka
   fi
 
-  sleep 2
-
-  echo "Stopping Zookeeper"
-  # if hab sup status habitat/builder-zookeeper > /dev/null 2>&1; then
-  #   hab svc unload habitat/builder-zookeeper
-  # fi
+  sleep 5
 
   if hab sup status core/zookeeper > /dev/null 2>&1; then
     hab svc unload core/zookeeper
@@ -307,8 +297,7 @@ _stop-builder() {
     fi
   done
 
-  # stop-kafka
-  # stop-notify
+  stop-kafka
 }
 stop-builder() { stop-on-failure _stop-builder "$@"; }
 
