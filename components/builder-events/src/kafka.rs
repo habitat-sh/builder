@@ -131,7 +131,7 @@ impl EventConsumer for KafkaConsumer {
     /// Wait for and receive the next available message
     async fn recv(&self) -> Option<Result<BuilderEvent, Error>> {
         let mut msg_stream = self.inner.start();
-        let result = if let Some(message) = msg_stream.next().await {
+        if let Some(message) = msg_stream.next().await {
             match message {
                 Ok(m) => {
                     match m.to_event() {
@@ -155,9 +155,7 @@ impl EventConsumer for KafkaConsumer {
             let err_ext: Box<dyn std::error::Error> =
                 "Error in EventConsumer::recv".to_string().into();
             Some(Err(Error::EventError(err_ext)))
-        };
-
-        result
+        }
     }
 }
 
