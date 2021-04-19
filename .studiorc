@@ -163,7 +163,8 @@ _start-builder() {
     start-builder worker
     start-builder minio
 
-    start-kafka
+    # TODO we need to comeback to this once the builder-kafka is available in stable channel
+    # start-kafka
     start-builder notify
 
     # Provide enough time for minio's reconfigure hook to create the bucket.
