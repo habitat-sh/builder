@@ -49,6 +49,9 @@ build-builder jobsrv > logs/builder-jobsrv.build.log 2>&1
 echo "--- Building builder-worker"
 echo "Redirecting log output; See build artifact 'builder-worker.build.log'"
 build-builder worker > logs/builder-worker.build.log 2>&1
+echo "--- Building builder-kafka"
+echo "Redirecting log output; See build artifact 'builder-kafka.build.log'"
+build-builder kafka > logs/builder-kafka.build.log 2>&1
 echo "--- Building builder-notify"
 echo "Redirecting log output; See build artifact 'builder-notify.build.log'"
 build-builder notify > logs/builder-notify.build.log 2>&1
