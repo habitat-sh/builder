@@ -296,8 +296,8 @@ _stop-builder() {
       hab svc unload habitat/builder-$component
     fi
   done
-
-  stop-kafka
+  # TODO we need to comeback to this once the builder-kafka is available in stable channel
+  # stop-kafka
 }
 stop-builder() { stop-on-failure _stop-builder "$@"; }
 
