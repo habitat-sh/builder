@@ -196,10 +196,10 @@ impl WorkerMgr {
 
     pub fn start(cfg: &Config,
                  datastore: &DataStore,
-                 db: DbPool,
                  scheduler: Option<Scheduler>)
                  -> Result<JoinHandle<()>> {
-        let mut manager = Self::new(cfg, datastore, db, scheduler);
+        let diesel_pool = DbPool::new(&cfg.datastore.clone());
+        let mut manager = Self::new(cfg, datastore, diesel_pool, scheduler);
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new().name("worker-manager".to_string())
                                            .spawn(move || {
@@ -469,7 +469,7 @@ impl WorkerMgr {
                     block_on(scheduler.request_work(WorkerId(worker_ident.clone()),
                                                     BuilderPackageTarget(target)))
                 {
-                    let conn = self.datastore.get_pool().get_conn()?;
+                    let conn = self.db.get_conn()?;
                     let project =
                         Project::get(&job_entry.project_name, &target.to_string(), &conn)?;
                     let maybe_job =
@@ -925,14 +925,14 @@ impl WorkerMgr {
     }
 
     fn job_graph_entry(&self, job: &jobsrv::Job) -> Result<JobGraphEntry> {
-        let conn = self.datastore.get_pool().get_conn()?;
+        let conn = self.db.get_conn()?;
         JobGraphEntry::get_by_job_id(job.get_id() as i64, &conn).map_err(Error::WorkerMgrDbError)
     }
 
     // This will be used when we implement cancel
     #[allow(dead_code)]
     fn job(&self, entry: &JobGraphEntry) -> Result<jobsrv::Job> {
-        let conn = self.datastore.get_pool().get_conn()?;
+        let conn = self.db.get_conn()?;
         let job =
             crate::db::models::jobs::Job::get(entry.id, &conn).map_err(Error::WorkerMgrDbError)?;
         Ok(job.into())

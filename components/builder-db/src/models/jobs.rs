@@ -1,12 +1,27 @@
 use super::db_id_format;
 use chrono::prelude::*;
-use diesel::{dsl::count_star,
-             pg::PgConnection,
+use diesel::{deserialize::{self,
+                           FromSql,
+                           Queryable},
+             dsl::count_star,
+             pg::{Pg,
+                  PgConnection},
              result::QueryResult,
              BoolExpressionMethods,
              ExpressionMethods,
              QueryDsl,
-             RunQueryDsl};
+             RunQueryDsl,
+             TextExpressionMethods};
+
+use diesel::sql_types::{Array,
+                        BigInt,
+                        Bool,
+                        Integer,
+                        Nullable,
+                        Record,
+                        Text,
+                        Timestamptz};
+
 use protobuf::ProtobufEnum;
 
 use crate::protocol::{jobsrv,
@@ -73,14 +88,51 @@ pub struct NewJob<'a> {
     pub owner_id:          i64,
     pub project_id:        i64,
     pub project_name:      &'a str,
+    pub job_state:         &'a str,
     pub project_owner_id:  i64,
     pub project_plan_path: &'a str,
     pub vcs:               &'a str,
-    pub vcs_arguments:     Vec<&'a str>,
+    pub vcs_arguments:     &'a Vec<Option<&'a str>>,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
-    pub channel:           &'a str,
+    pub channel:           Option<&'a str>,
     pub target:            &'a str,
 }
+
+#[derive(AsChangeset)]
+#[table_name = "jobs"]
+pub struct UpdateJob {
+    pub id:                i64,
+    pub job_state:         String,
+    pub net_error_code:    Option<i32>,
+    pub net_error_msg:     Option<String>,
+    pub build_started_at:  Option<DateTime<Utc>>,
+    pub build_finished_at: Option<DateTime<Utc>>,
+    pub package_ident:     Option<String>,
+}
+
+type JobFields = (BigInt,
+                  BigInt,
+                  Text,
+                  BigInt,
+                  Text,
+                  BigInt,
+                  Text,
+                  Text,
+                  Array<Nullable<Text>>,
+                  Nullable<Integer>,
+                  Nullable<Text>,
+                  Bool,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Timestamptz>,
+                  Nullable<Text>,
+                  Bool,
+                  Nullable<Text>,
+                  Integer,
+                  Nullable<Text>,
+                  Text);
+pub type JobRecord = Record<JobFields>;
 
 pub struct ListProjectJobs {
     pub name:  String,
@@ -117,6 +169,71 @@ impl Job {
                    .filter(jobs::job_state.eq(job_state.to_string()))
                    .filter(jobs::target.eq(target.to_string()))
                    .first(conn)
+    }
+
+    pub fn set_job_sync(job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(jobs::table.find(job_id)).set((jobs::scheduler_sync.eq(true),
+                                                      jobs::sync_count.eq(jobs::sync_count - 1)))
+                                                .execute(conn)
+    }
+
+    pub fn get_jobs_by_state(job_state: jobsrv::JobState,
+                             conn: &PgConnection)
+                             -> QueryResult<Vec<Job>> {
+        Counter::DBCall.increment();
+        jobs::table.filter(jobs::job_state.eq(job_state.to_string()))
+                   .load(conn)
+    }
+
+    pub fn count_jobs(job_state: jobsrv::JobState, conn: &PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        jobs::table.select(count_star())
+                   .filter(jobs::job_state.eq(job_state.to_string()))
+                   .first(conn)
+    }
+
+    pub fn mark_as_archived(job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        diesel::update(jobs::table.find(job_id)).set(jobs::archived.eq(true))
+                                                .execute(conn)
+    }
+
+    // Get the jobs with un-sync status
+    pub fn sync_jobs(conn: &PgConnection) -> QueryResult<Vec<Job>> {
+        Counter::DBCall.increment();
+        jobs::table.filter(jobs::scheduler_sync.eq(false).or(jobs::sync_count.gt(0)))
+                   .load(conn)
+    }
+
+    pub fn update_job_with_sync(job: &UpdateJob, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(jobs::table.find(job.id)).set((jobs::job_state.eq(&job.job_state),
+            jobs::scheduler_sync.eq(false),
+            jobs::sync_count.eq(jobs::sync_count + 1),
+            jobs::build_started_at.eq(job.build_started_at),
+            jobs::build_finished_at.eq(job.build_finished_at),
+            jobs::package_ident.eq(&job.package_ident),
+            jobs::net_error_code.eq(job.net_error_code),
+            jobs::net_error_msg.eq(&job.net_error_msg)))
+                                                .execute(conn)
+    }
+
+    pub fn get_next_pending_job(worker: &str,
+                                target: &str,
+                                conn: &PgConnection)
+                                -> QueryResult<Job> {
+        Counter::DBCall.increment();
+        let query = diesel::select(job_functions::next_pending_job_v2(worker, target));
+        let job = query.first::<Job>(conn)?;
+
+        Ok(job)
+    }
+}
+
+impl FromSql<JobRecord, Pg> for Job {
+    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+        let tuple = <_ as FromSql<JobRecord, Pg>>::from_sql(bytes)?;
+        Ok(<Self as Queryable<JobFields, Pg>>::build(tuple))
     }
 }
 
@@ -203,9 +320,9 @@ pub struct Group {
     pub id:           i64,
     pub group_state:  String, // This should be jobsrv::JobGroupState
     pub project_name: String,
-    pub target:       String,
     pub created_at:   Option<DateTime<Utc>>,
     pub updated_at:   Option<DateTime<Utc>>,
+    pub target:       String,
 }
 
 #[derive(Insertable)]
@@ -215,6 +332,10 @@ pub struct NewGroup<'a> {
     pub project_name: &'a str,
     pub target:       &'a str,
 }
+
+pub type GroupFields = (BigInt, Text, Text, Nullable<Timestamptz>, Nullable<Timestamptz>, Text);
+
+pub type GroupRecord = Record<GroupFields>;
 
 impl Group {
     pub fn create(group: &NewGroup, conn: &PgConnection) -> QueryResult<Group> {
@@ -307,6 +428,69 @@ impl Group {
         Histogram::GroupTakeNextGroupForTargetCallTime.set(duration_millis);
         result
     }
+
+    pub fn get_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<Group> {
+        Counter::DBCall.increment();
+        groups::table.filter(groups::id.eq(group_id)).first(conn)
+    }
+
+    pub fn set_group_state(group_id: i64,
+                           group_state: jobsrv::JobGroupState,
+                           conn: &PgConnection)
+                           -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(groups::table.find(group_id)).set(groups::group_state.eq(group_state.to_string()))
+                                                    .execute(conn)
+    }
+
+    pub fn cancel_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(groups::table.find(group_id)).set(groups::group_state.eq("Canceled"))
+                                                    .execute(conn)
+    }
+
+    pub fn get_job_groups_for_origin(origin: &str,
+                                     limit: i64,
+                                     conn: &PgConnection)
+                                     -> QueryResult<Vec<Group>> {
+        Counter::DBCall.increment();
+        let origin_match = origin.to_owned() + "/%";
+        groups::table.filter(groups::project_name.like(&origin_match))
+                     .order(groups::created_at.desc())
+                     .limit(limit)
+                     .get_results(conn)
+    }
+
+    pub fn create_job_group(root_project: &str,
+                            target: &str,
+                            project_names: &[String],
+                            project_idents: &[String],
+                            conn: &PgConnection)
+                            -> QueryResult<Group> {
+        Counter::DBCall.increment();
+
+        let query = diesel::select(job_functions::insert_group_v3(root_project,
+                                                                  project_names,
+                                                                  project_idents,
+                                                                  target.to_string()));
+
+        let result = query.get_result::<Group>(conn)?;
+        Ok(result)
+    }
+
+    pub fn pending_job_groups(count: i32, conn: &PgConnection) -> QueryResult<Vec<Group>> {
+        Counter::DBCall.increment();
+        let result =
+            diesel::select(job_functions::pending_groups_v1(count)).get_result::<Vec<Group>>(conn)?;
+        Ok(result)
+    }
+}
+
+impl FromSql<GroupRecord, Pg> for Group {
+    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+        let tuple = <_ as FromSql<GroupRecord, Pg>>::from_sql(bytes)?;
+        Ok(<Self as Queryable<GroupFields, Pg>>::build(tuple))
+    }
 }
 
 impl Into<jobsrv::JobGroup> for Group {
@@ -346,7 +530,6 @@ pub struct NewAuditJob<'a> {
     pub trigger:        i16,
     pub requester_id:   i64,
     pub requester_name: &'a str,
-    pub created_at:     Option<DateTime<Utc>>,
 }
 
 impl AuditJob {
@@ -358,7 +541,8 @@ impl AuditJob {
 
     pub fn get_for_group(g_id: i64, conn: &PgConnection) -> QueryResult<Vec<AuditJob>> {
         Counter::DBCall.increment();
-        diesel::sql_query(format!("SELECT * from audit_jobs WHERE group_id={}", g_id)).get_results(conn)
+        audit_jobs::table.filter(audit_jobs::group_id.eq(g_id))
+                         .get_results(conn)
     }
 }
 
@@ -429,7 +613,6 @@ pub struct UpdateGroupProject {
     pub project_state: String,
     pub job_id:        i64,
     pub project_ident: Option<String>,
-    pub updated_at:    Option<DateTime<Utc>>,
 }
 
 impl GroupProject {
@@ -439,6 +622,61 @@ impl GroupProject {
         Counter::DBCall.increment();
         group_projects::table.filter(group_projects::owner_id.eq(group_id))
                              .get_results(conn)
+    }
+
+    pub fn set_group_project_state(group_id: i64,
+                                   project_name: &str,
+                                   project_state: jobsrv::JobGroupProjectState,
+                                   conn: &PgConnection)
+                                   -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(group_projects::table.filter(group_projects::owner_id.eq(group_id))
+                                            .filter(group_projects::project_name.eq(project_name)))
+        .set(group_projects::project_state.eq(project_state.to_string())).execute(conn)
+    }
+
+    pub fn get_group_project_by_name(group_id: i64,
+                                     name: &str,
+                                     conn: &PgConnection)
+                                     -> QueryResult<GroupProject> {
+        Counter::DBCall.increment();
+        let query = group_projects::table.filter(group_projects::owner_id.eq(group_id))
+                                         .filter(group_projects::project_name.eq(name));
+        let group_project = query.first(conn)?;
+
+        Ok(group_project)
+    }
+
+    pub fn update_group_project(project: &UpdateGroupProject,
+                                conn: &PgConnection)
+                                -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(group_projects::table.find(project.id)).set(project)
+                                                              .execute(conn)
+    }
+
+    pub fn cancel_group_project(group_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::update(group_projects::table.filter(group_projects::owner_id.eq(group_id))
+                                            .filter(group_projects::project_state.eq("NotStarted")))
+        .set(group_projects::project_state.eq("Canceled")).execute(conn)
+    }
+}
+
+impl Into<jobsrv::JobGroupProject> for GroupProject {
+    fn into(self) -> jobsrv::JobGroupProject {
+        let mut project = jobsrv::JobGroupProject::new();
+
+        project.set_name(self.project_name);
+        project.set_ident(self.project_ident);
+        let project_state = self.project_state
+                                .parse::<jobsrv::JobGroupProjectState>()
+                                .unwrap();
+        project.set_state(project_state);
+        project.set_target(self.target);
+        project.set_job_id(self.job_id as u64);
+
+        project
     }
 }
 

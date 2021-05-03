@@ -34,9 +34,9 @@ table! {
         id -> BigInt,
         group_state -> Text,
         project_name -> Text,
-        target -> Text,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
+        target -> Text,
     }
 }
 

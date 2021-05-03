@@ -1,6 +1,9 @@
-use diesel::sql_types::{BigInt,
+use diesel::sql_types::{Array,
+                        BigInt,
                         Integer,
                         Text};
+
+use crate::models::jobs;
 
 // Intended mostly for diagnostics and tests
 sql_function! {
@@ -24,4 +27,17 @@ sql_function! {
 
 sql_function! {
   fn job_graph_mark_failed(in_id: BigInt) -> Integer
+}
+
+sql_function! {
+  fn next_pending_job_v2(p_worker: Text, p_target: Text) -> jobs::JobRecord;
+}
+
+sql_function! {
+  fn insert_group_v3(root_project: Text, project_names: Array<Text>, project_idents: Array<Text>, p_target: Text)
+  -> jobs::GroupRecord;
+}
+
+sql_function! {
+  fn pending_groups_v1(count: Integer) -> Array<jobs::GroupRecord>;
 }
