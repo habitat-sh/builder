@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'whatwg-fetch';
-import config from '../config';
 import { packageString } from '../util';
 import { AppStore } from '../app.store';
 import { addNotification, signOut } from '../actions/index';
@@ -276,6 +275,68 @@ export function submitJob(origin: string, pkg: string, target: string, token: st
           resolve(true);
         } else {
           reject(new Error(response.statusText));
+        }
+      })
+      .catch(error => handleError(error, reject));
+  });
+}
+
+export function getEvents(nextRange: number = 0, fromDate: string, toDate: string, query: string = '') {
+  let url = `${urlPrefix}/depot/events` + `?range=${nextRange}&channel=stable&from_date=${fromDate}&to_date=${toDate}&query=${query}`;
+
+  return new Promise((resolve, reject) => {
+    fetch(url, opts())
+      .then(response => handleUnauthorized(response, reject))
+      .then(response => {
+        if (response.status >= 400) {
+          reject(new Error(response.statusText));
+        } else {
+          response.json().then(resultsObj => {
+            let results;
+
+            const endRange = parseInt(resultsObj.range_end, 10);
+            const totalCount = parseInt(resultsObj.total_count, 10);
+            const nextRange = totalCount > (endRange + 1) ? endRange + 1 : 0;
+
+            if (resultsObj['data']) {
+              results = resultsObj['data'];
+            } else {
+              results = resultsObj;
+            }
+
+            resolve({ results, totalCount, nextRange });
+          });
+        }
+      })
+      .catch(error => handleError(error, reject));
+  });
+}
+
+export function getSaasEvents(nextRange: number = 0, fromDate: string, toDate: string, query: string = '') {
+  let url = `${urlPrefix}/depot/events/saas` + `?range=${nextRange}&channel=stable&from_date=${fromDate}&to_date=${toDate}&query=${query}`;
+
+  return new Promise((resolve, reject) => {
+    fetch(url, opts())
+      .then(response => handleUnauthorized(response, reject))
+      .then(response => {
+        if (response.status >= 400) {
+          reject(new Error(response.statusText));
+        } else {
+          response.json().then(resultsObj => {
+            let results;
+
+            const endRange = parseInt(resultsObj.range_end, 10);
+            const totalCount = parseInt(resultsObj.total_count, 10);
+            const nextRange = totalCount > (endRange + 1) ? endRange + 1 : 0;
+
+            if (resultsObj['data']) {
+              results = resultsObj['data'];
+            } else {
+              results = resultsObj;
+            }
+
+            resolve({ results, totalCount, nextRange });
+          });
         }
       })
       .catch(error => handleError(error, reject));

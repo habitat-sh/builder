@@ -8,6 +8,7 @@ use crate::{db::models::{channel::PackageChannelTrigger as PCT,
 use actix_web::{http::header,
                 web::Query,
                 HttpRequest};
+use chrono::NaiveDateTime;
 use regex::Regex;
 use serde::Serialize;
 use std::str::FromStr;
@@ -30,6 +31,12 @@ pub struct Pagination {
     pub distinct: bool,
 }
 
+#[derive(Deserialize)]
+pub struct SearchQuery {
+    #[serde(default)]
+    pub query: String,
+}
+
 #[derive(Serialize)]
 pub struct PaginatedResults<'a, T: 'a> {
     range_start: isize,
@@ -49,6 +56,14 @@ pub struct ChannelListingResults<'a, T: 'a> {
 pub struct ToChannel {
     #[serde(default)]
     pub channel: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DateRange {
+    #[serde(with = "ymd_date_format")]
+    pub from_date: NaiveDateTime,
+    #[serde(with = "ymd_date_format")]
+    pub to_date:   NaiveDateTime,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -221,4 +236,22 @@ pub fn trigger_from_request_model(req: &HttpRequest) -> PCT {
 pub fn req_state(req: &HttpRequest) -> &AppState {
     req.app_data::<actix_web::web::Data<AppState>>()
        .expect("request state")
+}
+
+mod ymd_date_format {
+    use chrono::{NaiveDate,
+                 NaiveDateTime};
+    use serde::{self,
+                Deserialize,
+                Deserializer};
+
+    const FORMAT: &str = "%Y-%m-%d";
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
+        where D: Deserializer<'de>
+    {
+        let s = String::deserialize(deserializer)?;
+        let naive_date = NaiveDate::parse_from_str(&s, FORMAT).unwrap();
+        Ok(naive_date.and_hms(0, 0, 0))
+    }
 }

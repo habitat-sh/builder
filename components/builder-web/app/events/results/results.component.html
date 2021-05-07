@@ -1,0 +1,33 @@
+<div class="results-component">
+  <ol class="nav-list">
+    <li class="heading">
+      <h4>Status</h4>
+      <h4>Origin</h4>
+      <h4>Channel</h4>
+      <h4>Package Ident</h4>
+      <h4 class="last-item">Created</h4>
+    </li>
+    <li class="none" *ngIf="noEvents">
+      <span>No events found.</span>
+    </li>
+    <li class="item" *ngFor="let event of events" (click)="onClick(event)">
+      <a>
+        <span class="column">
+          <hab-job-status-icon [status]="stateFor(event)"></hab-job-status-icon>
+        </span>
+        <span class="column origin">
+          {{ event.origin }}
+        </span>
+        <span class="column channel">
+          {{ event.channel }}
+        </span>
+        <span class="column pident">
+          {{ packageString(event) }}
+        </span>
+        <span class="column date">
+          {{ dateFor(event.created_at) }}
+        </span>
+      </a>
+    </li>
+  </ol>
+</div>

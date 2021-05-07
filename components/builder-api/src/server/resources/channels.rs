@@ -440,13 +440,16 @@ async fn promote_package(req: HttpRequest,
     )
     .map_err(Error::DieselError)
     {
-        Ok(_) => {
-            if let Err(e) = PackageChannelAudit::audit(&auditevent, &*conn) {
-                 debug!("Failed to save rank change to audit log: {}", e);
-            };
+        Ok(promoted_count) => {
+            // Note: promoted_count is 0 when attempting to promote a package to a channel where it already exists
+            if promoted_count != 0 {
+                if let Err(e) = PackageChannelAudit::audit(&auditevent, &*conn) {
+                     debug!("Failed to save rank change to audit log: {}", e);
+                };
 
-            BuilderEvent::new(EventType::PackageChannelMotion, NoAffinity, "builder_events".to_string(), &auditevent)
-                .publish(&state.event_producer).await;
+                BuilderEvent::new(EventType::PackageChannelMotion, NoAffinity, "builder_events".to_string(), &auditevent)
+                    .publish(&state.event_producer).await;
+            }
 
             state
                 .memcache

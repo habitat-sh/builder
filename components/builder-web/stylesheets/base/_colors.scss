@@ -62,7 +62,9 @@ $status-colors: (
   queued: $pending,
   rejected: $error,
   skipped: $disabled,
-  success: $success
+  success: $success,
+  promote: $success,
+  demote: $error
 );
 
 $form-colors: (

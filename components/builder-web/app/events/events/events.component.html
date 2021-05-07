@@ -1,0 +1,33 @@
+<div class="events-component">
+  <header>
+    <h1>Builder Events</h1>
+    <h2 *ngIf="searchQuery">Search Results</h2>
+  </header>
+  <div class="body">
+    <div class="content">
+      <section class="events-filter">
+        <input
+          type="search"
+          #query autofocus
+          [formControl]="searchBox"
+          [value]="searchQuery"
+          placeholder="Search Events&hellip;">
+        <hab-events-date-filter [dateFilterChanged]="dateFilterChanged" [filters]="filters"
+          [currentFilter]="currentFilter"></hab-events-date-filter>
+      </section>
+      <section>
+        <hab-event-results
+          [noEvents]="(!ui.exists || events.size === 0) && !ui.loading"
+          [events]="events"
+          [errorMessage]="ui.errorMessage">
+        </hab-event-results>
+      </section>
+      <section class="more" *ngIf="events.size < totalCount">
+        Showing {{events.size}} of {{totalCount}} events.
+        <a (click)="fetchMoreEvents()">
+          Load {{(totalCount - events.size) > perPage ? perPage : totalCount - events.size }} more.
+        </a>
+      </section>
+    </div>
+  </div>
+</div>

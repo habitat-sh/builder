@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,10 +13,11 @@
 // limitations under the License.
 
 import * as moment from 'moment';
+import { find } from 'lodash';
+
 import { Project } from './records/Project';
 import { AppStore } from './app.store';
 import { FeatureFlags } from './privilege';
-import { find } from 'lodash';
 
 // Pretty print a time
 // Print a number of seconds as minutes and seconds
@@ -182,7 +183,9 @@ export function iconForJobState(state) {
     processing: 'loading',
     queued: 'pending',
     rejected: 'alert',
-    skipped: 'no'
+    skipped: 'no',
+    demote: 'no',
+    promote: 'check',
   }[state.toLowerCase()];
 }
 
@@ -205,6 +208,8 @@ export function labelForJobState(state) {
     processing: 'Processing',
     queued: 'Queued',
     rejected: 'Rejected',
-    skipped: 'Skipped'
+    skipped: 'Skipped',
+    demote: 'Demote',
+    promote: 'Promote',
   }[state.toLowerCase()];
 }

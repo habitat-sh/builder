@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import router from './router';
 import session from './sessions';
 import users from './users';
 import ui from './ui';
+import events from './events';
+import eventsSaas from './events-saas';
 
 export default combineReducers({
   app,
@@ -42,5 +44,7 @@ export default combineReducers({
   router,
   session,
   ui,
-  users
+  users,
+  events,
+  eventsSaas
 });

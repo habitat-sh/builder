@@ -2,20 +2,6 @@ use super::db_id_format;
 use chrono::NaiveDateTime;
 use std::time::Instant;
 
-use diesel::{self,
-             dsl::{count,
-                   sql},
-             pg::{expression::dsl::any,
-                  PgConnection},
-             result::QueryResult,
-             ExpressionMethods,
-             NullableExpressionMethods,
-             PgArrayExpressionMethods,
-             QueryDsl,
-             RunQueryDsl,
-             Table,
-             TextExpressionMethods};
-
 use crate::{models::{package::{BuilderPackageIdent,
                                PackageVisibility,
                                PackageWithVersionArray},
@@ -25,6 +11,7 @@ use crate::{models::{package::{BuilderPackageIdent,
                              audit_package_group},
                      channel::{origin_channel_packages,
                                origin_channels},
+                     member::origin_members,
                      origin::origins,
                      package::{origin_packages,
                                origin_packages_with_version_array}}};
@@ -35,6 +22,25 @@ use crate::{bldr_core::metrics::{CounterMetric,
                        ChannelIdent},
             metrics::{Counter,
                       Histogram}};
+
+use diesel::{self,
+             dsl::{count,
+                   sql,
+                   IntervalDsl},
+             pg::{expression::dsl::any,
+                  PgConnection},
+             prelude::*,
+             result::QueryResult,
+             sql_types::Timestamptz,
+             ExpressionMethods,
+             NullableExpressionMethods,
+             PgArrayExpressionMethods,
+             QueryDsl,
+             RunQueryDsl,
+             Table,
+             TextExpressionMethods};
+use diesel_full_text_search::{to_tsquery,
+                              TsQueryExtensions};
 
 #[derive(AsExpression, Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
@@ -365,7 +371,7 @@ impl Channel {
     }
 }
 
-#[derive(DbEnum, Debug, Clone, Serialize, Deserialize)]
+#[derive(DbEnum, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum PackageChannelTrigger {
     Unknown,
     BuilderUi,
@@ -382,10 +388,104 @@ impl From<JobGroupTrigger> for PackageChannelTrigger {
     }
 }
 
-#[derive(DbEnum, Debug, Serialize, Deserialize)]
+#[derive(Clone, DbEnum, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PackageChannelOperation {
     Promote,
     Demote,
+}
+
+pub struct ListEvents {
+    pub account_id: Option<i64>,
+    pub page:       i64,
+    pub limit:      i64,
+    pub channel:    String,
+    pub from_date:  NaiveDateTime,
+    pub to_date:    NaiveDateTime,
+    pub query:      String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Queryable, PartialEq)]
+pub struct AuditPackage {
+    pub package_ident:  BuilderPackageIdent,
+    pub channel:        String,
+    pub operation:      PackageChannelOperation,
+    pub trigger:        PackageChannelTrigger,
+    #[serde(with = "db_id_format")]
+    pub requester_id:   i64,
+    pub requester_name: String,
+    pub created_at:     Option<NaiveDateTime>,
+    pub origin:         String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct AuditPackageEvent {
+    pub operation:     PackageChannelOperation,
+    pub created_at:    Option<NaiveDateTime>,
+    pub origin:        String,
+    pub channel:       String,
+    pub package_ident: BuilderPackageIdent,
+}
+
+impl AuditPackage {
+    pub fn list(el: ListEvents, conn: &PgConnection) -> QueryResult<(Vec<AuditPackage>, i64)> {
+        Counter::DBCall.increment();
+        let start_time = Instant::now();
+
+        let mut query = audit_package::table.left_join(
+                origin_packages::table.on(origin_packages::ident.eq(audit_package::package_ident))
+            )
+            .select(audit_package::all_columns)
+            .distinct_on((audit_package::package_ident, audit_package::created_at))
+            .into_boxed();
+
+        if !el.query.is_empty() {
+            query = query.filter(to_tsquery(format!("{}:*", el.query)).matches(origin_packages::ident_vector));
+        }
+
+        if let Some(session_id) = el.account_id {
+            let origins = origin_members::table.select(origin_members::origin)
+                                               .filter(origin_members::account_id.eq(session_id));
+            query = query.filter(
+                origin_packages::visibility
+                    .eq(any(PackageVisibility::private()))
+                    .and(origin_packages::origin.eq_any(origins))
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public))
+                    .or(audit_package::requester_id.eq(session_id)),
+            );
+        } else {
+            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+        }
+
+        // to_date is inclusive, add '1' to the to_date so we can easily compare using less than
+        query =
+            query.filter(audit_package::created_at.ge(el.from_date.into_sql::<Timestamptz>().nullable())
+                                                  .and(audit_package::created_at.lt((el.to_date.into_sql::<Timestamptz>() + 1.days()).nullable())));
+
+        if !el.channel.is_empty() {
+            query = query.filter(audit_package::channel.eq(el.channel));
+        }
+
+        let query = query.order((audit_package::created_at.desc(),
+                                 audit_package::package_ident.desc()))
+                         .paginate(el.page)
+                         .per_page(el.limit);
+        let (events, total_count): (std::vec::Vec<AuditPackage>, i64) =
+            query.load_and_count_records(conn)?;
+        let duration_millis = start_time.elapsed().as_millis();
+        Histogram::DbCallTime.set(duration_millis as f64);
+
+        Ok((events, total_count))
+    }
+}
+
+impl From<AuditPackage> for AuditPackageEvent {
+    fn from(value: AuditPackage) -> AuditPackageEvent {
+        AuditPackageEvent { operation:     value.operation,
+                            created_at:    value.created_at,
+                            origin:        value.origin.clone(),
+                            channel:       value.channel.clone(),
+                            package_ident: value.package_ident, }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]
@@ -443,6 +543,7 @@ pub struct OriginChannelPromote {
     pub origin:  String,
     pub channel: ChannelIdent,
 }
+
 pub struct OriginChannelDemote {
     pub ident:   BuilderPackageIdent,
     pub target:  PackageTarget,
