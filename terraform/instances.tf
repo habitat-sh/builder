@@ -97,6 +97,7 @@ resource "aws_instance" "api" {
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:api\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a 
     ]
   }
 
@@ -120,7 +121,8 @@ resource "aws_instance" "api" {
       "sudo cp /tmp/nginx.yaml /etc/dd-agent/conf.d/nginx.yaml",
       "sudo cp /tmp/mcache.yaml /etc/dd-agent/conf.d/mcache.yaml",
       "sudo cp /tmp/nginx.logrotate /etc/logrotate.d/nginx",
-      "sudo /etc/init.d/datadog-agent start",
+      "sudo systemctl start datadog-agent",
+      "sudo systemctl enable datadog-agent",
     ]
   }
 
@@ -262,7 +264,8 @@ resource "aws_instance" "jobsrv" {
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo cp /tmp/sch_log_parser.py /etc/dd-agent/sch_log_parser.py",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
-      "sudo /etc/init.d/datadog-agent start",
+      "sudo systemctl start datadog-agent",
+      "sudo systemctl enable datadog-agent",
     ]
   }
 
@@ -369,10 +372,15 @@ resource "aws_instance" "worker" {
       "${path.module}/scripts/worker_bootstrap.sh",
     ]
   }
-
+  
   provisioner "file" {
     source      = "${path.module}/files/builder.logrotate"
     destination = "/tmp/builder.logrotate"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/files/docker.yaml"
+    destination = "/tmp/docker.yaml"
   }
 
   provisioner "remote-exec" {
@@ -380,8 +388,11 @@ resource "aws_instance" "worker" {
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
+      "sudo mv /tmp/docker.yaml /etc/dd-agent/conf.d/docker_daemon.yaml",
+      "sudo usermod -a -G docker dd-agent"
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
-      "sudo /etc/init.d/datadog-agent start",
+      "sudo systemctl start datadog-agent",
+      "sudo systemctl enable datadog-agent",
     ]
   }
 
@@ -517,6 +528,11 @@ resource "aws_instance" "linux2-worker" {
     destination = "/tmp/worker.user.toml"
   }
 
+  provisioner "file" {
+    source      = "${path.module}/files/docker.yaml"
+    destination = "/tmp/docker.yaml"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "sudo mkdir -p /hab/svc/builder-worker",
@@ -538,6 +554,19 @@ resource "aws_instance" "linux2-worker" {
       "echo \"Supervisor is up. Sleeping 120s to allow for auto upgrade.\"",
       "sleep 120",
       "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.worker_release_channel}",
+    ]
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
+      "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
+      "sudo mv /tmp/docker.yaml /etc/dd-agent/conf.d/docker_daemon.yaml",
+      "sudo usermod -a -G docker dd-agent"
+      "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
+      "sudo /etc/init.d/datadog-agent start",
+      "update-rc.d datadog-agent defaults",
     ]
   }
 
@@ -586,6 +615,13 @@ resource "aws_instance" "windows-worker" {
   }
 
   user_data = local.windows_worker_user_data_content
+
+  provisioner "remote-exec" {
+    inline = [
+      "curl https://s3.amazonaws.com/ddagent-windows-stable/datadog-agent-7-latest.amd64.msi -O C:\Users\Administrator\Downloads\datadog-agent-7-latest.amd64.msi",
+      "start /wait msiexec /qn /i C:\Users\Administrator\Downloads\datadog-agent-7-latest.amd64.msi APIKEY=${var.datadog_api_key} SITE="datadoghq.com" tags: " env:${var.env}, role:worker"",
+    ]
+  }
 
   tags = {
     Name          = "builder-windows-worker-${count.index}"

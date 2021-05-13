@@ -1,0 +1,18 @@
+init_config: 
+instances: 
+  - collect_events: true
+    url: 'unix://var/run/docker.sock'
+    tags:
+      - instance: worker
+      - role: worker
+      - service: docker
+
+collect_container_count: true
+collect_disk_stats: true
+collect_volume_count: true
+
+logs:
+  - type: file
+    path: /hab/svc/builder-worker/logs/builder-worker.log
+    service: worker
+    source: builder-worker
