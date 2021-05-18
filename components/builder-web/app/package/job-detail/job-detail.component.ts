@@ -14,7 +14,7 @@
 
 import { Component, HostListener, Input, OnChanges, OnDestroy, ElementRef, SimpleChanges } from '@angular/core';
 import { Subscription } from 'rxjs';
-import * as AnsiUp from 'ansi_up';
+import { default as AnsiUp } from 'ansi_up';
 import * as moment from 'moment';
 import { fetchJobLog, streamJobLog } from '../../actions/index';
 import { iconForJobState, labelForJobState } from '../../util';
@@ -240,10 +240,11 @@ export class JobDetailComponent implements OnChanges, OnDestroy {
       }
 
       let fragment = document.createDocumentFragment();
+      const ansi_up = new AnsiUp();
 
       lines.forEach((line) => {
         let el = document.createElement('div');
-        el.innerHTML = AnsiUp.ansi_to_html(line);
+        el.innerHTML = ansi_up.ansi_to_html(line);
         fragment.appendChild(el);
       });
 
