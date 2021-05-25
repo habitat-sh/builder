@@ -97,7 +97,7 @@ resource "aws_instance" "api" {
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:api\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
-      "sudo sed -i \"$ a 
+      "sudo sed -i \"$ a logs_enabled: true\" /etc/dd-agent/datadog.conf",
     ]
   }
 
@@ -388,6 +388,7 @@ resource "aws_instance" "worker" {
       "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
       "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
+      "sudo sed -i \"$ a logs_enabled: true\" /etc/dd-agent/datadog.conf",
       "sudo mv /tmp/docker.yaml /etc/dd-agent/conf.d/docker_daemon.yaml",
       "sudo usermod -a -G docker dd-agent"
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
