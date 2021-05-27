@@ -390,7 +390,7 @@ resource "aws_instance" "worker" {
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a logs_enabled: true\" /etc/dd-agent/datadog.conf",
       "sudo mv /tmp/docker.yaml /etc/dd-agent/conf.d/docker_daemon.yaml",
-      "sudo usermod -a -G docker dd-agent"
+      "sudo usermod -a -G docker dd-agent",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
       "sudo systemctl start datadog-agent",
       "sudo systemctl enable datadog-agent",
@@ -564,7 +564,7 @@ resource "aws_instance" "linux2-worker" {
       "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
       "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
       "sudo mv /tmp/docker.yaml /etc/dd-agent/conf.d/docker_daemon.yaml",
-      "sudo usermod -a -G docker dd-agent"
+      "sudo usermod -a -G docker dd-agent",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
       "sudo /etc/init.d/datadog-agent start",
       "update-rc.d datadog-agent defaults",
@@ -619,9 +619,8 @@ resource "aws_instance" "windows-worker" {
 
   provisioner "remote-exec" {
     inline = [
-      "curl https://s3.amazonaws.com/ddagent-windows-stable/datadog-agent-7-latest.amd64.msi -O C:\Users\Administrator\Downloads\datadog-agent-7-latest.amd64.msi",
-      "start /wait msiexec /qn /i C:\Users\Administrator\Downloads\datadog-agent-7-latest.amd64.msi APIKEY=${var.datadog_api_key} SITE="datadoghq.com" tags: " env:${var.env}, role:worker"",
-    ]
+      "curl https://s3.amazonaws.com/ddagent-windows-stable/datadog-agent-7-latest.amd64.msi -O C\\Users\\Administrator\\Downloads\\datadog-agent-7-latest.amd64.msi",
+      "start /wait msiexec /qn /i C:\\Users\\Administrator\\Downloads\\datadog-agent-7-latest.amd64.msi APIKEY=${var.datadog_api_key} SITE='datadoghq.com' tags: ' env:${var.env} role:worker'",]
   }
 
   tags = {
