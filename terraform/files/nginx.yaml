@@ -1,10 +1,6 @@
 init_config:
-
 instances:
   - nginx_status_url: http://localhost/nginx_status/
-    tags:
-      - instance: api
-      - service: builder-api-proxy
 logs:
   - type: file
     path: /hab/svc/builder-api-proxy/logs/host.*.log

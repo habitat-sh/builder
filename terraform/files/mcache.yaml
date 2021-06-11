@@ -2,7 +2,5 @@ init_config:
 
 instances:
   - url: localhost  # url used to connect to the memcached instance
-    tags:
-      - instance: api
-      - service: memcache
+
       

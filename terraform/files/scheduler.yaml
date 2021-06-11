@@ -1,0 +1,5 @@
+logs:
+  - type: file
+    path: /tmp/builder-scheduler.log
+    service: jobsrv
+    source: scheduler
