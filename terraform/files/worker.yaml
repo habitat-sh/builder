@@ -1,0 +1,5 @@
+logs:
+  - type: file
+    path: /hab/svc/builder-worker/logs/builder-worker.log
+    service: worker
+    source: builder-worker

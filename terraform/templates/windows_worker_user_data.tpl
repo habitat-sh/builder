@@ -87,4 +87,9 @@
   mkdir c:\hab\svc\builder-worker
   Set-Content -Path "c:\hab\svc\builder-worker\user.toml" -Value 'target = "x86_64-windows"'
   hab svc load habitat/builder-worker --group ${environment} --bind jobsrv:builder-jobsrv.${environment} --bind depot:builder-api-proxy.${environment} --strategy at-once --url ${bldr_url} --channel ${worker_release_channel}
+
+
+#installing datadog agent
+iwr https://s3.amazonaws.com/ddagent-windows-stable/datadog-agent-7-latest.amd64.msi -Outfile c:\datadog-agent-7-latest.amd64.msi
+Start-Process -Wait msiexec -ArgumentList '/qn /i c:\datadog-agent-7-latest.amd64.msi APIKEY="${datadog_api_key}" SITE="datadoghq.com" TAGS="env:${environment},role:worker"'
 </powershell>

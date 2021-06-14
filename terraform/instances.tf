@@ -38,6 +38,7 @@ locals {
       worker_release_channel = var.worker_release_channel
       enabled_features       = var.enabled_features
       authorized_keys        = var.connection_public_key
+      datadog_api_key        = var.datadog_api_key
     })
 }
 
@@ -94,9 +95,14 @@ resource "aws_instance" "api" {
 
   provisioner "remote-exec" {
     inline = [
-      "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
-      "sudo sed -i \"$ a tags: env:${var.env}, role:api\" /etc/dd-agent/datadog.conf",
-      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
+      "DD_AGENT_MAJOR_VERSION=7 DD_SITE=datadoghq.com DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)\"",
+      "sudo sed -i \"$ a tags:\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a  - env:${var.env}\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a  - role:api\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a use_dogstatsd: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a process_config: \" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a \\ enabled: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a logs_enabled: true\" /etc/datadog-agent/datadog.yaml",
     ]
   }
 
@@ -111,16 +117,24 @@ resource "aws_instance" "api" {
   }
 
   provisioner "file" {
+    source      = "${path.module}/files/syslog.yaml"
+    destination = "/tmp/syslog.yaml"
+  }
+  provisioner "file" {
     source      = "${path.module}/files/nginx.logrotate"
     destination = "/tmp/nginx.logrotate"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo cp /tmp/nginx.yaml /etc/dd-agent/conf.d/nginx.yaml",
-      "sudo cp /tmp/mcache.yaml /etc/dd-agent/conf.d/mcache.yaml",
+      "sudo mkdir /etc/datadog-agent/conf.d/syslog.d",
+      "sudo cp /tmp/nginx.yaml /etc/datadog-agent/conf.d/nginx.d/conf.yaml",
+      "sudo cp /tmp/mcache.yaml /etc/datadog-agent/conf.d/mcache.d/conf.yaml",
+      "sudo cp /tmp/syslog.yaml /etc/datadog-agent/conf.d/syslog.d/conf.yaml",
       "sudo cp /tmp/nginx.logrotate /etc/logrotate.d/nginx",
-      "sudo /etc/init.d/datadog-agent start",
+      "sudo usermod -a -G adm dd-agent",
+      "sudo systemctl restart datadog-agent",
+      "sudo systemctl enable datadog-agent",
     ]
   }
 
@@ -254,15 +268,36 @@ resource "aws_instance" "jobsrv" {
     destination = "/tmp/builder.logrotate"
   }
 
+  provisioner "file" {
+    source      = "${path.module}/files/syslog.yaml"
+    destination = "/tmp/syslog.yaml"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/files/scheduler.yaml"
+    destination = "/tmp/scheduler.yaml"
+  }
+
+
   provisioner "remote-exec" {
     inline = [
-      "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
-      "sudo sed -i \"$ a dogstreams: /tmp/builder-scheduler.log:/etc/dd-agent/sch_log_parser.py:my_log_parser\" /etc/dd-agent/datadog.conf",
-      "sudo sed -i \"$ a tags: env:${var.env}, role:jobsrv\" /etc/dd-agent/datadog.conf",
-      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
+      "DD_AGENT_MAJOR_VERSION=7 DD_SITE=datadoghq.com DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)\"",
+      "sudo sed -i \"$ a tags:\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a  - env:${var.env}\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a  - role:jobsrv\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a use_dogstatsd: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a process_config: \" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a \\ enabled: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a logs_enabled: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo mkdir /etc/datadog-agent/conf.d/syslog.d",
+      "sudo mkdir /etc/datadog-agent/conf.d/scheduler.d",
+      "sudo cp /tmp/syslog.yaml /etc/datadog-agent/conf.d/syslog.d/conf.yaml",
+      "sudo cp /tmp/scheduler.yaml /etc/datadog-agent/conf.d/scheduler.d/conf.yaml",
       "sudo cp /tmp/sch_log_parser.py /etc/dd-agent/sch_log_parser.py",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
-      "sudo /etc/init.d/datadog-agent start",
+      "sudo usermod -a -G adm dd-agent",
+      "sudo systemctl restart datadog-agent",
+      "sudo systemctl enable datadog-agent",
     ]
   }
 
@@ -335,7 +370,7 @@ resource "aws_instance" "worker" {
     aws_security_group.jobsrv_client.id,
     aws_security_group.worker.id,
   ]
-
+  
   connection {
     type = "ssh"
     // JW TODO: switch to private ip after VPN is ready
@@ -358,6 +393,7 @@ resource "aws_instance" "worker" {
     volume_type = "gp2"
   }
 
+
   provisioner "file" {
     source      = "${path.module}/scripts/install_base_packages.sh"
     destination = "/tmp/install_base_packages.sh"
@@ -369,19 +405,47 @@ resource "aws_instance" "worker" {
       "${path.module}/scripts/worker_bootstrap.sh",
     ]
   }
-
+  
   provisioner "file" {
     source      = "${path.module}/files/builder.logrotate"
     destination = "/tmp/builder.logrotate"
   }
 
+  provisioner "file" {
+    source      = "${path.module}/files/docker.yaml"
+    destination = "/tmp/docker.yaml"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/files/syslog.yaml"
+    destination = "/tmp/syslog.yaml"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/files/worker.yaml"
+    destination = "/tmp/worker.yaml"
+  }
+
   provisioner "remote-exec" {
     inline = [
-      "DD_INSTALL_ONLY=true DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)\"",
-      "sudo sed -i \"$ a tags: env:${var.env}, role:worker\" /etc/dd-agent/datadog.conf",
-      "sudo sed -i \"$ a use_dogstatsd: yes\" /etc/dd-agent/datadog.conf",
+      "DD_AGENT_MAJOR_VERSION=7 DD_SITE=datadoghq.com DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)\"",
+      "sudo sed -i \"$ a tags:\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a  - env:${var.env}\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a  - role:worker\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a use_dogstatsd: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a process_config: \" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a \\ enabled: 'true'\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a logs_enabled: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo mv /tmp/docker.yaml /etc/datadog-agent/conf.d/docker.d/conf.yaml",
+      "sudo mkdir /etc/datadog-agent/conf.d/syslog.d",
+      "sudo mkdir /etc/datadog-agent/conf.d/worker.d",
+      "sudo mv /tmp/worker.yaml /etc/datadog-agent/conf.d/worker.d/conf.yaml",
+      "sudo cp /tmp/syslog.yaml /etc/datadog-agent/conf.d/syslog.d/conf.yaml",
+      "sudo usermod -a -G docker dd-agent",
+      "sudo usermod -a -G adm dd-agent",
       "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
-      "sudo /etc/init.d/datadog-agent start",
+      "sudo systemctl restart datadog-agent",
+      "sudo systemctl enable datadog-agent",
     ]
   }
 
@@ -517,6 +581,21 @@ resource "aws_instance" "linux2-worker" {
     destination = "/tmp/worker.user.toml"
   }
 
+  provisioner "file" {
+    source      = "${path.module}/files/docker.yaml"
+    destination = "/tmp/docker.yaml"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/files/syslog.yaml"
+    destination = "/tmp/syslog.yaml"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/files/worker.yaml"
+    destination = "/tmp/worker.yaml"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "sudo mkdir -p /hab/svc/builder-worker",
@@ -541,6 +620,29 @@ resource "aws_instance" "linux2-worker" {
     ]
   }
 
+  provisioner "remote-exec" {
+    inline = [
+      "DD_AGENT_MAJOR_VERSION=7 DD_SITE=datadoghq.com DD_API_KEY=${var.datadog_api_key} /bin/bash -c \"$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)\"",
+      "sudo sed -i \"$ a tags:\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a  - env:${var.env}\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a  - role:worker\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a use_dogstatsd: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a process_config: \" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a \\ enabled: 'true'\" /etc/datadog-agent/datadog.yaml",
+      "sudo sed -i \"$ a logs_enabled: true\" /etc/datadog-agent/datadog.yaml",
+      "sudo mv /tmp/docker.yaml /etc/datadog-agent/conf.d/docker.d/conf.yaml",
+      "sudo mkdir /etc/datadog-agent/conf.d/worker.d",
+      "sudo mkdir /etc/datadog-agent/conf.d/syslog.d",
+      "sudo cp /tmp/syslog.yaml /etc/datadog-agent/conf.d/syslog.d/conf.yaml",
+      "sudo mv /tmp/worker.yaml /etc/datadog-agent/conf.d/worker.d/conf.yaml",
+      "sudo usermod -a -G adm dd-agent",
+      "sudo usermod -a -G docker dd-agent",
+      "sudo cp /tmp/builder.logrotate /etc/logrotate.d/builder",
+      "sudo /etc/init.d/datadog-agent restart",
+      "sudo update-rc.d datadog-agent defaults",
+    ]
+  }
+
   tags = {
     Name          = "builder-linux2-worker-${count.index}"
     X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
@@ -551,8 +653,8 @@ resource "aws_instance" "linux2-worker" {
 }
 
 resource "aws_instance" "windows-worker" {
-  // Windows Server 2019 English Core with Containers 2020-06-10
-  ami           = "ami-09194d3374023cff7"
+  // Windows Server 2019 English Core with Containers 2021-05-12 
+  ami           = "ami-0613a489ef66dc885"
   instance_type = var.instance_size_windows_worker
   key_name      = var.aws_key_pair
 
