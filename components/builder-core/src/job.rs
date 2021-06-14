@@ -32,8 +32,8 @@ impl Job {
                         .split('/')
                         .collect::<Vec<&str>>();
         assert!(items.len() == 2,
-                format!("Invalid project identifier - {}",
-                        self.0.get_project().get_id()));
+                "Invalid project identifier - {}",
+                self.0.get_project().get_id());
         items[0]
     }
 }
