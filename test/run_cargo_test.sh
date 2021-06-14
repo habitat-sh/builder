@@ -2,6 +2,8 @@
 
 set -eou pipefail
 
+source ./support/ci/shared.sh
+
 while [[ $# -gt 1 ]]; do
   case $1 in
     -f | --features )       shift
@@ -16,11 +18,15 @@ while [[ $# -gt 1 ]]; do
   shift
 done
 
+toolchain=$(get_toolchain)
+install_rustup
+install_rust_toolchain "$toolchain"
+
 # set the features string if needed
 [ -z "${features:-}" ] && features_string="" || features_string="--features ${features}"
 
 component=${1?component argument required}
-cargo_test_command="cargo test ${features_string} -- --nocapture ${test_options:-}"
+cargo_test_command="cargo +${toolchain} test ${features_string} -- --nocapture ${test_options:-}"
 
 # Accept hab license
 sudo hab license accept
