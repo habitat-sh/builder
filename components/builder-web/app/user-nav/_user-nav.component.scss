@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 .user-nav-component {
-  display: block;
+  display: inline-block;
   border-radius: 50%;
   padding: 2px;
   cursor: pointer;
@@ -23,7 +23,7 @@
   }
 
   img {
-    display: block;
+    // display: block;
     border: solid 2px $white;
     border-radius: 50%;
     height: 40px;
@@ -68,5 +68,17 @@
   .cta {
     background-color: $hab-orange;
     color: $white;
+  }
+
+  hab-icon[symbol="notifications"] {
+    width: 2em;
+  }
+
+  .notif-link {
+    vertical-align: top;
+    margin-right: 5px;
+    margin-top: 5px;
+    height: 42px;
+    display: inline-block;
   }
 }

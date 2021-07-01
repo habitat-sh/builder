@@ -1,6 +1,7 @@
 const expect = require('chai').expect;
 const supertest = require('supertest');
 const request = supertest('http://localhost:9636/v1');
+const { appendDateRange } = require('./util');
 
 describe('Channels API', function () {
   describe('Create foo channel', function () {
@@ -62,11 +63,41 @@ describe('Channels API', function () {
         });
     });
 
+    it('tests that no new builder events after promotion failed due to auth', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
+          done(err);
+        });
+    });
+
     it('requires origin membership to promote a package', function (done) {
       request.put('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213/promote')
         .set('Authorization', global.mystiqueBearer)
         .expect(401)
         .end(function (err, res) {
+          done(err);
+        });
+    });
+
+    it('tests that no new builder events after promotion failed due to origin membership', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
           done(err);
         });
     });
@@ -81,6 +112,54 @@ describe('Channels API', function () {
         });
     });
 
+    it('tests builder events after putting a specified package into the specified channel', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(1);
+          expect(res.body.data[0].operation).to.equal('Promote');
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].channel).to.equal('foo');
+          done(err);
+        });
+    });
+
+    it('tests builder events after putting a specified package into the specified channel, channel name:foo', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url + '&channel=foo')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(1);
+          expect(res.body.data[0].operation).to.equal('Promote');
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].channel).to.equal('foo');
+          done(err);
+        });
+    });
+
+    it('tests builder events after putting a specified package into the specified channel, channel name: stable', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url + '&channel=stable')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          done(err);
+        });
+    });
+
     it('should ignore packages promoted to a channel where the package already exists', function (done) {
       request.put('/depot/channels/neurosis/foo/pkgs/testapp/0.1.3/20171205003213/promote')
         .set('Authorization', global.boboBearer)
@@ -91,12 +170,67 @@ describe('Channels API', function () {
         });
     });
 
+    it('tests builder events that should ignore packages promoted to a channel where the package already exists', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(1);
+          expect(res.body.data[0].operation).to.equal('Promote');
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].channel).to.equal('foo');
+          done(err);
+        });
+    });
+
     it('can promote private packages', function (done) {
       request.put('/depot/channels/neurosis/bar/pkgs/testapp/0.1.3/20171206004121/promote')
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('tests builder events that should not contain events for private packages', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(1);
+          expect(res.body.data[0].operation).to.equal('Promote');
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].channel).to.equal('foo');
+          done(err);
+        });
+    });
+
+    it('tests builder events that should contain events for private packages for package owners', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(3);
+          expect(res.body.total_count).to.equal(4);
+          expect(res.body.data[0].operation).to.equal('Promote');
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].channel).to.equal('bar');
+          expect(res.body.data[1].operation).to.equal('Promote');
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].channel).to.equal('foo');
           done(err);
         });
     });

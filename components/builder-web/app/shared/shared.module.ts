@@ -94,6 +94,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     SimpleConfirmDialog
   ],
   exports: [
+    MatMenuModule,
     BreadcrumbsComponent,
     ChannelsComponent,
     CheckingInputComponent,

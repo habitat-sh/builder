@@ -18,6 +18,18 @@
         Search Packages
       </a>
     </li>
+    <li>
+      <a [routerLink]="['/events']" *ngIf="enabledEvents">
+        <hab-icon symbol="event"></hab-icon>
+        Events
+      </a>
+    </li>
+    <li>
+      <a [routerLink]="['/events/saas']" *ngIf="enabledEvents && enabledSaasEvents">
+        <hab-icon symbol="cloud"></hab-icon>
+        Events (SaaS)
+      </a>
+    </li>
   </ul>
   <h3>Quick Links</h3>
   <ul>

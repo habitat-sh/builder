@@ -24,4 +24,6 @@ habitatConfig({
     use_gravatar: {{cfg.use_gravatar}},
     version: "{{pkg.ident}}",
     www_url: "{{cfg.www_url}}",
+    enable_builder_events: {{cfg.enable_builder_events}},
+    enable_builder_events_saas: {{cfg.enable_builder_events_saas}},
 });

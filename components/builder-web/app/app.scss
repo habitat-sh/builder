@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -227,6 +227,8 @@ main {
 @import 'profile/profile.module';
 @import 'search/search.module';
 @import 'search/results/results.component';
+@import 'events/events.module';
+@import 'events/results/results.component';
 @import 'shared/shared.module';
 @import 'side-nav/side-nav.component';
 @import 'sign-in-page/sign-in-page.component';

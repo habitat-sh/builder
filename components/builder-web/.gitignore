@@ -14,3 +14,4 @@ npm-debug.log*
 /typings
 results/
 !app/search/results
+!app/events/results

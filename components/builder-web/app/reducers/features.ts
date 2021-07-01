@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,8 +24,9 @@ export default function builds(state = initialState['features'], action) {
         .setIn(['publishers', 'amazon'], !!config['enable_publisher_amazon'])
         .setIn(['publishers', 'azure'], !!config['enable_publisher_azure'])
         .setIn(['publishers', 'docker'], !!config['enable_publisher_docker'])
-        .set('builder', !!config['enable_builder']);
-
+        .set('builder', !!config['enable_builder'])
+        .set('events', !!config['enable_builder_events'])
+        .set('saasEvents', !!config['enable_builder_events_saas']);
     default:
       return state;
   }

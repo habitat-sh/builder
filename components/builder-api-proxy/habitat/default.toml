@@ -13,6 +13,11 @@ status_url                = "https://status.habitat.sh/"
 tutorials_url             = "https://www.habitat.sh/learn"
 use_gravatar              = true
 www_url                   = "https://www.habitat.sh"
+# Enable/Disable the builder events
+enable_builder_events     = false
+# Enable/Disable the builder events from SaaS
+# The 'enable_builder_events' property also needs to be set to enable SaaS events.
+enable_builder_events_saas = false
 # How we connect to the proxied backend API service.
 #   When true, connect to all backend API services via their IPs provided
 #   via the bind
