@@ -2011,7 +2011,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "tokio 1.8.1",
+ "tokio 0.2.25",
  "toml 0.5.8",
  "url",
  "zmq",
