@@ -14,8 +14,7 @@ doc = false
 
 [dependencies]
 async-trait = "*"
-cloudevents-sdk = "0.2.0"
-cloudevents-sdk-rdkafka = "*"
+cloudevents-sdk = { version = "*", features = ["rdkafka"] }
 configopt = { git = "https://github.com/davidMcneil/configopt.git" }
 env_logger = "*"
 features = "*"
@@ -28,10 +27,6 @@ structopt = "*"
 tokio = "*"
 url = "*"
 uuid = { version = "*", features = ["v4"] }
-
-[dependencies.rdkafka]
-version = "*"
-features = ["ssl"]
 
 [dependencies.builder_core]
 path = "../builder-core"

@@ -5,9 +5,9 @@ use crate::{connection::{EventConsumer,
                     BuilderEvent,
                     DispatchStatus::*}};
 use async_trait::async_trait;
-use cloudevents_sdk_rdkafka::{FutureRecordExt,
-                              MessageExt,
-                              MessageRecord};
+use cloudevents::binding::rdkafka::{FutureRecordExt,
+                                    MessageExt,
+                                    MessageRecord};
 use serde::{Deserialize,
             Serialize};
 use std::{convert::TryFrom,
@@ -18,7 +18,8 @@ use rdkafka::{config::ClientConfig,
               consumer::{BaseConsumer,
                          Consumer},
               producer::{FutureProducer,
-                         FutureRecord}};
+                         FutureRecord},
+              util::Timeout};
 
 pub const KAFKA_DEFAULT_TOPIC_NAME: &str = "builder_events";
 
@@ -91,7 +92,7 @@ impl TryFrom<&KafkaConfig> for KafkaPublisher {
         let bootstrap_list = config.bootstrap_nodes.join(",");
         match ClientConfig::new().set("bootstrap.servers", &bootstrap_list)
                                  .set("message.timeout.ms", &config.message_timeout_ms.to_string())
-                                 .set("client.id", &config.client_id.as_str())
+                                 .set("client.id", &config.client_id.to_string())
                                  .set("sasl.username", &config.api_key)
                                  .set("sasl.password", &config.api_secret_key)
                                  .set("sasl.mechanisms", "PLAIN")
@@ -159,7 +160,10 @@ impl EventPublisher for KafkaPublisher {
                         r
                     }
                 };
-                match self.inner.send(future_record, 0).await {
+                match self.inner
+                          .send(future_record, Timeout::After(Duration::from_secs(0)))
+                          .await
+                {
                     Err(err) => {
                         error!("KafkaPublisher failed to send message to a Broker: {:?}",
                                err)

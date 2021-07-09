@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 async-trait = "*"
 log = "*"
-reqwest = "*"
+reqwest = "^0.10.10"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"

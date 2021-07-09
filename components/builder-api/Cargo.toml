@@ -14,7 +14,7 @@ doc = false
 
 [dependencies]
 actix-rt = "*"
-bytes = "*"
+bytes = "^0.5.6"
 base64 = "*"
 bitflags = "1"
 chrono = { version = "*", features = ["serde"] }
@@ -27,11 +27,12 @@ habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
 lazy_static = "*"
 log = "*"
+memcache = "*"
 num_cpus = "*"
 openssl = "=0.10.22"
 percent-encoding = "*"
 protobuf = "*"
-reqwest = "*"
+reqwest = "^0.10.10"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -49,11 +50,6 @@ uuid = { version = "*", features = ["v4"] }
 
 [dependencies.habitat_builder_events]
 path = "../builder-events"
-
-[dependencies.memcache]
-version = "*"
-git = "https://github.com/stevendanna/rust-memcache.git"
-branch = "ssd/avoid-short-writes"
 
 [dependencies.actix-web]
 version = "*"

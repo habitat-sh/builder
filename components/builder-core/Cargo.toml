@@ -34,7 +34,7 @@ zmq = { git = "https://github.com/habitat-sh/rust-zmq", branch = "v0.8-symlinks-
 git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.reqwest]
-version = "*"
+version = "^0.10.10"
 features = ["stream"]
 
 [dependencies.tokio]
