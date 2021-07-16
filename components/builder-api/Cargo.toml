@@ -14,7 +14,7 @@ doc = false
 
 [dependencies]
 actix-rt = "*"
-bytes = "^0.5.6"
+bytes = "*"
 base64 = "*"
 bitflags = "1"
 chrono = { version = "*", features = ["serde"] }
@@ -29,7 +29,7 @@ lazy_static = "*"
 log = "*"
 memcache = "*"
 num_cpus = "*"
-openssl = "=0.10.22"
+openssl = "*"
 percent-encoding = "*"
 protobuf = "*"
 reqwest = "^0.10.10"
@@ -52,7 +52,7 @@ uuid = { version = "*", features = ["v4"] }
 path = "../builder-events"
 
 [dependencies.actix-web]
-version = "*"
+version = "4.0.0-beta.8"
 default-features = false
 features = [ "openssl" ]
 

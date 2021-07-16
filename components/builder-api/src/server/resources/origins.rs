@@ -160,7 +160,7 @@ fn get_origin(path: Path<String>, state: Data<AppState>) -> HttpResponse {
 
     match Origin::get(&origin_name, &*conn) {
         Ok(origin) => {
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(origin)
         }
         Err(NotFound) => HttpResponse::NotFound().into(),
@@ -459,7 +459,7 @@ fn list_origin_keys(path: Path<String>, state: Data<AppState>) -> HttpResponse {
                     })
                     .collect();
 
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(&list)
         }
         Err(err) => {
@@ -522,7 +522,7 @@ fn upload_origin_key(req: HttpRequest,
 
         match save_public_origin_signing_key(account_id, &origin, &key, &*conn) {
             Ok(_) => {
-                HttpResponse::Created().header(http::header::LOCATION, format!("{}", req.uri()))
+                HttpResponse::Created().append_header((http::header::LOCATION, format!("{}", req.uri())))
                                        .body(format!("/origins/{}/keys/{}",
                                                      origin,
                                                      key.named_revision().revision()))
@@ -597,7 +597,7 @@ fn list_origin_secrets(req: HttpRequest,
             // Need to map to different struct for hab cli backward compat
             let new_list: Vec<OriginSecretWithOriginId> =
                 list.into_iter().map(|s| s.into()).collect();
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(&new_list)
         }
         Err(err) => {
@@ -1050,7 +1050,7 @@ fn list_origin_invitations(req: HttpRequest,
                 "invitations": serde_json::to_value(list).unwrap()
             });
 
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(json)
         }
         Err(err) => {
@@ -1089,9 +1089,9 @@ fn get_origin_member_role(req: HttpRequest,
         Ok(role) => {
             let body = role_results_json(role);
 
-            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                              .header(http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string())
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL,
+                                      headers::Cache::NoCache.to_string()))
                               .body(body)
         }
         Err(err) => {
@@ -1288,7 +1288,7 @@ fn list_origin_members(req: HttpRequest,
                 "members": serde_json::to_value(users).unwrap()
             });
 
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(json)
         }
         Err(err) => {
@@ -1375,7 +1375,7 @@ fn fetch_origin_integrations(req: HttpRequest,
                                  .push(i.name.to_owned());
                               acc
                           });
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(integrations_response)
         }
         Err(err) => {
@@ -1409,7 +1409,7 @@ fn fetch_origin_integration_names(req: HttpRequest,
             let mut hm: HashMap<String, Vec<String>> = HashMap::new();
             hm.insert("names".to_string(), names);
             HttpResponse::Ok()
-                .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                 .json(hm)
         }
         Err(err) => {
@@ -1519,7 +1519,7 @@ fn get_origin_integration(req: HttpRequest,
                         "body": serde_json::to_value(map).unwrap()
                     });
 
-                    HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                                       .json(sanitized)
                 }
                 Err(err) => {
@@ -1551,7 +1551,7 @@ fn key_as_http_response<K>(key: &K) -> HttpResponse
     let contents = key.to_key_string();
 
     HttpResponse::Ok()
-        .header(
+        .append_header((
             http::header::CONTENT_DISPOSITION,
             ContentDisposition {
                 disposition: DispositionType::Attachment,
@@ -1561,12 +1561,12 @@ fn key_as_http_response<K>(key: &K) -> HttpResponse
                     value: filename.clone().into_bytes(), // the actual bytes of the filename
                 })],
             },
-        )
-        .header(
+        ))
+        .append_header((
             http::header::HeaderName::from_static(headers::XFILENAME),
             filename,
-        )
-        .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+        ))
+        .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
         .body(&contents)
 }
 

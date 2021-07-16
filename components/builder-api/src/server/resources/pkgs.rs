@@ -72,7 +72,8 @@ use futures::{channel::mpsc,
               StreamExt};
 use protobuf::Message;
 use serde::ser::Serialize;
-use std::{fs::{self,
+use std::{convert::Infallible,
+          fs::{self,
                remove_file,
                File},
           io::{BufReader,
@@ -236,9 +237,9 @@ fn get_latest_package_for_origin_package(req: HttpRequest,
 
     match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => {
-            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                              .header(http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string())
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL,
+                                      headers::Cache::NoCache.to_string()))
                               .body(json_body)
         }
         Err(err) => {
@@ -259,9 +260,9 @@ fn get_latest_package_for_origin_package_version(req: HttpRequest,
 
     match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => {
-            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                              .header(http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string())
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL,
+                                      headers::Cache::NoCache.to_string()))
                               .body(json_body)
         }
         Err(err) => {
@@ -282,9 +283,9 @@ fn get_package(req: HttpRequest,
 
     match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => {
-            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                              .header(http::header::CACHE_CONTROL,
-                                      headers::Cache::default().to_string())
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL,
+                                      headers::Cache::default().to_string()))
                               .body(json_body)
         }
         Err(err) => {
@@ -578,8 +579,8 @@ async fn schedule_job_group(req: HttpRequest,
 
     match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request).await {
         Ok(group) => {
-            HttpResponse::Created().header(http::header::CACHE_CONTROL,
-                                           headers::Cache::NoCache.to_string())
+            HttpResponse::Created().append_header((http::header::CACHE_CONTROL,
+                                           headers::Cache::NoCache.to_string()))
                                    .json(group)
         }
         Err(err) => {
@@ -606,7 +607,7 @@ async fn get_schedule(req: HttpRequest,
 
     match route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(&req, &request).await {
         Ok(group) => {
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(group)
         }
         Err(err) => {
@@ -631,7 +632,7 @@ async fn get_origin_schedule_status(req: HttpRequest,
     match route_message::<jobsrv::JobGroupOriginGet, jobsrv::JobGroupOriginResponse>(&req, &request).await
     {
         Ok(jgor) => {
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(jgor.get_job_groups())
         }
         Err(err) => {
@@ -691,7 +692,7 @@ fn get_package_channels(req: HttpRequest,
             let list: Vec<String> = channels.iter()
                                             .map(|channel| channel.name.to_string())
                                             .collect();
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(list)
         }
         Err(err) => {
@@ -730,8 +731,8 @@ fn list_package_versions(req: HttpRequest,
             trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "list_package_versions for {} found {} package versions: {:?}", ident, packages.len(), packages);
 
             let body = serde_json::to_string(&packages).unwrap();
-            HttpResponse::Ok().header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                              .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .body(body)
         }
         Err(err) => {
@@ -882,8 +883,8 @@ pub fn postprocess_package_list<T: Serialize>(_req: &HttpRequest,
         HttpResponse::Ok()
     };
 
-    response.header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+    response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
             .body(body)
 }
 
@@ -911,8 +912,8 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
         HttpResponse::Ok()
     };
 
-    response.header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+    response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
             .body(body)
 }
 
@@ -1270,7 +1271,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
         }
     }
 
-    HttpResponse::Created().header(http::header::LOCATION, format!("{}", req.uri()))
+    HttpResponse::Created().append_header((http::header::LOCATION, format!("{}", req.uri())))
                            .body(format!("/pkgs/{}/download", *package.ident))
 }
 
@@ -1284,7 +1285,7 @@ async fn do_upload_package_async(req: HttpRequest,
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
         debug!("Writing file upload chunk, size: {}", chunk.len());
-        writer = web::block(move || writer.write(&chunk).map(|_| writer)).await?;
+        writer = web::block(move || writer.write(&chunk).map(|_| writer)).await??;
     }
 
     match writer.into_inner() {
@@ -1469,14 +1470,14 @@ fn download_response_for_archive(archive: &PackageArchive,
     };
 
     #[allow(clippy::redundant_closure)] //  Ok::<_, ()>
-    HttpResponse::Ok().header(http::header::CONTENT_DISPOSITION,
+    HttpResponse::Ok().append_header((http::header::CONTENT_DISPOSITION,
             ContentDisposition { disposition: DispositionType::Attachment,
-                                 parameters:  vec![DispositionParam::Filename(filename)], })
-    .header(http::header::HeaderName::from_static(headers::XFILENAME),
-            archive.file_name())
-    .set(ContentType::octet_stream())
-    .header(http::header::CACHE_CONTROL, cache_hdr)
-    .streaming(rx_body.map(|s| Ok::<_, ()>(s)))
+                                 parameters:  vec![DispositionParam::Filename(filename)], }))
+    .append_header((http::header::HeaderName::from_static(headers::XFILENAME),
+            archive.file_name()))
+    .insert_header(ContentType::octet_stream())
+    .append_header((http::header::CACHE_CONTROL, cache_hdr))
+    .streaming(rx_body.map(|s| Ok::<_, Infallible>(s)))
 }
 
 async fn has_circular_deps(req: &HttpRequest,
