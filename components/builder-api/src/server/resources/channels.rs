@@ -125,7 +125,7 @@ fn get_channels(path: Path<String>,
                                             .map(|channel| Temp { name: channel.name.clone(), })
                                             .collect();
             HttpResponse::Ok().append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string()))
+                                              headers::Cache::NoCache.to_string()))
                               .json(ident_list)
         }
         Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
@@ -618,9 +618,10 @@ fn get_latest_package_for_origin_channel_package(req: HttpRequest,
 
     match do_get_channel_package(&req, &qtarget, &ident, &channel) {
         Ok(json_body) => {
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string()))
+                                              headers::Cache::NoCache.to_string()))
                               .body(json_body)
         }
         Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
@@ -646,9 +647,10 @@ fn get_latest_package_for_origin_channel_package_version(req: HttpRequest,
 
     match do_get_channel_package(&req, &qtarget, &ident, &channel) {
         Ok(json_body) => {
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string()))
+                                              headers::Cache::NoCache.to_string()))
                               .body(json_body)
         }
         Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
@@ -671,9 +673,10 @@ fn get_package_fully_qualified(req: HttpRequest,
 
     match do_get_channel_package(&req, &qtarget, &ident, &channel) {
         Ok(json_body) => {
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string()))
+                                              headers::Cache::NoCache.to_string()))
                               .body(json_body)
         }
         Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
@@ -695,9 +698,10 @@ fn get_latest_packages_for_origin_channel(req: HttpRequest,
     match do_get_latest_channel_packages(&req, &qtarget, &origin, &channel) {
         Ok((channel, target, data)) => {
             let json_body = helpers::channel_listing_results_json(&channel, &target, &data);
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string()))
+                                              headers::Cache::NoCache.to_string()))
                               .body(json_body)
         }
         Err(Error::NotFound) => HttpResponse::new(StatusCode::NOT_FOUND),
@@ -955,7 +959,6 @@ fn postprocess_channel_package_list(_req: &HttpRequest,
     };
 
     response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-            .append_header((http::header::CACHE_CONTROL,
-                    headers::Cache::NoCache.to_string()))
+            .append_header((http::header::CACHE_CONTROL, headers::Cache::NoCache.to_string()))
             .body(body)
 }

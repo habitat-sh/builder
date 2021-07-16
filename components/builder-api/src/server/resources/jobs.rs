@@ -281,7 +281,8 @@ fn get_job(req: HttpRequest, path: Path<String>) -> HttpResponse {
 
     match do_get_job(&req, job_id) {
         Ok(body) => {
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .body(body)
         }
         Err(err) => {

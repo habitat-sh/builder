@@ -237,9 +237,10 @@ fn get_latest_package_for_origin_package(req: HttpRequest,
 
     match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => {
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string()))
+                                              headers::Cache::NoCache.to_string()))
                               .body(json_body)
         }
         Err(err) => {
@@ -260,9 +261,10 @@ fn get_latest_package_for_origin_package_version(req: HttpRequest,
 
     match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => {
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string()))
+                                              headers::Cache::NoCache.to_string()))
                               .body(json_body)
         }
         Err(err) => {
@@ -283,9 +285,10 @@ fn get_package(req: HttpRequest,
 
     match do_get_package(&req, &qtarget, &ident) {
         Ok(json_body) => {
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::default().to_string()))
+                                              headers::Cache::default().to_string()))
                               .body(json_body)
         }
         Err(err) => {
@@ -580,7 +583,7 @@ async fn schedule_job_group(req: HttpRequest,
     match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request).await {
         Ok(group) => {
             HttpResponse::Created().append_header((http::header::CACHE_CONTROL,
-                                           headers::Cache::NoCache.to_string()))
+                                                   headers::Cache::NoCache.to_string()))
                                    .json(group)
         }
         Err(err) => {
@@ -731,7 +734,8 @@ fn list_package_versions(req: HttpRequest,
             trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "list_package_versions for {} found {} package versions: {:?}", ident, packages.len(), packages);
 
             let body = serde_json::to_string(&packages).unwrap();
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .body(body)
         }

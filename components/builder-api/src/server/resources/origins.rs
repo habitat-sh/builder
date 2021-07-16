@@ -522,7 +522,8 @@ fn upload_origin_key(req: HttpRequest,
 
         match save_public_origin_signing_key(account_id, &origin, &key, &*conn) {
             Ok(_) => {
-                HttpResponse::Created().append_header((http::header::LOCATION, format!("{}", req.uri())))
+                HttpResponse::Created().append_header((http::header::LOCATION,
+                                                       format!("{}", req.uri())))
                                        .body(format!("/origins/{}/keys/{}",
                                                      origin,
                                                      key.named_revision().revision()))
@@ -1089,9 +1090,10 @@ fn get_origin_member_role(req: HttpRequest,
         Ok(role) => {
             let body = role_results_json(role);
 
-            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
                               .append_header((http::header::CACHE_CONTROL,
-                                      headers::Cache::NoCache.to_string()))
+                                              headers::Cache::NoCache.to_string()))
                               .body(body)
         }
         Err(err) => {
