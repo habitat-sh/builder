@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 base64 = "*"
-bitflags = "*"
+bitflags = "1"
 chrono = { version = "*", features = ["serde"] }
 dogstatsd = "*"
 env_proxy = "*"
@@ -21,7 +21,7 @@ log = "*"
 petgraph = "*"
 # Pin until we are on Rust >= 1.44.0
 protobuf = "= 2.14.0"
-rand = "*"
+rand = "^0.8.4"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -34,7 +34,7 @@ zmq = { git = "https://github.com/habitat-sh/rust-zmq", branch = "v0.8-symlinks-
 git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.reqwest]
-version = "^0.10.10"
+version = "*"
 features = ["stream"]
 
 [dependencies.tokio]

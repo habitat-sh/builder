@@ -14,7 +14,7 @@ doc = false
 
 [dependencies]
 actix-rt = "*"
-bytes = "*"
+bytes = "1"
 base64 = "*"
 bitflags = "1"
 chrono = { version = "*", features = ["serde"] }
@@ -32,7 +32,7 @@ num_cpus = "*"
 openssl = "*"
 percent-encoding = "*"
 protobuf = "*"
-reqwest = "^0.10.10"
+reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
