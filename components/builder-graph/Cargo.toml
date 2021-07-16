@@ -17,7 +17,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-bitflags = "*"
+bitflags = "1"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 log = "*"

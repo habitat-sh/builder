@@ -438,7 +438,7 @@ dependencies = [
 name = "builder_core"
 version = "0.0.0"
 dependencies = [
- "base64 0.6.0",
+ "base64 0.13.0",
  "bitflags 1.2.1",
  "chrono",
  "dogstatsd",
@@ -1730,7 +1730,7 @@ dependencies = [
 name = "habitat_builder_graph"
 version = "0.0.0"
 dependencies = [
- "bitflags 0.3.3",
+ "bitflags 1.2.1",
  "builder_core",
  "clap 2.33.3",
  "copperline",
@@ -1833,7 +1833,7 @@ name = "habitat_builder_worker"
 version = "0.0.0"
 dependencies = [
  "backtrace",
- "bitflags 0.3.3",
+ "bitflags 1.2.1",
  "builder_core",
  "chrono",
  "clap 2.33.3",
