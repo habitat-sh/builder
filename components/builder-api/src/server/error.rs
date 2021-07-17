@@ -233,6 +233,6 @@ impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error { Error::Utf8(err) }
 }
 
-impl From<actix_web::error::BlockingError<std::io::Error>> for Error {
-    fn from(err: actix_web::error::BlockingError<std::io::Error>) -> Error { err.into() }
+impl From<actix_web::error::BlockingError> for Error {
+    fn from(err: actix_web::error::BlockingError) -> Error { err.into() }
 }

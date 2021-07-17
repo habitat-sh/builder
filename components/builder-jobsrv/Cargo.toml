@@ -19,7 +19,7 @@ postgres_scheduler_tests = []
 [dependencies]
 actix-rt = "*"
 backtrace = "*"
-bitflags = "*"
+bitflags = "1"
 builder_core = { path = "../builder-core" }
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
@@ -48,13 +48,13 @@ serde_derive = "*"
 sha2 = "*"
 toml = { version = "*", default-features = false }
 
-tokio = {version = "*", features = [ "rt-threaded", "macros"]}
+tokio = {version = "^1.8.1", features = [ "rt-multi-thread", "macros"]}
 tracing = "*"
 tracing-subscriber = "*"
 tracing-futures = "*"
 
 [dependencies.actix-web]
-version = "*"
+version = "4.0.0-beta.8"
 default-features = false
 
 [dependencies.clap]

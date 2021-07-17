@@ -9,8 +9,7 @@ edition = "2018"
 
 [dependencies]
 async-trait = "*"
-cloudevents-sdk = "0.2.0"
-cloudevents-sdk-rdkafka = "*"
+cloudevents-sdk = { version = "*", features = ["rdkafka"] }
 features = "*"
 lazy_static = "*"
 log = "*"
