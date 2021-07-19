@@ -19,7 +19,7 @@ lazy_static = "*"
 git = "https://github.com/habitat-sh/habitat.git"
 
 [build-dependencies]
-pkg-config = "0.3"
+pkg-config = "*"
 protoc = "*"
 protoc-rust = "*"
 protobuf-codegen = "*"

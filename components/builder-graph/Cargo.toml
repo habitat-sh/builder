@@ -53,7 +53,7 @@ path = "../builder-core"
 path = "../builder-db"
 
 [build-dependencies]
-pkg-config = "0.3"
+pkg-config = "*"
 
 [features]
 default = []
