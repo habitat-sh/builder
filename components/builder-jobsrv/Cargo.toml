@@ -48,7 +48,7 @@ serde_derive = "*"
 sha2 = "*"
 toml = { version = "*", default-features = false }
 
-tokio = {version = "^1.8.1", features = [ "rt-multi-thread", "macros"]}
+tokio = {version = "*", features = [ "rt-multi-thread", "macros"]}
 tracing = "*"
 tracing-subscriber = "*"
 tracing-futures = "*"
