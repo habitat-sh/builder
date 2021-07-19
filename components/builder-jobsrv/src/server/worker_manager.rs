@@ -33,8 +33,7 @@ use habitat_core::{crypto::keys::{AnonymousBox,
                    package::{target,
                              PackageTarget}};
 use linked_hash_map::LinkedHashMap;
-use protobuf::{parse_from_bytes,
-               Message,
+use protobuf::{Message,
                RepeatedField};
 use std::{collections::HashSet,
           convert::TryInto,
@@ -805,7 +804,7 @@ impl WorkerMgr {
 
     fn process_heartbeat(&mut self) -> Result<()> {
         self.hb_sock.recv(&mut self.msg, 0)?;
-        let heartbeat: jobsrv::Heartbeat = parse_from_bytes(&self.msg)?;
+        let heartbeat: jobsrv::Heartbeat = Message::parse_from_bytes(&self.msg)?;
         trace!("Got heartbeat: {:?}", heartbeat);
 
         let worker_ident = heartbeat.get_endpoint().to_string();
@@ -872,7 +871,7 @@ impl WorkerMgr {
 
         self.rq_sock.recv(&mut self.msg, 0)?;
 
-        let job = Job::new(parse_from_bytes::<jobsrv::Job>(&self.msg)?);
+        let job = Job::new(Message::parse_from_bytes(&self.msg)?);
         debug!("Got job status: {:?}", job);
         self.datastore.update_job(&job)?;
 

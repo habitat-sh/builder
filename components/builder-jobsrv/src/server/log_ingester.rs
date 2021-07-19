@@ -21,7 +21,6 @@ use crate::{bldr_core::socket::DEFAULT_CONTEXT,
             server::{log_archiver::{self,
                                     LogArchiver},
                      log_directory::LogDirectory}};
-use protobuf::parse_from_bytes;
 use std::{fs::{self,
                OpenOptions},
           io::Write,
@@ -91,8 +90,8 @@ impl LogIngester {
             match str::from_utf8(self.intake_sock.recv_bytes(0).unwrap().as_slice()).unwrap() {
                 LOG_LINE => {
                     self.intake_sock.recv(&mut self.msg, 0)?; // protobuf message frame
-                    match parse_from_bytes::<JobLogChunk>(&self.msg) {
-                        Ok(chunk) => {
+                    match protobuf::Message::parse_from_bytes(&self.msg) {
+                        Ok::<JobLogChunk, _>(chunk) => {
                             let log_file = self.log_dir.log_file_path(chunk.get_job_id());
 
                             // TODO: Consider caching file handles for
@@ -118,7 +117,7 @@ impl LogIngester {
                 }
                 LOG_COMPLETE => {
                     self.intake_sock.recv(&mut self.msg, 0)?; // protobuf message frame
-                    match parse_from_bytes::<JobLogComplete>(&self.msg) {
+                    match protobuf::Message::parse_from_bytes(&self.msg) {
                         Ok(complete) => {
                             if let Err(e) = self.complete_log(&complete) {
                                 // TODO: Investigate error and attempt

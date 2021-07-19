@@ -9,8 +9,7 @@ edition = "2018"
 
 [dependencies]
 fnv = "*"
-# Pin until we are on Rust >= 1.44.0
-protobuf = "= 2.14.0"
+protobuf = "*"
 serde = "*"
 serde_derive = "*"
 regex = "*"
@@ -22,6 +21,5 @@ git = "https://github.com/habitat-sh/habitat.git"
 [build-dependencies]
 pkg-config = "0.3"
 protoc = "*"
-# Pin until we are on Rust >= 1.44.0
-protoc-rust = "= 2.14.0"
+protoc-rust = "*"
 protobuf-codegen = "*"

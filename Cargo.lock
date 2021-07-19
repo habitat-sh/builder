@@ -1064,9 +1064,9 @@ checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 
 [[package]]
 name = "dns-lookup"
-version = "1.0.7"
+version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8138b2add98729577ebb861755b154635cbb4dc30cb777cd9944bfdc70a3a075"
+checksum = "53ecafc952c4528d9b51a458d1a8904b81783feff9fde08ab6ed2545ff396872"
 dependencies = [
  "cfg-if 1.0.0",
  "libc 0.2.98",
@@ -1862,7 +1862,7 @@ dependencies = [
 [[package]]
 name = "habitat_core"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#9d3d64d3e3a8f921ec65a206fd89e7632b20ea3a"
+source = "git+https://github.com/habitat-sh/habitat.git#13205bcf23d1a7ea58baeee84ddf5693feaab28b"
 dependencies = [
  "base64 0.13.0",
  "blake2b_simd",
@@ -1912,7 +1912,7 @@ dependencies = [
 [[package]]
 name = "habitat_win_users"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#9d3d64d3e3a8f921ec65a206fd89e7632b20ea3a"
+source = "git+https://github.com/habitat-sh/habitat.git#13205bcf23d1a7ea58baeee84ddf5693feaab28b"
 dependencies = [
  "cc",
  "log",
@@ -3168,33 +3168,34 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "2.14.0"
+version = "2.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e86d370532557ae7573551a1ec8235a0f8d6cb276c7c9e6aa490b511c447485"
+checksum = "db50e77ae196458ccd3dc58a31ea1a90b0698ab1b7928d89f644c25d72070267"
 
 [[package]]
 name = "protobuf-codegen"
-version = "2.14.0"
+version = "2.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de113bba758ccf2c1ef816b127c958001b7831136c9bc3f8e9ec695ac4e82b0c"
+checksum = "09321cef9bee9ddd36884f97b7f7cc92a586cdc74205c4b3aeba65b5fc9c6f90"
 dependencies = [
  "protobuf",
 ]
 
 [[package]]
 name = "protoc"
-version = "2.14.0"
+version = "2.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "349d80967ee438cd03ccd236d548d4dcd5f2d9349acda206bef1490a826165d3"
+checksum = "c367feabb5f78ca3b2ec25e2c4a5f4f0826017d7fb634f52961afd1a6613d1fb"
 dependencies = [
  "log",
+ "which",
 ]
 
 [[package]]
 name = "protoc-rust"
-version = "2.14.0"
+version = "2.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58f2fb1de3a1355b1eb91108bf59d6221c1f565eee9983605be53846019fdf38"
+checksum = "7bb2c1038f8014a2e42fdffec03ffc03f574a8bf66b0ac32f1b6941681eb1317"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
@@ -3966,9 +3967,9 @@ dependencies = [
 
 [[package]]
 name = "sha-1"
-version = "0.9.6"
+version = "0.9.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c4cfa741c5832d0ef7fab46cabed29c2aae926db0b11bb2069edd8db5e64e16"
+checksum = "1a0c8611594e2ab4ebbf06ec7cbbf0a99450b8570e96cbf5188b5d5f6ef18d81"
 dependencies = [
  "block-buffer 0.9.0",
  "cfg-if 1.0.0",
@@ -5194,6 +5195,16 @@ checksum = "f095d78192e208183081cc07bc5515ef55216397af48b873e5edcd72637fa1bd"
 dependencies = [
  "ring",
  "untrusted",
+]
+
+[[package]]
+name = "which"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b55551e42cbdf2ce2bedd2203d0cc08dba002c27510f86dab6d0ce304cba3dfe"
+dependencies = [
+ "either",
+ "libc 0.2.98",
 ]
 
 [[package]]

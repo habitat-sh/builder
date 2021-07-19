@@ -48,7 +48,7 @@ impl RpcMessage {
     pub fn parse<T>(&self) -> Result<T>
         where T: protobuf::Message
     {
-        protobuf::parse_from_bytes::<T>(&self.body).map_err(Error::Protobuf)
+        protobuf::Message::parse_from_bytes(&self.body).map_err(Error::Protobuf)
     }
 }
 
@@ -104,7 +104,7 @@ impl RpcClient {
                 let resp_json: RpcMessage = serde_json::from_str(&body)?;
                 trace!("Got RPC JSON: {:?}", resp_json);
 
-                let resp_msg = protobuf::parse_from_bytes::<T>(&resp_json.body)?;
+                let resp_msg = protobuf::Message::parse_from_bytes(&resp_json.body)?;
                 Ok(resp_msg)
             }
             status => Err(Error::RpcError(status.as_u16(), body)),
