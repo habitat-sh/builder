@@ -19,7 +19,7 @@ postgres_scheduler_tests = []
 [dependencies]
 actix-rt = "*"
 backtrace = "*"
-bitflags = "1"
+bitflags = "*"
 builder_core = { path = "../builder-core" }
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
