@@ -112,6 +112,7 @@ function Setup-Environment {
     Install-HabPkg @(
         "core/cacerts",
         "core/libarchive",
+        "core/openssl",
         "core/protobuf",
         "core/visual-cpp-build-tools-2015",
         "core/xz",
@@ -123,6 +124,7 @@ function Setup-Environment {
     # Set up some path variables for ease of use later
     $cacertsDir     = & hab pkg path core/cacerts
     $libarchiveDir  = & hab pkg path core/libarchive
+    $opensslDir     = & hab pkg path core/openssl
     $protobufDir    = & hab pkg path core/protobuf
     $xzDir          = & hab pkg path core/xz
     $zeromqDir      = & hab pkg path core/zeromq
@@ -132,10 +134,15 @@ function Setup-Environment {
     # Set some required variables
     $env:LIBARCHIVE_INCLUDE_DIR     = "$libarchiveDir\include"
     $env:LIBARCHIVE_LIB_DIR         = "$libarchiveDir\lib"
+    $env:OPENSSL_LIBS               = 'ssleay32:libeay32'
+    $env:OPENSSL_LIB_DIR            = "$opensslDir\lib"
+    $env:OPENSSL_INCLUDE_DIR        = "$opensslDir\include"
     $env:LIBZMQ_PREFIX              = "$zeromqDir"
     $env:SSL_CERT_FILE              = "$cacertsDir\ssl\certs\cacert.pem"
+    $env:OPENSSL_STATIC             = "true"
+    $env:OPENSSL_NO_VENDOR          = 1
     $env:LD_LIBRARY_PATH            = "$env:LIBZMQ_PREFIX\lib;$zlibDir\lib;$xzDir\lib"
-    $env:PATH                       = New-PathString -StartingPath $env:PATH -Path "$protobufDir\bin;$zeromqDir\bin;$libarchiveDir\bin;$zlibDir\bin;$xzDir\bin;$perl\bin"
+    $env:PATH                       = New-PathString -StartingPath $env:PATH -Path "$protobufDir\bin;$zeromqDir\bin;$libarchiveDir\bin;$zlibDir\bin;$xzDir\bin;$perl\bin;$opensslDir\bin"
 
     $vsDir = & hab pkg path core/visual-cpp-build-tools-2015
     $env:DisableRegistryUse="true"
