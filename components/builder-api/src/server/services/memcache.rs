@@ -152,7 +152,7 @@ impl MemcacheClient {
                 let duration_millis = start_time.elapsed().as_millis();
                 trace!("Memcache get_session time: {} ms", duration_millis);
                 Histogram::MemcacheCallTime.set(duration_millis as f64);
-                Some(protobuf::parse_from_bytes(&session).unwrap())
+                Some(protobuf::Message::parse_from_bytes(&session).unwrap())
             }
             None => None,
         }

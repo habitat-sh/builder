@@ -83,7 +83,7 @@ fn get_access_tokens(req: HttpRequest) -> HttpResponse {
                 "tokens": serde_json::to_value(tokens).unwrap()
             });
 
-            HttpResponse::Ok().header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(json)
         }
         Err(err) => {

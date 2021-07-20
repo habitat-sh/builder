@@ -298,13 +298,15 @@ impl S3Handler {
                 }
 
                 let completion =
-                    CompleteMultipartUploadRequest { key:              key.to_string(),
-                                                     bucket:           self.bucket.clone(),
+                    CompleteMultipartUploadRequest { key:                   key.to_string(),
+                                                     bucket:                self.bucket.clone(),
+                                                     expected_bucket_owner: None,
                                                      multipart_upload:
                                                          Some(CompletedMultipartUpload { parts:
                                                                                              Some(p), }),
-                                                     upload_id:        output.upload_id.unwrap(),
-                                                     request_payer:    None, };
+                                                     upload_id:             output.upload_id
+                                                                                  .unwrap(),
+                                                     request_payer:         None, };
 
                 match self.client.complete_multipart_upload(completion).await {
                     Ok(_) => {

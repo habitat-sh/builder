@@ -180,6 +180,7 @@ impl ApiClient {
                                                   file_name,
                                                   thread_rng().sample_iter(&Alphanumeric)
                                                               .take(8)
+                                                              .map(char::from)
                                                               .collect::<String>()));
 
         let dst_file_path = dst_path.join(file_name);

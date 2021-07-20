@@ -3,6 +3,7 @@ $pkg_origin = "habitat"
 $pkg_maintainer = "The Habitat Maintainers <humans@habitat.sh>"
 $pkg_license = @("Apache-2.0")
 $pkg_deps = @(
+    "core/openssl",
     "core/zeromq",
     "core/zlib",
     "core/libarchive",
@@ -51,6 +52,10 @@ function Invoke-Prepare {
     $env:INCLUDE += ";$HAB_CACHE_SRC_PATH/$pkg_dirname/include"
     $env:LIBARCHIVE_INCLUDE_DIR = "$(Get-HabPackagePath "libarchive")/include"
     $env:LIBARCHIVE_LIB_DIR = "$(Get-HabPackagePath "libarchive")/lib"
+    $env:OPENSSL_NO_VENDOR = 1
+    $env:OPENSSL_LIBS = 'ssleay32:libeay32'
+    $env:OPENSSL_LIB_DIR = "$(Get-HabPackagePath "openssl")/lib"
+    $env:OPENSSL_INCLUDE_DIR = "$(Get-HabPackagePath "openssl")/include"
     $env:LIBZMQ_PREFIX = "$(Get-HabPackagePath "zeromq")"
 
     # Used by the `build.rs` program to set the version of the binaries
@@ -101,7 +106,7 @@ function Invoke-Build {
 function Invoke-Install {
     Write-BuildLine "$HAB_CACHE_SRC_PATH/$pkg_dirname"
     Copy-Item "$env:CARGO_TARGET_DIR/release/bldr-worker.exe" "$pkg_prefix/bin/bldr-worker.exe"
-    Copy-Item "$env:CARGO_TARGET_DIR/release\build\openssl-sys-*\out\openssl-build\install\bin\*.dll" "$pkg_prefix/bin"
+    Copy-Item "$(Get-HabPackagePath "openssl")/bin/*.dll" "$pkg_prefix/bin"
     Copy-Item "$(Get-HabPackagePath "zlib")/bin/*.dll" "$pkg_prefix/bin"
     Copy-Item "$(Get-HabPackagePath "libarchive")/bin/*.dll" "$pkg_prefix/bin"
     Copy-Item "$(Get-HabPackagePath "zeromq")/bin/*.dll" "$pkg_prefix/bin"

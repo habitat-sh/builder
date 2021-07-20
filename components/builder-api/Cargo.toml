@@ -16,7 +16,7 @@ doc = false
 actix-rt = "*"
 bytes = "*"
 base64 = "*"
-bitflags = "1"
+bitflags = "*"
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 diesel-derive-enum = { version = "*", features = ["postgres"] }
@@ -27,8 +27,9 @@ habitat-builder-protocol = { path = "../builder-protocol" }
 hex = "*"
 lazy_static = "*"
 log = "*"
+memcache = "*"
 num_cpus = "*"
-openssl = "=0.10.22"
+openssl = "*"
 percent-encoding = "*"
 protobuf = "*"
 reqwest = "*"
@@ -50,13 +51,8 @@ uuid = { version = "*", features = ["v4"] }
 [dependencies.habitat_builder_events]
 path = "../builder-events"
 
-[dependencies.memcache]
-version = "*"
-git = "https://github.com/stevendanna/rust-memcache.git"
-branch = "ssd/avoid-short-writes"
-
 [dependencies.actix-web]
-version = "*"
+version = "4.0.0-beta.8"
 default-features = false
 features = [ "openssl" ]
 

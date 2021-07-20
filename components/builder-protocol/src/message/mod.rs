@@ -29,7 +29,7 @@ pub use self::net::{ErrCode,
 pub fn decode<T>(bytes: &[u8]) -> Result<T, ProtocolError>
     where T: protobuf::Message
 {
-    protobuf::parse_from_bytes::<T>(bytes).map_err(ProtocolError::Decode)
+    protobuf::Message::parse_from_bytes(bytes).map_err(ProtocolError::Decode)
 }
 
 pub fn encode<T>(message: &T) -> Result<Vec<u8>, ProtocolError>

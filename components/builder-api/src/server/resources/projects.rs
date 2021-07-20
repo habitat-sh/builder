@@ -519,8 +519,8 @@ fn get_jobs(req: HttpRequest,
                 HttpResponse::Ok()
             };
 
-            response.header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                    .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+            response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                    .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                     .body(body)
         }
         Err(err) => {
