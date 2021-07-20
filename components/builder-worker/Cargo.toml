@@ -26,7 +26,7 @@ lazy_static = "*"
 log = "*"
 protobuf = "*"
 remove_dir_all = "*"
-retry = { git = "https://github.com/habitat-sh/retry", features = ["asynchronous"] }
+retry = { git = "https://github.com/habitat-sh/retry", branch = "latest_crates", features = ["asynchronous"] }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -51,5 +51,5 @@ git = "https://github.com/habitat-sh/habitat.git"
 path = "../builder-core"
 
 [dependencies.tokio]
-version = "^0.2"
+version = "*"
 features = ["time"]
