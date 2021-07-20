@@ -30,7 +30,7 @@ $bin = "bldr-worker"
 function pkg_version {
     # TED: After migrating the builder repo we needed to add to
     # the rev-count to keep version sorting working
-    5000 + (git rev-list HEAD --count)
+    5600 + (git rev-list HEAD --count)
 }
 
 function Invoke-Before {
