@@ -26,7 +26,7 @@ lazy_static = "*"
 log = "*"
 protobuf = "*"
 remove_dir_all = "*"
-retry = { git = "https://github.com/habitat-sh/retry", branch = "latest_crates", features = ["asynchronous"] }
+retry = { git = "https://github.com/habitat-sh/retry", features = ["asynchronous"] }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
