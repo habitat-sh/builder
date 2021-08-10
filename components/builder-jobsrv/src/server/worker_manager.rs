@@ -25,7 +25,7 @@ use crate::{bldr_core::{self,
 use builder_core::crypto;
 
 use diesel::pg::PgConnection;
-use futures03::executor::block_on;
+use futures::executor::block_on;
 
 use habitat_core::{crypto::keys::{AnonymousBox,
                                   KeyCache,

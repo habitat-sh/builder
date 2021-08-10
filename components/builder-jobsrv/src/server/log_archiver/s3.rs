@@ -25,17 +25,16 @@
 //! Currently the archiver must be configured with both an access key
 //! ID and a secret access key.
 
-use std::{fs::OpenOptions,
-          io::Read,
-          path::PathBuf,
-          str::FromStr};
-
-use futures::{Future,
-              Stream};
+use async_trait::async_trait;
+use futures::stream::TryStreamExt;
 use rusoto_s3::{GetObjectRequest,
                 PutObjectRequest,
                 S3Client,
                 S3};
+use std::{fs::OpenOptions,
+          io::Read,
+          path::PathBuf,
+          str::FromStr};
 
 use rusoto_core::HttpClient;
 
@@ -83,8 +82,9 @@ impl S3Archiver {
     fn key(job_id: u64) -> String { format!("{}.log", job_id) }
 }
 
+#[async_trait]
 impl LogArchiver for S3Archiver {
-    fn archive(&self, job_id: u64, file_path: &PathBuf) -> Result<()> {
+    async fn archive(&self, job_id: u64, file_path: &PathBuf) -> Result<()> {
         let mut buffer = Vec::new();
         let mut request = PutObjectRequest::default();
         request.bucket = self.bucket.clone();
@@ -94,7 +94,7 @@ impl LogArchiver for S3Archiver {
         file.read_to_end(&mut buffer)?;
         request.body = Some(buffer.into());
 
-        match self.client.put_object(request).sync() {
+        match self.client.put_object(request).await {
             Ok(_) => Ok(()),
             Err(e) => {
                 warn!("Job log upload failed for {}: ({:?})", job_id, e);
@@ -103,12 +103,12 @@ impl LogArchiver for S3Archiver {
         }
     }
 
-    fn retrieve(&self, job_id: u64) -> Result<Vec<String>> {
+    async fn retrieve(&self, job_id: u64) -> Result<Vec<String>> {
         let mut request = GetObjectRequest::default();
         request.bucket = self.bucket.clone();
         request.key = Self::key(job_id);
 
-        let payload = self.client.get_object(request).sync();
+        let payload = self.client.get_object(request).await;
         let stream = match payload {
             Ok(response) => response.body.expect("Downloaded object is not empty"),
             Err(e) => {
@@ -117,8 +117,9 @@ impl LogArchiver for S3Archiver {
             }
         };
 
-        let bytes = stream.concat2()
-                          .wait()
+        let bytes = stream.map_ok(|b| bytes::BytesMut::from(&b[..]))
+                          .try_concat()
+                          .await
                           .expect("Unable to retrieve byte stream");
 
         let lines = String::from_utf8_lossy(&bytes).lines()
