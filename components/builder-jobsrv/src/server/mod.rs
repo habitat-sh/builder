@@ -116,12 +116,12 @@ pub struct OriginTarget {
 fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
 
 #[allow(clippy::needless_pass_by_value)]
-fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
+async fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
     debug!("Got RPC message, id {} body =\n{:?}", msg.id.as_str(), msg);
 
     let result = match msg.id.as_str() {
         "JobGet" => handlers::job_get(&msg, &state),
-        "JobLogGet" => handlers::job_log_get(&msg, &state),
+        "JobLogGet" => handlers::job_log_get(&msg, &state).await,
         "JobGroupSpec" => handlers::job_group_create(&msg, &state),
         "JobGroupRebuildFromSpec" => handlers::job_group_rebuild(&msg, &state),
         "JobGroupCancel" => handlers::job_group_cancel(&msg, &state),

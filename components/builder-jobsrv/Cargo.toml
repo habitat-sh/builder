@@ -18,18 +18,19 @@ postgres_scheduler_tests = []
 
 [dependencies]
 actix-rt = "*"
+async-trait = "*"
 backtrace = "*"
 bitflags = "*"
+bytes = "*"
 builder_core = { path = "../builder-core" }
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 diesel-derive-enum = { version = "*", features = ["postgres"] }
 diesel_migrations = "*"
 features = "*"
-futures = "0.1"
-futures03 = { package = "futures", version = "0.3"}
-rusoto_core = "0.42"
-rusoto_s3 = "0.42"
+futures = "*"
+rusoto_core = "*"
+rusoto_s3 = "*"
 env_logger = "*"
 habitat_builder_db = { path = "../builder-db" }
 habitat_builder_graph = { path = "../builder-graph" }

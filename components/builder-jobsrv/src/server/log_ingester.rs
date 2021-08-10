@@ -21,6 +21,7 @@ use crate::{bldr_core::socket::DEFAULT_CONTEXT,
             server::{log_archiver::{self,
                                     LogArchiver},
                      log_directory::LogDirectory}};
+use futures::executor::block_on;
 use std::{fs::{self,
                OpenOptions},
           io::Write,
@@ -65,7 +66,7 @@ impl LogIngester {
         let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::Builder::new().name("log-ingester".to_string())
                                            .spawn(move || {
-                                               ingester.run(&tx).unwrap();
+                                               block_on(ingester.run(&tx)).unwrap();
                                            })
                                            .unwrap();
         match rx.recv() {
@@ -74,7 +75,7 @@ impl LogIngester {
         }
     }
 
-    fn run(&mut self, rz: &mpsc::SyncSender<()>) -> Result<()> {
+    async fn run(&mut self, rz: &mpsc::SyncSender<()>) -> Result<()> {
         println!("Listening for log data on {}", self.log_ingestion_addr);
         self.intake_sock.bind(&self.log_ingestion_addr)?;
         rz.send(()).unwrap();
@@ -119,7 +120,7 @@ impl LogIngester {
                     self.intake_sock.recv(&mut self.msg, 0)?; // protobuf message frame
                     match protobuf::Message::parse_from_bytes(&self.msg) {
                         Ok(complete) => {
-                            if let Err(e) = self.complete_log(&complete) {
+                            if let Err(e) = self.complete_log(&complete).await {
                                 // TODO: Investigate error and attempt
                                 // to remediate as appropriate.
                                 warn!("Error completing log: {}", e);
@@ -152,12 +153,12 @@ impl LogIngester {
     /// This is also the _order_ in which these errors would occur, so
     /// a local log file is only removed after the log is successfully
     /// archived and marked as such in the database.
-    fn complete_log(&self, complete: &JobLogComplete) -> Result<()> {
+    async fn complete_log(&self, complete: &JobLogComplete) -> Result<()> {
         let id = complete.get_job_id();
         debug!("Log complete for job {:?}", id);
         let log_file = self.log_dir.log_file_path(id);
 
-        self.archiver.archive(id, &log_file)?;
+        self.archiver.archive(id, &log_file).await?;
         debug!("Archived log for job {}", id);
         self.data_store.mark_as_archived(id)?;
         fs::remove_file(&log_file)?;

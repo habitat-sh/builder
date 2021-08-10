@@ -25,6 +25,7 @@
 use crate::{config::ArchiveCfg,
             error::Result,
             server::log_directory::LogDirectory};
+use async_trait::async_trait;
 
 use sha2::{Digest,
            Sha256};
@@ -68,8 +69,9 @@ impl LocalArchiver {
     }
 }
 
+#[async_trait]
 impl LogArchiver for LocalArchiver {
-    fn archive(&self, job_id: u64, file_path: &PathBuf) -> Result<()> {
+    async fn archive(&self, job_id: u64, file_path: &PathBuf) -> Result<()> {
         let archive_path = self.archive_path(job_id);
         let parent_dir = &archive_path.parent().unwrap();
         fs::create_dir_all(parent_dir)?;
@@ -77,7 +79,7 @@ impl LogArchiver for LocalArchiver {
         Ok(())
     }
 
-    fn retrieve(&self, job_id: u64) -> Result<Vec<String>> {
+    async fn retrieve(&self, job_id: u64) -> Result<Vec<String>> {
         let log_file = self.archive_path(job_id);
         let mut buffer = Vec::new();
         let mut file = OpenOptions::new().read(true).open(&log_file)?;

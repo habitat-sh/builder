@@ -29,7 +29,7 @@ use diesel::{self,
 
 use protobuf::RepeatedField;
 
-use futures03::executor::block_on;
+use futures::executor::block_on;
 
 use crate::{bldr_core::rpc::RpcMessage,
             db::models::{channel::{Channel,
@@ -74,7 +74,7 @@ pub fn job_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     }
 }
 
-pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
+pub async fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     let msg = req.parse::<jobsrv::JobLogGet>()?;
     let mut get = jobsrv::JobGet::new();
     get.set_id(msg.get_id());
@@ -88,7 +88,7 @@ pub fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessage> {
     };
 
     if job.get_is_archived() {
-        match state.archiver.retrieve(job.get_id()) {
+        match state.archiver.retrieve(job.get_id()).await {
             Ok(lines) => {
                 let start = msg.get_start();
                 let num_lines = lines.len() as u64;
