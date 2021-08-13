@@ -14,7 +14,6 @@
 
 use std::{collections::HashMap,
           fs,
-          iter::FromIterator,
           path::{Path,
                  PathBuf}};
 
@@ -51,6 +50,7 @@ pub struct PackageIdent {
     pub release: String,
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<package::PackageIdent> for PackageIdent {
     fn into(self) -> package::PackageIdent {
         package::PackageIdent { origin:  self.origin,
@@ -83,7 +83,7 @@ pub struct ApiClient {
 impl ApiClient {
     pub fn new(url: &str) -> Result<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(), ACCEPT_APPLICATION_JSON.clone()];
-        let headers = HeaderMap::from_iter(header_values.into_iter());
+        let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         Ok(ApiClient { inner: HttpClient::new(url, headers)?,
                        url:   url.to_owned(), })

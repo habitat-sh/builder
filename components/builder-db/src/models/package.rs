@@ -590,7 +590,7 @@ impl Package {
             .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
-        if pl.ident.name != "" {
+        if !pl.ident.name.is_empty() {
             query = query.filter(packages_with_channel_platform::name.eq(&pl.ident.name))
         };
         let query = query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
@@ -613,7 +613,7 @@ impl Package {
 
         // Package list for a whole origin is still not very
         // performant, and we want to track that
-        if pl.ident.name != "" {
+        if !pl.ident.name.is_empty() {
             Histogram::PackageListOriginOnlyCallTime.set(duration_millis as f64);
         } else {
             Histogram::PackageListOriginNameCallTime.set(duration_millis as f64);
@@ -643,7 +643,7 @@ impl Package {
                                               .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
-        if pl.ident.name != "" {
+        if !pl.ident.name.is_empty() {
             query = query.filter(origin_packages::name.eq(&pl.ident.name))
         };
         let query = query
@@ -667,7 +667,7 @@ impl Package {
         Histogram::PackageListDistinctCallTime.set(duration_millis as f64);
         // Package list for a whole origin is still not very
         // performant, and we want to track that
-        if pl.ident.name != "" {
+        if !pl.ident.name.is_empty() {
             Histogram::PackageListDistinctOriginOnlyCallTime.set(duration_millis as f64);
         } else {
             Histogram::PackageListDistinctOriginNameCallTime.set(duration_millis as f64);
@@ -853,7 +853,7 @@ impl Package {
             .select(origin_packages::target)
             .filter(origin_packages::origin.eq(&ident.origin))
             .filter(origin_packages::name.eq(&ident.name))
-            .filter(origin_packages::ident_array.contains(&searchable_ident(&ident)))
+            .filter(origin_packages::ident_array.contains(&searchable_ident(ident)))
             .filter(origin_packages::visibility.eq(any(visibilities)))
             .get_results(conn);
 
@@ -892,7 +892,7 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
     ident.to_string()
          .split('/')
          .map(|s| s.to_string())
-         .filter(|s| s != "")
+         .filter(|s| !s.is_empty())
          .collect()
 }
 
@@ -945,13 +945,13 @@ impl BuilderPackageIdent {
             .map(|s| s.to_string())
             // We must filter out empty strings from the vec.
             // This sometimes happens hen the origin or the package name are undefined.
-            .filter(|s| s != "")
+            .filter(|s| !s.is_empty())
             .collect()
     }
 }
 
-impl Into<PackageIdent> for BuilderPackageIdent {
-    fn into(self) -> PackageIdent { self.0 }
+impl From<BuilderPackageIdent> for PackageIdent {
+    fn from(value: BuilderPackageIdent) -> PackageIdent { value.0 }
 }
 
 impl Deref for BuilderPackageIdent {
@@ -1082,9 +1082,9 @@ impl From<OriginPackageVisibility> for PackageVisibility {
     }
 }
 
-impl Into<OriginPackageVisibility> for PackageVisibility {
-    fn into(self) -> OriginPackageVisibility {
-        match self {
+impl From<PackageVisibility> for OriginPackageVisibility {
+    fn from(value: PackageVisibility) -> OriginPackageVisibility {
+        match value {
             PackageVisibility::Hidden => OriginPackageVisibility::Hidden,
             PackageVisibility::Private => OriginPackageVisibility::Private,
             _ => OriginPackageVisibility::Public,
@@ -1092,83 +1092,83 @@ impl Into<OriginPackageVisibility> for PackageVisibility {
     }
 }
 
-impl Into<OriginPackage> for Package {
-    fn into(self) -> OriginPackage {
-        let exposes = self.exposes
-                          .into_iter()
-                          .map(|e| e as u32)
-                          .collect::<Vec<u32>>();
+impl From<Package> for OriginPackage {
+    fn from(value: Package) -> OriginPackage {
+        let exposes = value.exposes
+                           .into_iter()
+                           .map(|e| e as u32)
+                           .collect::<Vec<u32>>();
 
         let mut op = OriginPackage::new();
-        let ident = &*self.ident;
-        op.set_id(self.id as u64);
+        let ident = &*value.ident;
+        op.set_id(value.id as u64);
         op.set_ident(OriginPackageIdent::from(ident.clone()));
-        op.set_manifest(self.manifest);
-        op.set_target(self.target.to_string());
-        op.set_deps(into_idents(self.deps));
-        op.set_tdeps(into_idents(self.tdeps));
-        op.set_build_deps(into_idents(self.build_deps));
-        op.set_build_tdeps(into_idents(self.build_tdeps));
+        op.set_manifest(value.manifest);
+        op.set_target(value.target.to_string());
+        op.set_deps(into_idents(value.deps));
+        op.set_tdeps(into_idents(value.tdeps));
+        op.set_build_deps(into_idents(value.build_deps));
+        op.set_build_tdeps(into_idents(value.build_tdeps));
         op.set_exposes(exposes);
-        op.set_config(self.config);
-        op.set_checksum(self.checksum);
-        op.set_owner_id(self.owner_id as u64);
-        op.set_visibility(self.visibility.into());
+        op.set_config(value.config);
+        op.set_checksum(value.checksum);
+        op.set_owner_id(value.owner_id as u64);
+        op.set_visibility(value.visibility.into());
         op
     }
 }
 
-impl Into<OriginPackage> for PackageWithVersionArray {
-    fn into(self) -> OriginPackage {
-        let exposes = self.exposes
-                          .into_iter()
-                          .map(|e| e as u32)
-                          .collect::<Vec<u32>>();
+impl From<PackageWithVersionArray> for OriginPackage {
+    fn from(value: PackageWithVersionArray) -> OriginPackage {
+        let exposes = value.exposes
+                           .into_iter()
+                           .map(|e| e as u32)
+                           .collect::<Vec<u32>>();
 
         let mut op = OriginPackage::new();
-        let ident = &*self.ident;
-        op.set_id(self.id as u64);
+        let ident = &*value.ident;
+        op.set_id(value.id as u64);
         op.set_ident(OriginPackageIdent::from(ident.clone()));
-        op.set_manifest(self.manifest);
-        op.set_target(self.target.to_string());
-        op.set_deps(into_idents(self.deps));
-        op.set_tdeps(into_idents(self.tdeps));
-        op.set_build_deps(into_idents(self.build_deps));
-        op.set_build_tdeps(into_idents(self.build_tdeps));
+        op.set_manifest(value.manifest);
+        op.set_target(value.target.to_string());
+        op.set_deps(into_idents(value.deps));
+        op.set_tdeps(into_idents(value.tdeps));
+        op.set_build_deps(into_idents(value.build_deps));
+        op.set_build_tdeps(into_idents(value.build_tdeps));
         op.set_exposes(exposes);
-        op.set_config(self.config);
-        op.set_checksum(self.checksum);
-        op.set_owner_id(self.owner_id as u64);
-        op.set_visibility(self.visibility.into());
+        op.set_config(value.config);
+        op.set_checksum(value.checksum);
+        op.set_owner_id(value.owner_id as u64);
+        op.set_visibility(value.visibility.into());
         op
     }
 }
 
-impl Into<Package> for PackageWithVersionArray {
-    fn into(self) -> Package {
-        Package { id:          self.id,
-                  owner_id:    self.owner_id,
-                  name:        self.name.clone(),
-                  ident:       self.ident.clone(),
-                  ident_array: self.ident_array.clone(),
-                  checksum:    self.checksum.clone(),
-                  manifest:    self.manifest.clone(),
-                  config:      self.config.clone(),
-                  target:      self.target,
-                  deps:        self.deps.clone(),
-                  tdeps:       self.tdeps.clone(),
-                  build_deps:  self.build_deps.clone(),
-                  build_tdeps: self.build_tdeps.clone(),
-                  exposes:     self.exposes.clone(),
-                  visibility:  self.visibility,
-                  created_at:  self.created_at,
-                  updated_at:  self.updated_at,
-                  origin:      self.origin, }
+impl From<PackageWithVersionArray> for Package {
+    fn from(value: PackageWithVersionArray) -> Package {
+        Package { id:          value.id,
+                  owner_id:    value.owner_id,
+                  name:        value.name.clone(),
+                  ident:       value.ident.clone(),
+                  ident_array: value.ident_array.clone(),
+                  checksum:    value.checksum.clone(),
+                  manifest:    value.manifest.clone(),
+                  config:      value.config.clone(),
+                  target:      value.target,
+                  deps:        value.deps.clone(),
+                  tdeps:       value.tdeps.clone(),
+                  build_deps:  value.build_deps.clone(),
+                  build_tdeps: value.build_tdeps.clone(),
+                  exposes:     value.exposes.clone(),
+                  visibility:  value.visibility,
+                  created_at:  value.created_at,
+                  updated_at:  value.updated_at,
+                  origin:      value.origin, }
     }
 }
 
-impl Into<OriginPackageIdent> for BuilderPackageIdent {
-    fn into(self) -> OriginPackageIdent { self.0.into() }
+impl From<BuilderPackageIdent> for OriginPackageIdent {
+    fn from(value: BuilderPackageIdent) -> OriginPackageIdent { value.0.into() }
 }
 
 fn into_idents(column: Vec<BuilderPackageIdent>) -> protobuf::RepeatedField<OriginPackageIdent> {
@@ -1179,26 +1179,26 @@ fn into_idents(column: Vec<BuilderPackageIdent>) -> protobuf::RepeatedField<Orig
     idents
 }
 
-impl Into<PackageIdentWithChannelPlatform> for PackageWithChannelPlatform {
-    fn into(self) -> PackageIdentWithChannelPlatform {
-        let mut platforms = self.platforms.clone();
+impl From<PackageWithChannelPlatform> for PackageIdentWithChannelPlatform {
+    fn from(value: PackageWithChannelPlatform) -> PackageIdentWithChannelPlatform {
+        let mut platforms = value.platforms.clone();
         platforms.dedup();
 
-        PackageIdentWithChannelPlatform { origin: self.ident.origin.clone(),
-                                          name: self.ident.name.clone(),
-                                          version: self.ident.version.clone(),
-                                          release: self.ident.release.clone(),
-                                          channels: self.channels,
+        PackageIdentWithChannelPlatform { origin: value.ident.origin.clone(),
+                                          name: value.ident.name.clone(),
+                                          version: value.ident.version.clone(),
+                                          release: value.ident.release.clone(),
+                                          channels: value.channels,
                                           platforms }
     }
 }
 
-impl Into<PackageIdentWithChannelPlatform> for BuilderPackageIdent {
-    fn into(self) -> PackageIdentWithChannelPlatform {
-        PackageIdentWithChannelPlatform { origin:    self.origin.clone(),
-                                          name:      self.name.clone(),
-                                          version:   self.version.clone(),
-                                          release:   self.release.clone(),
+impl From<BuilderPackageIdent> for PackageIdentWithChannelPlatform {
+    fn from(value: BuilderPackageIdent) -> PackageIdentWithChannelPlatform {
+        PackageIdentWithChannelPlatform { origin:    value.origin.clone(),
+                                          name:      value.name.clone(),
+                                          version:   value.version.clone(),
+                                          release:   value.release.clone(),
                                           channels:  Vec::new(),
                                           platforms: Vec::new(), }
     }

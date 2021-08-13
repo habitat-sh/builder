@@ -215,8 +215,8 @@ impl Runner {
         self.check_cancel(tx).await?;
         let mut section = streamer.start_section(Section::CloneRepository)?;
 
-        let vcs = VCS::from_job(&self.job(), self.config.github.clone())?;
-        if let Some(err) = vcs.clone(&self.workspace.src()).await.err() {
+        let vcs = VCS::from_job(self.job(), self.config.github.clone())?;
+        if let Some(err) = vcs.clone(self.workspace.src()).await.err() {
             let msg = format!("Failed to clone remote source repository for {}, err={:?}",
                               self.workspace.job.get_project().get_name(),
                               err);

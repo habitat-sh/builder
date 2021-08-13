@@ -57,7 +57,7 @@ impl PackageGraph {
         // TODO Extract this info better
         self.graphs
             .keys()
-            .map(|key| self.graphs[&key].borrow().stats())
+            .map(|key| self.graphs[key].borrow().stats())
             .fold((0, 0),
                   |(na, ea),
                    Stats { node_count: nodes,
@@ -131,7 +131,7 @@ impl PackageGraph {
     pub fn all_stats(&self) -> Vec<(PackageTarget, Stats)> {
         self.graphs
             .keys()
-            .map(|key| (*key, self.graphs[&key].borrow().stats()))
+            .map(|key| (*key, self.graphs[key].borrow().stats()))
             .collect()
     }
 

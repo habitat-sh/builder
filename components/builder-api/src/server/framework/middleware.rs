@@ -59,8 +59,8 @@ pub fn authentication_middleware<S>(mut req: ServiceRequest,
     }
     let token = hdr_components[1];
 
-    let session = match authenticate(&token,
-                                     &req.app_data::<Data<AppState>>().expect("request state"))
+    let session = match authenticate(token,
+                                     req.app_data::<Data<AppState>>().expect("request state"))
     {
         Ok(session) => session,
         Err(_) => {
@@ -188,7 +188,7 @@ pub fn session_create_oauth(oauth_token: &str,
             debug!("issuing session, {:?}", session);
             state.memcache
                  .borrow_mut()
-                 .set_session(&session.get_token(), &session, Some(*SESSION_DURATION));
+                 .set_session(session.get_token(), &session, Some(*SESSION_DURATION));
             Ok(session)
         }
         Err(e) => {

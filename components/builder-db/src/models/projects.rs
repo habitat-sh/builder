@@ -110,6 +110,7 @@ impl Project {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<originsrv::OriginProject> for Project {
     fn into(self) -> originsrv::OriginProject {
         let mut proj = originsrv::OriginProject::new();

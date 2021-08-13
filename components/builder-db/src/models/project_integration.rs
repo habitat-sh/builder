@@ -136,6 +136,7 @@ impl ProjectIntegration {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<originsrv::OriginProjectIntegration> for ProjectIntegration {
     fn into(self) -> originsrv::OriginProjectIntegration {
         let mut opi = originsrv::OriginProjectIntegration::new();

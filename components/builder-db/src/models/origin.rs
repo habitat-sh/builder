@@ -402,6 +402,7 @@ impl OriginMember {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<originsrv::Origin> for Origin {
     fn into(self) -> originsrv::Origin {
         let mut orig = originsrv::Origin::new();
@@ -434,9 +435,9 @@ mod tests {
         let maintainer = OriginMemberRole::Maintainer;
         let administrator = OriginMemberRole::Administrator;
         let owner = OriginMemberRole::Owner;
-        assert_eq!(owner > administrator, true);
-        assert_eq!(administrator > maintainer, true);
-        assert_eq!(maintainer > member, true);
-        assert_eq!(member > readonly_member, true);
+        assert!(owner > administrator);
+        assert!(administrator > maintainer);
+        assert!(maintainer > member);
+        assert!(member > readonly_member);
     }
 }

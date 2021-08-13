@@ -109,7 +109,7 @@ impl fmt::Display for Error {
 impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
         match self {
-            Error::Artifactory(ref e) => HttpResponse::new(artifactory_err_to_http(&e)),
+            Error::Artifactory(ref e) => HttpResponse::new(artifactory_err_to_http(e)),
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),
@@ -117,7 +117,7 @@ impl ResponseError for Error {
             Error::Github(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::NotFound => HttpResponse::new(StatusCode::NOT_FOUND),
             Error::OAuth(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
-            Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(&e)),
+            Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(e)),
             Error::System => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Error::Unprocessable => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
 
@@ -127,10 +127,11 @@ impl ResponseError for Error {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {
-            Error::Artifactory(ref e) => HttpResponse::new(artifactory_err_to_http(&e)),
+            Error::Artifactory(ref e) => HttpResponse::new(artifactory_err_to_http(e)),
             Error::Authentication => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Error::Authorization => HttpResponse::new(StatusCode::FORBIDDEN),
             Error::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),

@@ -155,7 +155,7 @@ fn handle_graph(state: Data<AppState>, query: Query<OriginTarget>) -> HttpRespon
     let origin_filter = query.origin.as_deref(); //
     let target = query.target.as_deref().unwrap_or("x86_64-linux");
 
-    match fetch_graph_for_target(state, &target, origin_filter) {
+    match fetch_graph_for_target(state, target, origin_filter) {
         Ok(body) => HttpResponse::with_body(StatusCode::OK, Body::from(body)),
         Err(err) => {
             HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR,
@@ -219,7 +219,7 @@ pub async fn run(config: Config) -> Result<()> {
     let db_pool = DbPool::new(&config.datastore.clone());
     let mut graph = TargetGraph::new(feat::is_enabled(feat::UseCyclicGraph));
     let pkg_conn = &db_pool.get_conn()?;
-    let packages = Package::get_all_latest(&pkg_conn)?;
+    let packages = Package::get_all_latest(pkg_conn)?;
     let origin_packages: Vec<OriginPackage> = packages.iter().map(|p| p.clone().into()).collect();
     let start_time = Instant::now();
 

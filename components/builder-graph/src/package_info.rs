@@ -189,7 +189,7 @@ impl From<PackageWithVersionArray> for PackageInfo {
 impl From<originsrv::OriginPackage> for PackageInfo {
     fn from(package: originsrv::OriginPackage) -> Self {
         let mut package_info =
-            PackageInfo { ident:        PackageIdent::from(package.get_ident()),
+            PackageInfo { ident:        PackageIdent::from(package.get_ident().clone()),
                           target:       PackageTarget::from_str(package.get_target()).unwrap(),
                           package:      None,
                           no_deps:      false,

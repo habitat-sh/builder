@@ -74,7 +74,7 @@ impl LogForwarder {
         if addrs.len() == 1 {
             let (_, _, ref log) = addrs[0];
             println!("Connecting to Job Server Log port, {}", log);
-            self.output_sock.connect(&log)?;
+            self.output_sock.connect(log)?;
         } else {
             warn!("Routing logs to more than one Job Server is not yet implemented");
         }

@@ -283,7 +283,7 @@ impl ScheduleMgr {
                      .iter()
                      .filter(|x| x.get_state() == jobsrv::JobGroupProjectState::InProgress)
             {
-                self.check_project(&project)?;
+                self.check_project(project)?;
             }
         }
         Ok(())
@@ -320,12 +320,12 @@ impl ScheduleMgr {
 
     fn dispatch_group(&mut self, group: &jobsrv::JobGroup) -> Result<()> {
         debug!("Dispatching group {}", group.get_id());
-        self.logger.log_group(&group);
+        self.logger.log_group(group);
         self.datastore
             .set_job_group_state(group.get_id(), jobsrv::JobGroupState::GroupDispatching)?;
 
         let mut skipped = HashMap::new();
-        let dispatchable = self.dispatchable_projects(&group)?;
+        let dispatchable = self.dispatchable_projects(group)?;
 
         for project in dispatchable {
             if skipped.contains_key(project.get_name()) {
@@ -333,7 +333,7 @@ impl ScheduleMgr {
             }
 
             debug!("Dispatching project: {:?}", project.get_name());
-            self.logger.log_group_project(&group, &project);
+            self.logger.log_group_project(group, &project);
 
             assert!(project.get_state() == jobsrv::JobGroupProjectState::NotStarted);
 
@@ -349,7 +349,7 @@ impl ScheduleMgr {
                             jobsrv::JobGroupProjectState::Skipped,
                         )?;
 
-                            let skip_list = match self.skip_projects(&group, project.get_name()) {
+                            let skip_list = match self.skip_projects(group, project.get_name()) {
                                 Ok(v) => v,
                                 Err(e) => {
                                     self.log_error(&format!("Error skipping projects for {:?} \
@@ -415,7 +415,7 @@ impl ScheduleMgr {
                 let package = match Package::get(
                     GetPackage {
                         ident: BuilderPackageIdent(
-                            PackageIdent::from_str(&project.get_ident())?,
+                            PackageIdent::from_str(project.get_ident())?,
                         ),
                         visibility: vec![
                             PackageVisibility::Public,
@@ -488,7 +488,7 @@ impl ScheduleMgr {
             let package = match Package::get(
                 GetPackage {
                     ident: BuilderPackageIdent(
-                        PackageIdent::from_str(&project.get_ident())?,
+                        PackageIdent::from_str(project.get_ident())?,
                     ),
                     visibility: vec![
                         PackageVisibility::Public,
@@ -544,7 +544,7 @@ impl ScheduleMgr {
             target
         };
 
-        let project = match Project::get(&project_name, &get_target, &*conn) {
+        let project = match Project::get(project_name, get_target, &*conn) {
             Ok(project) => project,
             Err(diesel::result::Error::NotFound) => {
                 // It's valid to not have a project connected

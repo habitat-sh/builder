@@ -153,17 +153,17 @@ async fn create_project(req: HttpRequest,
                 return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
             }
         };
-        let new_project =
-            NewProject { owner_id:            account_id as i64,
-                         origin:              &origin.name,
-                         package_name:        &package_name,
-                         name:                &format!("{}/{}", &origin.name, &package_name),
-                         plan_path:           &body.plan_path,
-                         target:              &target,
-                         vcs_type:            "git",
-                         vcs_data:            "https://github.com/habitat-sh/testapp.git",
-                         vcs_installation_id: Some(i64::from(body.installation_id)),
-                         auto_build:          body.auto_build, };
+        let new_project = NewProject { owner_id: account_id as i64,
+                                       origin: &origin.name,
+                                       package_name,
+                                       name: &format!("{}/{}", &origin.name, &package_name),
+                                       plan_path: &body.plan_path,
+                                       target: &target,
+                                       vcs_type: "git",
+                                       vcs_data: "https://github.com/habitat-sh/testapp.git",
+                                       vcs_installation_id:
+                                           Some(i64::from(body.installation_id)),
+                                       auto_build: body.auto_build };
 
         match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
             Ok(project) => return HttpResponse::Created().json(project),
@@ -425,7 +425,7 @@ async fn update_project(req: HttpRequest,
     let update_project = UpdateProject { id:                  project.id,
                                          owner_id:            account_id as i64,
                                          origin:              &project.origin,
-                                         package_name:        &plan.name.trim_matches('"'),
+                                         package_name:        plan.name.trim_matches('"'),
                                          plan_path:           &body.plan_path,
                                          target:              &target,
                                          vcs_type:            "git",
@@ -457,9 +457,7 @@ fn get_projects(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> 
 
     match Project::list(&origin, &*conn) {
         Ok(projects) => {
-            let names: Vec<String> = projects.iter()
-                                             .map(|ref p| p.package_name.clone())
-                                             .collect();
+            let names: Vec<String> = projects.iter().map(|p| p.package_name.clone()).collect();
             HttpResponse::Ok().json(names)
         }
         Err(err) => {

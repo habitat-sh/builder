@@ -32,7 +32,7 @@ use openssl::{hash::MessageDigest,
               pkey::PKey,
               sign::Signer};
 use std::{collections::HashSet,
-          path::PathBuf,
+          path,
           str::FromStr};
 
 pub enum GitHubEvent {
@@ -149,7 +149,7 @@ pub async fn repo_file_content(req: HttpRequest,
 }
 
 async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
-    let hook = match serde_json::from_str::<GitHubWebhookPush>(&body) {
+    let hook = match serde_json::from_str::<GitHubWebhookPush>(body) {
         Ok(hook) => hook,
         Err(err) => return Error::SerdeJson(err).into(),
     };
@@ -186,19 +186,19 @@ async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
         Err(_) => None,
     };
 
-    let config = match read_bldr_config(&github, &token, &hook).await {
+    let config = match read_bldr_config(github, &token, &hook).await {
         Ok(config) => config,
         Err(err) => return err.into(),
     };
     debug!("Config: {:#?}", config);
 
-    let plans = match read_plans(&github, &token, &hook, &config).await {
+    let plans = match read_plans(github, &token, &hook, &config).await {
         Ok(plans) => plans,
         Err(err) => return err.into(),
     };
     debug!("Triggered Plans: {:#?}", plans);
 
-    build_plans(&req,
+    build_plans(req,
                 &hook.repository.clone_url,
                 &hook.pusher.name,
                 account_id,
@@ -252,7 +252,7 @@ async fn build_plans(req: &HttpRequest,
                 request.set_requester_id(a);
             }
 
-            match route_message::<JobGroupSpec, JobGroup>(&req, &request).await {
+            match route_message::<JobGroupSpec, JobGroup>(req, &request).await {
                 Ok(group) => debug!("JobGroup created, {:?}", group),
                 Err(err) => debug!("Failed to create group, {:?}", err),
             }
@@ -269,7 +269,7 @@ async fn read_bldr_config(github: &GitHubClient,
                           token: &AppToken,
                           hook: &GitHubWebhookPush)
                           -> Result<BuildCfg> {
-    match github.contents(&token, hook.repository.id, BLDR_CFG)
+    match github.contents(token, hook.repository.id, BLDR_CFG)
                 .await
                 .map_err(Error::Github)
     {
@@ -326,7 +326,7 @@ async fn read_plans(github: &GitHubClient,
                     let plan_path = plan_path.join(plan_file);
 
                     if let Some(plan) =
-                        read_plan(github, &token, hook, &plan_path.to_string_lossy()).await?
+                        read_plan(github, token, hook, &plan_path.to_string_lossy()).await?
                     {
                         plans.push(PlanWithTarget(plan, target));
                     }
@@ -345,7 +345,7 @@ async fn read_plan(github: &GitHubClient,
                    -> Result<Option<Plan>> {
     debug!("Reading plan from: {:?}", path);
 
-    match github.contents(&token, hook.repository.id, path)
+    match github.contents(token, hook.repository.id, path)
                 .await
                 .map_err(Error::Github)
     {
@@ -377,12 +377,12 @@ async fn read_plan(github: &GitHubClient,
 async fn read_plan_targets(github: &GitHubClient,
                            token: &AppToken,
                            hook: &GitHubWebhookPush,
-                           path: &PathBuf)
+                           path: &path::Path)
                            -> Result<HashSet<PackageTarget>> {
     debug!("Reading plan targets from {:?}", path);
     let mut targets: HashSet<PackageTarget> = HashSet::new();
 
-    match github.directory(&token, hook.repository.id, &path.to_string_lossy())
+    match github.directory(token, hook.repository.id, &path.to_string_lossy())
                 .await
                 .map_err(Error::Github)
     {

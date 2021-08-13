@@ -33,7 +33,7 @@ use rusoto_s3::{GetObjectRequest,
                 S3};
 use std::{fs::OpenOptions,
           io::Read,
-          path::PathBuf,
+          path::Path,
           str::FromStr};
 
 use rusoto_core::HttpClient;
@@ -84,11 +84,11 @@ impl S3Archiver {
 
 #[async_trait]
 impl LogArchiver for S3Archiver {
-    async fn archive(&self, job_id: u64, file_path: &PathBuf) -> Result<()> {
+    async fn archive(&self, job_id: u64, file_path: &Path) -> Result<()> {
         let mut buffer = Vec::new();
-        let mut request = PutObjectRequest::default();
-        request.bucket = self.bucket.clone();
-        request.key = Self::key(job_id);
+        let mut request = PutObjectRequest { bucket: self.bucket.clone(),
+                                             key: Self::key(job_id),
+                                             ..Default::default() };
 
         let mut file = OpenOptions::new().read(true).open(file_path)?;
         file.read_to_end(&mut buffer)?;
@@ -104,9 +104,9 @@ impl LogArchiver for S3Archiver {
     }
 
     async fn retrieve(&self, job_id: u64) -> Result<Vec<String>> {
-        let mut request = GetObjectRequest::default();
-        request.bucket = self.bucket.clone();
-        request.key = Self::key(job_id);
+        let request = GetObjectRequest { bucket: self.bucket.clone(),
+                                         key: Self::key(job_id),
+                                         ..Default::default() };
 
         let payload = self.client.get_object(request).await;
         let stream = match payload {

@@ -14,8 +14,7 @@
 
 use std::{collections::{HashMap,
                         HashSet},
-          fmt,
-          iter::FromIterator};
+          fmt};
 
 use petgraph::{algo::{connected_components,
                       is_cyclic_directed},
@@ -504,7 +503,7 @@ impl PackageGraphForTarget {
 
         info!("Compute Build, using touched: {} {}\n",
               touched.len(),
-              join_idents(", ", &touched));
+              join_idents(", ", touched));
 
         // When we start restricting the builds to a single origin, we may need to rethink how we
         // compute/filter the graph. For example if we use touched to indicate things in core that
@@ -522,7 +521,7 @@ impl PackageGraphForTarget {
         let (rebuild_set, unbuildable_reasons) =
             graph_helpers::compute_rebuild_set(&preconditioned_graph,
                                                unbuildable,
-                                               &touched,
+                                               touched,
                                                origin,
                                                self.target);
 
@@ -608,7 +607,7 @@ impl PackageGraphForTarget {
         PackageBuildManifest { graph: build_graph,
                                external_dependencies,
 
-                               input_set: HashSet::from_iter(touched.iter().copied()),
+                               input_set: touched.iter().copied().collect::<HashSet<_>>(),
                                unbuildable_reasons }
     }
 
@@ -769,14 +768,14 @@ mod test {
         let package2 = PackageInfo::mk("foo/baz/1/2", "x86_64-linux", &["foo/xyz"], &empty, &empty);
 
         let pre_check1 = graph.check_extend(&package1, true);
-        assert_eq!(pre_check1, true);
+        assert!(pre_check1);
 
         let (ncount, ecount) = graph.extend(&package1, true);
         assert_eq!(ncount, 2);
         assert_eq!(ecount, 1);
 
         let pre_check2 = graph.check_extend(&package2, true);
-        assert_eq!(pre_check2, true);
+        assert!(pre_check2);
 
         let (ncount, ecount) = graph.extend(&package2, true);
         assert_eq!(ncount, 3);
@@ -803,11 +802,11 @@ mod test {
         assert_eq!(ecount, 1);
 
         let stats = graph.stats();
-        assert_eq!(stats.is_cyclic, false);
+        assert!(!stats.is_cyclic);
 
         // check extend should reject a cycle
         let pre_check = graph.check_extend(&package2, true);
-        assert_eq!(pre_check, false);
+        assert!(!pre_check);
 
         let (ncount, ecount) = graph.extend(&package2, true);
         // We shouldn't add any edges for a circular dependency
@@ -831,11 +830,11 @@ mod test {
         assert_eq!(ecount, 1);
 
         let stats = graph.stats();
-        assert_eq!(stats.is_cyclic, false);
+        assert!(!stats.is_cyclic);
 
         // check extend should allow a cycle for a build dep
         let pre_check = graph.check_extend(&package2, true);
-        assert_eq!(pre_check, true);
+        assert!(pre_check);
 
         let (ncount, ecount) = graph.extend(&package2, true);
         // We should see the edges including the circular dependency
@@ -858,7 +857,7 @@ mod test {
         assert_eq!(ecount, 1);
 
         // We reject adding a runtime dep
-        assert_eq!(false, graph.check_extend(&package2, true));
+        assert!(!graph.check_extend(&package2, true));
 
         // update the package
         let (ncount, ecount) = graph.extend(&package1v2, true);
@@ -866,7 +865,7 @@ mod test {
         assert_eq!(ecount, 0);
 
         // We allow adding a runtime dep, once the cycle is removed
-        assert_eq!(true, graph.check_extend(&package2, true));
+        assert!(graph.check_extend(&package2, true));
 
         let (ncount, ecount) = graph.extend(&package2, true);
         assert_eq!(ncount, 2);
@@ -881,12 +880,12 @@ mod test {
         let Stats { node_count: ncount,
                     edge_count: ecount,
                     .. } = graph.stats();
-        assert_eq!(success_expected, graph.check_extend(&package, true));
+        assert_eq!(success_expected, graph.check_extend(package, true));
 
         // assert_graph_extend!(graph, pkg_info, expected_status, expected_node_count,
         // expected_edge_count);
 
-        let (new_ncount, new_ecount) = graph.extend(&package, true);
+        let (new_ncount, new_ecount) = graph.extend(package, true);
         if !success_expected {
             assert_eq!(ncount, new_ncount);
             assert_eq!(ecount, new_ecount);
@@ -1024,11 +1023,11 @@ mod test {
         assert_eq!(manifest.input_set.len(), 1);
         assert_eq!(manifest.unbuildable_reasons.len(), 0);
         assert_eq!(manifest.graph.node_count(), 4);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/top", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/left", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("zz/top", 1)), false);
+        assert!(manifest.graph.contains_node(mk_IN("a/top", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/left", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/right", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/bottom", 1)));
+        assert!(!manifest.graph.contains_node(mk_IN("zz/top", 1)));
     }
 
     #[test]
@@ -1049,8 +1048,8 @@ mod test {
                    UnbuildableReason::Indirect);
 
         assert_eq!(manifest.graph.node_count(), 2);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/top", 1)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/right", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/top", 1)));
     }
     #[test]
     // Starting with a diamond graph, if we touch one corner, the corner and bottom are rebuilt.
@@ -1065,10 +1064,10 @@ mod test {
         assert_eq!(manifest.unbuildable_reasons.len(), 0);
 
         assert_eq!(manifest.graph.node_count(), 4);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/left")), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/right", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/bottom", 1)));
+        assert!(manifest.graph.contains_node(mk_ELV("a/top")));
+        assert!(manifest.graph.contains_node(mk_ELV("a/left")));
     }
 
     // Starting with a diamond graph that has dependencies, if we touch the root, all dependencies
@@ -1092,20 +1091,17 @@ mod test {
 
         assert_eq!(manifest.graph.node_count(), 5);
 
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("core/frob")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("core/apple")), false);
+        assert!(manifest.graph.contains_node(mk_ELV("a/top")));
+        assert!(manifest.graph.contains_node(mk_ELV("core/frob")));
+        assert!(!manifest.graph.contains_node(mk_ELV("core/apple")));
 
         assert_eq!(manifest.external_dependencies.len(), 3);
-        assert_eq!(manifest.external_dependencies
-                           .contains(&ident_intern!("a/top")),
-                   true);
-        assert_eq!(manifest.external_dependencies
-                           .contains(&ident_intern!("a/right")),
-                   true);
-        assert_eq!(manifest.external_dependencies
-                           .contains(&ident_intern!("core/frob")),
-                   true);
+        assert!(manifest.external_dependencies
+                        .contains(&ident_intern!("a/top")));
+        assert!(manifest.external_dependencies
+                        .contains(&ident_intern!("a/right")));
+        assert!(manifest.external_dependencies
+                        .contains(&ident_intern!("core/frob")));
     }
 
     // Starting with a diamond graph, if our touched set includes things not in the graph,
@@ -1124,12 +1120,12 @@ mod test {
         assert_eq!(manifest.unbuildable_reasons.len(), 0);
 
         assert_eq!(manifest.graph.node_count(), 5);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/right", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/bottom", 1)));
         // we should check the dependencies of ZZ top; it should stand alone
-        assert_eq!(manifest.graph.contains_node(mk_IN("zz/top", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/left")), true);
+        assert!(manifest.graph.contains_node(mk_IN("zz/top", 1)));
+        assert!(manifest.graph.contains_node(mk_ELV("a/top")));
+        assert!(manifest.graph.contains_node(mk_ELV("a/left")));
     }
 
     fn make_circular_graph() -> PackageGraphForTarget {
@@ -1160,25 +1156,25 @@ mod test {
         assert_eq!(manifest.unbuildable_reasons.len(), 0);
 
         assert_eq!(manifest.graph.node_count(), 15); // 2 external, 4*3 (cycle) + 1 (non-cycle)
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/gcc")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/make")), true);
+        assert!(manifest.graph.contains_node(mk_ELV("a/gcc")));
+        assert!(manifest.graph.contains_node(mk_ELV("a/make")));
 
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 1)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/gcc", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/glibc", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/make", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/libgcc", 1)));
 
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 2)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 2)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 2)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 2)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/gcc", 2)));
+        assert!(manifest.graph.contains_node(mk_IN("a/glibc", 2)));
+        assert!(manifest.graph.contains_node(mk_IN("a/make", 2)));
+        assert!(manifest.graph.contains_node(mk_IN("a/libgcc", 2)));
 
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 3)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 3)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 3)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 3)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/gcc", 3)));
+        assert!(manifest.graph.contains_node(mk_IN("a/glibc", 3)));
+        assert!(manifest.graph.contains_node(mk_IN("a/make", 3)));
+        assert!(manifest.graph.contains_node(mk_IN("a/libgcc", 3)));
 
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/out", 1)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/out", 1)));
     }
 
     // ////////////////////////////////////////////////////////////////////////
@@ -1229,24 +1225,24 @@ mod test {
         assert_eq!(manifest.unbuildable_reasons.len(), 0);
 
         assert_eq!(manifest.graph.node_count(), 15); // 2 external, 4*3 (cycle) + 1 (non-cycle)
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/gcc")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/make")), true);
+        assert!(manifest.graph.contains_node(mk_ELV("a/gcc")));
+        assert!(manifest.graph.contains_node(mk_ELV("a/make")));
 
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 1)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/gcc", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/glibc", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/make", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/libgcc", 1)));
 
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 2)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 2)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 2)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 2)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/gcc", 2)));
+        assert!(manifest.graph.contains_node(mk_IN("a/glibc", 2)));
+        assert!(manifest.graph.contains_node(mk_IN("a/make", 2)));
+        assert!(manifest.graph.contains_node(mk_IN("a/libgcc", 2)));
 
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/gcc", 3)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/glibc", 3)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/make", 3)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/libgcc", 3)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/gcc", 3)));
+        assert!(manifest.graph.contains_node(mk_IN("a/glibc", 3)));
+        assert!(manifest.graph.contains_node(mk_IN("a/make", 3)));
+        assert!(manifest.graph.contains_node(mk_IN("a/libgcc", 3)));
 
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/out", 1)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/out", 1)));
     }
 }

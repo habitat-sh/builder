@@ -226,7 +226,7 @@ impl Channel {
             .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
-        if lcp.ident.name != "" {
+        if !lcp.ident.name.is_empty() {
             query = query.filter(origin_packages::name.eq(&lcp.ident.name))
         };
         let query = query.filter(origin_packages::ident_array.contains(lcp.ident.clone().parts()))
@@ -249,7 +249,7 @@ impl Channel {
 
         // Package list for a whole origin is still not very
         // performant, and we want to track that
-        if lcp.ident.name != "" {
+        if !lcp.ident.name.is_empty() {
             Histogram::ChannelListPackagesOriginOnlyCallTime.set(duration_millis as f64);
         } else {
             Histogram::ChannelListPackagesOriginNameCallTime.set(duration_millis as f64);

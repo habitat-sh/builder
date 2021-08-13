@@ -43,9 +43,9 @@ impl PackageGraphTrait for CyclicPackageGraph {
              packages: &[originsrv::OriginPackage],
              use_build_deps: bool)
              -> (usize, usize) {
-        let package_info: Vec<PackageInfo> =
-            packages.iter().cloned().map(PackageInfo::from).collect();
-        self.graph.build(package_info.into_iter(), use_build_deps)
+        self.graph
+            .build(packages.iter().cloned().map(PackageInfo::from),
+                   use_build_deps)
     }
 
     fn extend(&mut self,

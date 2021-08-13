@@ -32,7 +32,8 @@ use sha2::{Digest,
 use std::{fs::{self,
                OpenOptions},
           io::Read,
-          path::PathBuf};
+          path::{Path,
+                 PathBuf}};
 
 use super::LogArchiver;
 
@@ -71,7 +72,7 @@ impl LocalArchiver {
 
 #[async_trait]
 impl LogArchiver for LocalArchiver {
-    async fn archive(&self, job_id: u64, file_path: &PathBuf) -> Result<()> {
+    async fn archive(&self, job_id: u64, file_path: &Path) -> Result<()> {
         let archive_path = self.archive_path(job_id);
         let parent_dir = &archive_path.parent().unwrap();
         fs::create_dir_all(parent_dir)?;

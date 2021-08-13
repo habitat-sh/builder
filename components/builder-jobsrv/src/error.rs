@@ -199,6 +199,7 @@ impl fmt::Display for Error {
 
 impl error::Error for Error {}
 
+#[allow(clippy::from_over_into)]
 impl Into<HttpResponse> for Error {
     fn into(self) -> HttpResponse {
         match self {

@@ -44,8 +44,8 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        let mut datastore = DataStoreCfg::default();
-        datastore.database = String::from("builder");
+        let datastore = DataStoreCfg { database: String::from("builder"),
+                                       ..Default::default() };
         Config { net: NetCfg::default(),
                  http: HttpCfg::default(),
                  datastore,
@@ -236,7 +236,7 @@ mod tests {
         pool_size = 1
         "#;
 
-        let config = Config::from_raw(&content).unwrap();
+        let config = Config::from_raw(content).unwrap();
         assert_eq!(&format!("{}", config.http.listen), "1.2.3.4");
         assert_eq!(config.http.port, 1234);
         assert_eq!(config.key_dir, KeyCache::new("/path/to/keys"));
@@ -261,7 +261,7 @@ mod tests {
         assert_eq!(config.datastore.database, "test_jobsrv");
         assert_eq!(config.datastore.connection_retry_ms, 500);
         assert_eq!(config.datastore.connection_timeout_sec, 4800);
-        assert_eq!(config.datastore.connection_test, true);
+        assert!(config.datastore.connection_test);
         assert_eq!(config.datastore.pool_size, 1);
 
         assert_eq!(config.archive.backend, ArchiveBackend::S3);

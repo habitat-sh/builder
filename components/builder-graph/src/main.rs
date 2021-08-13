@@ -161,7 +161,7 @@ impl State {
                     // &m),
                     ("build_order", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_dump_build_order(datastore.as_ref(), &mut self.graph, &m);
+                            do_dump_build_order(datastore.as_ref(), &mut self.graph, m);
                         } else {
                             println!("'build_order' requires a database connection; See \
                                       'db_connect'");
@@ -169,49 +169,49 @@ impl State {
                     }
                     ("check", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_check(datastore.as_ref(), &self.graph, &m)
+                            do_check(datastore.as_ref(), &self.graph, m)
                         } else {
                             println!("'check' requires a database connection; See 'db_connect'")
                         }
                     }
                     ("compute_attributed_deps", Some(m)) => {
-                        do_compute_attributed_deps(&self.graph, &m)
+                        do_compute_attributed_deps(&self.graph, m)
                     }
-                    ("db_connect", Some(m)) => self.do_db_connect(&m),
+                    ("db_connect", Some(m)) => self.do_db_connect(m),
                     // TODO RENAME THIS COMMAND
-                    ("serialized_db_connect", Some(m)) => self.do_serialized_db_connect(&m),
+                    ("serialized_db_connect", Some(m)) => self.do_serialized_db_connect(m),
                     ("db_deps", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_db_deps(datastore.as_ref(), &self.graph, &m);
+                            do_db_deps(datastore.as_ref(), &self.graph, m);
                         } else {
                             println!("'db_deps' requires a database connection; See 'db_connect'");
                         }
                     }
-                    ("deps", Some(m)) => do_deps(&self.graph, &m),
+                    ("deps", Some(m)) => do_deps(&self.graph, m),
                     // Probably not publically useful
-                    ("diagnostics", Some(m)) => do_dump_diagnostics(&self.graph, &m),
-                    ("dot", Some(m)) => do_dot(&self.graph, &m),
+                    ("diagnostics", Some(m)) => do_dump_diagnostics(&self.graph, m),
+                    ("dot", Some(m)) => do_dot(&self.graph, m),
                     // TODO TEST
-                    ("find", Some(m)) => do_find(&self.graph, &m),
+                    ("find", Some(m)) => do_find(&self.graph, m),
                     ("quit", _) => self.done = true,
-                    ("raw", Some(m)) => do_raw(&self.graph, &m),
+                    ("raw", Some(m)) => do_raw(&self.graph, m),
                     // TODO: add filter as option for this command, make sure we do filtering
                     // uniformly; this is broken
-                    ("rdeps", Some(m)) => do_rdeps(&self.graph, &m),
-                    ("resolve", Some(m)) => do_resolve(&self.graph, &m),
+                    ("rdeps", Some(m)) => do_rdeps(&self.graph, m),
+                    ("resolve", Some(m)) => do_resolve(&self.graph, m),
                     ("save_file", Some(m)) => {
                         if let Some(datastore) = &self.datastore {
-                            do_save_file(datastore.as_ref(), &self.graph, &m)
+                            do_save_file(datastore.as_ref(), &self.graph, m)
                         } else {
                             println!("'db_deps' requires a database connection; See 'db_connect'");
                         }
                     }
                     // TODO TEST
-                    ("scc", Some(m)) => do_scc(&self.graph, &m),
-                    ("stats", Some(m)) => do_stats(&self.graph, &m),
+                    ("scc", Some(m)) => do_scc(&self.graph, m),
+                    ("stats", Some(m)) => do_stats(&self.graph, m),
                     // TODO TEST
-                    ("target", Some(m)) => do_target(&mut self.graph, &m),
-                    ("top", Some(m)) => do_top(&self.graph, &m),
+                    ("target", Some(m)) => do_target(&mut self.graph, m),
+                    ("top", Some(m)) => do_top(&self.graph, m),
                     name => println!("Unknown  {:?} {:?}", matches, name),
                 }
             }
@@ -423,7 +423,7 @@ fn do_dot(graph: &PackageGraph, matches: &ArgMatches) {
     let origin = origin_from_matches(matches);
     let filename = required_filename_from_matches(matches);
 
-    graph.dump_latest_graph_as_dot(&filename, origin.as_deref());
+    graph.dump_latest_graph_as_dot(filename, origin.as_deref());
     let duration_secs = start_time.elapsed().as_secs_f64();
 
     println!("Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
@@ -437,7 +437,7 @@ fn do_raw(graph: &PackageGraph, matches: &ArgMatches) {
     let graph_type;
     if matches.is_present("LATEST") {
         graph_type = "latest";
-        graph.dump_latest_graph_raw(&filename, origin.as_deref());
+        graph.dump_latest_graph_raw(filename, origin.as_deref());
     } else {
         graph_type = "current";
         if let Some(o) = origin {
@@ -506,8 +506,7 @@ fn do_rdeps(graph: &PackageGraph, matches: &ArgMatches) {
 }
 
 fn resolve_name(graph: &PackageGraph, ident: &PackageIdent) -> PackageIdent {
-    let parts: Vec<&str> = ident.iter().collect();
-    if parts.len() == 2 {
+    if ident.iter().count() == 2 {
         match graph.resolve(ident) {
             Some(s) => s,
             None => ident.clone(),
@@ -531,7 +530,7 @@ fn do_check(datastore: &dyn DataStoreTrait, graph: &PackageGraph, matches: &ArgM
     let mut deps_map = HashMap::new();
     let idents = idents_from_matches(matches).unwrap();
     let filter = filter_from_matches(matches);
-    let resolved_idents = idents.iter().map(|ident| resolve_name(graph, &ident));
+    let resolved_idents = idents.iter().map(|ident| resolve_name(graph, ident));
     let target = graph.current_target();
 
     let mut conflicts = 0;

@@ -23,7 +23,6 @@ use std::{cmp::Ordering,
                         HashMap,
                         HashSet,
                         VecDeque},
-          iter::FromIterator,
           str::FromStr};
 
 use habitat_core::package::PackageTarget;
@@ -64,7 +63,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
         assert!(self.package_max == 0);
 
         for p in packages {
-            self.extend(&p, use_build_deps);
+            self.extend(p, use_build_deps);
         }
 
         (self.graph.node_count(), self.graph.edge_count())
@@ -99,13 +98,11 @@ impl PackageGraphTrait for AcyclicPackageGraph {
         let mut deps;
         let build_deps;
 
+        deps = package.get_deps().iter().collect::<Vec<_>>();
         if use_build_deps {
-            deps = package.get_deps().iter().collect::<Vec<_>>();
             build_deps = package.get_build_deps();
 
             deps.extend(build_deps);
-        } else {
-            deps = package.get_deps().iter().collect::<Vec<_>>();
         }
 
         for dep in deps {
@@ -183,12 +180,10 @@ impl PackageGraphTrait for AcyclicPackageGraph {
             let mut deps;
             let build_deps;
 
+            deps = package.get_deps().iter().collect::<Vec<_>>();
             if use_build_deps {
-                deps = package.get_deps().iter().collect::<Vec<_>>();
                 build_deps = package.get_build_deps();
                 deps.extend(build_deps);
-            } else {
-                deps = package.get_deps().iter().collect::<Vec<_>>();
             }
 
             for dep in deps {
@@ -235,10 +230,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
     // Given an identifier in 'origin/name' format, returns the
     // most recent version (fully-qualified package ident string)
     fn resolve(&self, name: &str) -> Option<String> {
-        match self.latest_map.get(name) {
-            Some(ident) => Some(format!("{}", ident)),
-            None => None,
-        }
+        self.latest_map.get(name).map(|ident| format!("{}", ident))
     }
 
     fn stats(&self) -> Stats {
@@ -273,8 +265,8 @@ impl PackageGraphTrait for AcyclicPackageGraph {
         // This is a deque because we may want to flip this worklist algo to BFS, not DFS
         // right now it is being used as a stack (DFS), but if it is used as a queue we have (BFS)
         let mut worklist: VecDeque<PackageIdentIntern> =
-            VecDeque::from_iter(touched.iter().copied());
-        let mut seen: HashSet<PackageIdentIntern> = HashSet::from_iter(touched.iter().copied());
+            touched.iter().copied().collect::<VecDeque<_>>();
+        let mut seen: HashSet<PackageIdentIntern> = touched.iter().copied().collect::<HashSet<_>>();
 
         // Starting with our 'touched' set, walk the acyclic graph adding all
         // reverse dependencies to a new sub-graph.
@@ -390,8 +382,9 @@ impl PackageGraphTrait for AcyclicPackageGraph {
         }
 
         Ok(PackageBuildManifest { graph:                 unresolved_rebuild_graph,
-                                  input_set:             HashSet::from_iter(touched.iter()
-                                                                                   .copied()),
+                                  input_set:             touched.iter()
+                                                                .copied()
+                                                                .collect::<HashSet<_>>(),
                                   external_dependencies: all_external_dependencies,
                                   unbuildable_reasons:   unbuildable_map, })
     }
@@ -553,10 +546,10 @@ mod test {
         assert_eq!(ecount, 1); // only the first edge added
 
         let stats = graph.stats();
-        assert_eq!(stats.is_cyclic, false);
+        assert!(!stats.is_cyclic);
 
         let pre_check = graph.check_extend(&package2, true);
-        assert_eq!(pre_check, false);
+        assert!(!pre_check);
     }
 
     #[test]
@@ -577,12 +570,12 @@ mod test {
         package2.set_deps(package2_deps);
 
         let pre_check1 = graph.check_extend(&package1, true);
-        assert_eq!(pre_check1, true);
+        assert!(pre_check1);
 
         let (..) = graph.extend(&package1, true);
 
         let pre_check2 = graph.check_extend(&package2, true);
-        assert_eq!(pre_check2, true);
+        assert!(pre_check2);
 
         let (..) = graph.extend(&package2, true);
     }
@@ -651,11 +644,11 @@ mod test {
         assert_eq!(manifest.input_set.len(), 1);
         assert_eq!(manifest.unbuildable_reasons.len(), 0);
         assert_eq!(manifest.graph.node_count(), 4);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/top", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/left", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("zz/top", 1)), false);
+        assert!(manifest.graph.contains_node(mk_IN("a/top", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/left", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/right", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/bottom", 1)));
+        assert!(!manifest.graph.contains_node(mk_IN("zz/top", 1)));
     }
     #[test]
     // Starting with a diamond graph, if we touch the root and one corner is not buildable,
@@ -675,8 +668,8 @@ mod test {
                    UnbuildableReason::Indirect);
 
         assert_eq!(manifest.graph.node_count(), 2);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/top", 1)), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/right", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/top", 1)));
     }
     #[test]
     // Starting with a diamond graph, if we touch one corner, the corner and bottom are rebuilt.
@@ -691,10 +684,10 @@ mod test {
         assert_eq!(manifest.unbuildable_reasons.len(), 0);
 
         assert_eq!(manifest.graph.node_count(), 4);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/left")), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/right", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/bottom", 1)));
+        assert!(manifest.graph.contains_node(mk_ELV("a/top")));
+        assert!(manifest.graph.contains_node(mk_ELV("a/left")));
     }
 
     // Starting with a diamond graph that has dependencies, if we touch the root, all dependencies
@@ -718,20 +711,17 @@ mod test {
 
         assert_eq!(manifest.graph.node_count(), 5);
 
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("core/frob")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("core/apple")), false);
+        assert!(manifest.graph.contains_node(mk_ELV("a/top")));
+        assert!(manifest.graph.contains_node(mk_ELV("core/frob")));
+        assert!(!manifest.graph.contains_node(mk_ELV("core/apple")));
 
         assert_eq!(manifest.external_dependencies.len(), 3);
-        assert_eq!(manifest.external_dependencies
-                           .contains(&ident_intern!("a/top")),
-                   true);
-        assert_eq!(manifest.external_dependencies
-                           .contains(&ident_intern!("a/right")),
-                   true);
-        assert_eq!(manifest.external_dependencies
-                           .contains(&ident_intern!("core/frob")),
-                   true);
+        assert!(manifest.external_dependencies
+                        .contains(&ident_intern!("a/top")));
+        assert!(manifest.external_dependencies
+                        .contains(&ident_intern!("a/right")));
+        assert!(manifest.external_dependencies
+                        .contains(&ident_intern!("core/frob")));
     }
 
     // Starting with a diamond graph, if our touched set includes things not in the graph,
@@ -749,14 +739,14 @@ mod test {
         assert_eq!(manifest.unbuildable_reasons.len(), 0);
 
         assert_eq!(manifest.graph.node_count(), 5);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/right", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_IN("a/bottom", 1)), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/top")), true);
-        assert_eq!(manifest.graph.contains_node(mk_ELV("a/left")), true);
+        assert!(manifest.graph.contains_node(mk_IN("a/right", 1)));
+        assert!(manifest.graph.contains_node(mk_IN("a/bottom", 1)));
+        assert!(manifest.graph.contains_node(mk_ELV("a/top")));
+        assert!(manifest.graph.contains_node(mk_ELV("a/left")));
 
         // TBD: does this belong here? Also should check the dependencies of ZZ top; it should stand
         // alone
         println!("MANIFEST:\n{:?}\n", manifest);
-        assert_eq!(manifest.graph.contains_node(mk_IN("zz/top", 1)), true);
+        assert!(manifest.graph.contains_node(mk_IN("zz/top", 1)));
     }
 }

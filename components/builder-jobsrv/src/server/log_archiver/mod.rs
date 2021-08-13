@@ -26,7 +26,7 @@ pub mod s3;
 use crate::{config::ArchiveCfg,
             error::Result};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Currently implemented log archiving backends
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -40,7 +40,7 @@ pub enum ArchiveBackend {
 pub trait LogArchiver: Send {
     /// Given a `job_id` and the path to the log output for that job,
     /// places the log in an archive for long-term storage.
-    async fn archive(&self, job_id: u64, file_path: &PathBuf) -> Result<()>;
+    async fn archive(&self, job_id: u64, file_path: &Path) -> Result<()>;
 
     /// Given a `job_id`, retrieves the log output for that job from
     /// long-term storage.
@@ -50,7 +50,7 @@ pub trait LogArchiver: Send {
 /// Create appropriate LogArchiver variant based on configuration values.
 pub fn from_config(config: &ArchiveCfg) -> Result<Box<dyn LogArchiver>> {
     match config.backend {
-        ArchiveBackend::Local => Ok(Box::new(local::LocalArchiver::new(&config))),
-        ArchiveBackend::S3 => Ok(Box::new(s3::S3Archiver::new(&config))),
+        ArchiveBackend::Local => Ok(Box::new(local::LocalArchiver::new(config))),
+        ArchiveBackend::S3 => Ok(Box::new(s3::S3Archiver::new(config))),
     }
 }
