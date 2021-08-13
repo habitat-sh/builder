@@ -82,7 +82,7 @@ mod tests {
         let config = Config::default();
         let cfg = TomlPublishBuilder::from_raw(toml).unwrap().build(&config);
         assert_eq!("https://bldr.habitat.sh", cfg.url);
-        assert_eq!(false, cfg.enabled);
+        assert!(!cfg.enabled);
         assert_eq!(Some(ChannelIdent::unstable()), cfg.channel_opt);
     }
 }

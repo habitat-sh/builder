@@ -30,7 +30,8 @@ use std::{fmt::Display,
                BufReader,
                Read,
                Write},
-          path::PathBuf,
+          path::{Path,
+                 PathBuf},
           str::FromStr,
           time::Instant};
 
@@ -108,7 +109,7 @@ impl S3Handler {
                 match bucket_list.buckets {
                     Some(buckets) => {
                         Ok(buckets.iter()
-                                  .any(|ref x| x.name.clone().unwrap() == artifactbucket))
+                                  .any(|x| x.name.clone().unwrap() == artifactbucket))
                     }
                     None => Ok(false),
                 }
@@ -124,9 +125,9 @@ impl S3Handler {
     // exists in the configured s3 bucket. It should
     // only get called from within an upload future.
     async fn object_exists(&self, object_key: &str) -> Result<()> {
-        let mut request = HeadObjectRequest::default();
-        request.bucket = self.bucket.clone();
-        request.key = object_key.to_string();
+        let request = HeadObjectRequest { bucket: self.bucket.clone(),
+                                          key: object_key.to_string(),
+                                          ..Default::default() };
 
         match self.client.head_object(request).await {
             Ok(object) => {
@@ -140,8 +141,8 @@ impl S3Handler {
 
     #[allow(dead_code)]
     pub async fn create_bucket(&self) -> Result<()> {
-        let mut request = CreateBucketRequest::default();
-        request.bucket = self.bucket.clone();
+        let request = CreateBucketRequest { bucket: self.bucket.clone(),
+                                            ..Default::default() };
 
         match self.bucket_exists().await {
             Ok(_) => Ok(()),
@@ -158,7 +159,7 @@ impl S3Handler {
     }
 
     pub async fn upload(&self,
-                        hart_path: &PathBuf,
+                        hart_path: &Path,
                         ident: &PackageIdent,
                         target: PackageTarget)
                         -> Result<()> {
@@ -169,7 +170,7 @@ impl S3Handler {
         info!("S3Handler::upload request started for s3_key: {}", key);
 
         let size = file.metadata().unwrap().len() as usize;
-        let fqpi = hart_path.clone().into_os_string().into_string().unwrap();
+        let fqpi = hart_path.to_str().unwrap();
 
         if size < MINLIMIT {
             self.single_upload(&key, file, &fqpi).await?;
@@ -180,7 +181,7 @@ impl S3Handler {
     }
 
     pub async fn download(&self,
-                          loc: &PathBuf,
+                          loc: &Path,
                           ident: &PackageIdent,
                           target: PackageTarget)
                           -> Result<PackageArchive> {
@@ -201,7 +202,7 @@ impl S3Handler {
         };
         let mut body = body.expect("Downloaded object is empty");
 
-        match write_archive(&loc, &mut body).await {
+        match write_archive(loc, &mut body).await {
             Ok(result) => Ok(result),
             Err(e) => {
                 warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
@@ -224,10 +225,10 @@ impl S3Handler {
         let bucket = self.bucket.clone();
         let _complete = reader.read_to_end(&mut object).map_err(Error::IO);
 
-        let mut request = PutObjectRequest::default();
-        request.key = key.to_string();
-        request.bucket = bucket;
-        request.body = Some(object.into());
+        let request = PutObjectRequest { key: key.to_string(),
+                                         bucket,
+                                         body: Some(object.into()),
+                                         ..Default::default() };
 
         match self.client.put_object(request).await {
             Ok(_) => {
@@ -254,9 +255,9 @@ impl S3Handler {
         Counter::MultipartUploadRequests.increment();
         let start_time = Instant::now();
         let mut p: Vec<CompletedPart> = Vec::new();
-        let mut mprequest = CreateMultipartUploadRequest::default();
-        mprequest.key = key.to_string();
-        mprequest.bucket = self.bucket.clone();
+        let mprequest = CreateMultipartUploadRequest { key: key.to_string(),
+                                                       bucket: self.bucket.clone(),
+                                                       ..Default::default() };
 
         match self.client.create_multipart_upload(mprequest).await {
             Ok(output) => {
@@ -273,12 +274,13 @@ impl S3Handler {
                         }
                         part_num += 1;
 
-                        let mut request = UploadPartRequest::default();
-                        request.key = key.to_string();
-                        request.bucket = self.bucket.clone();
-                        request.upload_id = output.upload_id.clone().unwrap(); // unwrap safe
-                        request.body = Some(buffer.to_vec().into());
-                        request.part_number = part_num;
+                        let request =
+                            UploadPartRequest { key: key.to_string(),
+                                                bucket: self.bucket.clone(),
+                                                upload_id: output.upload_id.clone().unwrap(),
+                                                body: Some(buffer.to_vec().into()),
+                                                part_number: part_num,
+                                                ..Default::default() };
 
                         match self.client.upload_part(request).await {
                             Ok(upo) => {
@@ -343,7 +345,7 @@ fn s3_key(ident: &PackageIdent, target: PackageTarget) -> Result<String> {
                hart_name))
 }
 
-async fn write_archive(filename: &PathBuf,
+async fn write_archive(filename: &Path,
                        body: &mut rusoto_core::ByteStream)
                        -> Result<PackageArchive> {
     // TODO This is a blocking call, used in async functions

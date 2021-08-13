@@ -58,7 +58,7 @@ impl DataStore {
     /// * Can fail if the pool cannot be created
     /// * Blocks creation of the datastore on the existince of the pool; might wait indefinetly.
     pub fn new(cfg: &DataStoreCfg) -> Self {
-        let diesel_pool = DbPool::new(&cfg);
+        let diesel_pool = DbPool::new(cfg);
         DataStore { diesel_pool }
     }
 
@@ -110,15 +110,15 @@ impl DataStore {
 
             let new_job = NewJob { owner_id: job.get_owner_id() as i64,
                                    project_id: project.get_id() as i64,
-                                   project_name: &project.get_name(),
+                                   project_name: project.get_name(),
                                    job_state: "Pending",
                                    project_owner_id: project.get_owner_id() as i64,
-                                   project_plan_path: &project.get_plan_path(),
-                                   vcs: &project.get_vcs_type(),
+                                   project_plan_path: project.get_plan_path(),
+                                   vcs: project.get_vcs_type(),
                                    vcs_arguments: &vec![Some(project.get_vcs_data()),
                                                         install_id.as_deref()],
                                    channel,
-                                   target: &job.get_target() };
+                                   target: job.get_target() };
 
             let result = Job::create(&new_job, &conn).map_err(Error::JobCreate)?;
 
@@ -445,7 +445,7 @@ impl DataStore {
         debug!("DataStore: set_job_group_job_state");
         let conn = self.diesel_pool.get_conn()?;
         let result = GroupProject::get_group_project_by_name(job.get_owner_id() as i64,
-                                                             &job.get_project().get_name(),
+                                                             job.get_project().get_name(),
                                                              &conn);
         if let diesel::QueryResult::Err(diesel::result::Error::NotFound) = result {
             warn!("No project found for job id: {}", job.get_id());

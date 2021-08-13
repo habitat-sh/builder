@@ -21,7 +21,6 @@ toolchain="${1:-"$(get_toolchain)"}"
 #
 # If we're NOT in Buildkite, we'll just run clippy, assuming that
 # the developer has already set up their environment as they like.
-if ${BUILDKITE:-false}; then
     install_rustup
     install_rust_toolchain "$toolchain"
 
@@ -46,7 +45,6 @@ if ${BUILDKITE:-false}; then
     # Install clippy
     echo "--- :rust: Installing clippy"
     rustup component add clippy
-fi
 
 # Lints we need to work through and decide as a team whether to allow or fix
 mapfile -t unexamined_lints < "$2"

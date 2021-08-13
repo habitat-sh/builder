@@ -27,7 +27,6 @@ use builder_core::{http_client::{HttpClient,
                                  USER_AGENT_BLDR},
                    metrics::CounterMetric};
 use reqwest::header::HeaderMap;
-use std::iter::FromIterator;
 
 pub struct OAuth2Client {
     inner:        HttpClient,
@@ -38,7 +37,7 @@ pub struct OAuth2Client {
 impl OAuth2Client {
     pub fn new(config: OAuth2Cfg) -> Result<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(),];
-        let headers = HeaderMap::from_iter(header_values.into_iter());
+        let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let client = HttpClient::new(&config.token_url, headers)?;
 

@@ -163,14 +163,14 @@ impl AccessToken {
     /// Ideally, this would be a function on the originsrv::AccessToken struct.
     fn encrypt(proto_token: &originsrv::AccessToken, key_cache: &KeyCache) -> Result<String> {
         let bytes = message::encode(proto_token).map_err(Error::Protocol)?;
-        let (token_value, _) = crypto::encrypt(&key_cache, bytes)?;
+        let (token_value, _) = crypto::encrypt(key_cache, bytes)?;
         Ok(token_value)
     }
 
     /// Given an `AccessToken`, decrypt the contents to yield the
     /// original `originsrv::AccessToken`.
     fn decrypt(&self, key_cache: &KeyCache) -> Result<originsrv::AccessToken> {
-        let bytes = crypto::decrypt(&key_cache, &self.0)?;
+        let bytes = crypto::decrypt(key_cache, &self.0)?;
         let payload: originsrv::AccessToken =
             message::decode(&bytes).map_err(|e| {
                                        warn!("Unable to deserialize access token, err={:?}", e);

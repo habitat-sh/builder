@@ -80,7 +80,8 @@ use std::{convert::Infallible,
                BufWriter,
                Read,
                Write},
-          path::PathBuf,
+          path::{self,
+                 PathBuf},
           str::FromStr};
 use tempfile::tempdir_in;
 use uuid::Uuid;
@@ -879,7 +880,7 @@ pub fn postprocess_package_list<T: Serialize>(_req: &HttpRequest,
            start, stop, count);
 
     let body =
-        helpers::package_results_json(&packages, count as isize, start as isize, stop as isize);
+        helpers::package_results_json(packages, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
@@ -908,7 +909,7 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
            start, stop, count);
 
     let body =
-        helpers::package_results_json(&packages, count as isize, start as isize, stop as isize);
+        helpers::package_results_json(packages, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
@@ -937,7 +938,7 @@ fn do_get_packages(req: &HttpRequest,
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     let lpr = ListPackages { ident:      BuilderPackageIdent(ident.clone()),
-                             visibility: helpers::visibility_for_optional_session(&req,
+                             visibility: helpers::visibility_for_optional_session(req,
                                                                                   opt_session_id,
                                                                                   &ident.origin),
                              page:       page as i64,
@@ -1020,7 +1021,7 @@ fn do_upload_package_start(req: &HttpRequest,
 async fn do_upload_package_finish(req: &HttpRequest,
                                   qupload: &Query<Upload>,
                                   ident: &PackageIdent,
-                                  temp_path: &PathBuf)
+                                  temp_path: &path::Path)
                                   -> HttpResponse {
     let mut archive = match PackageArchive::new(&temp_path) {
         Ok(archive) => archive,
@@ -1099,7 +1100,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
 
     // Check with scheduler to ensure we don't have circular deps, if configured
     if feat::is_enabled(feat::Jobsrv) {
-        match has_circular_deps(&req, ident, target_from_artifact, &mut archive).await {
+        match has_circular_deps(req, ident, target_from_artifact, &mut archive).await {
             Ok(val) if val => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
             Err(err) => return err.into(),
             _ => (),
@@ -1107,7 +1108,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
     }
 
     let file_path = &req_state(req).config.api.data_path;
-    let filename = file_path.join(archive_name(&ident, target_from_artifact));
+    let filename = file_path.join(archive_name(ident, target_from_artifact));
     let temp_ident = ident.to_owned();
 
     match fs::rename(&temp_path, &filename) {
@@ -1164,7 +1165,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
                                        Body::from_message("ds:up:6"));
     }
 
-    let session = authorize_session(&req, None, None).unwrap(); // Unwrap Ok
+    let session = authorize_session(req, None, None).unwrap(); // Unwrap Ok
 
     package.owner_id = session.get_id() as i64;
     package.origin = ident.clone().origin;
@@ -1203,7 +1204,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
 
                 let msg_size = job_graph_package.compute_size();
                 match route_message::<jobsrv::JobGraphPackageCreate, originsrv::OriginPackage>(
-                    &req,
+                    req,
                     &job_graph_package,
                 ).await {
                     Ok(_) => (),
@@ -1249,7 +1250,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
         request.set_requester_id(session.get_id());
         request.set_requester_name(session.get_name().to_string());
 
-        match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request).await {
+        match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(req, &request).await {
             Ok(group) => {
                 debug!("Scheduled reverse dependecy build for {}, group id: {}",
                        ident,
@@ -1316,7 +1317,7 @@ fn do_get_package(req: &HttpRequest,
     let target = match qtarget.target {
         Some(ref t) => {
             trace!("Query requested target = {}", t);
-            PackageTarget::from_str(&t)?
+            PackageTarget::from_str(t)?
         }
         None => helpers::target_from_headers(req),
     };
@@ -1326,7 +1327,7 @@ fn do_get_package(req: &HttpRequest,
     // below
     {
         let mut memcache = req_state(req).memcache.borrow_mut();
-        match memcache.get_package(&ident, &ChannelIdent::unstable(), &target, opt_session_id) {
+        match memcache.get_package(ident, &ChannelIdent::unstable(), &target, opt_session_id) {
             (true, Some(pkg_json)) => {
                 trace!("Package {} {} {:?} - cache hit with pkg json",
                        ident,
@@ -1371,7 +1372,7 @@ fn do_get_package(req: &HttpRequest,
             Ok(pkg) => pkg,
             Err(NotFound) => {
                 let mut memcache = req_state(req).memcache.borrow_mut();
-                memcache.set_package(&ident,
+                memcache.set_package(ident,
                                      None,
                                      &ChannelIdent::unstable(),
                                      &target,
@@ -1401,7 +1402,7 @@ fn do_get_package(req: &HttpRequest,
             Err(NotFound) => {
                 let mut memcache = req_state(req).memcache.borrow_mut();
                 memcache.set_package(
-                    &ident,
+                    ident,
                     None,
                     &ChannelIdent::unstable(),
                     &target,
@@ -1426,7 +1427,7 @@ fn do_get_package(req: &HttpRequest,
 
     {
         let mut memcache = req_state(req).memcache.borrow_mut();
-        memcache.set_package(&ident,
+        memcache.set_package(ident,
                              Some(&json_body),
                              &ChannelIdent::unstable(),
                              &target,
@@ -1450,7 +1451,7 @@ fn archive_name(ident: &PackageIdent, target: PackageTarget) -> PathBuf {
 }
 
 fn download_response_for_archive(archive: &PackageArchive,
-                                 file_path: &PathBuf,
+                                 file_path: &path::Path,
                                  is_private: bool,
                                  state: &Data<AppState>)
                                  -> HttpResponse {
@@ -1551,7 +1552,7 @@ pub fn platforms_for_package_ident(req: &HttpRequest,
 
     let conn = req_state(req).db.get_conn()?;
 
-    match Package::list_package_platforms(&package,
+    match Package::list_package_platforms(package,
                                           helpers::visibility_for_optional_session(req,
                                                                                    opt_session_id,
                                                                                    &package.origin),

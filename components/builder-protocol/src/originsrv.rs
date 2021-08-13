@@ -69,12 +69,12 @@ impl From<hab_core::package::PackageIdent> for OriginPackageIdent {
         ident.set_origin(value.origin);
         ident.set_name(value.name);
         if let Some(ver) = value.version {
-            if ver != "" {
+            if !ver.is_empty() {
                 ident.set_version(ver);
             }
         }
         if let Some(rel) = value.release {
-            if rel != "" {
+            if !rel.is_empty() {
                 ident.set_release(rel);
             }
         }
@@ -82,8 +82,8 @@ impl From<hab_core::package::PackageIdent> for OriginPackageIdent {
     }
 }
 
-impl<'a> From<&'a OriginPackageIdent> for package::PackageIdent {
-    fn from(value: &'a OriginPackageIdent) -> package::PackageIdent {
+impl From<OriginPackageIdent> for package::PackageIdent {
+    fn from(value: OriginPackageIdent) -> package::PackageIdent {
         let mut ident =
             package::PackageIdent::new(value.get_origin(), value.get_name(), None, None);
         if !value.get_version().is_empty() {
@@ -150,19 +150,6 @@ impl Identifiable for OriginPackageIdent {
     }
 }
 
-impl Into<package::PackageIdent> for OriginPackageIdent {
-    fn into(self) -> package::PackageIdent {
-        let mut ident = package::PackageIdent::new(self.get_origin(), self.get_name(), None, None);
-        if !self.get_version().is_empty() {
-            ident.version = Some(self.get_version().into());
-        }
-        if !self.get_release().is_empty() {
-            ident.release = Some(self.get_release().into());
-        }
-        ident
-    }
-}
-
 // Sessions
 
 impl FromStr for OAuthProvider {
@@ -184,11 +171,11 @@ impl FromStr for OAuthProvider {
     }
 }
 
-impl Into<Session> for AccessToken {
-    fn into(self) -> Session {
+impl From<AccessToken> for Session {
+    fn from(value: AccessToken) -> Session {
         let mut session = Session::new();
-        session.set_id(self.get_account_id());
-        session.set_flags(self.get_flags());
+        session.set_id(value.get_account_id());
+        session.set_flags(value.get_flags());
         session
     }
 }

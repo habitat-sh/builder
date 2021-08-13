@@ -89,7 +89,7 @@ impl VCS {
                     }
                 };
                 debug!("VCS clone starting repo clone");
-                git2::Repository::clone(&(self.url(&token)?).as_str(), path).map_err(Error::Git)?;
+                git2::Repository::clone(self.url(&token)?.as_str(), path).map_err(Error::Git)?;
                 debug!("VCS clone repo clone succeeded!");
                 Ok(())
             }

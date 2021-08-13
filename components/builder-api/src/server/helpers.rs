@@ -123,7 +123,7 @@ pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
     };
 
     let user_agent = match user_agent_header.to_str() {
-        Ok(ref s) => (*s).to_string(),
+        Ok(s) => (*s).to_string(),
         Err(_) => return PackageTarget::from_str("x86_64-linux").unwrap(),
     };
 
@@ -159,11 +159,10 @@ pub fn visibility_for_optional_session(req: &HttpRequest,
                                        optional_session_id: Option<u64>,
                                        origin: &str)
                                        -> Vec<PackageVisibility> {
-    let mut v = Vec::new();
-    v.push(PackageVisibility::Public);
+    let mut v = vec![PackageVisibility::Public];
 
     if optional_session_id.is_some()
-       && authorize_session(req, Some(&origin), Some(OriginMemberRole::ReadonlyMember)).is_ok()
+       && authorize_session(req, Some(origin), Some(OriginMemberRole::ReadonlyMember)).is_ok()
     {
         v.push(PackageVisibility::Hidden);
         v.push(PackageVisibility::Private);
@@ -174,7 +173,7 @@ pub fn visibility_for_optional_session(req: &HttpRequest,
 
 pub fn trigger_from_request(req: &HttpRequest) -> jobsrv::JobGroupTrigger {
     // TODO: the search strings should be configurable.
-    if let Some(ref agent) = req.headers().get(header::USER_AGENT) {
+    if let Some(agent) = req.headers().get(header::USER_AGENT) {
         if let Ok(s) = agent.to_str() {
             if s.starts_with("hab/") {
                 return jobsrv::JobGroupTrigger::HabClient;
@@ -182,7 +181,7 @@ pub fn trigger_from_request(req: &HttpRequest) -> jobsrv::JobGroupTrigger {
         }
     }
 
-    if let Some(ref referer) = req.headers().get(header::REFERER) {
+    if let Some(referer) = req.headers().get(header::REFERER) {
         if let Ok(s) = referer.to_str() {
             // this needs to be as generic as possible otherwise local dev envs and on-prem depots
             // won't work
@@ -198,7 +197,7 @@ pub fn trigger_from_request(req: &HttpRequest) -> jobsrv::JobGroupTrigger {
 // TED remove function above when it's no longer used anywhere
 pub fn trigger_from_request_model(req: &HttpRequest) -> PCT {
     // TODO: the search strings should be configurable.
-    if let Some(ref agent) = req.headers().get(header::USER_AGENT) {
+    if let Some(agent) = req.headers().get(header::USER_AGENT) {
         if let Ok(s) = agent.to_str() {
             if s.starts_with("hab/") {
                 return PCT::HabClient;
@@ -206,7 +205,7 @@ pub fn trigger_from_request_model(req: &HttpRequest) -> PCT {
         }
     }
 
-    if let Some(ref referer) = req.headers().get(header::REFERER) {
+    if let Some(referer) = req.headers().get(header::REFERER) {
         if let Ok(s) = referer.to_str() {
             // this needs to be as generic as possible otherwise local dev envs and on-prem depots
             // won't work

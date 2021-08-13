@@ -85,7 +85,7 @@ impl TargetGraph {
                  -> Vec<TargetGraphStats> {
         for p in packages {
             if let Some(ref mut graph) = self.graph_mut(p.get_target()) {
-                graph.extend(&p, use_build_deps);
+                graph.extend(p, use_build_deps);
             }
         }
 

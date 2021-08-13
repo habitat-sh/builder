@@ -36,7 +36,7 @@ use crate::{data_store::Unbuildable,
 pub fn find_roots(graph: &DiGraphMap<PackageIdentIntern, EdgeType>) -> Vec<PackageIdentIntern> {
     let mut r = Vec::new();
     for node in graph.nodes() {
-        let (in_count, _out_count) = count_edges(&graph, node);
+        let (in_count, _out_count) = count_edges(graph, node);
         if in_count == 0 {
             r.push(node)
         }
@@ -117,12 +117,11 @@ pub fn changed_edges_for_type(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                               deps: &[PackageIdentIntern],
                               edgetype: EdgeType)
                               -> (Vec<PackageIdentIntern>, Vec<PackageIdentIntern>) {
-    let new_edges: HashSet<PackageIdentIntern> = HashSet::from_iter(deps.iter().copied());
+    let new_edges: HashSet<PackageIdentIntern> = deps.iter().copied().collect::<HashSet<_>>();
     let current_edges: HashSet<PackageIdentIntern> =
-        HashSet::from_iter(graph.neighbors_directed(node, Direction::Outgoing)
-                                .filter(|succ| {
-                                    *graph.edge_weight(node, *succ).unwrap() == edgetype
-                                }));
+        graph.neighbors_directed(node, Direction::Outgoing)
+             .filter(|succ| *graph.edge_weight(node, *succ).unwrap() == edgetype)
+             .collect::<HashSet<_>>();
     let added: Vec<PackageIdentIntern> = (new_edges.difference(&current_edges)).cloned().collect();
     let removed: Vec<PackageIdentIntern> =
         (current_edges.difference(&new_edges)).cloned().collect();
@@ -149,7 +148,7 @@ pub fn revise_edges_for_type(graph: &mut DiGraphMap<PackageIdentIntern, EdgeType
                              node: PackageIdentIntern,
                              deps: &[PackageIdentIntern],
                              edgetype: EdgeType) {
-    let (added, removed) = changed_edges_for_type(&graph, node, deps, edgetype);
+    let (added, removed) = changed_edges_for_type(graph, node, deps, edgetype);
     update_edges_for_type(graph, node, &added, &removed, edgetype)
 }
 
@@ -162,8 +161,8 @@ pub fn detect_cycles(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                      -> bool {
     // An empty 'added' pretty much is a no-op through here, might check and early exit if it's
     // really common.
-    let mut seen: HashSet<PackageIdentIntern> = HashSet::from_iter(added.iter().cloned());
-    let mut worklist: VecDeque<PackageIdentIntern> = VecDeque::from_iter(added.iter().cloned());
+    let mut seen: HashSet<PackageIdentIntern> = added.iter().cloned().collect::<HashSet<_>>();
+    let mut worklist: VecDeque<PackageIdentIntern> = added.iter().cloned().collect::<VecDeque<_>>();
 
     // Detect if we have an edge to ourself (yes plan build might let this slip by)
     if seen.contains(&node) {
@@ -177,8 +176,7 @@ pub fn detect_cycles(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
     // If no packages have declared a runtime dependency on us (0 incoming edges), then we
     // we cannot be part of a cycle because you need both incoming and outgoing edges to
     // create a cycle. Updating this package cannot introduce a cycle.
-    let (incoming, _outgoing) =
-        count_edges_filtered(&graph, node, None, Some(EdgeType::RuntimeDep));
+    let (incoming, _outgoing) = count_edges_filtered(graph, node, None, Some(EdgeType::RuntimeDep));
     if incoming == 0 {
         return false;
     }
@@ -210,7 +208,7 @@ pub fn dump_graph_raw(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
 
     // iterate through nodes
     for node in graph.nodes().sorted() {
-        let (in_count, out_count) = count_edges(&graph, node);
+        let (in_count, out_count) = count_edges(graph, node);
         let orphaned = (in_count == 0) && (out_count == 0);
 
         if filter_match(&node, origin_filter) && !orphaned {
@@ -263,7 +261,7 @@ pub fn dump_graph_structured(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
 
     // iterate through nodes
     for node in graph.nodes().sorted() {
-        let (in_count, out_count) = count_edges(&graph, node);
+        let (in_count, out_count) = count_edges(graph, node);
         let orphaned = (in_count == 0) && (out_count == 0);
         let keep = !orphaned || !drop_orphaned;
         if filter_match(&node, origin_filter) && keep {
@@ -309,7 +307,7 @@ pub fn emit_graph_as_dot(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
 
     // iterate through nodes
     for node in graph.nodes() {
-        let (in_count, out_count) = count_edges(&graph, node);
+        let (in_count, out_count) = count_edges(graph, node);
         let orphaned = (in_count == 0) && (out_count == 0);
         if orphaned {
             debug!("{} is orphaned", node);
@@ -325,14 +323,14 @@ pub fn emit_graph_as_dot(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
     writeln!(&mut file, "//######## RUN TIME EDGES ######").unwrap();
     writeln!(&mut file, "    edge [ weight = 10; constraint = true ];").unwrap();
 
-    write_edges(&graph, &mut file, EdgeType::RuntimeDep, origin_filter);
+    write_edges(graph, &mut file, EdgeType::RuntimeDep, origin_filter);
 
     writeln!(&mut file, "//######## BUILD TIME EDGES ######").unwrap();
     writeln!(&mut file,
              "    edge [ color = \"blue\" style = \"dashed\" constraint = false ];").unwrap();
 
     // iterate through build edges
-    write_edges(&graph, &mut file, EdgeType::BuildDep, origin_filter);
+    write_edges(graph, &mut file, EdgeType::BuildDep, origin_filter);
 
     // close
     writeln!(&mut file, "}}").unwrap();
@@ -433,7 +431,7 @@ pub fn flood_deps_in_origin(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                             -> Vec<PackageIdentIntern> {
     debug!("CRS: starting with origin {}",
            origin.unwrap_or("No origin specified"));
-    debug!("CRS: touched set {}", join_idents(", ", &seed));
+    debug!("CRS: touched set {}", join_idents(", ", seed));
 
     // Flood reverse dependency graph, filtering by origin
     let mut seen: HashSet<PackageIdentIntern> = HashSet::new();
@@ -471,7 +469,7 @@ pub fn transitive_deps(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                        -> HashSet<PackageIdentIntern> {
     debug!("TDEP: starting with origin {}",
            origin.unwrap_or("No origin specified"));
-    debug!("TDEP: seed set {}", join_idents(", ", &seed));
+    debug!("TDEP: seed set {}", join_idents(", ", seed));
 
     let mut seen: HashSet<PackageIdentIntern> = HashSet::new();
     let mut worklist: VecDeque<PackageIdentIntern> = VecDeque::new();
@@ -522,7 +520,7 @@ pub fn compute_rebuild_set(
     target: PackageTarget)
     -> (Vec<PackageIdentIntern>, HashMap<PackageIdentIntern, UnbuildableReason>) {
     // Note: consider making these APIs use HashSet all the way through
-    let rebuild = flood_deps_in_origin(&graph, touched, origin);
+    let rebuild = flood_deps_in_origin(graph, touched, origin);
 
     let unbuildable = unbuildable.filter_unbuildable(&rebuild, target).unwrap();
 
@@ -531,7 +529,7 @@ pub fn compute_rebuild_set(
         unbuildable_reasons.insert(package, UnbuildableReason::Direct);
     }
 
-    let unbuildable = flood_deps_in_origin(&graph, &unbuildable, origin);
+    let unbuildable = flood_deps_in_origin(graph, &unbuildable, origin);
     for &package in unbuildable.iter() {
         unbuildable_reasons.entry(package)
                            .or_insert(UnbuildableReason::Indirect);
@@ -553,11 +551,11 @@ pub fn compute_rebuild_set(
 pub fn compute_build_order(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                            rebuild_set: &[PackageIdentIntern])
                            -> Vec<Vec<PackageIdentIntern>> {
-    let scc = filtered_scc(&graph, rebuild_set);
+    let scc = filtered_scc(graph, rebuild_set);
 
     let mut node_order: Vec<Vec<PackageIdentIntern>> = Vec::new();
     for component in scc {
-        let ordered_component = tsort_subgraph(&graph, &component);
+        let ordered_component = tsort_subgraph(graph, &component);
         node_order.push(ordered_component)
     }
 

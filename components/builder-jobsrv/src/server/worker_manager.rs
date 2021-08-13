@@ -289,7 +289,7 @@ impl WorkerMgr {
                 }
 
                 for target in PackageTarget::targets() {
-                    if self.build_targets.contains(&target) {
+                    if self.build_targets.contains(target) {
                         if let Err(err) = self.process_work(*target) {
                             warn!("Worker-manager unable to process work: err {:?}", err);
                         }
@@ -351,10 +351,9 @@ impl WorkerMgr {
         let jobs = self.datastore.get_dispatched_jobs()?;
 
         for mut job in jobs {
-            if self.workers
-                   .iter()
-                   .find(|t| t.1.job_id == Some(job.get_id()))
-                   .is_none()
+            if !self.workers
+                    .iter()
+                    .any(|t| t.1.job_id == Some(job.get_id()))
             {
                 warn!("Requeing job: {}", job.get_id());
                 job.set_state(jobsrv::JobState::Pending);
@@ -438,7 +437,7 @@ impl WorkerMgr {
         let mut wc = jobsrv::WorkerCommand::new();
         wc.set_op(jobsrv::WorkerOperation::CancelJob);
 
-        self.rq_sock.send_str(&worker_ident, zmq::SNDMORE)?;
+        self.rq_sock.send_str(worker_ident, zmq::SNDMORE)?;
         self.rq_sock.send(&[], zmq::SNDMORE)?;
         self.rq_sock
             .send(&wc.write_to_bytes().unwrap(), zmq::SNDMORE)?;
@@ -525,7 +524,7 @@ impl WorkerMgr {
         let mut wc = jobsrv::WorkerCommand::new();
         wc.set_op(jobsrv::WorkerOperation::StartJob);
 
-        self.rq_sock.send_str(&worker_ident, zmq::SNDMORE)?;
+        self.rq_sock.send_str(worker_ident, zmq::SNDMORE)?;
         self.rq_sock.send(&[], zmq::SNDMORE)?;
         self.rq_sock
             .send(&wc.write_to_bytes().unwrap(), zmq::SNDMORE)?;
@@ -753,7 +752,7 @@ impl WorkerMgr {
         match self.datastore.get_job(&req)? {
             Some(job) => {
                 let mut job = Job::new(job);
-                match self.worker_cancel_job(&job, &worker_ident) {
+                match self.worker_cancel_job(&job, worker_ident) {
                     Ok(()) => {
                         job.set_state(jobsrv::JobState::CancelProcessing);
                         self.datastore.update_job(&job)?;
@@ -885,7 +884,7 @@ impl WorkerMgr {
                     // Tell the scheduler
                     job_graph_entry.job_state = JobExecState::Complete;
                     job_graph_entry.as_built_ident =
-                        Some(BuilderPackageIdent(job.get_package_ident().into()));
+                        Some(BuilderPackageIdent(job.get_package_ident().clone().into()));
                     block_on(scheduler.worker_finished(WorkerId(worker_id), job_graph_entry))
                 }
                 jobsrv::JobState::Failed => {

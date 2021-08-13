@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::{collections::HashMap,
-          path::PathBuf};
+          path::Path};
 
 use crate::{config::ArtifactoryCfg,
             error::{ArtifactoryError,
@@ -56,7 +56,7 @@ impl ArtifactoryClient {
     }
 
     pub async fn upload(&self,
-                        source_path: &PathBuf,
+                        source_path: &Path,
                         ident: &PackageIdent,
                         target: PackageTarget)
                         -> ArtifactoryResult<Response> {
@@ -95,7 +95,7 @@ impl ArtifactoryClient {
     }
 
     pub async fn download(&self,
-                          destination_path: &PathBuf,
+                          destination_path: &Path,
                           ident: &PackageIdent,
                           target: PackageTarget)
                           -> ArtifactoryResult<PackageArchive> {

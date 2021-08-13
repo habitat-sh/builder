@@ -237,6 +237,7 @@ impl FromSql<JobRecord, Pg> for Job {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<jobsrv::Job> for Job {
     fn into(self) -> jobsrv::Job {
         let mut job = jobsrv::Job::new();
@@ -493,6 +494,7 @@ impl FromSql<GroupRecord, Pg> for Group {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<jobsrv::JobGroup> for Group {
     fn into(self) -> jobsrv::JobGroup {
         let mut group = jobsrv::JobGroup::new();
@@ -663,6 +665,7 @@ impl GroupProject {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<jobsrv::JobGroupProject> for GroupProject {
     fn into(self) -> jobsrv::JobGroupProject {
         let mut project = jobsrv::JobGroupProject::new();
@@ -917,16 +920,24 @@ impl JobGraphEntry {
         Counter::DBCall.increment();
         let start_time = std::time::Instant::now();
 
-        let mut j = JobStateCounts::default();
-        j.pd = JobGraphEntry::count_by_state(gid, JobExecState::Pending, &conn)?;
-        j.wd = JobGraphEntry::count_by_state(gid, JobExecState::WaitingOnDependency, &conn)?;
-        j.rd = JobGraphEntry::count_by_state(gid, JobExecState::Ready, &conn)?;
-        j.rn = JobGraphEntry::count_by_state(gid, JobExecState::Running, &conn)?;
-        j.ct = JobGraphEntry::count_by_state(gid, JobExecState::Complete, &conn)?;
-        j.jf = JobGraphEntry::count_by_state(gid, JobExecState::JobFailed, &conn)?;
-        j.df = JobGraphEntry::count_by_state(gid, JobExecState::DependencyFailed, &conn)?;
-        j.cp = JobGraphEntry::count_by_state(gid, JobExecState::CancelPending, &conn)?;
-        j.cc = JobGraphEntry::count_by_state(gid, JobExecState::CancelComplete, &conn)?;
+        let j =
+            JobStateCounts { pd: JobGraphEntry::count_by_state(gid, JobExecState::Pending, conn)?,
+                             wd: JobGraphEntry::count_by_state(gid,
+                                                               JobExecState::WaitingOnDependency,
+                                                               conn)?,
+                             rd: JobGraphEntry::count_by_state(gid, JobExecState::Ready, conn)?,
+                             rn: JobGraphEntry::count_by_state(gid, JobExecState::Running, conn)?,
+                             ct: JobGraphEntry::count_by_state(gid, JobExecState::Complete, conn)?,
+                             jf: JobGraphEntry::count_by_state(gid, JobExecState::JobFailed, conn)?,
+                             df: JobGraphEntry::count_by_state(gid,
+                                                               JobExecState::DependencyFailed,
+                                                               conn)?,
+                             cp: JobGraphEntry::count_by_state(gid,
+                                                               JobExecState::CancelPending,
+                                                               conn)?,
+                             cc: JobGraphEntry::count_by_state(gid,
+                                                               JobExecState::CancelComplete,
+                                                               conn)?, };
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall JobGraphEntry::count_all_states time: {} ms",
                duration_millis);
@@ -1044,6 +1055,7 @@ impl JobGraphEntry {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<jobsrv::JobGroupProject> for JobGraphEntry {
     fn into(self) -> jobsrv::JobGroupProject {
         let project_state = match self.job_state {

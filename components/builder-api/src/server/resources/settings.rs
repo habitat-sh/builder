@@ -75,7 +75,7 @@ fn get_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -
     let get_ops = &GetOriginPackageSettings { origin: &origin,
                                               name:   &pkg, };
 
-    match OriginPackageSettings::get(&get_ops, &*conn).map_err(Error::DieselError) {
+    match OriginPackageSettings::get(get_ops, &*conn).map_err(Error::DieselError) {
         Ok(ops) => HttpResponse::Ok().json(ops),
         Err(err) => {
             debug!("{}", err);
@@ -219,7 +219,7 @@ fn delete_origin_package_settings(req: HttpRequest, path: Path<(String, String)>
 }
 
 fn package_settings_delete_preflight(origin: &str, pkg: &str, conn: &PgConnection) -> Result<()> {
-    match OriginPackageSettings::count_packages_for_origin_package(&origin, &pkg, &*conn) {
+    match OriginPackageSettings::count_packages_for_origin_package(origin, pkg, &*conn) {
         Ok(0) => {}
         Ok(count) => {
             let err = format!("There are {} packages remaining for setting {}/{}. Must be zero.",

@@ -16,7 +16,6 @@ use std::{collections::HashSet,
           fs::File,
           io::{BufReader,
                Write},
-          iter::FromIterator,
           path::Path,
           str::FromStr};
 
@@ -53,7 +52,7 @@ pub trait Unbuildable: AsUnbuildable {
                           packages: &[PackageIdentIntern],
                           _target: PackageTarget)
                           -> Result<Vec<PackageIdentIntern>> {
-        Ok(filter_unbuildable_static(&packages))
+        Ok(filter_unbuildable_static(packages))
     }
 }
 
@@ -197,7 +196,7 @@ impl Unbuildable for SerializedDatabase {
                           packages: &[PackageIdentIntern],
                           _target: PackageTarget)
                           -> Result<Vec<PackageIdentIntern>> {
-        Ok(filter_unbuildable_static(&packages))
+        Ok(filter_unbuildable_static(packages))
     }
 }
 
@@ -249,9 +248,12 @@ impl Unbuildable for DataStore {
 
         let result: Vec<BuilderPackageIdent> = query.get_results(&conn).unwrap();
 
-        let input_packages = HashSet::<PackageIdentIntern>::from_iter(packages.iter().cloned());
-        let buildable_idents =
-            HashSet::<PackageIdentIntern>::from_iter(result.into_iter().map(|r| r.0.into()));
+        let input_packages = packages.iter()
+                                     .cloned()
+                                     .collect::<HashSet<PackageIdentIntern>>();
+        let buildable_idents = result.into_iter()
+                                     .map(|r| r.0.into())
+                                     .collect::<HashSet<PackageIdentIntern>>();
 
         let unbuildable = input_packages.difference(&buildable_idents);
 

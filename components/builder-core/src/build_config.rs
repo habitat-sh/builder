@@ -244,9 +244,8 @@ mod test {
 
         assert!(hab_sup.triggered_by("master", &["components/hab-sup/Cargo.toml"],));
         assert!(hab_sup.triggered_by("master", &["components/hAb-Sup/Cargo.toml"],));
-        assert_eq!(hab_sup.triggered_by("dev", &["components/hab-sup/Cargo.toml"]),
-                   false);
-        assert_eq!(hab_sup.triggered_by("master", &["components"]), false);
+        assert!(!hab_sup.triggered_by("dev", &["components/hab-sup/Cargo.toml"]));
+        assert!(!hab_sup.triggered_by("master", &["components"]));
 
         assert!(bldr_api.triggered_by("master", &["components/builder-api/habitat/plan.sh"],));
         assert!(bldr_api.triggered_by("master", &["components/net/Cargo.toml"],));
@@ -255,8 +254,8 @@ mod test {
 
         assert!(default.triggered_by("master", &["habitat/plan.sh"]));
         assert!(default.triggered_by("master", &["habitat/hooks/init"]));
-        assert_eq!(default.triggered_by("dev", &["habitat/plan.sh"]), false);
-        assert_eq!(default.triggered_by("master", &["components"]), true);
+        assert!(!default.triggered_by("dev", &["habitat/plan.sh"]));
+        assert!(default.triggered_by("master", &["components"]));
     }
 
     #[test]

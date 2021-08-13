@@ -161,7 +161,7 @@ fn filtered_rdeps(req: &HttpRequest,
         let origin_name = ident.get_origin();
         let pv = if !origin_map.contains_key(origin_name) {
             let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-            let origin = Origin::get(&origin_name, &*conn)?;
+            let origin = Origin::get(origin_name, &*conn)?;
             origin_map.insert(origin_name.to_owned(),
                               origin.default_package_visibility.clone());
             origin.default_package_visibility
@@ -169,7 +169,7 @@ fn filtered_rdeps(req: &HttpRequest,
             origin_map[origin_name].clone()
         };
         if pv != PackageVisibility::Public
-           && authorize_session(req, Some(&origin_name), Some(OriginMemberRole::Member)).is_err()
+           && authorize_session(req, Some(origin_name), Some(OriginMemberRole::Member)).is_err()
         {
             debug!("Skipping unauthorized non-public origin package: {}", rdep);
             continue; // Skip any unauthorized origin packages
@@ -240,7 +240,7 @@ fn filtered_group_rdeps(req: &HttpRequest,
             let origin_name = ident.get_origin();
             let pv = if !origin_map.contains_key(origin_name) {
                 let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-                let origin = Origin::get(&origin_name, &*conn)?;
+                let origin = Origin::get(origin_name, &*conn)?;
                 origin_map.insert(origin_name.to_owned(),
                                   origin.default_package_visibility.clone());
                 origin.default_package_visibility
@@ -248,7 +248,7 @@ fn filtered_group_rdeps(req: &HttpRequest,
                 origin_map[origin_name].clone()
             };
             if pv != PackageVisibility::Public
-               && authorize_session(req, Some(&origin_name), None).is_err()
+               && authorize_session(req, Some(origin_name), None).is_err()
             {
                 debug!("Skipping unauthorized non-public origin package: {}",
                        ident_str);
@@ -409,7 +409,7 @@ fn do_group_promotion_or_demotion(req: &HttpRequest,
                                   target: PackageTarget,
                                   promote: bool)
                                   -> Result<Vec<i64>> {
-    let session = authorize_session(req, Some(&origin), Some(OriginMemberRole::Maintainer))?;
+    let session = authorize_session(req, Some(origin), Some(OriginMemberRole::Maintainer))?;
 
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
@@ -471,7 +471,7 @@ async fn promote_or_demote_job_group(req: &HttpRequest,
                                      channel: &ChannelIdent,
                                      promote: bool)
                                      -> Result<()> {
-    authorize_session(&req, None, Some(OriginMemberRole::Maintainer))?;
+    authorize_session(req, None, Some(OriginMemberRole::Maintainer))?;
 
     let group_id = match group_id_str.parse::<u64>() {
         Ok(g) => g,
@@ -528,7 +528,7 @@ async fn promote_or_demote_job_group(req: &HttpRequest,
         match do_group_promotion_or_demotion(req,
                                              channel,
                                              projects.to_vec(),
-                                             &origin,
+                                             origin,
                                              target,
                                              promote)
         {
@@ -546,7 +546,7 @@ async fn promote_or_demote_job_group(req: &HttpRequest,
                 let session =
                     authorize_session(req, None, Some(OriginMemberRole::Maintainer)).unwrap(); // Unwrap ok
 
-                PackageGroupChannelAudit::audit(PackageGroupChannelAudit { origin: &origin,
+                PackageGroupChannelAudit::audit(PackageGroupChannelAudit { origin,
                                                                            channel:
                                                                                channel.as_str(),
                                                                            package_ids,
@@ -581,11 +581,12 @@ fn do_get_job(req: &HttpRequest, job_id: u64) -> Result<String> {
         Ok(job) => {
             let job: jobsrv::Job = job.into();
             authorize_session(req,
-                              Some(&job.get_project().get_origin_name()),
+                              Some(job.get_project().get_origin_name()),
                               Some(OriginMemberRole::Member))?;
 
             if job.get_package_ident().fully_qualified() {
-                let builder_package_ident = BuilderPackageIdent(job.get_package_ident().into());
+                let builder_package_ident =
+                    BuilderPackageIdent(job.get_package_ident().clone().into());
                 let channels =
                     channels_for_package_ident(req,
                                                &builder_package_ident,
@@ -621,7 +622,7 @@ async fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jo
     // Before fetching the logs, we need to check and see if the logs we want to fetch are for
     // a job that's building a private package, and if so, do we have the right to see said
     // package.
-    match route_message::<jobsrv::JobGet, jobsrv::Job>(&req, &job_get).await {
+    match route_message::<jobsrv::JobGet, jobsrv::Job>(req, &job_get).await {
         Ok(job) => {
             // It's not sufficient to check the project that's on the job itself, since that
             // project is reconstructed from information available in the database and does
@@ -666,7 +667,7 @@ async fn do_cancel_job_group(req: &HttpRequest, group_id: u64) -> Result<NetOk> 
     let name_split: Vec<&str> = group.get_project_name().split('/').collect();
     assert!(name_split.len() == 2);
 
-    let session = authorize_session(req, Some(&name_split[0]), Some(OriginMemberRole::Member))?;
+    let session = authorize_session(req, Some(name_split[0]), Some(OriginMemberRole::Member))?;
 
     let mut jgc = jobsrv::JobGroupCancel::new();
     jgc.set_group_id(group_id);
@@ -690,7 +691,7 @@ async fn do_rebuild_job_group(req: &HttpRequest,
     let name_split: Vec<&str> = group.get_project_name().split('/').collect();
     assert!(name_split.len() == 2);
 
-    let session = authorize_session(req, Some(&name_split[0]), Some(OriginMemberRole::Member))?;
+    let session = authorize_session(req, Some(name_split[0]), Some(OriginMemberRole::Member))?;
 
     let mut jgr = jobsrv::JobGroupRebuildFromSpec::new();
     jgr.set_job_group_id(group_id);

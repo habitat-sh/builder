@@ -19,7 +19,7 @@ use std::{collections::{HashMap,
           fs::OpenOptions,
           io::{BufRead,
                BufReader},
-          path::PathBuf,
+          path::Path,
           str::FromStr,
           time::Instant};
 
@@ -150,7 +150,7 @@ pub async fn job_log_get(req: &RpcMessage, state: &AppState) -> Result<RpcMessag
 /// because there is not yet any log information for the job, or the
 /// job never had any log information (e.g., it predates this
 /// feature).
-fn get_log_content(log_file: &PathBuf, offset: u64) -> Option<Vec<String>> {
+fn get_log_content(log_file: &Path, offset: u64) -> Option<Vec<String>> {
     match OpenOptions::new().read(true).open(log_file) {
         Ok(file) => {
             let lines = BufReader::new(file).lines()
@@ -247,7 +247,7 @@ fn is_project_buildable(state: &AppState, project_name: &str, target: &str) -> b
         target
     };
 
-    match Project::get(project_name, &target, &*conn) {
+    match Project::get(project_name, target, &*conn) {
         Ok(project) => project.auto_build,
         Err(diesel::result::Error::NotFound) => false,
         Err(err) => {
@@ -274,7 +274,7 @@ fn populate_build_projects(msg: &jobsrv::JobGroupSpec,
         // If the project is not linked to Builder, or is not auto-buildable
         // then we will skip it, as well as any later projects that depend on it
         // TODO (SA): Move the project list creation/vetting to background thread
-        if !is_project_buildable(state, &s.0, &msg.get_target()) {
+        if !is_project_buildable(state, &s.0, msg.get_target()) {
             debug!("Project is not linked to Builder or not auto-buildable - not adding: {}",
                    &s.0);
             excluded.insert(s.0.clone());
@@ -334,9 +334,9 @@ pub fn job_group_create(req: &RpcMessage, state: &AppState) -> Result<RpcMessage
     }
 
     let group = if feat::is_enabled(feat::NewScheduler) {
-        job_group_create_new(&msg, target, &state)?
+        job_group_create_new(&msg, target, state)?
     } else {
-        job_group_create_old(&msg, target, &state)?
+        job_group_create_old(&msg, target, state)?
     };
     RpcMessage::make(&group).map_err(Error::BuilderCore)
 }
@@ -405,7 +405,7 @@ fn job_group_create_old(msg: &jobsrv::JobGroupSpec,
                 debug!("Graph rdeps: {} items ({} sec)\n",
                        rdeps.len(),
                        start_time.elapsed().as_secs_f64());
-                populate_build_projects(&msg, state, &rdeps, &mut projects);
+                populate_build_projects(msg, state, &rdeps, &mut projects);
             }
             None => {
                 debug!("Graph rdeps: no entries found");
@@ -429,12 +429,12 @@ fn job_group_create_old(msg: &jobsrv::JobGroupSpec,
         // TODO (SA) - update the group's projects instead of just returning the group
         let conn = state.db.get_conn().map_err(Error::Db)?;
 
-        let new_group = match Group::get_queued(&project_name, &msg.get_target(), &*conn) {
+        let new_group = match Group::get_queued(&project_name, msg.get_target(), &*conn) {
             Ok(group) => {
                 debug!("JobGroupSpec, project {} is already queued", project_name);
                 group.into()
             }
-            Err(NotFound) => state.datastore.create_job_group(&msg, projects)?,
+            Err(NotFound) => state.datastore.create_job_group(msg, projects)?,
             Err(err) => {
                 debug!("Failed to retrieve queued groups, err = {}", err);
                 return Err(Error::DieselError(err));
@@ -442,7 +442,7 @@ fn job_group_create_old(msg: &jobsrv::JobGroupSpec,
         };
         ScheduleClient::default().notify()?;
 
-        add_job_group_audit_entry(new_group.get_id(), &msg, &state.datastore);
+        add_job_group_audit_entry(new_group.get_id(), msg, &state.datastore);
 
         Ok(new_group)
     }
@@ -536,7 +536,7 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
         block_on(scheduler.job_group_added(GroupId(group.id), BuilderPackageTarget(target)));
     }
 
-    add_job_group_audit_entry(group.id as u64, &msg, &state.datastore);
+    add_job_group_audit_entry(group.id as u64, msg, &state.datastore);
     Ok(group.into())
 }
 
@@ -582,8 +582,7 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
     let new_group_data = Group::create(&new_group, &conn)?;
 
     let old_channel = Channel::channel_for_group(old_group_data.id as u64);
-    let old_channel_data =
-        Channel::get(&msg.get_origin(), &ChannelIdent::from(old_channel), &conn)?;
+    let old_channel_data = Channel::get(msg.get_origin(), &ChannelIdent::from(old_channel), &conn)?;
 
     let new_channel = Channel::channel_for_group(new_group_data.id as u64);
     let new_channel_data = Channel::create(&CreateChannel { name:     &new_channel,
@@ -655,7 +654,7 @@ fn make_manifest_from_plans(plans: &[PackageIdentIntern],
     // the trait is an artifact of how we managed the transition from the old code to new.
     // Once we get to the point where we can get rid of the old scheduler and
     // clean up the datastore layer, we can eliminate this.
-    let mut manifest = graph.compute_build(&plans, &graph_datastore)?;
+    let mut manifest = graph.compute_build(plans, &graph_datastore)?;
 
     // This can be removed once we get a worker API that lets us exactly specify the
     // dependencies. Without that the worker takes whatever is latest in the channel,
@@ -699,7 +698,7 @@ fn insert_job_graph_entries(manifest: &PackageBuildManifest,
                                           JobExecState::Pending,
                                           &dependency_ids,
                                           target);
-        let entry = JobGraphEntry::create(&entry, &conn)?;
+        let entry = JobGraphEntry::create(&entry, conn)?;
 
         lookup.insert(package.name, entry.id);
         // TODO: Should we error if we get Some(id) back?
@@ -792,7 +791,7 @@ pub fn job_graph_package_reverse_dependencies_grouped_get(req: &RpcMessage,
             let rdeps = if rd.is_empty() {
                 RepeatedField::new()
             } else {
-                let rdeps = compute_rdep_build_groups(state, &ident, &msg.get_target(), &rd)?;
+                let rdeps = compute_rdep_build_groups(state, &ident, msg.get_target(), &rd)?;
                 RepeatedField::from_vec(rdeps)
             };
             rd_reply.set_rdeps(rdeps);
@@ -931,7 +930,7 @@ pub fn job_graph_package_create(req: &RpcMessage, state: &AppState) -> Result<Rp
         }
     };
     let start_time = Instant::now();
-    let (ncount, ecount) = graph.extend(&package, feat::is_enabled(feat::BuildDeps));
+    let (ncount, ecount) = graph.extend(package, feat::is_enabled(feat::BuildDeps));
     debug!("Extended graph, nodes: {}, edges: {} ({} sec)\n",
            ncount,
            ecount,

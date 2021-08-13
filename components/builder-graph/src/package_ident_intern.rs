@@ -189,7 +189,7 @@ impl FromStr for PackageIdentIntern {
 // }
 
 impl From<&PackageIdent> for PackageIdentIntern {
-    fn from(ident: &PackageIdent) -> Self { PackageIdentIntern::from_ident(&ident) }
+    fn from(ident: &PackageIdent) -> Self { PackageIdentIntern::from_ident(ident) }
 }
 
 impl From<PackageIdent> for PackageIdentIntern {
@@ -208,6 +208,7 @@ impl From<BuilderPackageIdent> for PackageIdentIntern {
     fn from(ident: BuilderPackageIdent) -> Self { PackageIdentIntern::from_ident(&ident.0) }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<PackageIdent> for PackageIdentIntern {
     fn into(self) -> PackageIdent {
         PackageIdent::new(self.origin(), self.name(), self.version(), self.release())

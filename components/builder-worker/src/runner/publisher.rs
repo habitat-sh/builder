@@ -122,7 +122,7 @@ impl Publisher {
                             auth_token: &str,
                             logger: &mut Logger)
                             -> std::result::Result<(), builder_core::Error> {
-        let res = client.create_channel(&ident.origin, &channel, auth_token)
+        let res = client.create_channel(&ident.origin, channel, auth_token)
                         .await;
         if let Err(ref err) = res {
             let msg = format!("Create channel {}: {:?}", channel, err);

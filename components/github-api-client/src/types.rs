@@ -363,8 +363,8 @@ mod test {
 
     #[test]
     fn branch_from_hook() {
-        let mut hook = GitHubWebhookPush::default();
-        hook.git_ref = "refs/heads/master".to_string();
+        let hook = GitHubWebhookPush { git_ref: "refs/heads/master".to_string(),
+                                       ..Default::default() };
         assert_eq!(hook.branch(), "master");
     }
 }

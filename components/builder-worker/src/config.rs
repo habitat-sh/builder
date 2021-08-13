@@ -145,7 +145,7 @@ mod tests {
         port = 9000
         "#;
 
-        let config = Config::from_raw(&content).unwrap();
+        let config = Config::from_raw(content).unwrap();
         assert_eq!(&format!("{}", config.data_path.display()), "/path/to/data");
         assert_eq!(&format!("{}", config.log_path.display()), "/path/to/logs");
         assert_eq!(config.key_dir, KeyCache::new("/path/to/key"));

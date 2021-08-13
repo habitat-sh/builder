@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::iter::FromIterator;
-
 use actix_web::{http::StatusCode,
                 web::{self,
                       Json,
@@ -99,7 +97,7 @@ async fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str)
     let header_values = vec![USER_AGENT_BLDR.clone(),
                              ACCEPT_APPLICATION_JSON.clone(),
                              CONTENT_TYPE_APPLICATION_JSON.clone(),];
-    let headers = HeaderMap::from_iter(header_values.into_iter());
+    let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
     let client = HttpClient::new(actual_url, headers)?;
     let sbody = serde_json::to_string(&body.into_inner()).unwrap();

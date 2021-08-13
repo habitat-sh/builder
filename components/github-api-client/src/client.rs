@@ -14,7 +14,6 @@ use reqwest::{header::HeaderMap,
               StatusCode};
 
 use std::{collections::HashMap,
-          iter::FromIterator,
           path::Path,
           time::{Duration,
                  SystemTime,
@@ -66,7 +65,7 @@ impl GitHubClient {
         let header_values = vec![USER_AGENT_BLDR.clone(),
                                  ACCEPT_GITHUB_JSON.clone(),
                                  CONTENT_TYPE_APPLICATION_JSON.clone()];
-        let headers = HeaderMap::from_iter(header_values.into_iter());
+        let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         Ok(GitHubClient { inner:           HttpClient::new(&config.api_url, headers)?,
                           api_url:         config.api_url,

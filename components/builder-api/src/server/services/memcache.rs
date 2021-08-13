@@ -56,10 +56,7 @@ impl MemcacheClient {
             None => "".to_string(),
         };
 
-        let body = match pkg_json {
-            Some(json) => json,
-            None => "404",
-        };
+        let body = pkg_json.unwrap_or("404");
 
         match self.cli.set(&format!("{}/{}/{}:{}:{}{}",
                                     target,

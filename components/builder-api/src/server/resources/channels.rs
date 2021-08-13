@@ -236,13 +236,13 @@ fn promote_channel_packages(req: HttpRequest,
             match PackageGroupChannelAudit::audit(
                 PackageGroupChannelAudit {
                     origin: &origin,
-                    channel: &ch_target.as_str(),
+                    channel: ch_target.as_str(),
                     package_ids: pkg_ids,
                     operation: PackageChannelOperation::Promote,
                     trigger: helpers::trigger_from_request_model(&req),
                     requester_id: session.get_id() as i64,
                     requester_name: session.get_name(),
-                    group_id: 0 as i64,
+                    group_id: 0_i64,
                 },
                 &*conn,
             ) {
@@ -289,13 +289,13 @@ fn demote_channel_packages(req: HttpRequest,
             match PackageGroupChannelAudit::audit(
                 PackageGroupChannelAudit {
                     origin: &origin,
-                    channel: &ch_target.as_str(),
+                    channel: ch_target.as_str(),
                     package_ids: pkg_ids,
                     operation: PackageChannelOperation::Demote,
                     trigger: helpers::trigger_from_request_model(&req),
                     requester_id: session.get_id() as i64,
                     requester_name: session.get_name(),
-                    group_id: 0 as i64,
+                    group_id: 0_i64,
                 },
                 &*conn,
             ) {
@@ -337,17 +337,17 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
         return Err(Error::BadRequest);
     }
 
-    let pkgs = do_get_all_channel_packages(&req, &origin, &ch_source)?;
+    let pkgs = do_get_all_channel_packages(req, origin, ch_source)?;
 
     #[rustfmt::skip]
-    let channel = match Channel::get(&origin, &ch_target, &*conn) {
+    let channel = match Channel::get(origin, ch_target, &*conn) {
         Ok(channel) => channel,
         Err(NotFound) => {
             if (ch_target != &ChannelIdent::stable()) && (ch_target != &ChannelIdent::unstable()) {
                 Channel::create(
                     &CreateChannel {
-                        name:     &ch_target.as_str(),
-                        origin:   &origin,
+                        name:     ch_target.as_str(),
+                        origin,
                         owner_id: session_id,
                     },
                 &*conn)?
@@ -426,7 +426,7 @@ async fn promote_package(req: HttpRequest,
                                            trigger:
                                                helpers::trigger_from_request_model(&req),
                                            requester_id:   session.get_id() as i64,
-                                           requester_name: &session.get_name(),
+                                           requester_name: session.get_name(),
                                            origin:         &origin, };
 
     match OriginChannelPackage::promote(
@@ -521,7 +521,7 @@ fn demote_package(req: HttpRequest,
                     operation: PackageChannelOperation::Demote,
                     trigger: helpers::trigger_from_request_model(&req),
                     requester_id: session.get_id() as i64,
-                    requester_name: &session.get_name(),
+                    requester_name: session.get_name(),
                     origin: &origin,
                 },
                 &*conn,
@@ -721,7 +721,7 @@ fn do_get_latest_channel_packages(req: &HttpRequest,
                                   origin: &str,
                                   channel: &ChannelIdent)
                                   -> Result<(String, String, Vec<BuilderPackageIdent>)> {
-    let opt_session_id = match authorize_session(&req, None, None) {
+    let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
@@ -739,7 +739,7 @@ fn do_get_latest_channel_packages(req: &HttpRequest,
 
     Channel::list_latest_packages(
         &ListAllChannelPackagesForTarget {
-            visibility: &helpers::visibility_for_optional_session(&req, opt_session_id, &origin),
+            visibility: &helpers::visibility_for_optional_session(req, opt_session_id, origin),
             channel,
             origin,
             target,
@@ -754,7 +754,7 @@ fn do_get_channel_packages(req: &HttpRequest,
                            ident: &PackageIdent,
                            channel: &ChannelIdent)
                            -> Result<(Vec<BuilderPackageIdent>, i64)> {
-    let opt_session_id = match authorize_session(&req, None, None) {
+    let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
     };
@@ -766,7 +766,7 @@ fn do_get_channel_packages(req: &HttpRequest,
         &ListChannelPackages {
             ident: &BuilderPackageIdent(ident.clone()),
             visibility: &helpers::visibility_for_optional_session(
-                &req,
+                req,
                 opt_session_id,
                 &ident.origin,
             ),
@@ -787,7 +787,7 @@ fn do_get_all_channel_packages(req: &HttpRequest,
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     Channel::list_all_packages(&ListAllChannelPackages { visibility: &PackageVisibility::all(),
-                                                         origin: &origin,
+                                                         origin,
                                                          channel },
                                &*conn).map_err(Error::DieselError)
 }

@@ -30,15 +30,15 @@ pub use crate::message::{jobsrv::*,
 
 pub const GITHUB_PUSH_NOTIFY_ID: u64 = 23;
 
-impl Into<Job> for JobSpec {
-    fn into(mut self) -> Job {
+impl From<JobSpec> for Job {
+    fn from(mut value: JobSpec) -> Job {
         let mut job = Job::new();
-        job.set_owner_id(self.get_owner_id());
+        job.set_owner_id(value.get_owner_id());
         job.set_state(JobState::default());
-        job.set_project(self.take_project());
-        job.set_target(self.take_target());
-        if self.has_channel() {
-            job.set_channel(self.take_channel());
+        job.set_project(value.take_project());
+        job.set_target(value.take_target());
+        if value.has_channel() {
+            job.set_channel(value.take_channel());
         }
         job
     }
@@ -249,22 +249,22 @@ impl FromStr for JobGroupOperation {
     }
 }
 
-impl Into<OriginPackage> for JobGraphPackagePreCreate {
-    fn into(self) -> OriginPackage {
+impl From<JobGraphPackagePreCreate> for OriginPackage {
+    fn from(value: JobGraphPackagePreCreate) -> OriginPackage {
         let mut package = OriginPackage::new();
 
-        let name = self.get_ident().to_string();
-        let target = self.get_target().to_string();
+        let name = value.get_ident().to_string();
+        let target = value.get_target().to_string();
 
-        let deps = self.get_deps()
-                       .iter()
-                       .map(|x| originsrv::OriginPackageIdent::from_str(&x).unwrap())
-                       .collect();
+        let deps = value.get_deps()
+                        .iter()
+                        .map(|x| originsrv::OriginPackageIdent::from_str(x).unwrap())
+                        .collect();
 
-        let build_deps = self.get_build_deps()
-                             .iter()
-                             .map(|x| originsrv::OriginPackageIdent::from_str(&x).unwrap())
-                             .collect();
+        let build_deps = value.get_build_deps()
+                              .iter()
+                              .map(|x| originsrv::OriginPackageIdent::from_str(x).unwrap())
+                              .collect();
 
         package.set_ident(originsrv::OriginPackageIdent::from_str(&name).unwrap());
         package.set_target(target);
@@ -469,7 +469,6 @@ impl FromStr for Os {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::iter::FromIterator;
 
     #[test]
     fn test_ansi_stripping() {
@@ -486,7 +485,7 @@ mod tests {
         // https://github.com/rust-lang/rust-clippy/issues/3071U
         #[allow(clippy::redundant_closure)]
         let input_lines = lines.iter().map(|l| (*l).to_string());
-        let content = RepeatedField::from_iter(input_lines);
+        let content = input_lines.collect::<RepeatedField<_>>();
         log.set_content(content);
 
         log.strip_ansi();

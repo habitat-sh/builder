@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::iter::FromIterator;
-
 use reqwest::{header::HeaderMap,
               Body};
 
@@ -32,7 +30,6 @@ pub struct ActiveDirectory;
 #[derive(Deserialize)]
 struct AuthOk {
     pub access_token: String,
-    pub id_token:     String,
 }
 
 #[derive(Deserialize)]
@@ -47,7 +44,7 @@ impl ActiveDirectory {
                   token: &str)
                   -> Result<OAuth2User> {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
-        let headers = HeaderMap::from_iter(header_values.into_iter());
+        let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let resp = client.get(&config.userinfo_url)
                          .headers(headers)
@@ -89,7 +86,7 @@ impl OAuth2Provider for ActiveDirectory {
 
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
                                  CONTENT_TYPE_FORM_URL_ENCODED.clone()];
-        let headers = HeaderMap::from_iter(header_values.into_iter());
+        let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let body: Body = body.into();
 

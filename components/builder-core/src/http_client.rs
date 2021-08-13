@@ -130,7 +130,7 @@ fn process_cache_dir<P>(cache_path: P, mut certificates: &mut Vec<Certificate>)
 fn process_cert_file(certificates: &mut Vec<Certificate>, file_path: &Path) {
     debug!("Processing cert file: {}", file_path.display());
 
-    match cert_from_file(&file_path) {
+    match cert_from_file(file_path) {
         Ok(cert) => certificates.push(cert),
         Err(err) => {
             debug!("Unable to process cert file: {}, err={:?}",
