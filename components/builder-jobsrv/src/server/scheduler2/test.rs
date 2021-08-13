@@ -113,13 +113,21 @@ async fn simple_job_group_added() {
     let gid = GroupId(entry.group_id);
 
     let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-    assert_match!(states, JobStateCounts{ pd : 2, wd : 0, rd :0, rn : 0, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 2,
+                                   wd: 0,
+                                   rd: 0,
+                                   rn: 0, });
 
     scheduler.job_group_added(gid, *TARGET_LINUX).await;
     scheduler.request_state().await; // make sure scheduler has finished work
 
     let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-    assert_match!(states, JobStateCounts{ pd : 0, wd : 1, rd : 1, rn : 0, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 0,
+                                   wd: 1,
+                                   rd: 1,
+                                   rn: 0, });
 
     drop(scheduler);
     join.await.unwrap();
@@ -264,16 +272,15 @@ fn setup_dispatching_job_fetch() -> Vec<Box<dyn SchedulerDataStore>> {
 
     #[cfg(feature = "to_be_implemented")] // TODO write the Dummy impl.
     {
-            let actions =
-                vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget {target: *TARGET_LINUX,},
-                      DummySchedulerDataStoreResult::JobOption(Ok(Some(make_job_graph_entry(0))))),
-                     (DummySchedulerDataStoreCall::TakeNextJobForTarget {target: *TARGET_WINDOWS,},
-                      DummySchedulerDataStoreResult::JobOption(Ok(None))),
-            ];
+        let actions =
+            vec![(DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_LINUX, },
+                  DummySchedulerDataStoreResult::JobOption(Ok(Some(make_job_graph_entry(0))))),
+                 (DummySchedulerDataStoreCall::TakeNextJobForTarget { target: *TARGET_WINDOWS, },
+                  DummySchedulerDataStoreResult::JobOption(Ok(None))),];
 
-            let _dummy_store = Box::new(DummySchedulerDataStore::new(actions));
-            // stores.push(dummy_store);
-        }
+        let _dummy_store = Box::new(DummySchedulerDataStore::new(actions));
+        // stores.push(dummy_store);
+    }
 
     #[cfg(feature = "postgres_tests")]
     {
@@ -322,14 +329,25 @@ async fn simple_job_failed() {
     let gid = GroupId(entry.group_id);
 
     let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-    assert_match!(states, JobStateCounts{ pd : 0, wd : 1, rd :0, rn : 1, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 0,
+                                   wd: 1,
+                                   rd: 0,
+                                   rn: 1, });
 
     entry.job_state = JobExecState::JobFailed;
     scheduler.worker_finished(worker.clone(), entry).await;
     scheduler.request_state().await; // make sure scheduler has finished work
 
     let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-    assert_match!(states, JobStateCounts{ pd : 0, wd : 0, rd : 0, rn : 0, ct: 0, jf: 1, df: 1, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 0,
+                                   wd: 0,
+                                   rd: 0,
+                                   rn: 0,
+                                   ct: 0,
+                                   jf: 1,
+                                   df: 1, });
 
     let group = Group::get(gid.0, &conn).unwrap();
     assert_eq!(group.group_state, "Failed");
@@ -386,7 +404,11 @@ async fn simple_job_complete() {
     let gid = GroupId(entry.group_id);
 
     let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-    assert_match!(states, JobStateCounts{ pd : 0, wd : 1, rd :0, rn : 1, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 0,
+                                   wd: 1,
+                                   rd: 0,
+                                   rn: 1, });
 
     // entry.job_state = JobExecState::Complete;
     // scheduler.worker_finished(worker.clone(), entry).await;
@@ -395,7 +417,12 @@ async fn simple_job_complete() {
     // let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
     let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
     let states = advance_job_state_to_complete(1, &as_built, &mut scheduler, &conn).await;
-    assert_match!(states, JobStateCounts{ pd : 0, wd : 0, rd : 1, rn : 0, ct: 1, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 0,
+                                   wd: 0,
+                                   rd: 1,
+                                   rn: 0,
+                                   ct: 1, });
 
     // Verify we have commited this to db
     let committed_entry = JobGraphEntry::get(1, &conn).unwrap();
@@ -412,8 +439,12 @@ async fn simple_job_complete() {
     scheduler.request_state().await; // make sure scheduler has finished work
 
     let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-    assert_match!(states, JobStateCounts{ pd : 0, wd : 0, rd : 0, rn
-        : 0, ct: 2, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 0,
+                                   wd: 0,
+                                   rd: 0,
+                                   rn: 0,
+                                   ct: 2, });
 
     let group = Group::get(gid.0, &conn).unwrap();
     assert_eq!(group.group_state, "Complete");
@@ -436,20 +467,30 @@ async fn diamond_job_failure() {
     let gid = GroupId(entry.group_id);
 
     let states = JobGraphEntry::count_all_states(gid.0, &conn).unwrap();
-    assert_match!(states, JobStateCounts{ pd: 0, wd: 3, rd: 0, rn: 1, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 0,
+                                   wd: 3,
+                                   rd: 0,
+                                   rn: 1, });
 
     // Complete the top job
     let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct
     let states = advance_job_state_to_complete(1, &as_built, &mut scheduler, &conn).await;
     assert_match!(states,
-                      JobStateCounts { wd: 1,
-                                                                rd: 2,
-                                                                ct: 1,
-                                                                .. });
+                  JobStateCounts { wd: 1,
+                                   rd: 2,
+                                   ct: 1, });
 
     // Fail the left job
     let states = advance_job_state(2, JobExecState::JobFailed, &mut scheduler, &conn).await;
-    assert_match!(states, JobStateCounts{ pd: 0, wd: 0, rd: 1, rn: 0, ct: 1, jf: 1, df: 1, ..});
+    assert_match!(states,
+                  JobStateCounts { pd: 0,
+                                   wd: 0,
+                                   rd: 1,
+                                   rn: 0,
+                                   ct: 1,
+                                   jf: 1,
+                                   df: 1, });
 
     // Complete the right job
     let as_built = BuilderPackageIdent::from_str("foo/dummydata/1.2.3/123").unwrap(); // not really correct

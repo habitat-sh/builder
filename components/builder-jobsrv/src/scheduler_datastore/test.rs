@@ -303,18 +303,30 @@ fn mark_job_complete_interleaved() {
     assert_eq!(ready.unwrap(), 2);
 
     assert_match!(JobGraphEntry::count_all_states(1, &conn).unwrap(),
-                      JobStateCounts { pd: 0, wd: 1, rd: 2, rn: 0, ct: 1, .. });
+                  JobStateCounts { pd: 0,
+                                   wd: 1,
+                                   rd: 2,
+                                   rn: 0,
+                                   ct: 1, });
     assert_match!(JobGraphEntry::count_all_states(2, &conn).unwrap(),
-                      JobStateCounts {pd: 0, wd: 3, rd: 1, .. });
+                  JobStateCounts { pd: 0,
+                                   wd: 3,
+                                   rd: 1, });
 
     // Get another job from group 1
     let job_a = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()
                                                                                 .unwrap();
     assert_eq!(job_a.group_id, 1);
     assert_match!(JobGraphEntry::count_all_states(1, &conn).unwrap(),
-                      JobStateCounts { pd: 0, wd: 1, rd: 1, rn: 1, ct: 1, .. });
+                  JobStateCounts { pd: 0,
+                                   wd: 1,
+                                   rd: 1,
+                                   rn: 1,
+                                   ct: 1, });
     assert_match!(JobGraphEntry::count_all_states(2, &conn).unwrap(),
-                      JobStateCounts {pd: 0, wd: 3, rd: 1, .. });
+                  JobStateCounts { pd: 0,
+                                   wd: 3,
+                                   rd: 1, });
 
     // Get another job, expect group 1
     let job_b = JobGraphEntry::take_next_job_for_target(*TARGET_PLATFORM, &conn).unwrap()
