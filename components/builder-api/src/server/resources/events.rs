@@ -98,7 +98,8 @@ async fn get_events_from_saas(req: HttpRequest,
                 Ok(body) => {
                     let mut http_response = HttpResponse::Ok();
 
-                    http_response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                    http_response.append_header((http::header::CONTENT_TYPE,
+                                                 headers::APPLICATION_JSON))
                                  .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                                  .body(body)
                 }
@@ -172,8 +173,7 @@ pub fn postprocess_event_list(_req: &HttpRequest,
     debug!("postprocessing event list, start: {}, stop: {}, total_count: {}",
            start, stop, count);
 
-    let body =
-        helpers::package_results_json(events, count as isize, start as isize, stop as isize);
+    let body = helpers::package_results_json(events, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
