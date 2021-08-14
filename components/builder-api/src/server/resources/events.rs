@@ -98,8 +98,8 @@ async fn get_events_from_saas(req: HttpRequest,
                 Ok(body) => {
                     let mut http_response = HttpResponse::Ok();
 
-                    http_response.header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-                                 .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+                    http_response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                                 .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                                  .body(body)
                 }
                 Err(err) => {
@@ -181,7 +181,7 @@ pub fn postprocess_event_list(_req: &HttpRequest,
         HttpResponse::Ok()
     };
 
-    response.header(http::header::CONTENT_TYPE, headers::APPLICATION_JSON)
-            .header(http::header::CACHE_CONTROL, headers::NO_CACHE)
+    response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
             .body(body)
 }
