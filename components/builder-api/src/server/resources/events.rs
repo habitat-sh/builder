@@ -173,7 +173,7 @@ pub fn postprocess_event_list(_req: &HttpRequest,
            start, stop, count);
 
     let body =
-        helpers::package_results_json(&events, count as isize, start as isize, stop as isize);
+        helpers::package_results_json(events, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
