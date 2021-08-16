@@ -41,7 +41,7 @@ log = "*"
 num_cpus = "*"
 protobuf = "*"
 postgres = { version = "*", features = ["with-chrono"] }
-postgres-derive = "0.3.3"
+postgres-types = { version = "*", features = ["derive"] }
 rand = "*"
 r2d2 = "*"
 serde = "*"

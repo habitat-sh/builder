@@ -24,10 +24,10 @@ fnv = "*"
 fallible-iterator = "*"
 paste = "*"
 percent-encoding = "*"
-postgres = "0.15.2"
-postgres-derive = "0.3.3"
+postgres = "*"
+postgres-types = { version = "*", features = ["derive"] }
 postgres-shared = "*"
-r2d2_postgres = "0.14.0"
+r2d2_postgres = "*"
 threadpool = "*"
 url = "*"
 
