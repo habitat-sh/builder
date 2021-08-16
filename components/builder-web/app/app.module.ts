@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import { OriginModule } from './origin/origin.module';
 import { PackageModule } from './package/package.module';
 import { ProfileModule } from './profile/profile.module';
 import { SearchModule } from './search/search.module';
+import { EventsModule } from './events/events.module';
 import { SharedModule } from './shared/shared.module';
 
 @NgModule({
@@ -48,6 +49,7 @@ import { SharedModule } from './shared/shared.module';
     ReactiveFormsModule,
     RouterModule,
     SearchModule,
+    EventsModule,
     SharedModule,
     routing
   ],

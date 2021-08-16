@@ -1,0 +1,104 @@
+// Copyright (c) 2021 Chef Software Inc. and/or applicable contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+.event-filter {
+  width: 100%;
+
+  .date-filter {
+    float: right;
+    right: 0;
+
+    .show-label {
+      display: inline-block;
+      padding: 5px 0;
+      padding-right: $default-margin;
+      font-weight: 600;
+    }
+
+    .dropdown-toggle {
+      cursor: pointer; 
+      background: #fff;
+      border: $default-border; 
+    }
+
+    .calender-view {
+      @include shadow-panel;
+      display: inline-block;
+      color: $hab-text;
+      position: absolute;
+      right: $default-margin;
+      z-index: 100;
+      min-width: 38rem;
+      min-height: 25rem;
+      margin-top: 40px;
+
+      .close {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        width: 16px;
+        height: 16px;
+        opacity: 0.6;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+
+      .text-right {
+        text-align: right;
+      }
+
+      .date-range-head {
+        text-transform: uppercase; 
+        font-weight: 600; 
+        line-height: 1.2rem; 
+        margin-bottom: 10px; 
+        margin-left: 16px; 
+      }
+
+      .calendar-card {
+        width: 300px;
+      }
+      
+      .light-border {
+        border-right: 1px solid $light-gray;
+      }
+      
+      .float-right {
+        float: right;
+      }
+      
+      .float-left {
+        float: left;
+      }
+      
+      .date-txt {
+        margin-left: 16px; 
+        text-transform: uppercase;
+      }
+      
+      .button-cancel {
+        margin-right: 10px;
+      }
+      
+    }
+  }
+
+  .clearfix {
+    content: "";
+    clear: both;
+    display: table;
+  }
+}

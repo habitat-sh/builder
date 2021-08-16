@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -242,6 +242,26 @@ export {
   TOGGLE_USER_NAV_MENU,
   toggleUserNavMenu
 } from './users';
+
+export {
+  CLEAR_EVENTS,
+  SET_VISIBLE_EVENTS,
+  SET_EVENTS_TOTAL_COUNT,
+  SET_EVENTS_NEXT_RANGE,
+  SET_EVENTS_SEARCH_QUERY,
+  SET_EVENTS_DATE_FILTER,
+  fetchEvents
+} from './events';
+
+export {
+  CLEAR_SAAS_EVENTS,
+  SET_VISIBLE_SAAS_EVENTS,
+  SET_SAAS_EVENTS_TOTAL_COUNT,
+  SET_SAAS_EVENTS_NEXT_RANGE,
+  SET_SAAS_EVENTS_SEARCH_QUERY,
+  SET_SAAS_EVENTS_DATE_FILTER,
+  fetchSaasEvents
+} from './events-saas';
 
 // Used by redux-reset to reset the app state
 export const RESET = 'RESET';

@@ -3,6 +3,7 @@ const supertest = require('supertest');
 const binaryParser = require('superagent-binary-parser');
 const request = supertest('http://localhost:9636/v1');
 const fs = require('fs');
+const { appendDateRange } = require('./util');
 
 const release1 = '20171205003213';
 const release2 = '20171206004121';
@@ -791,12 +792,45 @@ describe('Working with packages', function () {
         });
     });
 
+    it('tests that there are no builder events initially', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
+          done(err);
+        });
+    });
+
     it('puts the uploaded package into the stable channel', function (done) {
       request.put(`/depot/channels/neurosis/stable/pkgs/testapp3/0.1.0/${release9}/promote`)
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('tests that there is a builder event after promoting a package', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(0);
+          expect(res.body.total_count).to.equal(1);
+          expect(res.body.data.length).to.equal(1);
+          expect(res.body.data[0].operation).to.equal('Promote');
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].channel).to.equal('stable');
           done(err);
         });
     });
@@ -836,6 +870,28 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    // TODO supposed to be empty, need to revisit 
+    it('tests the builder events after demoting a package', function (done) {
+      const url = appendDateRange('/depot/events');
+      request.get(url)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(1);
+          expect(res.body.total_count).to.equal(2);
+          expect(res.body.data.length).to.equal(2);
+          expect(res.body.data[0].operation).to.equal('Demote');
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].channel).to.equal('stable');
+          expect(res.body.data[1].operation).to.equal('Promote');
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].channel).to.equal('stable');
           done(err);
         });
     });

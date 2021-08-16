@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,8 +18,10 @@ import { AppStore } from './app.store';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { URLSearchParams } from '@angular/http';
 import { ActivatedRoute, Router, NavigationEnd, NavigationStart } from '@angular/router';
-import { identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
-  routeChange, loadOAuthProvider, routeChangeEnd, setPackagesSearchQuery, signOut, toggleUserNavMenu } from './actions/index';
+import {
+  identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
+  routeChange, loadOAuthProvider, routeChangeEnd, setPackagesSearchQuery, signOut, toggleUserNavMenu
+} from './actions/index';
 
 const md5 = require('blueimp-md5');
 
@@ -119,6 +121,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   get username() {
     return this.state.users.current.profile.name;
+  }
+
+  get enabledEvents() {
+    return this.state.features.events;
+  }
+
+  get enabledSaasEvents() {
+    return this.state.features.saasEvents;
   }
 
   ngOnDestroy() {

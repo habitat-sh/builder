@@ -19,6 +19,10 @@ export class Browser {
     window.location.href = url;
   }
 
+  static openInTab(url) {
+    window.open(url, '_blank');
+  }
+
   static removeCookie(key) {
     cookies.remove(key, { domain: this.cookieDomain });
   }

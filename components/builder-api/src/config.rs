@@ -108,6 +108,7 @@ pub struct ApiCfg {
     pub features_enabled: Vec<String>,
     pub build_on_upload:  bool,
     pub private_max_age:  usize,
+    pub saas_bldr_url:    String,
 }
 
 mod deserialize_into_vec {
@@ -134,7 +135,8 @@ impl Default for ApiCfg {
                  build_targets:    vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
                  features_enabled: vec!["jobsrv".to_string()],
                  build_on_upload:  true,
-                 private_max_age:  300, }
+                 private_max_age:  300,
+                 saas_bldr_url:    "https://bldr.habitat.sh".to_string(), }
     }
 }
 

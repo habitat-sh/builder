@@ -9,6 +9,7 @@ pub mod services;
 use self::{framework::middleware::authentication_middleware,
            resources::{authenticate::Authenticate,
                        channels::Channels,
+                       events::Events,
                        ext::Ext,
                        jobs::Jobs,
                        notify::Notify,
@@ -170,6 +171,7 @@ pub async fn run(config: Config) -> error::Result<()> {
                     .configure(Projects::register)
                     .configure(Settings::register)
                     .configure(User::register)
+                    .configure(Events::register)
                     .service(
                         web::resource("/status")
                             .route(web::get().to(status))

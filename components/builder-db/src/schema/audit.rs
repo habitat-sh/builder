@@ -42,3 +42,11 @@ table! {
         created_at -> Nullable<Timestamptz>,
     }
 }
+
+use super::{member::origin_members,
+            origin::origins,
+            package::origin_packages};
+
+allow_tables_to_appear_in_same_query!(audit_package, origin_packages);
+allow_tables_to_appear_in_same_query!(audit_package, origins);
+allow_tables_to_appear_in_same_query!(audit_package, origin_members);
