@@ -23,7 +23,7 @@ subscriptions:
     actions:
       - trigger_pipeline:post_habitat_release
 
-  - workload: pull_request_merged:habitat-sh/builder:master:*
+  - workload: pull_request_merged:habitat-sh/builder:main:*
     actions:
       - bash:.expeditor/scripts/post_datadog_merge_event.sh:
           always_run: true
