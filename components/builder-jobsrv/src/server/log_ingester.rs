@@ -51,7 +51,7 @@ impl LogIngester {
         let intake_sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::ROUTER).unwrap();
         intake_sock.set_router_mandatory(true).unwrap();
         LogIngester { intake_sock,
-                      msg: zmq::Message::new().unwrap(),
+                      msg: zmq::Message::new(),
                       log_dir,
                       log_ingestion_addr: config.net.log_ingestion_addr(),
                       data_store,

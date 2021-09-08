@@ -27,7 +27,7 @@ serde_json = "*"
 toml = { version = "*", default-features = false }
 walkdir = "*"
 url = "*"
-zmq = { git = "https://github.com/habitat-sh/rust-zmq", branch = "v0.8-symlinks-removed" }
+zmq = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

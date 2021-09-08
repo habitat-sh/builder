@@ -63,7 +63,7 @@ impl ScheduleClient {
     }
 
     pub fn notify(&mut self) -> Result<()> {
-        self.socket.send(&[1], 0)?;
+        self.socket.send(vec![1], 0)?;
         Ok(())
     }
 }
@@ -101,7 +101,7 @@ impl ScheduleMgr {
         ScheduleMgr { datastore: datastore.clone(),
                       db,
                       logger: Logger::init(cfg.log_path.clone(), "builder-scheduler.log"),
-                      msg: zmq::Message::new().unwrap(),
+                      msg: zmq::Message::new(),
                       schedule_cli,
                       socket,
                       worker_mgr,
@@ -130,12 +130,12 @@ impl ScheduleMgr {
         rz.send(()).unwrap();
         loop {
             {
-                let mut items = [self.socket.as_poll_item(1)];
+                let mut items = [self.socket.as_poll_item(zmq::POLLIN)];
                 if let Err(err) = zmq::poll(&mut items, SOCKET_TIMEOUT_MS) {
                     warn!("Scheduler unable to complete ZMQ poll: err {:?}", err);
                 };
 
-                if (items[0].get_revents() & zmq::POLLIN) > 0 {
+                if items[0].is_readable() {
                     socket = true;
                 }
             }

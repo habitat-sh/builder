@@ -48,11 +48,11 @@ serde = "*"
 serde_derive = "*"
 sha2 = "*"
 toml = { version = "*", default-features = false }
-
 tokio = {version = "*", features = [ "rt-multi-thread", "macros"]}
 tracing = "*"
 tracing-subscriber = "*"
 tracing-futures = "*"
+zmq = "*"
 
 [dependencies.actix-web]
 version = "4.0.0-beta.8"
@@ -61,10 +61,6 @@ default-features = false
 [dependencies.clap]
 version = "*"
 features = [ "suggestions", "color", "unstable" ]
-
-[dependencies.zmq]
-git = "https://github.com/habitat-sh/rust-zmq"
-branch = "v0.8-symlinks-removed"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"

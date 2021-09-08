@@ -63,7 +63,7 @@ impl WorkerMgrClient {
     }
 
     pub fn notify_work(&mut self) -> Result<()> {
-        self.socket.send(&[1], 0)?;
+        self.socket.send(vec![1], 0)?;
         Ok(())
     }
 }
@@ -183,7 +183,7 @@ impl WorkerMgr {
                     hb_sock,
                     rq_sock,
                     work_mgr_sock,
-                    msg: zmq::Message::new().unwrap(),
+                    msg: zmq::Message::new(),
                     workers: LinkedHashMap::new(),
                     worker_command: cfg.net.worker_command_addr(),
                     worker_heartbeat: cfg.net.worker_heartbeat_addr(),
@@ -236,20 +236,20 @@ impl WorkerMgr {
 
         loop {
             {
-                let mut items = [self.hb_sock.as_poll_item(1),
-                                 self.rq_sock.as_poll_item(1),
-                                 self.work_mgr_sock.as_poll_item(1)];
+                let mut items = [self.hb_sock.as_poll_item(zmq::POLLIN),
+                                 self.rq_sock.as_poll_item(zmq::POLLIN),
+                                 self.work_mgr_sock.as_poll_item(zmq::POLLIN)];
 
                 if let Err(err) = zmq::poll(&mut items, DEFAULT_POLL_TIMEOUT_MS as i64) {
                     warn!("Worker-manager unable to complete ZMQ poll: err {:?}", err);
                 };
-                if (items[0].get_revents() & zmq::POLLIN) > 0 {
+                if items[0].is_readable() {
                     hb_sock = true;
                 }
-                if (items[1].get_revents() & zmq::POLLIN) > 0 {
+                if items[1].is_readable() {
                     rq_sock = true;
                 }
-                if (items[2].get_revents() & zmq::POLLIN) > 0 {
+                if items[2].is_readable() {
                     work_mgr_sock = true;
                 }
             }
@@ -437,8 +437,8 @@ impl WorkerMgr {
         let mut wc = jobsrv::WorkerCommand::new();
         wc.set_op(jobsrv::WorkerOperation::CancelJob);
 
-        self.rq_sock.send_str(worker_ident, zmq::SNDMORE)?;
-        self.rq_sock.send(&[], zmq::SNDMORE)?;
+        self.rq_sock.send(worker_ident, zmq::SNDMORE)?;
+        self.rq_sock.send("", zmq::SNDMORE)?;
         self.rq_sock
             .send(&wc.write_to_bytes().unwrap(), zmq::SNDMORE)?;
         self.rq_sock.send(&job.write_to_bytes().unwrap(), 0)?;
@@ -524,8 +524,8 @@ impl WorkerMgr {
         let mut wc = jobsrv::WorkerCommand::new();
         wc.set_op(jobsrv::WorkerOperation::StartJob);
 
-        self.rq_sock.send_str(worker_ident, zmq::SNDMORE)?;
-        self.rq_sock.send(&[], zmq::SNDMORE)?;
+        self.rq_sock.send(worker_ident, zmq::SNDMORE)?;
+        self.rq_sock.send("", zmq::SNDMORE)?;
         self.rq_sock
             .send(&wc.write_to_bytes().unwrap(), zmq::SNDMORE)?;
         self.rq_sock.send(&job.write_to_bytes().unwrap(), 0)?;
