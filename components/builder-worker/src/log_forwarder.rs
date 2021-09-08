@@ -93,7 +93,7 @@ impl LogForwarder {
 
         // If we ever have multiple JobServers these need to be sent to, then we might need some
         // additional logic.
-        if let Err(e) = zmq::proxy(&mut self.intake_sock, &mut self.output_sock) {
+        if let Err(e) = zmq::proxy(&self.intake_sock, &self.output_sock) {
             self.logger
                 .log(format!("ZMQ proxy returned an error: {:?}", e).as_ref());
             return Err(Error::Zmq(e));

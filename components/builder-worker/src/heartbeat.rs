@@ -76,7 +76,7 @@ impl HeartbeatCli {
         state.set_endpoint(net_ident);
         state.set_os(worker_os());
         state.set_target(target);
-        HeartbeatCli { msg: zmq::Message::new().unwrap(),
+        HeartbeatCli { msg: zmq::Message::new(),
                        sock,
                        state }
     }
@@ -90,8 +90,7 @@ impl HeartbeatCli {
     /// Set the `HeartbeatMgr` state to busy
     pub fn set_busy(&mut self) -> Result<()> {
         self.state.set_state(proto::WorkerState::Busy);
-        self.sock
-            .send_str(PulseState::Pulse.as_ref(), zmq::SNDMORE)?;
+        self.sock.send(PulseState::Pulse.as_ref(), zmq::SNDMORE)?;
         self.sock.send(&message::encode(&self.state)?, 0)?;
         self.sock.recv(&mut self.msg, 0)?;
         Ok(())
@@ -100,8 +99,7 @@ impl HeartbeatCli {
     /// Set the `HeartbeatMgr` state to ready
     pub fn set_ready(&mut self) -> Result<()> {
         self.state.set_state(proto::WorkerState::Ready);
-        self.sock
-            .send_str(PulseState::Pulse.as_ref(), zmq::SNDMORE)?;
+        self.sock.send(PulseState::Pulse.as_ref(), zmq::SNDMORE)?;
         self.sock.send(&message::encode(&self.state)?, 0)?;
         self.sock.recv(&mut self.msg, 0)?;
         Ok(())
@@ -109,7 +107,7 @@ impl HeartbeatCli {
 
     /// Pause the heartbeats until next state is set
     pub fn pause(&mut self) -> Result<()> {
-        self.sock.send_str(PulseState::Pause.as_ref(), 0)?;
+        self.sock.send(PulseState::Pause.as_ref(), 0)?;
         self.sock.recv(&mut self.msg, 0)?;
         Ok(())
     }
@@ -158,7 +156,7 @@ impl HeartbeatMgr {
                        pub_sock,
                        cli_sock,
                        heartbeat,
-                       msg: zmq::Message::new().unwrap() }
+                       msg: zmq::Message::new() }
     }
 
     // Main loop for server
@@ -180,12 +178,12 @@ impl HeartbeatMgr {
                 self.pulse()?;
             }
             {
-                let mut items = [self.cli_sock.as_poll_item(1)];
+                let mut items = [self.cli_sock.as_poll_item(zmq::POLLIN)];
                 // Poll until timeout or message is received. Checking for the zmq::POLLIN flag on
                 // a poll item's revents will let you know if you have received a message or not
                 // on that socket.
                 zmq::poll(&mut items, HEARTBEAT_MS)?;
-                if items[0].get_revents() & zmq::POLLIN > 0 {
+                if items[0].is_readable() {
                     cli_sock_msg = true;
                 }
             }
@@ -200,7 +198,7 @@ impl HeartbeatMgr {
     fn pause(&mut self) {
         debug!("heartbeat paused");
         self.state = PulseState::Pause;
-        self.cli_sock.send(&[], 0).unwrap();
+        self.cli_sock.send("", 0).unwrap();
     }
 
     // Broadcast to subscribers the HeartbeatMgr health and state
@@ -232,6 +230,6 @@ impl HeartbeatMgr {
     fn resume(&mut self) {
         debug!("heartbeat resumed");
         self.state = PulseState::Pulse;
-        self.cli_sock.send(&[], 0).unwrap();
+        self.cli_sock.send("", 0).unwrap();
     }
 }

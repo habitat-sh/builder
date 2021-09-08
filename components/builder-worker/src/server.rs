@@ -69,7 +69,7 @@ impl Server {
                  hb_cli,
                  runner_cli,
                  state: State::default(),
-                 msg: zmq::Message::new().unwrap(),
+                 msg: zmq::Message::new(),
                  net_ident: Arc::new(net_ident) }
     }
 
@@ -102,20 +102,20 @@ impl Server {
         info!("builder-worker is ready to go.");
         loop {
             {
-                let mut items = [self.fe_sock.as_poll_item(1),
-                                 self.runner_cli.as_poll_item(1)];
+                let mut items = [self.fe_sock.as_poll_item(zmq::POLLIN),
+                                 self.runner_cli.as_poll_item(zmq::POLLIN)];
                 zmq::poll(&mut items, -1)?;
-                if items[0].get_revents() & zmq::POLLIN > 0 {
+                if items[0].is_readable() {
                     fe_msg = true;
                 }
-                if items[1].get_revents() & zmq::POLLIN > 0 {
+                if items[1].is_readable() {
                     runner_msg = true;
                 }
             }
             if runner_msg {
                 {
                     let reply = self.runner_cli.recv_complete()?;
-                    self.fe_sock.send(reply, 0)?;
+                    self.fe_sock.send(&**reply, 0)?;
                 }
                 self.set_ready()?;
                 runner_msg = false;
@@ -152,7 +152,7 @@ impl Server {
         self.runner_cli.start_job(&self.msg)?;
         {
             let reply = self.runner_cli.recv_ack()?;
-            self.fe_sock.send(reply, 0)?;
+            self.fe_sock.send(&**reply, 0)?;
         }
         self.set_busy()?;
         Ok(())
@@ -163,7 +163,7 @@ impl Server {
         thread::sleep(Duration::new(BUILD_CANCEL_WAIT_SECS, 0));
         {
             let reply = self.runner_cli.recv_ack()?;
-            self.fe_sock.send(reply, 0)?;
+            self.fe_sock.send(&**reply, 0)?;
         }
         self.set_ready()?;
         Ok(())

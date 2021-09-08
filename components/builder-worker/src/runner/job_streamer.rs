@@ -242,7 +242,7 @@ impl StreamTarget {
         chunk.set_content(line);
 
         self.sock
-            .send_str(LOG_LINE, zmq::SNDMORE)
+            .send(LOG_LINE, zmq::SNDMORE)
             .map_err(Error::StreamTargetSend)?;
         self.sock
             .send(chunk.write_to_bytes().unwrap().as_slice(), 0)
@@ -265,7 +265,7 @@ impl StreamTarget {
         complete.set_job_id(id);
 
         self.sock
-            .send_str(LOG_COMPLETE, zmq::SNDMORE)
+            .send(LOG_COMPLETE, zmq::SNDMORE)
             .map_err(Error::StreamTargetSend)?;
         self.sock
             .send(complete.write_to_bytes().unwrap().as_slice(), 0)

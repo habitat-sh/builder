@@ -32,14 +32,11 @@ serde_derive = "*"
 serde_json = "*"
 toml = { version = "*", default-features = false }
 url = "*"
+zmq = "*"
 
 [dependencies.clap]
 version = "*"
 features = [ "suggestions", "color", "unstable" ]
-
-[dependencies.zmq]
-git = "https://github.com/habitat-sh/rust-zmq"
-branch = "v0.8-symlinks-removed"
 
 [dependencies.github-api-client]
 path = "../github-api-client"

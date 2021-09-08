@@ -630,11 +630,13 @@ impl RunnerCli {
     pub fn new() -> Self {
         let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         RunnerCli { sock,
-                    msg: zmq::Message::new().unwrap() }
+                    msg: zmq::Message::new() }
     }
 
     /// Return a poll item used in `zmq::poll` for awaiting messages on multiple sockets
-    pub fn as_poll_item(&self, events: i16) -> zmq::PollItem { self.sock.as_poll_item(events) }
+    pub fn as_poll_item(&self, events: zmq::PollEvents) -> zmq::PollItem {
+        self.sock.as_poll_item(events)
+    }
 
     /// Connect to the Job Runner
     pub fn connect(&mut self) -> Result<()> {
@@ -666,15 +668,15 @@ impl RunnerCli {
 
     /// Send a message to the Job Runner to start a Job
     pub fn start_job(&mut self, msg: &zmq::Message) -> Result<()> {
-        self.sock.send_str(WORK_START, zmq::SNDMORE)?;
-        self.sock.send(&*msg, 0)?;
+        self.sock.send(WORK_START, zmq::SNDMORE)?;
+        self.sock.send(&**msg, 0)?;
         Ok(())
     }
 
     /// Send a message to the Job Runner to cancel a Job
     pub fn cancel_job(&mut self, msg: &zmq::Message) -> Result<()> {
-        self.sock.send_str(WORK_CANCEL, zmq::SNDMORE)?;
-        self.sock.send(&*msg, 0)?;
+        self.sock.send(WORK_CANCEL, zmq::SNDMORE)?;
+        self.sock.send(&**msg, 0)?;
         Ok(())
     }
 }
@@ -711,7 +713,7 @@ impl RunnerMgr {
     fn new(config: Arc<Config>, net_ident: Arc<String>) -> Self {
         let sock = (**DEFAULT_CONTEXT).as_mut().socket(zmq::DEALER).unwrap();
         RunnerMgr { config,
-                    msg: zmq::Message::new().unwrap(),
+                    msg: zmq::Message::new(),
                     net_ident,
                     sock,
                     cancel: Arc::new(AtomicBool::new(false)) }
@@ -728,9 +730,9 @@ impl RunnerMgr {
 
         loop {
             {
-                let mut items = [self.sock.as_poll_item(1)];
+                let mut items = [self.sock.as_poll_item(zmq::POLLIN)];
                 zmq::poll(&mut items, work_poll_interval)?;
-                if items[0].get_revents() & zmq::POLLIN > 0 {
+                if items[0].is_readable() {
                     srv_msg = true;
                 }
             }
@@ -793,14 +795,14 @@ impl RunnerMgr {
 
     fn send_ack(&mut self, job: &Job) -> Result<()> {
         debug!("Received work, job={:?}", job);
-        self.sock.send_str(WORK_ACK, zmq::SNDMORE)?;
+        self.sock.send(WORK_ACK, zmq::SNDMORE)?;
         self.sock.send(&message::encode(&**job)?, 0)?;
         Ok(())
     }
 
     fn send_complete(&mut self, job: &Job) -> Result<()> {
         debug!("Completed work, job={:?}", job);
-        self.sock.send_str(WORK_COMPLETE, zmq::SNDMORE)?;
+        self.sock.send(WORK_COMPLETE, zmq::SNDMORE)?;
         self.sock.send(&message::encode(&**job)?, 0)?;
         Ok(())
     }
