@@ -12,7 +12,7 @@ ifeq ($(UNAME_S),Darwin)
 endif
 .PHONY: linux
 
-prereq:  ## Invoke "make prereq" to install MacOS prerequisite packages
+prereq:  ## Invoke  "make prereq" to install MacOS prerequisite packages
 	sudo apt-get update
 	sudo apt-get install -y --no-install-recommends build-essential libarchive-dev pkg-config cmake
 .PHONY: prereq
