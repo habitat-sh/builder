@@ -47,6 +47,7 @@ use crate::{bldr_core::{error::Error::RpcError,
                                  middleware::route_message},
                      helpers::{self,
                                req_state,
+                               FetchAll,
                                Pagination,
                                Target},
                      resources::channels::channels_for_package_ident,
@@ -176,7 +177,7 @@ fn get_packages_for_origin(req: HttpRequest,
     let origin = path.into_inner();
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
-    match do_get_packages(&req, &ident, &pagination) {
+    match do_get_packages(&req, &ident, &pagination, false) {
         Ok((packages, count)) => {
             postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
@@ -196,7 +197,7 @@ fn get_packages_for_origin_package(req: HttpRequest,
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
-    match do_get_packages(&req, &ident, &pagination) {
+    match do_get_packages(&req, &ident, &pagination, false) {
         Ok((packages, count)) => {
             postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
@@ -210,13 +211,14 @@ fn get_packages_for_origin_package(req: HttpRequest,
 #[allow(clippy::needless_pass_by_value)]
 fn get_packages_for_origin_package_version(req: HttpRequest,
                                            path: Path<(String, String, String)>,
-                                           pagination: Query<Pagination>)
+                                           pagination: Query<Pagination>,
+                                           fetch: Query<FetchAll>)
                                            -> HttpResponse {
     let (origin, pkg, version) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
-    match do_get_packages(&req, &ident, &pagination) {
+    match do_get_packages(&req, &ident, &pagination, fetch.fetchAll) {
         Ok((packages, count)) => {
             postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
@@ -926,7 +928,8 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
 //
 fn do_get_packages(req: &HttpRequest,
                    ident: &PackageIdent,
-                   pagination: &Query<Pagination>)
+                   pagination: &Query<Pagination>,
+                   fetch_all: bool)
                    -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
     let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
@@ -942,7 +945,8 @@ fn do_get_packages(req: &HttpRequest,
                                                                                   opt_session_id,
                                                                                   &ident.origin),
                              page:       page as i64,
-                             limit:      per_page as i64, };
+                             limit:      per_page as i64,
+                             all_pkgs:   fetch_all, };
 
     if pagination.distinct {
         match Package::list_distinct(lpr, &*conn).map_err(Error::DieselError) {

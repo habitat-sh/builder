@@ -313,6 +313,7 @@ pub struct ListPackages {
     pub visibility: Vec<PackageVisibility>,
     pub page:       i64,
     pub limit:      i64,
+    pub all_pkgs:   bool,
 }
 
 pub struct SearchPackages {
@@ -593,13 +594,21 @@ impl Package {
         if !pl.ident.name.is_empty() {
             query = query.filter(packages_with_channel_platform::name.eq(&pl.ident.name))
         };
-        let query = query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
-                                                                                        .clone()
-                                                                                        .parts()))
-                         .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
-                         .order(packages_with_channel_platform::ident.desc())
-                         .paginate(pl.page)
-                         .per_page(pl.limit);
+
+        let mut limit = pl.limit;
+        if pl.all_pkgs {
+            // A higher limit to fetch all(most) records
+            limit = 500;
+        }
+
+        let mut query =
+            query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
+                                                                                .clone()
+                                                                                .parts()))
+                 .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                 .order(packages_with_channel_platform::ident.desc())
+                 .paginate(pl.page)
+                 .per_page(limit);
 
         // helpful trick when debugging queries, this has Debug trait:
         // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)

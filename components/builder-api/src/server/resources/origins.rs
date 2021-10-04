@@ -823,7 +823,8 @@ fn list_unique_packages(req: HttpRequest,
                                                                                   opt_session_id,
                                                                                   &origin),
                              page:       page as i64,
-                             limit:      per_page as i64, };
+                             limit:      per_page as i64,
+                             all_pkgs:   false, };
 
     match Package::distinct_for_origin(lpr, &*conn) {
         Ok((packages, count)) => {
