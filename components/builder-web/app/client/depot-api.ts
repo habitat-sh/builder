@@ -163,6 +163,10 @@ export function get(params, nextRange: number = 0) {
     url += '&distinct=true';
   }
 
+  if (!params['query'] && params['fetchAll']) {
+    url += '&fetchAll=true';
+  }
+
   return new Promise((resolve, reject) => {
     fetch(url, opts())
       .then(response => handleUnauthorized(response, reject))

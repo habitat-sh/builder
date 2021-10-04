@@ -90,6 +90,7 @@ export class PackageVersionsComponent implements OnDestroy {
   }
 
   fetchPackages(params) {
+    params.fetchAll = true;
     this.store.dispatch(filterPackagesBy(params, null, false));
   }
 
