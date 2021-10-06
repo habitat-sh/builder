@@ -136,7 +136,32 @@ export class PackageVersionsComponent implements OnDestroy {
     let packages = this.store.getState().packages.visible;
 
     if (packages && packages.size > 0 && packages.get(0).version === version.version) {
-      return packages;
+      // Packages are grouped based on the platforms here,
+      // we need to return packges not only based on version, but also platform(s)
+      let pkgs = [];
+      let pkgMap = {};
+      packages.forEach(pkg => {
+        pkg.platforms.forEach(platform => {
+          // Check the expanded list includes the current platform
+          // This happens when there are two version nodes with separate platforms
+          if (!version.platforms.includes(platform))
+            return;
+          let pkgKey = `${pkg.origin}/${pkg.name}/${pkg.version}/${pkg.release}/${platform}`;
+          if (!pkgMap[pkgKey]) {
+            pkgMap[pkgKey] = true;
+            pkgs.push({
+              origin: pkg.origin,
+              name: pkg.name,
+              version: pkg.version,
+              release: pkg.release,
+              channels: pkg.channels,
+              platforms: [platform]
+            });
+          }
+        });
+      });
+
+      return pkgs;
     }
 
     return [];
