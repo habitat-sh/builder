@@ -37,6 +37,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[lint] :windows: :paperclip: clippy!"
     command:
@@ -70,6 +71,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[unit] :linux: builder-core"
     command:
@@ -80,6 +82,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[unit] :linux: builder-db"
     command:
@@ -90,6 +93,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[unit] :linux: builder-graph"
     command:
@@ -100,6 +104,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[unit] :linux: builder-jobsrv"
     command:
@@ -110,6 +115,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[unit] :linux: builder-protocol"
     command:
@@ -120,6 +126,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[unit] :linux: builder-worker"
     command:
@@ -130,6 +137,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[unit] :linux: github-api-client"
     command:
@@ -140,6 +148,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[unit] :linux: oauth-client"
     command:
@@ -150,6 +159,7 @@ steps:
     expeditor:
       executor:
         docker:
+          privileged: true
 
   - label: "[functional] :linux: :mocha: builder-api"
     command:

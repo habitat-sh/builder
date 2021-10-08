@@ -15,36 +15,34 @@ if ${BUILDKITE:-false}; then
 fi
 
 toolchain="${1:-"$(get_toolchain)"}"
+install_rustup
+install_rust_toolchain "$toolchain"
 
-# If we're in Buildkite, then install Rust, set up Habitat library
-# dependencies, etc.
-#
-# If we're NOT in Buildkite, we'll just run clippy, assuming that
-# the developer has already set up their environment as they like.
-    install_rustup
-    install_rust_toolchain "$toolchain"
+# Install clippy
+echo "--- :rust: Installing clippy"
+rustup component add --toolchain "$toolchain" clippy
 
-    # TODO: these should be in a shared script?
-    sudo hab license accept
-    install_hab_pkg core/bzip2 core/libarchive core/xz core/zeromq core/libpq
-    sudo hab pkg install core/protobuf --binlink
+# TODO: these should be in a shared script?
+sudo hab license accept
+install_hab_pkg core/rust/"$toolchain" core/libarchive core/openssl core/pkg-config core/zeromq core/postgresql core/patchelf core/cmake
+sudo hab pkg install core/protobuf
 
-    export LIBARCHIVE_STATIC=true # so the libarchive crate *builds* statically
-    export LIBZMQ_PREFIX
-    LIBZMQ_PREFIX=$(hab pkg path core/zeromq)
-    # now include openssl and zeromq so thney exists in the runtime library path when cargo test is run
-    export LD_LIBRARY_PATH
-    LD_LIBRARY_PATH="$(hab pkg path core/libpq)/lib:$(hab pkg path core/zeromq)/lib"
-    # include these so that the cargo tests can bind to libarchive (which dynamically binds to xz, bzip, etc), openssl, and sodium at *runtime*
-    export LIBRARY_PATH
-    LIBRARY_PATH="$(hab pkg path core/libpq)/lib:$(hab pkg path core/bzip2)/lib:$(hab pkg path core/xz)/lib"
-    # setup pkgconfig so the libarchive crate can use pkg-config to fine bzip2 and xz at *build* time
-    export PKG_CONFIG_PATH
-    PKG_CONFIG_PATH="$(hab pkg path core/libpq)/lib/pkgconfig:$(hab pkg path core/libarchive)/lib/pkgconfig"
+# Yes, this is terrible but we need the clippy binary to run under our glibc.
+# This became an issue with the latest refresh and can likely be dropped in
+# the future when rust and supporting components are build against a later
+# glibc.
+sudo cp "$HOME"/.rustup/toolchains/"$toolchain"-x86_64-unknown-linux-gnu/bin/cargo-clippy "$(hab pkg path core/rust/"$toolchain")/bin"
+sudo cp "$HOME"/.rustup/toolchains/"$toolchain"-x86_64-unknown-linux-gnu/bin/clippy-driver "$(hab pkg path core/rust/"$toolchain")/bin"
+sudo hab pkg exec core/patchelf patchelf -- --set-interpreter "$(hab pkg path core/glibc)/lib/ld-linux-x86-64.so.2" "$(hab pkg path core/rust/"$toolchain")/bin/clippy-driver"
 
-    # Install clippy
-    echo "--- :rust: Installing clippy"
-    rustup component add clippy
+export OPENSSL_NO_VENDOR=1
+export LD_RUN_PATH
+LD_RUN_PATH="$(hab pkg path core/glibc)/lib:$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/openssl)/lib:$(hab pkg path core/postgresql)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/libarchive)/lib"
+export LD_LIBRARY_PATH
+LD_LIBRARY_PATH="$(hab pkg path core/gcc)/lib:$(hab pkg path core/zeromq)/lib"
+export PKG_CONFIG_PATH
+PKG_CONFIG_PATH="$(hab pkg path core/zeromq)/lib/pkgconfig:$(hab pkg path core/libarchive)/lib/pkgconfig:$(hab pkg path core/postgresql)/lib/pkgconfig:$(hab pkg path core/openssl)/lib/pkgconfig"
+eval "$(hab pkg env core/rust/"$toolchain"):$(hab pkg path core/protobuf)/bin:$(hab pkg path core/pkg-config)/bin:$(hab pkg path core/postgresql)/bin:$(hab pkg path core/cmake)/bin:$PATH"
 
 # Lints we need to work through and decide as a team whether to allow or fix
 mapfile -t unexamined_lints < "$2"
@@ -79,4 +77,4 @@ set -u
 
 echo "--- Running clippy!"
 echo "Clippy rules: cargo clippy --all-targets --tests -- ${clippy_args[*]}"
-cargo +"$toolchain" clippy --all-targets --tests -- "${clippy_args[@]}"
+cargo-clippy clippy --all-targets --tests -- "${clippy_args[@]}"
