@@ -158,7 +158,7 @@ pub struct PackageWithChannelPlatform {
     pub platforms:   Vec<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PackageIdentWithChannelPlatform {
     pub origin:    String,
     pub name:      String,
@@ -313,7 +313,6 @@ pub struct ListPackages {
     pub visibility: Vec<PackageVisibility>,
     pub page:       i64,
     pub limit:      i64,
-    pub all_pkgs:   bool,
 }
 
 pub struct SearchPackages {
@@ -595,26 +594,31 @@ impl Package {
             query = query.filter(packages_with_channel_platform::name.eq(&pl.ident.name))
         };
 
-        let mut limit = pl.limit;
-        if pl.all_pkgs {
-            // A higher limit to fetch all(most) records
-            limit = 500;
-        }
-
-        let mut query =
-            query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
-                                                                                .clone()
-                                                                                .parts()))
-                 .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
-                 .order(packages_with_channel_platform::ident.desc())
-                 .paginate(pl.page)
-                 .per_page(limit);
+        let mut pkgs = if pl.limit < 0 {
+            let query =
+                query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
+                                                                                    .clone()
+                                                                                    .parts()))
+                     .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                     .order(packages_with_channel_platform::ident.desc());
+            let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
+            pkgs
+        } else {
+            let query =
+                query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
+                                                                                    .clone()
+                                                                                    .parts()))
+                     .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                     .order(packages_with_channel_platform::ident.desc())
+                     .paginate(pl.page)
+                     .per_page(pl.limit);
+            let (pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
+                query.load_and_count_records(conn)?;
+            pkgs
+        };
 
         // helpful trick when debugging queries, this has Debug trait:
         // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
-
-        let (mut pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
-            query.load_and_count_records(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         Histogram::DbCallTime.set(duration_millis as f64);

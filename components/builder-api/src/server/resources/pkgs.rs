@@ -47,7 +47,6 @@ use crate::{bldr_core::{error::Error::RpcError,
                                  middleware::route_message},
                      helpers::{self,
                                req_state,
-                               FetchAll,
                                Pagination,
                                Target},
                      resources::channels::channels_for_package_ident,
@@ -73,7 +72,8 @@ use futures::{channel::mpsc,
               StreamExt};
 use protobuf::Message;
 use serde::ser::Serialize;
-use std::{convert::Infallible,
+use std::{collections::HashSet,
+          convert::Infallible,
           fs::{self,
                remove_file,
                File},
@@ -177,7 +177,7 @@ fn get_packages_for_origin(req: HttpRequest,
     let origin = path.into_inner();
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
-    match do_get_packages(&req, &ident, &pagination, false) {
+    match do_get_packages(&req, &ident, &pagination) {
         Ok((packages, count)) => {
             postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
@@ -197,7 +197,7 @@ fn get_packages_for_origin_package(req: HttpRequest,
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
-    match do_get_packages(&req, &ident, &pagination, false) {
+    match do_get_packages(&req, &ident, &pagination) {
         Ok((packages, count)) => {
             postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
@@ -211,16 +211,15 @@ fn get_packages_for_origin_package(req: HttpRequest,
 #[allow(clippy::needless_pass_by_value)]
 fn get_packages_for_origin_package_version(req: HttpRequest,
                                            path: Path<(String, String, String)>,
-                                           pagination: Query<Pagination>,
-                                           fetch: Query<FetchAll>)
+                                           pagination: Query<Pagination>)
                                            -> HttpResponse {
     let (origin, pkg, version) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
-    match do_get_packages(&req, &ident, &pagination, fetch.fetchAll) {
+    match do_get_packages(&req, &ident, &pagination) {
         Ok((packages, count)) => {
-            postprocess_extended_package_list(&req, &packages, count, &pagination)
+            postprocess_extended_package_version_list(&req, &packages, count, &pagination)
         }
         Err(err) => {
             debug!("{}", err);
@@ -924,12 +923,55 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
             .body(body)
 }
 
+pub fn postprocess_extended_package_version_list(_req: &HttpRequest,
+                                                 packages: &[PackageIdentWithChannelPlatform],
+                                                 count: i64,
+                                                 pagination: &Query<Pagination>)
+                                                 -> HttpResponse {
+    let mut pkgs_set: HashSet<PackageIdentWithChannelPlatform> = HashSet::new();
+    let mut unique_pkgs: Vec<PackageIdentWithChannelPlatform> = Vec::new();
+    for package in packages.iter() {
+        if !pkgs_set.contains(package) {
+            unique_pkgs.push(package.clone());
+            pkgs_set.insert(package.clone());
+        }
+    }
+    let start = if pagination.range < 0 {
+        0
+    } else {
+        let (start, _) = helpers::extract_pagination(pagination);
+        start
+    };
+    let pkg_count = unique_pkgs.len() as isize;
+    let stop = match pkg_count {
+        0 => count,
+        _ => (start + pkg_count - 1) as i64,
+    };
+
+    debug!("postprocessing extended package list, start: {}, stop: {}, total_count: {}",
+           start, stop, count);
+
+    let body = helpers::package_results_json(&unique_pkgs,
+                                             pkg_count as isize,
+                                             start as isize,
+                                             stop as isize);
+
+    let mut response = if count as isize > (stop as isize + 1) {
+        HttpResponse::PartialContent()
+    } else {
+        HttpResponse::Ok()
+    };
+
+    response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+            .body(body)
+}
+
 // Internal - these functions should return Result<..>
 //
 fn do_get_packages(req: &HttpRequest,
                    ident: &PackageIdent,
-                   pagination: &Query<Pagination>,
-                   fetch_all: bool)
+                   pagination: &Query<Pagination>)
                    -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
     let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
@@ -937,6 +979,7 @@ fn do_get_packages(req: &HttpRequest,
     };
 
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
+    let limit = if pagination.range < 0 { -1 } else { per_page };
 
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
@@ -945,8 +988,7 @@ fn do_get_packages(req: &HttpRequest,
                                                                                   opt_session_id,
                                                                                   &ident.origin),
                              page:       page as i64,
-                             limit:      per_page as i64,
-                             all_pkgs:   fetch_all, };
+                             limit:      limit as i64, };
 
     if pagination.distinct {
         match Package::list_distinct(lpr, &*conn).map_err(Error::DieselError) {

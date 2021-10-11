@@ -32,12 +32,6 @@ pub struct Pagination {
 }
 
 #[derive(Deserialize)]
-pub struct FetchAll {
-    #[serde(default)]
-    pub fetchAll: bool,
-}
-
-#[derive(Deserialize)]
 pub struct SearchQuery {
     #[serde(default)]
     pub query: String,
