@@ -6,7 +6,7 @@ export PGPASSWORD="{{cfg.datastore.password}}"
 
 PSQL_ARGS="-w -h {{cfg.datastore.host}} -p {{cfg.datastore.port}} -U {{cfg.datastore.user}} {{cfg.datastore.database}}"
 # shellcheck disable=SC2086
-# Create the DB or check that it exists
-createdb $PSQL_ARGS || psql -c ";" $PSQL_ARGS
+# Check that the DB exists or create it
+psql -c ";" $PSQL_ARGS || createdb $PSQL_ARGS
 
 bldr-jobsrv migrate -c {{pkg.svc_config_path}}/config.toml
