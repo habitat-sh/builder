@@ -53,7 +53,6 @@ function Invoke-Prepare {
     $env:LIBARCHIVE_INCLUDE_DIR = "$(Get-HabPackagePath "libarchive")/include"
     $env:LIBARCHIVE_LIB_DIR = "$(Get-HabPackagePath "libarchive")/lib"
     $env:OPENSSL_NO_VENDOR = 1
-    $env:OPENSSL_LIBS = 'ssleay32:libeay32'
     $env:OPENSSL_LIB_DIR = "$(Get-HabPackagePath "openssl")/lib"
     $env:OPENSSL_INCLUDE_DIR = "$(Get-HabPackagePath "openssl")/include"
     $env:LIBZMQ_PREFIX = "$(Get-HabPackagePath "zeromq")"
