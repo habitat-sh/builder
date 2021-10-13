@@ -944,19 +944,19 @@ pub fn postprocess_extended_package_version_list(_req: &HttpRequest,
     };
     let pkg_count = unique_pkgs.len() as isize;
     let stop = match pkg_count {
-        0 => count,
+        0 => pkg_count,
         _ => (start + pkg_count - 1) as i64,
     };
 
     debug!("postprocessing extended package list, start: {}, stop: {}, total_count: {}",
-           start, stop, count);
+           start, stop, pkg_count);
 
     let body = helpers::package_results_json(&unique_pkgs,
                                              pkg_count as isize,
                                              start as isize,
                                              stop as isize);
 
-    let mut response = if count as isize > (stop as isize + 1) {
+    let mut response = if pkg_count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
     } else {
         HttpResponse::Ok()
