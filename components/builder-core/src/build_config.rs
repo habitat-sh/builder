@@ -266,7 +266,8 @@ mod test {
         let cfg = BuildCfg::default();
 
         assert_eq!(cfg.triggered_by("dev", &["habitat/plan.sh"]).len(), 0);
-        assert_eq!(cfg.triggered_by(DEFAULT_BRANCH, &["habitat/plan.sh"]).len(), 1);
+        assert_eq!(cfg.triggered_by(DEFAULT_BRANCH, &["habitat/plan.sh"]).len(),
+                   1);
         assert_eq!(cfg.triggered_by(DEFAULT_BRANCH, &["plan.sh"]).len(), 1);
     }
 
