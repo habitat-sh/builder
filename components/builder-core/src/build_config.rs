@@ -36,6 +36,9 @@ use crate::{error::{Error,
 /// Postprocessing config file name
 pub const BLDR_CFG: &str = ".bldr.toml";
 
+/// Default branch
+const DEFAULT_BRANCH: &str = "main";
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BuildCfg(HashMap<String, ProjectCfg>);
 
@@ -182,7 +185,7 @@ impl ProjectCfg {
     fn triggered_by<T>(&self, branch: &str, paths: &[T]) -> bool
         where T: AsRef<str>
     {
-        if branch != "master" {
+        if branch != DEFAULT_BRANCH && branch != "master" {
             return false;
         }
 
@@ -242,20 +245,20 @@ mod test {
         let bldr_api = cfg.get("builder-api").unwrap();
         let default = cfg.get("default").unwrap();
 
-        assert!(hab_sup.triggered_by("master", &["components/hab-sup/Cargo.toml"],));
-        assert!(hab_sup.triggered_by("master", &["components/hAb-Sup/Cargo.toml"],));
+        assert!(hab_sup.triggered_by(DEFAULT_BRANCH, &["components/hab-sup/Cargo.toml"],));
+        assert!(hab_sup.triggered_by(DEFAULT_BRANCH, &["components/hAb-Sup/Cargo.toml"],));
         assert!(!hab_sup.triggered_by("dev", &["components/hab-sup/Cargo.toml"]));
-        assert!(!hab_sup.triggered_by("master", &["components"]));
+        assert!(!hab_sup.triggered_by(DEFAULT_BRANCH, &["components"]));
 
-        assert!(bldr_api.triggered_by("master", &["components/builder-api/habitat/plan.sh"],));
-        assert!(bldr_api.triggered_by("master", &["components/net/Cargo.toml"],));
+        assert!(bldr_api.triggered_by(DEFAULT_BRANCH, &["components/builder-api/habitat/plan.sh"],));
+        assert!(bldr_api.triggered_by(DEFAULT_BRANCH, &["components/net/Cargo.toml"],));
         assert_eq!(bldr_api.build_targets.len(), 1);
         assert!(bldr_api.build_targets.contains(&target::X86_64_WINDOWS));
 
-        assert!(default.triggered_by("master", &["habitat/plan.sh"]));
-        assert!(default.triggered_by("master", &["habitat/hooks/init"]));
+        assert!(default.triggered_by(DEFAULT_BRANCH, &["habitat/plan.sh"]));
+        assert!(default.triggered_by(DEFAULT_BRANCH, &["habitat/hooks/init"]));
         assert!(!default.triggered_by("dev", &["habitat/plan.sh"]));
-        assert!(default.triggered_by("master", &["components"]));
+        assert!(default.triggered_by(DEFAULT_BRANCH, &["components"]));
     }
 
     #[test]
@@ -263,8 +266,9 @@ mod test {
         let cfg = BuildCfg::default();
 
         assert_eq!(cfg.triggered_by("dev", &["habitat/plan.sh"]).len(), 0);
-        assert_eq!(cfg.triggered_by("master", &["habitat/plan.sh"]).len(), 1);
-        assert_eq!(cfg.triggered_by("master", &["plan.sh"]).len(), 1);
+        assert_eq!(cfg.triggered_by(DEFAULT_BRANCH, &["habitat/plan.sh"]).len(),
+                   1);
+        assert_eq!(cfg.triggered_by(DEFAULT_BRANCH, &["plan.sh"]).len(), 1);
     }
 
     #[test]
@@ -272,7 +276,7 @@ mod test {
         let cfg = BuildCfg::from_slice(CONFIG.as_bytes()).unwrap();
         let full_plan_path = cfg.get("full-plan-path").unwrap();
         assert!(full_plan_path.plan_path.ends_with("plan.sh"));
-        assert!(full_plan_path.triggered_by("master",
+        assert!(full_plan_path.triggered_by(DEFAULT_BRANCH,
                                             &["components/builder-api/habitat/Cargo.toml"],));
     }
 }
