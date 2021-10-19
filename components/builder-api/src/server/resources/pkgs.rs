@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,8 +72,7 @@ use futures::{channel::mpsc,
               StreamExt};
 use protobuf::Message;
 use serde::ser::Serialize;
-use std::{collections::HashSet,
-          convert::Infallible,
+use std::{convert::Infallible,
           fs::{self,
                remove_file,
                File},
@@ -219,7 +218,7 @@ fn get_packages_for_origin_package_version(req: HttpRequest,
 
     match do_get_packages(&req, &ident, &pagination) {
         Ok((packages, count)) => {
-            postprocess_extended_package_version_list(&req, &packages, count, &pagination)
+            postprocess_extended_package_list(&req, &packages, count, &pagination)
         }
         Err(err) => {
             debug!("{}", err);
@@ -899,7 +898,12 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
                                          count: i64,
                                          pagination: &Query<Pagination>)
                                          -> HttpResponse {
-    let (start, _) = helpers::extract_pagination(pagination);
+    let start = if pagination.range < 0 {
+        0
+    } else {
+        let (start, _) = helpers::extract_pagination(pagination);
+        start
+    };
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
         0 => count,
@@ -913,50 +917,6 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
         helpers::package_results_json(packages, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
-        HttpResponse::PartialContent()
-    } else {
-        HttpResponse::Ok()
-    };
-
-    response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-            .body(body)
-}
-
-pub fn postprocess_extended_package_version_list(_req: &HttpRequest,
-                                                 packages: &[PackageIdentWithChannelPlatform],
-                                                 count: i64,
-                                                 pagination: &Query<Pagination>)
-                                                 -> HttpResponse {
-    let mut pkgs_set: HashSet<PackageIdentWithChannelPlatform> = HashSet::new();
-    let mut unique_pkgs: Vec<PackageIdentWithChannelPlatform> = Vec::new();
-    for package in packages.iter() {
-        if !pkgs_set.contains(package) {
-            unique_pkgs.push(package.clone());
-            pkgs_set.insert(package.clone());
-        }
-    }
-    let start = if pagination.range < 0 {
-        0
-    } else {
-        let (start, _) = helpers::extract_pagination(pagination);
-        start
-    };
-    let pkg_count = unique_pkgs.len() as isize;
-    let stop = match pkg_count {
-        0 => pkg_count,
-        _ => (start + pkg_count - 1) as i64,
-    };
-
-    debug!("postprocessing extended package list, start: {}, stop: {}, total_count: {}",
-           start, stop, pkg_count);
-
-    let body = helpers::package_results_json(&unique_pkgs,
-                                             pkg_count as isize,
-                                             start as isize,
-                                             stop as isize);
-
-    let mut response = if pkg_count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
     } else {
         HttpResponse::Ok()

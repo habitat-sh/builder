@@ -1,12 +1,26 @@
 use std::{fmt,
+          hash::{Hash,
+                 Hasher},
           io::Write,
           ops::Deref,
           str::{self,
                 FromStr},
           time::Instant};
 
+use super::db_id_format;
+use crate::{hab_core::{self,
+                       package::{FromArchive,
+                                 Identifiable,
+                                 PackageArchive,
+                                 PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent},
+            models::{channel::{Channel,
+                               OriginChannelPackage,
+                               OriginChannelPromote},
+                     pagination::*,
+                     settings::OriginPackageSettings}};
 use chrono::NaiveDateTime;
-
 use diesel::{self,
              deserialize::{self,
                            FromSql},
@@ -28,20 +42,7 @@ use diesel::{self,
              RunQueryDsl};
 use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
-
-use super::db_id_format;
-use crate::{hab_core::{self,
-                       package::{FromArchive,
-                                 Identifiable,
-                                 PackageArchive,
-                                 PackageIdent,
-                                 PackageTarget},
-                       ChannelIdent},
-            models::{channel::{Channel,
-                               OriginChannelPackage,
-                               OriginChannelPromote},
-                     pagination::*,
-                     settings::OriginPackageSettings}};
+use itertools::Itertools;
 
 use crate::schema::{channel::{origin_channel_packages,
                               origin_channels},
@@ -131,7 +132,7 @@ pub struct PackageWithVersionArray {
          Queryable,
          Clone,
          Identifiable,
-         PartialEq)]
+         Eq)]
 #[table_name = "packages_with_channel_platform"]
 pub struct PackageWithChannelPlatform {
     #[serde(with = "db_id_format")]
@@ -158,7 +159,29 @@ pub struct PackageWithChannelPlatform {
     pub platforms:   Vec<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+impl Hash for PackageWithChannelPlatform {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.ident.hash(state);
+        self.visibility.hash(state);
+        self.origin.hash(state);
+        self.channels.hash(state);
+        self.platforms.hash(state);
+    }
+}
+
+impl PartialEq for PackageWithChannelPlatform {
+    fn eq(&self, other: &PackageWithChannelPlatform) -> bool {
+        self.name == other.name
+        && self.ident == other.ident
+        && self.visibility == other.visibility
+        && self.origin == other.origin
+        && self.channels == other.channels
+        && self.platforms == other.platforms
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct PackageIdentWithChannelPlatform {
     pub origin:    String,
     pub name:      String,
@@ -634,10 +657,9 @@ impl Package {
 
         trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?}, returned {} items", pl.ident, pkgs.len());
 
-        // Note: dedup here as packages_with_channel_platform can return
-        // duplicate rows. TODO: Look for a performant Postgresql fix
+        // TODO: Look for a performant Postgresql fix
         // and possibly rethink the channels design
-        pkgs.dedup();
+        pkgs = pkgs.into_iter().unique().collect();
         trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?} after de-dup has {} items", pl.ident, pkgs.len());
 
         let new_count = pkgs.len() as i64;
@@ -915,7 +937,9 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
          Clone,
          FromSqlRow,
          AsExpression,
-         PartialEq)]
+         PartialEq,
+         Eq,
+         Hash)]
 #[sql_type = "Text"]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
