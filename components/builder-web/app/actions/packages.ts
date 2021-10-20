@@ -232,7 +232,8 @@ export function filterPackagesBy(
   nextRange: number = 0
 ) {
   return dispatch => {
-    if (nextRange === 0) {
+    // We send -1 for fetching all version pacakges
+    if (nextRange <= 0) {
       dispatch(clearPackages());
     }
 

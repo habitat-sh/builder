@@ -72,7 +72,8 @@ export class PackageVersionsComponent implements OnDestroy {
       this.fetchPackages({
         origin: this.origin,
         name: this.name,
-        version: version
+        version: version,
+        range: -1
       });
     }
   }
@@ -90,7 +91,8 @@ export class PackageVersionsComponent implements OnDestroy {
   }
 
   fetchPackages(params) {
-    this.store.dispatch(filterPackagesBy(params, null, false));
+    const range = params.range || 0;
+    this.store.dispatch(filterPackagesBy(params, null, false, range));
   }
 
   handleDemote(pkg, channel) {
@@ -133,9 +135,28 @@ export class PackageVersionsComponent implements OnDestroy {
 
   packagesFor(version) {
     let packages = this.store.getState().packages.visible;
-
     if (packages && packages.size > 0 && packages.get(0).version === version.version) {
-      return packages;
+      // Packages are grouped based on the platforms here,
+      // we need to return packges not only based on version, but also platform(s)
+      let pkgs = [];
+      packages.forEach(pkg => {
+        pkg.platforms.forEach(platform => {
+          // Check the expanded list includes the current platform
+          // This happens when there are two version nodes with separate platforms
+          if (version.platforms.includes(platform)) {
+            pkgs.push({
+              origin: pkg.origin,
+              name: pkg.name,
+              version: pkg.version,
+              release: pkg.release,
+              channels: pkg.channels,
+              platforms: [platform]
+            });
+          }
+        });
+      });
+
+      return pkgs;
     }
 
     return [];

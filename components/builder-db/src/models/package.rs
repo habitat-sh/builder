@@ -1,12 +1,26 @@
 use std::{fmt,
+          hash::{Hash,
+                 Hasher},
           io::Write,
           ops::Deref,
           str::{self,
                 FromStr},
           time::Instant};
 
+use super::db_id_format;
+use crate::{hab_core::{self,
+                       package::{FromArchive,
+                                 Identifiable,
+                                 PackageArchive,
+                                 PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent},
+            models::{channel::{Channel,
+                               OriginChannelPackage,
+                               OriginChannelPromote},
+                     pagination::*,
+                     settings::OriginPackageSettings}};
 use chrono::NaiveDateTime;
-
 use diesel::{self,
              deserialize::{self,
                            FromSql},
@@ -28,20 +42,7 @@ use diesel::{self,
              RunQueryDsl};
 use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
-
-use super::db_id_format;
-use crate::{hab_core::{self,
-                       package::{FromArchive,
-                                 Identifiable,
-                                 PackageArchive,
-                                 PackageIdent,
-                                 PackageTarget},
-                       ChannelIdent},
-            models::{channel::{Channel,
-                               OriginChannelPackage,
-                               OriginChannelPromote},
-                     pagination::*,
-                     settings::OriginPackageSettings}};
+use itertools::Itertools;
 
 use crate::schema::{channel::{origin_channel_packages,
                               origin_channels},
@@ -131,7 +132,7 @@ pub struct PackageWithVersionArray {
          Queryable,
          Clone,
          Identifiable,
-         PartialEq)]
+         Eq)]
 #[table_name = "packages_with_channel_platform"]
 pub struct PackageWithChannelPlatform {
     #[serde(with = "db_id_format")]
@@ -156,6 +157,28 @@ pub struct PackageWithChannelPlatform {
     pub origin:      String,
     pub channels:    Vec<String>,
     pub platforms:   Vec<String>,
+}
+
+impl Hash for PackageWithChannelPlatform {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.ident.hash(state);
+        self.visibility.hash(state);
+        self.origin.hash(state);
+        self.channels.hash(state);
+        self.platforms.hash(state);
+    }
+}
+
+impl PartialEq for PackageWithChannelPlatform {
+    fn eq(&self, other: &PackageWithChannelPlatform) -> bool {
+        self.name == other.name
+        && self.ident == other.ident
+        && self.visibility == other.visibility
+        && self.origin == other.origin
+        && self.channels == other.channels
+        && self.platforms == other.platforms
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -593,19 +616,32 @@ impl Package {
         if !pl.ident.name.is_empty() {
             query = query.filter(packages_with_channel_platform::name.eq(&pl.ident.name))
         };
-        let query = query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
-                                                                                        .clone()
-                                                                                        .parts()))
-                         .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
-                         .order(packages_with_channel_platform::ident.desc())
-                         .paginate(pl.page)
-                         .per_page(pl.limit);
+
+        let mut pkgs = if pl.limit < 0 {
+            let query =
+                query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
+                                                                                    .clone()
+                                                                                    .parts()))
+                     .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                     .order(packages_with_channel_platform::ident.desc());
+            let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
+            pkgs
+        } else {
+            let query =
+                query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
+                                                                                    .clone()
+                                                                                    .parts()))
+                     .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                     .order(packages_with_channel_platform::ident.desc())
+                     .paginate(pl.page)
+                     .per_page(pl.limit);
+            let (pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
+                query.load_and_count_records(conn)?;
+            pkgs
+        };
 
         // helpful trick when debugging queries, this has Debug trait:
         // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
-
-        let (mut pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
-            query.load_and_count_records(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         Histogram::DbCallTime.set(duration_millis as f64);
@@ -621,10 +657,9 @@ impl Package {
 
         trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?}, returned {} items", pl.ident, pkgs.len());
 
-        // Note: dedup here as packages_with_channel_platform can return
-        // duplicate rows. TODO: Look for a performant Postgresql fix
+        // TODO: Look for a performant Postgresql fix
         // and possibly rethink the channels design
-        pkgs.dedup();
+        pkgs = pkgs.into_iter().unique().collect();
         trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?} after de-dup has {} items", pl.ident, pkgs.len());
 
         let new_count = pkgs.len() as i64;
@@ -902,7 +937,9 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
          Clone,
          FromSqlRow,
          AsExpression,
-         PartialEq)]
+         PartialEq,
+         Eq,
+         Hash)]
 #[sql_type = "Text"]
 pub struct BuilderPackageIdent(pub PackageIdent);
 

@@ -1411,6 +1411,7 @@ dependencies = [
  "fnv",
  "habitat-builder-protocol",
  "habitat_core",
+ "itertools",
  "log 0.4.14",
  "num_cpus",
  "paste",

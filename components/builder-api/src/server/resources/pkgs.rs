@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -898,7 +898,12 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
                                          count: i64,
                                          pagination: &Query<Pagination>)
                                          -> HttpResponse {
-    let (start, _) = helpers::extract_pagination(pagination);
+    let start = if pagination.range < 0 {
+        0
+    } else {
+        let (start, _) = helpers::extract_pagination(pagination);
+        start
+    };
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
         0 => count,
@@ -934,6 +939,7 @@ fn do_get_packages(req: &HttpRequest,
     };
 
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
+    let limit = if pagination.range < 0 { -1 } else { per_page };
 
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
@@ -942,7 +948,7 @@ fn do_get_packages(req: &HttpRequest,
                                                                                   opt_session_id,
                                                                                   &ident.origin),
                              page:       page as i64,
-                             limit:      per_page as i64, };
+                             limit:      limit as i64, };
 
     if pagination.distinct {
         match Package::list_distinct(lpr, &*conn).map_err(Error::DieselError) {
