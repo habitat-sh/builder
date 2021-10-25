@@ -139,6 +139,12 @@ export const targets = [
     name: 'macOS',
     title: 'macOS',
     param: 'mac'
+  },
+  {
+    id: 'aarch64-darwin',
+    name: 'macOS M1',
+    title: 'macOS (aarch64)',
+    param: 'mac_m1'
   }
 ];
 

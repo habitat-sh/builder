@@ -102,7 +102,7 @@ export class PackageSidebarComponent {
   }
 
   get targetIsMac() {
-    return this.target === 'x86_64-darwin';
+    return this.target === 'x86_64-darwin' || this.target === 'aarch64-darwin';
   }
 
   get isBuildable() {
