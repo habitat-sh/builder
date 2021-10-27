@@ -1635,7 +1635,7 @@ dependencies = [
 [[package]]
 name = "habitat_win_users"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#67c25573160c57d4c0d3a3148e7d507b4a2a4a55"
+source = "git+https://github.com/habitat-sh/habitat.git#5fdd7d7c5d00dfe50bf098ed312f17fea8521512"
 dependencies = [
  "cc",
  "log 0.4.14",
