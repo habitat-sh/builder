@@ -235,7 +235,9 @@ export class BuilderApiClient {
           if (response.ok) {
             resolve();
           } else {
-            reject(new Error(response.statusText));
+            response.text().then(message => {
+              reject(new Error(message || response.statusText));
+            }).catch(_ => reject(new Error(response.statusText)));
           }
         })
         .catch(error => this.handleError(error, reject));
