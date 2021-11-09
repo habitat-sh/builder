@@ -411,7 +411,12 @@ async fn update_project(req: HttpRequest,
                         Ok(plan) => {
                             debug!("plan = {:?}", &plan);
                             if plan.name != name {
-                                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                                debug!("Package names mismatch, expected={}, found={}",
+                                       name, plan.name);
+                                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                       Body::from_message(format!("Package name '{}' does not \
+                                                                   correspond to the plan file",
+                                                                   name)));
                             }
                             plan
                         }
