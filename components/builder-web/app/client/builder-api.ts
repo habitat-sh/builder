@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -176,7 +176,9 @@ export class BuilderApiClient {
           if (response.ok) {
             resolve(response.json());
           } else {
-            reject(new Error(response.statusText));
+            response.text().then(message => {
+              reject(new Error(message || response.statusText));
+            }).catch(_ => reject(new Error(response.statusText)));
           }
         })
         .catch(error => this.handleError(error, reject));
