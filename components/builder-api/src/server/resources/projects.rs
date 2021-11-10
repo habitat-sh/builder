@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
 use std::{env,
           str::FromStr};
 
-use actix_web::{http::{self,
+use actix_web::{body::Body,
+                http::{self,
                        StatusCode},
                 web::{self,
                       Data,
@@ -59,6 +60,8 @@ pub struct ProjectCreateReq {
     pub repo_id:         u32,
     #[serde(default)]
     pub auto_build:      bool,
+    #[serde(default)]
+    pub name:            String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -223,6 +226,15 @@ async fn create_project(req: HttpRequest,
     };
 
     let package_name = plan.name.trim_matches('"');
+    if package_name != body.name {
+        debug!("Package names mismatch, expected={}, found={}",
+               body.name, package_name);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                       Body::from_message(format!("Package name '{}' does not \
+                                                                   correspond to the plan file",
+                                                                  body.name)));
+    }
+
     let new_project = NewProject { owner_id: account_id as i64,
                                    origin: &origin.name,
                                    package_name,
@@ -399,7 +411,12 @@ async fn update_project(req: HttpRequest,
                         Ok(plan) => {
                             debug!("plan = {:?}", &plan);
                             if plan.name != name {
-                                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                                debug!("Package names mismatch, expected={}, found={}",
+                                       name, plan.name);
+                                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                       Body::from_message(format!("Package name '{}' does not \
+                                                                   correspond to the plan file",
+                                                                   name)));
                             }
                             plan
                         }

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2021 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -430,8 +430,9 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
         this.handleSaved(result.success, origin, package_name, target);
       }));
     } else {
-      this.store.dispatch(addProject(this.planTemplate, this.token, (result) => {
-        const { origin, package_name, target } = result.response;
+      const project = { ...this.planTemplate, name: this.name};
+      this.store.dispatch(addProject(project, this.token, (result) => {
+        const { origin, package_name, target } = result.response || {};
         this.handleSaved(result.success, origin, package_name, target);
       }));
     }
