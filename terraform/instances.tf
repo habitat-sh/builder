@@ -139,19 +139,6 @@ resource "aws_instance" "api" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/files/sumocollector.service"
-    destination = "/tmp/sumocollector.service"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
-      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
-      "sudo systemctl start sumocollector.service",
-    ]
-  }
-
-  provisioner "file" {
     content = local.hab_sup_service_content
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -177,7 +164,6 @@ resource "aws_instance" "api" {
       "sudo hab svc load habitat/builder-memcached --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load habitat/builder-api --group ${var.env} --bind memcached:builder-memcached.${var.env} --bind jobsrv:builder-jobsrv.${var.env} --binding-mode relaxed --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
       "sudo hab svc load habitat/builder-api-proxy --group ${var.env} --bind http:builder-api.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
-      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 
@@ -302,19 +288,6 @@ resource "aws_instance" "jobsrv" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/files/sumocollector.service"
-    destination = "/tmp/sumocollector.service"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
-      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
-      "sudo systemctl start sumocollector.service",
-    ]
-  }
-
-  provisioner "file" {
     content = local.hab_sup_service_content
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -338,7 +311,6 @@ resource "aws_instance" "jobsrv" {
       "echo \"Supervisor is up. Sleeping 120s to allow for auto upgrade.\"",
       "sleep 120",
       "sudo hab svc load habitat/builder-jobsrv --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
-      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 
@@ -461,19 +433,6 @@ resource "aws_instance" "worker" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/files/sumocollector.service"
-    destination = "/tmp/sumocollector.service"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo mv /tmp/sumocollector.service /etc/systemd/system/sumocollector.service",
-      "sudo systemctl enable /etc/systemd/system/sumocollector.service",
-      "sudo systemctl start sumocollector.service",
-    ]
-  }
-
-  provisioner "file" {
     content = local.hab_sup_service_content
     destination = "/home/ubuntu/hab-sup.service"
   }
@@ -499,7 +458,6 @@ resource "aws_instance" "worker" {
       "echo \"Supervisor is up. Sleeping 120s to allow for auto upgrade.\"",
       "sleep 120",
       "sudo hab svc load habitat/builder-worker --group ${var.env} --bind jobsrv:builder-jobsrv.${var.env} --bind depot:builder-api-proxy.${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.worker_release_channel}",
-      "sudo hab svc load core/sumologic --group ${var.env} --strategy at-once --url ${var.bldr_url} --channel ${var.release_channel}",
     ]
   }
 
@@ -706,24 +664,5 @@ data "template_file" "sch_log_parser" {
 
   vars = {
     bldr_url = var.bldr_url
-  }
-}
-
-data "template_file" "sumo_sources_worker" {
-  template = file("${path.module}/templates/sumo_sources_local.json")
-
-  vars = {
-    name     = var.env
-    category = "${var.env}/worker"
-    path     = "/tmp/builder-worker.log"
-  }
-}
-
-data "template_file" "sumo_sources_syslog" {
-  template = file("${path.module}/templates/sumo_sources_syslog.json")
-
-  vars = {
-    name     = "${var.env}-Syslog"
-    category = "${var.env}/syslog"
   }
 }

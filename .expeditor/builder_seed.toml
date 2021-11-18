@@ -17,7 +17,6 @@ packages = [
   "habitat/builder-memcached",
 
   # Utilities
-  "core/sumologic",
   "core/nmap"
 ]
 
