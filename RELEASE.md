@@ -12,7 +12,6 @@ If the release requires downtime, create a status update on statuspage.io . This
 
 ## Verify
 
-* Ensure all services are operating normally in sumologic and datadog
 * Close out the maintenance notice in statuspage.io as needed
 
 # Releasing habitat/builder-worker after a Habitat release
