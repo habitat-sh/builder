@@ -16,7 +16,7 @@ $pkg_bin_dirs = @("bin")
 $pkg_build_deps = @(
     "core/visual-cpp-build-tools-2015",
     "core/protobuf",
-    "core/rust",
+    "core/rust/$(Get-Content "../../../../rust-toolchain")",
     "core/cacerts",
     "core/git",
     "core/perl"

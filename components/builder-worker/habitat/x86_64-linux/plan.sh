@@ -9,7 +9,7 @@ pkg_deps=(core/glibc core/openssl core/gcc-libs core/zeromq
   core/libarchive core/zlib core/hab core/hab-studio core/hab-pkg-export-container
   core/docker core/curl)
 pkg_build_deps=(core/make core/cmake core/protobuf-cpp core/protobuf-rust core/coreutils core/cacerts
-  core/rust core/gcc core/git core/pkg-config)
+  core/rust/"$(cat "../../../../rust-toolchain")" core/gcc core/git core/pkg-config)
 pkg_binds=(
   [jobsrv]="worker_port worker_heartbeat log_port"
   [depot]="url"
