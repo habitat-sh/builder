@@ -16,6 +16,7 @@ pkg_build_deps=(core/protobuf-cpp
                 core/protobuf-rust
                 core/coreutils
                 core/cacerts
+                core/cmake
                 core/rust/"$(cat "../../../rust-toolchain")"
                 core/gcc
                 core/git
