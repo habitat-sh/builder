@@ -313,10 +313,10 @@ export function getEvents(nextRange: number = 0, fromDate: string, toDate: strin
 }
 
 export function getSaasEvents(nextRange: number = 0, fromDate: string, toDate: string, query: string = '') {
-  let url = `${urlPrefix}/depot/events/saas` + `?range=${nextRange}&channel=stable&from_date=${fromDate}&to_date=${toDate}&query=${query}`;
+  let url = `${urlPrefix}/depot/events/saas?range=${nextRange}&channel=stable&from_date=${fromDate}&to_date=${toDate}&query=${query}`;
 
   return new Promise((resolve, reject) => {
-    fetch(url, opts())
+    fetch(url)
       .then(response => handleUnauthorized(response, reject))
       .then(response => {
         if (response.status >= 400) {

@@ -46,7 +46,6 @@ export class EventsSaaSComponent implements OnInit, OnDestroy {
     this.searchBox = new FormControl(this.searchQuery);
     this.filters = dateFilters;
     this.dateFilterChanged = function (item: any) {
-      this.currentFilter = item;
       this.isOpen = !this.isOpen;
       this.store.dispatch(setSaasEventsDateFilter(item));
       this.fetchEvents(0);
@@ -107,7 +106,7 @@ export class EventsSaaSComponent implements OnInit, OnDestroy {
   }
 
   get dateFilter() {
-    return this.store.getState().events.dateFilter;
+    return this.store.getState().eventsSaas.dateFilter;
   }
 
   get currentFilter() {
