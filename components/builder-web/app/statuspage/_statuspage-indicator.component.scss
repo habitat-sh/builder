@@ -6,13 +6,14 @@
     height: 8px;
     margin-right: $default-margin / 2;
 
-    &.critical { background-color: $hab-red; }
-    &.major    { background-color: $hab-orange; }
-    &.minor    { background-color: $hab-yellow; }
-    &.none     { background-color: $hab-green; }
+    &.major_outage         { background-color: $hab-red; }
+    &.partial_outage       { background-color: $hab-orange; }
+    &.degraded_performance { background-color: $hab-yellow; }
+    &.operational          { background-color: $hab-green; }
   }
 
   > .color-description {
     font-size: $small-font-size;
+    text-transform: capitalize;
   }
 }
