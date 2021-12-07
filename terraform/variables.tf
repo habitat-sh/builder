@@ -166,5 +166,5 @@ variable "enabled_features" {
 }
 
 variable "connection_public_key" {
-  description = "File path to the public key to use for SSH authentication to windows builder"
+  description = "Content of public key to use for SSH authentication to windows builder"
 }
