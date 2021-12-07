@@ -17,7 +17,7 @@ import { AfterViewInit, Component } from '@angular/core';
 @Component({
   selector: 'hab-statuspage',
   template: `
-    <a href="//status.habitat.sh/" target="_blank" class="statuspage-component">
+    <a href="//status.chef.io/" target="_blank" class="statuspage-component">
       <span class="color-dot {{indicator}}"></span>
       <span class="color-description">{{description}}</span>
     </a>
@@ -33,12 +33,17 @@ export class StatuspageIndicatorComponent implements AfterViewInit {
   }
 
   queryStatuspage() {
-    let sp = new window['StatusPage'].page({ page: 'dwzx9n50yrpg'});
+    let sp = new window['StatusPage'].page({ page: 'c0nql3j2x52j'});
 
-    sp.summary({
+    sp.components({
       success: (data) => {
-        this.indicator = data.status.indicator;
-        this.description = data.status.description;
+        let status = '';
+        data.components.forEach(component => {
+          if (component.id === '7jnp2p89z282') {
+            this.indicator = component.status;
+            this.description = component.status.replace('_', ' ');
+          }
+        });
       }
     });
   }
