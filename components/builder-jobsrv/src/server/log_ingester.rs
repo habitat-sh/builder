@@ -21,7 +21,6 @@ use crate::{bldr_core::socket::DEFAULT_CONTEXT,
             server::{log_archiver::{self,
                                     LogArchiver},
                      log_directory::LogDirectory}};
-use futures::executor::block_on;
 use std::{fs::{self,
                OpenOptions},
           io::Write,
@@ -64,11 +63,15 @@ impl LogIngester {
                  -> Result<JoinHandle<()>> {
         let mut ingester = Self::new(cfg, log_dir, data_store);
         let (tx, rx) = mpsc::sync_channel(1);
-        let handle = thread::Builder::new().name("log-ingester".to_string())
-                                           .spawn(move || {
-                                               block_on(ingester.run(&tx)).unwrap();
-                                           })
-                                           .unwrap();
+        let handle =
+            thread::Builder::new().name("log-ingester".to_string())
+                                  .spawn(move || {
+                                      tokio::runtime::Runtime::new().expect("Unable to create \
+                                                                             tokio runtime")
+                                                                    .block_on(ingester.run(&tx))
+                                                                    .unwrap()
+                                  })
+                                  .unwrap();
         match rx.recv() {
             Ok(()) => Ok(handle),
             Err(e) => panic!("log-ingester thread startup error, err={}", e),
