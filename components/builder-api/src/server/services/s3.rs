@@ -49,7 +49,8 @@ use rusoto_s3::{CompleteMultipartUploadRequest,
                 UploadPartRequest,
                 S3};
 
-use rusoto_core::HttpClient;
+use rusoto_core::{HttpClient,
+                  RusotoError};
 
 use super::metrics::Counter;
 use crate::{bldr_core::metrics::CounterMetric,
@@ -207,6 +208,26 @@ impl S3Handler {
             Err(e) => {
                 warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
                 Err(e)
+            }
+        }
+    }
+
+    pub async fn size_of(&self, ident: &PackageIdent, target: PackageTarget) -> Result<i64> {
+        Counter::SizeRequests.increment();
+        let mut request = HeadObjectRequest::default();
+        let key = s3_key(ident, target)?;
+        request.bucket = self.bucket.to_owned();
+        request.key = key;
+
+        let payload = self.client.head_object(request).await;
+        match payload {
+            Ok(response) =>
+                response.content_length.ok_or_else(|| Error::HeadObject(RusotoError::ParseError(String::from("Content length parse error"))))
+            ,
+            Err(e) => {
+                warn!("Failed to retrieve object metadata from S3, ident={}: {:?}",
+                      ident, e);
+                Err(Error::HeadObject(e))
             }
         }
     }

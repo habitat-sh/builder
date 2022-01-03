@@ -54,6 +54,13 @@ pub struct Channel {
     pub origin:     String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChannelWithPromotion {
+    pub name:        String,
+    pub created_at:  Option<NaiveDateTime>,
+    pub promoted_at: Option<NaiveDateTime>,
+}
+
 #[derive(Insertable)]
 #[table_name = "origin_channels"]
 pub struct CreateChannel<'a> {
@@ -485,6 +492,14 @@ impl From<AuditPackage> for AuditPackageEvent {
                             origin:        value.origin.clone(),
                             channel:       value.channel.clone(),
                             package_ident: value.package_ident, }
+    }
+}
+
+impl From<Channel> for ChannelWithPromotion {
+    fn from(value: Channel) -> ChannelWithPromotion {
+        ChannelWithPromotion { name:        value.name.clone(),
+                               created_at:  value.created_at,
+                               promoted_at: value.updated_at, }
     }
 }
 

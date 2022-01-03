@@ -14,7 +14,8 @@
 
 use crate::{bldr_core::{error::Error::RpcError,
                         metrics::CounterMetric},
-            db::models::{channel::Channel,
+            db::models::{channel::{Channel,
+                                   ChannelWithPromotion},
                          origin::*,
                          package::{BuilderPackageIdent,
                                    BuilderPackageTarget,
@@ -228,15 +229,15 @@ fn get_packages_for_origin_package_version(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_latest_package_for_origin_package(req: HttpRequest,
-                                         path: Path<(String, String)>,
-                                         qtarget: Query<Target>)
-                                         -> HttpResponse {
+async fn get_latest_package_for_origin_package(req: HttpRequest,
+                                               path: Path<(String, String)>,
+                                               qtarget: Query<Target>)
+                                               -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
-    match do_get_package(&req, &qtarget, &ident) {
+    match do_get_package(&req, &qtarget, &ident).await {
         Ok(json_body) => {
             HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
                                               headers::APPLICATION_JSON))
@@ -252,15 +253,15 @@ fn get_latest_package_for_origin_package(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_latest_package_for_origin_package_version(req: HttpRequest,
-                                                 path: Path<(String, String, String)>,
-                                                 qtarget: Query<Target>)
-                                                 -> HttpResponse {
+async fn get_latest_package_for_origin_package_version(req: HttpRequest,
+                                                       path: Path<(String, String, String)>,
+                                                       qtarget: Query<Target>)
+                                                       -> HttpResponse {
     let (origin, pkg, version) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
-    match do_get_package(&req, &qtarget, &ident) {
+    match do_get_package(&req, &qtarget, &ident).await {
         Ok(json_body) => {
             HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
                                               headers::APPLICATION_JSON))
@@ -276,15 +277,15 @@ fn get_latest_package_for_origin_package_version(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_package(req: HttpRequest,
-               path: Path<(String, String, String, String)>,
-               qtarget: Query<Target>)
-               -> HttpResponse {
+async fn get_package(req: HttpRequest,
+                     path: Path<(String, String, String, String)>,
+                     qtarget: Query<Target>)
+                     -> HttpResponse {
     let (origin, pkg, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
-    match do_get_package(&req, &qtarget, &ident) {
+    match do_get_package(&req, &qtarget, &ident).await {
         Ok(json_body) => {
             HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
                                               headers::APPLICATION_JSON))
@@ -693,9 +694,8 @@ fn get_package_channels(req: HttpRequest,
                                          &*conn)
     {
         Ok(channels) => {
-            let list: Vec<String> = channels.iter()
-                                            .map(|channel| channel.name.to_string())
-                                            .collect();
+            let list: Vec<ChannelWithPromotion> =
+                channels.into_iter().map(|channel| channel.into()).collect();
             HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(list)
         }
@@ -1308,10 +1308,10 @@ async fn do_upload_package_async(req: HttpRequest,
     }
 }
 
-fn do_get_package(req: &HttpRequest,
-                  qtarget: &Query<Target>,
-                  ident: &PackageIdent)
-                  -> Result<String> {
+async fn do_get_package(req: &HttpRequest,
+                        qtarget: &Query<Target>,
+                        ident: &PackageIdent)
+                        -> Result<String> {
     let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
         Err(_) => None,
@@ -1428,6 +1428,15 @@ fn do_get_package(req: &HttpRequest,
 
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
+    let size = match req_state(req).packages.size_of(ident, target).await {
+        Ok(size) => size,
+        Err(err) => {
+            debug!("Could not get size for {:?}, {:?}", ident, err);
+            0
+        }
+    };
+
+    pkg_json["size"] = json!(size);
 
     let json_body = serde_json::to_string(&pkg_json).unwrap();
 
