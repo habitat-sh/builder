@@ -41,6 +41,3 @@ port = {{member.cfg.rpc_port}}
 
 [datastore]
 {{toToml cfg.datastore}}
-
-[eventbus]
-{{toToml cfg.eventbus}}

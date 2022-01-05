@@ -49,9 +49,6 @@ url = "*"
 uuid = { version = "*", features = ["v4"] }
 zmq = "*"
 
-[dependencies.habitat_builder_events]
-path = "../builder-events"
-
 [dependencies.actix-web]
 version = "4.0.0-beta.8"
 default-features = false
