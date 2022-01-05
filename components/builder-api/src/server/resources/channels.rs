@@ -29,9 +29,6 @@ use diesel::{pg::PgConnection,
                               NotFound}}};
 
 use crate::{bldr_core::metrics::CounterMetric,
-            bldr_events::event::{AffinityKey::*,
-                                 BuilderEvent,
-                                 EventType},
             hab_core::{package::{PackageIdent,
                                  PackageTarget},
                        ChannelIdent}};
@@ -446,9 +443,6 @@ async fn promote_package(req: HttpRequest,
                 if let Err(e) = PackageChannelAudit::audit(&auditevent, &*conn) {
                      debug!("Failed to save rank change to audit log: {}", e);
                 };
-
-                BuilderEvent::new(EventType::PackageChannelMotion, NoAffinity, "builder_events".to_string(), &auditevent)
-                    .publish(&state.event_producer).await;
             }
 
             state

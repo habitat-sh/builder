@@ -2,7 +2,6 @@
 
 use crate::{bldr_core::{self,
                         config::ConfigFile},
-            bldr_events::connection::EventConfig,
             db::config::DataStoreCfg};
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
@@ -47,7 +46,6 @@ pub struct Config {
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
-    pub eventbus:    EventConfig,
 }
 
 #[derive(Debug)]
@@ -325,8 +323,6 @@ impl fmt::Display for JobsrvCfg {
 mod tests {
     use super::*;
 
-    use crate::bldr_events::connection::Provider;
-
     #[test]
     #[allow(clippy::cognitive_complexity)]
     fn config_from_file() {
@@ -467,12 +463,6 @@ mod tests {
                    Some("/root_ca.crt".to_string()));
         assert_eq!(config.datastore.ssl_key, Some("/ssl.key".to_string()));
         assert_eq!(config.datastore.ssl_cert, Some("/ssl.crt".to_string()));
-
-        assert_eq!(config.eventbus.provider, Provider::Kafka);
-        assert_eq!(config.eventbus.kafka.bootstrap_nodes,
-                   ["myhost:9092".to_string()]);
-        assert_eq!(config.eventbus.kafka.client_id,
-                   "http://myhost".parse().unwrap());
     }
 
     #[test]

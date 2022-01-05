@@ -22,13 +22,10 @@ use self::{framework::middleware::authentication_middleware,
            services::{memcache::MemcacheClient,
                       s3::S3Handler}};
 use crate::{bldr_core::rpc::RpcClient,
-            bldr_events::connection::{create_producer,
-                                      EventPublisher},
             config::{Config,
                      GatewayCfg},
             db::{migration,
-                 DbPool},
-            hab_core::ok_warn};
+                 DbPool}};
 use actix_web::{http::StatusCode,
                 middleware::Logger,
                 web,
@@ -69,27 +66,25 @@ features! {
         const Jobsrv = 0b0000_0010,
         const LegacyProject = 0b0000_0011,
         const Artifactory = 0b0000_0100,
-        const BuildDeps = 0b0000_1000,
-        const EventBus = 0b0001_0000
+        const BuildDeps = 0b0000_1000
     }
 }
 
 // Application state
 pub struct AppState {
-    config:         Config,
-    packages:       S3Handler,
-    github:         GitHubClient,
-    jobsrv:         RpcClient,
-    oauth:          OAuth2Client,
-    memcache:       RefCell<MemcacheClient>,
-    artifactory:    ArtifactoryClient,
-    db:             DbPool,
-    event_producer: Option<Box<dyn EventPublisher>>,
+    config:      Config,
+    packages:    S3Handler,
+    github:      GitHubClient,
+    jobsrv:      RpcClient,
+    oauth:       OAuth2Client,
+    memcache:    RefCell<MemcacheClient>,
+    artifactory: ArtifactoryClient,
+    db:          DbPool,
 }
 
 impl AppState {
     pub fn new(config: &Config, db: DbPool) -> error::Result<AppState> {
-        let mut app_state =
+        let app_state =
             AppState { config: config.clone(),
                        packages: S3Handler::new(config.s3.clone()),
                        github: GitHubClient::new(config.github.clone())?,
@@ -97,12 +92,7 @@ impl AppState {
                        oauth: OAuth2Client::new(config.oauth.clone())?,
                        memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
                        artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
-                       db,
-                       event_producer: None };
-
-        if feat::is_enabled(feat::EventBus) {
-            app_state.event_producer = ok_warn!(create_producer(&config.eventbus));
-        };
+                       db };
 
         Ok(app_state)
     }
@@ -113,8 +103,7 @@ fn enable_features(config: &Config) {
                                                           ("JOBSRV", feat::Jobsrv),
                                                           ("LEGACYPROJECT", feat::LegacyProject),
                                                           ("ARTIFACTORY", feat::Artifactory),
-                                                          ("BUILDDEPS", feat::BuildDeps),
-                                                          ("EVENTBUS", feat::EventBus)]);
+                                                          ("BUILDDEPS", feat::BuildDeps)]);
     for key in &config.api.features_enabled {
         if features.contains_key(key.as_str()) {
             info!("Enabling feature: {}", key);
