@@ -89,7 +89,7 @@ help:
 
 define BUILD
 build-$1: linux ## builds the $1 component
-	sh -c 'cd components/$1 && cargo build'
+	sh -c './build.sh $1'
 .PHONY: build-$1
 
 endef
@@ -97,7 +97,7 @@ $(foreach component,$(ALL),$(eval $(call BUILD,$(component))))
 
 define UNIT
 unit-$1: linux ## executes the $1 component's unit test suite
-	sh -c 'cd components/$1 && cargo test'
+	sh -c 'test/run_cargo_test.sh $1'
 .PHONY: unit-$1
 endef
 $(foreach component,$(ALL),$(eval $(call UNIT,$(component))))
