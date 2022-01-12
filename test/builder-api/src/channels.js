@@ -112,6 +112,20 @@ describe('Channels API', function () {
         });
     });
 
+    it('Check the package channels after package promotion', function (done) {
+      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/20171205003213/channels`)
+        .type('application/json')
+        .accept('application/json')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.length).to.equal(2);
+          expect(res.body[0].name).to.equal('unstable');
+          expect(res.body[1].name).to.equal('foo');
+          done(err);
+        });
+    });
+
     it('tests builder events after putting a specified package into the specified channel', function (done) {
       const url = appendDateRange('/depot/events');
       request.get(url)

@@ -151,7 +151,6 @@ describe('Projects API', function () {
         .send(dependentProjectCreatePayload)
         .expect(201)
         .end(function (err, res) {
-          console.log(res.body);
           dependentProjectExpectations(res);
           done(err);
         });

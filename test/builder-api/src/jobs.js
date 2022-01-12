@@ -180,7 +180,6 @@ describe("Jobs API", function () {
           .set("Authorization", global.boboBearer)
           .expect(200)
           .end(function (err, res) {
-            console.log(res.body);
             expect(res.body.range_start).to.equal(0);
             expect(res.body.range_end).to.equal(0);
             expect(res.body.total_count).to.equal(1);
