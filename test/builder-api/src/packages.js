@@ -646,6 +646,7 @@ describe('Working with packages', function () {
           expect(res.body.ident.name).to.equal('testapp');
           expect(res.body.ident.version).to.equal('0.1.13');
           expect(res.body.ident.release).to.equal(release10);
+          expect(res.body.size).to.equal(1633);
           done(err);
         });
     });
@@ -743,6 +744,7 @@ describe('Working with packages', function () {
           expect(res.body.ident.name).to.equal('testapp');
           expect(res.body.ident.version).to.equal('0.1.3');
           expect(res.body.ident.release).to.equal(release2);
+          expect(res.body.size).to.equal(1569);
           done(err);
         });
     });
@@ -757,6 +759,7 @@ describe('Working with packages', function () {
           expect(res.body.ident.name).to.equal('testapp');
           expect(res.body.ident.version).to.equal('0.1.3');
           expect(res.body.ident.release).to.equal(release2);
+          expect(res.body.size).to.equal(1569);
           done(err);
         });
     });
