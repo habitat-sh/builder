@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,5 +30,6 @@ export const Package = Record({
   channels: [],
   target: undefined,
   is_a_service: undefined,
-  visibility: ''
+  visibility: '',
+  hart_size: 0
 });
