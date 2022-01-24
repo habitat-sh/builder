@@ -745,7 +745,7 @@ impl Package {
 
         let result = origin_packages::table
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
-            .select(origin_channels::table::all_columns())
+            .select((origin_channels::id, origin_channels::owner_id, origin_channels::name, origin_channel_packages::created_at, origin_channel_packages::updated_at, origin_channels::origin))
             .filter(origin_packages::ident.eq(ident))
             .filter(origin_packages::target.eq(target.to_string()))
             .filter(origin_packages::visibility.eq(any(visibility)))
