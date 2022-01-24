@@ -182,6 +182,38 @@ types:
         type: string
       owner_id:
         type: string
+  event:
+    properties:
+      operation:
+        type: string
+      created_at:
+        type: string
+        required: false
+      origin:
+        type: string
+      channel:
+        type: string
+      package_ident:
+        type: ident
+  events:
+    properties:
+      jobs:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: event
+        required: false
+  ident:
+    properties:
+      origin:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+      release:
+        type: string
 /status:
   get:
     description: Returns the health of the service
@@ -192,6 +224,44 @@ types:
         description: Server fault
       '503':
         description: Service temporarily unavailable
+/ext:
+  '/installations/{install_id}':
+    uriParameters:
+      install_id: {}
+    '/repos/{repo_id}':
+      uriParameters:
+        repo_id: {}
+      '/contents/{path}':
+        get:
+          responses:
+            '200':
+              body:
+                application/json:
+                  required: false
+            '400':
+              description: Bad search query parameter provided
+        uriParameters:
+          path: {}
+  '/integrations/{registry_type}':
+    uriParameters:
+      registry_type: {}
+    /credentials/validate:
+      post:
+        description: Validates registry credentials
+        responses:
+          '200':
+            description: Registry credentials validated
+          '400':
+            description: Bad Request
+          '401':
+            description: Authentication failed
+        body:
+          application/json:
+            example:
+              user: user
+              password: password
+              url: url
+            required: false
 /profile:
   get:
     description: Retrieve your profile
@@ -395,12 +465,50 @@ types:
   '/group/{id}':
     uriParameters:
       id: {}
+    /cancel:
+      post:
+        description: Cancels a job group
+        responses:
+          '200':
+            description: Successful
+          '400':
+            description: ID or channel not provided
+          '404':
+            description: Group not found
+          '500':
+            description: Internal server error
+    /rebuild:
+      post:
+        description: Rebuilds a job group
+        responses:
+          '200':
+            description: Successful
+          '400':
+            description: ID or channel not provided
+          '404':
+            description: Group not found
+          '500':
+            description: Internal server error
     '/promote/{channel}':
       post:
         description: Promote every successful project in a job group to the specified channel
         responses:
           '200':
             description: Successful promotion
+          '400':
+            description: ID or channel not provided
+          '404':
+            description: Group not found
+          '500':
+            description: Internal server error
+      uriParameters:
+        channel: {}
+    '/demote/{channel}':
+      post:
+        description: Demote every successful project in a job group to the specified channel
+        responses:
+          '200':
+            description: Successful demotion
           '400':
             description: ID or channel not provided
           '404':
@@ -566,6 +674,28 @@ types:
                   required: false
             '404':
               description: Project not found
+      '/integrations/{integration}':
+        /default:
+          get:
+            description: Fetch the specified integration
+            responses:
+              '200':
+                body:
+                  application/json:
+                    required: false
+              '404':
+                description: Integration not found
+          put:
+            description: Deletes an integration
+            responses:
+              '200':
+                description: Integration deleted
+              '400':
+                description: Invalid or Empty Integration
+              '401':
+                description: Unauthorized
+        uriParameters:
+          integration: {}
     uriParameters:
       origin: {}
 /origins:
@@ -1013,6 +1143,169 @@ types:
           type: boolean
     uriParameters:
       query: {}
+/events:
+  get:
+    description: Fetch local builder events
+    responses:
+      '200':
+        body:
+          application/json:
+            example: |
+              {
+                  "range_start": 0,
+                  "range_end": 1,
+                  "total_count": 1,
+                  "data": [
+                      {
+                         "operation": "Promote",
+                         "created_at": "2021-12-28T20:24:49.588691",
+                         "origin": "core",
+                         "channel": "stable",
+                         "package_ident": {
+                         "origin": "core",
+                         "name": "hab-backline",
+                         "version": "1.6.420",
+                         "release": "20211101174345"
+                      }
+                  ]
+              }
+            type: events
+            required: false
+      '204':
+        body:
+          application/json:
+            example: |
+              {
+                  "range_start": 0,
+                  "range_end": 1,
+                  "total_count": 1,
+                  "data": [
+                      {
+                         "operation": "Promote",
+                         "created_at": "2021-12-28T20:24:49.588691",
+                         "origin": "core",
+                         "channel": "stable",
+                         "package_ident": {
+                         "origin": "core",
+                         "name": "hab-backline",
+                         "version": "1.6.420",
+                         "release": "20211101174345"
+                      }
+                  ]
+              }
+            type: events
+            required: false
+      '400':
+        description: Bad search query parameter provided
+    queryParameters:
+      nextRange:
+        description: Paginated index of next range to return
+        type: integer
+      fromDate:
+        description: From date to include in query results (inclusive)
+        type: string
+      toDate:
+        description: To date to include in query results (inclusive)
+        type: string
+      query:
+        description: Query parameters
+        default: ''
+        type: string
+  /saas:
+    get:
+      description: Fetch SAAS builder events
+      responses:
+        '200':
+          body:
+            application/json:
+              example: |
+                {
+                    "range_start": 0,
+                    "range_end": 1,
+                    "total_count": 1,
+                    "data": [
+                        {
+                           "operation": "Promote",
+                           "created_at": "2021-12-28T20:24:49.588691",
+                           "origin": "core",
+                           "channel": "stable",
+                           "package_ident": {
+                           "origin": "core",
+                           "name": "hab-backline",
+                           "version": "1.6.420",
+                           "release": "20211101174345"
+                        }
+                    ]
+                }
+              type: events
+              required: false
+        '204':
+          body:
+            application/json:
+              example: |
+                {
+                    "range_start": 0,
+                    "range_end": 1,
+                    "total_count": 1,
+                    "data": [
+                        {
+                           "operation": "Promote",
+                           "created_at": "2021-12-28T20:24:49.588691",
+                           "origin": "core",
+                           "channel": "stable",
+                           "package_ident": {
+                           "origin": "core",
+                           "name": "hab-backline",
+                           "version": "1.6.420",
+                           "release": "20211101174345"
+                        }
+                    ]
+                }
+              type: events
+              required: false
+        '400':
+          description: Bad search query parameter provided
+      queryParameters:
+        nextRange:
+          description: Paginated index of next range to return
+          type: integer
+        fromDate:
+          description: From date to include in query results (inclusive)
+          type: string
+        toDate:
+          description: To date to include in query results (inclusive)
+          type: string
+        query:
+          description: Query parameters
+          default: ''
+          type: string
+/notify:
+  post:
+    description: 'Notification of github events [ping, push]'
+    responses:
+      '200':
+        description: Successful
+      '400':
+        description: Invalid parameter provided
+    body:
+      application/json:
+        required: false
+'/{origin}':
+  /pkgs:
+    get:
+      description: Fetch list of unique packages for specified origin
+      responses:
+        '200':
+          description: Successful
+          body:
+            application/json:
+              required: false
+        '400':
+          description: Invalid origin provided
+        '500':
+          description: Internal error
+  uriParameters:
+    origin: {}
 '/authenticate/{code}':
   get:
     responses:
@@ -1028,23 +1321,6 @@ types:
             required: false
   uriParameters:
     code: {}
-'/ext/installations/{install_id}':
-  uriParameters:
-    install_id: {}
-  '/repos/{repo_id}':
-    uriParameters:
-      repo_id: {}
-    '/contents/{path}':
-      get:
-        responses:
-          '200':
-            body:
-              application/json:
-                required: false
-          '400':
-            description: Bad search query parameter provided
-      uriParameters:
-        path: {}
 '/rdeps/{origin}':
   uriParameters:
     origin: {}
