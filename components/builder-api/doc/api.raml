@@ -162,15 +162,53 @@ types:
         required: false
       name:
         type: string
-        required: false
+        required: true
       owner_id:
-        type: string
-        required: false
+        type: integer
+        required: true
       default_package_visibility:
         type: string
         enum:
           - Public
           - Private
+        required: false
+  originIntegration:
+    properties:
+      id:
+        type: integer
+      origin:
+        type: string
+      integration:
+        type: string
+      name:
+        type: string
+      body:
+        type: string
+      created_at:
+        type: string
+        required: false
+      updated_at:
+        type: string
+        required: false
+  originInvitation:
+    properties:
+      id:
+        type: integer
+      origin:
+        type: string
+      account_id:
+        type: integer
+      account_name:
+        type: string
+      owner_id:
+        type: integer
+      ignored:
+        type: boolean
+      created_at:
+        type: string
+        required: false
+      updated_at:
+        type: string
         required: false
   packageSettings:
     properties:
@@ -186,8 +224,28 @@ types:
         type: integer
       created_at:
         type: string
+        required: false
       updated_at:
         type: string
+        required: false
+  projectIntegration:
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      integration_id:
+        type: integer
+      origin:
+        type: string
+      body:
+        type: string
+      created_at:
+        type: string
+        required: false
+      updated_at:
+        type: string
+        required: false
   secret_key:
     properties:
       id:
@@ -237,6 +295,14 @@ types:
 /status:
   get:
     description: Returns the health of the service
+    responses:
+      '200':
+        description: Service is healthy
+      '500':
+        description: Server fault
+      '503':
+        description: Service temporarily unavailable
+  head:
     responses:
       '200':
         description: Service is healthy
@@ -345,6 +411,7 @@ types:
           required: false
       securedBy:
         - oauth_2_0
+  '/access-tokens/{id}':
     delete:
       description: Delete (revoke) a personal access token
       responses:
@@ -358,30 +425,6 @@ types:
       securedBy:
         - oauth_2_0
 /jobs:
-  post:
-    description: Create a new job for the given project
-    responses:
-      '201':
-        body:
-          application/json:
-            example:
-              id: '73089155726360582'
-              state: 0
-            required: false
-      '400':
-        description: Received a malformed JSON body
-      '404':
-        description: Project does not exist with corresponding projectId
-      '422':
-        description: Invalid or missing projectId in body
-    body:
-      application/json:
-        example:
-          project_id: core/nginx
-        type: jobCreate
-        required: false
-    securedBy:
-      - oauth_2_0
   '/{jobId}':
     get:
       description: Get the status of the given job
@@ -540,25 +583,30 @@ types:
 /user:
   /invitations:
     get:
-      securedBy:
-        - oauth_2_0
-  '/{invitationId}':
-    delete:
       responses:
-        '204':
-          description: Invitation successfully ignored
+        '200':
+          body:
+            application/json:
+        '401':
+          description:  Unauthorized
+        '404':
+          description:  Not found
+        '500':
+          description: Internal server error
       securedBy:
         - oauth_2_0
-    put:
-      responses:
-        '204':
-          description: Invitation successfully accepted
-      securedBy:
-        - oauth_2_0
-    uriParameters:
-      invitationId: {}
   /origins:
     get:
+      responses:
+        '200':
+          body:
+            application/json:
+        '401':
+          description:  Unauthorized
+        '404':
+          description:  Not found
+        '500':
+          description: Internal server error
       securedBy:
         - oauth_2_0
 /projects:
@@ -600,6 +648,24 @@ types:
     securedBy:
       - oauth_2_0
   '/{origin}':
+    get:
+      description: Get the list of project names for the specified origin
+      responses:
+        '200':
+          body:
+            application/json:
+              example: |
+                [
+                  "foo",
+                  "bar",
+                  "baz"
+                ]
+        '401': 
+          description: Unauthorized
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
     '/{name}':
       get:
         description: Return the project matching the given ID
@@ -697,21 +763,39 @@ types:
       '/integrations/{integration}':
         /default:
           get:
-            description: Fetch the specified integration
+            description: Get the specified integration
             responses:
               '200':
                 body:
                   application/json:
+                    type: projectIntegration
                     required: false
+                    example:
+                      id: 0
+                      project_id: 0 
+                      integration_id: 1211 
+                      origin: core
+                      body: NoContent
+                      created_at:
+                        '2017-05-05 00:43:11.729835+00'
+              '401':
+                description: Unauthorized
               '404':
                 description: Integration not found
           put:
+            description: Creates a project integration
+            responses:
+              '204':
+                description: Integration created
+              '400':
+                description: Error parsing integration
+              '401':
+                description: Unauthorized
+          delete:
             description: Deletes an integration
             responses:
-              '200':
+              '204':
                 description: Integration deleted
-              '400':
-                description: Invalid or Empty Integration
               '401':
                 description: Unauthorized
         uriParameters:
@@ -725,99 +809,105 @@ types:
       '200':
         body:
           application/json:
-            example:
-              id: '77732030103691265'
-              name: reset
-              owner_id: '77730215748435968'
-              default_package_visibility: public
             type: origin
             required: false
+            example:
+              id: 1965
+              name: test
+              owner_id: 1965
+              default_package_visibility: Public
+      '401':
+        description: Unauthorized
       '409':
         description: The origin already exists
+      '417':
+        description: Expectation failed
       '422':
         description: Malformed origin in request body
+      '500':
+        description: Internal server error
     body:
       application/json:
         example:
           name: reset
-          default_package_visibility: public
+          owner_id: 1965
         type: origin
         required: false
     securedBy:
       - oauth_2_0
   '/{origin}':
-    uriParameters:
-      origin: {}
-    /integrations:
+    get:
+      description: Get origin
+      responses:
+        '200':
+          description: Origin retrieved
+          body:
+            application/json:
+              type: origin
+              required: false
+              example:
+                id: 1965
+                name: test
+                owner_id: 1965
+                default_package_visibility: Public
+        '404':
+          description: Origin not found
+        '500':
+          description: Internal server error
+    put:
+      description: Update existing origin
+      responses:
+        '204':
+          description: Origin updated
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+    delete:
+      description: Delete an origin
+      responses:
+        '204':
+          description: Origin deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '409':
+          description: Conflict
+        '500':
+          description: Internal server error
+    /users:
       get:
-        description: Get an object of all integrations
+        description: List all members of an origin
         responses:
           '200':
             body:
               application/json:
                 example:
-                  docker:
-                    - region1
-                    - region2
-                  google:
-                    - region3
+                  members:
+                    - reset
+                  origin_id: '77731431660388352'
                 required: false
+          '401':
+            description: Unauthorized
+          '500':
+            description: Internal server error
+    '/users/{user}':
+      delete:
+        description: Delete origin member
+        responses:
+          '204':
+            description: Member deleted from origin
+          '400':
+            description: Invalid request
+          '401':
+            description: Unauthorized
+          '403':
+            description: Must be owner of origin to delete
+          '422':
+            description: Cannot remove owner with existing origins
         securedBy:
           - oauth_2_0
-      '/{integrationName}':
-        uriParameters:
-          integrationName: {}
-        /default:
-          put:
-            description: Create or update an origin project integration
-            responses:
-              '204':
-                body:
-                  application/json:
-                    example:
-                      docker_hub_repo_name: myorg/myrepo
-                      custom_tag: some-tag
-                      latest_tag: true
-                      version_tag: false
-                      version_release_tag: true
-                    required: false
-              '500':
-                description: Internal server error
-            securedBy:
-              - oauth_2_0
-          delete:
-            description: Delete an origin project integration
-            responses:
-              '204':
-                description: Integration deleted
-              '500':
-                description: Internal server error
-            securedBy:
-              - oauth_2_0
-    /depart:
-      post:
-        description: Leave an origin you no longer wish to be a member of
-        securedBy:
-          - oauth_2_0
-    '/users/{username}':
-      uriParameters:
-        username: {}
-      /invitations:
-        post:
-          description: Create an invitation to this origin for this user
-          responses:
-            '201':
-              description: Invitation created successfully
-            '204':
-              description: Invitation creation request received
-            '400':
-              description: No origin or username given
-            '401':
-              description: You are not authorized to send invitations on behalf of this origin
-            '500':
-              description: Internal server error
-          securedBy:
-            - oauth_2_0
       /role:
         put:
           description: Update an origin member's role
@@ -828,6 +918,8 @@ types:
               description: Unauthorized to perform this action
             '404':
               description: Invalid origin or username given
+            '422':
+              description: Origin member parse error
             '500':
               description: Internal server error
           queryParameters:
@@ -845,14 +937,38 @@ types:
                     role:
                       - administrator
                   required: false
+            '401':
+              description: Unauthorized
+            '500':
+              description: Internal server error
           securedBy:
             - oauth_2_0
+      /invitations:
+        post:
+          description: Create an invitation to this origin for this user
+          responses:
+            '201':
+              description: Invitation created successfully
+            '204':
+              description: Invitation creation request received
+            '400':
+              description: No origin or username given
+            '401':
+              description: You are not authorized to send invitations on behalf of this origin
+            '500':
+              description: Internal server error
+          securedBy:
+            - oauth_2_0
+      uriParameters:
+        username: {}
     '/transfer/{user}':
       post:
         description: Transfer ownership of origin to new origin member
         responses:
           '204':
             description: Transfer successful
+          '401':
+            description: Unauthorized
           '403':
             description: Not authorized to transfer ownership
           '422':
@@ -863,61 +979,50 @@ types:
           - oauth_2_0
       uriParameters:
         user: {}
-    '/invitations/{invitationId}':
-      put:
-        description: Accept this invitation
+    /depart:
+      post:
+        description: Leave an origin you no longer wish to be a member of
         responses:
-          '204':
-            description: Accepted the invitation
+          '200':
+            description: Origin member departed
           '400':
-            description: No origin or invitation id given
+            description: Invalid origin or name
+          '401':
+            description: Unauthorized
+          '403':
+            description: Origin owner cannot depart origin
+          '422':
+            description: User is not a member of the specified origin
           '500':
             description: Internal server error
         securedBy:
           - oauth_2_0
-      delete:
-        description: Rescind an invitation that hasn't already been ignored
+    /invitations:
+      get:
+        description: Return list of invitations for the specified origin
         responses:
-          '204':
-            description: Invitation rescinded
-          '400':
-            description: No origin or invitation id given
+          '200':
+            body:
+              application/json:
+                required: false
+                example:
+                  origin: test
+                  invitations: 
+                  - id: 1
+                    origin: test
+                    account_id: 411
+                    account_name: test
+                    owner_id: 144
+                    ignored: false
+          '401':
+            description:  Unauthorized
           '500':
             description: Internal server error
         securedBy:
           - oauth_2_0
-      uriParameters:
-        invitationId: {}
-      /ignore:
-        put:
-          description: Ignore this invitation
-          responses:
-            '204':
-              description: Invitation ignored
-            '400':
-              description: No origin or invitation id given
-            '500':
-              description: Internal server error
-          securedBy:
-            - oauth_2_0
-  '/{originId}':
-    get:
-      body:
-        application/json:
-          example: |
-            {
-                "id": "77732030103691265",
-                "name": "reset",
-                "owner_id": "77730215748435968"
-                "default_package_visibility": "public"
-            }
-          type: origin
-          required: false
-    uriParameters:
-      originId: {}
     /keys:
       get:
-        description: Return a list of key revisions for an organization.
+        description: Return a list of key revisions for an organization
         responses:
           '200':
             body:
@@ -930,28 +1035,52 @@ types:
                     revision: '20160423193733'
                     location: /origins/core/keys/20160423193733
                 required: false
+          '500':
+            description: Internal server error
+      post:
+        description: Create a new set of keys
+        responses:
+          '201':
+            description: New keys created
+          '401':
+            description: Unauthorized
+          '500':
+            description: Internal server error
+      /latest:
+        get:
+          description: Download latest origin key
+          responses:
+            '200':
+              description: Downloaded latest origin key
+            '500':
+              description: Internal server error
       '/{revision}':
         get:
-          description: Get a key revision for a specific origin
+          description: Download a key revision for a specific origin
           responses:
             '200':
               body:
                 text/plain:
-                  example: |
+                  example:
                     SIG-PUB-1
                     core-20160423193745
-
                     Jpmj1gD9oTFCgz3wSLltt/QB6RTmNRWoUTe+xhDTIHc=
                   required: false
+            '500':
+              description: Internal server error
         post:
           description: Upload a new key revision for an origin
           responses:
             '201':
               description: Key successfully uploaded
             '403':
-              description: Authenticated user not a member of the given Origin
+              description: Authenticated user not a member of the given origin
             '409':
-              description: Key already exists in Origin
+              description: Key already exists in origin
+            '422':
+              description: Invalid key content
+            '500':
+              description: Internal server error
           body:
             text/plain:
               example: |
@@ -967,9 +1096,27 @@ types:
     /encryption_key:
       get:
         description: Download public encryption key for origin responses
+        responses:
+          '200':
+            description: Key downloaded
+            body:
+              text/plain:
+                example:
+                  Jpmj1gD9oTFCgz3wSLltt/QB6RTmNRWoUTe+xhDTIHc=
+          '401':
+            description: Unauthorized
     /secret:
       post:
-        description: upload a secret payload body
+        description: Upload a secret payload body
+        responses:
+          '200':
+            description: Key deleted
+          '401':
+            description: Unauthorized
+          '422':
+            description: Missing field or payload decryption error
+          '500':
+            description: Internal server error
       get:
         description: Get a list of all secrets for your origin
         responses:
@@ -980,28 +1127,20 @@ types:
                   - key1: value
                   - key2: value
                 required: false
+          '500':
+            description: Internal server error
       '/{secret}':
         delete:
           description: Delete a secret for an origin given a secret name
           responses:
             '200':
               description: Key deleted
-            '404':
-              description: Key not found
+            '401':
+              description: Unauthorized
+            '500':
+              description: Internal server error
         uriParameters:
           secret: {}
-    /users:
-      get:
-        description: List all members of an origin
-        responses:
-          '200':
-            body:
-              application/json:
-                example:
-                  members:
-                    - reset
-                  origin_id: '77731431660388352'
-                required: false
     /secret_keys/latest:
       get:
         description: Retrieve the latest secret key
@@ -1020,6 +1159,155 @@ types:
                 required: false
           '409':
             description: Secret key already exists in origin
+    '/secret_keys/{revision}':
+      post:
+        description: Upload origin secret key
+        responses:
+          '201':
+            description: Origin secret key uploaded
+          '401':
+            description: Unauthorized
+          '422':
+            description: Invalid secret key content
+          '500':
+            description: Internal server error
+        securedBy:
+          - oauth_2_0
+      uriParameters:
+        revision: {}
+    /integrations:
+      get:
+        description: Get an object of all integrations
+        responses:
+          '200':
+            body:
+              application/json:
+                required: false
+          '401':
+            description: Unauthorized
+        securedBy:
+          - oauth_2_0
+      '/{integration}':
+        /names:
+          get:
+            description: Get integration names for origin
+            responses:
+              '200':
+                body:
+                  application/json:
+                    required: false
+                    example:
+                      {
+                        names :
+                        [
+                          "integration1",
+                          "integration2"
+                        ]
+                      }
+              '400':
+                description: Invalid origin
+              '401':
+                description: Unauthorized
+              '500':
+                description: Internal server error
+        '/{name}':
+          get:
+            description: Get integration for specified origin and name
+            responses:
+              '200':
+                body:
+                  application/json:
+                    type: originIntegration
+                    required: false
+                    example:
+                      id: 1
+                      origin: test
+                      integration: test
+                      name: test
+                      body: test
+              '400':
+                description: Invalid origin
+              '401':
+                description: Unauthorized
+              '403':
+                description: Encryption error
+              '500':
+                description: Internal server error
+          put:
+            description: Create integration for specified origin and name
+            responses:
+              '201':
+                description: Integration created
+              '400':
+                description: Invalid origin or name
+              '401':
+                description: Unauthorized
+              '403':
+                description: Encryption error
+              '500':
+                description: Internal server error
+          delete:
+            description: Delete integration for specified origin and name
+            responses:
+              '204':
+                description: Integration deleted
+              '400':
+                description: Invalid origin or name
+              '401':
+                description: Unauthorized
+              '500':
+                description: Internal server error
+    '/invitations/{invitationId}':
+      put:
+        description: Accept this invitation
+        responses:
+          '204':
+            description: Accepted the invitation
+          '400':
+            description: No origin or invitation id given
+          '401':
+            description: Unauthorized
+          '422':
+            description: Invitation parse error
+          '500':
+            description: Internal server error
+        securedBy:
+          - oauth_2_0
+      delete:
+        description: Rescind an invitation that hasn't already been ignored
+        responses:
+          '204':
+            description: Invitation rescinded
+          '400':
+            description: No origin or invitation id given
+          '401':
+            description: Unauthorized
+          '422':
+            description: Invitation parse error
+          '500':
+            description: Internal server error
+        securedBy:
+          - oauth_2_0
+      uriParameters:
+        invitationId: {}
+      /ignore:
+        put:
+          description: Ignore this invitation
+          responses:
+            '204':
+              description: Invitation ignored
+            '400':
+              description: No origin or invitation id given
+            '401':
+              description: Unauthorized
+            '422':
+              description: Invitation parse error
+            '500':
+              description: Internal server error
+          securedBy:
+            - oauth_2_0
+    uriParameters:
+      origin: {}
 /pkgs:
   '/{origin}':
     get:
@@ -1104,6 +1392,14 @@ types:
               '409': {}
               '422': {}
               '424': {}
+          delete:
+            responses:
+              '200': 
+                decription:  Package release deleted
+              '400': 
+                description: Invalid request
+              '404': 
+                description: Not found
           uriParameters:
             release: {}
           '/{visibility}':
@@ -1163,9 +1459,48 @@ types:
           type: boolean
     uriParameters:
       query: {}
+  '/schedule/{groupid}':
+    get:
+      description: Get schedule for specified group
+      responses:
+        '200':
+          description: Success
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
+    uriParameters:
+      groupid: {}
+  '/schedule/{origin}':
+    /status:
+      get:
+        description: Get origin schedule status
+        responses:
+          '200':
+            description: Success
+          '404':
+            description: Not found
+          '500':
+            description: Internal server error
+    '/{pkg}':
+      post:
+        description: Schedule 
+        responses:
+          '200':
+            description: Success
+          '400':
+            description: Bad request
+          '401':
+            description: Unauthorized
+          '404':
+            description: Not found
+          '500':
+            description: Internal server error
+    uriParameters:
+      origin: {}
 /events:
   get:
-    description: Fetch local builder events
+    description: Get local builder events
     responses:
       '200':
         body:
@@ -1233,7 +1568,7 @@ types:
         type: string
   /saas:
     get:
-      description: Fetch SAAS builder events
+      description: Get SAAS builder events
       responses:
         '200':
           body:
@@ -1313,17 +1648,36 @@ types:
 '/{origin}':
   /pkgs:
     get:
-      description: Fetch list of unique packages for specified origin
+      description: Get list of unique packages for specified origin
       responses:
         '200':
           description: Successful
           body:
             application/json:
+              type: packageSettings
               required: false
-        '400':
-          description: Invalid origin provided
+              example:
+                id: 1234567890
+                origin: "xyz"
+                name: "abc"
+                visibility: "private"
+                owner_id: 77730215748435968
+        '206':
+          description: Partial list of packages
+          body:
+            application/json:
+              type: packageSettings
+              required: false
+              example:
+                id: 1234567890
+                origin: "xyz"
+                name: "abc"
+                visibility: "private"
+                owner_id: 77730215748435968
+        '401':
+          description: Unauthorized
         '500':
-          description: Internal error
+          description: Internal server error
   uriParameters:
     origin: {}
 '/authenticate/{code}':
@@ -1782,4 +2136,3 @@ types:
           description: Internal server error
       securedBy:
         - oauth_2_0
-
