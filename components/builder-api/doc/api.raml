@@ -151,6 +151,10 @@ types:
     properties:
       email:
         type: string
+  packageSettingsUpdate:
+    properties:
+      visibility:
+        type: string
   origin:
     properties:
       id:
@@ -168,6 +172,22 @@ types:
           - Public
           - Private
         required: false
+  packageSettings:
+    properties:
+      id:
+        type: integer
+      origin:
+        type: string
+      name:
+        type: string
+      visibility:
+        type: string
+      owner_id:
+        type: integer
+      created_at:
+        type: string
+      updated_at:
+        type: string
   secret_key:
     properties:
       id:
@@ -1664,18 +1684,102 @@ types:
   '/{name}':
     uriParameters:
       name: {}
-    /post:
+    post:
       description: Create new package settings entry
+      responses:
+        '201':
+          description: Create successful
+          body:
+            application/json:
+              example:
+                id: 1234567890
+                origin: "xyz"
+                name: "abc"
+                visibility: "private"
+                owner_id: 77730215748435968
+                created_at: '2017-05-05 00:42:35.213765+00'
+                updated_at: '2017-05-05 00:42:35.213765+00'
+              type: packageSettings
+              required: false
+        '401':
+          description: Authentication failed
+        '403':
+          description: Unauthorized to perform this action
+        '500':
+          description: Internal server error
       securedBy:
         - oauth_2_0
-    /get:
+    get:
       description: Get package settings for top level package
-    /put:
-      description: Update a package settings entry
+      responses:
+        '200':
+          description: Returns package settings
+          body:
+            application/json:
+              example:
+                id: 1234567890
+                origin: "xyz"
+                name: "abc"
+                visibility: "private"
+                owner_id: 77730215748435968
+                created_at: '2017-05-05 00:42:35.213765+00'
+                updated_at: '2017-05-05 00:42:35.213765+00'
+              type: packageSettings
+              required: false
+        '401':
+          description: Authentication failed
+        '403':
+          description: Unauthorized to perform this action
+        '500':
+          description: Internal server erro
       securedBy:
         - oauth_2_0
-    /delete:
+    put:
+      description: Update a package settings entry
+      responses:
+        '200':
+          description: Update successful
+          body:
+            application/json:
+              example:
+                id: 1234567890
+                origin: "xyz"
+                name: "abc"
+                visibility: "private"
+                owner_id: 77730215748435968
+                created_at: '2017-05-05 00:42:35.213765+00'
+                updated_at: '2017-05-05 00:42:35.213765+00'
+              type: packageSettings
+              required: false
+        '401':
+          description: Authentication failed
+        '403':
+          description: Unauthorized to perform this action
+        '422':
+          description: Invalid or missing visibility in body
+        '500':
+          description: Internal server error
+      securedBy:
+        - oauth_2_0
+      body:
+        application/json:
+          example:
+            visibility: private
+          type: packageSettingsUpdate
+          required: false
+    delete:
       description: Delete a package settings entry
+      responses:
+        '204':
+          description: Package settings deleted
+        '401':
+          description: Authentication failed
+        '403':
+          description: Unauthorized to perform this action
+        '409':
+          description: Conflict, Not deletable
+        '500':
+          description: Internal server error
       securedBy:
         - oauth_2_0
 
