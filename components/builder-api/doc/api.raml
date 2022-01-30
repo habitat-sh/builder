@@ -34,12 +34,95 @@ securitySchemes:
           example: |
             Authorization: Bearer 0b79bab50daca910b000d4f1a2b675d604257e42
 types:
-  netError:
-    properties:
-      code:
+  accountToken:
+    properties: 
+      id:
         type: integer
-      msg:
+      account_id:
+        type: integer
+      token:
         type: string
+      created_at:
+        type: string
+        required: false
+  accountTokens:
+    properties:
+      accountTokens:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: accountToken
+        required: false
+  channelWithPromotion:
+    properties:
+      channel:
+        type: string
+      created_at:
+        type: string
+        required: false
+      promoted_at:
+        type: string
+        required: false
+  channelWithPromotionList:
+    properties:
+      channelWithPromotionList:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: channelWithPromotion
+        required: false
+  content:
+    properties:
+      name:
+        type: string
+      path: 
+        type: string
+      sha: 
+        type: string
+      size:
+        type: integer
+      html_url: 
+        type: string
+      git_url:
+        type: string
+      download_url:
+        type: string
+      content:
+        type: string
+      encoding:
+        type: string
+  event:
+    properties:
+      operation:
+        type: string
+      origin:
+        type: string
+      channel:
+        type: string
+      package_ident:
+        type: packageIdent
+      created_at:
+        type: string
+        required: false
+  events:
+    properties:
+      events:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: event
+        required: false
+  integrationList:
+    properties:
+      names:
+        minItems: 0
+        type: array
+        items:
+          type: string
+        required: false
   job:
     properties:
       id:
@@ -86,6 +169,31 @@ types:
     properties:
       project_id:
         type: string
+  jobGroup:
+    properties:
+      id:
+        type: integer
+      state: 
+        type: string
+      project:
+        type: string
+      target:
+        type: string
+      created_at:
+        type: string
+        required: false
+      updated_at:
+        type: string
+        required: false
+  jobGroups:
+    properties:
+      jobGroups:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: jobGroup
+        required: false
   jobLog:
     properties:
       start:
@@ -102,58 +210,14 @@ types:
       is_complete:
         description: 'Indicates whether the job log is complete; i.e. additional polling for new lines is not required. Note that a job itself may be complete (i.e., finished running) but the log may not, as log processing is decoupled from build processing.'
         type: boolean
-  project:
+  memberRole:
     properties:
-      id:
-        type: string
-      plan_path:
-        type: string
-      vcs:
-        type: object
-        properties:
-          type:
-            type: string
-          url:
-            type: string
-  projectCreate:
+      role: string
+  netError:
     properties:
-      origin:
-        type: string
-      plan_path:
-        type: string
-      github:
-        type: object
-        properties:
-          organization:
-            type: string
-          repo:
-            type: string
-  projectUpdate:
-    properties:
-      plan_path:
-        type: string
-      github:
-        type: object
-        properties:
-          organization:
-            type: string
-          repo:
-            type: string
-  userProfile:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-      email:
-        type: string
-  userProfileUpdate:
-    properties:
-      email:
-        type: string
-  packageSettingsUpdate:
-    properties:
-      visibility:
+      code:
+        type: integer
+      msg:
         type: string
   origin:
     properties:
@@ -210,6 +274,129 @@ types:
       updated_at:
         type: string
         required: false
+  originInvitationList:
+    properties:
+      origin:
+        type: string
+      members:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: originInvitation
+        required: false
+  originKey:
+    properties:
+      origin:
+        type: string
+      revision:
+        type: string
+      location:
+        type: string
+  originKeys:
+    properties:
+      originKeys:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: originKey
+        required: false
+  originMemberList:
+    properties:
+      origin:
+        type: string
+      members:
+        type: stringList
+        required: false
+  originPackageVersion:
+    properties:
+      origin:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+      release_count:
+        type: integer
+      latest:
+        type: string
+      platforms:
+        type: stringList
+      visibility:
+        type: string
+  originPackageVersions:
+    properties:
+      originPackageVersions:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: originPackageVersion
+        required: false
+  originSecret:
+    properties:
+      id:
+        type: string
+      origin_id:
+        type: string
+      name:
+        type: string
+      value:
+        type: string
+  originSecrets:
+    properties:
+      originSecrets:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: originSecret
+        required: false
+  package:
+    properties:
+      id:
+        type: integer
+      owner_id:
+        type: integer
+      ident:
+        type: packageIdent
+  packageIdent:
+    properties:
+      origin:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+        required: false
+      release:
+        type: string
+        required: false
+      channels:
+        type: stringList
+        required: false
+      platforms:
+        type: stringList
+        required: false
+  packageIdentList:
+    properties:
+      packageList:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: packageIdent
+        required: false
+  packageList:
+    properties:
+      packageList:
+        minItems: 0
+        uniqueItems: true
+        type: array
+        items:
+          type: package
+        required: false
   packageSettings:
     properties:
       id:
@@ -228,6 +415,36 @@ types:
       updated_at:
         type: string
         required: false
+  packageSettingsUpdate:
+    properties:
+      visibility:
+        type: string
+  project:
+    properties:
+      id:
+        type: string
+      plan_path:
+        type: string
+      vcs:
+        type: object
+        properties:
+          type:
+            type: string
+          url:
+            type: string
+  projectCreate:
+    properties:
+      origin:
+        type: string
+      plan_path:
+        type: string
+      github:
+        type: object
+        properties:
+          organization:
+            type: string
+          repo:
+            type: string
   projectIntegration:
     properties:
       id:
@@ -246,6 +463,17 @@ types:
       updated_at:
         type: string
         required: false
+  projectUpdate:
+    properties:
+      plan_path:
+        type: string
+      github:
+        type: object
+        properties:
+          organization:
+            type: string
+          repo:
+            type: string
   secret_key:
     properties:
       id:
@@ -260,37 +488,40 @@ types:
         type: string
       owner_id:
         type: string
-  event:
+  session:
     properties:
-      operation:
-        type: string
-      created_at:
-        type: string
-        required: false
-      origin:
-        type: string
-      channel:
-        type: string
-      package_ident:
-        type: ident
-  events:
-    properties:
-      jobs:
-        minItems: 0
-        uniqueItems: true
-        type: array
-        items:
-          type: event
-        required: false
-  ident:
-    properties:
-      origin:
+      id:
         type: string
       name:
         type: string
-      version:
+      email:
         type: string
-      release:
+      token:
+        type: string
+      flags:
+        type: string
+      oauth_token:
+        type: string
+  stringList:
+    properties:
+      entries:
+        minItems: 0
+        uniqueItems: false
+        type: array
+        items:
+          type: string
+        required: false
+  userProfile:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      email:
+        type: string
+  userProfileUpdate:
+    properties:
+      email:
         type: string
 /status:
   get:
@@ -321,11 +552,15 @@ types:
         get:
           responses:
             '200':
+              description: Get content from github
               body:
                 application/json:
+                  type: content
                   required: false
             '400':
               description: Bad search query parameter provided
+            '401':
+              description: Unauthorized
         uriParameters:
           path: {}
   '/integrations/{registry_type}':
@@ -353,14 +588,15 @@ types:
     description: Retrieve your profile
     responses:
       '200':
+        description: Retrieved profile
         body:
           application/json:
-            example:
-              id: 1234567890
-              name: jimmy
-              email: jimmy@example.com
             type: userProfile
             required: false
+            example:
+              id: '1234567890'
+              name: jimmy
+              email: jimmy@example.com
       '401':
         description: Authentication failed
     securedBy:
@@ -376,10 +612,10 @@ types:
         description: Bad JSON submitted
     body:
       application/json:
-        example:
-          email: jimmy@example.com
         type: userProfileUpdate
         required: false
+        example:
+          email: jimmy@example.com
     securedBy:
       - oauth_2_0
   /access-tokens:
@@ -387,10 +623,20 @@ types:
       description: Retrieve your personal access tokens
       responses:
         '200':
+          description: Retrieved tokens
           body:
             application/json:
-              example: ''
+              type: accountTokens
               required: false
+              example: 
+                - id: 1
+                  account_id: 2
+                  token: abcdefg
+                  created_at: '2022-01-29 09:42:15.273364+00'
+                - id: 3
+                  account_id: 21
+                  token: abcdefgihijk
+                  created_at: '2022-01-31 09:42:15.273364+00'
         '401':
           description: Authentication failed
       securedBy:
@@ -399,6 +645,7 @@ types:
       description: Generate a new personal access token
       responses:
         '200':
+          description: Generated personal access token
           body:
             application/json:
               required: false
@@ -430,6 +677,7 @@ types:
       description: Get the status of the given job
       responses:
         '200':
+          description: Retrieved job status
           body:
             application/json:
               example:
@@ -460,20 +708,18 @@ types:
           retrieved.
         responses:
           '200':
+            description: Retrieved build log
             body:
               application/json:
-                example: |
-                  {
-                      "start": 0,
-                      "stop": 2,
-                      "content": [
-                          "this is the first line",
-                          "this is the second line"
-                      ],
-                      is_complete: false
-                  }
                 type: jobLog
                 required: false
+                example:
+                  start: 0
+                  stop: 2
+                  content:
+                    - 'this is the first line'
+                    - 'this is the second line'
+                  is_complete: false
           '400':
             description: |
               Received a jobId that was not a number, or
@@ -583,10 +829,21 @@ types:
 /user:
   /invitations:
     get:
+      description:  Get invitations for the specified user
       responses:
         '200':
+          description:  Retrieved invitations
           body:
             application/json:
+              type: originInvitation
+              required: false
+              example:
+                id: 1
+                origin: core
+                account_id: 1
+                account_name: hab
+                owner_id: 1331
+                ignored: false
         '401':
           description:  Unauthorized
         '404':
@@ -597,10 +854,17 @@ types:
         - oauth_2_0
   /origins:
     get:
+      description:  Get origins for the specified user
       responses:
         '200':
+          description:  Retrieved origins
           body:
             application/json:
+              type: stringList
+              required: false
+              example:
+                - origin1
+                - origin2               
         '401':
           description:  Unauthorized
         '404':
@@ -652,14 +916,15 @@ types:
       description: Get the list of project names for the specified origin
       responses:
         '200':
+          description: Retrieved project names
           body:
             application/json:
-              example: |
-                [
-                  "foo",
-                  "bar",
-                  "baz"
-                ]
+              type: stringList
+              required: false
+              example: 
+                - foo
+                - bar
+                - baz
         '401': 
           description: Unauthorized
         '404':
@@ -671,16 +936,21 @@ types:
         description: Return the project matching the given ID
         responses:
           '200':
+            description: Retrieved project
             body:
               application/json:
+                type: project
+                required: false
                 example:
                   id: habitat/builder-api
                   plan_path: components/builder-api/plan.sh
                   vcs:
                     type: git
                     url: 'https://github.com/habitat-sh/habitat.git'
-                type: project
-                required: false
+          '401':
+            description: Unauthorized
+          '500':
+            description: Internal server error
       put:
         description: Update the project matching the given ID
         responses:
@@ -688,6 +958,8 @@ types:
             description: Project updated successfully
           '400':
             description: Received a malformed JSON body
+          '401':
+            description: Unauthorized
           '404':
             description: Project not found
           '422':
@@ -695,6 +967,8 @@ types:
               The request body contained missing or invalid values or the file at the
               given location was unreadable, did not contain a valid plan, or the name
               of the package it builds does not match the projectId's `name`
+          '500':
+            description: Internal server error
         body:
           application/json:
             example:
@@ -711,8 +985,12 @@ types:
         responses:
           '204':
             description: Project deleted successfully
+          '401':
+            description: Unauthorized
           '404':
             description: Project not found
+          '500':
+            description: Internal server error
         securedBy:
           - oauth_2_0
       uriParameters:
@@ -736,10 +1014,10 @@ types:
           visibility: {}
       /jobs:
         get:
-          description: |
-            Retrieve the most recently started jobs for the given project.
+          description: Retrieve the most recently started jobs for the given project.
           responses:
             '200':
+              description: Retrieved recently started jobs
               body:
                 application/json:
                   example:
@@ -766,18 +1044,18 @@ types:
             description: Get the specified integration
             responses:
               '200':
+                description: Retrieved integration
                 body:
                   application/json:
                     type: projectIntegration
                     required: false
                     example:
-                      id: 0
-                      project_id: 0 
-                      integration_id: 1211 
+                      id: 1
+                      project_id: 121 
+                      integration_id: 14641 
                       origin: core
                       body: NoContent
-                      created_at:
-                        '2017-05-05 00:43:11.729835+00'
+                      created_at: '2017-05-05 00:43:11.729835+00'
               '401':
                 description: Unauthorized
               '404':
@@ -802,24 +1080,25 @@ types:
           integration: {}
     uriParameters:
       origin: {}
-/origins:
+/depot/origins:
   post:
     description: Create a new origin
     responses:
       '200':
+        description: Created origin
         body:
           application/json:
             type: origin
             required: false
             example:
               id: 1965
-              name: test
-              owner_id: 1965
+              name: core
+              owner_id: 3861225
               default_package_visibility: Public
       '401':
         description: Unauthorized
       '409':
-        description: The origin already exists
+        description: Origin already exists
       '417':
         description: Expectation failed
       '422':
@@ -881,13 +1160,16 @@ types:
         description: List all members of an origin
         responses:
           '200':
+            description: Retrieved origin members
             body:
               application/json:
-                example:
-                  members:
-                    - reset
-                  origin_id: '77731431660388352'
+                type: originMemberList
                 required: false
+                example:
+                  origin: core
+                  members:
+                    - glibc
+                    - cmake
           '401':
             description: Unauthorized
           '500':
@@ -931,12 +1213,13 @@ types:
           description: Retrieve an origin member's role
           responses:
             '200':
+              description:  Retrieved origin member role
               body:
                 application/json:
-                  example:
-                    role:
-                      - administrator
+                  type: memberRole
                   required: false
+                  example:
+                    role: administrator
             '401':
               description: Unauthorized
             '500':
@@ -1002,18 +1285,20 @@ types:
         description: Return list of invitations for the specified origin
         responses:
           '200':
+            description: Retrieved invitations for origin
             body:
               application/json:
+                type: originInvitationList
                 required: false
                 example:
                   origin: test
                   invitations: 
-                  - id: 1
-                    origin: test
-                    account_id: 411
-                    account_name: test
-                    owner_id: 144
-                    ignored: false
+                    - id: 1
+                      origin: test
+                      account_id: 411
+                      account_name: test
+                      owner_id: 144
+                      ignored: false
           '401':
             description:  Unauthorized
           '500':
@@ -1025,8 +1310,11 @@ types:
         description: Return a list of key revisions for an organization
         responses:
           '200':
+            description: Retrieved key revisions
             body:
               application/json:
+                type: originKeys
+                required: false
                 example:
                   - origin: core
                     revision: '20160423193732'
@@ -1034,9 +1322,10 @@ types:
                   - origin: core
                     revision: '20160423193733'
                     location: /origins/core/keys/20160423193733
-                required: false
           '500':
             description: Internal server error
+        securedBy:
+          - oauth_2_0
       post:
         description: Create a new set of keys
         responses:
@@ -1052,22 +1341,34 @@ types:
           responses:
             '200':
               description: Downloaded latest origin key
+              body:
+                text/plain:
+                  type: string
+                  required: false
+                  example: 
+                    Jpmj1gD9oTFCgz3wSLltt/QB6RTmNRWoUTe+xhDTIHc=
             '500':
               description: Internal server error
+          securedBy:
+            - oauth_2_0
       '/{revision}':
         get:
           description: Download a key revision for a specific origin
           responses:
             '200':
+              description: Downloaded key revision for origin
               body:
                 text/plain:
-                  example:
+                  type: string
+                  required: false
+                  example: |
                     SIG-PUB-1
                     core-20160423193745
                     Jpmj1gD9oTFCgz3wSLltt/QB6RTmNRWoUTe+xhDTIHc=
-                  required: false
             '500':
               description: Internal server error
+          securedBy:
+            - oauth_2_0
         post:
           description: Upload a new key revision for an origin
           responses:
@@ -1101,8 +1402,9 @@ types:
             description: Key downloaded
             body:
               text/plain:
-                example:
+                example: |
                   Jpmj1gD9oTFCgz3wSLltt/QB6RTmNRWoUTe+xhDTIHc=
+                required: false
           '401':
             description: Unauthorized
     /secret:
@@ -1118,15 +1420,23 @@ types:
           '500':
             description: Internal server error
       get:
-        description: Get a list of all secrets for your origin
+        description: Get a list of all secrets for the specified origin
         responses:
           '200':
+            description: Retrieved secrets for origin
             body:
               application/json:
-                example:
-                  - key1: value
-                  - key2: value
+                type: originSecrets
                 required: false
+                example:
+                  - id: 1
+                    origin_id: 11
+                    name: origin1
+                    value: Jpmj1gD9oTFCgz3wSLltt/QB6RTmNRWoUTe+xhDTIHc=
+                  - id: 2
+                    origin_id: 12
+                    name: origin2
+                    value: Qpmj1gDxoTFCgz3wSL8nt!Qg9RTmsrroUTe+xhD8IHc=
           '500':
             description: Internal server error
       '/{secret}':
@@ -1146,17 +1456,18 @@ types:
         description: Retrieve the latest secret key
         responses:
           '200':
+            description: Retrieved latest secret key
             body:
               application/json:
-                example:
-                  id: ''
-                  origin_id: ''
-                  name: ''
-                  revision: ''
-                  body: ''
-                  owner_id: ''
                 type: secret_key
                 required: false
+                example:
+                  id: '11'
+                  origin_id: '121'
+                  name: 'core'
+                  revision: '20210407112205'
+                  body: 'OK'
+                  owner_id: '1331'
           '409':
             description: Secret key already exists in origin
     '/secret_keys/{revision}':
@@ -1180,9 +1491,15 @@ types:
         description: Get an object of all integrations
         responses:
           '200':
+            description: Retrieved all integrations
             body:
               application/json:
+                type: integrationList
                 required: false
+                example:
+                  names:
+                    - integration1
+                    - integration2
           '401':
             description: Unauthorized
         securedBy:
@@ -1190,20 +1507,18 @@ types:
       '/{integration}':
         /names:
           get:
-            description: Get integration names for origin
+            description: Get integrations for specified origin
             responses:
               '200':
+                description: Retrieved integration names
                 body:
                   application/json:
+                    type: integrationList
                     required: false
                     example:
-                      {
-                        names :
-                        [
-                          "integration1",
-                          "integration2"
-                        ]
-                      }
+                      names:
+                        - integration1
+                        - integration2
               '400':
                 description: Invalid origin
               '401':
@@ -1215,6 +1530,7 @@ types:
             description: Get integration for specified origin and name
             responses:
               '200':
+                description: Retrieved integration
                 body:
                   application/json:
                     type: originIntegration
@@ -1308,15 +1624,51 @@ types:
             - oauth_2_0
     uriParameters:
       origin: {}
-/pkgs:
+/depot/pkgs:
   '/{origin}':
     get:
       description: List packages for an origin
       responses:
-        '200': {}
-        '400': {}
-        '404': {}
-        '500': {}
+        '200':
+          description: Packages were found and fit on one page
+          body:
+            application/json:
+              type: packageList
+              required: false
+              example:
+                data:
+                  - id: 1
+                    owner_id: 2
+                    ident:
+                      origin: core
+                      name: redis
+                  - id: 2
+                    owner_id: 2
+                    ident:
+                      origin: core
+                      name: gcc
+        '206': 
+          description: Packages were found and require pagination
+          body:
+            application/json:
+              type: packageList
+              required: false
+              example:
+                data:
+                  - id: 1
+                    owner_id: 2
+                    ident:
+                      origin: core
+                      name: redis
+                  - id: 2
+                    owner_id: 2
+                    ident:
+                      origin: core
+                      name: gcc
+        '401':
+          description: Unauthorized
+        '500': 
+          description: Internal server error
       queryParameters:
         distinct:
           required: false
@@ -1328,12 +1680,38 @@ types:
       origin: {}
     '/{name}':
       get:
-        description: TODO
+        description: List packages for a specified origin and package name
         responses:
-          '200': {}
-          '400': {}
-          '404': {}
-          '500': {}
+          '200':
+            description: Packages were found and fit on one page
+            body:
+              application/json:
+                type: packageList
+                required: false
+                example:
+                  data:
+                    - id: 1
+                      owner_id: 2
+                      ident:
+                        origin: core
+                        name: redis
+          '206': 
+            description: Packages were found and require pagination
+            body:
+              application/json:
+                type: packageList
+                required: false
+                example:
+                  data:
+                    - id: 1
+                      owner_id: 2
+                      ident:
+                        origin: core
+                        name: redis
+          '401':
+            description: Unauthorized
+          '500': 
+            description: Internal server error
       uriParameters:
         name: {}
       /versions:
@@ -1341,65 +1719,168 @@ types:
           description: Returns all versions and a count of releases for each version for a given package
           responses:
             '200':
+              description: Retrieved all package versions
               body:
                 application/json:
+                  type: originPackageVersions
+                  required: false
                   example:
                     - origin: core
                       name: redis
                       version: 3.2.1
-                      release_count: '3'
+                      release_count: 3
                       latest: '20170215222111'
+                      platforms:
+                        - linux
+                      visibility: Public
+            '206':
+              description: Package versions were found and require pagination
+              body:
+                application/json:
+                  type: originPackageVersions
                   required: false
+                  example:
+                    - origin: core
+                      name: redis
+                      version: 3.2.1
+                      release_count: 3
+                      latest: '20170215222111'
+                      platforms:
+                        - linux
+                      visibility: Public
             '400':
               description: Origin or package name not supplied
-            '404':
-              description: Package not found
+            '401':
+              description: Unauthorized
             '500':
-              description: Server error
+              description: Internal server error
       /latest:
         get:
-          description: TODO
+          description: Get latest package for specified origin and package
           responses:
-            '200': {}
-            '404': {}
-            '500': {}
+            '200': 
+              description: Retrieved latest package
+              body:
+                application/json:
+                  type: package
+                  required: false
+                  example:
+                    id: 1
+                    owner_id: 2
+                    ident:
+                      origin: core
+                      name: redis
+            '500': 
+              description: Internal server error
       '/{version}':
         get:
-          description: TODO
+          description: Get packages with specified origin, package name, and version 
           responses:
-            '200': {}
-            '400': {}
-            '404': {}
-            '500': {}
+            '200':
+              description: Retrieved packages
+              body:
+                application/json:
+                  type: originPackageVersions
+                  required: false
+                  example:
+                    - origin: core
+                      name: redis
+                      version: 3.2.1
+                      release_count: 3
+                      latest: '20170215222111'
+                      platforms:
+                        - linux
+                        - windows
+                      visibility: Public
+                    - origin: core
+                      name: bundler
+                      version: 1.0.1
+                      release_count: 4
+                      latest: '20210215222111'
+                      platforms:
+                        - linux
+                      visibility: Private
+            '400':
+              description: Origin, package name, or version not supplied
+            '401':
+              description: Unauthorized
+            '500':
+              description: Internal server error
         uriParameters:
           version: {}
         /latest:
           get:
-            responses:
-              '200': {}
-              '404': {}
-              '500': {}
-        '/{release}':
-          get:
-            responses:
-              '200': {}
-              '404': {}
-              '500': {}
-          post:
-            responses:
-              '200': {}
-              '400': {}
-              '409': {}
-              '422': {}
-              '424': {}
-          delete:
+            description: Get latest package with specified origin, package name, and version 
             responses:
               '200': 
-                decription:  Package release deleted
+                description: Retrieved latest package
+                body:
+                  application/json:
+                    type: package
+                    required: false
+                    example:
+                      id: 1
+                      owner_id: 2
+                      ident:
+                        origin: core
+                        name: redis
+              '400':
+                description: Not found
+              '401':
+                description: Unauthorized
+              '500': 
+                description: Internal server error
+        '/{release}':
+          get:
+            description: Gets package for specified origin, package name, version, and release
+            responses:
+              '200': 
+                description: Retrieved package for specified origin, package name, version, and release
+                body:
+                  application/json:
+                    type: package
+                    required: false
+                    example:
+                      id: 1
+                      owner_id: 2
+                      ident:
+                        origin: core
+                        name: redis
+              '401':
+                description: Unauthorized
+              '404':
+                description: Not found
+              '500':
+                description: Internal server error
+          post:
+            description: Uploads a package
+            responses:
+              '201': 
+                description: Package uploaded
+              '401':
+                description: Unauthorized
+              '404':
+                description: Not found
+              '422': 
+                description: Invalid package, target, or checksum
+              '424':
+                description: Has circular dependencies
+              '500':
+                description: Internal server error
+              '501':
+                description: Not implemented
+          delete:
+            responses:
+              '204': 
+                description:  Package release deleted
+              '401':
+                description: Unauthorized
               '400': 
                 description: Invalid request
               '404': 
                 description: Not found
+              '422': 
+                description: Could not complete process due to rdeps, channel, or target
           uriParameters:
             release: {}
           '/{visibility}':
@@ -1410,34 +1891,55 @@ types:
                   description: Successfully changed
                 '400':
                   description: Missing origin or name or version or release or visibility. Visibility not "public" or "private".
+                '401':
+                  description: Unauthorized
                 '403':
                   description: Unauthorized to change packages for this origin
                 '404':
                   description: Package not found
+                '422': 
+                  description: Could not complete process due to origin, name, or visibility
                 '500':
                   description: Internal server error
             uriParameters:
               visibility: {}
           /download:
             get:
+              description: Downloads the package with specified origin, name, version, and release
               responses:
-                '200': {}
-                '400': {}
-                '500': {}
+                '200': 
+                  description: Package downloaded
+                '401':
+                  description: Unauthorized
+                '404':
+                  description: Package not found
+                '422': 
+                  description: Could not complete process due to invalid target
+                '500': 
+                  description: Internal server error
           /channels:
             get:
+              description: Gets list of channels for this origin, package name, version, and release
               responses:
                 '200':
+                  description: Retrieved channel list
                   body:
                     application/json:
-                      example:
-                        - stable
-                        - unstable
+                      type: channelWithPromotionList
                       required: false
-                '400':
-                  description: Package identifier is not fully qualified
+                      example:
+                        - channel: stable
+                          created_at: '2020-12-28T20:24:49.588691'
+                          promoted_at: '2020-12-28T20:24:49.588691'
+                        - channel: unstable
+                          created_at: '2021-12-28T20:24:49.588691'
+                          promoted_at: '2021-12-28T20:24:49.588691'
+                '401':
+                  description: Unauthorized
                 '404':
-                  description: Specified package could not be found
+                  description: Not found
+                '422': 
+                  description: Could not complete process due to invalid identifier or target
                 '500':
                   description: Internal server error
   '/search/{query}':
@@ -1446,8 +1948,32 @@ types:
       responses:
         '200':
           description: Packages were found and fit on one page
+          body:
+            application/json:
+              type: packageList
+              required: false
+              example:
+                data:
+                  - origin: core
+                    name: redis
+                  - origin: core
+                    name: node
         '206':
           description: Packages were found and require pagination
+          body:
+            application/json:
+              type: packageList
+              required: false
+              example:
+                data:
+                  - origin: core
+                    name: redis
+                  - origin: core
+                    name: node
+        '401':
+          description: Unauthorized
+        '422':
+          description: Query parse error
         '500':
           description: Internal server error
       queryParameters:
@@ -1465,6 +1991,18 @@ types:
       responses:
         '200':
           description: Success
+          body:
+            application/json:
+              type: jobGroup
+              required: false
+              example:
+                id: 1
+                state: active
+                name: jobsrv
+                project: sample
+                target: linux
+        '400':
+          description: Group id parse error
         '404':
           description: Not found
         '500':
@@ -1478,16 +2016,26 @@ types:
         responses:
           '200':
             description: Success
+            body:
+              application/json:
+                type: jobGroups
+                required: false
+                example:
+                  - id: 1
+                    state: active
+                    name: jobsrv
+                    project: sample
+                    target: linux
           '404':
             description: Not found
           '500':
             description: Internal server error
     '/{pkg}':
       post:
-        description: Schedule 
+        description: Schedule a job group
         responses:
-          '200':
-            description: Success
+          '201':
+            description: Scheduled
           '400':
             description: Bad request
           '401':
@@ -1498,58 +2046,50 @@ types:
             description: Internal server error
     uriParameters:
       origin: {}
-/events:
+/depot/events:
   get:
     description: Get local builder events
     responses:
       '200':
+        description: Retrieved local builder events
         body:
           application/json:
-            example: |
-              {
-                  "range_start": 0,
-                  "range_end": 1,
-                  "total_count": 1,
-                  "data": [
-                      {
-                         "operation": "Promote",
-                         "created_at": "2021-12-28T20:24:49.588691",
-                         "origin": "core",
-                         "channel": "stable",
-                         "package_ident": {
-                         "origin": "core",
-                         "name": "hab-backline",
-                         "version": "1.6.420",
-                         "release": "20211101174345"
-                      }
-                  ]
-              }
             type: events
             required: false
+            example:
+              - range_start: 0
+                range_end: 1
+                total_count: 1
+                data:
+                  - operation: Promote
+                  - origin: core
+                  - channel: stable
+                  - package_ident:
+                    - origin: core
+                    - name: hab-backline
+                    - version: 1.6.420
+                    - release: 20211101174345
+                  - created_at: '2021-12-28T20:24:49.588691'
       '204':
+        description: Retrieved local builder events but requires pagination
         body:
           application/json:
-            example: |
-              {
-                  "range_start": 0,
-                  "range_end": 1,
-                  "total_count": 1,
-                  "data": [
-                      {
-                         "operation": "Promote",
-                         "created_at": "2021-12-28T20:24:49.588691",
-                         "origin": "core",
-                         "channel": "stable",
-                         "package_ident": {
-                         "origin": "core",
-                         "name": "hab-backline",
-                         "version": "1.6.420",
-                         "release": "20211101174345"
-                      }
-                  ]
-              }
             type: events
             required: false
+            example:
+              - range_start: 1
+                range_end: 2
+                total_count: 1
+                data:
+                  - operation: Promote
+                  - origin: core
+                  - channel: stable
+                  - package_ident:
+                    - origin: core
+                    - name: hab-zipline
+                    - version: 1.6.420
+                    - release: 20211101174345
+                  - created_at: '2021-12-28T20:24:49.588691'
       '400':
         description: Bad search query parameter provided
     queryParameters:
@@ -1571,53 +2111,47 @@ types:
       description: Get SAAS builder events
       responses:
         '200':
+          description: Retrieved SAAS builder events
           body:
             application/json:
-              example: |
-                {
-                    "range_start": 0,
-                    "range_end": 1,
-                    "total_count": 1,
-                    "data": [
-                        {
-                           "operation": "Promote",
-                           "created_at": "2021-12-28T20:24:49.588691",
-                           "origin": "core",
-                           "channel": "stable",
-                           "package_ident": {
-                           "origin": "core",
-                           "name": "hab-backline",
-                           "version": "1.6.420",
-                           "release": "20211101174345"
-                        }
-                    ]
-                }
+              type: events
+              required: false
+              example:
+                - range_start: 0
+                  range_end: 1
+                  total_count: 1
+                  data:
+                    - operation: Promote
+                    - origin: core
+                    - channel: stable
+                    - package_ident:
+                      - origin: core
+                      - name: hab-backline
+                      - version: 1.6.420
+                      - release: 20211101174345
+                    - created_at: '2021-12-28T20:24:49.588691'
               type: events
               required: false
         '204':
           body:
+          description: Retrieved SAAS builder events but requires pagination
             application/json:
-              example: |
-                {
-                    "range_start": 0,
-                    "range_end": 1,
-                    "total_count": 1,
-                    "data": [
-                        {
-                           "operation": "Promote",
-                           "created_at": "2021-12-28T20:24:49.588691",
-                           "origin": "core",
-                           "channel": "stable",
-                           "package_ident": {
-                           "origin": "core",
-                           "name": "hab-backline",
-                           "version": "1.6.420",
-                           "release": "20211101174345"
-                        }
-                    ]
-                }
               type: events
               required: false
+              example:
+                - range_start: 1
+                  range_end: 2
+                  total_count: 1
+                  data:
+                    - operation: Promote
+                    - origin: core
+                    - channel: stable
+                    - package_ident:
+                      - origin: core
+                      - name: hab-zipline
+                      - version: 1.6.420
+                      - release: 20211101174345
+                    - created_at: '2021-12-28T20:24:49.588691'
         '400':
           description: Bad search query parameter provided
       queryParameters:
@@ -1645,7 +2179,7 @@ types:
     body:
       application/json:
         required: false
-'/{origin}':
+'depot/{origin}':
   /pkgs:
     get:
       description: Get list of unique packages for specified origin
@@ -1686,13 +2220,17 @@ types:
       '200':
         body:
           application/json:
+            description: Authorized
+            type: session
             example:
-              token: 0b79bab50daca910b000d4f1a2b675d604257e42
-              email: reset@chef.io
-              name: reset
               id: '73089155726360582'
+              name: reset
+              email: reset@chef.io
+              token: 0b79bab50daca910b000d4f1a2b675d604257e42
               flags: 0
-            required: false
+              oauth_token: bb79bab50dbcab10b000d4f1a2bb75d604257e42
+      '401':
+        description: Unauthorized
   uriParameters:
     code: {}
 '/rdeps/{origin}':
@@ -1704,6 +2242,7 @@ types:
         Retrieves the list of reverse dependencies for this package.
       responses:
         '200':
+          description: Retrieve reverse dependencies for package
           body:
             application/json:
               example:
@@ -1725,6 +2264,7 @@ types:
           collated into build groups that can be build in parallel
         responses:
           '200':
+            description:  Retrieved dependencies organized into build groups
             body:
               application/json:
                 example:
@@ -1743,19 +2283,24 @@ types:
             description: Package not found
           '500':
             description: Internal server error
-'/channels/{origin}':
+'/depot/channels/{origin}':
   get:
     description: List all channels for an origin
     responses:
       '200':
+        description:  Retrieved channels for origin
         body:
           application/json:
             example:
-              - stable
-              - unstable
+              - name: stable
+              - name: unstable
             required: false
       '400':
         description: Origin not specified
+      '404':
+        description: Not found
+      '500':
+        description: Internal server error
   uriParameters:
     origin: {}
   '/{channel}':
@@ -1771,7 +2316,7 @@ types:
         '409':
           description: Channel already exists
         '500':
-          description: Server error
+          description: Internal server error
     delete:
       description: Deletes a channel
       responses:
@@ -1782,7 +2327,7 @@ types:
         '403':
           description: Channel can not be deleted
         '500':
-          description: Server error
+          description: Internal server error
     uriParameters:
       channel: {}
     /pkgs:
@@ -1812,7 +2357,7 @@ types:
           '404':
             description: Origin or channel does not exist
           '500':
-            description: Server error
+            description: Internal server error
       /_latest:
         get:
           description: 'List latest packages in a channel, by target (required)'
@@ -1834,6 +2379,12 @@ types:
                         version: '4.3'
                         release: '20160612063537'
                   required: false
+            '400':
+              description: Invalid request
+            '404':
+              description: Not found
+            '500':
+              description: Internal server error
       /promote:
         post:
           description: Promotes all packages in a channel queryParameters
@@ -1845,7 +2396,7 @@ types:
             '401':
               description: You are not authorized to request promotion for this origin
             '500':
-              description: Server error
+              description: Internal server error
       /demote:
         post:
           description: Demotes list of packages from a channel queryParameters
@@ -1857,19 +2408,27 @@ types:
             '401':
               description: You are not authorized to request demotion for this origin
             '500':
-              description: Server error
+              description: Internal server error
       '/{pkg}':
         get:
           description: List all packages in a channel that match the specified identifier
           responses:
             '200':
-              description: Returns a list of packages
+              description: Retrieved a complete list of packages
+              body:
+                application/json:
+                  type: packageIdentList
+            '204':
+              description: Retrieved list of packages - pagination required
+              body:
+                application/json:
+                  type: packageIdentList
             '400':
               description: Origin or channel not supplied
             '404':
               description: Origin or channel does not exist
             '500':
-              description: Server error
+              description: Internal server error
         uriParameters:
           pkg: {}
         /latest:
@@ -1878,6 +2437,7 @@ types:
             responses:
               '200':
                 description: Returns a package
+                type: packageIdent
                 body:
                   application/json:
                     example:
@@ -1965,19 +2525,27 @@ types:
               '404':
                 description: Origin or channel does not exist
               '500':
-                description: Server error
+                description: Internal server error
         '/{version}':
           get:
             description: List all packages in a channel that match the specified identifier and version
             responses:
               '200':
-                description: Returns a list of packages
+                description: Retrieved a complete list of packages
+                body:
+                  application/json:
+                    type: packageIdentList
+              '204':
+                description: Retrieved list of packages - pagination required
+                body:
+                  application/json:
+                    type: packageIdentList
               '400':
                 description: Origin or channel or identifier or version not supplied
               '404':
                 description: Origin or channel does not exist
               '500':
-                description: Server error
+                description: Internal server error
           uriParameters:
             version: {}
           /latest:
@@ -1985,25 +2553,36 @@ types:
               description: Get the latest version of the package in this channel that matches the specified identifier and version
               responses:
                 '200':
-                  description: Returns a package
+                  description: Retrieved a complete list of packages
+                  body:
+                    application/json:
+                      type: packageIdentList
+                '204':
+                  description: Retrieved list of packages - pagination required
+                  body:
+                    application/json:
+                      type: packageIdentList
                 '400':
                   description: Origin or channel or identifier or version not supplied
                 '404':
                   description: Origin or channel does not exist
                 '500':
-                  description: Server error
+                  description: Internal server error
           '/{release}':
             get:
               description: 'Get the package in a channel that matches the specified identifier, version and release'
               responses:
                 '200':
                   description: Returns a package
+                  body:
+                    application/json:
+                      type: packageIdent
                 '400':
                   description: Origin or channel or identifier or version or release not supplied
                 '404':
                   description: Origin or channel does not exist
                 '500':
-                  description: Server error
+                  description: Internal server error
             uriParameters:
               release: {}
             /promote:
@@ -2017,7 +2596,7 @@ types:
                   '404':
                     description: Origin or channel or identifier or version or release does not exist
                   '500':
-                    description: Server error
+                    description: Internal server error
             /demote:
               put:
                 description: Demote a package from a specific channel
@@ -2031,7 +2610,7 @@ types:
                   '404':
                     description: Origin or channel or identifier or version or release does not exist
                   '500':
-                    description: Server error
+                    description: Internal server error
 '/settings/{origin}':
   uriParameters:
     origin: {}
