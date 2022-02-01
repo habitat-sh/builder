@@ -1,6 +1,7 @@
 #%RAML 1.0
 title: Builder API
 version: v1
+baseUri: 'https://bldr.habitat.sh/v1'
 mediaType: application/json
 protocols:
   - HTTPS
@@ -10,7 +11,6 @@ baseUriParameters:
       The root URI for the particular installation of Builder
     example: 'bldr.habitat.sh, api.habitat.sh, localhost:9636'
   version: {}
-baseUri: 'https://{rootUri}/{version}'
 securitySchemes:
   oauth_2_0:
     description: Builder supports OAuth 2.0 for authenticating all API requests.
