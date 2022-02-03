@@ -12,8 +12,14 @@ pipelines:
   - verify:
       description: Pull Request validation tests
       public: true
+  - release_builder:
+      description: Builder release process
   - post_habitat_release:
       description: "Tasks to be performed after a successful Habitat release"
+
+staging_areas:
+  - release_staging:
+      workload: pull_request_merged:{{github_repo}}:{{release_branch}}:*
 
 subscriptions:
   # In English: do this when Habitat finishes its promotion-to-stable
@@ -28,3 +34,7 @@ subscriptions:
       - bash:.expeditor/scripts/post_datadog_merge_event.sh:
           always_run: true
           post_commit: true
+
+  - workload: staged_workload_released:{{agent_id}}:release_staging:*
+    actions:
+      - trigger_pipeline:release_builder
