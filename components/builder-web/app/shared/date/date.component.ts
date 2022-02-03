@@ -34,6 +34,6 @@ export class DateComponent {
   }
 
   get displayDate() {
-    return moment(this.date).fromNow();
+    return moment.utc(this.date).fromNow();
   }
 }
