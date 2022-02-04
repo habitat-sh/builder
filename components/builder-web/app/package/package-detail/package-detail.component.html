@@ -1,4 +1,23 @@
 <div class="package-detail-component">
+  <ul class="toggle-list" *ngIf="hasChannels()">
+    <li class="heading">
+      <h4>Channels</h4>
+      <h4>Published</h4>
+      <h4></h4>
+    </li>
+    <div *ngFor="let channel of package.channels">
+      <li class="item">
+        <span class="column name">{{ channel }}</span>
+        <span class="column">
+          <hab-date [date]="promotedDate(channel)"></hab-date>
+        </span>
+        <span class="column">
+          <button [disabled]="updating" *ngIf="canShowDemote(channel)" class="action active" type="button" (click)="handleDemote(channel)">Demote</button>
+          <button [disabled]="updating" *ngIf="canShowPromote(channel, package)" class="action" type="button" (click)="handlePromote()">Promote</button>
+        </span>
+      </li>
+    </div>
+  </ul>
   <div class="package-manifest">
     <div class="package-manifest-title">
       <h2>Package Manifest</h2>
@@ -29,22 +48,9 @@
             </dd>
           </div>
           <div>
-            <dt>&nbsp;</dt>
+            <dt>HART Size</dt>
             <dd>
-              <hab-channels
-                [channels]="package.channels"
-                (onDemote)="handleDemote($event)"
-                [canDemote]="memberOfOrigin">
-              </hab-channels>
-              <hab-package-promote
-                [origin]="package.ident.origin"
-                [name]="package.ident.name"
-                [version]="package.ident.version"
-                [release]="package.ident.release"
-                [target]="package.target"
-                channel="stable"
-                *ngIf="promotable(package)">
-              </hab-package-promote>
+              <hab-text [text]="toDisplaySize(package.hart_size)" [title]="package.hart_size + ' bytes'"></hab-text>
             </dd>
           </div>
         </dl>

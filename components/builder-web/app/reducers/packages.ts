@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,6 +65,9 @@ export default function packages(state = initialState['packages'], action) {
       } else {
         let p = Object.assign({}, action.payload);
         p.manifest = marked(p.manifest);
+        // Immutable Package object has its own size property
+        p.hart_size = p.size;
+        delete p.size;
         return state.set('current', Package(p)).
           setIn(['ui', 'current', 'errorMessage'], undefined).
           setIn(['ui', 'current', 'exists'], true).
@@ -121,6 +124,9 @@ export default function packages(state = initialState['packages'], action) {
       } else {
         let p = Object.assign({}, action.payload);
         p.manifest = marked(p.manifest);
+         // Immutable Package object has its own size property
+        p.hart_size = p.size;
+        delete p.size;
         return state.set('latest', Package(p)).
           setIn(['ui', 'latest', 'errorMessage'], undefined).
           setIn(['ui', 'latest', 'exists'], true).

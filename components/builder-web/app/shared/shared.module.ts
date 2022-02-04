@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import { RouterModule } from '@angular/router';
 import {
   MatCheckbox, MatCheckboxModule, MatIconModule, MatIconRegistry, MatMenuModule, MatRadioModule,
   MatRadioGroup, MatRadioButton, MatSlideToggleModule, MatSlideToggle, MatTooltipModule, MatTabsModule,
-  MatButtonModule
+  MatButtonModule, MatInputModule
 } from '@angular/material';
 import { AutoBuildSettingsComponent } from './auto-build-settings/auto-build-settings.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -32,6 +32,8 @@ import { DockerExportSettingsComponent } from './docker-export-settings/docker-e
 import { DockerExportSettingsDialog } from './docker-export-settings/dialog/docker-export-settings.dialog';
 import { DisconnectConfirmDialog } from './project-settings/dialog/disconnect-confirm/disconnect-confirm.dialog';
 import { IconComponent } from './icon/icon.component';
+import { DateComponent } from './date/date.component';
+import { TextComponent } from './text/text.component';
 import { JobCancelDialog } from './dialog/job-cancel/job-cancel.dialog';
 import { JobStatusComponent } from './job-status/job-status.component';
 import { JobStatusIconComponent } from './job-status-icon/job-status-icon.component';
@@ -61,6 +63,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     MatSlideToggleModule,
     MatTooltipModule,
     MatButtonModule,
+    MatInputModule,
     ReactiveFormsModule,
     RouterModule
   ],
@@ -74,6 +77,8 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     DockerExportSettingsComponent,
     DockerExportSettingsDialog,
     IconComponent,
+    DateComponent,
+    TextComponent,
     JobCancelDialog,
     JobStatusComponent,
     JobStatusIconComponent,
@@ -102,6 +107,8 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     DisconnectConfirmDialog,
     DockerExportSettingsComponent,
     IconComponent,
+    DateComponent,
+    TextComponent,
     JobStatusComponent,
     JobStatusIconComponent,
     JobStatusLabelComponent,

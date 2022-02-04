@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Record } from 'immutable';
+import { Component, Input } from '@angular/core';
 
-export const Package = Record({
-  ident: Record({
-    origin: undefined,
-    name: undefined,
-    version: undefined,
-    release: undefined,
-  })(),
-  checksum: '',
-  manifest: '',
-  deps: [],
-  tdeps: [],
-  exposes: [],
-  config: undefined,
-  channels: [],
-  target: undefined,
-  is_a_service: undefined,
-  visibility: '',
-  hart_size: 0
-});
+@Component({
+  selector: 'hab-text',
+  template: `<mat-label [matTooltip]="title" matTooltipPosition="above">{{ text }}</mat-label>`
+})
+export class TextComponent {
+  @Input() title: string = '';
+  @Input() text: string = '';
+}

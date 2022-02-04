@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -120,7 +120,7 @@ export function demotePackage(origin: string, name: string, version: string, rel
           type: SUCCESS
         }));
         dispatch(fetchLatestInChannel(origin, name, 'stable', target));
-        dispatch(fetchPackageChannels(origin, name, version, release));
+        dispatch(fetchPackageChannels(origin, name, version, release, target));
         dispatch(fetchPackageVersions(origin, name));
       })
       .catch(error => {
@@ -144,11 +144,11 @@ export function fetchPackage(pkg) {
   };
 }
 
-export function fetchPackageChannels(origin: string, name: string, version: string, release: string) {
+export function fetchPackageChannels(origin: string, name: string, version: string, release: string, target: string = '') {
   return dispatch => {
     dispatch(clearCurrentPackageChannels());
 
-    depotApi.getPackageChannels(origin, name, version, release)
+    depotApi.getPackageChannels(origin, name, version, release, target)
       .then(response => {
         dispatch(setCurrentPackageChannels(response));
       })
@@ -164,7 +164,7 @@ export function fetchLatestPackage(origin: string, name: string, target: string)
       dispatch(setLatestPackage(response));
 
       const ident = response['ident'];
-      dispatch(fetchPackageChannels(ident.origin, ident.name, ident.version, ident.release));
+      dispatch(fetchPackageChannels(ident.origin, ident.name, ident.version, ident.release, target));
     }).catch(error => {
       dispatch(setLatestPackage(undefined, error));
     });
@@ -279,7 +279,7 @@ export function promotePackage(origin: string, name: string, version: string, re
           type: SUCCESS
         }));
         dispatch(fetchLatestInChannel(origin, name, 'stable', target));
-        dispatch(fetchPackageChannels(origin, name, version, release));
+        dispatch(fetchPackageChannels(origin, name, version, release, target));
         dispatch(fetchPackageVersions(origin, name));
       })
       .catch(error => {

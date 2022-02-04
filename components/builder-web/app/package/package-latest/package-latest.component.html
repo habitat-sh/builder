@@ -9,7 +9,7 @@
   </nav>
   <hab-icon symbol="loading" class="spinning" *ngIf="ui.loading"></hab-icon>
   <ng-container *ngIf="!ui.loading">
-    <hab-package-detail [package]="latest" *ngIf="hasLatest"></hab-package-detail>
+    <hab-package-detail [package]="latest" *ngIf="hasLatest" [channels]="channels"></hab-package-detail>
     <div class="none" *ngIf="!hasLatest">
       <p>
         <strong>There are no available Habitat artifacts (.hart files) for this origin/package.</strong>
