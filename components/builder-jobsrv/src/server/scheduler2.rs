@@ -31,8 +31,8 @@ use crate::{db::models::{jobs::{JobExecState,
 
 #[derive(Debug)]
 pub struct StateBlob {
-    pub message_count:      usize,
-    pub last_message_debug: String, /* It would be cool to be able to do something like this:
+    message_count:      usize,
+    last_message_debug: String, /* It would be cool to be able to do something like this:
                                  * last_message:  Option<SchedulerMessage>,
                                  * But the responders can't be copied so it's hard to keep the
                                  * message around. */
