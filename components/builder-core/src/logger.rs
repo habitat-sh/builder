@@ -100,8 +100,8 @@ impl Logger {
             format!("{},{},{},{}",
                     offset,
                     duration,
-                    start.format("%Y-%m-%d %H:%M:%S").to_string(),
-                    stop.format("%Y-%m-%d %H:%M:%S").to_string())
+                    start.format("%Y-%m-%d %H:%M:%S"),
+                    stop.format("%Y-%m-%d %H:%M:%S"))
         } else {
             "".to_string()
         };
