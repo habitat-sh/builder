@@ -289,7 +289,7 @@ impl Runner {
 
     async fn do_export(&mut self,
                        tx: &mut async_mpsc::UnboundedSender<Job>,
-                       mut streamer: &mut JobStreamer)
+                       streamer: &mut JobStreamer)
                        -> Result<()> {
         self.check_cancel(tx).await?;
 
