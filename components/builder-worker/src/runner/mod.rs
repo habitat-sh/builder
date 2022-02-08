@@ -293,7 +293,7 @@ impl Runner {
                        -> Result<()> {
         self.check_cancel(tx).await?;
 
-        match self.export(&mut streamer) {
+        match self.export(streamer) {
             Ok(_) => (),
             Err(err) => {
                 self.fail(net::err(ErrCode::EXPORT, "wk:run:export"));
