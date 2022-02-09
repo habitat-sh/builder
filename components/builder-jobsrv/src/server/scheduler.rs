@@ -270,7 +270,7 @@ impl ScheduleMgr {
     fn check_group(&mut self, group: &Group) -> Result<()> {
         let group = self.get_group(group.id as u64)?;
 
-        let is_buildable = group.get_projects().iter().any(|x| buildable(x));
+        let is_buildable = group.get_projects().iter().any(buildable);
         if !is_buildable {
             let msg = format!("Watchdog: canceling group {} with no buildable projects",
                               group.get_id());
