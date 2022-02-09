@@ -30,8 +30,8 @@ use crate::{db::models::{jobs::{JobExecState,
             protocol::jobsrv};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct StateBlob {
-    #[allow(dead_code)]
     message_count:      usize,
     last_message_debug: String, /* It would be cool to be able to do something like this:
                                  * last_message:  Option<SchedulerMessage>,
