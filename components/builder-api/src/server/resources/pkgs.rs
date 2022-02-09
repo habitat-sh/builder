@@ -1428,7 +1428,10 @@ async fn do_get_package(req: &HttpRequest,
 
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
-    let size = match req_state(req).packages.size_of(&pkg.ident, *pkg.target).await {
+    let size = match req_state(req).packages
+                                   .size_of(&pkg.ident, *pkg.target)
+                                   .await
+    {
         Ok(size) => size,
         Err(err) => {
             debug!("Could not get size for {:?}, {:?}", pkg.ident, err);
