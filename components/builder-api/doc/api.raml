@@ -523,6 +523,111 @@ types:
     properties:
       email:
         type: string
+'/authenticate/{code}':
+  get:
+    description:  Authenticates a user and creates a session
+    responses:
+      '200':
+        description: Authorized
+        body:
+          application/json:
+            type: session
+            example:
+              id: '73089155726360582'
+              name: reset
+              email: reset@chef.io
+              token: 0b79bab50daca910b000d4f1a2b675d604257e42
+              flags: 0
+              oauth_token: bb79bab50dbcab10b000d4f1a2bb75d604257e42
+      '401':
+        description: Unauthorized
+  uriParameters:
+    code: {}
+'/depot/{origin}':
+  /pkgs:
+    get:
+      description: Get list of unique packages for specified origin
+      responses:
+        '200':
+          description: Successful
+          body:
+            application/json:
+              type: packageSettings
+              required: false
+              example:
+                id: 1234567890
+                origin: "xyz"
+                name: "abc"
+                visibility: "private"
+                owner_id: 77730215748435968
+        '206':
+          description: Partial list of packages
+          body:
+            application/json:
+              type: packageSettings
+              required: false
+              example:
+                id: 1234567890
+                origin: "xyz"
+                name: "abc"
+                visibility: "private"
+                owner_id: 77730215748435968
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+  uriParameters:
+    origin: {}
+'/rdeps/{origin}':
+  uriParameters:
+    origin: {}
+  '/{name}':
+    get:
+      description: |
+        Retrieves the list of reverse dependencies for this package.
+      responses:
+        '200':
+          description: Retrieve reverse dependencies for package
+          body:
+            application/json:
+              example:
+                origin: core
+                name: linux-headers
+                rdeps:
+                  - core/redis
+              required: false
+        '404':
+          description: Package not found
+        '500':
+          description: Internal server error
+    uriParameters:
+      name: {}
+    /group:
+      get:
+        description: |
+          Retrieves the list of reverse dependencies for this package,
+          collated into build groups that can be build in parallel
+        responses:
+          '200':
+            description:  Retrieved dependencies organized into build groups
+            body:
+              application/json:
+                example:
+                  origin: core
+                  name: linux-headers
+                  rdeps:
+                    - group: 0
+                      idents:
+                        - core/redis
+                        - core/protobuf
+                    - group: 1
+                      idents:
+                        - core/node
+                required: false
+          '404':
+            description: Package not found
+          '500':
+            description: Internal server error
 /status:
   get:
     description: Returns the health of the service
@@ -534,6 +639,7 @@ types:
       '503':
         description: Service temporarily unavailable
   head:
+    description: Returns the health of the service
     responses:
       '200':
         description: Service is healthy
@@ -550,9 +656,10 @@ types:
         repo_id: {}
       '/contents/{path}':
         get:
+          description: Get content from github
           responses:
             '200':
-              description: Get content from github
+              description: Got content from github
               body:
                 application/json:
                   type: content
@@ -1870,6 +1977,7 @@ types:
               '501':
                 description: Not implemented
           delete:
+            description:  Deletes a package
             responses:
               '204': 
                 description:  Package release deleted
@@ -2133,8 +2241,8 @@ types:
               type: events
               required: false
         '204':
-          body:
           description: Retrieved SAAS builder events but requires pagination
+          body:
             application/json:
               type: events
               required: false
@@ -2179,110 +2287,6 @@ types:
     body:
       application/json:
         required: false
-'depot/{origin}':
-  /pkgs:
-    get:
-      description: Get list of unique packages for specified origin
-      responses:
-        '200':
-          description: Successful
-          body:
-            application/json:
-              type: packageSettings
-              required: false
-              example:
-                id: 1234567890
-                origin: "xyz"
-                name: "abc"
-                visibility: "private"
-                owner_id: 77730215748435968
-        '206':
-          description: Partial list of packages
-          body:
-            application/json:
-              type: packageSettings
-              required: false
-              example:
-                id: 1234567890
-                origin: "xyz"
-                name: "abc"
-                visibility: "private"
-                owner_id: 77730215748435968
-        '401':
-          description: Unauthorized
-        '500':
-          description: Internal server error
-  uriParameters:
-    origin: {}
-'/authenticate/{code}':
-  get:
-    responses:
-      '200':
-        body:
-          application/json:
-            description: Authorized
-            type: session
-            example:
-              id: '73089155726360582'
-              name: reset
-              email: reset@chef.io
-              token: 0b79bab50daca910b000d4f1a2b675d604257e42
-              flags: 0
-              oauth_token: bb79bab50dbcab10b000d4f1a2bb75d604257e42
-      '401':
-        description: Unauthorized
-  uriParameters:
-    code: {}
-'/rdeps/{origin}':
-  uriParameters:
-    origin: {}
-  '/{name}':
-    get:
-      description: |
-        Retrieves the list of reverse dependencies for this package.
-      responses:
-        '200':
-          description: Retrieve reverse dependencies for package
-          body:
-            application/json:
-              example:
-                origin: core
-                name: linux-headers
-                rdeps:
-                  - core/redis
-              required: false
-        '404':
-          description: Package not found
-        '500':
-          description: Internal server error
-    uriParameters:
-      name: {}
-    /group:
-      get:
-        description: |
-          Retrieves the list of reverse dependencies for this package,
-          collated into build groups that can be build in parallel
-        responses:
-          '200':
-            description:  Retrieved dependencies organized into build groups
-            body:
-              application/json:
-                example:
-                  origin: core
-                  name: linux-headers
-                  rdeps:
-                    - group: 0
-                      idents:
-                        - core/redis
-                        - core/protobuf
-                    - group: 1
-                      idents:
-                        - core/node
-                required: false
-          '404':
-            description: Package not found
-          '500':
-            description: Internal server error
 '/depot/channels/{origin}':
   get:
     description: List all channels for an origin
