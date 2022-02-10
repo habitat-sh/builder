@@ -35,7 +35,7 @@ Typically, you'll want to clone the repo https://github.com/habitat-sh/builder.g
 Linux builds inside the VM and run the Builder UI from the front-end 
 
 ### MacOS Environment
-For the front-ends, kicking off a build is as easy as typing `npm start` from the components/builder-web directory.  Implicit in the 
+For the front-ends, kicking off a build is as easy as typing `npm start` from the components/builder-web directory.  Implicit in the this run command is the dependency on the building of any changes, similar to make dependencies.
 
 
 ### DNS Issues
@@ -273,7 +273,7 @@ You will see a section [datastore], and the metadata for the database are define
 
 Log into the database:
 
-`$` `psql -d builder -U hab -W`
+`#` `psql -d builder -U hab -W`
 
 _Password for user hab:_
 $PGPASSWORD
