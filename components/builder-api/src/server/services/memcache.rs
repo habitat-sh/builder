@@ -61,7 +61,7 @@ impl MemcacheClient {
         match self.cli.set(&format!("{}/{}/{}:{}:{}{}",
                                     target,
                                     channel,
-                                    ident.to_string(),
+                                    ident,
                                     channel_namespace,
                                     package_namespace,
                                     account_str),
@@ -108,7 +108,7 @@ impl MemcacheClient {
         match self.get_string(&format!("{}/{}/{}:{}:{}{}",
                                        target,
                                        channel,
-                                       ident.to_string(),
+                                       ident,
                                        channel_namespace,
                                        package_namespace,
                                        account_str))

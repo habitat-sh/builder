@@ -30,6 +30,7 @@ use crate::{db::models::{jobs::{JobExecState,
             protocol::jobsrv};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct StateBlob {
     message_count:      usize,
     last_message_debug: String, /* It would be cool to be able to do something like this:

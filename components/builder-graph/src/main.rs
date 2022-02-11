@@ -423,7 +423,7 @@ fn do_dot(graph: &PackageGraph, matches: &ArgMatches) {
     let origin = origin_from_matches(matches);
     let filename = required_filename_from_matches(matches);
 
-    graph.dump_latest_graph_as_dot(filename, origin.as_deref());
+    graph.dump_latest_graph_as_dot(filename, origin);
     let duration_secs = start_time.elapsed().as_secs_f64();
 
     println!("Wrote latest graph to file {} filtered by {:?} TBI in {} sec",
@@ -437,7 +437,7 @@ fn do_raw(graph: &PackageGraph, matches: &ArgMatches) {
     let graph_type;
     if matches.is_present("LATEST") {
         graph_type = "latest";
-        graph.dump_latest_graph_raw(filename, origin.as_deref());
+        graph.dump_latest_graph_raw(filename, origin);
     } else {
         graph_type = "current";
         if let Some(o) = origin {
