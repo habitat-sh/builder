@@ -584,7 +584,7 @@ types:
   '/{name}':
     get:
       description: |
-        Retrieves the list of reverse dependencies for this package.
+        Retrieves the list of reverse dependencies for this package (on-prem setup not supported).
       responses:
         '200':
           description: Retrieve reverse dependencies for package
@@ -606,7 +606,7 @@ types:
       get:
         description: |
           Retrieves the list of reverse dependencies for this package,
-          collated into build groups that can be build in parallel
+          collated into build groups that can be build in parallel (on-prem setup not supported)
         responses:
           '200':
             description:  Retrieved dependencies organized into build groups
