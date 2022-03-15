@@ -1,4 +1,7 @@
-Habitat Builder CHANGELOG
+# Habitat Builder CHANGELOG
+
+<!-- latest_release -->
+<!-- latest_release -->
 
 ##  (2022-02-10)
 

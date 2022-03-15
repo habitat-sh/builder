@@ -3,6 +3,13 @@ project:
   alias: builder
 
 github:
+  # The file where the MAJOR.MINOR.PATCH version is kept. The version in this file
+  # is bumped automatically via the `built_in:bump_version` merge_action.
+  version_file: "VERSION"
+  version_tag_format: '{{version}}'
+  # The file where our CHANGELOG is kept. This file is updated automatically with
+  # details from the Pull Request via the `built_in:update_changelog` merge_action.
+  changelog_file: "CHANGELOG.md"
   delete_branch_on_merge: true
 
 slack:
@@ -37,4 +44,6 @@ subscriptions:
 
   - workload: staged_workload_released:{{agent_id}}:release_staging:*
     actions:
+      - built_in:bump_version
+      - built_in:update_changelog
       - trigger_pipeline:release_builder
