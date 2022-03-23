@@ -8,47 +8,34 @@ There are potentially multiple ways of creating a Builder dev environment - but 
 
 ## Prerequisites
 
-* *Linux VM on Mac OS/X Host*. You can use a VMWare Fusion Pro 10 (or later) based VM running on Mac OS/X. Other providers (e.g., Docker, VirtualBox) have posed difficulty. For instance, VirtualBox doesn't support forwarding privileged ports, which makes using the web app outside the Linux environment challenging.
+This document currently only contains information for running on MacOS with Intel based Ubuntu Linux VMs.  Information for running on Windows or other platforms is not provided in this document.  
 
-* *Ubuntu Desktop 18.04 LTS*. Other distributions should work, but this is the one we will support.
+In order to run Builder on MacOS, it required that the builder services run in a Linux-based VM that can receive web content through builders ports.  Also it is important that the Linux VM has access to the internet and is DNS enabled.  The VM we describe here is for the open source application [multipass](https://multipass.run/).  While the complete information source for multipass setup is contained [here](https://multipass.run/docs), we provide a section highlighting the use of multipass in our environment.  
 
-* *Decision on where you want to run the Web UI*. If you are doing active Web UI development, then you will likely want to run the UI on your Host (Mac OS). If so, there are some extra steps and configuration changes that will be needed, and those are called out below. See the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) for more info.
+To configure multipass to work for our standalone Builder, we need to ensure we can forward content from our MacOS workstation to the builder instance running in the multipass VM.  
+In order to do that, use these steps to enable NAT forwarding:
 
-## Host OS Provisioning
+1)  Add the following line to the file /etc/pf.conf  
+    `nat on utun1 from bridge100:network to any -> (utun1)`  
+2)  Save the file and run the following command  
+    `sudo pfctl -f /etc/pf.conf`  
 
-Your VM will need a static IP assigned for the Builder API to work properly. You can do so by adding the following to **the end** of your `/Library/Preferences/VMware Fusion/vmnet8/dhcpd.conf`:
-```
-host YOUR_VM_NAME {
-   hardware ethernet YOUR_VM_MAC_ADDRESS;
-   fixed-address YOUR_VM_IP_ADDRESS;
-}
-```
+In addition, if running Builder UI, we will need to ensure port 9636 is forwarded to your VM.  Add these entries to /etc/pf.anchors/com.apple to enable port forwarding for builder:
 
-See https://one.vg/static-ip-addresses-in-vmware-fusion/ for more detail on getting the correct MAC and IP address values when configuring `dhcpd.conf` for your VM.
+`rdr pass on lo0 inet proto tcp from any to self port 3000 -> 127.0.0.1 port 9636`
 
-Then, you will need to re-start the VMWare networking on your host machine, like so:
-```
-sudo /Applications/VMware\ Fusion.app/Contents/Library/vmnet-cli --stop
-sudo /Applications/VMware\ Fusion.app/Contents/Library/vmnet-cli --start
-```
+`rdr pass on en0 inet proto tcp from any to self port 9636 -> <YOUR VM IP ADDRESS> 9636`
 
-If you plan to run the UI on the Host (Mac) OS, you will need to ensure that the Builder API port (9636) is forwarded from your VM to your host.
+If using wireless connection, the network value in the second line is likely en0.  Check by running ifconfig at the terminal and update this value if necessary. 
 
-You can do this by making a change to the default NAT configuration.
+Multipass assigns a static IP address for you when you create a virtual machine.  It can be found by running `multipass list`
+from a MacOS terminal under the IPv4 column, noting that the instance must be running (`multipass start <VM instance>`).  For convenience, adding a line to /etc/hosts will enable referring to this VM by its name rather than its IP address:
 
-Add the following line under the `[incomingtcp]` section in your `/Library/Preferences/VMware Fusion/vmnet8/nat.conf`:
-```
-9636 = <VM IP addr>:9636
-```
+`builder-vm   192.168.1.10`
 
-You can use the `ip address` command on your Guest VM to get the IP Address.
+NOTE:  If you are doing active Web UI development, then you will likely want to run the UI on your Host (Mac OS). If so, there are some extra steps and configuration changes that will be needed, and those are called out below. See the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) for more info.  As port forwarding is required to run in this setup, you will need to ensure that the Builder API port (9636) is forwarded from your VM to your host.
 
-Then, you will need to re-start the VMWare networking on your host machine, like so:
-```
-sudo /Applications/VMware\ Fusion.app/Contents/Library/vmnet-cli --stop
-sudo /Applications/VMware\ Fusion.app/Contents/Library/vmnet-cli --start
-```
-
+## Builder Status Check
 You can test the API port access from your Host OS after starting Builder services (steps below) by issuing the following from the command line:
 
 ```
@@ -56,8 +43,6 @@ curl -v http://localhost:9636/v1/status
 ```
 
 This should return a `200 OK`.
-
-For further reference on NAT and port forwarding in Fusion, please refer to the [NAT Configuration](https://docs.vmware.com/en/VMware-Fusion/10.0/com.vmware.fusion.using.doc/GUID-7D8E5A7D-FF0C-4975-A794-FF5A9AE83234.html) page
 
 ## Guest OS Provisioning
 
