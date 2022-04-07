@@ -262,6 +262,7 @@ impl ScheduleMgr {
 
         for group in groups {
             self.check_group(&group)?;
+            self.update_group_state(group.id as u64)?;
         }
 
         Ok(())
@@ -286,6 +287,7 @@ impl ScheduleMgr {
                 self.check_project(project)?;
             }
         }
+
         Ok(())
     }
 
@@ -430,6 +432,10 @@ impl ScheduleMgr {
                 ) {
                     Ok(pkg) => pkg,
                     Err(err) => {
+                        self.datastore
+                            .set_job_group_project_state(group.get_id(),
+                                                         project.get_name(),
+                                                         jobsrv::JobGroupProjectState::NotFound)?;
                         warn!(
                             "Failed to retrieve package (possibly deleted?): {} ({}). Err={:?}",
                             &project.get_ident(),
@@ -503,6 +509,10 @@ impl ScheduleMgr {
             ) {
                 Ok(package) => package,
                 Err(err) => {
+                    self.datastore
+                        .set_job_group_project_state(group.get_id(),
+                                                    project.get_name(),
+                                                    jobsrv::JobGroupProjectState::NotFound)?;
                     warn!(
                         "Unable to retrieve job graph package {} ({}), err: {:?}",
                         project.get_ident(),
@@ -695,6 +705,7 @@ impl ScheduleMgr {
             let mut failed = 0;
             let mut succeeded = 0;
             let mut skipped = 0;
+            let mut notfound = 0;
             let mut canceled = 0;
 
             for project in group.get_projects() {
@@ -703,7 +714,7 @@ impl ScheduleMgr {
                     jobsrv::JobGroupProjectState::Success => succeeded += 1,
                     jobsrv::JobGroupProjectState::Skipped => skipped += 1,
                     jobsrv::JobGroupProjectState::Canceled => canceled += 1,
-
+                    jobsrv::JobGroupProjectState::NotFound => notfound += 1,
                     jobsrv::JobGroupProjectState::NotStarted
                     | jobsrv::JobGroupProjectState::InProgress => (),
                 }
@@ -711,15 +722,16 @@ impl ScheduleMgr {
 
             let dispatchable = self.dispatchable_projects(&group)?;
 
-            let new_state = if (succeeded + skipped + failed) == group.get_projects().len() {
-                jobsrv::JobGroupState::GroupComplete
-            } else if canceled > 0 {
-                jobsrv::JobGroupState::GroupCanceled
-            } else if !dispatchable.is_empty() {
-                jobsrv::JobGroupState::GroupPending
-            } else {
-                jobsrv::JobGroupState::GroupDispatching
-            };
+            let new_state =
+                if (succeeded + skipped + failed + notfound) == group.get_projects().len() {
+                    jobsrv::JobGroupState::GroupComplete
+                } else if canceled > 0 {
+                    jobsrv::JobGroupState::GroupCanceled
+                } else if !dispatchable.is_empty() {
+                    jobsrv::JobGroupState::GroupPending
+                } else {
+                    jobsrv::JobGroupState::GroupDispatching
+                };
 
             self.datastore.set_job_group_state(group_id, new_state)?;
 
