@@ -329,6 +329,7 @@ impl fmt::Display for JobGroupProjectState {
             JobGroupProjectState::Failure => "Failure",
             JobGroupProjectState::Skipped => "Skipped",
             JobGroupProjectState::Canceled => "Canceled",
+            JobGroupProjectState::NotFound => "NotFound",
         };
         write!(f, "{}", value)
     }
@@ -345,6 +346,7 @@ impl FromStr for JobGroupProjectState {
             "failure" => Ok(JobGroupProjectState::Failure),
             "skipped" => Ok(JobGroupProjectState::Skipped),
             "canceled" => Ok(JobGroupProjectState::Canceled),
+            "notfound" => Ok(JobGroupProjectState::NotFound),
             _ => Err(ProtocolError::BadJobGroupProjectState(value.to_string())),
         }
     }
@@ -361,6 +363,7 @@ impl Serialize for JobGroupProjectState {
             3 => serializer.serialize_str("Failure"),
             4 => serializer.serialize_str("Skipped"),
             5 => serializer.serialize_str("Canceled"),
+            6 => serializer.serialize_str("NotFound"),
             _ => panic!("Unexpected enum value"),
         }
     }
