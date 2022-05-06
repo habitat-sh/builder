@@ -25,7 +25,7 @@ use crate::{config::Config,
             error::Result};
 
 /// Polling timeout for HeartbeatMgr
-const HEARTBEAT_MS: i64 = 30_000;
+pub const HEARTBEAT_MS: i64 = 30_000;
 /// In-memory zmq address for HeartbeatMgr
 const INPROC_ADDR: &str = "inproc://heartbeat";
 /// Protocol message to notify the HeartbeatMgr to begin pulsing

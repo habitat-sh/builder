@@ -865,10 +865,23 @@ impl WorkerMgr {
 
     fn process_job_status(&mut self) -> Result<()> {
         self.rq_sock.recv(&mut self.msg, 0)?;
+
+        let worker_name = self.msg
+                              .as_str()
+                              .map(|s| s.to_string())
+                              .unwrap_or_else(|| "-".to_string());
+
         // TODO get worker id here from msg
         let worker_id = "Unknown".to_owned();
 
         self.rq_sock.recv(&mut self.msg, 0)?;
+
+        //  If message is empty it is a heartbeat from
+        //  a connected worker.
+        if self.msg.len() == 0 {
+            trace!("worker {:?} keep-alive", &worker_name);
+            return Ok(());
+        }
 
         let job = Job::new(Message::parse_from_bytes(&self.msg)?);
         debug!("Got job status: {:?}", job);
