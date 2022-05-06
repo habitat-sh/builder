@@ -28,7 +28,8 @@ use crate::{config::Config,
             error::Result,
             feat,
             heartbeat::{HeartbeatCli,
-                        HeartbeatMgr},
+                        HeartbeatMgr,
+                        HEARTBEAT_MS},
             log_forwarder::LogForwarder,
             runner::{RunnerCli,
                      RunnerMgr}};
@@ -104,7 +105,7 @@ impl Server {
             {
                 let mut items = [self.fe_sock.as_poll_item(zmq::POLLIN),
                                  self.runner_cli.as_poll_item(zmq::POLLIN)];
-                zmq::poll(&mut items, -1)?;
+                zmq::poll(&mut items, HEARTBEAT_MS)?;
                 if items[0].is_readable() {
                     fe_msg = true;
                 }
@@ -144,6 +145,12 @@ impl Server {
                     }
                 }
                 fe_msg = false;
+            }
+
+            // If we do not receive a new job or have a job status from the runner,
+            // then send out an empty message that serves as a heartbeat.
+            if !runner_msg && !fe_msg {
+                self.fe_sock.send("", 0)?;
             }
         }
     }
