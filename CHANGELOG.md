@@ -1,11 +1,16 @@
 # Habitat Builder CHANGELOG
 
-<!-- latest_release 20220210 -->
+<!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- Worker disconnects [#1726](https://github.com/habitat-sh/builder/pull/1726) ([pozsgaic](https://github.com/pozsgaic))
+<!-- latest_release -->
+
 ## [20220210](https://github.com/habitat-sh/builder/tree/20220210) (2022-05-02)
 
 #### Merged Pull Requests
 - Initial Expeditor configuration for updating CHANGELOG.md [#1718](https://github.com/habitat-sh/builder/pull/1718) ([sajjaphani](https://github.com/sajjaphani))
-<!-- latest_release -->
 
 
 
