@@ -150,6 +150,7 @@ async fn create_project(req: HttpRequest,
         let package_name = match body.plan_path.as_str() {
             "plan.sh" => "testapp",
             "testapp3/plan.sh" => "testapp3",
+            "testapp/plan.sh" => "testapp",
             "windows/plan.ps1" => "testapp",
             _ => {
                 debug!("Unknown plan path in tests! {}", &body.plan_path);

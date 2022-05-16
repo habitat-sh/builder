@@ -14,6 +14,7 @@ use self::{docker::DockerExporter,
            studio::Studio,
            workspace::Workspace};
 pub use crate::protocol::jobsrv::JobState;
+use github_api_client::config::GitHubCfg;
 use crate::{bldr_core::{access_token::AccessToken,
                         api_client::ApiClient,
                         job::Job,
@@ -215,10 +216,18 @@ impl Runner {
         self.check_cancel(tx).await?;
         let mut section = streamer.start_section(Section::CloneRepository)?;
 
+        if env::var_os("HAB_FUNC_TEST").is_some() {
+            let msg = format!("HAB_FUNC_TEST builder-worker - skipping git clone");
+            streamer.println_stderr(msg)?;
+            section.end()?;
+            return Ok(());
+        }
+
         let vcs = VCS::from_job(self.job(), self.config.github.clone())?;
         if let Some(err) = vcs.clone(self.workspace.src()).await.err() {
-            let msg = format!("Failed to clone remote source repository for {}, err={:?}",
-                              self.workspace.job.get_project().get_name(),
+            let msg = format!("Failed to clone remote source repository for {:?}, vcs={:?}, err={:?}",
+                              &self.workspace.job,
+                              &vcs.data,
                               err);
             warn!("{}", msg);
             self.logger.log(&msg);
@@ -399,6 +408,23 @@ impl Runner {
     async fn fetch_origin_secret_key(
         &self)
         -> std::result::Result<std::path::PathBuf, builder_core::Error> {
+        if env::var_os("HAB_FUNC_TEST").is_some() {
+            let test_key = "bobo".to_string();
+            let res =
+                self.depot_cli
+                    .fetch_origin_secret_key(self.job().origin(),
+                                             &test_key,
+                                             self.workspace.key_path())
+                    .await;
+            if res.is_err() {
+                debug!("Failed to fetch origin secret key, err={:?}, path={:?}",
+                       res,
+                       self.workspace.key_path());
+            };
+
+            return res;
+        }
+
         let res = self.depot_cli
                       .fetch_origin_secret_key(self.job().origin(),
                                                &self.bldr_token,

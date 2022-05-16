@@ -1,0 +1,33 @@
+version: '2.2'
+
+# Spin up a container with hab supervisor loaded with core builder services:
+# builder-api, builder-jobsrv, builder-datastore, etc.
+# Then spin up a container with hab supervisor loaded with builder-worker that
+# binds to services in the core builder container.
+# Finally spin up a test container.
+services:
+  frontend:
+    build: ./frontend
+    depends_on:
+      - builder-core
+    networks:
+      - test_network
+
+  builder-core:
+    privileged: true
+    build: ./builder-core
+    ports:
+      - "9631:9631"
+      - "9632:9632"
+      - "9636:9636"
+      - "9638:9638"
+      - "5566:5566"
+      - "5567:5567"
+      - "5568:5568"
+      - "80:80"
+    networks:
+      - test_network
+
+networks:
+  test_network:
+    external: true

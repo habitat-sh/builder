@@ -1,0 +1,18 @@
+{
+  "name": "hab-worker-tests",
+  "version": "0.0.1",
+  "description": "Habitat Worker Tests",
+  "main": "index.js",
+  "scripts": {
+    "mocha": "mocha --timeout 300000 src/api.js --bail"
+  },
+  "author": "The Habitat Humans",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "chai": "^3.5.0",
+    "jwt-builder": "1.1.0",
+    "mocha": "^8.4.0",
+    "superagent-binary-parser": "^1.0.1",
+    "supertest": "^3.4.2"
+  }
+}
