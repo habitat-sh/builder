@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{env,
-          str::FromStr};
-
-use actix_web::{body::Body,
+use actix_web::{body::BoxBody,
                 http::{self,
                        StatusCode},
                 web::{self,
@@ -26,6 +23,9 @@ use actix_web::{body::Body,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
+use bytes::Bytes;
+use std::{env,
+          str::FromStr};
 
 use crate::protocol::jobsrv;
 
@@ -229,10 +229,10 @@ async fn create_project(req: HttpRequest,
     if package_name != body.name {
         debug!("Package names mismatch, expected={}, found={}",
                body.name, package_name);
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                       Body::from_message(format!("Package name '{}' does not \
-                                                                   correspond to the plan file",
-                                                                  body.name)));
+        let body = Bytes::from(format!("Package name '{}' does not correspond to the plan file",
+                                       body.name).into_bytes());
+        let body = BoxBody::new(body);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
     }
 
     let new_project = NewProject { owner_id: account_id as i64,
@@ -256,11 +256,11 @@ async fn create_project(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_project(req: HttpRequest,
-               path: Path<(String, String)>,
-               qtarget: Query<Target>,
-               state: Data<AppState>)
-               -> HttpResponse {
+async fn get_project(req: HttpRequest,
+                     path: Path<(String, String)>,
+                     qtarget: Query<Target>,
+                     state: Data<AppState>)
+                     -> HttpResponse {
     let (origin, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -285,11 +285,11 @@ fn get_project(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_project(req: HttpRequest,
-                  path: Path<(String, String)>,
-                  qtarget: Query<Target>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn delete_project(req: HttpRequest,
+                        path: Path<(String, String)>,
+                        qtarget: Query<Target>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let (origin, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
@@ -413,10 +413,12 @@ async fn update_project(req: HttpRequest,
                             if plan.name != name {
                                 debug!("Package names mismatch, expected={}, found={}",
                                        name, plan.name);
+                                let body = Bytes::from(format!("Package name '{}' does not \
+                                                                correspond to the plan file",
+                                                               name).into_bytes());
+                                let body = BoxBody::new(body);
                                 return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                       Body::from_message(format!("Package name '{}' does not \
-                                                                   correspond to the plan file",
-                                                                   name)));
+                                                               body);
                             }
                             plan
                         }
@@ -460,7 +462,7 @@ async fn update_project(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_projects(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
+async fn get_projects(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -485,11 +487,11 @@ fn get_projects(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> 
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_jobs(req: HttpRequest,
-            path: Path<(String, String)>,
-            pagination: Query<Pagination>,
-            state: Data<AppState>)
-            -> HttpResponse {
+async fn get_jobs(req: HttpRequest,
+                  path: Path<(String, String)>,
+                  pagination: Query<Pagination>,
+                  state: Data<AppState>)
+                  -> HttpResponse {
     let (origin, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -546,11 +548,11 @@ fn get_jobs(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn create_integration(req: HttpRequest,
-                      path: Path<(String, String, String)>,
-                      body: String,
-                      state: Data<AppState>)
-                      -> HttpResponse {
+async fn create_integration(req: HttpRequest,
+                            path: Path<(String, String, String)>,
+                            body: String,
+                            state: Data<AppState>)
+                            -> HttpResponse {
     let (origin, name, integration) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
@@ -589,10 +591,10 @@ fn create_integration(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_integration(req: HttpRequest,
-                      path: Path<(String, String, String)>,
-                      state: Data<AppState>)
-                      -> HttpResponse {
+async fn delete_integration(req: HttpRequest,
+                            path: Path<(String, String, String)>,
+                            state: Data<AppState>)
+                            -> HttpResponse {
     let (origin, name, integration) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
@@ -616,10 +618,10 @@ fn delete_integration(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_integration(req: HttpRequest,
-                   path: Path<(String, String, String)>,
-                   state: Data<AppState>)
-                   -> HttpResponse {
+async fn get_integration(req: HttpRequest,
+                         path: Path<(String, String, String)>,
+                         state: Data<AppState>)
+                         -> HttpResponse {
     let (origin, name, integration) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -657,9 +659,9 @@ fn get_integration(req: HttpRequest,
 // For real though. This behavior is available via routes in settings
 // and this should just be disabled.
 #[allow(clippy::needless_pass_by_value)]
-fn toggle_privacy(req: HttpRequest,
-                  path: Path<(String, String, String)>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn toggle_privacy(req: HttpRequest,
+                        path: Path<(String, String, String)>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     do_toggle_privacy(req, path, state)
 }

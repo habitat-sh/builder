@@ -99,10 +99,10 @@ impl Channels {
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-fn get_channels(path: Path<String>,
-                sandbox: Query<SandboxBool>,
-                state: Data<AppState>)
-                -> HttpResponse {
+async fn get_channels(path: Path<String>,
+                      sandbox: Query<SandboxBool>,
+                      state: Data<AppState>)
+                      -> HttpResponse {
     let origin = path.into_inner();
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -134,10 +134,10 @@ fn get_channels(path: Path<String>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn create_channel(req: HttpRequest,
-                  path: Path<(String, String)>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn create_channel(req: HttpRequest,
+                        path: Path<(String, String)>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let (origin, channel) = path.into_inner();
 
     let session_id =
@@ -168,10 +168,10 @@ fn create_channel(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_channel(req: HttpRequest,
-                  path: Path<(String, String)>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn delete_channel(req: HttpRequest,
+                        path: Path<(String, String)>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let (origin, channel) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -202,11 +202,11 @@ fn delete_channel(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn promote_channel_packages(req: HttpRequest,
-                            path: Path<(String, String)>,
-                            state: Data<AppState>,
-                            to_channel: Query<ToChannel>)
-                            -> HttpResponse {
+async fn promote_channel_packages(req: HttpRequest,
+                                  path: Path<(String, String)>,
+                                  state: Data<AppState>,
+                                  to_channel: Query<ToChannel>)
+                                  -> HttpResponse {
     let (origin, channel) = path.into_inner();
 
     let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
@@ -256,11 +256,11 @@ fn promote_channel_packages(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn demote_channel_packages(req: HttpRequest,
-                           path: Path<(String, String)>,
-                           state: Data<AppState>,
-                           to_channel: Query<ToChannel>)
-                           -> HttpResponse {
+async fn demote_channel_packages(req: HttpRequest,
+                                 path: Path<(String, String)>,
+                                 state: Data<AppState>,
+                                 to_channel: Query<ToChannel>)
+                                 -> HttpResponse {
     let (origin, channel) = path.into_inner();
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -459,11 +459,11 @@ async fn promote_package(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn demote_package(req: HttpRequest,
-                  path: Path<(String, String, String, String, String)>,
-                  qtarget: Query<Target>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn demote_package(req: HttpRequest,
+                        path: Path<(String, String, String, String, String)>,
+                        qtarget: Query<Target>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let (origin, channel, pkg, version, release) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -537,10 +537,13 @@ fn demote_package(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin_channel_package_version(req: HttpRequest,
-                                                   path: Path<(String, String, String, String)>,
-                                                   pagination: Query<Pagination>)
-                                                   -> HttpResponse {
+async fn get_packages_for_origin_channel_package_version(req: HttpRequest,
+                                                         path: Path<(String,
+                                                               String,
+                                                               String,
+                                                               String)>,
+                                                         pagination: Query<Pagination>)
+                                                         -> HttpResponse {
     let (origin, channel, pkg, version) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -559,10 +562,10 @@ fn get_packages_for_origin_channel_package_version(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin_channel_package(req: HttpRequest,
-                                           path: Path<(String, String, String)>,
-                                           pagination: Query<Pagination>)
-                                           -> HttpResponse {
+async fn get_packages_for_origin_channel_package(req: HttpRequest,
+                                                 path: Path<(String, String, String)>,
+                                                 pagination: Query<Pagination>)
+                                                 -> HttpResponse {
     let (origin, channel, pkg) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -581,10 +584,10 @@ fn get_packages_for_origin_channel_package(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin_channel(req: HttpRequest,
-                                   path: Path<(String, String)>,
-                                   pagination: Query<Pagination>)
-                                   -> HttpResponse {
+async fn get_packages_for_origin_channel(req: HttpRequest,
+                                         path: Path<(String, String)>,
+                                         pagination: Query<Pagination>)
+                                         -> HttpResponse {
     let (origin, channel) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -604,10 +607,10 @@ fn get_packages_for_origin_channel(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_latest_package_for_origin_channel_package(req: HttpRequest,
-                                                 path: Path<(String, String, String)>,
-                                                 qtarget: Query<Target>)
-                                                 -> HttpResponse {
+async fn get_latest_package_for_origin_channel_package(req: HttpRequest,
+                                                       path: Path<(String, String, String)>,
+                                                       qtarget: Query<Target>)
+                                                       -> HttpResponse {
     let (origin, channel, pkg) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -630,13 +633,13 @@ fn get_latest_package_for_origin_channel_package(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_latest_package_for_origin_channel_package_version(req: HttpRequest,
-                                                         path: Path<(String,
-                                                               String,
-                                                               String,
-                                                               String)>,
-                                                         qtarget: Query<Target>)
-                                                         -> HttpResponse {
+async fn get_latest_package_for_origin_channel_package_version(req: HttpRequest,
+                                                               path: Path<(String,
+                                                                     String,
+                                                                     String,
+                                                                     String)>,
+                                                               qtarget: Query<Target>)
+                                                               -> HttpResponse {
     let (origin, channel, pkg, version) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -659,10 +662,10 @@ fn get_latest_package_for_origin_channel_package_version(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_package_fully_qualified(req: HttpRequest,
-                               path: Path<(String, String, String, String, String)>,
-                               qtarget: Query<Target>)
-                               -> HttpResponse {
+async fn get_package_fully_qualified(req: HttpRequest,
+                                     path: Path<(String, String, String, String, String)>,
+                                     qtarget: Query<Target>)
+                                     -> HttpResponse {
     let (origin, channel, pkg, version, release) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
@@ -685,10 +688,10 @@ fn get_package_fully_qualified(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_latest_packages_for_origin_channel(req: HttpRequest,
-                                          path: Path<(String, String)>,
-                                          qtarget: Query<Target>)
-                                          -> HttpResponse {
+async fn get_latest_packages_for_origin_channel(req: HttpRequest,
+                                                path: Path<(String, String)>,
+                                                qtarget: Query<Target>)
+                                                -> HttpResponse {
     let (origin, channel) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 

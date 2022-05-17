@@ -14,6 +14,7 @@ use actix_web::{http::{self,
                       Json,
                       Path,
                       ServiceConfig},
+                HttpMessage,
                 HttpRequest,
                 HttpResponse};
 use bldr_core::access_token::AccessToken as CoreAccessToken;
@@ -50,7 +51,7 @@ pub fn do_get_access_tokens(req: &HttpRequest, account_id: u64) -> Result<Vec<Ac
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-fn get_account(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
+async fn get_account(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id() as i64,
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
@@ -71,7 +72,7 @@ fn get_account(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_access_tokens(req: HttpRequest) -> HttpResponse {
+async fn get_access_tokens(req: HttpRequest) -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
@@ -94,7 +95,7 @@ fn get_access_tokens(req: HttpRequest) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
+async fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id(),
         Err(err) => return err.into(),
@@ -149,10 +150,10 @@ fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpRespons
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn revoke_access_token(req: HttpRequest,
-                       path: Path<String>,
-                       state: Data<AppState>)
-                       -> HttpResponse {
+async fn revoke_access_token(req: HttpRequest,
+                             path: Path<String>,
+                             state: Data<AppState>)
+                             -> HttpResponse {
     let token_id_str = path.into_inner();
     let token_id = match token_id_str.parse::<u64>() {
         Ok(id) => id,
@@ -193,10 +194,10 @@ fn revoke_access_token(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn update_account(req: HttpRequest,
-                  body: Json<UserUpdateReq>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
+async fn update_account(req: HttpRequest,
+                        body: Json<UserUpdateReq>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.get_id(),
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),

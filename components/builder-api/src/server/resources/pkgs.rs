@@ -53,7 +53,7 @@ use crate::{bldr_core::{error::Error::RpcError,
                      resources::channels::channels_for_package_ident,
                      services::metrics::Counter,
                      AppState}};
-use actix_web::{body::Body,
+use actix_web::{body::BoxBody,
                 http::{self,
                        header::{ContentDisposition,
                                 ContentType,
@@ -170,10 +170,10 @@ impl Packages {
 //
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin(req: HttpRequest,
-                           path: Path<String>,
-                           pagination: Query<Pagination>)
-                           -> HttpResponse {
+async fn get_packages_for_origin(req: HttpRequest,
+                                 path: Path<String>,
+                                 pagination: Query<Pagination>)
+                                 -> HttpResponse {
     let origin = path.into_inner();
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
@@ -189,10 +189,10 @@ fn get_packages_for_origin(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin_package(req: HttpRequest,
-                                   path: Path<(String, String)>,
-                                   pagination: Query<Pagination>)
-                                   -> HttpResponse {
+async fn get_packages_for_origin_package(req: HttpRequest,
+                                         path: Path<(String, String)>,
+                                         pagination: Query<Pagination>)
+                                         -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, None, None);
@@ -209,10 +209,10 @@ fn get_packages_for_origin_package(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_packages_for_origin_package_version(req: HttpRequest,
-                                           path: Path<(String, String, String)>,
-                                           pagination: Query<Pagination>)
-                                           -> HttpResponse {
+async fn get_packages_for_origin_package_version(req: HttpRequest,
+                                                 path: Path<(String, String, String)>,
+                                                 pagination: Query<Pagination>)
+                                                 -> HttpResponse {
     let (origin, pkg, version) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
@@ -648,11 +648,11 @@ async fn get_origin_schedule_status(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_package_channels(req: HttpRequest,
-                        path: Path<(String, String, String, String)>,
-                        qtarget: Query<Target>,
-                        state: Data<AppState>)
-                        -> HttpResponse {
+async fn get_package_channels(req: HttpRequest,
+                              path: Path<(String, String, String, String)>,
+                              qtarget: Query<Target>,
+                              state: Data<AppState>)
+                              -> HttpResponse {
     let (origin, name, version, release) = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
@@ -707,10 +707,10 @@ fn get_package_channels(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn list_package_versions(req: HttpRequest,
-                         path: Path<(String, String)>,
-                         state: Data<AppState>)
-                         -> HttpResponse {
+async fn list_package_versions(req: HttpRequest,
+                               path: Path<(String, String)>,
+                               state: Data<AppState>)
+                               -> HttpResponse {
     let (origin, name) = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
@@ -748,11 +748,11 @@ fn list_package_versions(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn search_packages(req: HttpRequest,
-                   path: Path<String>,
-                   pagination: Query<Pagination>,
-                   state: Data<AppState>)
-                   -> HttpResponse {
+async fn search_packages(req: HttpRequest,
+                         path: Path<String>,
+                         pagination: Query<Pagination>,
+                         state: Data<AppState>)
+                         -> HttpResponse {
     Counter::SearchPackages.increment();
 
     let query = path.into_inner();
@@ -813,10 +813,10 @@ fn search_packages(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn package_privacy_toggle(req: HttpRequest,
-                          path: Path<(String, String, String, String, String)>,
-                          state: Data<AppState>)
-                          -> HttpResponse {
+async fn package_privacy_toggle(req: HttpRequest,
+                                path: Path<(String, String, String, String, String)>,
+                                state: Data<AppState>)
+                                -> HttpResponse {
     let (origin, name, version, release, visibility) = path.into_inner();
 
     let ident = PackageIdent::new(origin.clone(), name, Some(version), Some(release));
@@ -1033,8 +1033,9 @@ async fn do_upload_package_finish(req: &HttpRequest,
         Ok(archive) => archive,
         Err(e) => {
             info!("Could not read the package at {:#?}: {:#?}", temp_path, e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           Body::from_message(format!("ds:up:0, err={:?}", e)));
+            let body = Bytes::from(format!("ds:up:0, err={:?}", e).into_bytes());
+            let body = BoxBody::new(body);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
         }
     };
 
@@ -1044,8 +1045,9 @@ async fn do_upload_package_finish(req: &HttpRequest,
         Ok(target) => target,
         Err(e) => {
             info!("Could not read the target for {:#?}: {:#?}", archive, e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           Body::from_message(format!("ds:up:1, err={:?}", e)));
+            let body = Bytes::from(format!("ds:up:1, err={:?}", e).into_bytes());
+            let body = BoxBody::new(body);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
         }
     };
 
@@ -1063,16 +1065,18 @@ async fn do_upload_package_finish(req: &HttpRequest,
         Ok(cksum) => cksum,
         Err(e) => {
             debug!("Could not compute a checksum for {:#?}: {:#?}", archive, e);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           Body::from_message("ds:up:2"));
+            let body = Bytes::from_static(b"ds:up:2");
+            let body = BoxBody::new(body);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
         }
     };
 
     if qupload.checksum != checksum_from_artifact {
         debug!("Checksums did not match: from_param={:?}, from_artifact={:?}",
                qupload.checksum, checksum_from_artifact);
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                       Body::from_message("ds:up:3"));
+        let body = Bytes::from_static(b"ds:up:3");
+        let body = BoxBody::new(body);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
     }
 
     let conn = match req_state(req).db.get_conn().map_err(Error::DbError) {
@@ -1095,8 +1099,9 @@ async fn do_upload_package_finish(req: &HttpRequest,
                 if qupload.checksum != pkg.checksum {
                     debug!("Checksums did not match: from_param={:?}, from_database={:?}",
                            qupload.checksum, pkg.checksum);
-                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                                   Body::from_message("ds:up:4"));
+                    let body = Bytes::from_static(b"ds:up:4");
+                    let body = BoxBody::new(body);
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
                 }
             }
             Err(NotFound) => {}
@@ -1166,9 +1171,9 @@ async fn do_upload_package_finish(req: &HttpRequest,
     if !ident.satisfies(&*package.ident) {
         debug!("Ident mismatch, expected={:?}, got={:?}",
                ident, package.ident);
-
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                       Body::from_message("ds:up:6"));
+        let body = Bytes::from_static(b"ds:up:6");
+        let body = BoxBody::new(body);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
     }
 
     let session = authorize_session(req, None, None).unwrap(); // Unwrap Ok

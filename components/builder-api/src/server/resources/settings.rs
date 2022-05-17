@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{body::Body,
+use actix_web::{body::BoxBody,
                 http::StatusCode,
                 web::{self,
                       Data,
@@ -24,16 +24,17 @@ use actix_web::{body::Body,
 
 use builder_core::Error::PackageSettingDeleteError;
 
-use crate::db::models::{origin::*,
-                        package::*,
-                        settings::*};
-use diesel::PgConnection;
+use crate::{db::models::{origin::*,
+                         package::*,
+                         settings::*},
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     helpers::req_state,
+                     AppState}};
 
-use crate::server::{authorize::authorize_session,
-                    error::{Error,
-                            Result},
-                    helpers::req_state,
-                    AppState};
+use bytes::Bytes;
+use diesel::PgConnection;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UpdateOriginPackageSettingsReq {
@@ -60,7 +61,9 @@ impl Settings {
 
 // get_origin_package_settings
 #[allow(clippy::needless_pass_by_value)]
-fn get_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -> HttpResponse {
+async fn get_origin_package_settings(req: HttpRequest,
+                                     path: Path<(String, String)>)
+                                     -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -86,10 +89,10 @@ fn get_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -
 
 // create_origin_package_settings
 #[allow(clippy::needless_pass_by_value)]
-fn create_origin_package_settings(req: HttpRequest,
-                                  path: Path<(String, String)>,
-                                  state: Data<AppState>)
-                                  -> HttpResponse {
+async fn create_origin_package_settings(req: HttpRequest,
+                                        path: Path<(String, String)>,
+                                        state: Data<AppState>)
+                                        -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let account_id =
@@ -131,10 +134,10 @@ fn create_origin_package_settings(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn update_origin_package_settings(req: HttpRequest,
-                                  path: Path<(String, String)>,
-                                  body: Json<UpdateOriginPackageSettingsReq>)
-                                  -> HttpResponse {
+async fn update_origin_package_settings(req: HttpRequest,
+                                        path: Path<(String, String)>,
+                                        body: Json<UpdateOriginPackageSettingsReq>)
+                                        -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let account_id =
@@ -176,7 +179,9 @@ fn update_origin_package_settings(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_origin_package_settings(req: HttpRequest, path: Path<(String, String)>) -> HttpResponse {
+async fn delete_origin_package_settings(req: HttpRequest,
+                                        path: Path<(String, String)>)
+                                        -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let account_id =
@@ -213,7 +218,9 @@ fn delete_origin_package_settings(req: HttpRequest, path: Path<(String, String)>
                    origin, err);
             // Here we want to enrich the http response with a sanitized error
             // by returning a 409 with a helpful message in the body.
-            HttpResponse::with_body(StatusCode::CONFLICT, Body::from_message(format!("{}", err)))
+            let body = Bytes::from(format!("{}", err).into_bytes());
+            let body = BoxBody::new(body);
+            HttpResponse::with_body(StatusCode::CONFLICT, body)
         }
     }
 }

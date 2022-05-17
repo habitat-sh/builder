@@ -268,7 +268,7 @@ fn filtered_group_rdeps(req: &HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_job(req: HttpRequest, path: Path<String>) -> HttpResponse {
+async fn get_job(req: HttpRequest, path: Path<String>) -> HttpResponse {
     let id_str = path.into_inner();
 
     let job_id = match id_str.parse::<u64>() {
