@@ -14,7 +14,6 @@ use self::{docker::DockerExporter,
            studio::Studio,
            workspace::Workspace};
 pub use crate::protocol::jobsrv::JobState;
-use github_api_client::config::GitHubCfg;
 use crate::{bldr_core::{access_token::AccessToken,
                         api_client::ApiClient,
                         job::Job,
@@ -216,12 +215,12 @@ impl Runner {
         self.check_cancel(tx).await?;
         let mut section = streamer.start_section(Section::CloneRepository)?;
 
-        if env::var_os("HAB_FUNC_TEST").is_some() {
-            let msg = format!("HAB_FUNC_TEST builder-worker - skipping git clone");
-            streamer.println_stderr(msg)?;
-            section.end()?;
-            return Ok(());
-        }
+//        if env::var_os("HAB_FUNC_TEST").is_some() {
+//            let msg = format!("HAB_FUNC_TEST builder-worker - skipping git clone");
+//            streamer.println_stderr(msg)?;
+//            section.end()?;
+//            return Ok(());
+//        }
 
         let vcs = VCS::from_job(self.job(), self.config.github.clone())?;
         if let Some(err) = vcs.clone(self.workspace.src()).await.err() {
@@ -409,6 +408,7 @@ impl Runner {
         &self)
         -> std::result::Result<std::path::PathBuf, builder_core::Error> {
         if env::var_os("HAB_FUNC_TEST").is_some() {
+            debug!("In HAB_FUNC_TEST mode");
             let test_key = "bobo".to_string();
             let res =
                 self.depot_cli
