@@ -45,7 +45,7 @@ pub async fn route_message<R, T>(req: &HttpRequest, msg: &R) -> error::Result<T>
 // Optional Authentication - this middleware does not enforce authentication,
 // but will insert a Session if a valid Bearer token is received
 pub fn authentication_middleware<S>(
-    mut req: ServiceRequest,
+    req: ServiceRequest,
     srv: &S)
     -> impl Future<Output = Result<ServiceResponse<BoxBody>, Error>>
     where S: Service<ServiceRequest, Response = ServiceResponse<BoxBody>, Error = Error>
