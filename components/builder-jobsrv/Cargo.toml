@@ -55,7 +55,7 @@ tracing-futures = "*"
 zmq = "*"
 
 [dependencies.actix-web]
-version = "4.0.1"
+version = "*"
 default-features = false
 
 [dependencies.clap]
