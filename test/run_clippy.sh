@@ -34,6 +34,7 @@ sudo hab pkg install core/protobuf
 sudo cp "$HOME"/.rustup/toolchains/"$toolchain"-x86_64-unknown-linux-gnu/bin/cargo-clippy "$(hab pkg path core/rust/"$toolchain")/bin"
 sudo cp "$HOME"/.rustup/toolchains/"$toolchain"-x86_64-unknown-linux-gnu/bin/clippy-driver "$(hab pkg path core/rust/"$toolchain")/bin"
 sudo hab pkg exec core/patchelf patchelf -- --set-interpreter "$(hab pkg path core/glibc)/lib/ld-linux-x86-64.so.2" "$(hab pkg path core/rust/"$toolchain")/bin/clippy-driver"
+sudo hab pkg exec core/patchelf patchelf -- --set-interpreter "$(hab pkg path core/glibc)/lib/ld-linux-x86-64.so.2" "$(hab pkg path core/rust/"$toolchain")/bin/cargo-clippy"
 
 export OPENSSL_NO_VENDOR=1
 export LD_RUN_PATH
