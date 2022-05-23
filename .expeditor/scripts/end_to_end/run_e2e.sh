@@ -21,7 +21,24 @@ BLDR_ORIGIN=${BLDR_ORIGIN:="habitat"}
 #export HAB_FUNC_TEST=1
 
 #  Assumes hab-sup is installed as a service
-sudo systemctl stop hab-sup.service
+#service hab-sup status
+
+HAB_SUP_EXISTS=0
+if service --status-all | grep -Fq 'hab-sup'; then
+  echo "stopping hab-sup"
+  sudo systemctl stop hab-sup.service
+  HAB_SUP_EXISTS=1
+else
+  echo "hab-sup not running"
+fi
+
+#if [ $? = 0 ]; then
+#  echo "stopping hab-sup"
+#  sudo systemctl stop hab-sup.service
+#  HAB_SUP_EXISTS=1
+#else
+#  echo "hab-sup not running"
+#fi
 
 #  Getting database corruption
 sudo rm -rf /hab/svc/builder-datastore
@@ -30,7 +47,8 @@ cd ${WORK_DIR}
 git clone https://github.com/habitat-sh/on-prem-builder.git
 cp bldr-end-to-end.env on-prem-builder/bldr.env
 cd on-prem-builder
-sudo ./scripts/provision.sh
+#sudo ./scripts/provision.sh
+sudo ./install.sh
 
 sleep 1
 cd ..
@@ -73,18 +91,19 @@ sleep 3
 
 ######   TO BE REMOVED ######
 
+sudo cp ${WORK_DIR}/builder-github-app.pem /hab/svc/builder-api/files
+sudo cp ${WORK_DIR}/builder-github-app.pem /hab/svc/builder-worker/files
+sudo cp ${WORK_DIR}/neurosis-20171211220037.pub /hab/svc/builder-worker/files
+sudo cp ${WORK_DIR}/neurosis-20171211220037.sig.key /hab/svc/builder-worker/files
+
 while hab svc status | grep --quiet down;
 do 
   sleep 5
 done
 
 echo "Services have started - continuing with tests"
-sudo cp ${WORK_DIR}/builder-github-app.pem /hab/svc/builder-worker/files
-sudo cp ${WORK_DIR}/neurosis-20171211220037.pub /hab/svc/builder-worker/files
-sudo cp ${WORK_DIR}/neurosis-20171211220037.sig.key /hab/svc/builder-worker/files
 
 echo "Begin waiting for migrations $(date +%s)"
-sleep 120
 wait_for_migrations
 
 echo "Done waiting for migrations $(date +%s)"
