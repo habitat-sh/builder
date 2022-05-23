@@ -14,7 +14,8 @@
 
 use std::str::FromStr;
 
-use actix_web::HttpRequest;
+use actix_web::{HttpMessage,
+                HttpRequest};
 
 use crate::{bldr_core::{access_token::BUILDER_ACCOUNT_ID,
                         metrics::CounterMetric,

@@ -28,7 +28,7 @@ use crate::{bldr_core::crypto,
                                Role},
                      resources::pkgs::postprocess_package_list,
                      AppState}};
-use actix_web::{body::Body,
+use actix_web::{body::BoxBody,
                 http::{self,
                        header::{Charset,
                                 ContentDisposition,
@@ -46,6 +46,7 @@ use actix_web::{body::Body,
                 HttpRequest,
                 HttpResponse};
 use builder_core::Error::OriginDeleteError;
+use bytes::Bytes;
 use diesel::{pg::PgConnection,
              result::Error::NotFound};
 use habitat_core::{crypto::keys::{self as core_keys,
@@ -150,7 +151,7 @@ impl Origins {
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-fn get_origin(path: Path<String>, state: Data<AppState>) -> HttpResponse {
+async fn get_origin(path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin_name = path.into_inner();
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -172,10 +173,10 @@ fn get_origin(path: Path<String>, state: Data<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn create_origin(req: HttpRequest,
-                 body: Json<CreateOriginHandlerReq>,
-                 state: Data<AppState>)
-                 -> HttpResponse {
+async fn create_origin(req: HttpRequest,
+                       body: Json<CreateOriginHandlerReq>,
+                       state: Data<AppState>)
+                       -> HttpResponse {
     let session = match authorize_session(&req, None, None) {
         Ok(session) => session,
         Err(err) => return err.into(),
@@ -217,11 +218,11 @@ fn create_origin(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn update_origin(req: HttpRequest,
-                 path: Path<String>,
-                 body: Json<UpdateOriginHandlerReq>,
-                 state: Data<AppState>)
-                 -> HttpResponse {
+async fn update_origin(req: HttpRequest,
+                       path: Path<String>,
+                       body: Json<UpdateOriginHandlerReq>,
+                       state: Data<AppState>)
+                       -> HttpResponse {
     let origin = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator))
@@ -249,7 +250,10 @@ fn update_origin(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
+async fn delete_origin(req: HttpRequest,
+                       path: Path<String>,
+                       state: Data<AppState>)
+                       -> HttpResponse {
     let origin = path.into_inner();
 
     let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Owner)) {
@@ -295,7 +299,9 @@ fn delete_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) ->
                    origin, err);
             // Here we want to enrich the http response with a sanitized error
             // by returning a 409 with a helpful message in the body.
-            HttpResponse::with_body(StatusCode::CONFLICT, Body::from_message(format!("{}", err)))
+            let body = Bytes::from(format!("{}", err).into_bytes());
+            let body = BoxBody::new(body);
+            HttpResponse::with_body(StatusCode::CONFLICT, body)
         }
     }
 }
@@ -391,7 +397,7 @@ fn origin_delete_preflight(origin: &str, conn: &PgConnection) -> Result<()> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
+async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
     let account_id =
@@ -437,7 +443,7 @@ fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> H
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn list_origin_keys(path: Path<String>, state: Data<AppState>) -> HttpResponse {
+async fn list_origin_keys(path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -470,11 +476,11 @@ fn list_origin_keys(path: Path<String>, state: Data<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn upload_origin_key(req: HttpRequest,
-                     body: String,
-                     path: Path<(String, String)>,
-                     state: Data<AppState>)
-                     -> HttpResponse {
+async fn upload_origin_key(req: HttpRequest,
+                           body: String,
+                           path: Path<(String, String)>,
+                           state: Data<AppState>)
+                           -> HttpResponse {
     let (origin, revision) = path.into_inner();
 
     // Since this route allows users to upload keys, we verify their membership
@@ -502,14 +508,11 @@ fn upload_origin_key(req: HttpRequest,
                 Ok(session) => session.get_id(),
                 Err(_) => {
                     debug!("Unable to upload origin public signing key due to lack of permissions");
-                    return HttpResponse::with_body(StatusCode::FORBIDDEN,
-                                                   Body::from_message(format!("You do not \
-                                                                               have permissions \
-                                                                               to upload a \
-                                                                               new origin \
-                                                                               signing public \
-                                                                               key: {}-{}",
-                                                                              origin, revision)));
+                    let body = Bytes::from(format!("You do not have permissions to upload a new \
+                                                    origin signing public key: {}-{}",
+                                                   origin, revision).into_bytes());
+                    let body = BoxBody::new(body);
+                    return HttpResponse::with_body(StatusCode::FORBIDDEN, body);
                 }
             };
         let key = match body.parse::<core_keys::PublicOriginSigningKey>() {
@@ -537,7 +540,7 @@ fn upload_origin_key(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>) -> HttpResponse {
+async fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>) -> HttpResponse {
     let (origin, revision) = path.into_inner();
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -557,7 +560,7 @@ fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>) -> H
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn download_latest_origin_key(path: Path<String>, state: Data<AppState>) -> HttpResponse {
+async fn download_latest_origin_key(path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -577,10 +580,10 @@ fn download_latest_origin_key(path: Path<String>, state: Data<AppState>) -> Http
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn list_origin_secrets(req: HttpRequest,
-                       path: Path<String>,
-                       state: Data<AppState>)
-                       -> HttpResponse {
+async fn list_origin_secrets(req: HttpRequest,
+                             path: Path<String>,
+                             state: Data<AppState>)
+                             -> HttpResponse {
     let origin = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator))
@@ -609,11 +612,11 @@ fn list_origin_secrets(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn create_origin_secret(req: HttpRequest,
-                        body: Json<OriginSecretPayload>,
-                        path: Path<String>,
-                        state: Data<AppState>)
-                        -> HttpResponse {
+async fn create_origin_secret(req: HttpRequest,
+                              body: Json<OriginSecretPayload>,
+                              path: Path<String>,
+                              state: Data<AppState>)
+                              -> HttpResponse {
     let origin = path.into_inner();
 
     let account_id =
@@ -623,13 +626,15 @@ fn create_origin_secret(req: HttpRequest,
         };
 
     if body.name.is_empty() {
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                       Body::from_message("Missing value for field `name`"));
+        let body = Bytes::from_static(b"Missing value for field `name`");
+        let body = BoxBody::new(body);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
     }
 
     if body.value.is_empty() {
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                       Body::from_message("Missing value for field `value`"));
+        let body = Bytes::from_static(b"Missing value for field `value`");
+        let body = BoxBody::new(body);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
     }
 
     let anonymous_box = match body.value.parse::<AnonymousBox>() {
@@ -639,11 +644,10 @@ fn create_origin_secret(req: HttpRequest,
         }
         Err(err) => {
             debug!("{}", err);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           Body::from_message(format!("Failed to parse \
-                                                                       encrypted message from \
-                                                                       payload: {}",
-                                                                      err)));
+            let body =
+                Bytes::from(format!("Failed to parse encrypted message from payload: {}", err));
+            let body = BoxBody::new(body);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
         }
     };
 
@@ -659,10 +663,9 @@ fn create_origin_secret(req: HttpRequest,
         Ok(key) => key,
         Err(err) => {
             debug!("{}", err);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                           Body::from_message(format!("Failed to get secret \
-                                                                       from payload: {}",
-                                                                      err)));
+            let body = Bytes::from(format!("Failed to get secret from payload: {}", err));
+            let body = BoxBody::new(body);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
         }
     };
 
@@ -670,8 +673,9 @@ fn create_origin_secret(req: HttpRequest,
     // need to ensure that we have the ability to decrypt it.
     if let Err(err) = secret_encryption_key.decrypt(&anonymous_box) {
         debug!("{}", err);
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                       Body::from_message(format!("{}", err)));
+        let body = Bytes::from(format!("{}", err).into_bytes());
+        let body = BoxBody::new(body);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
     };
 
     match OriginSecret::create(&NewOriginSecret { origin:   &origin,
@@ -689,10 +693,10 @@ fn create_origin_secret(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_origin_secret(req: HttpRequest,
-                        path: Path<(String, String)>,
-                        state: Data<AppState>)
-                        -> HttpResponse {
+async fn delete_origin_secret(req: HttpRequest,
+                              path: Path<(String, String)>,
+                              state: Data<AppState>)
+                              -> HttpResponse {
     let (origin, secret) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator))
@@ -715,11 +719,11 @@ fn delete_origin_secret(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn upload_origin_secret_key(req: HttpRequest,
-                            path: Path<(String, String)>,
-                            body: ActixBytes,
-                            state: Data<AppState>)
-                            -> HttpResponse {
+async fn upload_origin_secret_key(req: HttpRequest,
+                                  path: Path<(String, String)>,
+                                  body: ActixBytes,
+                                  state: Data<AppState>)
+                                  -> HttpResponse {
     let (origin, _revision) = path.into_inner();
 
     let account_id =
@@ -764,10 +768,10 @@ fn upload_origin_secret_key(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn download_latest_origin_secret_key(req: HttpRequest,
-                                     path: Path<String>,
-                                     state: Data<AppState>)
-                                     -> HttpResponse {
+async fn download_latest_origin_secret_key(req: HttpRequest,
+                                           path: Path<String>,
+                                           state: Data<AppState>)
+                                           -> HttpResponse {
     let origin = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Member)) {
@@ -792,11 +796,11 @@ fn download_latest_origin_secret_key(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn list_unique_packages(req: HttpRequest,
-                        pagination: Query<Pagination>,
-                        path: Path<String>,
-                        state: Data<AppState>)
-                        -> HttpResponse {
+async fn list_unique_packages(req: HttpRequest,
+                              pagination: Query<Pagination>,
+                              path: Path<String>,
+                              state: Data<AppState>)
+                              -> HttpResponse {
     let origin = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
@@ -837,10 +841,10 @@ fn list_unique_packages(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn download_latest_origin_encryption_key(req: HttpRequest,
-                                         path: Path<String>,
-                                         state: Data<AppState>)
-                                         -> HttpResponse {
+async fn download_latest_origin_encryption_key(req: HttpRequest,
+                                               path: Path<String>,
+                                               state: Data<AppState>)
+                                               -> HttpResponse {
     let origin = path.into_inner();
 
     let account_id = match authorize_session(&req, Some(&origin), None) {
@@ -876,10 +880,10 @@ fn download_latest_origin_encryption_key(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn invite_to_origin(req: HttpRequest,
-                    path: Path<(String, String)>,
-                    state: Data<AppState>)
-                    -> HttpResponse {
+async fn invite_to_origin(req: HttpRequest,
+                          path: Path<(String, String)>,
+                          state: Data<AppState>)
+                          -> HttpResponse {
     let (origin, user) = path.into_inner();
 
     let account_id =
@@ -921,10 +925,10 @@ fn invite_to_origin(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn accept_invitation(req: HttpRequest,
-                     path: Path<(String, String)>,
-                     state: Data<AppState>)
-                     -> HttpResponse {
+async fn accept_invitation(req: HttpRequest,
+                           path: Path<(String, String)>,
+                           state: Data<AppState>)
+                           -> HttpResponse {
     let (origin, invitation) = path.into_inner();
 
     let account_id = match authorize_session(&req, None, None) {
@@ -955,10 +959,10 @@ fn accept_invitation(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn ignore_invitation(req: HttpRequest,
-                     path: Path<(String, String)>,
-                     state: Data<AppState>)
-                     -> HttpResponse {
+async fn ignore_invitation(req: HttpRequest,
+                           path: Path<(String, String)>,
+                           state: Data<AppState>)
+                           -> HttpResponse {
     let (origin, invitation) = path.into_inner();
 
     let _ = match authorize_session(&req, None, None) {
@@ -992,10 +996,10 @@ fn ignore_invitation(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn rescind_invitation(req: HttpRequest,
-                      path: Path<(String, String)>,
-                      state: Data<AppState>)
-                      -> HttpResponse {
+async fn rescind_invitation(req: HttpRequest,
+                            path: Path<(String, String)>,
+                            state: Data<AppState>)
+                            -> HttpResponse {
     let (origin, invitation) = path.into_inner();
 
     let _ = match authorize_session(&req, None, None) {
@@ -1029,10 +1033,10 @@ fn rescind_invitation(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn list_origin_invitations(req: HttpRequest,
-                           path: Path<String>,
-                           state: Data<AppState>)
-                           -> HttpResponse {
+async fn list_origin_invitations(req: HttpRequest,
+                                 path: Path<String>,
+                                 state: Data<AppState>)
+                                 -> HttpResponse {
     let origin = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -1062,10 +1066,10 @@ fn list_origin_invitations(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_origin_member_role(req: HttpRequest,
-                          path: Path<(String, String)>,
-                          state: Data<AppState>)
-                          -> HttpResponse {
+async fn get_origin_member_role(req: HttpRequest,
+                                path: Path<(String, String)>,
+                                state: Data<AppState>)
+                                -> HttpResponse {
     let (origin, username) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Member)) {
@@ -1104,11 +1108,11 @@ fn get_origin_member_role(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn update_origin_member_role(req: HttpRequest,
-                             path: Path<(String, String)>,
-                             req_role: Query<Role>,
-                             state: Data<AppState>)
-                             -> HttpResponse {
+async fn update_origin_member_role(req: HttpRequest,
+                                   path: Path<(String, String)>,
+                                   req_role: Query<Role>,
+                                   state: Data<AppState>)
+                                   -> HttpResponse {
     let (origin, username) = path.into_inner();
     let target_role = match OriginMemberRole::from_str(&req_role.role) {
         Ok(r) => {
@@ -1172,10 +1176,10 @@ fn update_origin_member_role(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn transfer_origin_ownership(req: HttpRequest,
-                             path: Path<(String, String)>,
-                             state: Data<AppState>)
-                             -> HttpResponse {
+async fn transfer_origin_ownership(req: HttpRequest,
+                                   path: Path<(String, String)>,
+                                   state: Data<AppState>)
+                                   -> HttpResponse {
     let (origin, user) = path.into_inner();
 
     let session = match authorize_session(&req, None, None) {
@@ -1231,7 +1235,10 @@ fn transfer_origin_ownership(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn depart_from_origin(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
+async fn depart_from_origin(req: HttpRequest,
+                            path: Path<String>,
+                            state: Data<AppState>)
+                            -> HttpResponse {
     let origin = path.into_inner();
 
     let session = match authorize_session(&req, None, None) {
@@ -1268,10 +1275,10 @@ fn depart_from_origin(req: HttpRequest, path: Path<String>, state: Data<AppState
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn list_origin_members(req: HttpRequest,
-                       path: Path<String>,
-                       state: Data<AppState>)
-                       -> HttpResponse {
+async fn list_origin_members(req: HttpRequest,
+                             path: Path<String>,
+                             state: Data<AppState>)
+                             -> HttpResponse {
     let origin = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -1301,10 +1308,10 @@ fn list_origin_members(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn origin_member_delete(req: HttpRequest,
-                        path: Path<(String, String)>,
-                        state: Data<AppState>)
-                        -> HttpResponse {
+async fn origin_member_delete(req: HttpRequest,
+                              path: Path<(String, String)>,
+                              state: Data<AppState>)
+                              -> HttpResponse {
     let (origin, user) = path.into_inner();
 
     let session =
@@ -1353,10 +1360,10 @@ fn origin_member_delete(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn fetch_origin_integrations(req: HttpRequest,
-                             path: Path<String>,
-                             state: Data<AppState>)
-                             -> HttpResponse {
+async fn fetch_origin_integrations(req: HttpRequest,
+                                   path: Path<String>,
+                                   state: Data<AppState>)
+                                   -> HttpResponse {
     let origin = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -1388,10 +1395,10 @@ fn fetch_origin_integrations(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn fetch_origin_integration_names(req: HttpRequest,
-                                  path: Path<(String, String)>,
-                                  state: Data<AppState>)
-                                  -> HttpResponse {
+async fn fetch_origin_integration_names(req: HttpRequest,
+                                        path: Path<(String, String)>,
+                                        state: Data<AppState>)
+                                        -> HttpResponse {
     let (origin, integration) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -1422,11 +1429,11 @@ fn fetch_origin_integration_names(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn create_origin_integration(req: HttpRequest,
-                             path: Path<(String, String, String)>,
-                             body: ActixBytes,
-                             state: Data<AppState>)
-                             -> HttpResponse {
+async fn create_origin_integration(req: HttpRequest,
+                                   path: Path<(String, String, String)>,
+                                   body: ActixBytes,
+                                   state: Data<AppState>)
+                                   -> HttpResponse {
     let (origin, integration, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
@@ -1462,10 +1469,10 @@ fn create_origin_integration(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn delete_origin_integration(req: HttpRequest,
-                             path: Path<(String, String, String)>,
-                             state: Data<AppState>)
-                             -> HttpResponse {
+async fn delete_origin_integration(req: HttpRequest,
+                                   path: Path<(String, String, String)>,
+                                   state: Data<AppState>)
+                                   -> HttpResponse {
     let (origin, integration, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
@@ -1489,10 +1496,10 @@ fn delete_origin_integration(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn get_origin_integration(req: HttpRequest,
-                          path: Path<(String, String, String)>,
-                          state: Data<AppState>)
-                          -> HttpResponse {
+async fn get_origin_integration(req: HttpRequest,
+                                path: Path<(String, String, String)>,
+                                state: Data<AppState>)
+                                -> HttpResponse {
     let (origin, integration, name) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -1569,7 +1576,7 @@ fn key_as_http_response<K>(key: &K) -> HttpResponse
             filename,
         ))
         .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-        .body(&contents)
+        .body(contents)
 }
 
 fn generate_origin_encryption_keys(origin: &str,

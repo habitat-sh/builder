@@ -26,7 +26,8 @@ use crate::{bldr_core::rpc::RpcClient,
                      GatewayCfg},
             db::{migration,
                  DbPool}};
-use actix_web::{http::StatusCode,
+use actix_web::{http::{KeepAlive,
+                       StatusCode},
                 middleware::Logger,
                 web,
                 App,
@@ -44,7 +45,8 @@ use rand::{self,
 use std::{cell::RefCell,
           collections::HashMap,
           iter::FromIterator,
-          sync::Arc};
+          sync::Arc,
+          time::Duration};
 
 // This cipher list corresponds to the "intermediate" configuration
 // recommended by Mozilla:
@@ -120,7 +122,7 @@ fn enable_features(config: &Config) {
 /// Endpoint for determining availability of builder-api components.
 ///
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
-pub fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
+pub async fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
 
 pub async fn run(config: Config) -> error::Result<()> {
     enable_features(&config);
@@ -168,7 +170,7 @@ pub async fn run(config: Config) -> error::Result<()> {
                     ),
             )
                   }).workers(cfg.handler_count())
-                    .keep_alive(cfg.http.keep_alive);
+                    .keep_alive(KeepAlive::from(Duration::from_secs(cfg.http.keep_alive as u64)));
 
     info!("builder-api listening on {}:{}",
           cfg.listen_addr(),

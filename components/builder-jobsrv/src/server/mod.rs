@@ -39,8 +39,10 @@ use crate::{bldr_core::rpc::RpcMessage,
             protocol::originsrv::OriginPackage,
             scheduler_datastore::SchedulerDataStoreDb,
             Error};
-use actix_web::{dev::Body,
-                http::StatusCode,
+
+use actix_web::{body::BoxBody,
+                http::{KeepAlive,
+                       StatusCode},
                 middleware::Logger,
                 web::{self,
                       Data,
@@ -50,7 +52,7 @@ use actix_web::{dev::Body,
                 App,
                 HttpResponse,
                 HttpServer};
-
+use bytes::Bytes;
 use std::{collections::{HashMap,
                         HashSet},
           iter::{FromIterator,
@@ -59,7 +61,8 @@ use std::{collections::{HashMap,
           str::FromStr,
           sync::{Arc,
                  RwLock},
-          time::Instant};
+          time::{Duration,
+                 Instant}};
 
 // Set a max size for JsonConfig payload. Default is 32Kb
 const MAX_JSON_PAYLOAD: usize = 262_144;
@@ -113,7 +116,7 @@ pub struct OriginTarget {
 /// Endpoint for determining availability of builder-jobsrv components.
 ///
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
-fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
+async fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
 
 #[allow(clippy::needless_pass_by_value)]
 async fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpResponse {
@@ -139,8 +142,9 @@ async fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpRespons
         _ => {
             let err = format!("Unknown RPC message received: {}", msg.id);
             error!("{}", err);
-            return HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR,
-                                           Body::from_message(err));
+            let body = Bytes::from(err.into_bytes());
+            let body = BoxBody::new(body);
+            return HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR, body);
         }
     };
 
@@ -151,15 +155,18 @@ async fn handle_rpc(msg: Json<RpcMessage>, state: Data<AppState>) -> HttpRespons
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn handle_graph(state: Data<AppState>, query: Query<OriginTarget>) -> HttpResponse {
+async fn handle_graph(state: Data<AppState>, query: Query<OriginTarget>) -> HttpResponse {
     let origin_filter = query.origin.as_deref(); //
     let target = query.target.as_deref().unwrap_or("x86_64-linux");
 
     match fetch_graph_for_target(state, target, origin_filter) {
-        Ok(body) => HttpResponse::with_body(StatusCode::OK, Body::from(body)),
+        Ok(body) => {
+            HttpResponse::with_body(StatusCode::OK, BoxBody::new(Bytes::from(body.into_bytes())))
+        }
         Err(err) => {
-            HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR,
-                                    Body::from_message(err.to_string()))
+            let body = Bytes::from(format!("{}", err).into_bytes());
+            let body = BoxBody::new(body);
+            HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR, body)
         } // maybe we do 401 ill formed instead?
     }
 }
@@ -249,25 +256,26 @@ pub async fn run(config: Config) -> Result<()> {
 
         WorkerMgr::start(&config, &datastore, Some(scheduler))?;
 
-        let http_serv = HttpServer::new(move || {
-                            let app_state = AppState::new(&config,
-                                                          &datastore,
-                                                          db_pool.clone(),
-                                                          &graph_arc,
-                                                          Some(&scheduler_for_http));
+        let http_serv =
+            HttpServer::new(move || {
+                let app_state = AppState::new(&config,
+                                              &datastore,
+                                              db_pool.clone(),
+                                              &graph_arc,
+                                              Some(&scheduler_for_http));
 
-                            App::new().app_data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
-                    .app_data(Data::new(app_state))
-                    .wrap(Logger::default().exclude("/status"))
-                    .service(web::resource("/status").route(web::get().to(status))
-                                                    .route(web::head().to(status)))
-                    .route("/rpc", web::post().to(handle_rpc))
-                    .route("/graph", web::get().to(handle_graph))
-                        }).workers(cfg.handler_count())
-                          .keep_alive(cfg.http.keep_alive)
-                          .bind(cfg.http.clone())
-                          .unwrap()
-                          .run();
+                App::new().app_data(JsonConfig::default().limit(MAX_JSON_PAYLOAD))
+                          .app_data(Data::new(app_state))
+                          .wrap(Logger::default().exclude("/status"))
+                          .service(web::resource("/status").route(web::get().to(status))
+                                                           .route(web::head().to(status)))
+                          .route("/rpc", web::post().to(handle_rpc))
+                          .route("/graph", web::get().to(handle_graph))
+            }).workers(cfg.handler_count())
+              .keep_alive(KeepAlive::from(Duration::from_secs(cfg.http.keep_alive as u64)))
+              .bind(cfg.http.clone())
+              .unwrap()
+              .run();
 
         // This is not what we want.  try_join! would be more appropriate so that we shut down if
         // any of the things we're joining returns an error. However, the http_serv and
@@ -289,7 +297,7 @@ pub async fn run(config: Config) -> Result<()> {
                                                        .route(web::head().to(status)))
                       .route("/rpc", web::post().to(handle_rpc))
         }).workers(cfg.handler_count())
-          .keep_alive(cfg.http.keep_alive)
+          .keep_alive(KeepAlive::from(Duration::from_secs(cfg.http.keep_alive as u64)))
           .bind(cfg.http.clone())
           .unwrap()
           .run()

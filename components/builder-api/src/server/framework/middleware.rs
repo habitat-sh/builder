@@ -10,13 +10,14 @@ use crate::{bldr_core::{access_token::{AccessToken,
                      helpers::req_state,
                      services::metrics::Counter,
                      AppState}};
-use actix_web::{dev::{Body,
-                      Service,
+use actix_web::{body::BoxBody,
+                dev::{Service,
                       ServiceRequest,
                       ServiceResponse},
                 http,
                 web::Data,
                 Error,
+                HttpMessage,
                 HttpRequest,
                 HttpResponse};
 use futures::future::{ok,
@@ -43,10 +44,11 @@ pub async fn route_message<R, T>(req: &HttpRequest, msg: &R) -> error::Result<T>
 
 // Optional Authentication - this middleware does not enforce authentication,
 // but will insert a Session if a valid Bearer token is received
-pub fn authentication_middleware<S>(mut req: ServiceRequest,
-                                    srv: &S)
-                                    -> impl Future<Output = Result<ServiceResponse<Body>, Error>>
-    where S: Service<ServiceRequest, Response = ServiceResponse<Body>, Error = Error>
+pub fn authentication_middleware<S>(
+    req: ServiceRequest,
+    srv: &S)
+    -> impl Future<Output = Result<ServiceResponse<BoxBody>, Error>>
+    where S: Service<ServiceRequest, Response = ServiceResponse<BoxBody>, Error = Error>
 {
     let hdr = match req.headers().get(http::header::AUTHORIZATION) {
         Some(hdr) => hdr.to_str().unwrap(), // unwrap Ok
@@ -68,9 +70,7 @@ pub fn authentication_middleware<S>(mut req: ServiceRequest,
         }
     };
 
-    req.head_mut()
-       .extensions_mut()
-       .insert::<originsrv::Session>(session);
+    req.extensions_mut().insert::<originsrv::Session>(session);
     Either::Left(srv.call(req))
 }
 
