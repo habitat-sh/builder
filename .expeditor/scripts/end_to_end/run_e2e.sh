@@ -10,43 +10,21 @@ WORK_DIR=test/end-to-end/worker-test
 source ${WORK_DIR}/bldr-end-to-end.env
 source ${WORK_DIR}/shared.sh
 
-sudo () {
-  [[ $EUID = 0 ]] || set -- command sudo -E "$@"
-  "$@"
-}
+export HAB_FUNC_TEST=1
 
-HAB_SUP_EXISTS=0
-if service --status-all | grep -Fq 'hab-sup'; then
-  echo "stopping hab-sup"
-  sudo systemctl stop hab-sup.service
-  HAB_SUP_EXISTS=1
-else
-  echo "hab-sup not running"
-fi
+start_init
 
-
-#  Getting database corruption
-#sudo rm -rf /hab/svc/builder-datastore
-
-cd ${WORK_DIR}
-git clone https://github.com/habitat-sh/on-prem-builder.git
-cp bldr-end-to-end.env on-prem-builder/bldr.env
-cd on-prem-builder
-sudo ./install.sh
-
-sleep 1
-cd ..
-sudo rm -rf on-prem-builder
-
-cd ${ROOT_DIR}
-
-#  Reconfig the builder api with jobsrv enabled.
-builder_api_reconfig
+start_builder
 
 start_jobsrv
-start_worker
 
 apply_db_password
+sleep 5
+
+sudo cp ${WORK_DIR}/builder-github-app.pem /hab/svc/builder-api/files
+
+echo "start_worker"
+start_worker
 
 cat <<EOT > /tmp/builder_worker.toml
 log_level='trace'
@@ -55,30 +33,18 @@ github.webhook_secret=''
 EOT
 
 hab config apply builder-worker.default $(date +%s) /tmp/builder_worker.toml
-
 sleep 3
+echo "worker config updated"
+sudo cp ${WORK_DIR}/builder-github-app.pem /hab/svc/builder-worker/files
 
-######   TO BE REMOVED ######
-#  To get builder-worker HAB_FUNC_TEST changes 
+#  HACK  To get builder-worker HAB_FUNC_TEST changes 
 #hab svc stop habitat/builder-worker
 #sleep 5
 #cp ${WORK_DIR}/bldr-worker /hab/pkgs/habitat/builder-worker/10041/20220510143824/bin
-
+#
 #sleep 2
 #hab svc start habitat/builder-worker
-
-#  Jobsrv debugging
-#hab svc stop habitat/builder-jobsrv
-#sleep 2
-#cp ${WORK_DIR}/bldr-jobsrv /hab/pkgs/habitat/builder-jobsrv/9982/20211222144544/bin
-#hab svc start habitat/builder-jobsrv
-
-######   TO BE REMOVED ######
-
-sudo cp ${WORK_DIR}/builder-github-app.pem /hab/svc/builder-api/files
-sudo cp ${WORK_DIR}/builder-github-app.pem /hab/svc/builder-worker/files
-sudo cp ${WORK_DIR}/neurosis-20171211220037.pub /hab/svc/builder-worker/files
-sudo cp ${WORK_DIR}/neurosis-20171211220037.sig.key /hab/svc/builder-worker/files
+#  HACK  To get builder-worker HAB_FUNC_TEST changes 
 
 while hab svc status | grep --quiet down;
 do 
@@ -87,10 +53,14 @@ done
 
 echo "Services have started - continuing with tests"
 
-echo "Begin waiting for migrations $(date +%s)"
-wait_for_migrations
+#  Need to test if we need this file in this location and remove if not.
+sudo cp ${WORK_DIR}/fixtures/neurosis-20171211220037.pub /hab/svc/builder-worker/files
+sudo cp ${WORK_DIR}/fixtures/neurosis-20171211220037.sig.key /hab/svc/builder-worker/files
 
-echo "Done waiting for migrations $(date +%s)"
+sudo cp /hab/svc/builder-api/files/bldr-*.pub /hab/svc/builder-worker/files
+sudo cp /hab/svc/builder-api/files/bldr-*.box.key /hab/svc/builder-worker/files
+
+wait_for_migrations
 
 clean_test_artifacts
 
@@ -99,7 +69,7 @@ hab pkg install core/openssl
 hab pkg install core/node --binlink
 hab pkg install core/coreutils
 
-cd ${WORK_DIR}
+cd test/end-to-end/worker-test
 npm install mocha
 
 if ! command -v npm >/dev/null 2>&1; then
@@ -126,10 +96,6 @@ if ! [ -d node_modules/superagent-binary-parser ]; then
   npm install superagent-binary-parser
 fi
 
-if ! [ -d node_modules/dotenv ]; then
-  npm install dotenv
-fi
-
 if npm run mocha; then
   echo "Setup tests passed"
 else
@@ -137,6 +103,5 @@ else
   echo "Setup tests failed"
 fi
 
-cd ${ROOT_DIR}
-
+echo "Exiting run script"
 exit ${mocha_exit_code:-0}

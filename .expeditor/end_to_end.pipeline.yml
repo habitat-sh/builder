@@ -14,6 +14,7 @@ expeditor:
       env:
         HAB_ORIGIN: "habitat"
         HAB_BLDR_CHANNEL: "unstable"
+        BUILD_PKG_TARGET: "x86_64-linux"
         PIPELINE_HAB_BLDR_URL: "https://bldr.habitat.sh"
         GITHUB_USER: "habitat-sh" # per https://github.com/github/hub/issues/2264#issuecomment-567241335
 
@@ -23,7 +24,7 @@ steps:
 #######################################################################
   - label: ":linux: Builder End to End"
     command:
-      - .expeditor/scripts/end_to_end/builder_worker_test.sh unstable
+      - .expeditor/scripts/end_to_end/builder_worker_test.sh
     expeditor:
       account:
         - github
@@ -32,4 +33,3 @@ steps:
           environment:
             - GITHUB_USER
     soft_fail: true
-

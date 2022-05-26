@@ -2,8 +2,10 @@ const expect = require("chai").expect;
 const supertest = require("supertest");
 const request = supertest("http://localhost:9636/v1");
 const fs = require("fs");
-require("dotenv").config()
+//require("dotenv").config()
 const origin_name = "neurosis";
+const package_name = "testapp";
+
 const release1 = '20171205003213';
 const file1 = fs.readFileSync(__dirname + `/../fixtures/${origin_name}-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 
@@ -22,19 +24,14 @@ const projectCreatePayload = {
   auto_build: true
 };
 
-//works!
-//console.log("Checking environment - token " + process.env.HAB_AUTH_TOKEN);
-const authBearer = `Bearer ${process.env.HAB_AUTH_TOKEN}`;
-
 describe("Startup/Origin Creation", function () {
   it("returns the created origin", function (done) {
     request
       .post("/depot/origins")
-      .set("Authorization", authBearer)
+      .set("Authorization", global.boboBearer)
       .send({ name: `${origin_name}`, default_package_visibility: "public" })
       .expect(201)
       .end(function (err, res) {
-	console.log(res);
         expect(res.body.name).to.equal(`${origin_name}`);
         expect(res.body.default_package_visibility).to.equal("public");
         global.originWorker = res.body;
@@ -43,7 +40,6 @@ describe("Startup/Origin Creation", function () {
     });
 });
 
-/*
 describe('Authenticate API', function() {
   describe('Create sessions', function() {
     it('returns bobo', function(done) {
@@ -185,8 +181,6 @@ describe("Jobs API", function () {
           expect(res.body.state).to.equal("Queued");
           expect(res.body.project_name).to.equal(`${origin_name}/testapp`);
           global.neurosisJobGroup = res.body;
-	  console.log("Echo group id: " + `${global.neurosisJobGroup.id}`);
-	  console.log("Echo next request: " + `/depot/pkgs/schedule/${global.neurosisJobGroup.id}`);
           done(err);
         });
     });
@@ -199,7 +193,6 @@ describe("Jobsrv and Worker - Dispatching", function() {
       await new Promise(resolve => setTimeout(resolve, 5000));
     });
     it("Waiting for the job group to get dispatched", function (done) {
-      console.log("Echo next request: " + `/depot/pkgs/schedule/${global.neurosisJobGroup.id}`);
       request
         .get(`/depot/pkgs/schedule/${global.neurosisJobGroup.id}`)
         .type("application/json")
@@ -213,13 +206,31 @@ describe("Jobsrv and Worker - Dispatching", function() {
   });
 });
 
+describe("Projects - Get Jobs", function() {
+    beforeEach('SLEEP 10s', async function() {
+      console.log("Pause 10s");
+      await new Promise(resolve => setTimeout(resolve, 10000));
+    });
+    it("Get Jobs for Project", function (done) {
+      request
+        .get(`/projects/${origin_name}/${package_name}/jobs`)
+        .set('Authorization', global.boboBearer)
+        .type("application/json")
+        .accept("application/json")
+        .expect(200)
+        .end(function (err, res) {
+           expect(res.body.data[0].id).is.not.empty;
+	   done(err);
+    });
+  });
+});
+
 describe("Jobsrv and Worker - Complete", function() {
-    beforeEach('SLEEP 90s', async function() {
-      console.log("Pause 90s");
-      await new Promise(resolve => setTimeout(resolve, 90000));
+    beforeEach('SLEEP 60s', async function() {
+      console.log("Pause 60s");
+      await new Promise(resolve => setTimeout(resolve, 60000));
     });
     it("Waiting for the job group to get marked Complete", function (done) {
-      console.log("Next request: " + `/depot/pkgs/schedule/${global.neurosisJobGroup.id}`);
       request
         .get(`/depot/pkgs/schedule/${global.neurosisJobGroup.id}`)
         .type("application/json")
@@ -232,5 +243,3 @@ describe("Jobsrv and Worker - Complete", function() {
     });
   });
 });
-
-*/
