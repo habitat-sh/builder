@@ -315,9 +315,7 @@ impl Runner {
         self.check_cancel(tx).await?;
         let mut section = streamer.start_section(Section::PublishPackage)?;
 
-        if env::var_os("HAB_FUNC_TEST").is_some() {
-            // Skip post process
-        } else {
+        if env::var_os("HAB_FUNC_TEST").is_none() {
             match post_process(&mut archive,
                                &self.workspace,
                                &self.config,
