@@ -315,26 +315,29 @@ impl Runner {
         self.check_cancel(tx).await?;
         let mut section = streamer.start_section(Section::PublishPackage)?;
 
-        match post_process(&mut archive,
-                           &self.workspace,
-                           &self.config,
-                           &self.bldr_token,
-                           &mut self.logger).await
-        {
-            Ok(_) => (),
-            Err(err) => {
-                let msg = format!("Failed post processing for {}, err={:?}",
-                                  self.workspace.job.get_project().get_name(),
-                                  err);
-                streamer.println_stderr(msg)?;
-                self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:postprocess"));
-                tx.send(self.job().clone())
-                  .await
-                  .map_err(Error::MpscAsync)?;
-                return Err(err);
+        if env::var_os("HAB_FUNC_TEST").is_some() {
+            // Skip post process
+        } else {
+            match post_process(&mut archive,
+                               &self.workspace,
+                               &self.config,
+                               &self.bldr_token,
+                               &mut self.logger).await
+            {
+                Ok(_) => (),
+                Err(err) => {
+                    let msg = format!("Failed post processing for {}, err={:?}",
+                                      self.workspace.job.get_project().get_name(),
+                                      err);
+                    streamer.println_stderr(msg)?;
+                    self.fail(net::err(ErrCode::POST_PROCESSOR, "wk:run:postprocess"));
+                    tx.send(self.job().clone())
+                      .await
+                      .map_err(Error::MpscAsync)?;
+                    return Err(err);
+                }
             }
         }
-
         section.end()?;
         Ok(())
     }
@@ -399,11 +402,18 @@ impl Runner {
     async fn fetch_origin_secret_key(
         &self)
         -> std::result::Result<std::path::PathBuf, builder_core::Error> {
-        let res = self.depot_cli
-                      .fetch_origin_secret_key(self.job().origin(),
-                                               &self.bldr_token,
-                                               self.workspace.key_path())
-                      .await;
+        let bldr_token = if env::var_os("HAB_FUNC_TEST").is_some() {
+            "bobo".to_string()
+        } else {
+            self.bldr_token.to_string()
+        };
+
+        let res =
+            self.depot_cli
+                .fetch_origin_secret_key(self.job().origin(),
+                                         &bldr_token,
+                                         self.workspace.key_path())
+                .await;
         if res.is_err() {
             debug!("Failed to fetch origin secret key, err={:?}", res);
         };
