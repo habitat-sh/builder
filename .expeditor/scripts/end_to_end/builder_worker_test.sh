@@ -8,7 +8,6 @@ export BLDR_CHANNEL=${HAB_BLDR_CHANNEL:=unstable}
 
 export HAB_BLDR_URL=https://bldr.habitat.sh
 export BLDR_ORIGIN=${HAB_BLDR_ORIGIN:=habitat}
-#export BUILD_PKG_TARGET=x86_64-linux
 export HAB_LICENSE=accept
 
 curlbash_hab "${BUILD_PKG_TARGET:=x86_64-linux}"
