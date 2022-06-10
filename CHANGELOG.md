@@ -4,6 +4,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump crossbeam-utils from 0.8.5 to 0.8.8 [#1739](https://github.com/habitat-sh/builder/pull/1739) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump regex from 1.5.4 to 1.5.5 [#1741](https://github.com/habitat-sh/builder/pull/1741) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Update actix-web crate [#1730](https://github.com/habitat-sh/builder/pull/1730) ([sajjaphani](https://github.com/sajjaphani))
 - patchelf cargo-clippy with refreshed glibc [#1732](https://github.com/habitat-sh/builder/pull/1732) ([mwrock](https://github.com/mwrock))
