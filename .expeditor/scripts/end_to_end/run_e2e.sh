@@ -4,8 +4,8 @@ set -eou pipefail
 umask 0022 
 
 #  Always run from builder root directory.
-export ROOT_DIR=`pwd`
-WORK_DIR=test/end-to-end/worker-test
+export ROOT_DIR=$(pwd)
+WORK_DIR=${ROOT_DIR}/test/end-to-end/worker-test
 
 source ${WORK_DIR}/bldr-end-to-end.env
 source ${WORK_DIR}/shared.sh
@@ -32,7 +32,7 @@ github.app_id = 8053
 github.webhook_secret=''
 EOT
 
-hab config apply builder-worker.default $(date +%s) /tmp/builder_worker.toml
+hab config apply builder-worker.default "$(date +%s)" /tmp/builder_worker.toml
 sleep 3
 echo "worker config updated"
 sudo cp ${WORK_DIR}/builder-github-app.pem /hab/svc/builder-worker/files

@@ -273,8 +273,8 @@ export -f start_worker
 
 apply_db_password() {
   PW=$(cat /hab/svc/builder-datastore/config/pwfile)
-  echo "datastore.password='$PW'" | sudo hab config apply builder-api.default $(date +%s)
-  echo "datastore.password='$PW'" | sudo hab config apply builder-jobsrv.default $(date +%s)
+  echo "datastore.password='$PW'" | sudo hab config apply builder-api.default "$(date +%s)"
+  echo "datastore.password='$PW'" | sudo hab config apply builder-jobsrv.default "$(date +%s)"
 }
 export -f apply_db_password
 
@@ -343,12 +343,13 @@ start_builder() {
     do
       sleep 2
     done
-    local pg_pass=$(cat /hab/svc/builder-datastore/config/pwfile)
+    local pg_pass
+    pg_pass=$(cat /hab/svc/builder-datastore/config/pwfile)
     cat <<EOT > pg_pass.toml
 [datastore]
 password = "$pg_pass"
 EOT
-  hab config apply builder-api.default $(date +%s) pg_pass.toml
+  hab config apply builder-api.default "$(date +%s)" pg_pass.toml
   fi
   configure
   if [ "${ARTIFACTORY_ENABLED:-false}" = "false" ] && [ "${S3_ENABLED:-false}" = "false" ]; then
