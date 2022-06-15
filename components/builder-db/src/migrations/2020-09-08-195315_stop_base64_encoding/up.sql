@@ -2,7 +2,8 @@
 -- anyway.
 
 UPDATE origin_secret_keys
-SET body = convert_from(decode(body, 'base64'), 'UTF-8');
+SET body = convert_from(decode(body, 'base64'), 'UTF-8')
+WHERE body NOT LIKE '%-%';
 
 UPDATE origin_integrations
 SET body = convert_from(decode(body, 'base64'), 'UTF-8');
