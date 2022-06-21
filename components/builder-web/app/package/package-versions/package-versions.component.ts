@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { ChangeDetectionStrategy, Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { fromJS }  from 'immutable';
 
 import { AppStore } from '../../app.store';
 import { packageString, parseDate, targetsFromPkgVersions } from '../../util';
@@ -25,7 +24,6 @@ import { demotePackage, filterPackagesBy } from '../../actions/index';
 
 @Component({
   template: require('./package-versions.component.html'),
-  changeDetection: ChangeDetectionStrategy.Default
 })
 export class PackageVersionsComponent implements OnDestroy {
   origin: string;
