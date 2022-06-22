@@ -4,6 +4,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Fix copy to clipboard functionality [#1745](https://github.com/habitat-sh/builder/pull/1745) ([sajjaphani](https://github.com/sajjaphani))
 - Fix activating &#39;Build Jobs&#39; on package page [#1736](https://github.com/habitat-sh/builder/pull/1736) ([sajjaphani](https://github.com/sajjaphani))
 - Dg/fix migration script [#1743](https://github.com/habitat-sh/builder/pull/1743) ([dikshagupta1](https://github.com/dikshagupta1))
 - Bump crossbeam-utils from 0.8.5 to 0.8.8 [#1739](https://github.com/habitat-sh/builder/pull/1739) ([dependabot[bot]](https://github.com/dependabot[bot]))
