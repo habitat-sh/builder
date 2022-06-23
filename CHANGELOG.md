@@ -1,7 +1,9 @@
 # Habitat Builder CHANGELOG
 
 <!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release -->
+
+##  (2022-06-23)
 
 #### Merged Pull Requests
 - Fix copy to clipboard functionality [#1745](https://github.com/habitat-sh/builder/pull/1745) ([sajjaphani](https://github.com/sajjaphani))
@@ -12,7 +14,6 @@
 - Update actix-web crate [#1730](https://github.com/habitat-sh/builder/pull/1730) ([sajjaphani](https://github.com/sajjaphani))
 - patchelf cargo-clippy with refreshed glibc [#1732](https://github.com/habitat-sh/builder/pull/1732) ([mwrock](https://github.com/mwrock))
 - Worker disconnects [#1726](https://github.com/habitat-sh/builder/pull/1726) ([pozsgaic](https://github.com/pozsgaic))
-<!-- latest_release -->
 
 ## [20220210](https://github.com/habitat-sh/builder/tree/20220210) (2022-05-02)
 
