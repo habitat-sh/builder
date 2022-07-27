@@ -16,7 +16,7 @@ echo "windows:"
 # shellcheck disable=2013
 for host in $(grep "Host ${environment}-builder" ~/.ssh/config | awk '{print $2}' | sort)
 do
-    title=${host#${environment}-builder-}
+    title=${host#"${environment}"-builder-}
     echo "  - ${title}:"
     echo "    - ssh $host"
 done

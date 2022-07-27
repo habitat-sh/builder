@@ -91,7 +91,8 @@ readonly s3_bucket="habitat-builder-bootstrap"
 #
 # NOTE: Do NOT alter this value to have "-" characters; see below with
 # the `hab_hart` variable.
-readonly this_bootstrap_bundle="hab_builder_bootstrap_$(date +%Y%m%d%H%M%S)"
+this_bootstrap_bundle="hab_builder_bootstrap_$(date +%Y%m%d%H%M%S)"
+readonly this_bootstrap_bundle
 
 ########################################################################
 
