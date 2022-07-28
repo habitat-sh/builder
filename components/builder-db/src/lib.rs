@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// https://github.com/rust-lang/rust-clippy/issues/9014
+// until clippy's fix for the above false positive is live
+#![allow(clippy::extra_unused_lifetimes)]
 
 #[macro_use]
 extern crate diesel;

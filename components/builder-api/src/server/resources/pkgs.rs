@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -779,7 +779,7 @@ async fn search_packages(req: HttpRequest,
         // And the search with the query 'origin/' could end up finding the matches in 'origin' and
         // the package names. Ideally, it should filter the matches to match the 'origin'
         // only in this case.
-        Ok(q) => q.to_string().trim_end_matches('/').replace("/", " & "),
+        Ok(q) => q.to_string().trim_end_matches('/').replace('/', " & "),
         Err(err) => {
             debug!("{}", err);
             return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);

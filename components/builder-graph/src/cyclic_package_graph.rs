@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2020-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,8 +75,7 @@ impl PackageGraphTrait for CyclicPackageGraph {
     fn resolve(&self, name: &str) -> Option<String> {
         let ident = PackageIdent::from_str(name);
         ident.ok()
-             .map(|r| self.graph.resolve(r.as_ref()).map(|r| r.to_string()))
-             .flatten()
+             .and_then(|r| self.graph.resolve(r.as_ref()).map(|r| r.to_string()))
     }
 
     fn stats(&self) -> Stats { self.graph.stats() }

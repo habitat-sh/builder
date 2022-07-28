@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -232,13 +232,11 @@ impl S3Handler {
         }
     }
 
-    async fn single_upload<P: Into<PathBuf>>(&self,
-                                             key: &str,
-                                             hart: File,
-                                             path_attr: &P)
-                                             -> Result<()>
-        where P: Display
-    {
+    async fn single_upload<P: Into<PathBuf> + Display>(&self,
+                                                       key: &str,
+                                                       hart: File,
+                                                       path_attr: &P)
+                                                       -> Result<()> {
         Counter::SingleUploadRequests.increment();
         let start_time = Instant::now();
         let mut reader = BufReader::new(hart);
@@ -266,13 +264,11 @@ impl S3Handler {
         }
     }
 
-    async fn multipart_upload<P: Into<PathBuf>>(&self,
-                                                key: &str,
-                                                hart: File,
-                                                path_attr: &P)
-                                                -> Result<()>
-        where P: Display
-    {
+    async fn multipart_upload<P: Into<PathBuf> + Display>(&self,
+                                                          key: &str,
+                                                          hart: File,
+                                                          path_attr: &P)
+                                                          -> Result<()> {
         Counter::MultipartUploadRequests.increment();
         let start_time = Instant::now();
         let mut p: Vec<CompletedPart> = Vec::new();

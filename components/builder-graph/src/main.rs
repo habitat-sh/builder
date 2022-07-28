@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2017-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,7 +140,7 @@ fn main() {
             let cmd = line.expect("Could not get line");
             cl.add_history(cmd.clone());
 
-            let v: Vec<&str> = cmd.trim_end().split_whitespace().collect();
+            let v: Vec<&str> = cmd.split_whitespace().collect();
             if !v.is_empty() {
                 state.process_command(&v);
             }
@@ -649,7 +649,7 @@ fn do_compute_attributed_deps(graph: &PackageGraph, matches: &ArgMatches) {
     keys.sort_by(package_ident_intern::display_ordering_cmp);
 
     for package in keys.iter() {
-        let deps_list: Vec<PackageIdentIntern> = a_deps[package].iter().copied().collect();
+        let deps_list: Vec<PackageIdentIntern> = a_deps[package].to_vec();
         writeln!(&mut file,
                  "{}\t{}",
                  package,
