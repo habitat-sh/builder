@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://github.com/rust-lang/rust-clippy/issues/9014
-// until clippy's fix for the above false positive is live
-#![allow(clippy::extra_unused_lifetimes)]
-
 #[macro_use]
 extern crate diesel;
 #[macro_use]
@@ -42,6 +38,9 @@ pub mod error;
 pub mod functions;
 pub mod metrics;
 pub mod migration;
+// https://github.com/rust-lang/rust-clippy/issues/9014
+// until clippy's fix for the above false positive is live
+#[allow(clippy::extra_unused_lifetimes)]
 pub mod models;
 pub mod schema;
 pub mod test;
