@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,6 +38,9 @@ pub mod error;
 pub mod functions;
 pub mod metrics;
 pub mod migration;
+// https://github.com/rust-lang/rust-clippy/issues/9014
+// until clippy's fix for the above false positive is live
+#[allow(clippy::extra_unused_lifetimes)]
 pub mod models;
 pub mod schema;
 pub mod test;

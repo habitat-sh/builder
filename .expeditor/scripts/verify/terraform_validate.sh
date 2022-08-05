@@ -17,8 +17,11 @@ terraform_version() {
     awk 'BEGIN { FS=" *= *"} /required_version/ {gsub("\"","",$2); print $2}' "${versions_file}"
 }
 
-readonly terraform_version="$(terraform_version terraform/versions.tf)"
-readonly terraform_artifact="terraform_${terraform_version}_linux_amd64.zip"
+terraform_version="$(terraform_version terraform/versions.tf)"
+readonly terraform_version
+
+terraform_artifact="terraform_${terraform_version}_linux_amd64.zip"
+readonly terraform_artifact
 
 # Install Terraform
 (

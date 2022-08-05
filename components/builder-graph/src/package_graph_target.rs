@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2020-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -426,7 +426,7 @@ impl PackageGraphForTarget {
     pub fn dump_latest_graph_raw_h<T>(&self, file: &str, p: &T)
         where T: fmt::Display
     {
-        let filename = format!("{}_{}", file, p).replace("/", "_");
+        let filename = format!("{}_{}", file, p).replace('/', "_");
         self.dump_latest_graph_raw(filename.as_str(), None)
     }
 
@@ -577,7 +577,7 @@ impl PackageGraphForTarget {
                                                         })
                     } else {
                         // We may have a package unseen previously, so construct a dummy PackageInfo
-                        &empty_package
+                        empty_package
                     };
 
                     build_package(&mut build_graph, package, package_name, &mut latest);

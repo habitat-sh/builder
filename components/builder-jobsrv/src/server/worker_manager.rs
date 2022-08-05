@@ -327,7 +327,7 @@ impl WorkerMgr {
         debug!("Saving busy worker: {}", worker.ident);
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        BusyWorker::create(&NewBusyWorker { target:      &worker.target.to_string(),
+        BusyWorker::create(&NewBusyWorker { target:      &worker.target,
                                             ident:       &worker.ident,
                                             job_id:      worker.job_id.unwrap() as i64,
                                             quarantined: false, },
@@ -468,8 +468,7 @@ impl WorkerMgr {
                                                     BuilderPackageTarget(target)))
                 {
                     let conn = self.db.get_conn()?;
-                    let project =
-                        Project::get(&job_entry.project_name, &target.to_string(), &conn)?;
+                    let project = Project::get(&job_entry.project_name, &target, &conn)?;
                     let maybe_job =
                         self.datastore
                             .create_job_for_project(job_entry.group_id as u64,
@@ -486,8 +485,7 @@ impl WorkerMgr {
                     break;
                 }
             } else {
-                let job_opt = self.datastore
-                                  .next_pending_job(&worker_ident, &target.to_string())?;
+                let job_opt = self.datastore.next_pending_job(&worker_ident, &target)?;
                 if job_opt.is_none() {
                     break;
                 }

@@ -133,7 +133,7 @@ fn do_get_events(req: &HttpRequest,
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
     let decoded_query =
         match percent_encoding::percent_decode(search_query.query.as_bytes()).decode_utf8() {
-            Ok(q) => q.to_string().trim_end_matches('/').replace("/", " & "),
+            Ok(q) => q.to_string().trim_end_matches('/').replace('/', " & "),
             Err(err) => {
                 error!("{}", err);
                 return Err(Error::Unprocessable);

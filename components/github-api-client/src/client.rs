@@ -156,7 +156,7 @@ impl GitHubClient {
         // We need to strip line feeds as the Github API has started to return
         // base64 content with line feeds.
         if contents.encoding == "base64" {
-            contents.content = contents.content.replace("\n", "");
+            contents.content = contents.content.replace('\n', "");
         }
         Ok(Some(contents))
     }

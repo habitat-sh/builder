@@ -12,7 +12,8 @@ use habitat_core::{crypto::keys::KeyCache,
 use oauth_client::config::OAuth2Cfg;
 use std::{env,
           error,
-          fmt,
+          fmt::{self,
+                Write as _},
           io,
           net::{IpAddr,
                 Ipv4Addr,
@@ -52,7 +53,7 @@ pub struct Config {
 pub struct ConfigError(String);
 
 impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", *self) }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", self.0) }
 }
 
 impl error::Error for ConfigError {}
@@ -266,18 +267,21 @@ impl MemcacheCfgHosts {
         let mut url = format!("{}?tcp_nodelay=true", self); // tcp_nodelay is a significant perf gain
         if let Some(tls_config) = &self.tls {
             if tls_config.ca_cert_path.is_some() {
-                url.push_str(&format!("&ca_path={}",
-                                      tls_config.ca_cert_path.as_ref().unwrap().to_string_lossy()))
+                let _ = write!(url,
+                               "&ca_path={}",
+                               tls_config.ca_cert_path.as_ref().unwrap().to_string_lossy());
             }
 
             if tls_config.key_path.is_some() {
-                url.push_str(&format!("&key_path={}",
-                                      tls_config.key_path.as_ref().unwrap().to_string_lossy()))
+                let _ = write!(url,
+                               "&key_path={}",
+                               tls_config.key_path.as_ref().unwrap().to_string_lossy());
             }
 
             if tls_config.cert_path.is_some() {
-                url.push_str(&format!("&cert_path={}",
-                                      tls_config.cert_path.as_ref().unwrap().to_string_lossy()))
+                let _ = write!(url,
+                               "&cert_path={}",
+                               tls_config.cert_path.as_ref().unwrap().to_string_lossy());
             }
 
             if tls_config.verify {

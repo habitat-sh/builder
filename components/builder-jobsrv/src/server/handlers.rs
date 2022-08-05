@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -481,7 +481,7 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
 
     let new_group = NewGroup { group_state:  "Queued",
                                project_name: &project_name,
-                               target:       &target.to_string(), };
+                               target:       &target, };
     let group = Group::create(&new_group, &conn)?;
 
     {
