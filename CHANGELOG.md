@@ -1,7 +1,13 @@
 # Habitat Builder CHANGELOG
 
 <!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- Bump rust to 1.62.1 [#1749](https://github.com/habitat-sh/builder/pull/1749) ([sajjaphani](https://github.com/sajjaphani))
 <!-- latest_release -->
+
+
 
 ##  (2022-06-23)
 
