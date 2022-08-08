@@ -31,5 +31,6 @@ export const Package = Record({
   target: undefined,
   is_a_service: undefined,
   visibility: '',
-  hart_size: 0
+  hart_size: 0,
+  type: undefined
 });

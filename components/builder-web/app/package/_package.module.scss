@@ -5,3 +5,14 @@
 @import "package-promote/package-promote.component";
 @import "package-sidebar/package-sidebar.component";
 @import "package-versions/package-versions.component";
+
+.pkg-type-tag {
+    padding: 2px 10px;
+    border: 1px solid #5C6670;
+    border-radius: 11px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    background-color: #5C6670;
+    margin-left: 8px;
+}
