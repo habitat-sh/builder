@@ -63,7 +63,7 @@ export class PackageSidebarComponent {
 
   get isStandardPkg() {
     // A package can be standard or native. That means all package versions should be of the same type.
-    // It is sufficient to check the type on the current/latest and fetched on the initial request.
+    // It is sufficient to check the type on the latest and fetched on the initial request.
     const _type = this.store.getState().packages.latest.package_type || 'standard';
     return _type.toLowerCase() === 'standard';
   }
