@@ -4,6 +4,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump thread_local from 1.1.3 to 1.1.4 [#1744](https://github.com/habitat-sh/builder/pull/1744) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump rust to 1.62.1 [#1749](https://github.com/habitat-sh/builder/pull/1749) ([sajjaphani](https://github.com/sajjaphani))
 <!-- latest_release -->
 
