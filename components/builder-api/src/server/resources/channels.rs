@@ -14,7 +14,8 @@
 
 use std::str::FromStr;
 
-use actix_web::{http::{self,
+use actix_web::{body::BoxBody,
+                http::{self,
                        StatusCode},
                 web::{self,
                       Data,
@@ -23,6 +24,7 @@ use actix_web::{http::{self,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
+use bytes::Bytes;
 use diesel::{pg::PgConnection,
              result::{DatabaseErrorKind,
                       Error::{DatabaseError,
@@ -405,7 +407,9 @@ async fn promote_package(req: HttpRequest,
                 Ok(t) => t,
                 Err(err) => {
                     debug!("Invalid target requested: {}, err = {:?}", t, err);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body = Bytes::from(format!("Invalid package target '{}'", t).into_bytes());
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
@@ -486,7 +490,9 @@ async fn demote_package(req: HttpRequest,
                 Ok(t) => t,
                 Err(err) => {
                     debug!("Invalid target requested: {}, err = {:?}", t, err);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body = Bytes::from(format!("Invalid package target '{}'", t).into_bytes());
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }

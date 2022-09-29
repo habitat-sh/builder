@@ -14,6 +14,7 @@
 
 use crate::{bldr_core::{error::Error::RpcError,
                         metrics::CounterMetric},
+            config::Config,
             db::models::{channel::{Channel,
                                    ChannelWithPromotion},
                          origin::*,
@@ -31,7 +32,8 @@ use crate::{bldr_core::{error::Error::RpcError,
                          settings::{GetOriginPackageSettings,
                                     NewOriginPackageSettings,
                                     OriginPackageSettings}},
-            hab_core::{package::{FromArchive,
+            hab_core::{package::{metadata::PackageType,
+                                 FromArchive,
                                  Identifiable,
                                  PackageArchive,
                                  PackageIdent,
@@ -124,6 +126,18 @@ pub struct GetSchedule {
 pub struct OriginScheduleStatus {
     #[serde(default)]
     limit: String,
+}
+
+fn enabled_native_upload() -> bool { feat::is_enabled(feat::NativePackages) }
+
+fn is_origin_allowed(origin: &str, config: &Config) -> bool {
+    if config.api
+             .allowed_native_package_origins
+             .contains(&origin.to_string())
+    {
+        return true;
+    }
+    false
 }
 
 pub struct Packages {}
@@ -322,7 +336,9 @@ async fn delete_package(req: HttpRequest,
                 Ok(t) => t,
                 Err(err) => {
                     debug!("Invalid target requested: {}, err = {:?}", t, err);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body = Bytes::from(format!("Invalid package target '{}'", t).into_bytes());
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
@@ -345,7 +361,11 @@ async fn delete_package(req: HttpRequest,
                        .any(|c| c.name == ChannelIdent::stable().to_string())
             {
                 debug!("Deleting package in stable channel not allowed: {}", ident);
-                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                let body = Bytes::from(format!("Deleting package in stable channel not allowed \
+                                                '{}'",
+                                               ident).into_bytes());
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                               BoxBody::new(body));
             }
         }
         Err(err) => {
@@ -367,7 +387,10 @@ async fn delete_package(req: HttpRequest,
             Ok(rdeps) => {
                 if !rdeps.get_rdeps().is_empty() {
                     debug!("Deleting package with rdeps not allowed: {}", ident);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",
+                                                   ident).into_bytes());
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
             Err(err) => {
@@ -440,7 +463,9 @@ async fn download_package(req: HttpRequest,
                 Ok(t) => t,
                 Err(err) => {
                     debug!("Invalid target requested: {}, err = {:?}", t, err);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body = Bytes::from(format!("Invalid package target '{}'", t).into_bytes());
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
@@ -448,7 +473,8 @@ async fn download_package(req: HttpRequest,
     };
 
     if !state.config.api.targets.contains(&target) {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from(format!("Invalid package target '{}'", target).into_bytes());
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
@@ -511,7 +537,9 @@ async fn upload_package(req: HttpRequest,
     if !ident.valid() || !ident.fully_qualified() {
         info!("Invalid or not fully qualified package identifier: {}",
               ident);
-        return Ok(HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY));
+        let body = Bytes::from(format!("Invalid or not fully qualified package identifier '{}'",
+                                       ident).into_bytes());
+        return Ok(HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body)));
     }
 
     match do_upload_package_start(&req, &qupload, &ident) {
@@ -557,6 +585,43 @@ async fn schedule_job_group(req: HttpRequest,
     if !state.config.api.build_targets.contains(&target) {
         debug!("Rejecting build with target: {}", qschedule.target);
         return HttpResponse::new(StatusCode::BAD_REQUEST);
+    }
+
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let ident = PackageIdent::new(origin_name.clone(), package.clone(), None, None);
+    let latest_pkg = match Package::get_latest(
+        GetLatestPackage {
+            ident: BuilderPackageIdent(ident.clone()),
+            target: BuilderPackageTarget(target),
+            visibility: helpers::visibility_for_optional_session(
+                &req,
+                Some(session.get_id()),
+                &origin_name,
+            ),
+        },
+        &*conn,
+    ) {
+        Ok(pkg) => Some(pkg),
+        Err(NotFound) => None,
+        Err(err) => {
+            debug!("{:?}", err);
+            return Error::DieselError(err).into();
+        }
+    };
+
+    if let Some(pkg) = latest_pkg {
+        if *pkg.package_type == PackageType::Native {
+            debug!("Unsupported package type for building {}.",
+                   *pkg.package_type);
+            let body = Bytes::from(format!("Building '{}' package is not supported",
+                                           *pkg.package_type).into_bytes());
+            let body = BoxBody::new(body);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
+        }
     }
 
     let mut request = jobsrv::JobGroupSpec::new();
@@ -634,12 +699,12 @@ async fn get_origin_schedule_status(req: HttpRequest,
     request.set_origin(origin);
     request.set_limit(limit);
 
-    match route_message::<jobsrv::JobGroupOriginGet, jobsrv::JobGroupOriginResponse>(&req, &request).await
+    match route_message::<jobsrv::JobGroupOriginGet, jobsrv::JobGroupOriginResponse>(&req, &request)
+        .await
     {
-        Ok(jgor) => {
-            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                              .json(jgor.get_job_groups())
-        }
+        Ok(jgor) => HttpResponse::Ok()
+            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+            .json(jgor.get_job_groups()),
         Err(err) => {
             debug!("{}", err);
             err.into()
@@ -668,7 +733,10 @@ async fn get_package_channels(req: HttpRequest,
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
 
     if !ident.fully_qualified() {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from(
+            format!("Required fully qualified package identifier '{}'", ident).into_bytes(),
+        );
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     // TODO: Deprecate target from headers
@@ -679,7 +747,9 @@ async fn get_package_channels(req: HttpRequest,
                 Ok(t) => t,
                 Err(err) => {
                     debug!("Invalid target requested: {}, err = {:?}", t, err);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body = Bytes::from(format!("Invalid package target '{}'", t).into_bytes());
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
@@ -782,7 +852,9 @@ async fn search_packages(req: HttpRequest,
         Ok(q) => q.to_string().trim_end_matches('/').replace('/', " & "),
         Err(err) => {
             debug!("{}", err);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body =
+                Bytes::from(format!("Unable to parse query string '{}'", query).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -823,14 +895,17 @@ async fn package_privacy_toggle(req: HttpRequest,
 
     if !ident.valid() {
         debug!("Invalid package identifier: {}", ident);
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from(format!("Invalid package identifier '{}'", ident).into_bytes());
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     let pv: PackageVisibility = match visibility.parse() {
         Ok(o) => o,
         Err(err) => {
             debug!("{:?}", err);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body =
+                Bytes::from(format!("Invalid package visibility '{}'", visibility).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -845,7 +920,8 @@ async fn package_privacy_toggle(req: HttpRequest,
 
     // users aren't allowed to set packages to hidden manually
     if visibility.to_lowercase() == "hidden" {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from("Not allowed to set packages to 'hidden'");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     match Package::update_visibility(pv, BuilderPackageIdent(ident.clone()), &*conn) {
@@ -999,7 +1075,7 @@ fn do_upload_package_start(req: &HttpRequest,
         match Package::get(
             GetPackage {
                 ident: BuilderPackageIdent(ident.clone()),
-                visibility: PackageVisibility::all() ,
+                visibility: PackageVisibility::all(),
                 target: BuilderPackageTarget(PackageTarget::from_str(&target).unwrap()), // Unwrap OK
             },
             &*conn,
@@ -1040,6 +1116,38 @@ async fn do_upload_package_finish(req: &HttpRequest,
     };
 
     debug!("Package Archive: {:#?}", archive);
+
+    let package_type = match archive.package_type() {
+        Ok(pkg_type) => pkg_type,
+        Err(e) => {
+            info!("Could not read the package type for {:#?}: {:#?}",
+                  archive, e);
+            let body = Bytes::from(format!("ds:up:0, err={:?}", e).into_bytes());
+            let body = BoxBody::new(body);
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
+        }
+    };
+
+    if package_type == PackageType::Native && !enabled_native_upload() {
+        debug!("Unsupported package type {}.", package_type);
+        let body = Bytes::from(
+            format!("Uploading '{}' package is not supported", package_type).into_bytes(),
+        );
+        let body = BoxBody::new(body);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
+    };
+
+    if package_type == PackageType::Native
+       && !is_origin_allowed(&ident.origin, &req_state(req).config)
+    {
+        debug!("Native packages not allowed for the origin {:?}",
+               ident.origin.clone());
+        let body = Bytes::from(format!("Native Package upload for the origin '{}' is not \
+                                        supported",
+                                       ident.origin.clone()).into_bytes());
+        let body = BoxBody::new(body);
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
+    };
 
     let target_from_artifact = match archive.target() {
         Ok(target) => target,
@@ -1084,6 +1192,42 @@ async fn do_upload_package_finish(req: &HttpRequest,
         Err(err) => return err.into(),
     };
 
+    // Check If previously uploaded package exists in DB
+    // and discard the upload if package_type mismatch occurs.
+    let pkg_ident = PackageIdent::new(ident.origin.clone(), ident.name.clone(), None, None);
+    match Package::get_latest(
+        GetLatestPackage {
+            ident: BuilderPackageIdent(pkg_ident),
+            target: BuilderPackageTarget(PackageTarget::from_str(&target_from_artifact).unwrap()),
+            visibility: PackageVisibility::all(),
+        },
+        &*conn,
+    ) {
+        Ok(pkg) => {
+            if package_type != *pkg.package_type {
+                debug!(
+                    "Package Type did not match: from_param={:?}, from_database={:?}",
+                    package_type, pkg.package_type
+                );
+                let body = Bytes::from(
+                    format!(
+                        "Package type mismatch; expected '{}', found '{}'",
+                        *pkg.package_type, package_type
+                    )
+                    .into_bytes(),
+                );
+                return HttpResponse::with_body(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    BoxBody::new(body),
+                );
+            }
+        }
+        Err(NotFound) => {
+            debug!("Package does not already exist in the Database.");
+        }
+        Err(err) => return Error::DieselError(err).into(),
+    }
+
     // If upload was forced, and a previously uploaded package exists in DB
     // make sure the checksums match the original (idempotency)
     if qupload.forced {
@@ -1091,14 +1235,18 @@ async fn do_upload_package_finish(req: &HttpRequest,
             GetPackage {
                 ident: BuilderPackageIdent(ident.clone()),
                 visibility: PackageVisibility::all(),
-                target: BuilderPackageTarget(PackageTarget::from_str(&target_from_artifact).unwrap()), // Unwrap OK
+                target: BuilderPackageTarget(
+                    PackageTarget::from_str(&target_from_artifact).unwrap(),
+                ), // Unwrap OK
             },
             &*conn,
         ) {
             Ok(pkg) => {
                 if qupload.checksum != pkg.checksum {
-                    debug!("Checksums did not match: from_param={:?}, from_database={:?}",
-                           qupload.checksum, pkg.checksum);
+                    debug!(
+                        "Checksums did not match: from_param={:?}, from_database={:?}",
+                        qupload.checksum, pkg.checksum
+                    );
                     let body = Bytes::from_static(b"ds:up:4");
                     let body = BoxBody::new(body);
                     return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
@@ -1181,30 +1329,33 @@ async fn do_upload_package_finish(req: &HttpRequest,
     package.owner_id = session.get_id() as i64;
     package.origin = ident.clone().origin;
 
-    package.visibility =
-        match OriginPackageSettings::get(&GetOriginPackageSettings { origin: &package.origin,
-                                                                     name:   &package.name, },
-                                         &*conn)
-        {
-            // TED if this is in-fact optional in the db it should be an option in the model
-            Ok(pkg) => pkg.visibility,
-            Err(_) => {
-                match Origin::get(&ident.origin, &*conn) {
-                    Ok(o) => {
-                        match OriginPackageSettings::create(&NewOriginPackageSettings {
-                            origin: &ident.origin,
-                            name: &ident.name,
-                            visibility: &o.default_package_visibility,
-                            owner_id: package.owner_id,
-                        }, &*conn) {
-                            Ok(pkg_settings) => pkg_settings.visibility,
-                            Err(err) => return Error::DieselError(err).into(),
-                        }
+    package.visibility = match OriginPackageSettings::get(
+        &GetOriginPackageSettings {
+            origin: &package.origin,
+            name: &package.name,
+        },
+        &*conn,
+    ) {
+        // TED if this is in-fact optional in the db it should be an option in the model
+        Ok(pkg) => pkg.visibility,
+        Err(_) => match Origin::get(&ident.origin, &*conn) {
+            Ok(o) => {
+                match OriginPackageSettings::create(
+                    &NewOriginPackageSettings {
+                        origin: &ident.origin,
+                        name: &ident.name,
+                        visibility: &o.default_package_visibility,
+                        owner_id: package.owner_id,
                     },
+                    &*conn,
+                ) {
+                    Ok(pkg_settings) => pkg_settings.visibility,
                     Err(err) => return Error::DieselError(err).into(),
                 }
             }
-        };
+            Err(err) => return Error::DieselError(err).into(),
+        },
+    };
 
     // Re-create origin package as needed (eg, checksum update)
     match Package::create(&package, &*conn) {
@@ -1217,7 +1368,9 @@ async fn do_upload_package_finish(req: &HttpRequest,
                 match route_message::<jobsrv::JobGraphPackageCreate, originsrv::OriginPackage>(
                     req,
                     &job_graph_package,
-                ).await {
+                )
+                .await
+                {
                     Ok(_) => (),
                     Err(Error::BuilderCore(RpcError(code, _)))
                         if StatusCode::from_u16(code).unwrap() == StatusCode::NOT_FOUND =>
@@ -1228,7 +1381,10 @@ async fn do_upload_package_finish(req: &HttpRequest,
                         );
                     }
                     Err(err) => {
-                        warn!("Failed to create job graph package, (msg_size {}) err={:?}", msg_size, err);
+                        warn!(
+                            "Failed to create job graph package, (msg_size {}) err={:?}",
+                            msg_size, err
+                        );
                         debug!("Message: {:?}", job_graph_package);
                         return err.into();
                     }
@@ -1498,14 +1654,21 @@ fn download_response_for_archive(archive: &PackageArchive,
     };
 
     #[allow(clippy::redundant_closure)] //  Ok::<_, ()>
-    HttpResponse::Ok().append_header((http::header::CONTENT_DISPOSITION,
-            ContentDisposition { disposition: DispositionType::Attachment,
-                                 parameters:  vec![DispositionParam::Filename(filename)], }))
-    .append_header((http::header::HeaderName::from_static(headers::XFILENAME),
-            archive.file_name()))
-    .insert_header(ContentType::octet_stream())
-    .append_header((http::header::CACHE_CONTROL, cache_hdr))
-    .streaming(rx_body.map(|s| Ok::<_, Infallible>(s)))
+    HttpResponse::Ok()
+        .append_header((
+            http::header::CONTENT_DISPOSITION,
+            ContentDisposition {
+                disposition: DispositionType::Attachment,
+                parameters: vec![DispositionParam::Filename(filename)],
+            },
+        ))
+        .append_header((
+            http::header::HeaderName::from_static(headers::XFILENAME),
+            archive.file_name(),
+        ))
+        .insert_header(ContentType::octet_stream())
+        .append_header((http::header::CACHE_CONTROL, cache_hdr))
+        .streaming(rx_body.map(|s| Ok::<_, Infallible>(s)))
 }
 
 async fn has_circular_deps(req: &HttpRequest,

@@ -7,6 +7,7 @@ build_targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
 build_on_upload = true
 saas_bldr_url = "https://bldr.habitat.sh"
 suppress_autobuild_origins = []
+allowed_native_package_origins = []
 
 [http]
 listen = "0.0.0.0"

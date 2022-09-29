@@ -147,7 +147,8 @@ async fn update_origin_package_settings(req: HttpRequest,
         };
 
     if body.0.visibility.is_empty() {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from_static(b"Missing required package visibility");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     let conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {

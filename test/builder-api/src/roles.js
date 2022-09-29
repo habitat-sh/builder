@@ -559,7 +559,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.equal('Invalid origin public key');
           done(err);
         });
     });
@@ -569,7 +569,7 @@ describe("Origin Roles API", function () {
         .set("Authorization", global.lkennedyBearer)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.equal('Invalid origin secret key');
           done(err);
         });
     });

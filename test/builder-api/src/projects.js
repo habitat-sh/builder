@@ -109,7 +109,7 @@ describe('Projects API', function () {
         })
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.equal('Missing required origin or plan path');
           done(err);
         });
     });

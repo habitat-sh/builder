@@ -280,7 +280,7 @@ describe("Related Origin API functions", function () {
         .set("Authorization", global.weskerBearer)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.equal('Cannot transfer origin ownership to self');
           done(err);
         });
     });
@@ -348,7 +348,7 @@ describe("Related Origin API functions", function () {
         .set("Authorization", global.boboBearer)
         .expect(403)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.equal('Departing the owner from the origin is not allowed');
           done(err);
         });
     });
@@ -358,7 +358,7 @@ describe("Related Origin API functions", function () {
         .set("Authorization", global.mystiqueBearer)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.be.not.empty;
           done(err);
         });
     });

@@ -1,4 +1,5 @@
-use std::{fmt,
+use std::{fmt::{self,
+                Debug},
           hash::{Hash,
                  Hasher},
           io::Write,
@@ -9,7 +10,8 @@ use std::{fmt,
 
 use super::db_id_format;
 use crate::{hab_core::{self,
-                       package::{FromArchive,
+                       package::{metadata::PackageType,
+                                 FromArchive,
                                  Identifiable,
                                  PackageArchive,
                                  PackageIdent,
@@ -19,7 +21,16 @@ use crate::{hab_core::{self,
                                OriginChannelPackage,
                                OriginChannelPromote},
                      pagination::*,
-                     settings::OriginPackageSettings}};
+                     settings::OriginPackageSettings},
+            schema::{channel::{origin_channel_packages,
+                               origin_channels},
+                     member::origin_members,
+                     origin::origins,
+                     package::{origin_package_versions,
+                               origin_packages,
+                               origin_packages_with_version_array,
+                               packages_with_channel_platform},
+                     settings::origin_package_settings}};
 use chrono::NaiveDateTime;
 use diesel::{self,
              deserialize::{self,
@@ -44,16 +55,6 @@ use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
 use itertools::Itertools;
 
-use crate::schema::{channel::{origin_channel_packages,
-                              origin_channels},
-                    member::origin_members,
-                    origin::origins,
-                    package::{origin_package_versions,
-                              origin_packages,
-                              origin_packages_with_version_array,
-                              packages_with_channel_platform},
-                    settings::origin_package_settings};
-
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
             metrics::{Counter,
@@ -72,25 +73,26 @@ use crate::{bldr_core::metrics::{CounterMetric,
 #[table_name = "origin_packages"]
 pub struct Package {
     #[serde(with = "db_id_format")]
-    pub id:          i64,
+    pub id:           i64,
     #[serde(with = "db_id_format")]
-    pub owner_id:    i64,
-    pub name:        String,
-    pub ident:       BuilderPackageIdent,
-    pub ident_array: Vec<String>,
-    pub checksum:    String,
-    pub manifest:    String,
-    pub config:      String,
-    pub target:      BuilderPackageTarget,
-    pub deps:        Vec<BuilderPackageIdent>,
-    pub tdeps:       Vec<BuilderPackageIdent>,
-    pub build_deps:  Vec<BuilderPackageIdent>,
-    pub build_tdeps: Vec<BuilderPackageIdent>,
-    pub exposes:     Vec<i32>,
-    pub visibility:  PackageVisibility,
-    pub created_at:  Option<NaiveDateTime>,
-    pub updated_at:  Option<NaiveDateTime>,
-    pub origin:      String,
+    pub owner_id:     i64,
+    pub name:         String,
+    pub ident:        BuilderPackageIdent,
+    pub ident_array:  Vec<String>,
+    pub checksum:     String,
+    pub manifest:     String,
+    pub config:       String,
+    pub target:       BuilderPackageTarget,
+    pub deps:         Vec<BuilderPackageIdent>,
+    pub tdeps:        Vec<BuilderPackageIdent>,
+    pub build_deps:   Vec<BuilderPackageIdent>,
+    pub build_tdeps:  Vec<BuilderPackageIdent>,
+    pub exposes:      Vec<i32>,
+    pub visibility:   PackageVisibility,
+    pub created_at:   Option<NaiveDateTime>,
+    pub updated_at:   Option<NaiveDateTime>,
+    pub origin:       String,
+    pub package_type: BuilderPackageType,
 }
 
 #[derive(Debug,
@@ -123,6 +125,7 @@ pub struct PackageWithVersionArray {
     pub build_deps:    Vec<BuilderPackageIdent>,
     pub build_tdeps:   Vec<BuilderPackageIdent>,
     pub version_array: Vec<Option<String>>,
+    pub package_type:  BuilderPackageType,
 }
 
 #[derive(Debug,
@@ -211,7 +214,8 @@ type AllColumns = (origin_packages::id,
                    origin_packages::visibility,
                    origin_packages::created_at,
                    origin_packages::updated_at,
-                   origin_packages::origin);
+                   origin_packages::origin,
+                   origin_packages::package_type);
 
 pub const ALL_COLUMNS: AllColumns = (origin_packages::id,
                                      origin_packages::owner_id,
@@ -230,7 +234,8 @@ pub const ALL_COLUMNS: AllColumns = (origin_packages::id,
                                      origin_packages::visibility,
                                      origin_packages::created_at,
                                      origin_packages::updated_at,
-                                     origin_packages::origin);
+                                     origin_packages::origin,
+                                     origin_packages::package_type);
 
 type All = diesel::dsl::Select<origin_packages::table, AllColumns>;
 
@@ -252,7 +257,8 @@ type AllColumnsWithVersion = (origin_packages_with_version_array::id,
                               origin_packages_with_version_array::origin,
                               origin_packages_with_version_array::build_deps,
                               origin_packages_with_version_array::build_tdeps,
-                              origin_packages_with_version_array::version_array);
+                              origin_packages_with_version_array::version_array,
+                              origin_packages_with_version_array::package_type);
 
 pub const ALL_COLUMNS_WITH_VERSION: AllColumnsWithVersion =
     (origin_packages_with_version_array::id,
@@ -273,7 +279,8 @@ pub const ALL_COLUMNS_WITH_VERSION: AllColumnsWithVersion =
      origin_packages_with_version_array::origin,
      origin_packages_with_version_array::build_deps,
      origin_packages_with_version_array::build_tdeps,
-     origin_packages_with_version_array::version_array);
+     origin_packages_with_version_array::version_array,
+     origin_packages_with_version_array::package_type);
 
 type AllWithVersion =
     diesel::dsl::Select<origin_packages_with_version_array::table, AllColumnsWithVersion>;
@@ -281,22 +288,23 @@ type AllWithVersion =
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable)]
 #[table_name = "origin_packages"]
 pub struct NewPackage {
-    pub origin:      String,
+    pub origin:       String,
     #[serde(with = "db_id_format")]
-    pub owner_id:    i64,
-    pub name:        String,
-    pub ident:       BuilderPackageIdent,
-    pub ident_array: Vec<String>,
-    pub checksum:    String,
-    pub manifest:    String,
-    pub config:      String,
-    pub target:      BuilderPackageTarget,
-    pub deps:        Vec<BuilderPackageIdent>,
-    pub tdeps:       Vec<BuilderPackageIdent>,
-    pub build_deps:  Vec<BuilderPackageIdent>,
-    pub build_tdeps: Vec<BuilderPackageIdent>,
-    pub exposes:     Vec<i32>,
-    pub visibility:  PackageVisibility,
+    pub owner_id:     i64,
+    pub name:         String,
+    pub ident:        BuilderPackageIdent,
+    pub ident_array:  Vec<String>,
+    pub checksum:     String,
+    pub manifest:     String,
+    pub config:       String,
+    pub target:       BuilderPackageTarget,
+    pub deps:         Vec<BuilderPackageIdent>,
+    pub tdeps:        Vec<BuilderPackageIdent>,
+    pub build_deps:   Vec<BuilderPackageIdent>,
+    pub build_tdeps:  Vec<BuilderPackageIdent>,
+    pub exposes:      Vec<i32>,
+    pub visibility:   PackageVisibility,
+    pub package_type: BuilderPackageType,
 }
 
 #[derive(Debug)]
@@ -572,6 +580,7 @@ impl Package {
                 origin_packages::build_tdeps.eq(excluded(origin_packages::build_tdeps)),
                 origin_packages::exposes.eq(excluded(origin_packages::exposes)),
                 origin_packages::visibility.eq(excluded(origin_packages::visibility)),
+                origin_packages::package_type.eq(excluded(origin_packages::package_type)),
             ))
             .get_result::<Package>(conn)?;
 
@@ -941,6 +950,58 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
          Eq,
          Hash)]
 #[sql_type = "Text"]
+pub struct BuilderPackageType(pub PackageType);
+
+impl FromStr for BuilderPackageType {
+    type Err = crate::error::Error;
+
+    fn from_str(s: &str) -> Result<Self, crate::error::Error> {
+        Ok(BuilderPackageType(PackageType::from_str(s).map_err(|_| {
+                                  crate::error::Error::ParseError(format!("BuilderPackageType {}",
+                                                                          s))
+                              })?))
+    }
+}
+
+impl FromSql<Text, Pg> for BuilderPackageType {
+    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+        match bytes {
+            Some(text) => Ok(BuilderPackageType(
+                PackageType::from_str(str::from_utf8(text).unwrap()).unwrap(),
+            )),
+            None => Ok(BuilderPackageType(PackageType::Standard)),
+        }
+    }
+}
+
+impl ToSql<Text, Pg> for BuilderPackageType {
+    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+        out.write_all(self.to_string().as_bytes())
+           .map(|_| IsNull::No)
+           .map_err(Into::into)
+    }
+}
+
+impl From<BuilderPackageType> for PackageType {
+    fn from(value: BuilderPackageType) -> PackageType { value.0 }
+}
+
+impl Deref for BuilderPackageType {
+    type Target = PackageType;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+#[derive(Debug,
+         Serialize,
+         Deserialize,
+         Clone,
+         FromSqlRow,
+         AsExpression,
+         PartialEq,
+         Eq,
+         Hash)]
+#[sql_type = "Text"]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
 impl FromStr for BuilderPackageIdent {
@@ -1104,7 +1165,8 @@ impl FromArchive for NewPackage {
                         checksum: archive.checksum()?,
                         name: ident.name.to_string(),
                         owner_id: 999_999_999_999,
-                        visibility: PackageVisibility::Public })
+                        visibility: PackageVisibility::Public,
+                        package_type: BuilderPackageType(archive.package_type()?) })
     }
 }
 
@@ -1183,24 +1245,25 @@ impl From<PackageWithVersionArray> for OriginPackage {
 
 impl From<PackageWithVersionArray> for Package {
     fn from(value: PackageWithVersionArray) -> Package {
-        Package { id:          value.id,
-                  owner_id:    value.owner_id,
-                  name:        value.name.clone(),
-                  ident:       value.ident.clone(),
-                  ident_array: value.ident_array.clone(),
-                  checksum:    value.checksum.clone(),
-                  manifest:    value.manifest.clone(),
-                  config:      value.config.clone(),
-                  target:      value.target,
-                  deps:        value.deps.clone(),
-                  tdeps:       value.tdeps.clone(),
-                  build_deps:  value.build_deps.clone(),
-                  build_tdeps: value.build_tdeps.clone(),
-                  exposes:     value.exposes.clone(),
-                  visibility:  value.visibility,
-                  created_at:  value.created_at,
-                  updated_at:  value.updated_at,
-                  origin:      value.origin, }
+        Package { id:           value.id,
+                  owner_id:     value.owner_id,
+                  name:         value.name.clone(),
+                  ident:        value.ident.clone(),
+                  ident_array:  value.ident_array.clone(),
+                  checksum:     value.checksum.clone(),
+                  manifest:     value.manifest.clone(),
+                  config:       value.config.clone(),
+                  target:       value.target,
+                  deps:         value.deps.clone(),
+                  tdeps:        value.tdeps.clone(),
+                  build_deps:   value.build_deps.clone(),
+                  build_tdeps:  value.build_tdeps.clone(),
+                  exposes:      value.exposes.clone(),
+                  visibility:   value.visibility,
+                  created_at:   value.created_at,
+                  updated_at:   value.updated_at,
+                  origin:       value.origin,
+                  package_type: value.package_type, }
     }
 }
 

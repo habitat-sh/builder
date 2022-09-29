@@ -48,6 +48,7 @@ table! {
         build_deps -> Array<Text>,
         build_tdeps -> Array<Text>,
         version_array -> Array<Nullable<Text>>,
+        package_type -> Text,
     }
 }
 
@@ -75,6 +76,7 @@ table! {
         updated_at -> Nullable<Timestamptz>,
         origin -> Text,
         ident_vector -> TsVector,
+        package_type -> Text,
     }
 }
 

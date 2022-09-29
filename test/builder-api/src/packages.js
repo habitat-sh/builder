@@ -17,6 +17,7 @@ const release9 = '20190327162559';
 const release10 = '20190511004436';
 const release11 = '20190618173321';
 const release12 = '20190618175235';
+const release13 = '20220824122359';
 
 const file1 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 const file2 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release2}-x86_64-linux.hart`);
@@ -30,6 +31,7 @@ const file9 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp3-0.1.0-
 const file10 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.13-${release10}-x86_64-linux.hart`);
 const file11 = fs.readFileSync(__dirname + `/../fixtures/neurosis-neurosis-2.0-${release11}-x86_64-linux.hart`);
 const file12 = fs.readFileSync(__dirname + `/../fixtures/neurosis-abracadabra-3.0-${release12}-x86_64-linux.hart`);
+const file13 = fs.readFileSync(__dirname + `/../fixtures/neurosis-native-testapp-0.1.0-${release13}-x86_64-linux.hart`);
 
 const fakefile1 = fs.readFileSync(__dirname + `/../fixtures/fake/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 
@@ -228,6 +230,19 @@ describe('Working with packages', function () {
         });
     });
 
+    it('upload does not allow native packages until feature is set', function (done) {
+      request.post(`/depot/pkgs/neurosis/native-testapp/0.1.0/${release13}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file13.length)
+        .query({ checksum: '31d158dad181b3370f00efe39ed9fca5dcbef53d5666657f87c814812cd59f09' })
+        .send(file13)
+        .expect(422)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`Uploading \'native\' package is not supported`);
+          done(err);
+        });
+    });
+
     // Test weird versions
 
     it('uploads a unusual versioned package five', function (done) {
@@ -329,7 +344,7 @@ describe('Working with packages', function () {
       request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download?target=foo`)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.be.not.empty;
           done(err);
         });
     });
@@ -862,7 +877,7 @@ describe('Working with packages', function () {
         .set('Authorization', global.boboBearer)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.be.not.empty;
           done(err)
         });
     });
@@ -904,7 +919,7 @@ describe('Working with packages', function () {
         .set('Authorization', global.boboBearer)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.be.not.empty;
           done(err)
         });
     });
