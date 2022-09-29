@@ -14,7 +14,7 @@
 
 import { Component, Input } from '@angular/core';
 import { AppStore } from '../../app.store';
-import { fetchLatestInChannel, fetchPackageVersions, submitJob } from '../../actions/index';
+import { submitJob } from '../../actions/index';
 import { targets } from '../../util';
 
 @Component({
@@ -52,9 +52,20 @@ export class PackageSidebarComponent {
   }
 
   get buildButtonDisabledMessage() {
+    if (!this.isStandardPkg) {
+      return `* Builder can't build the package because non-standard package building is not supported.`;
+    }
+
     return this.targetIsMac ?
       `* Builder can't build the package because a macOS plan file is not supported yet.` :
       `* Builder can't build the package because there is no ${this.platform.name} Plan file.`;
+  }
+
+  get isStandardPkg() {
+    // A package can be standard or native. That means all package versions should be of the same type.
+    // It is sufficient to check the type on the latest and fetched on the initial request.
+    const _type = this.store.getState().packages.latest.package_type || 'standard';
+    return _type.toLowerCase() === 'standard';
   }
 
   get exportCommand() {
@@ -106,6 +117,10 @@ export class PackageSidebarComponent {
   }
 
   get isBuildable() {
+    if (!this.isStandardPkg) {
+      return false;
+    }
+
     return this.isOriginMember && this.hasPlan && !this.targetIsMac && !this.building;
   }
 
