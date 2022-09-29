@@ -7,7 +7,8 @@ use crate::{bldr_core,
                      framework::headers,
                      helpers::req_state,
                      AppState}};
-use actix_web::{http::{self,
+use actix_web::{body::BoxBody,
+                http::{self,
                        StatusCode},
                 web::{self,
                       Data,
@@ -18,6 +19,7 @@ use actix_web::{http::{self,
                 HttpRequest,
                 HttpResponse};
 use bldr_core::access_token::AccessToken as CoreAccessToken;
+use bytes::Bytes;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {
@@ -157,7 +159,10 @@ async fn revoke_access_token(req: HttpRequest,
     let token_id_str = path.into_inner();
     let token_id = match token_id_str.parse::<u64>() {
         Ok(id) => id,
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(_) => {
+            let body = Bytes::from_static(b"Error parsing access token.");
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
+        }
     };
 
     let account_id = match authorize_session(&req, None, None) {

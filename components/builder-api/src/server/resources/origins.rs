@@ -519,7 +519,9 @@ async fn upload_origin_key(req: HttpRequest,
             Ok(key) => key,
             Err(e) => {
                 debug!("Invalid public key content: {}", e);
-                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                let body = Bytes::from_static(b"Invalid origin public key");
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                               BoxBody::new(body));
             }
         };
 
@@ -743,13 +745,16 @@ async fn upload_origin_secret_key(req: HttpRequest,
                 Ok(key) => key,
                 Err(e) => {
                     debug!("Invalid secret key content: {}", e);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body = Bytes::from_static(b"Invalid origin secret key");
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
         Err(e) => {
             debug!("Can't parse secret key upload content: {}", e);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body = Bytes::from_static(b"Cannot parse origin secret key");
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -938,7 +943,10 @@ async fn accept_invitation(req: HttpRequest,
 
     let invitation_id = match invitation.parse::<u64>() {
         Ok(invitation_id) => invitation_id,
-        Err(_) => return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(_) => {
+            let body = Bytes::from(format!("Invalid invitation id '{}'", invitation).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
+        }
     };
 
     debug!("Accepting invitation for user {} origin {}",
@@ -974,7 +982,8 @@ async fn ignore_invitation(req: HttpRequest,
         Ok(invitation_id) => invitation_id,
         Err(err) => {
             debug!("{}", err);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body = Bytes::from(format!("Invalid invitation id '{}'", invitation).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -1011,7 +1020,8 @@ async fn rescind_invitation(req: HttpRequest,
         Ok(invitation_id) => invitation_id,
         Err(err) => {
             debug!("{}", err);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body = Bytes::from(format!("Invalid invitation id '{}'", invitation).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -1121,7 +1131,9 @@ async fn update_origin_member_role(req: HttpRequest,
         }
         Err(err) => {
             debug!("{}", err);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body =
+                Bytes::from(format!("Invalid member role '{}'", &req_role.role).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -1193,7 +1205,8 @@ async fn transfer_origin_ownership(req: HttpRequest,
 
     // Do not allow the owner to transfer ownership to themselves
     if user == session.get_name() {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from_static(b"Cannot transfer origin ownership to self");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     debug!(" Transferring origin {} to new owner {}", &origin, &user);
@@ -1248,12 +1261,15 @@ async fn depart_from_origin(req: HttpRequest,
 
     // Do not allow an origin owner to depart which would orphan the origin
     if check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
-        return HttpResponse::new(StatusCode::FORBIDDEN);
+        let body = Bytes::from_static(b"Departing the owner from the origin is not allowed");
+        return HttpResponse::with_body(StatusCode::FORBIDDEN, BoxBody::new(body));
     }
 
     // Pass a meaningful error in the case that the user isn't a member of origin
     if !check_origin_member(&req, &origin, session.get_id()).unwrap_or(false) {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body =
+            Bytes::from(format!("Do not have access to the origin '{}'", origin).into_bytes());
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -1326,7 +1342,8 @@ async fn origin_member_delete(req: HttpRequest,
 
     // Do not allow the owner to be removed which would orphan the origin
     if user == session.get_name() {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from_static(b"Removing the owner is not allowd");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     debug!("Deleting origin member {} from origin {}", &user, &origin);

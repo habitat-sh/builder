@@ -114,7 +114,8 @@ async fn create_project(req: HttpRequest,
                         state: Data<AppState>)
                         -> HttpResponse {
     if body.origin.is_empty() || body.plan_path.is_empty() {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from_static(b"Missing required origin or plan path");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     let account_id =
@@ -141,7 +142,9 @@ async fn create_project(req: HttpRequest,
         Ok(t) => t,
         Err(err) => {
             debug!("Invalid target requested: err = {:?}", err);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body =
+                Bytes::from(format!("Invalid package target '{}'", &body.target).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -153,7 +156,10 @@ async fn create_project(req: HttpRequest,
             "windows/plan.ps1" => "testapp",
             _ => {
                 debug!("Unknown plan path in tests! {}", &body.plan_path);
-                return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                let body = Bytes::from(format!("Unknown plan path in tests! '{}'",
+                                               &body.plan_path).into_bytes());
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                               BoxBody::new(body));
             }
         };
         let new_project = NewProject { owner_id: account_id as i64,
@@ -193,7 +199,9 @@ async fn create_project(req: HttpRequest,
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
             debug!("Error finding github repo. e = {:?}", e);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body =
+                Bytes::from(format!("Error finding GitHub repo. Error:  {:?}", e).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -208,20 +216,29 @@ async fn create_project(req: HttpRequest,
                         Ok(plan) => plan,
                         Err(e) => {
                             debug!("Error matching Plan. e = {:?}", e);
-                            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                            let body =
+                        Bytes::from(format!("Error matching Plan. Error : {:?}", e).into_bytes());
+                            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                           BoxBody::new(body));
                         }
                     }
                 }
                 Err(e) => {
                     debug!("Base64 decode failure: {:?}", e);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body =
+                    Bytes::from(format!("Error decoding base64 content : {:?}", e).into_bytes());
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
             debug!("Error fetching contents from GH. e = {:?}", e);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body = Bytes::from(
+                format!("Error fetching contents from GitHub. Error : {:?}", e).into_bytes(),
+            );
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -328,7 +345,8 @@ async fn update_project(req: HttpRequest,
         };
 
     if body.plan_path.is_empty() {
-        return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+        let body = Bytes::from_static(b"Missing required plan path.");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
     let conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -340,7 +358,9 @@ async fn update_project(req: HttpRequest,
         Ok(t) => t,
         Err(err) => {
             debug!("Invalid target requested, err = {:?}", err);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body =
+                Bytes::from(format!("Invalid package target '{}'", &body.target).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -396,7 +416,9 @@ async fn update_project(req: HttpRequest,
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
             debug!("Error finding GH repo. e = {:?}", e);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body =
+                Bytes::from(format!("Error finding GitHub repo. Error : {:?}", e).into_bytes());
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 
@@ -424,20 +446,29 @@ async fn update_project(req: HttpRequest,
                         }
                         Err(e) => {
                             debug!("Error matching Plan. e = {:?}", e);
-                            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                            let body =
+                        Bytes::from(format!("Error matching Plan. Error : {:?}", e).into_bytes());
+                            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                           BoxBody::new(body));
                         }
                     }
                 }
                 Err(e) => {
                     debug!("Error decoding content from b64. e = {:?}", e);
-                    return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+                    let body = Bytes::from(format!("Error decoding base64 content. Error : {:?}",
+                                                   e).into_bytes());
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
         Ok(None) => return HttpResponse::new(StatusCode::NOT_FOUND),
         Err(e) => {
             warn!("Erroring fetching contents from GH. e = {:?}", e);
-            return HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY);
+            let body = Bytes::from(
+                format!("Error fetching contents from GitHub. Error : {:?}", e).into_bytes(),
+            );
+            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
 

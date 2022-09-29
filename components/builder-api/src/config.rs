@@ -97,18 +97,19 @@ impl Default for S3Cfg {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct ApiCfg {
-    pub data_path:                  PathBuf,
-    pub log_path:                   PathBuf,
+    pub data_path: PathBuf,
+    pub log_path: PathBuf,
     /// Location of Builder encryption keys
-    pub key_path:                   KeyCache,
-    pub targets:                    Vec<PackageTarget>,
-    pub build_targets:              Vec<PackageTarget>,
+    pub key_path: KeyCache,
+    pub targets: Vec<PackageTarget>,
+    pub build_targets: Vec<PackageTarget>,
     #[serde(with = "deserialize_into_vec")]
-    pub features_enabled:           Vec<String>,
-    pub build_on_upload:            bool,
-    pub private_max_age:            usize,
-    pub saas_bldr_url:              String,
+    pub features_enabled: Vec<String>,
+    pub build_on_upload: bool,
+    pub private_max_age: usize,
+    pub saas_bldr_url: String,
     pub suppress_autobuild_origins: Vec<String>,
+    pub allowed_native_package_origins: Vec<String>,
 }
 
 mod deserialize_into_vec {
@@ -126,18 +127,19 @@ mod deserialize_into_vec {
 
 impl Default for ApiCfg {
     fn default() -> Self {
-        ApiCfg { data_path:                  PathBuf::from("/hab/svc/builder-api/data"),
-                 log_path:                   env::temp_dir(),
-                 key_path:                   KeyCache::new("/hab/svc/builder-api/files"),
-                 targets:                    vec![target::X86_64_LINUX,
-                                                  target::X86_64_LINUX_KERNEL2,
-                                                  target::X86_64_WINDOWS,],
-                 build_targets:              vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
-                 features_enabled:           vec!["jobsrv".to_string()],
-                 build_on_upload:            true,
-                 private_max_age:            300,
-                 saas_bldr_url:              "https://bldr.habitat.sh".to_string(),
-                 suppress_autobuild_origins: vec![], }
+        ApiCfg { data_path: PathBuf::from("/hab/svc/builder-api/data"),
+                 log_path: env::temp_dir(),
+                 key_path: KeyCache::new("/hab/svc/builder-api/files"),
+                 targets: vec![target::X86_64_LINUX,
+                               target::X86_64_LINUX_KERNEL2,
+                               target::X86_64_WINDOWS,],
+                 build_targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
+                 features_enabled: vec!["jobsrv".to_string()],
+                 build_on_upload: true,
+                 private_max_age: 300,
+                 saas_bldr_url: "https://bldr.habitat.sh".to_string(),
+                 suppress_autobuild_origins: vec![],
+                 allowed_native_package_origins: vec![], }
     }
 }
 
@@ -341,6 +343,7 @@ mod tests {
         build_on_upload = false
         private_max_age = 400
         suppress_autobuild_origins = ["origin1", "origin2"]
+        allowed_native_package_origins = []
 
         [http]
         listen = "0:0:0:0:0:0:0:1"
@@ -429,6 +432,8 @@ mod tests {
 
         assert_eq!(&config.api.suppress_autobuild_origins,
                    &["origin1".to_string(), "origin2".to_string()]);
+
+        assert_eq!(config.api.allowed_native_package_origins.len(), 0);
 
         assert_eq!(&format!("{}", config.jobsrv), "http://1.2.3.4:1234");
 

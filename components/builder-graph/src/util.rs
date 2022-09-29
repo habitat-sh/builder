@@ -19,15 +19,12 @@ use std::{fs::File,
           str::FromStr};
 
 use crate::hab_core::package::{ident::Identifiable,
-                               PackageIdent,
-                               PackageTarget};
+                               PackageIdent};
 
 use crate::{error,
             package_ident_intern::PackageIdentIntern};
 
 use habitat_builder_db::models::package::{BuilderPackageIdent,
-                                          BuilderPackageTarget,
-                                          PackageVisibility,
                                           PackageWithVersionArray};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -124,37 +121,6 @@ pub fn read_packages_json(filename: &str) -> Vec<PackageWithVersionArray> {
 }
 
 // Helpers for test
-
-pub fn mk_package_with_versionarray(ident: &str,
-                                    target: &str,
-                                    rdeps: &[&str],
-                                    bdeps: &[&str])
-                                    -> PackageWithVersionArray {
-    let manifest = format!("\\* __Dependencies__: {}\n\\* __Build Dependencies__: {}\n",
-                           rdeps.join(" "),
-                           bdeps.join(" "));
-
-    PackageWithVersionArray { ident: BuilderPackageIdent(PackageIdent::from_str(ident).unwrap()),
-                              name: ident.to_string(),
-                              target:
-                                  BuilderPackageTarget(PackageTarget::from_str(target).unwrap()),
-                              manifest,
-                              deps: mk_builder_package_ident_vec(rdeps),
-                              build_deps: mk_builder_package_ident_vec(bdeps),
-                              id: 0,
-                              owner_id: 0,
-                              ident_array: Vec::new(),
-                              checksum: String::new(),
-                              config: String::new(),
-                              tdeps: Vec::new(),
-                              exposes: Vec::new(),
-                              created_at: None,
-                              updated_at: None,
-                              visibility: PackageVisibility::Public,
-                              origin: String::new(),
-                              build_tdeps: Vec::new(),
-                              version_array: Vec::new() }
-}
 
 pub fn mk_builder_package_ident_vec(vals: &[&str]) -> Vec<BuilderPackageIdent> {
     vals.iter()
