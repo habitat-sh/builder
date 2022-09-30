@@ -4,6 +4,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- native pkg UI changes [#1750](https://github.com/habitat-sh/builder/pull/1750) ([sajjaphani](https://github.com/sajjaphani))
 - Dg/native bldr [#1751](https://github.com/habitat-sh/builder/pull/1751) ([dikshagupta1](https://github.com/dikshagupta1))
 - Bump thread_local from 1.1.3 to 1.1.4 [#1744](https://github.com/habitat-sh/builder/pull/1744) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump rust to 1.62.1 [#1749](https://github.com/habitat-sh/builder/pull/1749) ([sajjaphani](https://github.com/sajjaphani))
