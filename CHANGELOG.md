@@ -1,7 +1,13 @@
 # Habitat Builder CHANGELOG
 
-<!-- latest_release unreleased -->
+<!-- latest_release 20221018 -->
+## [20221018](https://github.com/habitat-sh/builder/tree/20221018) (2022-10-18)
+
+#### Merged Pull Requests
+- prep 20221018 release [#1756](https://github.com/habitat-sh/builder/pull/1756) ([mwrock](https://github.com/mwrock))
 <!-- latest_release -->
+
+
 
 ##  (2022-10-18)
 
