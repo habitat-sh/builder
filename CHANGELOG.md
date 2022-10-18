@@ -1,7 +1,9 @@
 # Habitat Builder CHANGELOG
 
 <!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release -->
+
+##  (2022-10-18)
 
 #### Merged Pull Requests
 - Bump openssl-src from 300.0.2+3.0.0 to 300.0.9+3.0.5 [#1746](https://github.com/habitat-sh/builder/pull/1746) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -9,9 +11,6 @@
 - Dg/native bldr [#1751](https://github.com/habitat-sh/builder/pull/1751) ([dikshagupta1](https://github.com/dikshagupta1))
 - Bump thread_local from 1.1.3 to 1.1.4 [#1744](https://github.com/habitat-sh/builder/pull/1744) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump rust to 1.62.1 [#1749](https://github.com/habitat-sh/builder/pull/1749) ([sajjaphani](https://github.com/sajjaphani))
-<!-- latest_release -->
-
-
 
 ##  (2022-06-23)
 
