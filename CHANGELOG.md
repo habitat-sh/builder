@@ -1,11 +1,16 @@
 # Habitat Builder CHANGELOG
 
-<!-- latest_release 20221018 -->
+<!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- Bump openssl-src from 300.0.9+3.0.5 to 300.0.11+3.0.7 [#1757](https://github.com/habitat-sh/builder/pull/1757) ([dependabot[bot]](https://github.com/dependabot[bot]))
+<!-- latest_release -->
+
 ## [20221018](https://github.com/habitat-sh/builder/tree/20221018) (2022-10-18)
 
 #### Merged Pull Requests
 - prep 20221018 release [#1756](https://github.com/habitat-sh/builder/pull/1756) ([mwrock](https://github.com/mwrock))
-<!-- latest_release -->
 
 
 
