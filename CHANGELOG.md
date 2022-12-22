@@ -4,6 +4,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- allow an Access-Control-Allow-Origin header to be set for certain oauth providers like automate [#1763](https://github.com/habitat-sh/builder/pull/1763) ([mwrock](https://github.com/mwrock))
 - Bump openssl-src from 300.0.9+3.0.5 to 300.0.11+3.0.7 [#1757](https://github.com/habitat-sh/builder/pull/1757) ([dependabot[bot]](https://github.com/dependabot[bot]))
 <!-- latest_release -->
 
