@@ -3,12 +3,14 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- fix changelog [#1767](https://github.com/habitat-sh/builder/pull/1767) ([mwrock](https://github.com/mwrock))
 - Bump openssl-src from 300.0.9+3.0.5 to 300.0.11+3.0.7 [#1757](https://github.com/habitat-sh/builder/pull/1757) ([dependabot[bot]](https://github.com/dependabot[bot]))
 
 <!-- latest_release 20230103 -->
-## [20230103](https://github.com/habitat-sh/builder/tree/20230103) (2023-01-03)
+## Unreleased
 
 #### Merged Pull Requests
+- fix changelog [#1767](https://github.com/habitat-sh/builder/pull/1767) ([mwrock](https://github.com/mwrock))
 - bump version [#1766](https://github.com/habitat-sh/builder/pull/1766) ([mwrock](https://github.com/mwrock))
 - allow an Access-Control-Allow-Origin header to be set for certain oauth providers like automate [#1763](https://github.com/habitat-sh/builder/pull/1763) ([mwrock](https://github.com/mwrock))
 <!-- latest_release -->
