@@ -156,7 +156,6 @@ impl PackageGraphForTarget {
                                                                          &plan_deps,
                                                                          EdgeType::RuntimeDep);
 
-            // 
             // * The graph invariant is that it is cycle free, so if we aren't adding any new edges,
             //   we can't add a cycle
             // * If this node doesn't have anyone depending on it, it can't be part of a cycle
@@ -241,7 +240,6 @@ impl PackageGraphForTarget {
                                                                           &plan_deps,
                                                                           EdgeType::RuntimeDep);
 
-            // 
             // * The graph invariant is that it is cycle free, so if we aren't adding any new edges,
             //   we can't add a cycle
             // * If this node doesn't have anyone depending on it, it can't be part of a cycle

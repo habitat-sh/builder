@@ -524,10 +524,7 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
 
         // We would like to have dbg!(&manifest) here but it is very verbose for normal operation.
         // Perhaps we should make a separate API/path to allow this to be discovered
-        insert_job_graph_entries(&manifest,
-                                 group.id,
-                                 BuilderPackageTarget(target),
-                                 &conn)?;
+        insert_job_graph_entries(&manifest, group.id, BuilderPackageTarget(target), &conn)?;
 
         // Notify the scheduler of new work available
         let mut scheduler = state.scheduler

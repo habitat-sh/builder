@@ -955,8 +955,7 @@ pub fn postprocess_package_list<T: Serialize>(_req: &HttpRequest,
     debug!("postprocessing package list, start: {}, stop: {}, total_count: {}",
            start, stop, count);
 
-    let body =
-        helpers::package_results_json(packages, count as isize, start, stop as isize);
+    let body = helpers::package_results_json(packages, count as isize, start, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
@@ -989,8 +988,7 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
     debug!("postprocessing extended package list, start: {}, stop: {}, total_count: {}",
            start, stop, count);
 
-    let body =
-        helpers::package_results_json(packages, count as isize, start, stop as isize);
+    let body = helpers::package_results_json(packages, count as isize, start, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()

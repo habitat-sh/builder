@@ -556,10 +556,7 @@ async fn get_jobs(req: HttpRequest,
                                                    })
                                                    .collect();
 
-            let body = helpers::package_results_json(&list,
-                                                     total_count as isize,
-                                                     start,
-                                                     stop);
+            let body = helpers::package_results_json(&list, total_count as isize, start, stop);
 
             let mut response = if total_count as isize > (stop + 1) {
                 HttpResponse::PartialContent()
@@ -664,8 +661,7 @@ async fn get_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match ProjectIntegration::get(&origin, &name, &integration, &conn).map_err(Error::DieselError)
-    {
+    match ProjectIntegration::get(&origin, &name, &integration, &conn).map_err(Error::DieselError) {
         Ok(integration) => {
             match serde_json::from_str(&integration.body) {
                 Ok(v) => {

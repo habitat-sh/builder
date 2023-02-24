@@ -112,7 +112,8 @@ pub fn check_origin_member(req: &HttpRequest, origin: &str, account_id: u64) -> 
             None => debug!("Origin membership {} {} Cache Miss!", origin, account_id),
         }
         let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-        match Origin::check_membership(origin, account_id as i64, &conn).map_err(Error::DieselError) {
+        match Origin::check_membership(origin, account_id as i64, &conn).map_err(Error::DieselError)
+        {
             Ok(is_member) => {
                 memcache.set_origin_member(origin, account_id, is_member);
                 debug!("Found member {} in origin {}", account_id, origin);

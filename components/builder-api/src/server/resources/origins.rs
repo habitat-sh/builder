@@ -758,11 +758,8 @@ async fn upload_origin_secret_key(req: HttpRequest,
         }
     };
 
-    if let Err(e) = save_secret_origin_signing_key(account_id,
-                                                   &origin,
-                                                   &state.config.api.key_path,
-                                                   &key,
-                                                   &conn)
+    if let Err(e) =
+        save_secret_origin_signing_key(account_id, &origin, &state.config.api.key_path, &key, &conn)
     {
         error!("Failed to save uploaded secret signing key for origin '{}', err={}",
                origin, e);
@@ -788,14 +785,14 @@ async fn download_latest_origin_secret_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let key =
-        match get_latest_secret_origin_signing_key(&origin, &state.config.api.key_path, &conn) {
-            Ok(key) => key,
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        };
+    let key = match get_latest_secret_origin_signing_key(&origin, &state.config.api.key_path, &conn)
+    {
+        Ok(key) => key,
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
+    };
 
     key_as_http_response(&key)
 }
@@ -1501,8 +1498,7 @@ async fn delete_origin_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::delete(&origin, &integration, &name, &conn)
-        .map_err(Error::DieselError)
+    match OriginIntegration::delete(&origin, &integration, &name, &conn).map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {

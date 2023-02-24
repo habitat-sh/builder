@@ -142,9 +142,9 @@ pub fn make_temp_ident(ident: &PackageIdent) -> PackageIdent {
 
 pub fn file_into_idents(path: &str) -> Result<Vec<PackageIdent>, error::Error> {
     let s = std::fs::read_to_string(path).map_err(|_| {
-                                              error::Error::Misc(format!("Could not open file {}",
-                                                                         path))
-                                          })?;
+                                             error::Error::Misc(format!("Could not open file {}",
+                                                                        path))
+                                         })?;
 
     s.lines().filter_map(line_to_ident).collect()
 }
