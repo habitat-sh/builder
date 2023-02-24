@@ -391,7 +391,7 @@ impl Runner {
                                   RETRIES);
                 debug!("{}", msg);
                 self.logger.log(&msg);
-                Err(Error::Retry(err))
+                Err(Error::BuilderCore(err.error))
             }
         }
     }
@@ -605,7 +605,7 @@ impl Runner {
 }
 
 fn clean_container() {
-    let mut cmd = Command::new(&"docker");
+    let mut cmd = Command::new("docker");
     cmd.arg("rm");
     cmd.arg("builder");
     cmd.arg("--force");
@@ -796,14 +796,14 @@ impl RunnerMgr {
     fn send_ack(&mut self, job: &Job) -> Result<()> {
         debug!("Received work, job={:?}", job);
         self.sock.send(WORK_ACK, zmq::SNDMORE)?;
-        self.sock.send(&message::encode(&**job)?, 0)?;
+        self.sock.send(message::encode(&**job)?, 0)?;
         Ok(())
     }
 
     fn send_complete(&mut self, job: &Job) -> Result<()> {
         debug!("Completed work, job={:?}", job);
         self.sock.send(WORK_COMPLETE, zmq::SNDMORE)?;
-        self.sock.send(&message::encode(&**job)?, 0)?;
+        self.sock.send(message::encode(&**job)?, 0)?;
         Ok(())
     }
 }

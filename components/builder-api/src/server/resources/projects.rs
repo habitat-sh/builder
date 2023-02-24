@@ -546,7 +546,7 @@ async fn get_jobs(req: HttpRequest,
             let start = (page - 1) * per_page;
             let stop = match jobs.len() {
                 0 => per_page - 1,
-                len => (start + (len as isize) - 1),
+                len => start + (len as isize) - 1,
             };
 
             let list: Vec<serde_json::Value> = jobs.into_iter()

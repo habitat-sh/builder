@@ -169,7 +169,7 @@ impl ApiClient {
             return Err(err_from_response(resp).await);
         }
 
-        fs::create_dir_all(&dst_path).map_err(Error::IO)?;
+        fs::create_dir_all(dst_path).map_err(Error::IO)?;
 
         let file_name = match resp.headers().get(XFILENAME.clone()) {
             Some(f) => f.to_str().expect("X-Filename header exists"),

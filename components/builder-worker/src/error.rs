@@ -16,8 +16,7 @@ use std::{error,
           fmt,
           io,
           path::PathBuf,
-          result,
-          sync::mpsc};
+          result};
 
 use crate::{bldr_core,
             hab_core,
@@ -44,7 +43,6 @@ pub enum Error {
     NotHTTPSCloneUrl(url::Url),
     Protobuf(protobuf::ProtobufError),
     Protocol(protocol::ProtocolError),
-    Retry(retry::Error<builder_core::error::Error>),
     StreamLine(io::Error),
     StreamTargetSend(zmq::Error),
     StudioBuild(PathBuf, io::Error),
@@ -53,7 +51,6 @@ pub enum Error {
     WorkspaceSetup(String, io::Error),
     WorkspaceTeardown(String, io::Error),
     Zmq(zmq::Error),
-    Mpsc(mpsc::SendError<bldr_core::job::Job>),
     MpscAsync(futures_channel::mpsc::SendError),
     JobCanceled,
 }
@@ -99,7 +96,6 @@ impl fmt::Display for Error {
             }
             Error::Protobuf(ref e) => format!("{}", e),
             Error::Protocol(ref e) => format!("{}", e),
-            Error::Retry(ref e) => format!("{}", e),
             Error::StreamLine(ref e) => {
                 format!("Error while reading a line while consuming an output stream, err={}",
                         e)
@@ -125,7 +121,6 @@ impl fmt::Display for Error {
                 format!("Error while tearing down workspace at {}, err={}", p, e)
             }
             Error::Zmq(ref e) => format!("{}", e),
-            Error::Mpsc(ref e) => format!("{}", e),
             Error::MpscAsync(ref e) => format!("{}", e),
             Error::JobCanceled => "Job was canceled".to_string(),
         };

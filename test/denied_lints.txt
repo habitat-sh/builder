@@ -1,5 +1,5 @@
 clippy::assign_op_pattern
-clippy::blacklisted_name
+clippy::disallowed_names
 clippy::blocks_in_if_conditions
 clippy::bool_comparison
 clippy::cast_lossless

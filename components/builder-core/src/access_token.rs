@@ -427,7 +427,7 @@ mod tests {
             //
             // This is the best we can do with `std::str::FromStr`, though.
             let encrypted: SignedBox = key.encrypt("supersecretstuff");
-            let b64 = base64::encode(&encrypted.to_string());
+            let b64 = base64::encode(encrypted.to_string());
             let token = format!("_{}", b64);
             let parsed = token.parse::<AccessToken>();
             assert!(parsed.is_ok(), "It should parse because it's encrypted");
