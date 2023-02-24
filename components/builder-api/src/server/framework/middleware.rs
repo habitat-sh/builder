@@ -243,5 +243,5 @@ pub fn session_create_short_circuit(token: &str,
 
 fn encode_token(token: &originsrv::SessionToken) -> String {
     let bytes = protocol::message::encode(token).unwrap(); // Unwrap is safe
-    base64::encode(bytes)
+    habitat_core::base64::encode(bytes)
 }

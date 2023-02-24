@@ -20,6 +20,9 @@ url = "*"
 [dependencies.builder_core]
 path = "../builder-core"
 
+[dependencies.habitat_core]
+git = "https://github.com/habitat-sh/habitat.git"
+
 [dependencies.tokio]
 version = "*"
 features = ["macros","rt-multi-thread"]
