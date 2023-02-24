@@ -161,7 +161,7 @@ fn filtered_rdeps(req: &HttpRequest,
         let origin_name = ident.get_origin();
         let pv = if !origin_map.contains_key(origin_name) {
             let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-            let origin = Origin::get(origin_name, &*conn)?;
+            let origin = Origin::get(origin_name, &conn)?;
             origin_map.insert(origin_name.to_owned(),
                               origin.default_package_visibility.clone());
             origin.default_package_visibility
@@ -240,7 +240,7 @@ fn filtered_group_rdeps(req: &HttpRequest,
             let origin_name = ident.get_origin();
             let pv = if !origin_map.contains_key(origin_name) {
                 let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-                let origin = Origin::get(origin_name, &*conn)?;
+                let origin = Origin::get(origin_name, &conn)?;
                 origin_map.insert(origin_name.to_owned(),
                                   origin.default_package_visibility.clone());
                 origin.default_package_visibility
@@ -413,14 +413,14 @@ fn do_group_promotion_or_demotion(req: &HttpRequest,
 
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
-    let channel = match Channel::get(origin, channel, &*conn) {
+    let channel = match Channel::get(origin, channel, &conn) {
         Ok(channel) => channel,
         Err(NotFound) => {
             if (channel != &ChannelIdent::stable()) && (channel != &ChannelIdent::unstable()) {
                 Channel::create(&CreateChannel { name: channel.as_str(),
                                                  origin,
                                                  owner_id: session.get_id() as i64 },
-                                &*conn)?
+                                &conn)?
             } else {
                 warn!("Unable to retrieve default channel: {}", channel);
                 return Err(Error::DieselError(NotFound));
@@ -450,16 +450,16 @@ fn do_group_promotion_or_demotion(req: &HttpRequest,
                 visibility: PackageVisibility::all() ,
                 target: BuilderPackageTarget(target),
             },
-            &*conn,
+            &conn,
         )?;
 
         package_ids.push(op.id);
     }
 
     if promote {
-        Channel::promote_packages(channel.id, &package_ids, &*conn)?;
+        Channel::promote_packages(channel.id, &package_ids, &conn)?;
     } else {
-        Channel::demote_packages(channel.id, &package_ids, &*conn)?;
+        Channel::demote_packages(channel.id, &package_ids, &conn)?;
     }
 
     Ok(package_ids)
@@ -560,7 +560,7 @@ async fn promote_or_demote_job_group(req: &HttpRequest,
                                                                                session.get_name(),
                                                                            group_id: group_id
                                                                                      as i64 },
-                                                &*conn)?;
+                                                &conn)?;
             }
             Err(e) => {
                 debug!("Failed to promote or demote group, err: {:?}", e);
@@ -577,7 +577,7 @@ async fn promote_or_demote_job_group(req: &HttpRequest,
 fn do_get_job(req: &HttpRequest, job_id: u64) -> Result<String> {
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
-    match Job::get(job_id as i64, &*conn) {
+    match Job::get(job_id as i64, &conn) {
         Ok(job) => {
             let job: jobsrv::Job = job.into();
             authorize_session(req,
@@ -591,7 +591,7 @@ fn do_get_job(req: &HttpRequest, job_id: u64) -> Result<String> {
                     channels_for_package_ident(req,
                                                &builder_package_ident,
                                                PackageTarget::from_str(job.get_target()).unwrap(),
-                                               &*conn)?;
+                                               &conn)?;
                 let platforms = platforms_for_package_ident(req, &builder_package_ident)?;
                 let mut job_json = serde_json::to_value(job).unwrap();
 
@@ -635,7 +635,7 @@ async fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jo
             } else {
                 job.get_target()
             };
-            let project = Project::get(job.get_project().get_name(), target, &*conn)?;
+            let project = Project::get(job.get_project().get_name(), target, &conn)?;
             let settings =
                 OriginPackageSettings::get(&GetOriginPackageSettings { origin:
                                                                            job.get_project()
@@ -643,7 +643,7 @@ async fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jo
                                                                        name:
                                                                            job.get_project()
                                                                               .get_package_name(), },
-                                           &*conn)?;
+                                           &conn)?;
 
             if vec![PackageVisibility::Private, PackageVisibility::Hidden]
                 .contains(&settings.visibility)

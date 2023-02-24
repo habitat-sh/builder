@@ -310,7 +310,7 @@ impl WorkerMgr {
 
     fn load_workers(&mut self) -> Result<()> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
-        let workers = BusyWorker::list(&*conn).map_err(Error::DieselError)?;
+        let workers = BusyWorker::list(&conn).map_err(Error::DieselError)?;
 
         for worker in workers {
             debug!("Loading busy worker: {}", worker.ident);
@@ -331,7 +331,7 @@ impl WorkerMgr {
                                             ident:       &worker.ident,
                                             job_id:      worker.job_id.unwrap() as i64,
                                             quarantined: false, },
-                           &*conn).map_err(Error::DieselError)?;
+                           &conn).map_err(Error::DieselError)?;
 
         Ok(())
     }
@@ -340,7 +340,7 @@ impl WorkerMgr {
         debug!("Deleting busy worker: {}", worker.ident);
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        BusyWorker::delete(&worker.ident, worker.job_id.unwrap() as i64, &*conn)
+        BusyWorker::delete(&worker.ident, worker.job_id.unwrap() as i64, &conn)
             .map_err(Error::DieselError)?;
 
         Ok(())
@@ -440,8 +440,8 @@ impl WorkerMgr {
         self.rq_sock.send(worker_ident, zmq::SNDMORE)?;
         self.rq_sock.send("", zmq::SNDMORE)?;
         self.rq_sock
-            .send(&wc.write_to_bytes().unwrap(), zmq::SNDMORE)?;
-        self.rq_sock.send(&job.write_to_bytes().unwrap(), 0)?;
+            .send(wc.write_to_bytes().unwrap(), zmq::SNDMORE)?;
+        self.rq_sock.send(job.write_to_bytes().unwrap(), 0)?;
 
         Ok(())
     }
@@ -525,8 +525,8 @@ impl WorkerMgr {
         self.rq_sock.send(worker_ident, zmq::SNDMORE)?;
         self.rq_sock.send("", zmq::SNDMORE)?;
         self.rq_sock
-            .send(&wc.write_to_bytes().unwrap(), zmq::SNDMORE)?;
-        self.rq_sock.send(&job.write_to_bytes().unwrap(), 0)?;
+            .send(wc.write_to_bytes().unwrap(), zmq::SNDMORE)?;
+        self.rq_sock.send(job.write_to_bytes().unwrap(), 0)?;
 
         Ok(())
     }
@@ -540,7 +540,7 @@ impl WorkerMgr {
             Err(_) => return,
         };
 
-        match OriginIntegration::list_for_origin(&origin, &*conn).map_err(Error::DieselError) {
+        match OriginIntegration::list_for_origin(&origin, &conn).map_err(Error::DieselError) {
             Ok(oir) => {
                 for i in oir {
                     let mut oi = originsrv::OriginIntegration::new();
@@ -584,7 +584,7 @@ impl WorkerMgr {
             Err(_) => return,
         };
 
-        match ProjectIntegration::list(&origin, &name, &*conn).map_err(Error::DieselError) {
+        match ProjectIntegration::list(&origin, &name, &conn).map_err(Error::DieselError) {
             Ok(opir) => {
                 for opi in opir {
                     integrations.push(opi.into());
@@ -620,7 +620,7 @@ impl WorkerMgr {
 
         let mut secrets = RepeatedField::new();
 
-        match OriginSecret::list(&origin, &*conn).map_err(Error::DieselError) {
+        match OriginSecret::list(&origin, &conn).map_err(Error::DieselError) {
             Ok(secrets_list) => {
                 if !secrets_list.is_empty() {
                     // fetch the private origin encryption key from
@@ -686,15 +686,10 @@ impl WorkerMgr {
     }
 
     fn expire_workers(&mut self) -> Result<()> {
-        loop {
-            if let Some(worker) = self.workers.front() {
-                if !worker.1.is_expired() {
-                    break;
-                }
-            } else {
+        while let Some(worker) = self.workers.front() {
+            if !worker.1.is_expired() {
                 break;
             }
-
             let worker = self.workers.pop_front().unwrap().1;
             warn!("Expiring worker due to missed heartbeat: {:?}", worker);
 

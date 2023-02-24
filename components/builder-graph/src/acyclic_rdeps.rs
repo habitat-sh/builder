@@ -29,7 +29,7 @@ pub enum GraphErr {
 pub type GType = usize;
 
 pub fn rdeps(g: &Graph<GType, GType>, n: NodeIndex) -> Result<Vec<GType>, GraphErr> {
-    if is_cyclic_directed(&g) {
+    if is_cyclic_directed(g) {
         error!("Input graph should not be cyclic!");
         return Err(GraphErr::GraphCyclic);
     }

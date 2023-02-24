@@ -109,7 +109,7 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
             // db to see if we have a valid session token.
             let conn = state.db.get_conn().map_err(error::Error::DbError)?;
 
-            match AccountToken::list(session.get_id(), &*conn).map_err(error::Error::DieselError) {
+            match AccountToken::list(session.get_id(), &conn).map_err(error::Error::DieselError) {
                 Ok(access_tokens) => {
                     assert!(access_tokens.len() <= 1); // Can only have max of 1 for now
                     match access_tokens.first() {
@@ -120,7 +120,7 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
                                 return Err(error::Error::Authorization);
                             }
 
-                            let account = Account::get_by_id(session.get_id() as i64, &*conn)
+                            let account = Account::get_by_id(session.get_id() as i64, &conn)
                                 .map_err(error::Error::DieselError)?;
                             session.set_name(account.name);
                             session.set_email(account.email);
@@ -162,7 +162,7 @@ pub fn session_create_oauth(oauth_token: &str,
 
     match Account::find_or_create(&NewAccount { name: &user.username,
                                                 email },
-                                  &*conn)
+                                  &conn)
     {
         Ok(account) => {
             session_token.set_account_id(account.id as u64);
@@ -243,5 +243,5 @@ pub fn session_create_short_circuit(token: &str,
 
 fn encode_token(token: &originsrv::SessionToken) -> String {
     let bytes = protocol::message::encode(token).unwrap(); // Unwrap is safe
-    base64::encode(&bytes)
+    base64::encode(bytes)
 }

@@ -103,7 +103,7 @@ pub struct SerializedDatabase {
 impl SerializedDatabase {
     pub fn write_to_file(&self, filename: &str) -> Result<()> {
         let path = Path::new(filename);
-        let mut file = File::create(&path).unwrap();
+        let mut file = File::create(path).unwrap();
 
         let serialized = serde_json::to_string(&self).unwrap();
         file.write_all(serialized.as_bytes()).unwrap();
@@ -112,7 +112,7 @@ impl SerializedDatabase {
 
     pub fn read_from_file(filename: &str) -> Result<SerializedDatabase> {
         let path = Path::new(filename);
-        let file = File::open(&path)?;
+        let file = File::open(path)?;
         let reader = BufReader::new(file);
         let u: SerializedDatabase = serde_json::from_reader(reader)?;
         Ok(u)

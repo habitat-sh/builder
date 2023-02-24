@@ -130,7 +130,7 @@ async fn create_project(req: HttpRequest,
     };
 
     // Do we really need this? Maybe to validate the origin exists?
-    let origin = match Origin::get(&body.origin, &*conn).map_err(Error::DieselError) {
+    let origin = match Origin::get(&body.origin, &conn).map_err(Error::DieselError) {
         Ok(origin) => origin,
         Err(err) => {
             debug!("{}", err);
@@ -174,7 +174,7 @@ async fn create_project(req: HttpRequest,
                                            Some(i64::from(body.installation_id)),
                                        auto_build: body.auto_build };
 
-        match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
+        match Project::create(&new_project, &conn).map_err(Error::DieselError) {
             Ok(project) => return HttpResponse::Created().json(project),
             Err(err) => {
                 debug!("{}", err);
@@ -263,7 +263,7 @@ async fn create_project(req: HttpRequest,
                                    vcs_installation_id: Some(i64::from(body.installation_id)),
                                    auto_build: body.auto_build };
 
-    match Project::create(&new_project, &*conn).map_err(Error::DieselError) {
+    match Project::create(&new_project, &conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Created().json(project),
         Err(err) => {
             debug!("{}", err);
@@ -292,7 +292,7 @@ async fn get_project(req: HttpRequest,
     let target = helpers::extract_target(&qtarget);
     let project = format!("{}/{}", &origin, &name);
 
-    match Project::get(&project, &target, &*conn).map_err(Error::DieselError) {
+    match Project::get(&project, &target, &conn).map_err(Error::DieselError) {
         Ok(project) => HttpResponse::Ok().json(project),
         Err(err) => {
             debug!("{}", err);
@@ -321,7 +321,7 @@ async fn delete_project(req: HttpRequest,
     let target = helpers::extract_target(&qtarget);
     let project_delete = format!("{}/{}", &origin, &name);
 
-    match Project::delete(&project_delete, &target, &*conn).map_err(Error::DieselError) {
+    match Project::delete(&project_delete, &target, &conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -369,7 +369,7 @@ async fn update_project(req: HttpRequest,
     // and to not need to pass in the origin id again
     let project_get = format!("{}/{}", &origin, &name);
 
-    let project = match Project::get(&project_get, &target, &*conn).map_err(Error::DieselError) {
+    let project = match Project::get(&project_get, &target, &conn).map_err(Error::DieselError) {
         Ok(project) => project,
         Err(err) => {
             debug!("{}", err);
@@ -391,7 +391,7 @@ async fn update_project(req: HttpRequest,
                             vcs_installation_id: Some(i64::from(body.installation_id)),
                             auto_build:          body.auto_build, };
 
-        match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
+        match Project::update(&update_project, &conn).map_err(Error::DieselError) {
             Ok(_) => return HttpResponse::NoContent().finish(),
             Err(err) => {
                 debug!("{}", err);
@@ -483,7 +483,7 @@ async fn update_project(req: HttpRequest,
                                          vcs_installation_id: Some(i64::from(body.installation_id)),
                                          auto_build:          body.auto_build, };
 
-    match Project::update(&update_project, &*conn).map_err(Error::DieselError) {
+    match Project::update(&update_project, &conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -505,7 +505,7 @@ async fn get_projects(req: HttpRequest, path: Path<String>, state: Data<AppState
         Err(err) => return err.into(),
     };
 
-    match Project::list(&origin, &*conn) {
+    match Project::list(&origin, &conn) {
         Ok(projects) => {
             let names: Vec<String> = projects.iter().map(|p| p.package_name.clone()).collect();
             HttpResponse::Ok().json(names)
@@ -541,7 +541,7 @@ async fn get_jobs(req: HttpRequest,
                                 page:  page as i64,
                                 limit: per_page as i64, };
 
-    match Job::list(lpr, &*conn).map_err(Error::DieselError) {
+    match Job::list(lpr, &conn).map_err(Error::DieselError) {
         Ok((jobs, total_count)) => {
             let start = (page - 1) * per_page;
             let stop = match jobs.len() {
@@ -558,8 +558,8 @@ async fn get_jobs(req: HttpRequest,
 
             let body = helpers::package_results_json(&list,
                                                      total_count as isize,
-                                                     start as isize,
-                                                     stop as isize);
+                                                     start,
+                                                     stop);
 
             let mut response = if total_count as isize > (stop + 1) {
                 HttpResponse::PartialContent()
@@ -612,7 +612,7 @@ async fn create_integration(req: HttpRequest,
                                       integration: &integration,
                                       body:        &body, };
 
-    match ProjectIntegration::create(&npi, &*conn).map_err(Error::DieselError) {
+    match ProjectIntegration::create(&npi, &conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -637,7 +637,7 @@ async fn delete_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match ProjectIntegration::delete(&origin, &name, &integration, &*conn)
+    match ProjectIntegration::delete(&origin, &name, &integration, &conn)
         .map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -664,7 +664,7 @@ async fn get_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match ProjectIntegration::get(&origin, &name, &integration, &*conn).map_err(Error::DieselError)
+    match ProjectIntegration::get(&origin, &name, &integration, &conn).map_err(Error::DieselError)
     {
         Ok(integration) => {
             match serde_json::from_str(&integration.body) {

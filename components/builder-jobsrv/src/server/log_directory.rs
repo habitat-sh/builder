@@ -41,10 +41,10 @@ impl LogDirectory {
     /// * Path is not a directory
     /// * Path is not writable
     pub fn validate<T>(path: T) -> Result<()>
-        where T: AsRef<Path>
+        where T: AsRef<Path> + std::marker::Copy
     {
         let meta =
-            fs::metadata(&path).map_err(|e| Error::LogDirDoesNotExist(path.as_ref().into(), e))?;
+            fs::metadata(path).map_err(|e| Error::LogDirDoesNotExist(path.as_ref().into(), e))?;
         if !meta.is_dir() {
             return Err(Error::LogDirIsNotDir(path.as_ref().into()));
         }

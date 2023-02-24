@@ -62,7 +62,7 @@ pub fn dump_scc(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                 filename: &str,
                 _origin_filter: Option<&str>) {
     let path = Path::new(filename);
-    let mut file = File::create(&path).unwrap();
+    let mut file = File::create(path).unwrap();
 
     let scc = tarjan_scc(graph);
 
@@ -204,7 +204,7 @@ pub fn dump_graph_raw(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                       filename: &str,
                       origin_filter: Option<&str>) {
     let path = Path::new(filename);
-    let mut file = File::create(&path).unwrap();
+    let mut file = File::create(path).unwrap();
 
     // iterate through nodes
     for node in graph.nodes().sorted() {
@@ -298,7 +298,7 @@ pub fn emit_graph_as_dot(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
                          filename: &str,
                          origin_filter: Option<&str>) {
     let path = Path::new(filename);
-    let mut file = File::create(&path).unwrap();
+    let mut file = File::create(path).unwrap();
     // This might be simpler to implement by creating a filtered graph, and then emiting it.
 
     writeln!(&mut file, "// Filtered by {:?}", origin_filter).unwrap();

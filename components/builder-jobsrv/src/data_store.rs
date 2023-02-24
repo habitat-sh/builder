@@ -74,8 +74,8 @@ impl DataStore {
     pub fn setup(&self) -> Result<()> {
         let conn = self.diesel_pool.get_conn()?;
         let _ = conn.transaction::<_, Dre, _>(|| {
-                        setup_ids(&*conn).unwrap();
-                        embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
+                        setup_ids(&conn).unwrap();
+                        embedded_migrations::run_with_output(&conn, &mut io::stdout()).unwrap();
                         Ok(())
                     });
         Ok(())
