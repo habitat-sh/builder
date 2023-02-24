@@ -40,7 +40,7 @@ lazy_static = "*"
 log = "*"
 num_cpus = "*"
 protobuf = "*"
-postgres = { version = "*", features = ["with-chrono"] }
+postgres = "*"
 postgres-types = { version = "*", features = ["derive"] }
 rand = "*"
 r2d2 = "*"

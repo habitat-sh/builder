@@ -12,7 +12,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
- "log 0.4.17",
+ "log",
  "memchr 2.4.1",
  "pin-project-lite",
  "tokio",
@@ -45,7 +45,7 @@ dependencies = [
  "itoa 1.0.1",
  "language-tags",
  "local-channel",
- "log 0.4.17",
+ "log",
  "mime",
  "percent-encoding",
  "pin-project-lite",
@@ -73,7 +73,7 @@ dependencies = [
  "bytestring",
  "firestorm",
  "http",
- "log 0.4.17",
+ "log",
  "regex",
  "serde",
 ]
@@ -129,7 +129,7 @@ dependencies = [
  "actix-service",
  "actix-utils",
  "futures-core",
- "log 0.4.17",
+ "log",
  "openssl",
  "pin-project-lite",
  "tokio-openssl",
@@ -170,7 +170,7 @@ dependencies = [
  "futures-util",
  "itoa 1.0.1",
  "language-tags",
- "log 0.4.17",
+ "log",
  "mime",
  "once_cell",
  "pin-project-lite",
@@ -262,7 +262,7 @@ dependencies = [
  "builder_core",
  "futures",
  "habitat_core",
- "log 0.4.17",
+ "log",
  "reqwest",
  "serde",
  "serde_derive",
@@ -375,18 +375,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "bufstream"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40e38929add23cdf8a366df9b0e088953150724bcbe5fc330b0d8eb3b328eec8"
-
-[[package]]
 name = "builder_core"
 version = "0.0.0"
 dependencies = [
  "base64 0.13.1",
  "bitflags 1.3.2",
- "chrono 0.4.19",
+ "chrono",
  "dogstatsd",
  "env_proxy",
  "futures",
@@ -396,7 +390,7 @@ dependencies = [
  "habitat_core",
  "lazy_static",
  "libarchive",
- "log 0.4.17",
+ "log",
  "petgraph",
  "protobuf",
  "rand",
@@ -473,16 +467,6 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
-
-[[package]]
-name = "chrono"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "158b0bd7d75cbb6bf9c25967a48a2e9f77da95876b858eadfabaa99cd069de6e"
-dependencies = [
- "num",
- "time 0.1.43",
-]
 
 [[package]]
 name = "chrono"
@@ -691,7 +675,7 @@ checksum = "b28135ecf6b7d446b43e27e225622a038cc4e2930a1022f51cdb97ada19b8e4d"
 dependencies = [
  "bitflags 1.3.2",
  "byteorder",
- "chrono 0.4.19",
+ "chrono",
  "diesel_derives",
  "pq-sys",
  "r2d2",
@@ -766,7 +750,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10b6622b9d0dc20c70e74ff24c56493278d7d9299ac8729deb923703616e5a7e"
 dependencies = [
  "jwalk",
- "log 0.4.17",
+ "log",
  "walkdir",
 ]
 
@@ -829,7 +813,7 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3092ac5a2890a957ce721898ac43515817ffc69070f548b3141cc5ba346c08d3"
 dependencies = [
- "chrono 0.4.19",
+ "chrono",
 ]
 
 [[package]]
@@ -940,7 +924,7 @@ checksum = "0b2cf0344971ee6c64c31be0d530793fba457d322dfec2810c453d0ef228f9c3"
 dependencies = [
  "atty",
  "humantime",
- "log 0.4.17",
+ "log",
  "regex",
  "termcolor",
 ]
@@ -951,7 +935,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a5019be18538406a43b5419a5501461f0c8b49ea7dfda0cfc32f4e51fc44be1"
 dependencies = [
- "log 0.4.17",
+ "log",
  "url",
 ]
 
@@ -1204,7 +1188,7 @@ dependencies = [
  "bitflags 1.3.2",
  "libc 0.2.139",
  "libgit2-sys",
- "log 0.4.17",
+ "log",
  "openssl-probe",
  "openssl-sys",
  "url",
@@ -1218,7 +1202,7 @@ dependencies = [
  "builder_core",
  "env_proxy",
  "frank_jwt",
- "log 0.4.17",
+ "log",
  "regex",
  "reqwest",
  "serde",
@@ -1281,7 +1265,7 @@ dependencies = [
  "bitflags 1.3.2",
  "builder_core",
  "bytes",
- "chrono 0.4.19",
+ "chrono",
  "clap",
  "diesel",
  "diesel-derive-enum",
@@ -1295,7 +1279,7 @@ dependencies = [
  "habitat_core",
  "hex 0.4.3",
  "lazy_static",
- "log 0.4.17",
+ "log",
  "memcache",
  "num_cpus",
  "oauth-client",
@@ -1324,7 +1308,7 @@ name = "habitat_builder_db"
 version = "0.0.0"
 dependencies = [
  "builder_core",
- "chrono 0.4.19",
+ "chrono",
  "diesel",
  "diesel-derive-enum",
  "diesel_full_text_search",
@@ -1334,11 +1318,11 @@ dependencies = [
  "habitat-builder-protocol",
  "habitat_core",
  "itertools",
- "log 0.4.17",
+ "log",
  "num_cpus",
  "paste",
  "percent-encoding",
- "postgres 0.19.2",
+ "postgres",
  "postgres-shared",
  "postgres-types",
  "protobuf",
@@ -1369,10 +1353,10 @@ dependencies = [
  "itertools",
  "lazy_static",
  "libarchive",
- "log 0.4.17",
+ "log",
  "petgraph",
  "pkg-config",
- "postgres 0.19.2",
+ "postgres",
  "protobuf",
  "r2d2",
  "regex",
@@ -1397,7 +1381,7 @@ dependencies = [
  "bitflags 1.3.2",
  "builder_core",
  "bytes",
- "chrono 0.4.19",
+ "chrono",
  "clap",
  "diesel",
  "diesel-derive-enum",
@@ -1411,9 +1395,9 @@ dependencies = [
  "habitat_core",
  "lazy_static",
  "linked-hash-map",
- "log 0.4.17",
+ "log",
  "num_cpus",
- "postgres 0.14.1",
+ "postgres",
  "postgres-types",
  "protobuf",
  "r2d2",
@@ -1438,7 +1422,7 @@ dependencies = [
  "backtrace",
  "bitflags 1.3.2",
  "builder_core",
- "chrono 0.4.19",
+ "chrono",
  "clap",
  "env_logger",
  "features",
@@ -1449,7 +1433,7 @@ dependencies = [
  "habitat-builder-protocol",
  "habitat_core",
  "lazy_static",
- "log 0.4.17",
+ "log",
  "protobuf",
  "remove_dir_all 0.7.0",
  "retry",
@@ -1471,7 +1455,7 @@ dependencies = [
  "blake2b_simd",
  "caps",
  "cc",
- "chrono 0.4.19",
+ "chrono",
  "ctrlc",
  "dirs",
  "dns-lookup",
@@ -1481,7 +1465,7 @@ dependencies = [
  "hex 0.4.3",
  "lazy_static",
  "libc 0.2.139",
- "log 0.4.17",
+ "log",
  "native-tls",
  "nix 0.23.2",
  "os_info",
@@ -1517,7 +1501,7 @@ version = "0.0.0"
 source = "git+https://github.com/habitat-sh/habitat.git#5d3840df8e1f7c018c3bf6aecc0c81f03be1c597"
 dependencies = [
  "cc",
- "log 0.4.17",
+ "log",
  "widestring 0.5.1",
  "winapi",
 ]
@@ -1886,15 +1870,6 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e19e8d5c34a3e0e2223db8e060f9e8264aeeb5c5fc64a4ee9965c062211c024b"
-dependencies = [
- "log 0.4.17",
-]
-
-[[package]]
-name = "log"
 version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
@@ -2018,7 +1993,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8067b404fe97c70829f082dec8bcf4f71225d7eaea1d8645349cb76fa06205cc"
 dependencies = [
  "libc 0.2.139",
- "log 0.4.17",
+ "log",
  "miow",
  "ntapi",
  "winapi",
@@ -2031,7 +2006,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "713d550d9b44d89174e066b7a6217ae06234c10cb47819a88290d2b353c31799"
 dependencies = [
  "libc 0.2.139",
- "log 0.4.17",
+ "log",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys",
 ]
@@ -2053,7 +2028,7 @@ checksum = "48ba9f7719b5a0f42f338907614285fb5fd70e53858141f69898a1fb7203b24d"
 dependencies = [
  "lazy_static",
  "libc 0.2.139",
- "log 0.4.17",
+ "log",
  "openssl",
  "openssl-probe",
  "openssl-sys",
@@ -2096,34 +2071,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "num"
-version = "0.1.42"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4703ad64153382334aa8db57c637364c322d3372e097840c72000dabdcf6156e"
-dependencies = [
- "num-integer",
- "num-iter",
- "num-traits",
-]
-
-[[package]]
 name = "num-integer"
 version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2cc698a63b549a70bc047073d2949cce27cd1c7b0a4a862d08a8031bc2801db"
 dependencies = [
  "autocfg",
- "num-traits",
-]
-
-[[package]]
-name = "num-iter"
-version = "0.1.42"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2021c8337a54d21aca0d59a92577a029af9431cb59b909b03252b9c164fad59"
-dependencies = [
- "autocfg",
- "num-integer",
  "num-traits",
 ]
 
@@ -2152,7 +2105,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "builder_core",
- "log 0.4.17",
+ "log",
  "reqwest",
  "serde",
  "serde_derive",
@@ -2230,7 +2183,7 @@ version = "3.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ac91020bfed8cc3f8aa450d4c3b5fa1d3373fc091c8a92009f3b27749d5a227"
 dependencies = [
- "log 0.4.17",
+ "log",
  "serde",
  "winapi",
 ]
@@ -2378,19 +2331,6 @@ checksum = "12295df4f294471248581bc09bef3c38a5e46f1e36d6a37353621a0c6c357e1f"
 
 [[package]]
 name = "postgres"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3452f3bb97a37d400bc450fdfd16fc0080b28bac0a7d7ddf002384ed519ec740"
-dependencies = [
- "bufstream",
- "fallible-iterator 0.1.6",
- "log 0.3.9",
- "postgres-protocol 0.2.2",
- "postgres-shared",
-]
-
-[[package]]
-name = "postgres"
 version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb76d6535496f633fa799bb872ffb4790e9cbdedda9d35564ca0252f930c0dd5"
@@ -2398,7 +2338,7 @@ dependencies = [
  "bytes",
  "fallible-iterator 0.2.0",
  "futures",
- "log 0.4.17",
+ "log",
  "tokio",
  "tokio-postgres",
 ]
@@ -2450,7 +2390,6 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e617a1d840d0b762075359373c0e5b1fc2f1bc14d918a2d2438fa6599f15a47"
 dependencies = [
- "chrono 0.3.0",
  "fallible-iterator 0.1.6",
  "hex 0.2.0",
  "phf 0.7.21",
@@ -2526,7 +2465,7 @@ version = "2.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ac70cfc8935f5db2a29c0929db697035d02284011a9b78a5ef5d48092ce9673"
 dependencies = [
- "log 0.4.17",
+ "log",
  "which",
 ]
 
@@ -2557,7 +2496,7 @@ version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "545c5bc2b880973c9c10e4067418407a0ccaa3091781d1671d46eb35107cb26f"
 dependencies = [
- "log 0.4.17",
+ "log",
  "parking_lot",
  "scheduled-thread-pool",
 ]
@@ -2568,7 +2507,7 @@ version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7029c56be658cb54f321e0bee597810ee16796b735fa2559d7056bf06b12230b"
 dependencies = [
- "postgres 0.19.2",
+ "postgres",
  "r2d2",
 ]
 
@@ -2643,7 +2582,7 @@ version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5911d1403f4143c9d56a702069d593e8d0f3fab880a85e103604d0893ea31ba7"
 dependencies = [
- "chrono 0.4.19",
+ "chrono",
  "pem",
  "ring",
  "yasna",
@@ -2701,7 +2640,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "882f368737489ea543bc5c340e6f3d34a28c39980bd9a979e47322b26f60ac40"
 dependencies = [
  "libc 0.2.139",
- "log 0.4.17",
+ "log",
  "num_cpus",
  "rayon",
  "winapi",
@@ -2725,7 +2664,7 @@ dependencies = [
  "ipnet",
  "js-sys",
  "lazy_static",
- "log 0.4.17",
+ "log",
  "mime",
  "native-tls",
  "percent-encoding",
@@ -2781,7 +2720,7 @@ dependencies = [
  "hyper",
  "hyper-tls",
  "lazy_static",
- "log 0.4.17",
+ "log",
  "rusoto_credential",
  "rusoto_signature",
  "rustc_version 0.4.0",
@@ -2798,7 +2737,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a46b67db7bb66f5541e44db22b0a02fed59c9603e146db3a9e633272d3bac2f"
 dependencies = [
  "async-trait",
- "chrono 0.4.19",
+ "chrono",
  "dirs-next",
  "futures",
  "hyper",
@@ -2830,14 +2769,14 @@ checksum = "6264e93384b90a747758bcc82079711eacf2e755c3a8b5091687b5349d870bcc"
 dependencies = [
  "base64 0.13.1",
  "bytes",
- "chrono 0.4.19",
+ "chrono",
  "digest 0.9.0",
  "futures",
  "hex 0.4.3",
  "hmac",
  "http",
  "hyper",
- "log 0.4.17",
+ "log",
  "md-5",
  "percent-encoding",
  "pin-project-lite",
@@ -2878,7 +2817,7 @@ version = "0.20.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5aab8ee6c7097ed6057f43c187a62418d0c05a4bd5f18b3571db50ee0f9ce033"
 dependencies = [
- "log 0.4.17",
+ "log",
  "ring",
  "sct",
  "webpki",
@@ -3383,7 +3322,7 @@ dependencies = [
  "bytes",
  "fallible-iterator 0.2.0",
  "futures",
- "log 0.4.17",
+ "log",
  "parking_lot",
  "percent-encoding",
  "phf 0.10.0",
@@ -3415,7 +3354,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
- "log 0.4.17",
+ "log",
  "pin-project-lite",
  "tokio",
 ]
@@ -3457,7 +3396,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d0ecdcb44a79f0fe9844f0c4f33a342cbcbb5117de8001e6ba0dc2351327d09"
 dependencies = [
  "cfg-if",
- "log 0.4.17",
+ "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
@@ -3501,7 +3440,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6923477a48e41c1951f1999ef8bb5a3023eb723ceadafe78ffb65dc366761e3"
 dependencies = [
  "lazy_static",
- "log 0.4.17",
+ "log",
  "tracing-core",
 ]
 
@@ -3650,7 +3589,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ce8a968cb1cd110d136ff8b819a556d6fb6d919363c61534f6860c7eb172ba0"
 dependencies = [
- "log 0.4.17",
+ "log",
  "try-lock",
 ]
 
@@ -3684,7 +3623,7 @@ checksum = "a317bf8f9fba2476b4b2c85ef4c4af8ff39c3c7f0cdfeed4f82c34a880aa837b"
 dependencies = [
  "bumpalo",
  "lazy_static",
- "log 0.4.17",
+ "log",
  "proc-macro2",
  "quote",
  "syn",
@@ -3900,7 +3839,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e262a29d0e61ccf2b6190d7050d4b237535fc76ce4c1210d9caa316f71dffa75"
 dependencies = [
- "chrono 0.4.19",
+ "chrono",
 ]
 
 [[package]]
