@@ -15,6 +15,7 @@ $pkg_deps = @(
 $pkg_bin_dirs = @("bin")
 $pkg_build_deps = @(
     "core/visual-cpp-build-tools-2015",
+    "core/windows-10-sdk",
     "core/protobuf",
     "core/rust/$(Get-Content "../../../../rust-toolchain")",
     "core/cacerts",

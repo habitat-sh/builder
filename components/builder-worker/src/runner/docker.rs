@@ -121,11 +121,11 @@ impl<'a> DockerExporter<'a> {
         cmd.arg("--image-name");
         cmd.arg(&self.spec.docker_hub_repo_name);
         cmd.arg("--base-pkgs-url");
-        cmd.arg(&self.bldr_url);
+        cmd.arg(self.bldr_url);
         cmd.arg("--url");
-        cmd.arg(&self.bldr_url);
+        cmd.arg(self.bldr_url);
         cmd.arg("--auth");
-        cmd.arg(&self.auth_token);
+        cmd.arg(self.auth_token);
         if self.spec.latest_tag {
             cmd.arg("--tag-latest");
         }

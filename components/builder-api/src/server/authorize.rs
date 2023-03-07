@@ -93,7 +93,7 @@ pub fn authorize_session(req: &HttpRequest,
 pub fn check_origin_owner(req: &HttpRequest, account_id: u64, origin: &str) -> Result<bool> {
     let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
-    match Origin::get(origin, &*conn).map_err(Error::DieselError) {
+    match Origin::get(origin, &conn).map_err(Error::DieselError) {
         Ok(origin) => Ok(origin.owner_id == account_id as i64),
         Err(err) => Err(err),
     }
@@ -112,7 +112,8 @@ pub fn check_origin_member(req: &HttpRequest, origin: &str, account_id: u64) -> 
             None => debug!("Origin membership {} {} Cache Miss!", origin, account_id),
         }
         let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-        match Origin::check_membership(origin, account_id as i64, &*conn).map_err(Error::DieselError) {
+        match Origin::check_membership(origin, account_id as i64, &conn).map_err(Error::DieselError)
+        {
             Ok(is_member) => {
                 memcache.set_origin_member(origin, account_id, is_member);
                 debug!("Found member {} in origin {}", account_id, origin);
@@ -152,7 +153,7 @@ fn check_origin_member_role(req: &HttpRequest,
         }
         match req_state(req).db.get_conn() {
             Ok(conn) => {
-                match OriginMember::member_role(origin, account_id as i64, &*conn) {
+                match OriginMember::member_role(origin, account_id as i64, &conn) {
                     Ok(member_role) => {
                         memcache.set_origin_member_role(origin,
                                                         account_id,

@@ -83,7 +83,7 @@ impl LogArchiver for LocalArchiver {
     async fn retrieve(&self, job_id: u64) -> Result<Vec<String>> {
         let log_file = self.archive_path(job_id);
         let mut buffer = Vec::new();
-        let mut file = OpenOptions::new().read(true).open(&log_file)?;
+        let mut file = OpenOptions::new().read(true).open(log_file)?;
         file.read_to_end(&mut buffer)?;
         let lines = String::from_utf8_lossy(buffer.as_slice()).lines()
                                                               .map(|l| l.to_string())

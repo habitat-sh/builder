@@ -26,8 +26,8 @@ embed_migrations!("src/migrations");
 
 pub fn setup(conn: &PgConnection) -> Result<()> {
     let _ = conn.transaction::<_, Dre, _>(|| {
-                    setup_ids(&*conn).unwrap();
-                    embedded_migrations::run_with_output(&*conn, &mut io::stdout()).unwrap();
+                    setup_ids(conn).unwrap();
+                    embedded_migrations::run_with_output(conn, &mut io::stdout()).unwrap();
                     Ok(())
                 });
     Ok(())

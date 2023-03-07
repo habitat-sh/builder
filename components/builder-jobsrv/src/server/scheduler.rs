@@ -180,8 +180,8 @@ impl ScheduleMgr {
 
     fn process_metrics(&mut self, target: PackageTarget) -> Result<()> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
-        let waiting_jobs = Job::count(jobsrv::JobState::Pending, target, &*conn)?;
-        let working_jobs = Job::count(jobsrv::JobState::Dispatched, target, &*conn)?;
+        let waiting_jobs = Job::count(jobsrv::JobState::Pending, target, &conn)?;
+        let working_jobs = Job::count(jobsrv::JobState::Dispatched, target, &conn)?;
 
         Gauge::WaitingJobs(target).set(waiting_jobs as f64);
         Gauge::WorkingJobs(target).set(working_jobs as f64);
@@ -191,12 +191,12 @@ impl ScheduleMgr {
 
     fn process_queue(&mut self, target: PackageTarget) -> Result<()> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
-        let groups = Group::get_all_queued(target, &*conn)?;
+        let groups = Group::get_all_queued(target, &conn)?;
 
         for group in groups.iter() {
             assert!(group.group_state == jobsrv::JobGroupState::GroupQueued.to_string());
 
-            match Group::get_active(&group.project_name, target, &*conn) {
+            match Group::get_active(&group.project_name, target, &conn) {
                 Ok(group) => {
                     trace!("Found active project {} for target {}, skipping queued job",
                            group.project_name,
@@ -222,7 +222,7 @@ impl ScheduleMgr {
 
         loop {
             // Take oldest group from the pending list
-            let group = match Group::get_pending(target, &*conn) {
+            let group = match Group::get_pending(target, &conn) {
                 Ok(group) => self.get_group(group.id as u64)?,
                 Err(diesel::result::Error::NotFound) => break,
                 Err(err) => {
@@ -244,7 +244,7 @@ impl ScheduleMgr {
     fn watchdog(&mut self, target: PackageTarget) -> Result<()> {
         let conn = self.db.get_conn().map_err(Error::Db)?;
 
-        let groups = match Group::get_all_dispatching(target, &*conn) {
+        let groups = match Group::get_all_dispatching(target, &conn) {
             Ok(groups) => groups,
             Err(diesel::result::Error::NotFound) => return Ok(()),
             Err(err) => {
@@ -294,7 +294,7 @@ impl ScheduleMgr {
     fn check_project(&mut self, project: &jobsrv::JobGroupProject) -> Result<()> {
         assert!(project.get_state() == jobsrv::JobGroupProjectState::InProgress);
         let conn = self.db.get_conn().map_err(Error::Db)?;
-        let job = match Job::get(project.get_job_id() as i64, &*conn) {
+        let job = match Job::get(project.get_job_id() as i64, &conn) {
             Ok(job) => job,
             Err(err) => {
                 error!("Unable to retrieve job: {:?}", err);
@@ -428,7 +428,7 @@ impl ScheduleMgr {
                             PackageTarget::from_str(group.get_target())?,
                         ),
                     },
-                    &*conn,
+                    &conn,
                 ) {
                     Ok(pkg) => pkg,
                     Err(err) => {
@@ -505,7 +505,7 @@ impl ScheduleMgr {
                         PackageTarget::from_str(group.get_target())?,
                     ),
                 },
-                &*conn,
+                &conn,
             ) {
                 Ok(package) => package,
                 Err(err) => {
@@ -554,7 +554,7 @@ impl ScheduleMgr {
             target
         };
 
-        let project = match Project::get(project_name, get_target, &*conn) {
+        let project = match Project::get(project_name, get_target, &conn) {
             Ok(project) => project,
             Err(diesel::result::Error::NotFound) => {
                 // It's valid to not have a project connected

@@ -247,7 +247,7 @@ fn is_project_buildable(state: &AppState, project_name: &str, target: &str) -> b
         target
     };
 
-    match Project::get(project_name, target, &*conn) {
+    match Project::get(project_name, target, &conn) {
         Ok(project) => project.auto_build,
         Err(diesel::result::Error::NotFound) => false,
         Err(err) => {
@@ -429,7 +429,7 @@ fn job_group_create_old(msg: &jobsrv::JobGroupSpec,
         // TODO (SA) - update the group's projects instead of just returning the group
         let conn = state.db.get_conn().map_err(Error::Db)?;
 
-        let new_group = match Group::get_queued(&project_name, msg.get_target(), &*conn) {
+        let new_group = match Group::get_queued(&project_name, msg.get_target(), &conn) {
             Ok(group) => {
                 debug!("JobGroupSpec, project {} is already queued", project_name);
                 group.into()
@@ -524,10 +524,7 @@ fn job_group_create_new(msg: &jobsrv::JobGroupSpec,
 
         // We would like to have dbg!(&manifest) here but it is very verbose for normal operation.
         // Perhaps we should make a separate API/path to allow this to be discovered
-        insert_job_graph_entries(&manifest,
-                                 group.id as i64,
-                                 BuilderPackageTarget(target),
-                                 &conn)?;
+        insert_job_graph_entries(&manifest, group.id, BuilderPackageTarget(target), &conn)?;
 
         // Notify the scheduler of new work available
         let mut scheduler = state.scheduler
@@ -622,7 +619,7 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
     // We would like to have dbg!(&manifest) here but it is very verbose for normal operation.
     // Perhaps we should make a separate API/path to allow this to be discovered
     insert_job_graph_entries(&manifest,
-                             new_group_data.id as i64,
+                             new_group_data.id,
                              BuilderPackageTarget(target),
                              &conn)?;
 
@@ -832,7 +829,7 @@ fn compute_rdep_build_groups(state: &AppState,
                 ],
                 target: BuilderPackageTarget(PackageTarget::from_str(target)?),
             },
-            &*conn,
+            &conn,
         )?;
 
         let deps = package.deps;

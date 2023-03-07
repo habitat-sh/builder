@@ -79,8 +79,8 @@ pub enum SchedulerMessage {
         reply: Responder<StateBlob>,
     },
     Halt,
-    /* TODO maybe Watchdog, ProcessMetrics (or combine those two); what's a good periodic
-     * message pump pattern? Could live alongside in separate thread */
+    // TODO maybe Watchdog, ProcessMetrics (or combine those two); what's a good periodic
+    // message pump pattern? Could live alongside in separate thread
 }
 
 // We systematically drop the reply field and any other Responder like construct because it's a

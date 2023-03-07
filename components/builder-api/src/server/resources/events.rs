@@ -147,7 +147,7 @@ fn do_get_events(req: &HttpRequest,
                           from_date:  date_range.from_date,
                           to_date:    date_range.to_date,
                           query:      decoded_query, };
-    match AuditPackage::list(el, &*conn).map_err(Error::DieselError) {
+    match AuditPackage::list(el, &conn).map_err(Error::DieselError) {
         Ok((packages, count)) => {
             let pkg_events: Vec<AuditPackageEvent> =
                 packages.into_iter().map(|p| p.into()).collect();
@@ -173,7 +173,7 @@ pub fn postprocess_event_list(_req: &HttpRequest,
     debug!("postprocessing event list, start: {}, stop: {}, total_count: {}",
            start, stop, count);
 
-    let body = helpers::package_results_json(events, count as isize, start as isize, stop as isize);
+    let body = helpers::package_results_json(events, count as isize, start, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()

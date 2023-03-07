@@ -188,7 +188,10 @@ impl fmt::Display for AccessToken {
     ///
     /// (but longer)
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}", ACCESS_TOKEN_PREFIX, base64::encode(&self.0))
+        write!(f,
+               "{}{}",
+               ACCESS_TOKEN_PREFIX,
+               habitat_core::base64::encode(&self.0))
     }
 }
 
@@ -200,7 +203,7 @@ impl FromStr for AccessToken {
     /// has already expired.
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if let Some(payload) = s.strip_prefix(ACCESS_TOKEN_PREFIX) {
-            let encrypted = base64::decode(payload).map(String::from_utf8)??;
+            let encrypted = habitat_core::base64::decode(payload).map(String::from_utf8)??;
 
             // Though the fact that we're encrypting as a `SignedBox` for this
             // application is not terribly important, the fact that the string
@@ -370,7 +373,7 @@ mod tests {
             assert!(token.starts_with('_'), "Token must start with a '_'");
 
             let rest_of_token = token.trim_start_matches('_');
-            assert!(base64::decode(rest_of_token).is_ok(),
+            assert!(habitat_core::base64::decode(rest_of_token).is_ok(),
                     "Token after '_' must be base64-encoded")
         }
     }
@@ -427,7 +430,7 @@ mod tests {
             //
             // This is the best we can do with `std::str::FromStr`, though.
             let encrypted: SignedBox = key.encrypt("supersecretstuff");
-            let b64 = base64::encode(&encrypted.to_string());
+            let b64 = habitat_core::base64::encode(encrypted.to_string());
             let token = format!("_{}", b64);
             let parsed = token.parse::<AccessToken>();
             assert!(parsed.is_ok(), "It should parse because it's encrypted");

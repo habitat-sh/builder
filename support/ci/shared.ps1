@@ -115,6 +115,7 @@ function Setup-Environment {
         "core/openssl",
         "core/protobuf",
         "core/visual-cpp-build-tools-2015",
+        "core/windows-10-sdk",
         "core/xz",
         "core/zeromq",
         "core/zlib",
@@ -145,6 +146,7 @@ function Setup-Environment {
     $env:PATH                       = New-PathString -StartingPath $env:PATH -Path "$protobufDir\bin;$zeromqDir\bin;$libarchiveDir\bin;$zlibDir\bin;$xzDir\bin;$perl\bin;$opensslDir\bin"
 
     $vsDir = & hab pkg path core/visual-cpp-build-tools-2015
+    $sdkDir = & hab pkg path core/windows-10-sdk
     $env:DisableRegistryUse="true"
     $env:UseEnv="true"
     $env:VisualStudioVersion = "14.0"
@@ -160,7 +162,7 @@ function Setup-Environment {
     $env:RCTrackerSdkPath="$vsDir\Program Files\MSBuild\14.0\bin\amd64"
     $env:RCTrackerFrameworkPath="$vsDir\Program Files\MSBuild\14.0\bin\amd64"
     $env:LIB = "$(Get-Content "$vsDir\LIB_DIRS")"
-    $env:INCLUDE = (Get-Content "$vsDir\INCLUDE_DIRS")
+    $env:INCLUDE = "$(Get-Content "$vsDir\INCLUDE_DIRS");$(Get-Content "$sdkDir\INCLUDE_DIRS")"
     $env:PATH = New-PathString -StartingPath $env:PATH -Path (Get-Content "$vsDir\PATH")
 }
 

@@ -87,7 +87,7 @@ pub struct Contents {
 
 impl Contents {
     pub fn decode(&self) -> HubResult<Vec<u8>> {
-        base64::decode(&self.content).map_err(HubError::ContentDecode)
+        habitat_core::base64::decode(&self.content).map_err(HubError::ContentDecode)
     }
 }
 

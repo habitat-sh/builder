@@ -366,7 +366,7 @@ async fn write_archive(filename: &Path,
                        body: &mut rusoto_core::ByteStream)
                        -> Result<PackageArchive> {
     // TODO This is a blocking call, used in async functions
-    let mut file = match File::create(&filename) {
+    let mut file = match File::create(filename) {
         Ok(f) => f,
         Err(e) => {
             warn!("Unable to create archive file for {:?}, err={:?}",

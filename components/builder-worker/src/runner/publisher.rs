@@ -56,7 +56,7 @@ impl Publisher {
                 let msg = format!("Failed to upload {} after {} retries", ident, RETRIES);
                 warn!("{}", msg);
                 logger.log(&msg);
-                return Err(Error::Retry(err));
+                return Err(Error::BuilderCore(err.error));
             }
         }
 
@@ -72,7 +72,7 @@ impl Publisher {
                                           channel, RETRIES);
                         warn!("{}", msg);
                         logger.log(&msg);
-                        return Err(Error::Retry(err));
+                        return Err(Error::BuilderCore(err.error));
                     }
                 }
             }
@@ -90,7 +90,7 @@ impl Publisher {
                                       ident, channel, RETRIES);
                     warn!("{}", msg);
                     logger.log(&msg);
-                    return Err(Error::Retry(err));
+                    return Err(Error::BuilderCore(err.error));
                 }
             }
         } else {

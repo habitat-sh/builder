@@ -200,7 +200,7 @@ pub async fn run(config: Config) -> error::Result<()> {
                     verify_mode.insert(SslVerifyMode::PEER);
                     verify_mode.insert(SslVerifyMode::FAIL_IF_NO_PEER_CERT);
                     builder.set_verify(verify_mode);
-                    builder.set_ca_file(&ca_cert_path)?;
+                    builder.set_ca_file(ca_cert_path)?;
                 }
             }
 

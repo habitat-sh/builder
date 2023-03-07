@@ -21,7 +21,7 @@ fn main() {
 
     protoc_rust::Codegen::new().out_dir("src/message")
                                .inputs(&protocols)
-                               .includes(&["protocols"])
+                               .includes(["protocols"])
                                .run()
                                .expect("Failed to run protoc, please check that it is available \
                                         on your PATH and that the src/message folder is writable");

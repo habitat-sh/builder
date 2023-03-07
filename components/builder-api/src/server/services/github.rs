@@ -182,7 +182,7 @@ async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
         }
     };
 
-    let account_id = match Account::get(&hook.pusher.name.clone(), &*conn) {
+    let account_id = match Account::get(&hook.pusher.name.clone(), &conn) {
         Ok(account) => Some(account.id as u64),
         Err(_) => None,
     };
@@ -221,7 +221,7 @@ async fn build_plans(req: &HttpRequest,
 
     for plan in plans.iter() {
         let project_name = format!("{}/{}", &plan.0.origin, &plan.0.name);
-        let project = match Project::get(&project_name, &plan.1, &*conn) {
+        let project = match Project::get(&project_name, &plan.1, &conn) {
             Ok(proj) => proj,
             Err(err) => {
                 debug!("Failed to fetch project (plan may not be connected): {}, {:?}",
@@ -256,7 +256,7 @@ async fn build_plans(req: &HttpRequest,
     }
 
     debug!("Returning success response with {} plans", plans.len());
-    HttpResponse::Ok().json(&plans)
+    HttpResponse::Ok().json(plans)
 }
 
 async fn read_bldr_config(github: &GitHubClient,
