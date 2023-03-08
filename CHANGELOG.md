@@ -3,6 +3,9 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump remove_dir_all from 0.7.0 to 0.8.0 [#1777](https://github.com/habitat-sh/builder/pull/1777) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump bumpalo from 3.8.0 to 3.12.0 [#1769](https://github.com/habitat-sh/builder/pull/1769) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump git2 from 0.13.23 to 0.16.1 [#1770](https://github.com/habitat-sh/builder/pull/1770) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - bump several crates and rust toolchain [#1776](https://github.com/habitat-sh/builder/pull/1776) ([mwrock](https://github.com/mwrock))
 - fix changelog [#1767](https://github.com/habitat-sh/builder/pull/1767) ([mwrock](https://github.com/mwrock))
 - Bump openssl-src from 300.0.9+3.0.5 to 300.0.11+3.0.7 [#1757](https://github.com/habitat-sh/builder/pull/1757) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -11,6 +14,9 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump remove_dir_all from 0.7.0 to 0.8.0 [#1777](https://github.com/habitat-sh/builder/pull/1777) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump bumpalo from 3.8.0 to 3.12.0 [#1769](https://github.com/habitat-sh/builder/pull/1769) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump git2 from 0.13.23 to 0.16.1 [#1770](https://github.com/habitat-sh/builder/pull/1770) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - bump several crates and rust toolchain [#1776](https://github.com/habitat-sh/builder/pull/1776) ([mwrock](https://github.com/mwrock))
 - fix changelog [#1767](https://github.com/habitat-sh/builder/pull/1767) ([mwrock](https://github.com/mwrock))
 - bump version [#1766](https://github.com/habitat-sh/builder/pull/1766) ([mwrock](https://github.com/mwrock))
