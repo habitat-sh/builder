@@ -43,8 +43,10 @@ fn worker_os() -> proto::Os { proto::Os::Windows }
 fn worker_os() -> proto::Os { proto::Os::Darwin }
 
 #[derive(PartialEq)]
+#[derive(Default)]
 enum PulseState {
     Pause,
+    #[default]
     Pulse,
 }
 
@@ -55,10 +57,6 @@ impl AsRef<str> for PulseState {
             PulseState::Pulse => CMD_PULSE,
         }
     }
-}
-
-impl Default for PulseState {
-    fn default() -> PulseState { PulseState::Pulse }
 }
 
 /// Client for sending and receiving messages to and from the HeartbeatMgr

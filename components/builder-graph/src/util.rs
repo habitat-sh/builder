@@ -28,15 +28,13 @@ use habitat_builder_db::models::package::{BuilderPackageIdent,
                                           PackageWithVersionArray};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum EdgeType {
+    #[default]
     RuntimeDep,
     BuildDep,
     StrongBuildDep,
     ExternalConstraint, // This comes from non dependency graph issues such as worker build limits
-}
-
-impl Default for EdgeType {
-    fn default() -> Self { EdgeType::RuntimeDep }
 }
 
 pub fn short_ident(ident: &PackageIdent, use_version: bool) -> PackageIdent {
