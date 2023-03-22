@@ -37,13 +37,11 @@ use crate::{config::Config,
 /// Interval for main thread to check cancel status
 pub const BUILD_CANCEL_WAIT_SECS: u64 = 15;
 
+#[derive(Default)]
 enum State {
+    #[default]
     Ready,
     Busy,
-}
-
-impl Default for State {
-    fn default() -> State { State::Ready }
 }
 
 #[allow(clippy::rc_buffer)] // #1548 tracks fixing this

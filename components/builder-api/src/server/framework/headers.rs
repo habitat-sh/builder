@@ -19,14 +19,12 @@ pub const APPLICATION_JSON: &str = "application/json";
 
 pub const XFILENAME: &str = "x-filename"; // must be lowercase
 
+#[derive(Default)]
 pub enum Cache {
     NoCache,
+    #[default]
     MaxAgeDefault,
     MaxAge(usize),
-}
-
-impl Default for Cache {
-    fn default() -> Self { Cache::MaxAgeDefault }
 }
 
 impl ToString for Cache {
