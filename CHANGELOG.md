@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump openssl from 0.10.45 to 0.10.48 [#1779](https://github.com/habitat-sh/builder/pull/1779) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - use rust 1.68.2 [#1782](https://github.com/habitat-sh/builder/pull/1782) ([jasonheath](https://github.com/jasonheath))
 - rev to rust 1.68.0 [#1778](https://github.com/habitat-sh/builder/pull/1778) ([jasonheath](https://github.com/jasonheath))
 - Bump remove_dir_all from 0.7.0 to 0.8.0 [#1777](https://github.com/habitat-sh/builder/pull/1777) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -16,6 +17,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump openssl from 0.10.45 to 0.10.48 [#1779](https://github.com/habitat-sh/builder/pull/1779) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - use rust 1.68.2 [#1782](https://github.com/habitat-sh/builder/pull/1782) ([jasonheath](https://github.com/jasonheath))
 - rev to rust 1.68.0 [#1778](https://github.com/habitat-sh/builder/pull/1778) ([jasonheath](https://github.com/jasonheath))
 - Bump remove_dir_all from 0.7.0 to 0.8.0 [#1777](https://github.com/habitat-sh/builder/pull/1777) ([dependabot[bot]](https://github.com/dependabot[bot]))
