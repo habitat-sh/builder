@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- replaced icons with text [#1780](https://github.com/habitat-sh/builder/pull/1780) ([jasonheath](https://github.com/jasonheath))
 - Bump openssl from 0.10.45 to 0.10.48 [#1779](https://github.com/habitat-sh/builder/pull/1779) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - use rust 1.68.2 [#1782](https://github.com/habitat-sh/builder/pull/1782) ([jasonheath](https://github.com/jasonheath))
 - rev to rust 1.68.0 [#1778](https://github.com/habitat-sh/builder/pull/1778) ([jasonheath](https://github.com/jasonheath))
@@ -17,6 +18,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- replaced icons with text [#1780](https://github.com/habitat-sh/builder/pull/1780) ([jasonheath](https://github.com/jasonheath))
 - Bump openssl from 0.10.45 to 0.10.48 [#1779](https://github.com/habitat-sh/builder/pull/1779) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - use rust 1.68.2 [#1782](https://github.com/habitat-sh/builder/pull/1782) ([jasonheath](https://github.com/jasonheath))
 - rev to rust 1.68.0 [#1778](https://github.com/habitat-sh/builder/pull/1778) ([jasonheath](https://github.com/jasonheath))
