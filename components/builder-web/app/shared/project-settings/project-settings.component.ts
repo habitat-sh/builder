@@ -412,6 +412,10 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     });
   }
 
+  nameFrom(platform) {
+    return targetFrom('id', platform).name;
+  }
+
   pickInstallation(install) {
     this.activeInstallation = install;
     this.activeRepo = null;

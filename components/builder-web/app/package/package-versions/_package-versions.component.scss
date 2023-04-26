@@ -14,6 +14,10 @@
       flex: 3;
     }
 
+    .os {
+      white-space: nowrap;
+    }
+
     .channels {
       margin-top: -$default-margin;
       margin-bottom: $default-margin;
@@ -22,5 +26,10 @@
         margin-right: 2px;
       }
     }
+  }
+
+  .zeroed {
+    padding: 0;
+    margin: 0;
   }
 }

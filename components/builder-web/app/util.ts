@@ -118,32 +118,38 @@ export function isEarlyAccess() {
 export const targets = [
   {
     id: 'x86_64-linux',
-    name: 'Linux',
-    title: 'Linux',
+    name: 'Linux (x86_64)',
+    title: 'Linux (x86_64)',
     param: 'linux'
   },
   {
+    id: 'aarch64-linux',
+    name: 'Linux (aarch64)',
+    title: 'Linux (aarch64)',
+    param: 'linux_arm'
+  },
+  {
     id: 'x86_64-linux-kernel2',
-    name: 'Linux 2',
-    title: 'Linux (Kernel Version 2)',
+    name: 'Linux 2 (x86_64)',
+    title: 'Linux (Kernel Version 2, x86_64)',
     param: 'linux2'
   },
   {
     id: 'x86_64-windows',
-    name: 'Windows',
-    title: 'Windows',
+    name: 'Windows (x86_64)',
+    title: 'Windows (x86_64)',
     param: 'windows'
   },
   {
     id: 'x86_64-darwin',
-    name: 'macOS',
-    title: 'macOS',
+    name: 'macOS (Intel)',
+    title: 'macOS (x86_64)',
     param: 'mac'
   },
   {
     id: 'aarch64-darwin',
-    name: 'macOS M1',
-    title: 'macOS (aarch64)',
+    name: 'macOS (Apple silicon)',
+    title: 'macOS (ARM64)',
     param: 'mac_m1'
   }
 ];

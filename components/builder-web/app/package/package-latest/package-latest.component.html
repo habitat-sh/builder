@@ -3,7 +3,6 @@
     <a *ngFor="let target of targets; index as i"
       [routerLink]="['/pkgs', origin, name, 'latest', target.param]"
       [class.active]="(store.observe('packages.currentPlatform.id') | async) === target.id">
-      <hab-platform-icon [platform]="target.id"></hab-platform-icon>
       {{ target.name }}
     </a>
   </nav>

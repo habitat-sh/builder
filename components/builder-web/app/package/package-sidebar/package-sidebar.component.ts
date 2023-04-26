@@ -15,7 +15,7 @@
 import { Component, Input } from '@angular/core';
 import { AppStore } from '../../app.store';
 import { submitJob } from '../../actions/index';
-import { targets } from '../../util';
+import { targetFrom, targets } from '../../util';
 
 @Component({
   selector: 'hab-package-sidebar',
@@ -43,7 +43,7 @@ export class PackageSidebarComponent {
 
   get buildButtonLabel() {
     return this.building ? 'Build pending' :
-           this.isNewProject ? 'Build latest versions' : 'Build latest version';
+      this.isNewProject ? 'Build latest versions' : `Build latest ${this.platform.name} version`;
   }
 
   get buildButtonAriaLabel() {
@@ -134,5 +134,9 @@ export class PackageSidebarComponent {
 
   get visibility() {
     return this.packageSettings ? this.packageSettings.visibility : this.defaultVisibility;
+  }
+
+  nameFrom(platform) {
+    return targetFrom('id', platform).name;
   }
 }

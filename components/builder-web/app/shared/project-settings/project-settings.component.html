@@ -55,9 +55,9 @@
       </li>
       <li class="item" *ngFor="let project of projects">
         <span class="column name">
-          <hab-platform-icon [platform]="project.target"></hab-platform-icon>
+          ({{ nameFrom(package.target) }})
           <span class="plan-path">{{ project.plan_path }}</span>
-          <hab-icon 
+          <hab-icon
             *ngIf="hasInvalidPlanPath(project)"
             class="invalid-path-icon"
             symbol="alert"
@@ -75,7 +75,6 @@
     <div class="overlay-header">
       <h1 class="overlay-title">
         Connect a {{ planTargetName }} plan file to {{ origin }}
-        <hab-platform-icon [platform]="target"></hab-platform-icon>
       </h1>
       <a class="overlay-close" (click)="clearConnection()">&times;</a>
     </div>

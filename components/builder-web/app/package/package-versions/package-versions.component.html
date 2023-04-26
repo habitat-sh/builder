@@ -15,7 +15,9 @@
         <span class="column">{{ version.release_count }}</span>
         <span class="column">{{ releaseToDate(version.latest) }}</span>
         <span class="column">
-          <hab-platform-icon [platform]="platform" *ngFor="let platform of platformsFor(version)"></hab-platform-icon>
+          <ul>
+            <li class="zeroed" *ngFor="let platform of platformsFor(version)">{{nameFrom(platform)}}</li>
+          </ul>
         </span>
         <hab-icon class="toggle" [symbol]="toggleFor(version.version)"></hab-icon>
       </li>
@@ -32,14 +34,10 @@
                 {{ releaseToDate(pkg.release) }}
               </div>
               <div class="column os">
-                <hab-platform-icon [platform]="pkg.platforms[0]"></hab-platform-icon>
+                {{ nameFrom(pkg.platforms[0]) }}
               </div>
-              <div class="column visibility">
-                <!-- TBD -->
-              </div>
-              <div class="column build-source">
-                <!-- TBD -->
-              </div>
+              <div class="column visibility"></div>
+              <div class="column build-source"></div>
               <hab-icon symbol="chevron-right"></hab-icon>
             </a>
             <div class="channels">

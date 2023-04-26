@@ -3,7 +3,6 @@
     <h3>Build</h3>
     <button class="build" mat-raised-button color="primary" (click)="build()" [disabled]="!isBuildable" [attr.aria-label]="buildButtonAriaLabel">
       <span aria-hidden="true">
-        <hab-platform-icon [platform]="platform.id" *ngIf="!isNewProject"></hab-platform-icon>
         {{ buildButtonLabel }}
       </span>
     </button>
@@ -34,7 +33,7 @@
       <a [routerLink]="['./', latestStable.ident.version, latestStable.ident.release]">
         {{ latestStable.ident.version }}/{{ latestStable.ident.release }}
       </a>
-      <hab-platform-icon [platform]="latestStable.target"></hab-platform-icon>
+      <span class="wbs" >{{ nameFrom(platform.id) }}</span>
     </p>
     <p *ngIf="!latestStable && !loadingLatestStable">
       None.

@@ -40,7 +40,6 @@ import { JobStatusIconComponent } from './job-status-icon/job-status-icon.compon
 import { JobStatusLabelComponent } from './job-status-label/job-status-label.component';
 import { PackageListComponent } from './package-list/package-list.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
-import { PlatformIconComponent } from './platform-icon/platform-icon.component';
 import { VisibilityIconComponent } from './visibility-icon/visibility-icon.component';
 import { VisibilitySelectorComponent } from './visibility-selector/visibility-selector.component';
 import { KeysPipe } from './pipes/keys.pipe';
@@ -85,7 +84,6 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     JobStatusLabelComponent,
     PackageListComponent,
     ProjectSettingsComponent,
-    PlatformIconComponent,
     VisibilityIconComponent,
     VisibilitySelectorComponent,
     SimpleConfirmDialog,
@@ -120,7 +118,6 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     VisibilityIconComponent,
     VisibilitySelectorComponent,
     ProjectSettingsComponent,
-    PlatformIconComponent,
     KeysPipe,
     SimpleConfirmDialog,
     JobNoticeComponent
