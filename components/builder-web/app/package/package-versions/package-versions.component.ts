@@ -19,7 +19,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { AppStore } from '../../app.store';
-import { packageString, parseDate, targetsFromPkgVersions } from '../../util';
+import { packageString, parseDate, targetFrom, targetsFromPkgVersions } from '../../util';
 import { demotePackage, filterPackagesBy } from '../../actions/index';
 
 @Component({
@@ -154,5 +154,9 @@ export class PackageVersionsComponent implements OnDestroy {
     }
 
     return [];
+  }
+
+  nameFrom(platform) {
+    return targetFrom('id', platform).name;
   }
 }

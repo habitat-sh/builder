@@ -52,7 +52,6 @@ describe('PackageDetailComponent', () => {
     TestBed.configureTestingModule({
       declarations: [
         PackageDetailComponent,
-        MockComponent({ selector: 'hab-platform-icon', inputs: ['platform'] }),
         MockComponent({ selector: 'hab-channels', inputs: ['channels', 'canDemote'], outputs: ['demote'] }),
         MockComponent({ selector: 'hab-package-list', inputs: ['currentPackage', 'packages'] }),
         MockComponent({ selector: 'hab-package-promote', inputs: ['origin', 'name', 'version', 'release', 'target', 'channel'] }),

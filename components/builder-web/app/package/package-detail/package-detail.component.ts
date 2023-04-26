@@ -15,7 +15,7 @@
 import { Component, Input } from '@angular/core';
 
 import { AppStore } from '../../app.store';
-import { parseDate } from '../../util';
+import { parseDate, targetFrom } from '../../util';
 import { demotePackage, promotePackage } from '../../actions/index';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
 import { MatDialog } from '@angular/material';
@@ -57,6 +57,10 @@ export class PackageDetailComponent {
     });
 
     return props.join('/');
+  }
+
+  titleFrom(platform) {
+    return targetFrom('id', platform).title;
   }
 
   get memberOfOrigin() {

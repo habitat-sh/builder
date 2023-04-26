@@ -37,8 +37,7 @@
           <div>
             <dt>Release</dt>
             <dd>
-              {{ package.ident.release }}
-              <hab-platform-icon [platform]="package.target"></hab-platform-icon>
+              {{ package.ident.release }} - {{ titleFrom(package.target) }}
             </dd>
           </div>
           <div>
