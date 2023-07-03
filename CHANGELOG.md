@@ -14,24 +14,13 @@
 - bump several crates and rust toolchain [#1776](https://github.com/habitat-sh/builder/pull/1776) ([mwrock](https://github.com/mwrock))
 - fix changelog [#1767](https://github.com/habitat-sh/builder/pull/1767) ([mwrock](https://github.com/mwrock))
 - Bump openssl-src from 300.0.9+3.0.5 to 300.0.11+3.0.7 [#1757](https://github.com/habitat-sh/builder/pull/1757) ([dependabot[bot]](https://github.com/dependabot[bot]))
+<!-- latest_release -->
 
-<!-- latest_release 20230103 -->
-## [20230703](https://github.com/habitat-sh/builder/tree/20230703) (2023-07-03)
+## [20230103](https://github.com/habitat-sh/builder/tree/20230103) (2023-01-03)
 
 #### Merged Pull Requests
-- bumping version to 20230703 [#1783](https://github.com/habitat-sh/builder/pull/1783) ([mwrock](https://github.com/mwrock))
-- replaced icons with text [#1780](https://github.com/habitat-sh/builder/pull/1780) ([jasonheath](https://github.com/jasonheath))
-- Bump openssl from 0.10.45 to 0.10.48 [#1779](https://github.com/habitat-sh/builder/pull/1779) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- use rust 1.68.2 [#1782](https://github.com/habitat-sh/builder/pull/1782) ([jasonheath](https://github.com/jasonheath))
-- rev to rust 1.68.0 [#1778](https://github.com/habitat-sh/builder/pull/1778) ([jasonheath](https://github.com/jasonheath))
-- Bump remove_dir_all from 0.7.0 to 0.8.0 [#1777](https://github.com/habitat-sh/builder/pull/1777) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump bumpalo from 3.8.0 to 3.12.0 [#1769](https://github.com/habitat-sh/builder/pull/1769) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump git2 from 0.13.23 to 0.16.1 [#1770](https://github.com/habitat-sh/builder/pull/1770) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- bump several crates and rust toolchain [#1776](https://github.com/habitat-sh/builder/pull/1776) ([mwrock](https://github.com/mwrock))
-- fix changelog [#1767](https://github.com/habitat-sh/builder/pull/1767) ([mwrock](https://github.com/mwrock))
 - bump version [#1766](https://github.com/habitat-sh/builder/pull/1766) ([mwrock](https://github.com/mwrock))
 - allow an Access-Control-Allow-Origin header to be set for certain oauth providers like automate [#1763](https://github.com/habitat-sh/builder/pull/1763) ([mwrock](https://github.com/mwrock))
-<!-- latest_release -->
 
 ## [20221018](https://github.com/habitat-sh/builder/tree/20221018) (2022-10-18)
 
