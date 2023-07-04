@@ -1,5 +1,11 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release 20230703 -->
+<!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- fixing changelog [#1784](https://github.com/habitat-sh/builder/pull/1784) ([mwrock](https://github.com/mwrock))
+<!-- latest_release -->
+
 ## [20230703](https://github.com/habitat-sh/builder/tree/20230703) (2023-07-03)
 
 #### Merged Pull Requests
@@ -14,7 +20,6 @@
 - bump several crates and rust toolchain [#1776](https://github.com/habitat-sh/builder/pull/1776) ([mwrock](https://github.com/mwrock))
 - fix changelog [#1767](https://github.com/habitat-sh/builder/pull/1767) ([mwrock](https://github.com/mwrock))
 - Bump openssl-src from 300.0.9+3.0.5 to 300.0.11+3.0.7 [#1757](https://github.com/habitat-sh/builder/pull/1757) ([dependabot[bot]](https://github.com/dependabot[bot]))
-<!-- latest_release -->
 
 ## [20230103](https://github.com/habitat-sh/builder/tree/20230103) (2023-01-03)
 
