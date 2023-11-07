@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2023 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 import { Component, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { debounceTime, filter, take, takeUntil } from 'rxjs/operators';
 import { AppStore } from '../../app.store';
 import { requestRoute } from '../../actions/index';
 
@@ -25,6 +25,9 @@ import { requestRoute } from '../../actions/index';
 export class PackageReleaseComponent implements OnDestroy {
 
   private isDestroyed$: Subject<boolean> = new Subject();
+  // Wait fot this ms before checking for error
+  private debounceDuration = 500;
+  private maxAttempts = 5;
 
   constructor(
     private store: AppStore,
@@ -37,9 +40,14 @@ export class PackageReleaseComponent implements OnDestroy {
       });
 
     this.store.observe('packages.ui.current.errorMessage')
-      .pipe(takeUntil(this.isDestroyed$))
-      .subscribe(errorMessage => {
-        if (errorMessage) {
+      .pipe(
+        takeUntil(this.isDestroyed$),
+        filter(errorMessage => errorMessage !== null),
+        debounceTime(this.debounceDuration),
+        take(this.maxAttempts),
+      )
+      .subscribe((errorMessage) => {
+        if (errorMessage && errorMessage === 'Not Found') {
           this.store.dispatch(requestRoute(['/pkgs']));
         }
       });
