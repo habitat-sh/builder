@@ -246,12 +246,25 @@ export class PackageComponent implements OnInit, OnDestroy {
     this.store.dispatch(fetchOrigin(this.origin));
   }
 
+  private getLatestPlatform() {
+    const platformOrder = allPlatforms.map(p => p.id);
+    const version = this.store.getState()?.packages?.versions?.[0];
+    if (version) {
+      for (const platform of platformOrder) {
+        if (version.platforms.includes(platform))
+          return platform;
+      }
+    }
+
+    return platformOrder[0];
+  }
+
   private fetchLatest() {
-    this.store.dispatch(fetchLatestPackage(this.origin, this.name, this.target));
+    this.store.dispatch(fetchLatestPackage(this.origin, this.name, this.getLatestPlatform()));
   }
 
   private fetchLatestStable() {
-    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.target));
+    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.getLatestPlatform()));
   }
 
   private fetchPackageSettings() {
