@@ -260,7 +260,10 @@ export class PackageComponent implements OnInit, OnDestroy {
   }
 
   private fetchLatest() {
-    this.store.dispatch(fetchLatestPackage(this.origin, this.name, this.getLatestPlatform()));
+    const target = this.getLatestPlatform();
+    this.store.dispatch(fetchLatestPackage(this.origin, this.name, target));
+    const currentTarget = targetFrom('id', target);
+    this.store.dispatch(setCurrentPackageTarget(currentTarget));
   }
 
   private fetchLatestStable() {
