@@ -60,8 +60,8 @@ export class PackageDetailComponent {
   }
 
   titleFrom(platform) {
-    const targtet = targetFrom('id', platform);
-    return targtet ? targtet.title : '';
+    const target = targetFrom('id', platform);
+    return target ? target.title : '';
   }
 
   get memberOfOrigin() {
