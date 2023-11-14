@@ -277,8 +277,5 @@ export class PackageComponent implements OnInit, OnDestroy {
 
   private fetchRelease() {
     this.store.dispatch(fetchPackage({ ident: this.ident }));
-    this.store.dispatch(fetchPackageChannels(
-      this.ident.origin, this.ident.name, this.ident.version, this.ident.release
-    ));
   }
 }
