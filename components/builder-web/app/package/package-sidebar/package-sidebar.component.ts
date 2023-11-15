@@ -137,6 +137,7 @@ export class PackageSidebarComponent {
   }
 
   nameFrom(platform) {
-    return targetFrom('id', platform).name;
+    const target = targetFrom('id', platform);
+    return target ? target.name : '';
   }
 }

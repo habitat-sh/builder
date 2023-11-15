@@ -32,5 +32,25 @@ describe("Additional APIs", function () {
           done(err);
         });
     });
+
+    it('puts the winapp package into the bar channel', function (done) {
+      request.put(`/depot/channels/neurosis/bar/pkgs/winapp/0.1.0/${release}/promote?target=x86_64-windows`)
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  
+    it('puts the winapp package into the stable channel', function (done) {
+      request.put(`/depot/channels/neurosis/stable/pkgs/winapp/0.1.0/${release}/promote?target=x86_64-windows`)
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
   });
 });
