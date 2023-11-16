@@ -102,14 +102,18 @@ export class PackageComponent implements OnInit, OnDestroy {
         filter(([versionsLoading]) => !versionsLoading)
       )
       .subscribe(([versionsLoading, origin, name, target, platforms]) => {
-        const defaultTarget = platforms.length ? platforms[0] : allPlatforms[0];
-        const currentTarget = target ?
-          targetFrom('param', target || defaultTarget.param) :
-          targetFrom('id', this.target || defaultTarget.id);
+        const latestVersion = this.store.getState().packages.versions?.[0];
+        const tgt = target ? targetFrom('param', target).id : latestVersion ? latestVersion.platforms[0] : allPlatforms[0].id;
+        const currentTarget = targetFrom('id', tgt);
         this.target = currentTarget.id;
         this.store.dispatch(setCurrentPackageTarget(currentTarget));
-        this.fetchLatest();
-        this.fetchLatestStable();
+
+        // This particularly happens when we refresh the page
+        // Just ensure we are on the latest page
+        if (!this.ident.version && !this.ident.release) {
+          this.fetchLatest();
+          this.fetchLatestStable();
+        }
       });
 
     combineLatest(versionsLoading$, origin$, name$, target$, token$, origins$, platforms$)
@@ -246,28 +250,29 @@ export class PackageComponent implements OnInit, OnDestroy {
     this.store.dispatch(fetchOrigin(this.origin));
   }
 
-  private getLatestPlatform() {
-    const platformOrder = allPlatforms.map(p => p.id);
-    const version = this.store.getState()?.packages?.versions?.[0];
-    if (version) {
-      for (const platform of platformOrder) {
-        if (version.platforms.includes(platform))
-          return platform;
-      }
+  private getLatestPlatform(target) {
+    const versions = this.store.getState().packages?.versions;
+    if (!versions) {
+      return target;
     }
 
-    return platformOrder[0];
+    const platformFound = versions.some(item => item.platforms.includes(target));
+    if (platformFound) {
+      return target;
+    }
+
+    return versions[0].platforms[0];
   }
 
   private fetchLatest() {
-    const target = this.getLatestPlatform();
+    const target = this.getLatestPlatform(this.target);
     this.store.dispatch(fetchLatestPackage(this.origin, this.name, target));
     const currentTarget = targetFrom('id', target);
     this.store.dispatch(setCurrentPackageTarget(currentTarget));
   }
 
   private fetchLatestStable() {
-    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.getLatestPlatform()));
+    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.getLatestPlatform(this.target)));
   }
 
   private fetchPackageSettings() {
