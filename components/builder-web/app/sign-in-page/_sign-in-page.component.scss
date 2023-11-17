@@ -45,12 +45,12 @@
   }
 
   .footnote {
-    color: $dim-slate-gray;
+    color: darkgray;
     text-align: center;
     margin: $default-margin $default-margin * 4;
 
     a {
-      color: $dim-slate-gray;
+      color: darkgray;
       text-decoration: underline;
     }
   }

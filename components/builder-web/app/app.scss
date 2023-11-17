@@ -219,6 +219,35 @@ main {
   }
 }
 
+footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30px;
+  line-height: 30px;
+  color: currentcolor;
+  text-align: center;
+  padding: 0 10px;
+  background-color: #f5f5f5;
+  font-size: 14px;
+
+  .pull-left {
+    float: left;
+  }
+  .pull-right {
+    float: right;
+  }
+  a:last-child {
+    margin-right: 0;
+  }
+  a {
+    color: currentcolor;
+    text-decoration: underline;
+    margin-right: 2em;
+  }
+}
+
 @import 'dialog';
 @import 'user-nav/user-nav.component';
 @import 'notifications/notifications';

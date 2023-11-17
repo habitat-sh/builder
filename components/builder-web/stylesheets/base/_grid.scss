@@ -37,6 +37,9 @@
         margin: 0 auto;
         margin-top: $default-margin * 4;
       }
+      footer {
+        position: fixed;
+      }
     }
   }
 
