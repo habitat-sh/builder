@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2022 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2016-2023 Chef Software Inc. and/or applicable contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,7 +60,8 @@ export class PackageDetailComponent {
   }
 
   titleFrom(platform) {
-    return targetFrom('id', platform).title;
+    const target = targetFrom('id', platform);
+    return target ? target.title : '';
   }
 
   get memberOfOrigin() {

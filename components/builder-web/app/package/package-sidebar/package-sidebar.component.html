@@ -33,7 +33,7 @@
       <a [routerLink]="['./', latestStable.ident.version, latestStable.ident.release]">
         {{ latestStable.ident.version }}/{{ latestStable.ident.release }}
       </a>
-      <span class="wbs" >{{ nameFrom(platform.id) }}</span>
+      <span class="wbs" >{{ nameFrom(latestStable.target) }}</span>
     </p>
     <p *ngIf="!latestStable && !loadingLatestStable">
       None.

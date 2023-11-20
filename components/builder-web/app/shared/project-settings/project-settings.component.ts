@@ -413,7 +413,8 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   }
 
   nameFrom(platform) {
-    return targetFrom('id', platform).name;
+    const target = targetFrom('id', platform);
+    return target ? target.name : '';
   }
 
   pickInstallation(install) {

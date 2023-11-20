@@ -137,7 +137,9 @@ export function demotePackage(origin: string, name: string, version: string, rel
 export function fetchPackage(pkg) {
   return dispatch => {
     depotApi.get(pkg.ident).then(response => {
-      dispatch(setCurrentPackage(response['results']));
+      const pkg = response['results'];
+      dispatch(setCurrentPackage(pkg));
+      dispatch(fetchPackageChannels(pkg.ident.origin, pkg.ident.name, pkg.ident.version, pkg.ident.release, pkg.target));
     }).catch(error => {
       dispatch(setCurrentPackage(undefined, error));
     });
