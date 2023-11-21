@@ -1,6 +1,17 @@
 <!doctype html>
 <html prefix="og: http://ogp.me/ns#">
   <head>
+    {{#if cfg.hosted}}
+      <!-- Google Tag Manager -->
+      <script>
+        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','GTM-5VR24H');
+      </script>
+      <!-- End Google Tag Manager -->
+    {{/if}}
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <title>Habitat - Automation that travels with the app.</title>
@@ -24,6 +35,13 @@
     <base href="/">
   </head>
   <body>
+    {{#if cfg.hosted}}
+      <!-- Google Tag Manager (noscript) -->
+      <noscript>
+        <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5VR24H" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+      </noscript>
+      <!-- End Google Tag Manager (noscript) -->
+    {{/if}}
     {{#if cfg.analytics.enabled}}
       <!-- Segment -->
       <script>
@@ -34,10 +52,6 @@
       </script>
     {{/if}}
     {{#if cfg.hosted}}
-      <!-- Google Analytics -->
-      <noscript><iframe src="//www.googletagmanager.com/ns.html?id=GTM-5VR24H" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-      <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-5VR24H');</script>
-
       <!-- Statuspage -->
       <script src="//cdn.statuspage.io/se-v2.js"></script>
     {{/if}}
