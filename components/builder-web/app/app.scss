@@ -220,8 +220,10 @@ main {
 }
 
 footer {
-  position: absolute;
-  left: 0;
+  $menu-width: 224px;
+  position: fixed;
+  left: $menu-width;
+  z-index: 100;
   right: 0;
   bottom: 0;
   height: 30px;
