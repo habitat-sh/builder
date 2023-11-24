@@ -134,6 +134,7 @@ main {
   left: 0;
   background-color: $white;
   overflow-y: auto;
+  margin-bottom: 30px;
 
   .full &, .sign-in & {
     background: transparent;
