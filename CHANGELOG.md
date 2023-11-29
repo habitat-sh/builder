@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- implemented new footer and UI changes done [#1794](https://github.com/habitat-sh/builder/pull/1794) ([AadeshNichite](https://github.com/AadeshNichite))
 - updated loader utils package version [#1795](https://github.com/habitat-sh/builder/pull/1795) ([vinay033](https://github.com/vinay033))
 - CHEF-6083: Updated the GTM code as per the recommendation. [#1792](https://github.com/habitat-sh/builder/pull/1792) ([agmathur](https://github.com/agmathur))
 - fix UI issues [#1791](https://github.com/habitat-sh/builder/pull/1791) ([sajjaphani](https://github.com/sajjaphani))
