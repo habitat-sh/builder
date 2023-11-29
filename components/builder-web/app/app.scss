@@ -134,6 +134,7 @@ main {
   left: 0;
   background-color: $white;
   overflow-y: auto;
+  margin-bottom: 30px;
 
   .full &, .sign-in & {
     background: transparent;
@@ -216,6 +217,37 @@ main {
       padding-top: 0;
       padding-left: $default-padding;
     }
+  }
+}
+
+footer {
+  $menu-width: 224px;
+  position: fixed;
+  left: $menu-width;
+  z-index: 100;
+  right: 0;
+  bottom: 0;
+  height: 30px;
+  line-height: 30px;
+  color: currentcolor;
+  text-align: center;
+  padding: 0 10px;
+  background-color: #f5f5f5;
+  font-size: 14px;
+
+  .pull-left {
+    float: left;
+  }
+  .pull-right {
+    float: right;
+  }
+  a:last-child {
+    margin-right: 0;
+  }
+  a {
+    color: currentcolor;
+    text-decoration: underline;
+    margin-right: 2em;
   }
 }
 
