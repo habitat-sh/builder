@@ -7,6 +7,46 @@
   -->
 
   <head>
+    <script type="text/javascript">
+      var oneTrustHelper = (function () {
+          function evalGTMScript() {
+              var gtmScript = document.getElementById("GTMScript");
+              gtmScript.type = "text/javascript";
+              gtmScript.classList.remove("optanon-category-1");
+              eval(gtmScript.innerHTML);
+          };
+
+          return {
+              gtmFallback: function () {
+                  console.warn('OneTrust not loaded.');
+                  if (document.readyState !== 'loading') {
+                      evalGTMScript();
+                  } else {
+                      document.addEventListener('readystatechange', function () {
+                          if (document.readyState === 'interactive') {
+                              evalGTMScript();
+                          }
+                      });
+                  };
+              }
+          };
+      })();
+    </script>
+    <!-- OneTrust Cookies Consent Notice start for bldr.habitat.sh -->
+    <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" onerror="oneTrustHelper.gtmFallback()"  type="text/javascript" charset="UTF-8" data-domain-script="56349530-b58d-4008-8d3b-f953100c27d3-test" ></script>
+    <script type="text/javascript">
+      function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for bldr.habitat.sh -->
+    <!-- Google Tag Manager -->
+    <script id="GTMScript" type="text/plain" class="optanon-category-1">
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','GTM-5VR24H');
+    </script>
+    <!-- End Google Tag Manager -->
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <title>Habitat - Automation that travels with the app.</title>
@@ -26,7 +66,11 @@
     <base href="/">
   </head>
   <body>
-
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+      <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5VR24H" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+    </noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <!-- Segment -->
     <script>
       !function(){var analytics=window.analytics=window.analytics||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","once","off","on"];analytics.factory=function(t){return function(){var e=Array.prototype.slice.call(arguments);e.unshift(t);analytics.push(e);return analytics}};for(var t=0;t<analytics.methods.length;t++){var e=analytics.methods[t];analytics[e]=analytics.factory(e)}analytics.load=function(t,e){var n=document.createElement("script");n.type="text/javascript";n.async=!0;n.src=("https:"===document.location.protocol?"https://":"http://")+"cdn.segment.com/analytics.js/v1/"+t+"/analytics.min.js";var o=document.getElementsByTagName("script")[0];o.parentNode.insertBefore(n,o);analytics._loadOptions=e};analytics.SNIPPET_VERSION="4.1.0";
