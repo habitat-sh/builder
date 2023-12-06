@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- CHEF-6081: Added production version of OneTrust script. [#1798](https://github.com/habitat-sh/builder/pull/1798) ([agmathur](https://github.com/agmathur))
 - CHEF-6081: Added testing version of OneTrust script. [#1797](https://github.com/habitat-sh/builder/pull/1797) ([agmathur](https://github.com/agmathur))
 - implemented new footer and UI changes done [#1794](https://github.com/habitat-sh/builder/pull/1794) ([AadeshNichite](https://github.com/AadeshNichite))
 - updated loader utils package version [#1795](https://github.com/habitat-sh/builder/pull/1795) ([vinay033](https://github.com/vinay033))
