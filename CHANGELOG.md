@@ -1,6 +1,8 @@
 # Habitat Builder CHANGELOG
 <!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release -->
+
+##  (2024-01-10)
 
 #### Merged Pull Requests
 - CHEF-6081: Added production version of OneTrust script. [#1798](https://github.com/habitat-sh/builder/pull/1798) ([agmathur](https://github.com/agmathur))
@@ -15,7 +17,6 @@
 - Bump minimatch and mocha in /test/builder-api [#1789](https://github.com/habitat-sh/builder/pull/1789) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump openssl from 0.10.48 to 0.10.55 [#1785](https://github.com/habitat-sh/builder/pull/1785) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - fixing changelog [#1784](https://github.com/habitat-sh/builder/pull/1784) ([mwrock](https://github.com/mwrock))
-<!-- latest_release -->
 
 ## [20230703](https://github.com/habitat-sh/builder/tree/20230703) (2023-07-03)
 
