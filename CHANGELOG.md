@@ -1,6 +1,12 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release unreleased -->
+<!-- latest_release 20240110 -->
+## [20240110](https://github.com/habitat-sh/builder/tree/20240110) (2024-01-19)
+
+#### Merged Pull Requests
+- updaged changelog [#1800](https://github.com/habitat-sh/builder/pull/1800) ([sajjaphani](https://github.com/sajjaphani))
 <!-- latest_release -->
+
+
 
 ##  (2024-01-10)
 
