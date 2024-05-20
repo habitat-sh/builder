@@ -390,7 +390,7 @@ name = "builder_core"
 version = "0.0.0"
 dependencies = [
  "base64 0.21.0",
- "bitflags 0.3.3",
+ "bitflags 1.3.2",
  "chrono",
  "dogstatsd",
  "env_proxy",
@@ -1298,7 +1298,7 @@ dependencies = [
  "actix-web",
  "artifactory-client",
  "base64 0.21.0",
- "bitflags 0.3.3",
+ "bitflags 1.3.2",
  "builder_core",
  "bytes",
  "chrono",
@@ -1375,7 +1375,7 @@ dependencies = [
 name = "habitat_builder_graph"
 version = "0.0.0"
 dependencies = [
- "bitflags 0.3.3",
+ "bitflags 1.3.2",
  "builder_core",
  "clap",
  "copperline",
@@ -1414,7 +1414,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "backtrace",
- "bitflags 0.3.3",
+ "bitflags 1.3.2",
  "builder_core",
  "bytes",
  "chrono",
@@ -1456,7 +1456,7 @@ name = "habitat_builder_worker"
 version = "0.0.0"
 dependencies = [
  "backtrace",
- "bitflags 0.3.3",
+ "bitflags 1.3.2",
  "builder_core",
  "chrono",
  "clap",
@@ -1500,7 +1500,7 @@ dependencies = [
  "habitat_win_users",
  "hex 0.4.3",
  "lazy_static",
- "libc 0.1.12",
+ "libc 0.2.155",
  "log",
  "native-tls",
  "nix 0.26.2",
