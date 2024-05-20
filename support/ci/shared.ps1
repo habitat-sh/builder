@@ -45,7 +45,7 @@ function Get-RustfmtToolchain {
 }
 
 function Get-Toolchain {
-    "$(Get-Content $PSScriptRoot\..\..\rust-toolchain)"
+    "$((ConvertFrom-StringData (Get-Content "$PLAN_CONTEXT/../../../rust-toolchain")[1]).channel.Replace('"', ''))"
 }
 
 function Install-RustToolchain($Toolchain) {

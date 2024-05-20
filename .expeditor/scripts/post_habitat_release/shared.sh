@@ -44,7 +44,7 @@ install_rustup() {
 }
 
 get_toolchain() {
-    cat "$(git rev-parse --show-toplevel)/rust-toolchain"
+    tail -n 1 "$(git rev-parse --show-toplevel)/rust-toolchain" | cut -d'"' -f 2
 }
 
 latest_release_tag() {

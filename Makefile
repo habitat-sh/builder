@@ -102,7 +102,7 @@ unit-$1: linux ## executes the $1 component's unit test suite
 endef
 $(foreach component,$(ALL),$(eval $(call UNIT,$(component))))
 
-TOOLCHAIN := $(shell cat rust-toolchain)
+TOOLCHAIN := $(shell tail -n 1  rust-toolchain | cut -d'"' -f 2)
 lint:
 	$(run) test/run_clippy.sh $(TOOLCHAIN) test/unexamined_lints.txt \
 	                                 test/allowed_lints.txt \

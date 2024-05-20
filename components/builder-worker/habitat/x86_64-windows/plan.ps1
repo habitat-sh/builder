@@ -17,7 +17,7 @@ $pkg_build_deps = @(
     "core/visual-cpp-build-tools-2015",
     "core/windows-10-sdk",
     "core/protobuf",
-    "core/rust/$(Get-Content "../../../../rust-toolchain")",
+    "core/rust/$((ConvertFrom-StringData (Get-Content "../../../../rust-toolchain")[1]).channel.Replace('"', ''))",
     "core/cacerts",
     "core/git",
     "core/perl"
