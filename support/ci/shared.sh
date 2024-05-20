@@ -20,7 +20,7 @@ get_rustfmt_toolchain() {
 }
 
 get_toolchain() {
-  cat "$dir/../../rust-toolchain"
+  tail -n 1 "$dir/../../rust-toolchain"  | cut -d'"' -f 2
 }
 
 install_rustup() {

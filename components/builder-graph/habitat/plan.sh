@@ -18,7 +18,7 @@ pkg_deps=(
 pkg_build_deps=(
   core/protobuf-cpp #TODO: This can probably be removed if we removed the crate dep on builder-protocol
   core/protobuf-rust #TODO: This can probably be removed if we removed the crate dep on builder-protocol
-  core/rust/"$(cat "../../../rust-toolchain")"
+  core/rust/"$(tail -n 1 "../../../rust-toolchain"  | cut -d'"' -f 2)"
   core/pkg-config
   core/git
 )

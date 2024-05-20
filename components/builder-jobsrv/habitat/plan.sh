@@ -7,7 +7,7 @@ pkg_bin_dirs=(bin)
 pkg_deps=(core/glibc core/openssl core/gcc-libs core/zeromq core/libarchive
   core/postgresql)
 pkg_build_deps=(core/protobuf-cpp core/protobuf-rust core/coreutils core/cacerts
-  core/rust/"$(cat "../../../rust-toolchain")" core/gcc core/git core/pkg-config)
+  core/rust/"$(tail -n 1 "../../../rust-toolchain"  | cut -d'"' -f 2)" core/gcc core/git core/pkg-config)
 pkg_exports=(
   [worker_port]=net.worker_command_port
   [worker_heartbeat]=net.worker_heartbeat_port
