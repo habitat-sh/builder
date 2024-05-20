@@ -1494,7 +1494,7 @@ dependencies = [
  "habitat_win_users",
  "hex 0.4.3",
  "lazy_static",
- "libc 0.1.12",
+ "libc 0.2.155",
  "log",
  "native-tls",
  "nix 0.26.2",
