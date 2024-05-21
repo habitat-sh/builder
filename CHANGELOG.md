@@ -3,6 +3,12 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump webpki from 0.22.0 to 0.22.4 [#1807](https://github.com/habitat-sh/builder/pull/1807) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump mio from 0.8.6 to 0.8.11 [#1804](https://github.com/habitat-sh/builder/pull/1804) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump shlex from 1.1.0 to 1.3.0 [#1805](https://github.com/habitat-sh/builder/pull/1805) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump openssl from 0.10.55 to 0.10.60 [#1806](https://github.com/habitat-sh/builder/pull/1806) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump h2 from 0.3.17 to 0.3.26 [#1808](https://github.com/habitat-sh/builder/pull/1808) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- bump git2 [#1809](https://github.com/habitat-sh/builder/pull/1809) ([mwrock](https://github.com/mwrock))
 - use toml rust-toolchain [#1803](https://github.com/habitat-sh/builder/pull/1803) ([mwrock](https://github.com/mwrock))
 <!-- latest_release -->
 
