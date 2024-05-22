@@ -252,6 +252,6 @@ mod ymd_date_format {
     {
         let s = String::deserialize(deserializer)?;
         let naive_date = NaiveDate::parse_from_str(&s, FORMAT).unwrap();
-        Ok(naive_date.and_hms(0, 0, 0))
+        Ok(naive_date.and_hms_opt(0, 0, 0).unwrap())
     }
 }
