@@ -8,6 +8,7 @@ use crate::{crypto,
             protocol::{message,
                        originsrv}};
 use chrono::{self,
+             DateTime,
              Duration,
              LocalResult::Single,
              TimeZone,
@@ -146,7 +147,7 @@ impl AccessToken {
     /// protobuf-generated code :/
     fn new_proto(account_id: u64, flags: u32, lifetime: Duration) -> originsrv::AccessToken {
         let expires = Utc::now().checked_add_signed(lifetime)
-                                .unwrap_or_else(|| chrono::MAX_DATE.and_hms(0, 0, 0))
+                                .unwrap_or(DateTime::<Utc>::MAX_UTC)
                                 .timestamp();
 
         let mut token = originsrv::AccessToken::new();
