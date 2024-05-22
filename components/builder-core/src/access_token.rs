@@ -324,7 +324,7 @@ mod tests {
 
         // December 31, 262143 CE... see `chrono::naive::date::MAX_DATE`
         // User tokens essentially never expire.
-        let maximum_time = 8_210_298_326_400;
+        let maximum_time = 8_210_266_876_799;
         assert_eq!(inner.get_expires(), maximum_time);
     }
 
