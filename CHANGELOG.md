@@ -3,6 +3,8 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- bump env_logger and tempfile [#1811](https://github.com/habitat-sh/builder/pull/1811) ([mwrock](https://github.com/mwrock))
+- update chrono [#1810](https://github.com/habitat-sh/builder/pull/1810) ([mwrock](https://github.com/mwrock))
 - Bump webpki from 0.22.0 to 0.22.4 [#1807](https://github.com/habitat-sh/builder/pull/1807) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump mio from 0.8.6 to 0.8.11 [#1804](https://github.com/habitat-sh/builder/pull/1804) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shlex from 1.1.0 to 1.3.0 [#1805](https://github.com/habitat-sh/builder/pull/1805) ([dependabot[bot]](https://github.com/dependabot[bot]))
