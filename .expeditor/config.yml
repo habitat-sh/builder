@@ -19,6 +19,8 @@ pipelines:
   - verify:
       description: Pull Request validation tests
       public: true
+  - end_to_end:
+      description: Builder end to end test
   - release_builder:
       description: Builder release process
   - post_habitat_release:
