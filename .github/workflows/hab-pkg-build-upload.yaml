@@ -97,7 +97,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hart-files
-          path: /hab/cache/artifacts/${{env.HAB_ORIGIN}}*.hart
+          # path: /hab/cache/artifacts/${{env.HAB_ORIGIN}}*.hart
+          path: results/${{env.HAB_ORIGIN}}*.hart
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
