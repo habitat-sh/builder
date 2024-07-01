@@ -1,0 +1,27 @@
+name: Habitat Install for Linux
+description: Install Habitat via curl bash on linux hosts
+inputs:
+  curl-bash-url:
+    description: URL of the habitat curl bash script
+    required: true
+    default: 'https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/install.sh'
+  habitat-version:
+    description: Which version of habitat to use
+    required: true
+    default: latest
+  habitat-target:
+    description: Which architecture to target
+    required: true
+    default: x86_64-linux
+runs:
+  using: composite
+  steps:
+    - name: hab curl bash install
+      shell: bash
+      env:
+        URL: ${{ inputs.curl-bash-url }}
+        VERSION: ${{ inputs.habitat-version }}
+        TARGET: ${{ inputs.habitat-target }}
+      run: |
+        echo --- hab curl bash install of "$VERSION" for "$TARGET"
+        curl "$URL" | sudo bash -s -- -v "$VERSION" -t "$TARGET"

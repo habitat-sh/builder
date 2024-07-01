@@ -1,0 +1,197 @@
+name: hab pkg build upload
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - created
+
+env:
+  BLDR_URL: 'https://bldr.habitat.sh/'
+  # HAB_ORIGIN: 'habitat'
+  HAB_ORIGIN: 'jasonheath'
+  # HAB_AUTH_TOKEN: ${{ secrets.HAB_AUTH_TOKEN }}
+  HAB_AUTH_TOKEN: '_Qk9YLTEKYmxkci0yMDE3MDkyNzAyMzcxNApibGRyLTIwMTcwOTI3MDIzNzE0ClZCdWVNWThzNkRmTVIrcjJ2ZnhzdFhEbG9abU1TM0JaCnBydkdXQzF4NWx5Y21RV3VrT1AvUkVkUXQ2a1Y0blRKUUtwZWVaNE1BY2tObFRLaA=='
+  HABITAT_VERSION_SET: 'latest'
+
+permissions:
+  contents: write
+
+jobs:
+
+  windows-pre-build:
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.app_version.outputs.APP_VERSION }}
+      date: ${{ steps.date.outputs.DATE }}
+    steps:
+      - name: Get branch name
+        id: get_branch_name
+        run: |
+          echo "BRANCH_NAME=${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
+      - name: Get formated date
+        id: date
+        run: |
+          echo "DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
+      - name: Get version from tag
+        id: app_version
+        run: |
+           echo "APP_VERSION=$(git describe --tags `git rev-list --tags --max-count=1` | sed 's/^v//')" >> "$GITHUB_OUTPUT"
+
+  # These particular components
+  # - have a plan.sh file in their "component root"
+  # - don't have a habitat plan directory
+  # - don't have a habitat-dev plan directory
+  # - don't have architecture specific plan directories
+  plan-file-packages:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        channel: [unstable]
+        components: [builder-memcached, builder-datastore]
+    runs-on: ${{matrix.os}}
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Habitat
+        uses: ./.github/actions/hab-install-linux
+
+      - name: Build and Upload Habitat Package
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+          bldr-component: components/${{matrix.components}}
+
+  # These particular components
+  # - don't have a plan.sh file in their "component root"
+  # - have a habitat plan directory
+  # - don't have a habitat-dev plan directory
+  # - don't have architecture specific plan directories
+  habitat-dir-packages:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        channel: [unstable]
+        components: [builder-jobsrv]
+        # components: [builder-api, builder-api-proxy, builder-graph, builder-jobsrv, builder-minio]
+    runs-on: ${{matrix.os}}
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Habitat
+        uses: ./.github/actions/hab-install-linux
+
+      - name: Build and Upload Habitat Package
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+          bldr-component: components/${{matrix.components}}/habitat
+
+      - name: Upload HART file artifact for reuse in habitat-dev plans
+        uses: actions/upload-artifact@v4
+        with:
+          name: hart-files
+          path: /hab/cache/artifacts/${{env.HAB_ORIGIN}}*.hart
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          overwrite: true
+
+  # These particular sub-components of builder-worker
+  # - don't have a plan.sh file in their "component root"
+  # - don't have a habitat plan directory
+  # - don't have a habitat-dev plan directory
+  # - have architecture specific plan directories
+  arch-target-packages:
+    needs: windows-pre-build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        #os: [ubuntu-latest, windows-latest]
+        channel: [unstable]
+        components: [builder-worker]
+        wumpus: [x86_64-linux, x86_64-windows]
+        # wumpus: [x86_64-linux, x86_64-linux-kernel2, x86_64-windows]
+        exclude:
+          - os: ubuntu-latest
+            wumpus: x86_64-windows
+          - os: windows-latest
+            wumpus: x86_64-linux
+          - os: windows-latest
+            wumpus: x86_64-linux-kernel2
+    runs-on: ${{matrix.os}}
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - if: ${{ matrix.os == 'ubuntu-latest'  && matrix.wumpus != 'x86_64-windows' }}
+        name: Install Habitat
+        uses: ./.github/actions/hab-install-linux
+      # - if: ${{ matrix.os == 'windows-latest' && matrix.wumpus == 'x86_64-windows' }}
+      #   name: Install Habitat
+      #   uses: ./.github/actions/hab-install-windows
+
+      - if: ${{ matrix.os == 'ubuntu-latest'  && matrix.wumpus != 'x86_64-windows' }}
+        name: Build and Upload Habitat Package
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+          bldr-component: components/${{matrix.components}}/habitat/${{matrix.wumpus}}
+      # - if: ${{ matrix.os == 'windows-latest' && matrix.wumpus == 'x86_64-windows' }}
+      #   name: Build and Upload Habitat Package
+      #   uses: ./.github/actions/hab-pkg-build-and-upload-windows
+      #   with:
+      #     hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+      #     hab-origin: ${{ env.HAB_ORIGIN }}
+      #     bldr-component: components/${{matrix.components}}/habitat/${{matrix.wumpus}}
+      #     app-version: ${{ needs.pre-build.outputs.app_version }}
+      #     build-date-time: ${{ needs.pre-build.outputs.date }}
+
+  # These particular components
+  # - don't have a plan.sh file in their "component root"
+  # - don't have a habitat plan directory
+  # - have a habitat-dev plan directory
+  # - don't have architecture specific plan directories
+  habitat-dev-dir-packages:
+    needs: [habitat-dir-packages, architecture-targeted-packages]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        channel: [unstable]
+        components: [builder-jobsrv, builder-worker]
+        # components: [builder-api, builder-api-proxy, builder-jobsrv, builder-worker]
+    runs-on: ${{matrix.os}}
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Habitat
+        uses: ./.github/actions/hab-install-linux
+
+      - name: Download HART file we need here previouisly built in "habitat-dir-components" job
+        uses: actions/download-artifact@v3
+        with:
+          name: hart-files
+          path: /hab/cache/artifacts/
+
+      - name: Build and Upload Habitat Package
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+          bldr-component: components/${{matrix.components}}/habitat-dev
