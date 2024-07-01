@@ -201,3 +201,5 @@ jobs:
 
 # JAH: rename wumpus
 # JAH: trigger appropriately
+# JAH: Set the hab_auth_token more appropriately
+
