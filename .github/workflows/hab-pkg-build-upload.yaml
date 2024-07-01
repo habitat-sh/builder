@@ -1,4 +1,4 @@
-name: Publish Habitat packages
+name: Publish Habitat Packages
 
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
   # - don't have a habitat-dev plan directory
   # - don't have architecture specific plan directories
   plan-file-packages:
-    name: ${{matrix.components}} hab pkg
+    name: ${{matrix.components}} hab pkg (plan file)
     strategy:
       fail-fast: false
       matrix:
@@ -57,9 +57,6 @@ jobs:
         components: [builder-memcached, builder-datastore]
     runs-on: ${{matrix.os}}
     steps:
-      - name: hab pkg ${{matrix.components}}
-        shell: bash
-        run: echo "hab pkg ${{matrix.components}}"
       - name: Checkout for ${{matrix.components}}
         uses: actions/checkout@v4
       - name: Install Habitat for ${{matrix.components}}
@@ -71,44 +68,40 @@ jobs:
           hab-origin: ${{ env.HAB_ORIGIN }}
           bldr-component: components/${{matrix.components}}
 
-  # # These particular components
-  # # - don't have a plan.sh file in their "component root"
-  # # - have a habitat plan directory
-  # # - don't have a habitat-dev plan directory
-  # # - don't have architecture specific plan directories
-  # habitat-dir-packages:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [ubuntu-latest]
-  #       channel: [unstable]
-  #       components: [builder-jobsrv]
-  #       # components: [builder-api, builder-api-proxy, builder-graph, builder-jobsrv, builder-minio]
-  #   runs-on: ${{matrix.os}}
-  #   steps:
-
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-
-  #     - name: Install Habitat
-  #       uses: ./.github/actions/hab-install-linux
-
-  #     - name: Build and Upload Habitat Package
-  #       uses: ./.github/actions/hab-pkg-build-and-upload-linux
-  #       with:
-  #         hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
-  #         hab-origin: ${{ env.HAB_ORIGIN }}
-  #         bldr-component: components/${{matrix.components}}/habitat
-
-  #     - name: Upload HART file artifact for reuse in habitat-dev plans
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: hart-files
-  #         path: /hab/cache/artifacts/${{env.HAB_ORIGIN}}*.hart
-  #         if-no-files-found: error
-  #         retention-days: 1
-  #         compression-level: 0
-  #         overwrite: true
+  # These particular components
+  # - don't have a plan.sh file in their "component root"
+  # - have a habitat plan directory
+  # - don't have a habitat-dev plan directory
+  # - don't have architecture specific plan directories
+  habitat-dir-packages:
+    name: ${{matrix.components}} hab pkg (habitat dir)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        channel: [unstable]
+        components: [builder-api, builder-api-proxy, builder-graph, builder-jobsrv, builder-minio]
+    runs-on: ${{matrix.os}}
+    steps:
+      - name: Checkout for ${{matrix.components}}
+        uses: actions/checkout@v4
+      - name: Install Habitat for ${{matrix.components}}
+        uses: ./.github/actions/hab-install-linux
+      - name: Build and Upload Habitat Package for ${{matrix.components}}
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+          bldr-component: components/${{matrix.components}}/habitat
+      - name: Upload HART file artifact for reuse in habitat-dev plans
+        uses: actions/upload-artifact@v4
+        with:
+          name: hart-files
+          path: /hab/cache/artifacts/${{env.HAB_ORIGIN}}*.hart
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          overwrite: true
 
   # # These particular sub-components of builder-worker
   # # - don't have a plan.sh file in their "component root"
