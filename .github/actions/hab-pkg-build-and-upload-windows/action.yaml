@@ -36,7 +36,7 @@ runs:
 
         hab license accept
         hab origin key download ${{ env.HAB_ORIGIN }}
-        hab origin key download --auth ${{ secrets.HAB_AUTH_TOKEN }} --secret ${{ env.HAB_ORIGIN }}
+        hab origin key download --auth ${{ env.HAB_AUTH_TOKEN }} --secret ${{ env.HAB_ORIGIN }}
 
         write-output "--- hab pkg build $BLDR_COMPONENT"
         hab pkg build $env.BLDR_COMPONENT
@@ -44,5 +44,5 @@ runs:
 
         . results\last_build.ps1
         write-output "--- hab pkg upload --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact"
-        hab pkg upload --auth ${{ secrets.HAB_AUTH_TOKEN }} results\$pkg_artifact
+        hab pkg upload --auth ${{ env.HAB_AUTH_TOKEN }} results\$pkg_artifact
         write-output "--- uploaded successfully"

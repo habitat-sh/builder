@@ -14,12 +14,11 @@ env:
   BLDR_URL: 'https://bldr.habitat.sh/'
   # HAB_ORIGIN: 'habitat'
   HAB_ORIGIN: 'jasonheath'
-  # HAB_AUTH_TOKEN: ${{ secrets.HAB_AUTH_TOKEN }}
-  HAB_AUTH_TOKEN: '_Qk9YLTEKYmxkci0yMDE3MDkyNzAyMzcxNApibGRyLTIwMTcwOTI3MDIzNzE0ClZCdWVNWThzNkRmTVIrcjJ2ZnhzdFhEbG9abU1TM0JaCnBydkdXQzF4NWx5Y21RV3VrT1AvUkVkUXQ2a1Y0blRKUUtwZWVaNE1BY2tObFRLaA=='
+  HAB_AUTH_TOKEN: ${{ secrets.HAB_AUTH_TOKEN }}
   HABITAT_VERSION_SET: 'latest'
 
-permissions:
-  contents: write
+# permissions:
+#   contents: write
 
 jobs:
 
@@ -197,3 +196,7 @@ jobs:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
           hab-origin: ${{ env.HAB_ORIGIN }}
           bldr-component: components/${{matrix.components}}/habitat-dev
+
+
+# JAH: rename wumpus
+# JAH: trigger appropriately
