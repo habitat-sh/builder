@@ -10,6 +10,9 @@ inputs:
   bldr-component:
     description: The Builder Component to build and package
     required: true
+  gh-token:
+    description: The Builder Component to build and package
+    required: true
 runs:
   using: composite
   steps:
@@ -19,7 +22,7 @@ runs:
         HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
         HAB_ORIGIN: ${{ inputs.hab-origin}}
         BLDR_COMPONENT: ${{ inputs.bldr-component }}
-        HAB_STUDIO_SECRET_GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        HAB_STUDIO_SECRET_GITHUB_TOKEN: ${{ inputs.gh-token }}
       run: |
         export HAB_STUDIO_SECRET_GITHUB_TOKEN
 

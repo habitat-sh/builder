@@ -16,6 +16,7 @@ env:
   HAB_ORIGIN: 'jasonheath'
   HAB_AUTH_TOKEN: ${{ secrets.HAB_AUTH_TOKEN }}
   HABITAT_VERSION_SET: 'latest'
+  HAB_STUDIO_SECRET_GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
 # permissions:
 #   contents: write
