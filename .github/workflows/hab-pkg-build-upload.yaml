@@ -57,14 +57,14 @@ jobs:
         components: [builder-memcached, builder-datastore]
     runs-on: ${{matrix.os}}
     steps:
-      - name: hab pkg ${{matrix.component}
+      - name: hab pkg ${{matrix.component}}
         shell: bash
         run: echo "hab pkg ${{matrix.component}}"
-      - name: Checkout for ${{matrix.component}}"
+      - name: Checkout for ${{matrix.component}}
         uses: actions/checkout@v4
-      - name: Install Habitat for ${{matrix.component}}"
+      - name: Install Habitat for ${{matrix.component}}
         uses: ./.github/actions/hab-install-linux
-      - name: Build and Upload Habitat Package for ${{matrix.component}}"
+      - name: Build and Upload Habitat Package for ${{matrix.component}}
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
