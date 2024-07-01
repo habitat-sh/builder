@@ -48,7 +48,6 @@ jobs:
   # - don't have a habitat-dev plan directory
   # - don't have architecture specific plan directories
   plan-file-packages:
-    name: ${{matrix.component}} hab pkg
     strategy:
       fail-fast: false
       matrix:
@@ -56,14 +55,15 @@ jobs:
         channel: [unstable]
         components: [builder-memcached, builder-datastore]
     runs-on: ${{matrix.os}}
+    name: ${{matrix.component}} hab pkg
     steps:
-
+      - name: : ${{matrix.component}} hab pkg job
+        shell: bash
+        run: echo "${{matrix.component}} hab pkg job"
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Install Habitat
         uses: ./.github/actions/hab-install-linux
-
       - name: Build and Upload Habitat Package
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
         with:
