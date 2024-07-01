@@ -2,11 +2,13 @@ name: hab pkg build upload
 
 on:
   push:
-    branches:
-      - main
-  release:
-    types:
-      - created
+
+  # JAH: trigger more appropriately once development is done
+  #   branches:
+  #     - main
+  # release:
+  #   types:
+  #     - created
 
 env:
   BLDR_URL: 'https://bldr.habitat.sh/'
