@@ -18,8 +18,8 @@ env:
   HABITAT_VERSION_SET: 'latest'
   HAB_STUDIO_SECRET_GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
-# permissions:
-#   contents: write
+permissions:
+  contents: write
 
 jobs:
 
