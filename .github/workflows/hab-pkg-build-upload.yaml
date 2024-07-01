@@ -1,4 +1,4 @@
-name: hab pkg build upload
+name: Publish Habitat packages
 
 on:
   push:
@@ -48,6 +48,7 @@ jobs:
   # - don't have a habitat-dev plan directory
   # - don't have architecture specific plan directories
   plan-file-packages:
+    name: ${{matrix.component}} hab pkg
     strategy:
       fail-fast: false
       matrix:
@@ -202,4 +203,5 @@ jobs:
 # JAH: rename wumpus
 # JAH: trigger appropriately
 # JAH: Set the hab_auth_token more appropriately
+# JAH: stop using jasonheath origin
 
