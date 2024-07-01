@@ -168,7 +168,7 @@ jobs:
   # - have a habitat-dev plan directory
   # - don't have architecture specific plan directories
   habitat-dev-dir-packages:
-    needs: [habitat-dir-packages, architecture-targeted-packages]
+    needs: [habitat-dir-packages, arch-target-packages]
     strategy:
       fail-fast: false
       matrix:
