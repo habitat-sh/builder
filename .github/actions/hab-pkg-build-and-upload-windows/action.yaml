@@ -42,7 +42,7 @@ runs:
 
         . results\last_build.ps1
 
-        write-output "--- hab pkg install --auth elided-HAB_AUTH_TOKEN results\$pkg_artifact
+        write-output "--- hab pkg install --auth elided-HAB_AUTH_TOKEN results\$pkg_artifact"
         hab pkg install --auth $env:HAB_AUTH_TOKEN results\$pkg_artifact
         write-output "--- installed successfully"
 
