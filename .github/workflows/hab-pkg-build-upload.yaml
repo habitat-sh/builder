@@ -120,13 +120,13 @@ jobs:
         components: [builder-worker]
         wumpus: [x86_64-linux, x86_64-windows]
         # wumpus: [x86_64-linux, x86_64-linux-kernel2, x86_64-windows]
-        exclude:
-          - os: ubuntu-latest
-            wumpus: x86_64-windows
-          - os: windows-latest
-            wumpus: x86_64-linux
-          - os: windows-latest
-            wumpus: x86_64-linux-kernel2
+        # exclude:
+        #   - os: ubuntu-latest
+        #     wumpus: x86_64-windows
+        #   - os: windows-latest
+        #     wumpus: x86_64-linux
+        #   - os: windows-latest
+        #     wumpus: x86_64-linux-kernel2
     runs-on: ${{matrix.os}}
     steps:
 
