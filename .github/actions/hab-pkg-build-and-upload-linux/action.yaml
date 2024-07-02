@@ -36,6 +36,10 @@ runs:
 
         source results/last_build.env
 
+        sudo hab license accept
+        sudo hab origin key download $HAB_ORIGIN
+        sudo hab origin key download --auth $HAB_AUTH_TOKEN --secret $HAB_ORIGIN
+
         echo "--- sudo hab pkg install --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact"
         sudo hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact
         echo "--- installed succesfully"
