@@ -118,42 +118,42 @@ jobs:
         #os: [ubuntu-latest, windows-latest]
         channel: [unstable]
         components: [builder-worker]
-        wumpus: [x86_64-linux, x86_64-windows]
-        # wumpus: [x86_64-linux, x86_64-linux-kernel2, x86_64-windows]
+        # subdir: [x86_64-linux, x86_64-windows]
+        subdir: [x86_64-linux, x86_64-linux-kernel2, x86_64-windows]
         # exclude:
         #   - os: ubuntu-latest
-        #     wumpus: x86_64-windows
+        #     subdir: x86_64-windows
         #   - os: windows-latest
-        #     wumpus: x86_64-linux
+        #     subdir: x86_64-linux
         #   - os: windows-latest
-        #     wumpus: x86_64-linux-kernel2
+        #     subdir: x86_64-linux-kernel2
     runs-on: ${{matrix.os}}
     steps:
 
       - name: Checkout
         uses: actions/checkout@v4
 
-      - if: ${{ matrix.os == 'ubuntu-latest'  && matrix.wumpus != 'x86_64-windows' }}
+      - if: ${{ matrix.os == 'ubuntu-latest'  && matrix.subdir != 'x86_64-windows' }}
         name: Install Habitat
         uses: ./.github/actions/hab-install-linux
-      - if: ${{ matrix.os == 'windows-latest' && matrix.wumpus == 'x86_64-windows' }}
+      - if: ${{ matrix.os == 'windows-latest' && matrix.subdir == 'x86_64-windows' }}
         name: Install Habitat
         uses: ./.github/actions/hab-install-windows
 
-      - if: ${{ matrix.os == 'ubuntu-latest'  && matrix.wumpus != 'x86_64-windows' }}
+      - if: ${{ matrix.os == 'ubuntu-latest'  && matrix.subdir != 'x86_64-windows' }}
         name: Build and Upload Habitat Package
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
           hab-origin: ${{ env.HAB_ORIGIN }}
-          bldr-component: components/${{matrix.components}}/habitat/${{matrix.wumpus}}
-      - if: ${{ matrix.os == 'windows-latest' && matrix.wumpus == 'x86_64-windows' }}
+          bldr-component: components/${{matrix.components}}/habitat/${{matrix.subdir}}
+      - if: ${{ matrix.os == 'windows-latest' && matrix.subdir == 'x86_64-windows' }}
         name: Build and Upload Habitat Package
         uses: ./.github/actions/hab-pkg-build-and-upload-windows
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
           hab-origin: ${{ env.HAB_ORIGIN }}
-          bldr-component: components/${{matrix.components}}/habitat/${{matrix.wumpus}}
+          bldr-component: components/${{matrix.components}}/habitat/${{matrix.subdir}}
           app-version: ${{ needs.pre-build.outputs.app_version }}
           build-date-time: ${{ needs.pre-build.outputs.date }}
 
@@ -194,7 +194,7 @@ jobs:
   #         bldr-component: components/${{matrix.components}}/habitat-dev
 
 
-# JAH: rename wumpus
+# JAH: rename subdir
 # JAH: trigger appropriately
 # JAH: Set the hab_auth_token more appropriately
 # JAH: stop using jasonheath origin
