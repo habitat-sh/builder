@@ -98,15 +98,15 @@ jobs:
           hab-origin: ${{ env.HAB_ORIGIN }}
           bldr-component: components/${{matrix.components}}/habitat
 
-      - name: Upload HART file artifact for reuse in habitat-dev plans
-        uses: actions/upload-artifact@v4
-        with:
-          name: hart-files
-          path: results/${{env.HAB_ORIGIN}}*.hart
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 0
-          overwrite: true
+      # - name: Upload HART file artifact for reuse in habitat-dev plans
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{matrix.components}-hart-file
+      #     path: results/${{env.HAB_ORIGIN}}*.hart
+      #     if-no-files-found: error
+      #     retention-days: 1
+      #     compression-level: 0
+      #     overwrite: true
 
   # These particular sub-components of builder-worker
   # - don't have a plan.sh file in their "component root"
@@ -160,15 +160,15 @@ jobs:
           app-version: ${{ needs.pre-build.outputs.app_version }}
           build-date-time: ${{ needs.pre-build.outputs.date }}
 
-      - name: Upload HART file artifact for reuse in habitat-dev plans
-        uses: actions/upload-artifact@v4
-        with:
-          name: hart-files
-          path: results/${{env.HAB_ORIGIN}}*.hart
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 0
-          overwrite: true
+      # - name: Upload HART file artifact for reuse in habitat-dev plans
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{matrix.components}-hart-file
+      #     path: results/${{env.HAB_ORIGIN}}*.hart
+      #     if-no-files-found: error
+      #     retention-days: 1
+      #     compression-level: 0
+      #     overwrite: true
 
   # These particular components
   # - don't have a plan.sh file in their "component root"
@@ -177,13 +177,14 @@ jobs:
   # - don't have architecture specific plan directories
   habitat-dev-dir-packages:
     name: ${{matrix.components}} hab pkg (habitat-dev dir)
-    needs: [habitat-dir-packages, arch-target-packages]
+    # needs: [habitat-dir-packages, arch-target-packages]
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
         channel: [unstable]
-        components: [builder-api, builder-api-proxy, builder-jobsrv, builder-worker]
+        components: [builder-api, builder-jobsrv, builder-worker]
+        # components: [builder-api, builder-api-proxy, builder-jobsrv, builder-worker]
     runs-on: ${{matrix.os}}
     steps:
 
@@ -193,11 +194,11 @@ jobs:
       - name: Install Habitat
         uses: ./.github/actions/hab-install-linux
 
-      - name: Download HART file we need here previouisly built in "habitat-dir-components" job
-        uses: actions/download-artifact@v4
-        with:
-          name: hart-files
-          path: /hab/cache/artifacts/
+      # - name: Download HART file we need here previouisly built in "habitat-dir-components" job
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: hart-files
+      #     path: /hab/cache/artifacts/
 
       - name: Build and Upload Habitat Package
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
