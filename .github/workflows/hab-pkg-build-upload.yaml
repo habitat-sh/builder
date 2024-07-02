@@ -23,24 +23,20 @@ permissions:
 
 jobs:
 
-  windows-pre-build:
-    runs-on: ubuntu-latest
-    outputs:
-      app_version: ${{ steps.app_version.outputs.APP_VERSION }}
-      date: ${{ steps.date.outputs.DATE }}
-    steps:
-      - name: Get branch name
-        id: get_branch_name
-        run: |
-          echo "BRANCH_NAME=${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
-      - name: Get formated date
-        id: date
-        run: |
-          echo "DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
-      - name: Get version from tag
-        id: app_version
-        run: |
-           echo "APP_VERSION=$(git describe --tags `git rev-list --tags --max-count=1` | sed 's/^v//')" >> "$GITHUB_OUTPUT"
+  # windows-pre-build:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     app_version: ${{ steps.app_version.outputs.APP_VERSION }}
+  #     date: ${{ steps.date.outputs.DATE }}
+  #   steps:
+  #     - name: Get formated date
+  #       id: date
+  #       run: |
+  #         echo "DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
+  #     - name: Get version from tag
+  #       id: app_version
+  #       run: |
+  #          echo "APP_VERSION=$(git describe --tags `git rev-list --tags --max-count=1` | sed 's/^v//')" >> "$GITHUB_OUTPUT"
 
   # These particular components
   # - have a plan.sh file in their "component root"
@@ -115,7 +111,7 @@ jobs:
   # - have architecture specific plan directories
   arch-target-packages:
     name: ${{matrix.arches}} ${{matrix.components}} hab pkg (plan file)
-    needs: windows-pre-build
+    # needs: windows-pre-build
     strategy:
       fail-fast: false
       matrix:
