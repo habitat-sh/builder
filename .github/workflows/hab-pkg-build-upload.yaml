@@ -160,13 +160,13 @@ jobs:
           hab-origin: ${{ env.HAB_ORIGIN }}
           bldr-component: components/${{matrix.components}}/habitat
 
-    - name: hab pkg build and install
-      shell: bash
-      run: |
-        echo ---- BEGIN hab pkg path EXPERIMENTS
-        echo ---- hab pkg path $pkg_origin/$pkg_name
-                  hab pkg path $pkg_origin/$pkg_name
-        echo ---- END hab pkg path EXPERIMENTS
+      - name: hab pkg build and install
+        shell: bash
+        run: |
+          echo ---- BEGIN hab pkg path EXPERIMENTS
+          echo ---- hab pkg path $pkg_origin/$pkg_name
+                    hab pkg path $pkg_origin/$pkg_name
+          echo ---- END hab pkg path EXPERIMENTS
 
       - name: ${{matrix.components}} habitat-dev directory package
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
