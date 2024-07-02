@@ -25,8 +25,8 @@ do_prepare() {
 # shellcheck disable=2154
 do_builder_install() {
   local pkg_path
-  pkg_path=$(hab pkg path jasonheath/"$pkg_name")
-  # JAH: change the jasonheath/ above back to habitat/
+  pkg_path=$(hab pkg path "$pkg_origin"/"$pkg_name")
+  # JAH: change the above back to habitat/"$pkg_name" as it was before?
 
   build_line "Linking new binary into package"
   ln -sfv "$CARGO_TARGET_DIR/$rustc_target/${builder_build_type#--}/$bin" \
