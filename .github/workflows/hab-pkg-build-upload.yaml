@@ -23,31 +23,32 @@ permissions:
 
 jobs:
 
-  # # In their component root, these particular components
-  # # - have a plan.sh file
-  # # - don't have a habitat plan directory
-  # # - don't have a habitat-dev plan directory
-  # # - don't have architecture specific plan directories
-  # plan-file-packages:
-  #   name: ${{matrix.components}} (plan file)
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [ubuntu-latest]
-  #       channel: [unstable]
-  #       components: [builder-memcached, builder-datastore]
-  #   runs-on: ${{matrix.os}}
-  #   steps:
-  #     - name: Checkout for ${{matrix.components}}
-  #       uses: actions/checkout@v4
-  #     - name: Install Habitat for ${{matrix.components}}
-  #       uses: ./.github/actions/hab-install-linux
-  #     - name: Build and Upload Habitat Package for ${{matrix.components}}
-  #       uses: ./.github/actions/hab-pkg-build-and-upload-linux
-  #       with:
-  #         hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
-  #         hab-origin: ${{ env.HAB_ORIGIN }}
-  #         bldr-component: components/${{matrix.components}}
+  # In their component root, these particular components
+  # - have a plan.sh file
+  # - don't have a habitat plan directory
+  # - don't have a habitat-dev plan directory
+  # - don't have architecture specific plan directories
+  plan-file-packages:
+    name: ${{matrix.components}} (plan file)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        channel: [unstable]
+        components: [builder-memcached]
+        # components: [builder-memcached, builder-datastore]
+    runs-on: ${{matrix.os}}
+    steps:
+      - name: Checkout for ${{matrix.components}}
+        uses: actions/checkout@v4
+      - name: Install Habitat for ${{matrix.components}}
+        uses: ./.github/actions/hab-install-linux
+      - name: Build and Upload Habitat Package for ${{matrix.components}}
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+          bldr-component: components/${{matrix.components}}
 
   # # In their component root, these particular components
   # # - don't have a plan.sh file
@@ -129,42 +130,42 @@ jobs:
   #         app-version: ${{ needs.pre-build.outputs.app_version }}
   #         build-date-time: ${{ needs.pre-build.outputs.date }}
 
-  # In their component root, these particular components
-  # - don't have a plan.sh file
-  # - have a habitat plan directory
-  # - have a habitat-dev plan directory
-  # - don't have architecture specific plan directories
-  habitat-dev-dir-packages:
-    name: ${{matrix.components}} (habitat and habitat-dev dirs)
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        channel: [unstable]
-        components: [builder-api, builder-jobsrv]
-        # components: [builder-api, builder-api-proxy, builder-jobsrv, builder-worker]
-    runs-on: ${{matrix.os}}
-    steps:
+  # # In their component root, these particular components
+  # # - don't have a plan.sh file
+  # # - have a habitat plan directory
+  # # - have a habitat-dev plan directory
+  # # - don't have architecture specific plan directories
+  # habitat-dev-dir-packages:
+  #   name: ${{matrix.components}} (habitat and habitat-dev dirs)
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [ubuntu-latest]
+  #       channel: [unstable]
+  #       components: [builder-api, builder-jobsrv]
+  #       # components: [builder-api, builder-api-proxy, builder-jobsrv, builder-worker]
+  #   runs-on: ${{matrix.os}}
+  #   steps:
 
-      - name: Checkout
-        uses: actions/checkout@v4
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
 
-      - name: Install Habitat
-        uses: ./.github/actions/hab-install-linux
+  #     - name: Install Habitat
+  #       uses: ./.github/actions/hab-install-linux
 
-      - name: ${{matrix.components}} habitat directory package
-        uses: ./.github/actions/hab-pkg-build-and-upload-linux
-        with:
-          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
-          hab-origin: ${{ env.HAB_ORIGIN }}
-          bldr-component: components/${{matrix.components}}/habitat
+  #     - name: ${{matrix.components}} habitat directory package
+  #       uses: ./.github/actions/hab-pkg-build-and-upload-linux
+  #       with:
+  #         hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+  #         hab-origin: ${{ env.HAB_ORIGIN }}
+  #         bldr-component: components/${{matrix.components}}/habitat
 
-      - name: ${{matrix.components}} habitat-dev directory package
-        uses: ./.github/actions/hab-pkg-build-and-upload-linux
-        with:
-          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
-          hab-origin: ${{ env.HAB_ORIGIN }}
-          bldr-component: components/${{matrix.components}}/habitat-dev
+  #     - name: ${{matrix.components}} habitat-dev directory package
+  #       uses: ./.github/actions/hab-pkg-build-and-upload-linux
+  #       with:
+  #         hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+  #         hab-origin: ${{ env.HAB_ORIGIN }}
+  #         bldr-component: components/${{matrix.components}}/habitat-dev
 
 # JAH: trigger appropriately
 # JAH: Set the hab_auth_token more appropriately

@@ -26,27 +26,25 @@ runs:
       run: |
         export HAB_STUDIO_SECRET_GITHUB_TOKEN
 
-        echo "--- hab pkg build $BLDR_COMPONENT"
+        echo ---- hab pkg build $BLDR_COMPONENT
         hab pkg build $BLDR_COMPONENT
-        echo "--- built succesfully"
+        echo ---- built succesfully
 
         source results/last_build.env
 
-        echo "--- sudo hab pkg install --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact"
+        echo ---- sudo hab pkg install --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact
         sudo hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact
-        echo "--- installed succesfully"
+        echo ---- installed succesfully
 
-        echo "--- BEGIN hab pkg path EXPERIMENTS"
-        echo "--- hab pkg path $HAB_ORIGIN/$BLDR_COMPONENT"
-        hab pkg path $HAB_ORIGIN/$BLDR_COMPONENT
-        echo "--- hab pkg path $pkg_origin/$pkg_name"
-        hab pkg path $pkg_origin/$pkg_name
-        echo "--- hab pkg path $pkg_origin/$pkg_name/$pkg_release"
-        hab pkg path $pkg_origin/$pkg_name/$pkg_release
-        echo "--- hab pkg path $pkg_artifact"
-        hab pkg path $pkg_artifact
-        echo "--- END hab pkg path EXPERIMENTS"
+        echo ---- BEGIN hab pkg path EXPERIMENTS
+        echo ---- hab pkg path $pkg_origin/$pkg_name
+                  hab pkg path $pkg_origin/$pkg_name
+        echo ---- hab pkg path $pkg_origin/$pkg_name/$pkg_release
+                 hab pkg path $pkg_origin/$pkg_name/$pkg_release
+        echo ---- hab pkg path $pkg_artifact
+                  hab pkg path $pkg_artifact
+        echo ---- END hab pkg path EXPERIMENTS
 
-        echo "--- hab pkg upload --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact"
+        echo ---- hab pkg upload --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact
         hab pkg upload --auth $HAB_AUTH_TOKEN results/$pkg_artifact
-        echo "--- uploaded succesfully"
+        echo ---- uploaded succesfully
