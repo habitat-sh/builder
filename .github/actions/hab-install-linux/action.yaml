@@ -30,9 +30,11 @@ runs:
         echo --- hab license accept
         hab license accept
         sudo hab license accept
-        echo --- accepted hab license
+        echo --- accepted hab license for user and superuser
 
         echo --- hab origin key download
+        hab origin key download $HAB_ORIGIN
         hab origin key download --auth $HAB_AUTH_TOKEN --secret $HAB_ORIGIN
+        sudo hab origin key download $HAB_ORIGIN
         sudo hab origin key download --auth $HAB_AUTH_TOKEN --secret $HAB_ORIGIN
-        echo --- downloaded hab origin key
+        echo --- downloaded hab origin key for user and superuser
