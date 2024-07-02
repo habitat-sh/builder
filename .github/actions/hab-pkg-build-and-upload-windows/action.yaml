@@ -1,0 +1,51 @@
+name: Habitat Package Build and Upload
+description: Builds a Habitat Package and uploads it
+inputs:
+  hab-auth-token:
+    description: The HAB_AUTH_TOKEN to be usAd
+    required: true
+  hab-origin:
+    description: The Habitat Origin to be used
+    required: true
+  bldr-component:
+    description: The Builder Component to build and package
+    required: true
+  app-version:
+    description: main.version value
+    required: true
+  build-date-time:
+    description: main.build_date_time value
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: hab pkg build and upload
+      shell: pwsh
+      env:
+        HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
+        HAB_ORIGIN: ${{ inputs.hab-origin}}
+        BLDR_COMPONENT: ${{ inputs.bldr-component }}
+        APP_VERSION: ${{ inputs.app-version}}
+        BUILD_DATE_TIME: ${{ inputs.build-date-time}}
+      run: |
+
+        # $env:BUILD_ARGS = "-X 'main.git_sha=${{ github.sha }}' -X 'main.version=$env:APP_VERSION' -X 'main.build_date_time=$env:BUILD_DATE_TIME'"
+        $env:Path += ";C:\ProgramData\Habitat"
+
+        hab license accept
+        hab origin key download $env:HAB_ORIGIN
+        hab origin key download --auth $env:HAB_AUTH_TOKEN --secret $env:HAB_ORIGIN
+
+        write-output "--- hab pkg build $BLDR_COMPONENT"
+        hab pkg build $env:BLDR_COMPONENT
+        write-output "--- built successfully"
+
+        . results\last_build.ps1
+
+        write-output "--- hab pkg install --auth elided-HAB_AUTH_TOKEN results\$pkg_artifact"
+        hab pkg install --auth $env:HAB_AUTH_TOKEN results\$pkg_artifact
+        write-output "--- installed successfully"
+
+        write-output "--- hab pkg upload --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact"
+        hab pkg upload --auth $env:HAB_AUTH_TOKEN results\$pkg_artifact
+        write-output "--- uploaded successfully"

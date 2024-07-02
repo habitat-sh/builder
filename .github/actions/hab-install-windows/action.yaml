@@ -1,0 +1,28 @@
+name: Habitat Install for Linux
+description: Install Habitat via curl bash on linux hosts
+inputs:
+  url:
+    description: URL of the habitat install.ps1 script
+    required: true
+    default: 'https://raw.githubusercontent.com/habitat-sh/habitat/main/components/hab/install.ps1'
+  habitat-version:
+    description: Which version of habitat to use
+    required: true
+    default: latest
+  habitat-target:
+    description: Which architecture to target
+    required: true
+    default: x86_64-linux
+runs:
+  using: composite
+  steps:
+    - name: hab curl bash install
+      shell: pwsh
+      env:
+        URL: ${{ inputs.url }}
+        VERSION: ${{ inputs.habitat-version }}
+        TARGET: ${{ inputs.habitat-target }}
+      run: |
+       write-output "--- STARTING HAB INSTALL ON ${{ matrix.os }} WINDOWS with habitat version:$env:VERSION"
+        $env:HAB_LICENSE = "accept-no-persist"
+        Invoke-Expression "& { $(Invoke-RestMethod $env:URL) } -Version $env:VERSION"
