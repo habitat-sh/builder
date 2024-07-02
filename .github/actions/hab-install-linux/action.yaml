@@ -25,3 +25,14 @@ runs:
       run: |
         echo --- hab curl bash install of "$VERSION" for "$TARGET"
         curl "$URL" | sudo bash -s -- -v "$VERSION" -t "$TARGET"
+        echo --- installed hab
+
+        echo --- hab license accept
+        hab license accept
+        sudo hab license accept
+        echo --- accepted hab license
+
+        echo --- hab origin key download
+        hab origin key download --auth $HAB_AUTH_TOKEN --secret $HAB_ORIGIN
+        sudo hab origin key download --auth $HAB_AUTH_TOKEN --secret $HAB_ORIGIN
+        echo --- downloaded hab origin key
