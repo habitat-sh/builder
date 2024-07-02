@@ -39,8 +39,10 @@ runs:
         echo ---- BEGIN hab pkg path EXPERIMENTS
         echo ---- hab pkg path $pkg_origin/$pkg_name
                   hab pkg path $pkg_origin/$pkg_name
-        echo ---- hab pkg path $pkg_origin/$pkg_name/$pkg_release
-                 hab pkg path $pkg_origin/$pkg_name/$pkg_release
+        echo ---- hab pkg path $pkg_origin/$pkg_name/$pkg_version
+                  hab pkg path $pkg_origin/$pkg_name/$pkg_version
+        echo ---- hab pkg path $pkg_origin/$pkg_name/$pkg_version/$pkg_release
+                  hab pkg path $pkg_origin/$pkg_name/$pkg_version/$pkg_release
         echo ---- hab pkg path $pkg_artifact
                   hab pkg path $pkg_artifact
         echo ---- END hab pkg path EXPERIMENTS
