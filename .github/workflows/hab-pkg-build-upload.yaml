@@ -159,11 +159,12 @@ jobs:
           hab-origin: ${{ env.HAB_ORIGIN }}
           bldr-component: components/${{matrix.components}}/habitat
 
-      - name: hab pkg build and install
+      - name: hab pkg path experiments
         shell: bash
         run: |
           echo ---- BEGIN hab pkg path EXPERIMENTS
           echo ---- hab pkg path $pkg_origin/$pkg_name
+                    source results/last_build.env
                     hab pkg path $pkg_origin/$pkg_name
           echo ---- END hab pkg path EXPERIMENTS
 
