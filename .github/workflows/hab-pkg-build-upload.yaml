@@ -83,21 +83,24 @@ jobs:
         components: [builder-api, builder-api-proxy, builder-graph, builder-jobsrv, builder-minio]
     runs-on: ${{matrix.os}}
     steps:
+
       - name: Checkout for ${{matrix.components}}
         uses: actions/checkout@v4
+
       - name: Install Habitat for ${{matrix.components}}
         uses: ./.github/actions/hab-install-linux
+
       - name: Build and Upload Habitat Package for ${{matrix.components}}
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
           hab-origin: ${{ env.HAB_ORIGIN }}
           bldr-component: components/${{matrix.components}}/habitat
+
       - name: Upload HART file artifact for reuse in habitat-dev plans
         uses: actions/upload-artifact@v4
         with:
           name: hart-files
-          # path: /hab/cache/artifacts/${{env.HAB_ORIGIN}}*.hart
           path: results/${{env.HAB_ORIGIN}}*.hart
           if-no-files-found: error
           retention-days: 1
@@ -110,7 +113,7 @@ jobs:
   # - don't have a habitat-dev plan directory
   # - have architecture specific plan directories
   arch-target-packages:
-    name: ${{matrix.components}} ${{matrix.arches}} hab pkg (plan file)
+    name: ${{matrix.arches}} ${{matrix.components}} hab pkg (plan file)
     needs: windows-pre-build
     strategy:
       fail-fast: false
@@ -119,6 +122,13 @@ jobs:
         channel: [unstable]
         components: [builder-worker]
         arches: [x86_64-linux, x86_64-linux-kernel2, x86_64-windows]
+        exclude:
+          - os: ubuntu-latest
+            arches: x86_64-windows
+          - os: windows-latest
+            arches: x86_64-linux
+          - os: windows-latest
+            arches: x86_64-linux-kernel2
     runs-on: ${{matrix.os}}
     steps:
 
@@ -148,6 +158,16 @@ jobs:
           bldr-component: components/${{matrix.components}}/habitat/${{matrix.arches}}
           app-version: ${{ needs.pre-build.outputs.app_version }}
           build-date-time: ${{ needs.pre-build.outputs.date }}
+
+      - name: Upload HART file artifact for reuse in habitat-dev plans
+        uses: actions/upload-artifact@v4
+        with:
+          name: hart-files
+          path: results/${{env.HAB_ORIGIN}}*.hart
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          overwrite: true
 
   # # These particular components
   # # - don't have a plan.sh file in their "component root"
