@@ -22,7 +22,6 @@ runs:
     - name: hab pkg build and upload
       shell: pwsh
       env:
-        # HAB_STUDIO_SECRET_GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
         HAB_ORIGIN: ${{ inputs.hab-origin}}
         BLDR_COMPONENT: ${{ inputs.bldr-component }}
@@ -32,7 +31,6 @@ runs:
 
         $env:BUILD_ARGS = "-X 'main.git_sha=${{ github.sha }}' -X 'main.version=$env:APP_VERSION' -X 'main.build_date_time=$env:BUILD_DATE_TIME'"
         $env:Path += ";C:\ProgramData\Habitat"
-        # $env:GITHUB_TOKEN="${{ secrets.GH_TOKEN }}"
 
         hab license accept
         hab origin key download $env:HAB_ORIGIN
