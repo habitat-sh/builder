@@ -29,7 +29,7 @@ jobs:
   # - don't have a habitat-dev plan directory
   # - don't have architecture specific plan directories
   plan-file-packages:
-    name: hab pkg ${{matrix.components}} (plan file)
+    name: ${{matrix.components}} (plan file)
     strategy:
       fail-fast: false
       matrix:
@@ -55,7 +55,7 @@ jobs:
   # - don't have a habitat-dev plan directory
   # - don't have architecture specific plan directories
   habitat-dir-packages:
-    name: hab pkg ${{matrix.components}} (habitat dir only)
+    name: ${{matrix.components}} (habitat dir only)
     strategy:
       fail-fast: false
       matrix:
@@ -84,7 +84,7 @@ jobs:
   # - don't have a habitat-dev plan directory
   # - have architecture specific plan directories
   arch-target-packages:
-    name: hab pkg ${{matrix.arches}} ${{matrix.components}}
+    name: ${{matrix.arches}} ${{matrix.components}}
     strategy:
       fail-fast: false
       matrix:
@@ -135,7 +135,7 @@ jobs:
   # - have a habitat-dev plan directory
   # - don't have architecture specific plan directories
   habitat-dev-dir-packages:
-    name: hab pkg ${{matrix.components}} (habitat and habitat-dev dirs)
+    name: ${{matrix.components}} (habitat and habitat-dev dirs)
     strategy:
       fail-fast: false
       matrix:
