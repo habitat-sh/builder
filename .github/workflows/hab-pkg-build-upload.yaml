@@ -61,10 +61,12 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         channel: [unstable]
-        components: [builder-api, builder-graph, builder-jobsrv, builder-minio]
+        components: [builder-graph, builder-minio]
         # components: [builder-api, builder-api-proxy, builder-graph, builder-jobsrv, builder-minio]
     runs-on: ${{matrix.os}}
     steps:
+
+
 
       - name: Checkout for ${{matrix.components}}
         uses: actions/checkout@v4
@@ -163,7 +165,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         channel: [unstable]
-        components: [builder-api, builder-jobsrv, builder-worker]
+        components: [builder-api, builder-jobsrv]
         # components: [builder-api, builder-api-proxy, builder-jobsrv, builder-worker]
     runs-on: ${{matrix.os}}
     steps:
@@ -180,7 +182,14 @@ jobs:
       #     name: hart-files
       #     path: /hab/cache/artifacts/
 
-      - name: Build and Upload Habitat Package
+      - name: ${{matrix.components}} habitat directory package
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+          bldr-component: components/${{matrix.components}}/habitat
+
+      - name: ${{matrix.components}} habitat-dev directory package
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
