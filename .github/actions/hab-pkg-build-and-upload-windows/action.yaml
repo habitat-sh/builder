@@ -38,9 +38,14 @@ runs:
 
         write-output "--- hab pkg build $BLDR_COMPONENT"
         hab pkg build $env:BLDR_COMPONENT
-        write-output "--- build successfully"
+        write-output "--- built successfully"
 
         . results\last_build.ps1
+
+        write-output "--- hab pkg install --auth elided-HAB_AUTH_TOKEN results\$pkg_artifact
+        hab pkg install --auth $env:HAB_AUTH_TOKEN results\$pkg_artifact
+        write-output "--- installed successfully"
+
         write-output "--- hab pkg upload --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact"
         hab pkg upload --auth $env:HAB_AUTH_TOKEN results\$pkg_artifact
         write-output "--- uploaded successfully"

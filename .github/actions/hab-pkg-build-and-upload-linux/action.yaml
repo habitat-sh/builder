@@ -35,6 +35,11 @@ runs:
         echo "--- built succesfully"
 
         source results/last_build.env
+
+        echo "--- hab pkg install --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact
+        hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact
+        echo "--- installed succesfully"
+
         echo "--- hab pkg upload --auth elided-HAB_AUTH_TOKEN results/$pkg_artifact"
         hab pkg upload --auth $HAB_AUTH_TOKEN results/$pkg_artifact
         echo "--- uploaded succesfully"
