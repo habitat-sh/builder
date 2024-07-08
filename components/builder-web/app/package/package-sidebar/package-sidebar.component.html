@@ -1,12 +1,13 @@
 <div class="package-sidebar-component">
   <section *ngIf="platform && isOriginMember">
     <h3>Build</h3>
-    <button class="build" mat-raised-button color="primary" (click)="build()" [disabled]="!isBuildable" [attr.aria-label]="buildButtonAriaLabel">
+    <!-- <button class="build" mat-raised-button color="primary" (click)="build()" [disabled]="!isBuildable" [attr.aria-label]="buildButtonAriaLabel">
       <span aria-hidden="true">
         {{ buildButtonLabel }}
       </span>
     </button>
-    <p *ngIf="!isBuildable" class="disabled-build-msg">{{ buildButtonDisabledMessage }}</p>
+    <p *ngIf="!isBuildable" class="disabled-build-msg">{{ buildButtonDisabledMessage }}</p> -->
+    <p class="disabled-build-msg">Building Packages using Builder is no longer supported. Please refer to <a href="https://docs.chef.io/habitat/pkg_build/" target="_blank">Building Packages</a> for building  packages within a Studio.</p>
   </section>
   <section *ngIf="isOriginMember && projectExists && hasPlan">
     <h3>Settings</h3>
