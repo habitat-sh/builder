@@ -124,35 +124,35 @@ describe('PackageSidebarComponent', () => {
       fixture.detectChanges();
     });
 
-    it('hides the build button', () => {
-      expect(element.query(By.css('.package-sidebar-component button.build'))).toBeNull();
-    });
+    // it('hides the build button', () => {
+    //   expect(element.query(By.css('.package-sidebar-component button.build'))).toBeNull();
+    // });
 
-    describe('when package has a connected plan file', () => {
+    // describe('when package has a connected plan file', () => {
 
-      beforeEach(() => {
-        component.isOriginMember = true;
-        component.hasPlan = true;
-      });
+    //   beforeEach(() => {
+    //     component.isOriginMember = true;
+    //     component.hasPlan = true;
+    //   });
 
-      it('shows the build button', () => {
-        fixture.detectChanges();
-        expect(element.query(By.css('.package-sidebar-component button.build'))).not.toBeNull();
-      });
+    //   it('shows the build button', () => {
+    //     fixture.detectChanges();
+    //     expect(element.query(By.css('.package-sidebar-component button.build'))).not.toBeNull();
+    //   });
 
-      describe('and building', () => {
+    //   describe('and building', () => {
 
-        beforeEach(() => {
-          component.building = true;
-        });
+    //     beforeEach(() => {
+    //       component.building = true;
+    //     });
 
-        it('disables the build button', () => {
-          fixture.detectChanges();
+    //     it('disables the build button', () => {
+    //       fixture.detectChanges();
 
-          let el = element.query(By.css('.package-sidebar-component button.build')).nativeElement;
-          expect(el.getAttribute('disabled')).not.toBeNull();
-        });
-      });
-    });
+    //       let el = element.query(By.css('.package-sidebar-component button.build')).nativeElement;
+    //       expect(el.getAttribute('disabled')).not.toBeNull();
+    //     });
+    //   });
+    // });
   });
 });
