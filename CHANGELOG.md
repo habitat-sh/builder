@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- updated node version [#1815](https://github.com/habitat-sh/builder/pull/1815) ([sajjaphani](https://github.com/sajjaphani))
 - CHEF-13675: Removed build button from UI. [#1814](https://github.com/habitat-sh/builder/pull/1814) ([agmathur](https://github.com/agmathur))
 - Bump braces from 3.0.2 to 3.0.3 in /test/builder-api [#1812](https://github.com/habitat-sh/builder/pull/1812) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - bump env_logger and tempfile [#1811](https://github.com/habitat-sh/builder/pull/1811) ([mwrock](https://github.com/mwrock))
