@@ -77,4 +77,16 @@ $icon-colors: (
   info: $hab-blue,
   warn: $warn,
   alert: $error
-)
+);
+
+$lts-button-bg: #4396B4;
+$lts-button-text: #FFFFFF;
+$stable-button-bg: #72B0C7;
+$stable-button-text: #FFFFFF;
+$innovation-button-bg: #A1CBD9;
+$innovation-button-text: #FFFFFF;
+$other-button-bg: #D0E5EC;
+$other-button-text: #4396B4;
+$unstable-button-bg: #FFFFFF;
+$unstable-button-text: #4396B4;
+$unstable-button-border-color: #E3E3E3;
