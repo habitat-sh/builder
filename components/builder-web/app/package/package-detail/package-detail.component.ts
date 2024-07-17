@@ -19,6 +19,7 @@ import { parseDate, targetFrom } from '../../util';
 import { demotePackage, promotePackage } from '../../actions/index';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
 import { MatDialog } from '@angular/material';
+import { PromoteConfirmDialog } from '../../shared/dialog/promote-confirm/promote-confirm.dialog';
 
 @Component({
   selector: 'hab-package-detail',
@@ -91,25 +92,33 @@ export class PackageDetailComponent {
     });
   }
 
-  handlePromote() {
+  handlePromote(channel) {
+    const filteredAllChannel = this.getAllChannel(channel);
     this.confirmDialog
-    .open(SimpleConfirmDialog, {
+    .open(PromoteConfirmDialog, {
       width: '480px',
       data: {
         heading: 'Confirm promote',
-        body: `Are you sure you want to promote this artifact? Doing so will add the artifact to the stable channel.`,
-        action: 'promote it'
+        body: `Select channel to promote. Promoted artifact will be added to the selected channel.`,
+        channelList: filteredAllChannel,
+        action: 'Promote'
       }
     })
     .afterClosed()
-    .subscribe((confirmed) => {
+    .subscribe(({confirmed, selectedChannel}) => {
       if (confirmed) {
         this.updating = true;
         let token = this.store.getState().session.token;
         this.store.dispatch(
-          promotePackage(this.package.ident.origin, this.package.ident.name, this.package.ident.version, this.package.ident.release, this.package.target, 'stable', token)
+          promotePackage(this.package.ident.origin, this.package.ident.name, this.package.ident.version, this.package.ident.release, this.package.target, selectedChannel.name, token)
         );
       }
+    });
+  }
+
+  getAllChannel(currentChannel) {
+    return this.store.getState().origins.current.channels.filter((channel) => {
+      return channel.name !== 'unstable' && channel.name !== currentChannel;
     });
   }
 

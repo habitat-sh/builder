@@ -22,5 +22,6 @@ export const Origin = Record({
   privateKeys: List(),
   publicKeys: List(),
   package_count: undefined,
-  default_package_visibility: undefined
+  default_package_visibility: undefined,
+  channels: List()
 });

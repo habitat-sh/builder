@@ -600,6 +600,23 @@ export class BuilderApiClient {
     });
   }
 
+  public getOriginChannels(origin: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/depot/channels/${origin}`, {
+        headers: this.headers,
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(response.json());
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   public getProfile() {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/profile`, {

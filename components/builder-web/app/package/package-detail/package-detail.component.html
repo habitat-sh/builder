@@ -13,7 +13,7 @@
         </span>
         <span class="column">
           <button [disabled]="updating" *ngIf="canShowDemote(channel)" class="action active" type="button" (click)="handleDemote(channel)">Demote</button>
-          <button [disabled]="updating" *ngIf="canShowPromote(channel, package)" class="action" type="button" (click)="handlePromote()">Promote</button>
+          <button [disabled]="updating" *ngIf="canShowPromote(channel, package)" class="action" type="button" (click)="handlePromote(channel)">Promote</button>
         </span>
       </li>
     </div>

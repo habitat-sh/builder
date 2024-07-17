@@ -27,6 +27,7 @@ import {
   fetchPackageSettings, fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions, fetchPackage, fetchPackageChannels
 } from '../../actions/index';
 import { targetFrom, targets as allPlatforms } from '../../util';
+import { fetchOriginChannels } from '../../actions/origins';
 
 @Component({
   template: require('./package.component.html')
@@ -54,6 +55,7 @@ export class PackageComponent implements OnInit, OnDestroy {
     const release$ = this.store.observe('router.route.params.release').pipe(filter(v => v));
     const token$ = this.store.observe('session.token');
     const origins$ = this.store.observe('origins.mine');
+    const originsCurrent$ = this.store.observe('origins.current');
     const platforms$ = this.store.observe('packages.currentPlatforms');
     const versionsLoading$ = this.store.observe('packages.ui.versions.loading');
     const isOriginMember$ = combineLatest(origin$, origins$)
@@ -78,6 +80,15 @@ export class PackageComponent implements OnInit, OnDestroy {
     origin$
       .pipe(takeUntil(this.isDestroyed$))
       .subscribe(() => this.fetchOrigin());
+
+    originsCurrent$
+      .pipe(
+        takeUntil(this.isDestroyed$),
+        filter((origin) => origin.name !== undefined)
+      )
+      .subscribe((origin) => {
+        this.store.dispatch(fetchOriginChannels(origin.name));
+      });
 
     combineLatest(origin$, name$, isOriginMember$)
       .pipe(takeUntil(this.isDestroyed$))
