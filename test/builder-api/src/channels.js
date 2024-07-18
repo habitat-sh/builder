@@ -178,6 +178,16 @@ describe('Channels API', function () {
         });
     });
 
+    it('puts the specified package into the specified channel', function (done) {
+      request.put('/depot/channels/neurosis/stable/pkgs/testapp/0.1.3/20171205003213/promote')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
     it('Check the package channels after package promotion', function (done) {
       request.get(`/depot/pkgs/neurosis/testapp/0.1.3/20171205003213/channels`)
         .type('application/json')
@@ -185,11 +195,12 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.length).to.equal(4);
+          expect(res.body.length).to.equal(5);
           expect(res.body[0].name).to.equal('unstable');
-          expect(res.body[1].name).to.equal('foo');
-          expect(res.body[2].name).to.equal('LTS-2024');
-          expect(res.body[3].name).to.equal('Innovation-2024');
+          expect(res.body[1].name).to.equal('stable');
+          expect(res.body[2].name).to.equal('foo');
+          expect(res.body[3].name).to.equal('LTS-2024');
+          expect(res.body[4].name).to.equal('Innovation-2024');
           done(err);
         });
     });
@@ -202,17 +213,20 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(2);
-          expect(res.body.total_count).to.equal(3);
+          expect(res.body.range_end).to.equal(3);
+          expect(res.body.total_count).to.equal(4);
           expect(res.body.data[0].operation).to.equal('Promote');
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].channel).to.equal('Innovation-2024');
+          expect(res.body.data[0].channel).to.equal('stable');
           expect(res.body.data[1].operation).to.equal('Promote');
           expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].channel).to.equal('LTS-2024');
+          expect(res.body.data[1].channel).to.equal('Innovation-2024');
           expect(res.body.data[2].operation).to.equal('Promote');
           expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].channel).to.equal('foo');
+          expect(res.body.data[2].channel).to.equal('LTS-2024');
+          expect(res.body.data[3].operation).to.equal('Promote');
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].channel).to.equal('foo');
           done(err);
         });
     });
@@ -243,7 +257,7 @@ describe('Channels API', function () {
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
           expect(res.body.range_end).to.equal(0);
-          expect(res.body.total_count).to.equal(0);
+          expect(res.body.total_count).to.equal(1);
           done(err);
         });
     });
@@ -266,17 +280,20 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(2);
-          expect(res.body.total_count).to.equal(3);
+          expect(res.body.range_end).to.equal(3);
+          expect(res.body.total_count).to.equal(4);
           expect(res.body.data[0].operation).to.equal('Promote');
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].channel).to.equal('Innovation-2024');
+          expect(res.body.data[0].channel).to.equal('stable');
           expect(res.body.data[1].operation).to.equal('Promote');
           expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].channel).to.equal('LTS-2024');
+          expect(res.body.data[1].channel).to.equal('Innovation-2024');
           expect(res.body.data[2].operation).to.equal('Promote');
           expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].channel).to.equal('foo');
+          expect(res.body.data[2].channel).to.equal('LTS-2024');
+          expect(res.body.data[3].operation).to.equal('Promote');
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].channel).to.equal('foo');
           done(err);
         });
     });
@@ -299,17 +316,20 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(2);
-          expect(res.body.total_count).to.equal(3);
+          expect(res.body.range_end).to.equal(3);
+          expect(res.body.total_count).to.equal(4);
           expect(res.body.data[0].operation).to.equal('Promote');
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].channel).to.equal('Innovation-2024');
+          expect(res.body.data[0].channel).to.equal('stable');
           expect(res.body.data[1].operation).to.equal('Promote');
           expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].channel).to.equal('LTS-2024');
+          expect(res.body.data[1].channel).to.equal('Innovation-2024');
           expect(res.body.data[2].operation).to.equal('Promote');
           expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].channel).to.equal('foo');
+          expect(res.body.data[2].channel).to.equal('LTS-2024');
+          expect(res.body.data[3].operation).to.equal('Promote');
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].channel).to.equal('foo');
           done(err);
         });
     });
@@ -322,27 +342,31 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
+          console.log(res.body)
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(5);
-          expect(res.body.total_count).to.equal(6);
+          expect(res.body.range_end).to.equal(6);
+          expect(res.body.total_count).to.equal(7);
           expect(res.body.data[0].operation).to.equal('Promote');
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].channel).to.equal('bar');
           expect(res.body.data[1].operation).to.equal('Promote');
           expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].channel).to.equal('Innovation-2024');
+          expect(res.body.data[1].channel).to.equal('stable');
           expect(res.body.data[2].operation).to.equal('Promote');
           expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].channel).to.equal('LTS-2024');
+          expect(res.body.data[2].channel).to.equal('Innovation-2024');
           expect(res.body.data[3].operation).to.equal('Promote');
           expect(res.body.data[3].origin).to.equal('neurosis');
-          expect(res.body.data[3].channel).to.equal('foo');
-          expect(res.body.data[4].operation).to.equal('Demote');
+          expect(res.body.data[3].channel).to.equal('LTS-2024');
+          expect(res.body.data[4].operation).to.equal('Promote');
           expect(res.body.data[4].origin).to.equal('neurosis');
-          expect(res.body.data[4].channel).to.equal('stable');
-          expect(res.body.data[5].operation).to.equal('Promote');
+          expect(res.body.data[4].channel).to.equal('foo');
+          expect(res.body.data[5].operation).to.equal('Demote');
           expect(res.body.data[5].origin).to.equal('neurosis');
           expect(res.body.data[5].channel).to.equal('stable');
+          expect(res.body.data[6].operation).to.equal('Promote');
+          expect(res.body.data[6].origin).to.equal('neurosis');
+          expect(res.body.data[6].channel).to.equal('stable');
           done(err);
         });
     });
