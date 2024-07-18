@@ -11,7 +11,6 @@ pkg_build_deps=(
   core/gcc
   core/git
   core/tar
-  core/phantomjs
   core/python2
   core/make
 )
