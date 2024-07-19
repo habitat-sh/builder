@@ -17,6 +17,7 @@ permissions:
 jobs:
 
   changes:
+    name: detect changed components
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -42,7 +43,7 @@ jobs:
   habitat-packaging:
     needs: changes
     if: ${{ needs.changes.outputs.components != '[]' && needs.changes.outputs.components != '' }}
-    name: ${{matrix.components}}
+    name: hab pkg of changed components
     strategy:
       fail-fast: false
       matrix:
