@@ -1,6 +1,6 @@
 <div class="channels-component" (click)="outerClick($event)">
   <ul>
-    <li [class]="channel" *ngFor="let channel of channels">
+    <li [class]="channel.toLowerCase()" *ngFor="let channel of channels">
       <span>{{ channel }}</span>
       <hab-icon symbol="cancel"
         (click)="demote(channel)"

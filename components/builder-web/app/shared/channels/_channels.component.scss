@@ -9,18 +9,33 @@
 
     li {
       display: inline-block;
-      @include tag($color: $hab-blue, $background-color: $light-blue, $border-color: $light-blue);
 
-      &.unstable {
-        background-color: $white;
-        border-color: $very-light-gray;
-        color: $hab-blue;
+      // Other channels eg foo
+      @include tag($color: $other-button-text, $background-color: $other-button-bg, $border-color: $light-blue);
+
+      // lts-yyyy channel eg lts-2024
+      &[class^="lts-"] {
+        color: $lts-button-text;
+        background-color: $lts-button-bg;
       }
 
+      // Stable channel
       &.stable {
-        background-color: $hab-blue;
-        border-color: $hab-blue;
-        color: $white;
+        color: $stable-button-text;
+        background-color: $stable-button-bg;
+      }
+
+      // innovation channel eg innovation-2024
+      &[class^="innovation-"] {
+        color: $innovation-button-text;
+        background-color: $innovation-button-bg;
+      }
+
+      // Unstable channel
+      &.unstable {
+        color: $unstable-button-text;
+        background-color: $unstable-button-bg;
+        border-color: $unstable-button-border-color;
       }
 
       &:not(:last-child) {
@@ -35,3 +50,4 @@
     }
   }
 }
+
