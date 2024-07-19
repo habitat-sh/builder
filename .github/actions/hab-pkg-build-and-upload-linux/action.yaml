@@ -1,0 +1,35 @@
+name: Habitat Package Build, Install, and Upload
+description: Builds a Habitat Package and uploads it
+inputs:
+  hab-auth-token:
+    description: The HAB_AUTH_TOKEN to be usAd
+    required: true
+  bldr-component:
+    description: The Builder Component to build and package
+    required: true
+runs:
+  using: composite
+  steps:
+
+    - name: hab pkg build
+      shell: bash
+      env:
+        BLDR_COMPONENT: ${{ inputs.bldr-component }}
+      run: |
+        hab pkg build $BLDR_COMPONENT
+
+    - name: hab pkg install
+      shell: bash
+      env:
+        HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
+      run: |
+        source results/last_build.env
+        sudo hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact
+
+    - name: hab pkg upload
+      shell: bash
+      env:
+        HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
+      run: |
+        source results/last_build.env
+        hab pkg upload --auth $HAB_AUTH_TOKEN results/$pkg_artifact

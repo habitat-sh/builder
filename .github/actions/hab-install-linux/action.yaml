@@ -1,0 +1,50 @@
+name: Habitat Install and Setup for Linux
+description: Install Habitat via curl bash on linux hosts
+inputs:
+  hab-auth-token:
+    description: The HAB_AUTH_TOKEN to be used
+    required: true
+  hab-origin:
+    description: The Habitat Origin to be used
+    required: true
+  curl-bash-url:
+    description: URL for the habitat curl bash script
+    required: true
+    default: 'https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/install.sh'
+  habitat-version:
+    description: Which version of habitat to use
+    required: true
+    default: latest
+  habitat-target:
+    description: Which architecture to target
+    required: true
+    default: x86_64-linux
+runs:
+  using: composite
+  steps:
+
+    - name: install hab binary
+      shell: bash
+      env:
+        URL: ${{ inputs.curl-bash-url }}
+        VERSION: ${{ inputs.habitat-version }}
+        TARGET: ${{ inputs.habitat-target }}
+      run: |
+        curl "$URL" | sudo bash -s -- -v "$VERSION" -t "$TARGET"
+
+    - name: accept hab license
+      shell: bash
+      run: |
+        hab license accept
+        sudo hab license accept
+
+    - name: download hab keys
+      shell: bash
+      env:
+        HAB_ORIGIN: ${{ inputs.hab-origin }}
+        HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
+      run: |
+        hab origin key download $HAB_ORIGIN
+        hab origin key download $HAB_ORIGIN --auth $HAB_AUTH_TOKEN --secret
+        sudo hab origin key download $HAB_ORIGIN
+        sudo hab origin key download $HAB_ORIGIN --auth $HAB_AUTH_TOKEN --secret

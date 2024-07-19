@@ -1,0 +1,63 @@
+name: Publish Habitat Packages
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  BLDR_URL: 'https://bldr.habitat.sh/'
+  HAB_ORIGIN: 'habitat'
+  HAB_AUTH_TOKEN: ${{ secrets.HAB_AUTH_TOKEN }}
+  HABITAT_VERSION_SET: 'latest'
+
+permissions:
+  contents: write
+
+jobs:
+
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      components: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            builder-memcached:
+              - 'components/builder-memcached/**'
+            builder-minio:
+              - 'components/builder-minio/**'
+            builder-datastore:
+              - 'components/builder-datastore/**'
+            builder-api:
+              - 'components/builder-api/**'
+            builder-api-proxy:
+              - 'components/builder-api-proxy/**'
+
+  habitat-packaging:
+    needs: changes
+    if: ${{ needs.changes.outputs.components != '[]' && needs.changes.outputs.components != '' }}
+    name: ${{matrix.components}}
+    strategy:
+      fail-fast: false
+      matrix:
+        components: ${{ fromJSON(needs.changes.outputs.components) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout for ${{matrix.components}}
+        uses: actions/checkout@v4
+      - name: Install Habitat for ${{matrix.components}}
+        uses: ./.github/actions/hab-install-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+      - name: Build and Upload Habitat Package for ${{matrix.components}}
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          bldr-component: components/${{matrix.components}}
