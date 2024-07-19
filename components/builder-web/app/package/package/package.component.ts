@@ -180,6 +180,10 @@ export class PackageComponent implements OnInit, OnDestroy {
     return this.store.getState().features.builder;
   }
 
+  get visibilityEnabled() {
+    return this.store.getState().features.visibility;
+  }
+
   get activePackage() {
     return this.store.getState().packages.current;
   }

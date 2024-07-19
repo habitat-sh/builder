@@ -34,7 +34,7 @@
       routerLinkActive
       #settings="routerLinkActive"
       [active]="settings.isActive"
-      *ngIf="memberOfOrigin">Settings</a>
+      *ngIf="visibilityEnabled && memberOfOrigin">Settings</a>
     <a mat-tab-link
       routerLink="integrations"
       routerLinkActive
