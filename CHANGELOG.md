@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- CHEF-13678: Changed colour for channels [#1820](https://github.com/habitat-sh/builder/pull/1820) ([agmathur](https://github.com/agmathur))
 - remove phantomjs [#1818](https://github.com/habitat-sh/builder/pull/1818) ([sajjaphani](https://github.com/sajjaphani))
 - updated node version [#1815](https://github.com/habitat-sh/builder/pull/1815) ([sajjaphani](https://github.com/sajjaphani))
 - CHEF-13675: Removed build button from UI. [#1814](https://github.com/habitat-sh/builder/pull/1814) ([agmathur](https://github.com/agmathur))
