@@ -3,6 +3,9 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- remove file introduced to test workflow action when merging to main [#1823](https://github.com/habitat-sh/builder/pull/1823) ([jasonheath](https://github.com/jasonheath))
+- CHEF-13373: CI Pipeline modifications for multichannel support (builder)  [#1813](https://github.com/habitat-sh/builder/pull/1813) ([jasonheath](https://github.com/jasonheath))
+- name changes and workflow trigger test [#1821](https://github.com/habitat-sh/builder/pull/1821) ([jasonheath](https://github.com/jasonheath))
 - CHEF-13678: Changed colour for channels [#1820](https://github.com/habitat-sh/builder/pull/1820) ([agmathur](https://github.com/agmathur))
 - remove phantomjs [#1818](https://github.com/habitat-sh/builder/pull/1818) ([sajjaphani](https://github.com/sajjaphani))
 - updated node version [#1815](https://github.com/habitat-sh/builder/pull/1815) ([sajjaphani](https://github.com/sajjaphani))
