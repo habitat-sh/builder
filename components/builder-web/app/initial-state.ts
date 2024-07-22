@@ -96,7 +96,8 @@ export default Record({
     })(),
     builder: false,
     events: false,
-    saasEvents: false
+    saasEvents: false,
+    visibility: false,
   })(),
   notifications: Record({
     all: List(),
