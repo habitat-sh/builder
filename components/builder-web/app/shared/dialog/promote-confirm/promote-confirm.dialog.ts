@@ -19,7 +19,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
   template: require('./promote-confirm.dialog.html')
 })
 export class PromoteConfirmDialog {
-  channel: any = undefined;
+  selectedChannel: any = undefined;
 
   constructor(
     private ref: MatDialogRef<PromoteConfirmDialog>,
@@ -39,11 +39,11 @@ export class PromoteConfirmDialog {
   }
 
   ok() {
-    this.ref.close({confirmed: true, selectedChannel : this.channel});
+    this.ref.close({confirmed: true, selectedChannel : this.selectedChannel?.name});
   }
 
   cancel() {
-    this.ref.close(false);
+    this.ref.close({confirmed : false});
   }
 
 }

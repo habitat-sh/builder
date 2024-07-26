@@ -105,13 +105,16 @@ export class PackageDetailComponent {
       }
     })
     .afterClosed()
-    .subscribe(({confirmed, selectedChannel}) => {
-      if (confirmed) {
-        this.updating = true;
-        let token = this.store.getState().session.token;
-        this.store.dispatch(
-          promotePackage(this.package.ident.origin, this.package.ident.name, this.package.ident.version, this.package.ident.release, this.package.target, selectedChannel.name, token)
-        );
+    .subscribe((data) => {
+      if (data) {
+        const {confirmed, selectedChannel} = data;
+        if (confirmed && selectedChannel) {
+          this.updating = true;
+          let token = this.store.getState().session.token;
+          this.store.dispatch(
+            promotePackage(this.package.ident.origin, this.package.ident.name, this.package.ident.version, this.package.ident.release, this.package.target, selectedChannel, token)
+          );
+        }
       }
     });
   }
