@@ -103,6 +103,13 @@ export default function origins(state = initialState['origins'], action) {
         return state.set('currentSecrets', List());
       }
 
+    case actionTypes.POPULATE_ORIGIN_CHANNELS:
+      if (action.payload) {
+        return state.setIn(['current', 'channels'], action.payload);
+      } else {
+        return state.set('channels', List());
+      }
+
     case actionTypes.SET_CURRENT_ORIGIN:
       if (action.error) {
         return state.set('current', Origin()).

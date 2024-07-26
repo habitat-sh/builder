@@ -1,0 +1,30 @@
+<div class="dialog">
+  <section class="heading">
+    <h1>{{ heading }}</h1>
+  </section>
+  <section class="body">
+    <div>
+      <span>
+        Select channel to promote
+      </span>
+    </div>
+    <div>
+      <mat-form-field>
+        <mat-select [(ngModel)]="selectedChannel">
+          <mat-option *ngFor="let channel of channelList" [value]="channel">{{ channel.name }}</mat-option>
+        </mat-select> 
+      </mat-form-field>
+    </div>
+    <div>
+      <span>
+        Promoted artifact will be added to the selected channel.
+      </span>
+    </div>
+  </section>
+  <section class="controls">
+    <button mat-raised-button color="primary" class="button" (click)="ok()">
+      {{ action }}
+    </button>
+    <a (click)="cancel()">Cancel</a>
+  </section>
+</div>

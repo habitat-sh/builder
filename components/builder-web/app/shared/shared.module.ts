@@ -20,7 +20,7 @@ import { RouterModule } from '@angular/router';
 import {
   MatCheckbox, MatCheckboxModule, MatIconModule, MatIconRegistry, MatMenuModule, MatRadioModule,
   MatRadioGroup, MatRadioButton, MatSlideToggleModule, MatSlideToggle, MatTooltipModule, MatTabsModule,
-  MatButtonModule, MatInputModule
+  MatButtonModule, MatInputModule, MatSelectModule
 } from '@angular/material';
 import { AutoBuildSettingsComponent } from './auto-build-settings/auto-build-settings.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -44,6 +44,7 @@ import { VisibilityIconComponent } from './visibility-icon/visibility-icon.compo
 import { VisibilitySelectorComponent } from './visibility-selector/visibility-selector.component';
 import { KeysPipe } from './pipes/keys.pipe';
 import { SimpleConfirmDialog } from './dialog/simple-confirm/simple-confirm.dialog';
+import { PromoteConfirmDialog } from './dialog/promote-confirm/promote-confirm.dialog';
 import { BuilderEnabledGuard } from './guards/builder-enabled.guard';
 import { OriginMemberGuard } from './guards/origin-member.guard';
 import { SignedInGuard } from './guards/signed-in.guard';
@@ -63,6 +64,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     MatTooltipModule,
     MatButtonModule,
     MatInputModule,
+    MatSelectModule,
     ReactiveFormsModule,
     RouterModule
   ],
@@ -87,6 +89,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     VisibilityIconComponent,
     VisibilitySelectorComponent,
     SimpleConfirmDialog,
+    PromoteConfirmDialog,
     JobNoticeComponent,
     KeysPipe
   ],
@@ -94,7 +97,8 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     DisconnectConfirmDialog,
     DockerExportSettingsDialog,
     JobCancelDialog,
-    SimpleConfirmDialog
+    SimpleConfirmDialog,
+    PromoteConfirmDialog
   ],
   exports: [
     MatMenuModule,
@@ -120,6 +124,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     ProjectSettingsComponent,
     KeysPipe,
     SimpleConfirmDialog,
+    PromoteConfirmDialog,
     JobNoticeComponent
   ],
   providers: [

@@ -30,6 +30,7 @@ export const POPULATE_ORIGIN_PUBLIC_KEYS = 'POPULATE_ORIGIN_PUBLIC_KEYS';
 export const POPULATE_ORIGIN_INTEGRATION = 'POPULATE_ORIGIN_INTEGRATION';
 export const POPULATE_ORIGIN_INTEGRATIONS = 'POPULATE_ORIGIN_INTEGRATIONS';
 export const POPULATE_ORIGIN_SECRETS = 'POPULATE_ORIGIN_SECRETS';
+export const POPULATE_ORIGIN_CHANNELS = 'POPULATE_ORIGIN_CHANNELS';
 export const SET_CURRENT_ORIGIN = 'SET_CURRENT_ORIGIN';
 export const SET_CURRENT_ORIGIN_CREATING_FLAG = 'SET_CURRENT_ORIGIN_CREATING_FLAG';
 export const SET_CURRENT_ORIGIN_LOADING = 'SET_CURRENT_ORIGIN_LOADING';
@@ -260,6 +261,18 @@ export function fetchOriginSecrets(origin: string, token: string) {
       });
   };
 }
+
+export function fetchOriginChannels(origin: string) {
+  return dispatch => {
+    new BuilderApiClient().getOriginChannels(origin).
+      then(response => {
+        dispatch(populateOriginChannels(response));
+      }).catch(error => {
+        dispatch(populateOriginChannels(undefined, error));
+      });
+  };
+}
+
 
 export function generateOriginKeys(origin: string, token: string) {
   return dispatch => {
@@ -492,6 +505,14 @@ function populateOriginPublicKeys(payload, error = undefined) {
 function populateOriginSecrets(payload, error = undefined) {
   return {
     type: POPULATE_ORIGIN_SECRETS,
+    payload,
+    error,
+  };
+}
+
+function populateOriginChannels(payload, error = undefined) {
+  return {
+    type: POPULATE_ORIGIN_CHANNELS,
     payload,
     error,
   };
