@@ -225,3 +225,5 @@ export function labelForJobState(state) {
     promote: 'Promote',
   }[state.toLowerCase()];
 }
+
+export const latestLTS = 'LTS-2024';

@@ -16,6 +16,7 @@ import { groupBy } from 'lodash';
 import * as depotApi from '../client/depot-api';
 import { BuilderApiClient } from '../client/builder-api';
 import { addNotification, SUCCESS, DANGER } from './notifications';
+import { latestLTS } from  '../util';
 
 export const SET_PACKAGE_CREATING_FLAG = 'SET_PACKAGE_CREATING_FLAG';
 export const CLEAR_CURRENT_PACKAGE_CHANNELS = 'CLEAR_CURRENT_PACKAGE_CHANNELS';
@@ -120,6 +121,7 @@ export function demotePackage(origin: string, name: string, version: string, rel
           type: SUCCESS
         }));
         dispatch(fetchLatestInChannel(origin, name, 'stable', target));
+        dispatch(fetchLatestInChannel(origin, name, latestLTS, target));
         dispatch(fetchPackageChannels(origin, name, version, release, target));
         dispatch(fetchPackageVersions(origin, name));
       })
@@ -281,6 +283,7 @@ export function promotePackage(origin: string, name: string, version: string, re
           type: SUCCESS
         }));
         dispatch(fetchLatestInChannel(origin, name, 'stable', target));
+        dispatch(fetchLatestInChannel(origin, name, latestLTS, target));
         dispatch(fetchPackageChannels(origin, name, version, release, target));
         dispatch(fetchPackageVersions(origin, name));
       })

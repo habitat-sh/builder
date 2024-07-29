@@ -18,6 +18,7 @@ import { BehaviorSubject } from 'rxjs';
 import { Origin } from './records/Origin';
 import { Package } from './records/Package';
 import { Project } from './records/Project';
+import { latestLTS } from './util';
 
 export default Record({
   app: Record({
@@ -164,7 +165,8 @@ export default Record({
     latest: Package(),
     latestInChannel: Record({
       stable: undefined,
-      unstable: undefined
+      unstable: undefined,
+      [latestLTS]: undefined
     })(),
     visible: List(),
     versions: undefined,
@@ -193,6 +195,11 @@ export default Record({
           loading: true,
         })(),
         unstable: Record({
+          errorMessage: undefined,
+          exists: false,
+          loading: true,
+        })(),
+        [latestLTS]: Record({
           errorMessage: undefined,
           exists: false,
           loading: true,
