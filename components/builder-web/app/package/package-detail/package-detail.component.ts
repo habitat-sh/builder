@@ -121,7 +121,7 @@ export class PackageDetailComponent {
 
   getAllChannel(currentChannel) {
     return this.store.getState().origins.current.channels.filter((channel) => {
-      return channel.name !== 'unstable' && channel.name !== currentChannel;
+      return channel.name !== 'unstable' && channel.name !== currentChannel && !this._channels[channel.name];
     });
   }
 

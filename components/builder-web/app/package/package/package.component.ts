@@ -26,7 +26,7 @@ import {
   fetchJobs, fetchIntegrations, fetchLatestPackage, fetchLatestInChannel, fetchOrigin, fetchProject,
   fetchPackageSettings, fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions, fetchPackage, fetchPackageChannels
 } from '../../actions/index';
-import { targetFrom, targets as allPlatforms } from '../../util';
+import { targetFrom, targets as allPlatforms, latestLTS } from '../../util';
 import { fetchOriginChannels } from '../../actions/origins';
 
 @Component({
@@ -125,6 +125,11 @@ export class PackageComponent implements OnInit, OnDestroy {
           this.fetchLatest();
           this.fetchLatestStable();
         }
+
+        if (this.isChannelExistInOrigin(latestLTS)) {
+          this.fetchCurrentLts();
+        }
+
       });
 
     combineLatest(versionsLoading$, origin$, name$, target$, token$, origins$, platforms$)
@@ -143,6 +148,13 @@ export class PackageComponent implements OnInit, OnDestroy {
         this.fetchJobs();
       }
     }, 10000);
+  }
+
+  isChannelExistInOrigin(channelName) {
+    const index = this.store.getState().origins.current.channels.find((channel) => {
+      channel.name === channelName;
+    });
+    return index === undefined ? false : true;
   }
 
   ngOnDestroy() {
@@ -284,6 +296,10 @@ export class PackageComponent implements OnInit, OnDestroy {
 
   private fetchLatestStable() {
     this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.getLatestPlatform(this.target)));
+  }
+
+  private fetchCurrentLts() {
+    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, latestLTS, this.getLatestPlatform(this.target)));
   }
 
   private fetchPackageSettings() {

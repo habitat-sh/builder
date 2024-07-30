@@ -15,7 +15,7 @@
 import { Component, Input } from '@angular/core';
 import { AppStore } from '../../app.store';
 import { submitJob } from '../../actions/index';
-import { targetFrom, targets } from '../../util';
+import { targetFrom, targets, latestLTS } from '../../util';
 
 @Component({
   selector: 'hab-package-sidebar',
@@ -29,6 +29,7 @@ export class PackageSidebarComponent {
   @Input() isOriginMember: boolean = false;
   @Input() isNewProject: boolean = false;
   @Input() hasPlan: boolean = false;
+  latestLTS: string = latestLTS;
 
   constructor(private store: AppStore) { }
 
@@ -139,5 +140,28 @@ export class PackageSidebarComponent {
   nameFrom(platform) {
     const target = targetFrom('id', platform);
     return target ? target.name : '';
+  }
+
+  get currentLts() {
+    return this.store.getState().packages.latestInChannel[latestLTS];
+  }
+
+  get loadingCurrentLts() {
+    return this.store.getState().packages.ui.latestInChannel[latestLTS].loading;
+  }
+
+  get latest() {
+    return this.store.getState().packages.latest;
+  }
+
+  get loadingLatest() {
+    return this.store.getState().packages.ui.latest.loading;
+  }
+
+  get isLTSChannelExist() {
+    const index = this.store.getState().origins.current.channels.find((channel) => {
+      channel.name === latestLTS;
+    });
+    return index === undefined ? false : true;
   }
 }
