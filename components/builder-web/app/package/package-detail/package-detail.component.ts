@@ -139,8 +139,7 @@ export class PackageDetailComponent {
 
   promotable(pkg) {
     return this.memberOfOrigin &&
-      pkg.channels.length > 0 &&
-      pkg.channels.indexOf('stable') === -1;
+    pkg.channels.length < this.store.getState().origins.current.channels.length;
   }
 
   releaseToDate(release) {
