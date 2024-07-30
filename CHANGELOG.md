@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Changes : show latest and LTS-2024 [#1825](https://github.com/habitat-sh/builder/pull/1825) ([AadeshNichite](https://github.com/AadeshNichite))
 - New popup created for promote channel [#1819](https://github.com/habitat-sh/builder/pull/1819) ([AadeshNichite](https://github.com/AadeshNichite))
 - remove file introduced to test workflow action when merging to main [#1823](https://github.com/habitat-sh/builder/pull/1823) ([jasonheath](https://github.com/jasonheath))
 - CHEF-13373: CI Pipeline modifications for multichannel support (builder)  [#1813](https://github.com/habitat-sh/builder/pull/1813) ([jasonheath](https://github.com/jasonheath))
