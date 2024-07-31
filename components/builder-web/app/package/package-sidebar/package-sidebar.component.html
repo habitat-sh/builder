@@ -29,7 +29,8 @@
     </ul>
   </section>
   <h3>Latest</h3>
-  <div>
+  <!-- For now making inline css for div to move left will change it later-->
+  <div style="margin-left: 12px;">
     <section class="latest-stable" *ngIf="isLTSChannelExist">
       <h3> {{ latestLTS  }}</h3>
       <p *ngIf="currentLts">
