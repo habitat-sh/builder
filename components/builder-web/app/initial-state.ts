@@ -192,7 +192,7 @@ export default Record({
         stable: Record({
           errorMessage: undefined,
           exists: false,
-          loading: false,
+          loading: true,
         })(),
         unstable: Record({
           errorMessage: undefined,
