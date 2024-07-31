@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Changes : show LTS-2024 and Promote logic change [#1826](https://github.com/habitat-sh/builder/pull/1826) ([AadeshNichite](https://github.com/AadeshNichite))
 - Changes : show latest and LTS-2024 [#1825](https://github.com/habitat-sh/builder/pull/1825) ([AadeshNichite](https://github.com/AadeshNichite))
 - New popup created for promote channel [#1819](https://github.com/habitat-sh/builder/pull/1819) ([AadeshNichite](https://github.com/AadeshNichite))
 - remove file introduced to test workflow action when merging to main [#1823](https://github.com/habitat-sh/builder/pull/1823) ([jasonheath](https://github.com/jasonheath))
