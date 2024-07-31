@@ -8,11 +8,8 @@ pkg_deps=(core/nginx core/curl core/coreutils)
 
 pkg_build_deps=(
   core/node/"$(cat "$PLAN_CONTEXT/../../builder-web/.nvmrc")"
-  core/gcc
   core/git
   core/tar
-  core/python2
-  core/make
 )
 pkg_svc_user="root"
 # shellcheck disable=2154
@@ -34,6 +31,7 @@ pkg_version() {
 }
 
 do_before() {
+  git config --global --add safe.directory /src
   update_pkg_version
 }
 
