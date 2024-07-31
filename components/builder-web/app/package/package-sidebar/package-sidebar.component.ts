@@ -143,25 +143,18 @@ export class PackageSidebarComponent {
   }
 
   get currentLts() {
-    return this.store.getState().packages.latestInChannel[latestLTS];
+    return this.store.getState().packages.latestInChannel[this.latestLTS];
   }
 
   get loadingCurrentLts() {
-    return this.store.getState().packages.ui.latestInChannel[latestLTS].loading;
-  }
-
-  get latest() {
-    return this.store.getState().packages.latest;
-  }
-
-  get loadingLatest() {
-    return this.store.getState().packages.ui.latest.loading;
+    return this.store.getState().packages.ui.latestInChannel[this.latestLTS].loading;
   }
 
   get isLTSChannelExist() {
-    const index = this.store.getState().origins.current.channels.find((channel) => {
-      channel.name === latestLTS;
+    const channelExist = this.store.getState().origins.current.channels.find(({name}) => {
+      return name === this.latestLTS;
     });
-    return index === undefined ? false : true;
+
+    return channelExist?.name === this.latestLTS ? true : false;
   }
 }

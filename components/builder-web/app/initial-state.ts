@@ -202,7 +202,7 @@ export default Record({
         [latestLTS]: Record({
           errorMessage: undefined,
           exists: false,
-          loading: true,
+          loading: false,
         })()
       })(),
       versions: Record({
