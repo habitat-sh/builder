@@ -124,12 +124,11 @@ export class PackageComponent implements OnInit, OnDestroy {
         if (!this.ident.version && !this.ident.release) {
           this.fetchLatest();
           this.fetchLatestStable();
-        }
 
-        if (this.isChannelExistInOrigin(latestLTS)) {
-          this.fetchCurrentLts();
+          if (this.isChannelExistInOrigin(latestLTS)) {
+            this.fetchCurrentLts();
+          }
         }
-
       });
 
     combineLatest(versionsLoading$, origin$, name$, target$, token$, origins$, platforms$)
