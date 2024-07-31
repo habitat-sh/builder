@@ -28,43 +28,33 @@
       </li>
     </ul>
   </section>
-  <section class="latest-stable">
-    <h3>Latest</h3>
-    <p *ngIf="latest">
-      <a [routerLink]="['./', latest.ident.version, latest.ident.release]">
-        {{ latest.ident.version }}/{{ latest.ident.release }}
-      </a>
-      <span class="wbs" >{{ nameFrom(latest.target) }}</span>
-    </p>
-    <p *ngIf="!latest && !loadingLatest">
-      None.
-      <a [routerLink]="['./']">View available versions</a>.
-    </p>
-  </section>
-  <section class="latest-stable" *ngIf="isLTSChannelExist">
-    <h3> {{ latestLTS  }} Refresh Channel</h3>
-    <p *ngIf="currentLts">
-      <a [routerLink]="['./', currentLts.ident.version, currentLts.ident.release]">
-        {{ currentLts.ident.version }}/{{ currentLts.ident.release }}
-      </a>
-      <span class="wbs" >{{ nameFrom(currentLts.target) }}</span>
-    </p>
-    <p *ngIf="!currentLts && !loadingCurrentLts">
-      None.
-      <a [routerLink]="['./']">View available versions</a>.
-    </p>
-  </section>
-  <section class="latest-stable">
-    <h3>Stable</h3>
-    <p *ngIf="latestStable">
-      <a [routerLink]="['./', latestStable.ident.version, latestStable.ident.release]">
-        {{ latestStable.ident.version }}/{{ latestStable.ident.release }}
-      </a>
-      <span class="wbs" >{{ nameFrom(latestStable.target) }}</span>
-    </p>
-    <p *ngIf="!latestStable && !loadingLatestStable">
-      None.
-      <a [routerLink]="['./']">View available versions</a>.
-    </p>
-  </section>
+  <h3>Latest</h3>
+  <div>
+    <section class="latest-stable" *ngIf="isLTSChannelExist">
+      <h3> {{ latestLTS  }}</h3>
+      <p *ngIf="currentLts">
+        <a [routerLink]="['./', currentLts.ident.version, currentLts.ident.release]">
+          {{ currentLts.ident.version }}/{{ currentLts.ident.release }}
+        </a>
+        <span class="wbs" >{{ nameFrom(currentLts.target) }}</span>
+      </p>
+      <p *ngIf="!currentLts && !loadingCurrentLts">
+        None.
+        <a [routerLink]="['./']">View available versions</a>.
+      </p>
+    </section>
+    <section class="latest-stable">
+      <h3>Stable</h3>
+      <p *ngIf="latestStable">
+        <a [routerLink]="['./', latestStable.ident.version, latestStable.ident.release]">
+          {{ latestStable.ident.version }}/{{ latestStable.ident.release }}
+        </a>
+        <span class="wbs" >{{ nameFrom(latestStable.target) }}</span>
+      </p>
+      <p *ngIf="!latestStable && !loadingLatestStable">
+        None.
+        <a [routerLink]="['./']">View available versions</a>.
+      </p>
+    </section>
+  </div>
 </div>

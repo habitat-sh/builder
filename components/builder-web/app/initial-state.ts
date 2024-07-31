@@ -192,7 +192,7 @@ export default Record({
         stable: Record({
           errorMessage: undefined,
           exists: false,
-          loading: true,
+          loading: false,
         })(),
         unstable: Record({
           errorMessage: undefined,
@@ -202,7 +202,7 @@ export default Record({
         [latestLTS]: Record({
           errorMessage: undefined,
           exists: false,
-          loading: true,
+          loading: false,
         })()
       })(),
       versions: Record({
