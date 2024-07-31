@@ -56,6 +56,7 @@ export class PackageComponent implements OnInit, OnDestroy {
     const token$ = this.store.observe('session.token');
     const origins$ = this.store.observe('origins.mine');
     const originsCurrent$ = this.store.observe('origins.current');
+    const originsCurrentChannels$ = this.store.observe('origins.current.channels');
     const platforms$ = this.store.observe('packages.currentPlatforms');
     const versionsLoading$ = this.store.observe('packages.ui.versions.loading');
     const isOriginMember$ = combineLatest(origin$, origins$)
@@ -88,6 +89,20 @@ export class PackageComponent implements OnInit, OnDestroy {
       )
       .subscribe((origin) => {
         this.store.dispatch(fetchOriginChannels(origin.name));
+      });
+
+    originsCurrentChannels$
+      .pipe(
+        takeUntil(this.isDestroyed$),
+        filter((channels) => channels.length > 0)
+      )
+      .subscribe((channel) => {
+        channel.forEach((channel) => {
+          if (channel.name === latestLTS) {
+            this.fetchCurrentLts();
+            return;
+          }
+        });
       });
 
     combineLatest(origin$, name$, isOriginMember$)
@@ -125,6 +140,7 @@ export class PackageComponent implements OnInit, OnDestroy {
           this.fetchLatest();
           this.fetchLatestStable();
 
+          // This check whether channel is exist in current origin
           if (this.isChannelExistInOrigin(latestLTS)) {
             this.fetchCurrentLts();
           }
@@ -149,11 +165,13 @@ export class PackageComponent implements OnInit, OnDestroy {
     }, 10000);
   }
 
+  // Check if the given channel exist in current origin
   isChannelExistInOrigin(channelName) {
-    const index = this.store.getState().origins.current.channels.find((channel) => {
-      channel.name === channelName;
+    const channelExist = this.store.getState().origins.current.channels.find((channel) => {
+      return channel.name === channelName;
     });
-    return index === undefined ? false : true;
+
+    return channelExist?.name === channelName ? true : false;
   }
 
   ngOnDestroy() {
