@@ -1394,7 +1394,7 @@ async fn fetch_origin_integrations(req: HttpRequest,
             let integrations_response: HashMap<String, Vec<String>> =
                 oir.iter().fold(HashMap::new(), |mut acc, i| {
                               acc.entry(i.integration.to_owned())
-                                 .or_insert_with(Vec::new)
+                                 .or_default()
                                  .push(i.name.to_owned());
                               acc
                           });

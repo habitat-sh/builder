@@ -113,7 +113,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                 let (_, dep_node) = self.package_map[&dep_short_name];
                 dep_nodes.push(dep_node);
 
-                self.graph.extend_with_edges(&[(dep_node, pkg_node)]);
+                self.graph.extend_with_edges([(dep_node, pkg_node)]);
 
                 // Check for circular dependency
                 if is_cyclic_directed(&self.graph) {
@@ -132,7 +132,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
         }
 
         for saved_node in saved_nodes {
-            self.graph.extend_with_edges(&[(saved_node, pkg_node)]);
+            self.graph.extend_with_edges([(saved_node, pkg_node)]);
         }
 
         !circular_dep
@@ -190,7 +190,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                 let depname = format!("{}", dep);
 
                 let (_, dep_node) = self.generate_id(&depname);
-                self.graph.extend_with_edges(&[(dep_node, pkg_node)]);
+                self.graph.extend_with_edges([(dep_node, pkg_node)]);
 
                 // sanity check
                 if is_cyclic_directed(&self.graph) {
@@ -449,8 +449,8 @@ impl AcyclicPackageGraph {
     fn search(&self, phrase: &str) -> Vec<String> {
         let v: Vec<String> = self.package_names
                                  .iter()
+                                 .filter(|&s| s.contains(phrase))
                                  .cloned()
-                                 .filter(|s| s.contains(phrase))
                                  .collect();
 
         v

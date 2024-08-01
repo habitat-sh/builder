@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use petgraph::{algo::{is_cyclic_directed,
-                      toposort},
-               graph::NodeIndex,
-               visit::{Bfs,
-                       Walker},
-               Graph};
-use std::collections::{HashMap,
-                       HashSet};
+use petgraph::{
+    algo::{is_cyclic_directed, toposort},
+    graph::NodeIndex,
+    visit::{Bfs, Walker},
+    Graph,
+};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, PartialEq)]
 pub enum GraphErr {
@@ -28,19 +27,21 @@ pub enum GraphErr {
 
 pub type GType = usize;
 
-pub fn rdeps(g: &Graph<GType, crate::util::EdgeType>,
-             n: NodeIndex)
-             -> Result<Vec<GType>, GraphErr> {
+pub fn rdeps(
+    g: &Graph<GType, crate::util::EdgeType>,
+    n: NodeIndex,
+) -> Result<Vec<GType>, GraphErr> {
     if is_cyclic_directed(g) {
         error!("Input graph should not be cyclic!");
         return Err(GraphErr::GraphCyclic);
     }
 
     // unwrap should never panic as we pre-check for cycle
-    let t: Vec<GType> = toposort(&g, None).unwrap()
-                                          .iter()
-                                          .map(|k| k.index())
-                                          .collect();
+    let t: Vec<GType> = toposort(&g, None)
+        .unwrap()
+        .iter()
+        .map(|k| k.index())
+        .collect();
 
     #[allow(clippy::redundant_closure)]
     let bfs: Vec<GType> = Bfs::new(&g, n).iter(&g).map(|k| k.index()).collect();
@@ -82,7 +83,7 @@ mod tests {
         let b = deps.add_node(11);
         let c = deps.add_node(12);
 
-        deps.extend_with_edges(&[(a, b), (b, c), (c, a)]);
+        deps.extend_with_edges([(a, b), (b, c), (c, a)]);
 
         match rdeps(&deps, a) {
             Ok(_) => panic!("Cyclic graph should fail!"),
@@ -103,7 +104,7 @@ mod tests {
         let g = deps.add_node(16);
         let h = deps.add_node(17);
 
-        deps.extend_with_edges(&[(a, c), (b, c), (c, f), (c, e), (d, e), (e, f), (g, h)]);
+        deps.extend_with_edges([(a, c), (b, c), (c, f), (c, e), (d, e), (e, f), (g, h)]);
 
         match rdeps(&deps, a) {
             Ok(v) => {

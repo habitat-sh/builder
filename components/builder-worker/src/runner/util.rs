@@ -49,7 +49,7 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
             }
         };
         // Required keys with string values
-        for str_key in vec!["docker_hub_repo_name"].iter() {
+        for str_key in ["docker_hub_repo_name"].iter() {
             match opts.get(str_key) {
                 Some(val) => {
                     if val.is_string() {
@@ -74,7 +74,7 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
             }
         }
         // Required keys with boolean values
-        for bool_key in vec!["latest_tag", "version_tag", "version_release_tag"].iter() {
+        for bool_key in ["latest_tag", "version_tag", "version_release_tag"].iter() {
             match opts.get(bool_key) {
                 Some(val) => {
                     if !val.is_boolean() {
@@ -123,7 +123,7 @@ pub fn validate_integrations(workspace: &Workspace) -> Result<()> {
             }
         };
         // Required keys with string values
-        for str_key in vec!["username", "password"].iter() {
+        for str_key in ["username", "password"].iter() {
             match creds.get(str_key) {
                 Some(s) => {
                     if s.is_string() {

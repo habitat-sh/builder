@@ -480,7 +480,7 @@ mod tests {
         log.set_start(0);
         log.set_stop(4);
 
-        let lines = vec!["[1;33m» Importing origin key from standard log[0m",
+        let lines = ["[1;33m» Importing origin key from standard log[0m",
                          "[1;34m★ Imported secret origin key core-20160810182414.[0m",
                          "[1;33m» Installing core/hab-backline[0m",
                          "[1;32m↓ Downloading[0m core/hab-backline/0.23.0/20170511220008",];

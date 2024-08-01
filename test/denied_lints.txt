@@ -1,7 +1,6 @@
 clippy::assign_op_pattern
 clippy::disallowed_names
-clippy::blocks_in_if_conditions
-clippy::bool_comparison
+clippy::blocks_in_conditions
 clippy::cast_lossless
 clippy::checked_conversions
 clippy::clone_on_copy

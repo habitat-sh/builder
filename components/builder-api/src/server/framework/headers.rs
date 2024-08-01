@@ -27,12 +27,14 @@ pub enum Cache {
     MaxAge(usize),
 }
 
-impl ToString for Cache {
-    fn to_string(&self) -> String {
+use std::fmt;
+
+impl fmt::Display for Cache {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Cache::NoCache => NO_CACHE.to_string(),
-            Cache::MaxAgeDefault => CACHE.to_string(),
-            Cache::MaxAge(secs) => format!("public, max-age={}", secs),
+            Cache::NoCache => write!(f, "{}", NO_CACHE),
+            Cache::MaxAgeDefault => write!(f, "{}", CACHE),
+            Cache::MaxAge(secs) => write!(f, "public, max-age={}", secs),
         }
     }
 }

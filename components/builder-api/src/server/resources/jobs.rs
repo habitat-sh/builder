@@ -645,7 +645,7 @@ async fn do_get_job_log(req: &HttpRequest, job_id: u64, start: u64) -> Result<jo
                                                                               .get_package_name(), },
                                            &conn)?;
 
-            if vec![PackageVisibility::Private, PackageVisibility::Hidden]
+            if [PackageVisibility::Private, PackageVisibility::Hidden]
                 .contains(&settings.visibility)
             {
                 authorize_session(req, Some(&project.origin), Some(OriginMemberRole::Member))?;
