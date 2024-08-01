@@ -16,6 +16,9 @@ habitatConfig({
     // Enable Builder-specific features
     enable_builder: true,
 
+    // Enable ability to set project visibility
+    enable_visibility: true,
+
     // Enable supported container-registry integrations
     enable_publisher_amazon: false,
     enable_publisher_azure: false,

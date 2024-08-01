@@ -6,6 +6,7 @@ enable_publisher_amazon   = false
 enable_publisher_azure    = false
 enable_publisher_docker   = false
 enable_builder            = false
+enable_visibility         = false
 environment               = "production"
 hosted                    = false
 source_code_url           = "https://github.com/habitat-sh/habitat"

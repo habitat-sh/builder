@@ -38,7 +38,7 @@
     </a>
     <a
       mat-tab-link
-      *ngIf="builderEnabled && isOriginMember"
+      *ngIf="isOriginMember"
       routerLink="settings"
       routerLinkActive
       #settings="routerLinkActive"
@@ -57,7 +57,7 @@
       Manifest
     </a>
     <a
-      *ngIf="builderEnabled && isOriginMember"
+      *ngIf="visibilityEnabled && isOriginMember"
       mat-tab-link
       [routerLink]="['./', version, release, 'settings']"
       routerLinkActive

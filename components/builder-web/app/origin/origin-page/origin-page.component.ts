@@ -52,6 +52,10 @@ export class OriginPageComponent implements OnInit, OnDestroy {
     return this.store.getState().features.builder;
   }
 
+  get visibilityEnabled() {
+    return this.store.getState().features.visibility;
+  }
+
   get origin() {
     const current = this.store.getState().origins.current;
 
