@@ -754,7 +754,14 @@ impl Package {
 
         let result = origin_packages::table
             .inner_join(origin_channel_packages::table.inner_join(origin_channels::table))
-            .select((origin_channels::id, origin_channels::owner_id, origin_channels::name, origin_channel_packages::created_at, origin_channel_packages::updated_at, origin_channels::origin))
+            .select((
+                origin_channels::id,
+                origin_channels::owner_id,
+                origin_channels::name,
+                origin_channel_packages::created_at,
+                origin_channel_packages::updated_at,
+                origin_channels::origin,
+            ))
             .filter(origin_packages::ident.eq(ident))
             .filter(origin_packages::target.eq(target.to_string()))
             .filter(origin_packages::visibility.eq(any(visibility)))
@@ -1009,10 +1016,12 @@ impl FromStr for BuilderPackageIdent {
 
     fn from_str(s: &str) -> Result<Self, crate::error::Error> {
         Ok(BuilderPackageIdent(PackageIdent::from_str(s).map_err(|_| {
-                                   crate::error::Error::ParseError(format!("BuilderPackageIdent \
+                                                            crate::error::Error::ParseError(format!(
+                    "BuilderPackageIdent \
                                                                             {}",
-                                                                           s))
-                               })?))
+                    s
+                ))
+                                                        })?))
     }
 }
 
@@ -1076,9 +1085,10 @@ impl FromStr for BuilderPackageTarget {
 
     fn from_str(s: &str) -> Result<Self, crate::error::Error> {
         Ok(BuilderPackageTarget(PackageTarget::from_str(s).map_err(|_| {
-                                    crate::error::Error::ParseError(format!("BuilderPackageTarget \
-                                                                            {}",
-                                                                           s))
+                                    crate::error::Error::ParseError(format!(
+                "BuilderPackageTarget {}",
+                s
+            ))
                                 })?))
     }
 }

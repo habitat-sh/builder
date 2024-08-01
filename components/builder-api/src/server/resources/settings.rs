@@ -122,10 +122,11 @@ async fn create_origin_package_settings(req: HttpRequest,
             visibility: &pv,
             owner_id: account_id as i64,
         },
-        &conn).map_err(Error::DieselError) {
-        Ok(ops) => {
-            HttpResponse::Created().json(ops)
-        },
+        &conn,
+    )
+    .map_err(Error::DieselError)
+    {
+        Ok(ops) => HttpResponse::Created().json(ops),
         Err(err) => {
             debug!("{}", err);
             err.into()

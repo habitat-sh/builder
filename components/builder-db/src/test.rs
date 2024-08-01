@@ -85,12 +85,12 @@ macro_rules! datastore_test {
             let conn = pool.get_conn().expect("Failed to get connection");
 
             diesel::sql_query(format!("DROP DATABASE IF EXISTS {}", db_template).as_str())
-                                            .execute(&conn)
-                                            .expect("Failed to drop existing template database");
+                                             .execute(&conn)
+                                             .expect("Failed to drop existing template database");
 
             diesel::sql_query(format!("CREATE DATABASE {}", db_template).as_str())
-                                            .execute(&conn)
-                                            .expect("Failed to create template database");
+                                     .execute(&conn)
+                                     .expect("Failed to create template database");
 
             // Now that the database is recreated, set config to use that database
             config.database = db_template.to_string();

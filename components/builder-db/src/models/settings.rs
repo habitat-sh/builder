@@ -91,11 +91,13 @@ impl OriginPackageSettings {
                   conn: &PgConnection)
                   -> QueryResult<OriginPackageSettings> {
         Counter::DBCall.increment();
-        diesel::update(origin_package_settings::table
-            .filter(origin_package_settings::origin.eq(&req.origin))
-            .filter(origin_package_settings::name.eq(&req.name)))
-            .set(req)
-            .get_result(conn)
+        diesel::update(
+            origin_package_settings::table
+                .filter(origin_package_settings::origin.eq(&req.origin))
+                .filter(origin_package_settings::name.eq(&req.name)),
+        )
+        .set(req)
+        .get_result(conn)
     }
 
     pub fn delete(req: &DeleteOriginPackageSettings, conn: &PgConnection) -> QueryResult<usize> {

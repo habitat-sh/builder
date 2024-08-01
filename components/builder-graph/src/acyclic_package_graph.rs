@@ -353,13 +353,17 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                                 )
                             });
                     if rebuild_graph.contains_node(neighbor_short_ident) {
-                        unresolved_rebuild_graph.add_edge(UnresolvedPackageIdent::InternalNode(package, 1),
-                                                          UnresolvedPackageIdent::InternalNode(neighbor_short_ident, 1),
-                                                          EdgeType::RuntimeDep);
+                        unresolved_rebuild_graph.add_edge(
+                            UnresolvedPackageIdent::InternalNode(package, 1),
+                            UnresolvedPackageIdent::InternalNode(neighbor_short_ident, 1),
+                            EdgeType::RuntimeDep,
+                        );
                     } else {
-                        unresolved_rebuild_graph.add_edge(UnresolvedPackageIdent::InternalNode(package, 1),
-                                                          UnresolvedPackageIdent::ExternalLatestVersion(neighbor_short_ident),
-                                                          EdgeType::RuntimeDep);
+                        unresolved_rebuild_graph.add_edge(
+                            UnresolvedPackageIdent::InternalNode(package, 1),
+                            UnresolvedPackageIdent::ExternalLatestVersion(neighbor_short_ident),
+                            EdgeType::RuntimeDep,
+                        );
                         all_external_dependencies.insert(neighbor_short_ident);
                     }
                 }
@@ -368,7 +372,8 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                 // built, and so never uploaded. That should only happen when we're explicitly
                 // rebuilding the package, e.g. it's in the touched set.
                 if touched.contains(&package) {
-                    unresolved_rebuild_graph.add_node(UnresolvedPackageIdent::InternalNode(package,1));
+                    unresolved_rebuild_graph
+                        .add_node(UnresolvedPackageIdent::InternalNode(package, 1));
                 } else {
                     // Because of how we process things in the worklist algorithm above, we think
                     // this only can happen if the graph changed under us. That

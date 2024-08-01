@@ -606,10 +606,11 @@ fn job_group_rebuild_new(msg: &jobsrv::JobGroupRebuildFromSpec,
         // transitive property during manifest expansion.
         let entries =
             JobGraphEntry::list_group_by_state(old_group_data.id, JobExecState::JobFailed, &conn)?;
-        let mut failed_plans: Vec<PackageIdentIntern> =
-        entries.iter()
-               .map(|e| PackageIdentIntern::from_str(&e.project_name))
-               .collect::<std::result::Result<Vec<PackageIdentIntern>, habitat_core::error::Error>>()?;
+        let mut failed_plans: Vec<PackageIdentIntern> = entries
+            .iter()
+            .map(|e| PackageIdentIntern::from_str(&e.project_name))
+            .collect::<std::result::Result<Vec<PackageIdentIntern>, habitat_core::error::Error>>(
+            )?;
 
         plans.append(&mut failed_plans);
     }

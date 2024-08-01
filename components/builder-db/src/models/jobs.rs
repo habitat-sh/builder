@@ -207,15 +207,18 @@ impl Job {
 
     pub fn update_job_with_sync(job: &UpdateJob, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(jobs::table.find(job.id)).set((jobs::job_state.eq(&job.job_state),
-            jobs::scheduler_sync.eq(false),
-            jobs::sync_count.eq(jobs::sync_count + 1),
-            jobs::build_started_at.eq(job.build_started_at),
-            jobs::build_finished_at.eq(job.build_finished_at),
-            jobs::package_ident.eq(&job.package_ident),
-            jobs::net_error_code.eq(job.net_error_code),
-            jobs::net_error_msg.eq(&job.net_error_msg)))
-                                                .execute(conn)
+        diesel::update(jobs::table.find(job.id))
+            .set((
+                jobs::job_state.eq(&job.job_state),
+                jobs::scheduler_sync.eq(false),
+                jobs::sync_count.eq(jobs::sync_count + 1),
+                jobs::build_started_at.eq(job.build_started_at),
+                jobs::build_finished_at.eq(job.build_finished_at),
+                jobs::package_ident.eq(&job.package_ident),
+                jobs::net_error_code.eq(job.net_error_code),
+                jobs::net_error_msg.eq(&job.net_error_msg),
+            ))
+            .execute(conn)
     }
 
     pub fn get_next_pending_job(worker: &str,
@@ -413,7 +416,9 @@ impl Group {
                      .get_result(conn);
         let result = match next_group {
             Ok(group) => {
-                diesel::update(groups::table.filter(groups::id.eq(group.id))) .set(groups::group_state.eq("Dispatching")).execute(conn)?;
+                diesel::update(groups::table.filter(groups::id.eq(group.id)))
+                    .set(groups::group_state.eq("Dispatching"))
+                    .execute(conn)?;
                 diesel::QueryResult::Ok(Some(group))
             }
             diesel::QueryResult::Err(diesel::result::Error::NotFound) => {
@@ -440,8 +445,9 @@ impl Group {
                            conn: &PgConnection)
                            -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(groups::table.find(group_id)).set(groups::group_state.eq(group_state.to_string()))
-                                                    .execute(conn)
+        diesel::update(groups::table.find(group_id))
+            .set(groups::group_state.eq(group_state.to_string()))
+            .execute(conn)
     }
 
     pub fn cancel_job_group(group_id: i64, conn: &PgConnection) -> QueryResult<usize> {
@@ -632,9 +638,13 @@ impl GroupProject {
                                    conn: &PgConnection)
                                    -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(group_projects::table.filter(group_projects::owner_id.eq(group_id))
-                                            .filter(group_projects::project_name.eq(project_name)))
-        .set(group_projects::project_state.eq(project_state.to_string())).execute(conn)
+        diesel::update(
+            group_projects::table
+                .filter(group_projects::owner_id.eq(group_id))
+                .filter(group_projects::project_name.eq(project_name)),
+        )
+        .set(group_projects::project_state.eq(project_state.to_string()))
+        .execute(conn)
     }
 
     pub fn get_group_project_by_name(group_id: i64,
@@ -659,9 +669,13 @@ impl GroupProject {
 
     pub fn cancel_group_project(group_id: i64, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(group_projects::table.filter(group_projects::owner_id.eq(group_id))
-                                            .filter(group_projects::project_state.eq("NotStarted")))
-        .set(group_projects::project_state.eq("Canceled")).execute(conn)
+        diesel::update(
+            group_projects::table
+                .filter(group_projects::owner_id.eq(group_id))
+                .filter(group_projects::project_state.eq("NotStarted")),
+        )
+        .set(group_projects::project_state.eq("Canceled"))
+        .execute(conn)
     }
 }
 
@@ -753,9 +767,10 @@ impl FromStr for JobExecState {
             "cancel_pending" => Ok(JobExecState::CancelPending),
             "cancel_complete" => Ok(JobExecState::CancelComplete),
             _ => {
-                Err(BuilderError::JobExecStateConversionError(format!("Could not convert {} to \
-                                                                       a JobExecState",
-                                                                      value)))
+                Err(BuilderError::JobExecStateConversionError(format!(
+                    "Could not convert {} to a JobExecState",
+                    value
+                )))
             }
         }
     }
@@ -962,9 +977,13 @@ impl JobGraphEntry {
                              conn: &PgConnection)
                              -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::update(job_graph::table.filter(job_graph::job_state.eq(required_job_state))
-                                        .filter(job_graph::group_id.eq(group_id)))
-                                        .set(job_graph::job_state.eq(new_job_state)).execute(conn)
+        diesel::update(
+            job_graph::table
+                .filter(job_graph::job_state.eq(required_job_state))
+                .filter(job_graph::group_id.eq(group_id)),
+        )
+        .set(job_graph::job_state.eq(new_job_state))
+        .execute(conn)
     }
 
     pub fn set_job_id(id: i64, job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
@@ -996,7 +1015,9 @@ impl JobGraphEntry {
         match next_job {
             Ok(job) => {
                 // This should be done in a transaction
-                diesel::update(job_graph::table.find(job.id)).set(job_graph::job_state.eq(JobExecState::Running)).execute(conn)?;
+                diesel::update(job_graph::table.find(job.id))
+                    .set(job_graph::job_state.eq(JobExecState::Running))
+                    .execute(conn)?;
                 Ok(Some(job))
             }
             diesel::QueryResult::Err(diesel::result::Error::NotFound) => Ok(None),
@@ -1019,8 +1040,8 @@ impl JobGraphEntry {
                                             conn: &PgConnection)
                                             -> QueryResult<Vec<i64>> {
         Counter::DBCall.increment();
-        let result =
-            diesel::select(job_functions::t_deps_for_id_group(id, group_id)).get_results::<i64>(conn)?;
+        let result = diesel::select(job_functions::t_deps_for_id_group(id, group_id))
+            .get_results::<i64>(conn)?;
         Ok(result)
     }
 
@@ -1029,7 +1050,11 @@ impl JobGraphEntry {
                              conn: &PgConnection)
                              -> QueryResult<i32> {
         Counter::DBCall.increment();
-        diesel::select(job_functions::job_graph_mark_complete(id, &as_built.to_string())).get_result::<i32>(conn)
+        diesel::select(job_functions::job_graph_mark_complete(
+            id,
+            &as_built.to_string(),
+        ))
+        .get_result::<i32>(conn)
     }
 
     pub fn mark_job_failed(id: i64, conn: &PgConnection) -> QueryResult<i32> {
@@ -1048,10 +1073,14 @@ impl JobGraphEntry {
                                          conn)?;
         // See job_graph_mark_complete for another instance of this query pattern
         // perhaps it should be abstracted out
-        diesel::update(job_graph::table.filter(job_graph::group_id.eq(group_id))
-        .filter(job_graph::job_state.eq(JobExecState::WaitingOnDependency))
-        .filter(job_graph::waiting_on_count.eq(0)))
-        .set(job_graph::job_state.eq(JobExecState::Ready)).execute(conn)
+        diesel::update(
+            job_graph::table
+                .filter(job_graph::group_id.eq(group_id))
+                .filter(job_graph::job_state.eq(JobExecState::WaitingOnDependency))
+                .filter(job_graph::waiting_on_count.eq(0)),
+        )
+        .set(job_graph::job_state.eq(JobExecState::Ready))
+        .execute(conn)
     }
 }
 

@@ -103,19 +103,19 @@ fn count_by_state() {
 
     assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Ready, &conn).unwrap(),
                0);
-    assert_eq!(JobGraphEntry::count_by_state(group_id,
-                                                 JobExecState::WaitingOnDependency,
-                                                 &conn).unwrap(),
-                   0);
+    assert_eq!(
+        JobGraphEntry::count_by_state(group_id, JobExecState::WaitingOnDependency, &conn).unwrap(),
+        0
+    );
     assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap(),
                0);
 
     make_simple_graph_helper(group_id, &TARGET_PLATFORM, &conn);
 
-    assert_eq!(JobGraphEntry::count_by_state(group_id,
-                                                 JobExecState::WaitingOnDependency,
-                                                 &conn).unwrap(),
-                   3);
+    assert_eq!(
+        JobGraphEntry::count_by_state(group_id, JobExecState::WaitingOnDependency, &conn).unwrap(),
+        3
+    );
     assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Ready, &conn).unwrap(),
                1);
     assert_eq!(JobGraphEntry::count_by_state(group_id, JobExecState::Complete, &conn).unwrap(),

@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    cmp::{Ordering, PartialOrd},
-    convert::AsRef,
-    fmt, result,
-    str::FromStr,
-};
+use std::{cmp::{Ordering,
+                PartialOrd},
+          convert::AsRef,
+          fmt,
+          result,
+          str::FromStr};
 
-use serde::ser::{Serialize, Serializer};
+use serde::ser::{Serialize,
+                 Serializer};
 
-use crate::hab_core::{
-    error as herror,
-    package::{
-        ident::{version_sort, Identifiable},
-        PackageIdent,
-    },
-};
+use crate::hab_core::{error as herror,
+                      package::{ident::{version_sort,
+                                        Identifiable},
+                                PackageIdent}};
 
 use crate::db::models::package::BuilderPackageIdent;
 
@@ -35,8 +33,8 @@ use internment::Intern;
 
 #[derive(Default, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct PackageIdentIntern {
-    origin: Intern<String>,
-    name: Intern<String>,
+    origin:  Intern<String>,
+    name:    Intern<String>,
     version: Option<Intern<String>>,
     release: Option<Intern<String>>,
 }
@@ -63,21 +61,17 @@ macro_rules! ident_intern_vec {
 
 impl PackageIdentIntern {
     pub fn new(origin: &str, name: &str, version: Option<&str>, release: Option<&str>) -> Self {
-        PackageIdentIntern {
-            origin: Intern::<String>::new(origin.to_string()),
-            name: Intern::<String>::new(name.to_string()),
-            version: version.map(|x| Intern::<String>::new(x.into())),
-            release: release.map(|x| Intern::<String>::new(x.into())),
-        }
+        PackageIdentIntern { origin:  Intern::<String>::new(origin.to_string()),
+                             name:    Intern::<String>::new(name.to_string()),
+                             version: version.map(|x| Intern::<String>::new(x.into())),
+                             release: release.map(|x| Intern::<String>::new(x.into())), }
     }
 
     pub fn from_ident(ident: &PackageIdent) -> PackageIdentIntern {
-        PackageIdentIntern::new(
-            ident.origin(),
-            ident.name(),
-            ident.version(),
-            ident.release(),
-        )
+        PackageIdentIntern::new(ident.origin(),
+                                ident.name(),
+                                ident.version(),
+                                ident.release())
     }
 
     pub fn short_ident(&self) -> PackageIdentIntern {
@@ -91,13 +85,9 @@ impl PackageIdentIntern {
 }
 
 impl Identifiable for PackageIdentIntern {
-    fn origin(&self) -> &str {
-        &self.origin
-    }
+    fn origin(&self) -> &str { &self.origin }
 
-    fn name(&self) -> &str {
-        &self.name
-    }
+    fn name(&self) -> &str { &self.name }
 
     fn version(&self) -> Option<&str> {
         // This is a bit hideous, need to find better way of taking Intern<String> to String to &str
@@ -105,30 +95,24 @@ impl Identifiable for PackageIdentIntern {
         self.version.as_ref().map(|x| &***x) // works
     }
 
-    fn release(&self) -> Option<&str> {
-        self.release.as_ref().map(|x| &***x)
-    }
+    fn release(&self) -> Option<&str> { self.release.as_ref().map(|x| &***x) }
 }
 
 impl fmt::Display for PackageIdentIntern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.version.is_some() && self.release.is_some() {
-            write!(
-                f,
-                "{}/{}/{}/{}",
-                self.origin,
-                self.name,
-                self.version.as_ref().unwrap(),
-                self.release.as_ref().unwrap()
-            )
+            write!(f,
+                   "{}/{}/{}/{}",
+                   self.origin,
+                   self.name,
+                   self.version.as_ref().unwrap(),
+                   self.release.as_ref().unwrap())
         } else if self.version.is_some() {
-            write!(
-                f,
-                "{}/{}/{}",
-                self.origin,
-                self.name,
-                self.version.as_ref().unwrap()
-            )
+            write!(f,
+                   "{}/{}/{}",
+                   self.origin,
+                   self.name,
+                   self.version.as_ref().unwrap())
         } else {
             write!(f, "{}/{}", self.origin, self.name)
         }
@@ -138,22 +122,18 @@ impl fmt::Display for PackageIdentIntern {
 impl fmt::Debug for PackageIdentIntern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.version.is_some() && self.release.is_some() {
-            write!(
-                f,
-                "{}/{}/{}/{}",
-                self.origin,
-                self.name,
-                self.version.as_ref().unwrap(),
-                self.release.as_ref().unwrap()
-            )
+            write!(f,
+                   "{}/{}/{}/{}",
+                   self.origin,
+                   self.name,
+                   self.version.as_ref().unwrap(),
+                   self.release.as_ref().unwrap())
         } else if self.version.is_some() {
-            write!(
-                f,
-                "{}/{}/{}",
-                self.origin,
-                self.name,
-                self.version.as_ref().unwrap()
-            )
+            write!(f,
+                   "{}/{}/{}",
+                   self.origin,
+                   self.name,
+                   self.version.as_ref().unwrap())
         } else {
             write!(f, "{}/{}", self.origin, self.name)
         }
@@ -162,17 +142,14 @@ impl fmt::Debug for PackageIdentIntern {
 
 impl Serialize for PackageIdentIntern {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         serializer.serialize_str(&self.to_string())
     }
 }
 
 impl AsRef<PackageIdentIntern> for PackageIdentIntern {
-    fn as_ref(&self) -> &PackageIdentIntern {
-        self
-    }
+    fn as_ref(&self) -> &PackageIdentIntern { self }
 }
 
 impl FromStr for PackageIdentIntern {
@@ -212,31 +189,23 @@ impl FromStr for PackageIdentIntern {
 // }
 
 impl From<&PackageIdent> for PackageIdentIntern {
-    fn from(ident: &PackageIdent) -> Self {
-        PackageIdentIntern::from_ident(ident)
-    }
+    fn from(ident: &PackageIdent) -> Self { PackageIdentIntern::from_ident(ident) }
 }
 
 impl From<PackageIdent> for PackageIdentIntern {
     fn from(ident: PackageIdent) -> Self {
-        PackageIdentIntern::new(
-            ident.origin(),
-            ident.name(),
-            ident.version(),
-            ident.release(),
-        )
+        PackageIdentIntern::new(ident.origin(),
+                                ident.name(),
+                                ident.version(),
+                                ident.release())
     }
 }
 
 impl From<&BuilderPackageIdent> for PackageIdentIntern {
-    fn from(ident: &BuilderPackageIdent) -> Self {
-        PackageIdentIntern::from_ident(&ident.0)
-    }
+    fn from(ident: &BuilderPackageIdent) -> Self { PackageIdentIntern::from_ident(&ident.0) }
 }
 impl From<BuilderPackageIdent> for PackageIdentIntern {
-    fn from(ident: BuilderPackageIdent) -> Self {
-        PackageIdentIntern::from_ident(&ident.0)
-    }
+    fn from(ident: BuilderPackageIdent) -> Self { PackageIdentIntern::from_ident(&ident.0) }
 }
 
 #[allow(clippy::from_over_into)]
@@ -254,9 +223,7 @@ impl PartialOrd for PackageIdentIntern {
     /// * If the names are not equal, they cannot be compared.
     /// * If the versions are greater/lesser, return that as the ordering.
     /// * If the versions are equal, return the greater/lesser for the release.
-    fn partial_cmp(&self, other: &PackageIdentIntern) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
+    fn partial_cmp(&self, other: &PackageIdentIntern) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
 impl Ord for PackageIdentIntern {
@@ -283,10 +250,9 @@ impl Ord for PackageIdentIntern {
             return Ordering::Greater;
         }
 
-        match version_sort(
-            self.version.as_ref().unwrap(),
-            other.version.as_ref().unwrap(),
-        ) {
+        match version_sort(self.version.as_ref().unwrap(),
+                           other.version.as_ref().unwrap())
+        {
             Ok(Ordering::Equal) => {
                 if self.release.is_none() && other.release.is_none() {
                     Ordering::Equal
@@ -301,11 +267,10 @@ impl Ord for PackageIdentIntern {
             Ok(ordering) => ordering,
             Err(_) => {
                 // Handle non-numeric version comparison
-                let v_cmp = self
-                    .version
-                    .as_ref()
-                    .unwrap()
-                    .cmp(other.version.as_ref().unwrap());
+                let v_cmp = self.version
+                                .as_ref()
+                                .unwrap()
+                                .cmp(other.version.as_ref().unwrap());
                 if v_cmp == Ordering::Equal {
                     self.release.cmp(&other.release)
                 } else {
@@ -317,8 +282,7 @@ impl Ord for PackageIdentIntern {
 }
 
 pub fn display_ordering_cmp<T>(a: &T, b: &T) -> Ordering
-where
-    T: Identifiable,
+    where T: Identifiable
 {
     let cmp = a.origin().cmp(b.origin());
     if cmp != Ordering::Equal {

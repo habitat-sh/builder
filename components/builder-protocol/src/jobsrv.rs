@@ -481,9 +481,9 @@ mod tests {
         log.set_stop(4);
 
         let lines = ["[1;33m» Importing origin key from standard log[0m",
-                         "[1;34m★ Imported secret origin key core-20160810182414.[0m",
-                         "[1;33m» Installing core/hab-backline[0m",
-                         "[1;32m↓ Downloading[0m core/hab-backline/0.23.0/20170511220008",];
+                     "[1;34m★ Imported secret origin key core-20160810182414.[0m",
+                     "[1;33m» Installing core/hab-backline[0m",
+                     "[1;32m↓ Downloading[0m core/hab-backline/0.23.0/20170511220008"];
 
         // https://github.com/rust-lang/rust-clippy/issues/3071U
         #[allow(clippy::redundant_closure)]

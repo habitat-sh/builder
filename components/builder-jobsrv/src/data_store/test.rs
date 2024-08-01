@@ -143,10 +143,10 @@ mod test {
         let _ = ds.create_job(&job);
 
         let conn = ds.get_pool().get_conn().unwrap();
-        let list_project_jobs = habitat_builder_db::models::jobs::ListProjectJobs{
+        let list_project_jobs = habitat_builder_db::models::jobs::ListProjectJobs {
             name: helpers::PROJECT_NAME.to_string(),
             page: 1,
-            limit: 100
+            limit: 100,
         };
         let (_, job_count) =
             habitat_builder_db::models::jobs::Job::list(list_project_jobs, &conn).unwrap();
@@ -307,7 +307,7 @@ mod test {
         job_group.set_package("thing".to_string());
         job_group.set_target("x86_64-linux".to_string());
         let projects = vec![("some".to_string(), "package/ident".to_string()),
-                            ("else".to_string(), "other/ident".to_string())];
+                            ("else".to_string(), "other/ident".to_string()),];
         let result = ds.create_job_group(&job_group, projects);
         let group_id = result.unwrap().get_id();
 
@@ -374,7 +374,7 @@ mod test {
         job_group_uno.set_package("thing".to_string());
         job_group_uno.set_target("x86_64-linux".to_string());
         let projects = vec![("some".to_string(), "package/ident".to_string()),
-                            ("right".to_string(), "opackage/odent".to_string())];
+                            ("right".to_string(), "opackage/odent".to_string()),];
 
         let _result_uno = ds.create_job_group(&job_group_uno, projects);
 
@@ -421,7 +421,7 @@ mod test {
         job_group_uno.set_package("thing".to_string());
         job_group_uno.set_target("x86_64-linux".to_string());
         let projects = vec![("some".to_string(), "package/ident".to_string()),
-                            ("right".to_string(), "opackage/odent".to_string())];
+                            ("right".to_string(), "opackage/odent".to_string()),];
 
         let result_uno = ds.create_job_group(&job_group_uno, projects);
         let group_id = result_uno.unwrap().get_id();

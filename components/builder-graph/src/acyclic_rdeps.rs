@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use petgraph::{
-    algo::{is_cyclic_directed, toposort},
-    graph::NodeIndex,
-    visit::{Bfs, Walker},
-    Graph,
-};
-use std::collections::{HashMap, HashSet};
+use petgraph::{algo::{is_cyclic_directed,
+                      toposort},
+               graph::NodeIndex,
+               visit::{Bfs,
+                       Walker},
+               Graph};
+use std::collections::{HashMap,
+                       HashSet};
 
 #[derive(Debug, PartialEq)]
 pub enum GraphErr {
@@ -34,11 +35,10 @@ pub fn rdeps(g: &Graph<GType, GType>, n: NodeIndex) -> Result<Vec<GType>, GraphE
     }
 
     // unwrap should never panic as we pre-check for cycle
-    let t: Vec<GType> = toposort(&g, None)
-        .unwrap()
-        .iter()
-        .map(|k| k.index())
-        .collect();
+    let t: Vec<GType> = toposort(&g, None).unwrap()
+                                          .iter()
+                                          .map(|k| k.index())
+                                          .collect();
 
     #[allow(clippy::redundant_closure)]
     let bfs: Vec<GType> = Bfs::new(&g, n).iter(&g).map(|k| k.index()).collect();

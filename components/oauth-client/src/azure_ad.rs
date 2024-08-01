@@ -43,7 +43,7 @@ impl AzureAD {
                   client: &HttpClient,
                   token: &str)
                   -> Result<OAuth2User> {
-        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let resp = client.get(&config.userinfo_url)
@@ -85,7 +85,7 @@ impl OAuth2Provider for AzureAD {
                            config.client_id, config.client_secret, code, config.redirect_url);
 
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
-                                 CONTENT_TYPE_FORM_URL_ENCODED.clone()];
+                                 CONTENT_TYPE_FORM_URL_ENCODED.clone(),];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let body: Body = body.into();
