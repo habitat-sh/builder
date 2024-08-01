@@ -102,7 +102,8 @@ export class PackageVersionsComponent implements OnDestroy {
   }
 
   promotable(pkg) {
-    return this.memberOfOrigin && pkg.channels.indexOf('stable') === -1;
+    return this.memberOfOrigin &&
+    pkg.channels.length < this.store.getState().origins.current.channels.length;
   }
 
   get memberOfOrigin() {
