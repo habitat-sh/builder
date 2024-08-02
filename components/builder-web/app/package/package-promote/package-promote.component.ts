@@ -2,7 +2,7 @@ import { Component, Input } from '@angular/core';
 import { MatDialog } from '@angular/material';
 import { AppStore } from '../../app.store';
 import { promotePackage } from '../../actions/index';
-import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
+import { PromoteConfirmDialog } from '../../shared/dialog/promote-confirm/promote-confirm.dialog';
 
 @Component({
   selector: 'hab-package-promote',
@@ -13,8 +13,8 @@ export class PackagePromoteComponent {
   @Input() name: string;
   @Input() version: string;
   @Input() release: string;
-  @Input() channel: string;
   @Input() target: string;
+  @Input() channels: string[];
 
   promoting: boolean = false;
 
@@ -26,26 +26,35 @@ export class PackagePromoteComponent {
   prompt(evt) {
     evt.stopPropagation();
 
+    const filteredAllChannel = this.getAllChannel();
     this.confirmDialog
-      .open(SimpleConfirmDialog, {
-        width: '480px',
-        data: {
-          heading: 'Confirm promote',
-          body: `Are you sure you want to promote this artifact? Doing so will add the artifact to the ${this.channel} channel.`,
-          action: 'promote it'
-        }
-      })
-      .afterClosed()
-      .subscribe((confirmed) => {
-        if (confirmed) {
+    .open(PromoteConfirmDialog, {
+      width: '480px',
+      data: {
+        heading: 'Confirm promote',
+        body: `Select channel to promote. Promoted artifact will be added to the selected channel.`,
+        channelList: filteredAllChannel,
+        action: 'Promote'
+      }
+    })
+    .afterClosed()
+    .subscribe((data) => {
+      if (data) {
+        const {confirmed, selectedChannel} = data;
+        if (confirmed && selectedChannel) {
           this.promoting = true;
-
-          setTimeout(() => {
-            this.store.dispatch(
-              promotePackage(this.origin, this.name, this.version, this.release, this.target, this.channel, this.store.getState().session.token)
-            );
-          }, 1000);
+          let token = this.store.getState().session.token;
+          this.store.dispatch(
+            promotePackage(this.origin, this.name, this.version, this.release, this.target, selectedChannel, token)
+          );
         }
-      });
+      }
+    });
+  }
+
+  getAllChannel() {
+    return this.store.getState().origins.current.channels.filter((channel) => {
+      return channel.name !== 'unstable' && this.channels.indexOf(channel.name) === -1;
+    });
   }
 }
