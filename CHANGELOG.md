@@ -3,6 +3,9 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- implement VisibilityEnabledGuard to show visibility settings [#1831](https://github.com/habitat-sh/builder/pull/1831) ([mwrock](https://github.com/mwrock))
+- check visibility feature for settings tab for non-active package release [#1830](https://github.com/habitat-sh/builder/pull/1830) ([mwrock](https://github.com/mwrock))
+- New promote popup added for version tab [#1829](https://github.com/habitat-sh/builder/pull/1829) ([AadeshNichite](https://github.com/AadeshNichite))
 - Make package visibility settings UI elements configurable [#1822](https://github.com/habitat-sh/builder/pull/1822) ([mwrock](https://github.com/mwrock))
 - Changes : show LTS-2024 and Promote logic change [#1826](https://github.com/habitat-sh/builder/pull/1826) ([AadeshNichite](https://github.com/AadeshNichite))
 - Changes : show latest and LTS-2024 [#1825](https://github.com/habitat-sh/builder/pull/1825) ([AadeshNichite](https://github.com/AadeshNichite))
