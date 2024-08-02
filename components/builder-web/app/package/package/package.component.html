@@ -38,7 +38,7 @@
     </a>
     <a
       mat-tab-link
-      *ngIf="isOriginMember"
+      *ngIf="visibilityEnabled && isOriginMember"
       routerLink="settings"
       routerLinkActive
       #settings="routerLinkActive"
