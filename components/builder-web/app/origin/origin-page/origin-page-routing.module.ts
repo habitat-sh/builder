@@ -23,6 +23,7 @@ import { OriginIntegrationsTabComponent } from './origin-integrations-tab/origin
 import { OriginJobsTabComponent } from './origin-jobs-tab/origin-jobs-tab.component';
 import { OriginJobDetailComponent } from './origin-job-detail/origin-job-detail.component';
 import { BuilderEnabledGuard } from '../../shared/guards/builder-enabled.guard';
+import { VisibilityEnabledGuard } from '../../shared/guards/visibility-enabled.guard';
 import { OriginMemberGuard } from '../../shared/guards/origin-member.guard';
 import { SignedInGuard } from '../../shared/guards/signed-in.guard';
 
@@ -52,7 +53,7 @@ const routes: Routes = [
       {
         path: 'settings',
         component: OriginSettingsTabComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard],
+        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard],
       },
       {
         path: 'integrations',

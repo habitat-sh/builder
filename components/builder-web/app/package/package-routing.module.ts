@@ -23,6 +23,7 @@ import { PackageReleaseComponent } from './package-release/package-release.compo
 import { PackageReleaseSettingsComponent } from './package-release-settings/package-release-settings.component';
 import { PackageVersionsComponent } from './package-versions/package-versions.component';
 import { BuilderEnabledGuard } from '../shared/guards/builder-enabled.guard';
+import { VisibilityEnabledGuard } from '../shared/guards/visibility-enabled.guard';
 import { OriginMemberGuard } from '../shared/guards/origin-member.guard';
 import { SignedInGuard } from '../shared/guards/signed-in.guard';
 
@@ -56,12 +57,12 @@ const routes: Routes = [
       {
         path: 'settings',
         component: PackageSettingsComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard]
       },
       {
         path: 'settings/:target',
         component: PackageSettingsComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard]
       },
       {
         path: ':version',
@@ -74,7 +75,7 @@ const routes: Routes = [
       {
         path: ':version/:release/settings',
         component: PackageReleaseSettingsComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard]
       }
     ]
   }
