@@ -139,15 +139,10 @@ export class PackageDetailComponent {
 
   promotable(pkg) {
     const originChannels = this.store.getState().origins.current.channels;
-    let originChannelCount = originChannels.length;
-
-    originChannels.map((originChannel) => {
-      if (pkg.channels.indexOf(originChannel.name) !== -1) {
-        originChannelCount--;
-      }
-    });
-
-    return this.memberOfOrigin && originChannelCount !== 0;
+    const hasMissingChannel = originChannels.some(originChannel =>
+      pkg.channels.indexOf(originChannel.name) === -1
+    );
+    return this.memberOfOrigin && hasMissingChannel;
   }
 
   releaseToDate(release) {
