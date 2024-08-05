@@ -27,7 +27,7 @@ import { DockerExportSettingsComponent } from '../../shared/docker-export-settin
 import { BuilderApiClient } from '../../client/builder-api';
 import { AppStore } from '../../app.store';
 import {
-  addProject, clearGitHubInstallations, clearGitHubRepositories, updateProject, setProjectIntegrationSettings, deleteProject,
+   clearGitHubInstallations, clearGitHubRepositories, setProjectIntegrationSettings,
   fetchGitHubInstallations, fetchGitHubRepositories, fetchProject, setCurrentPackageVisibility,
   deleteProjectIntegration, createEmptyPackage
 } from '../../actions/index';
@@ -196,10 +196,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     return this.installations.size > 0;
   }
 
-  get hasPrivateKey() {
-    const currentOrigin = this.store.getState().origins.current;
-    return currentOrigin.name === this.origin && !!currentOrigin.private_key_name;
-  }
 
   get installations() {
     return this.store.getState().gitHub.installations;
@@ -209,9 +205,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     return this.store.getState().gitHub.ui.installations.loading;
   }
 
-  get loadingRepositories() {
-    return this.store.getState().gitHub.ui.repositories.loading;
-  }
 
   get orgs() {
     return this.store.getState().gitHub.orgs;
@@ -284,9 +277,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this.autoBuild = v;
   }
 
-  openConnect(target: string) {
-    this.router.navigate(['/pkgs', this.origin, this.name, 'settings', target]);
-  }
 
   connect(target: string) {
     this.deselect();
@@ -294,17 +284,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this.toggled.emit(this.connecting);
   }
 
-  disconnect(project) {
-    const ref = this.disconnectDialog.open(DisconnectConfirmDialog, {
-      width: '460px'
-    });
-
-    ref.afterClosed().subscribe((confirmed) => {
-      if (confirmed) {
-        this.store.dispatch(deleteProject(project.origin, project.package_name, project.target, this.token));
-      }
-    });
-  }
 
   iconFor(path) {
     return this.isWindows(path) ? 'windows' : 'linux';
@@ -314,21 +293,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     return !!path.match(/\.ps1$/);
   }
 
-  hasInvalidPlanPath(project): boolean {
-    this.target = project.target;
-    return !(new RegExp(this.unmatchedPattern).test(project.plan_path));
-  }
-
-  hasPlanFor(target: string): boolean {
-    return this.projects.filter(project => {
-      return project.target === targetFrom('param', target).id;
-    }).length === 1;
-  }
-
-  clearConnection() {
-    this.clearSelection();
-    this.router.navigate(['/pkgs', this.origin, this.name, 'settings']);
-  }
 
   clearSelection() {
     this.connecting = false;
@@ -346,11 +310,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this.selectedPath = this.defaultPath;
     this.store.dispatch(clearGitHubInstallations());
     this.store.dispatch(clearGitHubRepositories());
-  }
-
-  openConnectEdit(project) {
-    const target = targetFrom('id', project.target);
-    this.openConnect(target.param);
   }
 
   editConnection(target) {
@@ -428,21 +387,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     this.selectRepository(this.activeRepo);
   }
 
-  saveConnection() {
-    if (this.isUpdating) {
-      this.store.dispatch(updateProject(this.activeProject.name, this.planTemplate, this.token, (result) => {
-        const { origin, package_name, target } = this.activeProject;
-        this.handleSaved(result.success, origin, package_name, target);
-      }));
-    } else {
-      const project = { ...this.planTemplate, name: this.name};
-      this.store.dispatch(addProject(project, this.token, (result) => {
-        const { origin, package_name, target } = result.response || {};
-        this.handleSaved(result.success, origin, package_name, target);
-      }));
-    }
-  }
-
   selectRepository(repo) {
     this.selectedInstallation = Record({
       repo_id: repo.get('id'),
@@ -470,15 +414,6 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   private doAfterViewChecked(f) {
     this._doAfterViewChecked.push(f);
-  }
-
-  private handleSaved(successful, origin, name, target) {
-    if (successful) {
-      this.saveIntegration(origin, name);
-      this.store.dispatch(fetchProject(origin, name, target, this.token, false));
-      this.saved.emit({ origin: origin, name: name });
-      this.clearConnection();
-    }
   }
 
   private parseGitHubUrl(url) {

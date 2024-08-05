@@ -164,27 +164,6 @@ export class BuilderApiClient {
     });
   }
 
-  public createProject(project) {
-    return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/projects`, {
-        body: JSON.stringify(project),
-        headers: this.jsonHeaders,
-        method: 'POST',
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve(response.json());
-          } else {
-            response.text().then(message => {
-              reject(new Error(message || response.statusText));
-            }).catch(_ => reject(new Error(response.statusText)));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
-  }
-
   public createEmptyPackage(packageInfo) {
     const { origin, packageName } = packageInfo;
 
@@ -215,45 +194,6 @@ export class BuilderApiClient {
         .then(response => {
           if (response.ok) {
             resolve(response.json());
-          } else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
-  }
-
-  public updateProject(projectId, project) {
-    return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/projects/${projectId}`, {
-        body: JSON.stringify(project),
-        headers: this.jsonHeaders,
-        method: 'PUT',
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve();
-          } else {
-            response.text().then(message => {
-              reject(new Error(message || response.statusText));
-            }).catch(_ => reject(new Error(response.statusText)));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
-  }
-
-  public deleteProject(origin: string, name: string, target: string) {
-    return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/projects/${origin}/${name}?target=${target}`, {
-        method: 'DELETE',
-        headers: this.headers
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve(response);
           } else {
             reject(new Error(response.statusText));
           }
