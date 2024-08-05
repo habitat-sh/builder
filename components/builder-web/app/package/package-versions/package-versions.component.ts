@@ -102,8 +102,16 @@ export class PackageVersionsComponent implements OnDestroy {
   }
 
   promotable(pkg) {
-    return this.memberOfOrigin &&
-    pkg.channels.length < this.store.getState().origins.current.channels.length;
+    const originChannels = this.store.getState().origins.current.channels;
+    let originChannelCount = originChannels.length;
+
+    originChannels.map((originChannel) => {
+      if (pkg.channels.indexOf(originChannel.name) !== -1) {
+        originChannelCount--;
+      }
+    });
+
+    return this.memberOfOrigin && originChannelCount !== 0;
   }
 
   get memberOfOrigin() {
