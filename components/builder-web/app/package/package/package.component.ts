@@ -91,10 +91,10 @@ export class PackageComponent implements OnInit, OnDestroy {
         this.store.dispatch(fetchOriginChannels(origin.name));
       });
 
-    combineLatest(originsCurrentChannels$, target$)
+    combineLatest(originsCurrentChannels$)
       .pipe(
         takeUntil(this.isDestroyed$),
-        filter(([channels, target]) => channels.length > 0 && target !== undefined)
+        filter((channels) => channels.length > 0 )
       )
       .subscribe(([channel]) => {
         channel.forEach((channel) => {
@@ -305,7 +305,7 @@ export class PackageComponent implements OnInit, OnDestroy {
       return target;
     }
 
-    return versions[0].platforms[0];
+    return versions[0]?.platforms[0];
   }
 
   private fetchLatest() {
@@ -320,7 +320,9 @@ export class PackageComponent implements OnInit, OnDestroy {
   }
 
   private fetchCurrentLts() {
-    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, latestLTS, this.getLatestPlatform(this.target)));
+    if (this.getLatestPlatform(this.target) !== undefined) {
+      this.store.dispatch(fetchLatestInChannel(this.origin, this.name, latestLTS, this.getLatestPlatform(this.target)));
+    }
   }
 
   private fetchPackageSettings() {
