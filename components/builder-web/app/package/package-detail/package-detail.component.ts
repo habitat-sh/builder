@@ -138,8 +138,11 @@ export class PackageDetailComponent {
   }
 
   promotable(pkg) {
-    return this.memberOfOrigin &&
-    pkg.channels.length < this.store.getState().origins.current.channels.length;
+    const originChannels = this.store.getState().origins.current.channels;
+    const hasMissingChannel = originChannels.some(originChannel =>
+      pkg.channels.indexOf(originChannel.name) === -1
+    );
+    return this.memberOfOrigin && hasMissingChannel;
   }
 
   releaseToDate(release) {

@@ -91,12 +91,12 @@ export class PackageComponent implements OnInit, OnDestroy {
         this.store.dispatch(fetchOriginChannels(origin.name));
       });
 
-    originsCurrentChannels$
+    combineLatest(originsCurrentChannels$, target$)
       .pipe(
         takeUntil(this.isDestroyed$),
-        filter((channels) => channels.length > 0)
+        filter(([channels, target]) => channels.length > 0 && target !== undefined)
       )
-      .subscribe((channel) => {
+      .subscribe(([channel]) => {
         channel.forEach((channel) => {
           if (channel.name === latestLTS) {
             this.fetchCurrentLts();
