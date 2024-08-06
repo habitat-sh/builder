@@ -295,6 +295,10 @@ export class PackageComponent implements OnInit, OnDestroy {
   }
 
   private getLatestPlatform(target) {
+    if (target === undefined) {
+      target = 'x86_64-linux';
+    }
+
     const versions = this.store.getState().packages?.versions;
     if (!versions) {
       return target;
@@ -316,7 +320,9 @@ export class PackageComponent implements OnInit, OnDestroy {
   }
 
   private fetchLatestStable() {
-    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.getLatestPlatform(this.target)));
+    // if (this.getLatestPlatform(this.target) !== undefined) {
+      this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.getLatestPlatform(this.target)));
+    // }
   }
 
   private fetchCurrentLts() {
