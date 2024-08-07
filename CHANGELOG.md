@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- css changes done [#1835](https://github.com/habitat-sh/builder/pull/1835) ([AadeshNichite](https://github.com/AadeshNichite))
 - fetch Current Lts excpetion handle [#1834](https://github.com/habitat-sh/builder/pull/1834) ([AadeshNichite](https://github.com/AadeshNichite))
 - Promotable logic change and bug fix for fetch LTS API call [#1832](https://github.com/habitat-sh/builder/pull/1832) ([AadeshNichite](https://github.com/AadeshNichite))
 - implement VisibilityEnabledGuard to show visibility settings [#1831](https://github.com/habitat-sh/builder/pull/1831) ([mwrock](https://github.com/mwrock))
