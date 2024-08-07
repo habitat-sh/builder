@@ -1,12 +1,7 @@
+  <!-- For now making inline css for div to move left will change it later-->
 <div class="package-sidebar-component">
   <section *ngIf="platform && isOriginMember">
     <h3>Build</h3>
-    <!-- <button class="build" mat-raised-button color="primary" (click)="build()" [disabled]="!isBuildable" [attr.aria-label]="buildButtonAriaLabel">
-      <span aria-hidden="true">
-        {{ buildButtonLabel }}
-      </span>
-    </button>
-    <p *ngIf="!isBuildable" class="disabled-build-msg">{{ buildButtonDisabledMessage }}</p> -->
     <p class="disabled-build-msg">Building Packages using Builder is no longer supported. Please refer to <a href="https://docs.chef.io/habitat/pkg_build/" target="_blank">Building Packages</a> for building  packages within a Studio.</p>
   </section>
   <section *ngIf="isOriginMember && projectExists && hasPlan">
@@ -29,33 +24,34 @@
     </ul>
   </section>
   <h3>Latest</h3>
-  <!-- For now making inline css for div to move left will change it later-->
-  <div style="margin-left: 12px;">
+  <div class="sidebar-section" style="margin-left: 12px;">
     <section class="latest-stable" *ngIf="isLTSChannelExist">
-      <h3> {{ latestLTS  }}</h3>
-      <p *ngIf="currentLts">
+      <h3 style="margin-bottom: 0px;"> {{ latestLTS  }}</h3>
+      <div *ngIf="currentLts">
         <a [routerLink]="['./', currentLts.ident.version, currentLts.ident.release]">
           {{ currentLts.ident.version }}/{{ currentLts.ident.release }}
         </a>
         <span class="wbs" >{{ nameFrom(currentLts.target) }}</span>
-      </p>
-      <p *ngIf="!currentLts && !loadingCurrentLts">
+      </div>
+      <div *ngIf="!currentLts && !loadingCurrentLts">
         None.
         <a [routerLink]="['./']">View available versions</a>.
-      </p>
+      </div>
     </section>
     <section class="latest-stable">
-      <h3>Stable</h3>
-      <p *ngIf="latestStable">
+      <h3 style="margin-bottom: 0px;">Stable
+        <hab-icon symbol="alert" title="Stable Channel is going to be deprecated for core, chef and chef-platform origins. We will communicate the details on EOL dates soon" style="float: none;"></hab-icon>
+      </h3>
+      <div *ngIf="latestStable">
         <a [routerLink]="['./', latestStable.ident.version, latestStable.ident.release]">
           {{ latestStable.ident.version }}/{{ latestStable.ident.release }}
         </a>
         <span class="wbs" >{{ nameFrom(latestStable.target) }}</span>
-      </p>
-      <p *ngIf="!latestStable && !loadingLatestStable">
+      </div>
+      <div *ngIf="!latestStable && !loadingLatestStable">
         None.
         <a [routerLink]="['./']">View available versions</a>.
-      </p>
+      </div>
     </section>
   </div>
 </div>
