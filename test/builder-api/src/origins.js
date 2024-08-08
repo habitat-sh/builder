@@ -344,7 +344,7 @@ describe("Related Origin API functions", function () {
         .set("Authorization", global.mystiqueBearer)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be not.empty;
+          expect(res.text).to.be.not.empty;
           done(err);
         });
     });
@@ -649,7 +649,7 @@ describe("Related Origin API functions", function () {
           .set("Authorization", global.boboBearer)
           .expect(204)
           .end(function (err, res) {
-            expect(res.text). to.be empty;
+            expect(res.text). to.be.empty;
             done(err);
           });
       });
