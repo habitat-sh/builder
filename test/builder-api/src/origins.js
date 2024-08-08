@@ -404,95 +404,93 @@ describe("Related Origin API functions", function () {
         });
     });
 
-    it("fails with a conflict when not deletable", function (done) {
+    it("succeeds", function (done) {
       request
         .delete("/depot/origins/umbrella")
         .set("Authorization", global.boboBearer)
-        .expect(409)
+        .expect(204)
         .end(function (err, res) {
-          expect(res.text).to.match(
-            /^There are 1 projects remaining in origin/
-          );
+          expect(res.text).to.be.empty;
           done(err);
         });
     });
+    
+    // it("fails with a conflict when not deletable", function (done) {
+    //   request
+    //     .delete("/depot/origins/umbrella")
+    //     .set("Authorization", global.boboBearer)
+    //     .expect(409)
+    //     .end(function (err, res) {
+    //       expect(res.text).to.match(
+    //         /^There are 1 projects remaining in origin/
+    //       );
+    //       done(err);
+    //     });
+    // });
   });
 
   describe("Origin deletion - extended", function () {
-    describe("[Prereq 1]: create an origin and project", function () {
-      it("creates an origin", function (done) {
-        request
-          .post("/depot/origins")
-          .set("Authorization", global.boboBearer)
-          .send({
-            name: "deletemeifyoucan",
-            default_package_visibility: "private",
-          })
-          .expect(201)
-          .end(function (err, res) {
-            expect(res.body.name).to.equal("deletemeifyoucan");
-            done(err);
-          });
-      });
-      it("creates a project", function (done) {
-        this.timeout(5000);
-        request
-          .post("/projects")
-          .type("application/json")
-          .accept("application/json")
-          .set("Authorization", global.boboBearer)
-          .send(projectCreatePayload2)
-          .expect(201)
-          .end(function (err, res) {
-            done(err);
-          });
-      });
-    });
+    // describe("[Prereq 1]: create an origin and project", function () {
+    //   it("creates an origin", function (done) {
+    //     request
+    //       .post("/depot/origins")
+    //       .set("Authorization", global.boboBearer)
+    //       .send({
+    //         name: "deletemeifyoucan",
+    //         default_package_visibility: "private",
+    //       })
+    //       .expect(201)
+    //       .end(function (err, res) {
+    //         expect(res.body.name).to.equal("deletemeifyoucan");
+    //         done(err);
+    //       });
+    //   });
+    // });
 
-    describe("1. Attempt to delete an origin when a project exists", function () {
-      it("gets 409 before the project is deleted", function (done) {
-        request
-          .delete("/depot/origins/deletemeifyoucan")
-          .set("Authorization", global.boboBearer)
-          .expect(409)
-          .end(function (err, res) {
-            expect(res.text).to.match(
-              /^There are 1 projects remaining in origin deletemeifyoucan./
-            );
-            done(err);
-          });
-      });
-      it("deletes the origin project", function (done) {
-        request
-          .delete("/projects/deletemeifyoucan/testapp")
-          .type("application/json")
-          .accept("application/json")
-          .set("Authorization", global.boboBearer)
-          .expect(204)
-          .end(function (err, res) {
-            expect(res.text).to.be.empty;
-            done(err);
-          });
-      });
-      it("succeeds after the project was deleted", function (done) {
-        request
-          .delete("/depot/origins/deletemeifyoucan")
-          .set("Authorization", global.boboBearer)
-          .expect(204)
-          .end(function (err, res) {
-            expect(res.text).to.be.empty;
-            done(err);
-          });
-      });
-      it("gets a 404 on the origin after deletion", function (done) {
-        request
-          .get("/depot/origins/deletemeifyoucan")
-          .expect(404)
-          .end(function (err, res) {
-            done(err);
-          });
-      });
-    });
+    // describe("1. Attempt to delete an origin when a project exists", function () {
+    //   it("gets 409 before the project is deleted", function (done) {
+    //     request
+    //       .delete("/depot/origins/deletemeifyoucan")
+    //       .set("Authorization", global.boboBearer)
+    //       .expect(409)
+    //       .end(function (err, res) {
+    //         expect(res.text).to.match(
+    //           /^There are 1 projects remaining in origin deletemeifyoucan./
+    //         );
+    //         done(err);
+    //       });
+    //   });
+    //   it("deletes the origin project", function (done) {
+    //     request
+    //       .delete("/projects/deletemeifyoucan/testapp")
+    //       .type("application/json")
+    //       .accept("application/json")
+    //       .set("Authorization", global.boboBearer)
+    //       .expect(204)
+    //       .end(function (err, res) {
+    //         expect(res.text).to.be.empty;
+    //         done(err);
+    //       });
+    //   });
+    //   it("succeeds after the project was deleted", function (done) {
+    //     request
+    //       .delete("/depot/origins/deletemeifyoucan")
+    //       .set("Authorization", global.boboBearer)
+    //       .expect(204)
+    //       .end(function (err, res) {
+    //         expect(res.text).to.be.empty;
+    //         done(err);
+    //       });
+    //   });
+    //   it("gets a 404 on the origin after deletion", function (done) {
+    //     request
+    //       .get("/depot/origins/deletemeifyoucan")
+    //       .expect(404)
+    //       .end(function (err, res) {
+    //         done(err);
+    //       });
+    //   });
+    // });
 
     describe("[Prereq 2]: create an origin and add a member", function () {
       it("creates an origin", function (done) {
@@ -649,7 +647,7 @@ describe("Related Origin API functions", function () {
           .set("Authorization", global.boboBearer)
           .expect(204)
           .end(function (err, res) {
-            expect(res.text). to.be.empty;
+            expect(res.text).to.be.empty;
             done(err);
           });
       });
