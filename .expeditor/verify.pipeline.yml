@@ -206,4 +206,7 @@ steps:
             - HAB_ORIGIN=habitat
             - HAB_INTERNAL_BLDR_CHANNEL=LTS-2024
             - HAB_BLDR_CHANNEL=LTS-2024
-            - HAB_FALLBACK_CHANNEL=LTS-2024
+            # TODO : This needs to be moved to LTS-2024 as well in future. Right now
+            # This is done because some of our `hab` packages like `hab-studio` are
+            # not available on `LTS-2024` yet.
+            - HAB_FALLBACK_CHANNEL=stable
