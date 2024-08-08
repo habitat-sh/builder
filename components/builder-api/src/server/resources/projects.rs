@@ -78,8 +78,7 @@ impl Projects {
     // Route registration
     //
     pub fn register(cfg: &mut ServiceConfig) {
-        cfg
-           .route("/projects/{origin}", web::get().to(get_projects))
+        cfg.route("/projects/{origin}", web::get().to(get_projects))
            .route("/projects/{origin}/{name}", web::get().to(get_project))
            .route("/projects/{origin}/{name}/jobs", web::get().to(get_jobs))
            .route("/projects/{origin}/{name}/integrations/{integration}/default",
